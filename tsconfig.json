@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "module": "commonjs",
+        "target": "es2020",
+        "jsx": "react",
+        "allowJs": true,
+        "baseUrl": ".",
+        "esModuleInterop": true,
+        "types": ["node", "jest"]
+    }
+}

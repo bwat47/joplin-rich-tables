@@ -1,0 +1,63 @@
+{
+    "name": "joplin-plugin-rich-tables",
+    "version": "1.0.0",
+    "scripts": {
+        "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
+        "prepare": "npm run dist",
+        "updateVersion": "webpack --env joplin-plugin-config=updateVersion",
+        "update": "npm install -g generator-joplin && yo joplin --node-package-manager npm --update --force",
+        "lint": "eslint --ext .ts src/",
+        "lint:fix": "eslint --ext .ts src/ --fix",
+        "format": "prettier --write \"src/**/*.ts\"",
+        "test": "jest --passWithNoTests",
+        "test:watch": "jest --watch"
+    },
+    "license": "MIT",
+    "keywords": [
+        "joplin-plugin"
+    ],
+    "files": [
+        "publish"
+    ],
+    "devDependencies": {
+        "@types/node": "^18.7.13",
+        "chalk": "^4.1.0",
+        "copy-webpack-plugin": "^11.0.0",
+        "fs-extra": "^10.1.0",
+        "glob": "^8.0.3",
+        "tar": "^6.1.11",
+        "ts-loader": "^9.3.1",
+        "typescript": "^4.8.2",
+        "webpack": "^5.74.0",
+        "webpack-cli": "^4.10.0"
+    },
+    "dependencies": {
+        "@codemirror/language": "^6.11.3",
+        "@codemirror/state": "^6.5.2",
+        "@codemirror/view": "^6.38.8",
+        "@types/markdown-it": "^14.1.2",
+        "@eslint/eslintrc": "^3.3.1",
+        "@eslint/js": "^9.39.1",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^24.10.0",
+        "@typescript-eslint/eslint-plugin": "^8.46.3",
+        "@typescript-eslint/parser": "^8.46.3",
+        "chalk": "^4.1.0",
+        "copy-webpack-plugin": "^13.0.1",
+        "eslint": "^9.39.1",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-import": "^2.32.0",
+        "eslint-plugin-prettier": "^5.5.4",
+        "fs-extra": "^10.1.0",
+        "glob": "^8.0.3",
+        "jest": "^30.2.0",
+        "markdown-it": "^14.1.0",
+        "prettier": "^3.6.2",
+        "tar": "^6.1.11",
+        "ts-jest": "^29.4.5",
+        "ts-loader": "^9.3.1",
+        "typescript": "^5.9.3",
+        "webpack": "^5.102.1",
+        "webpack-cli": "^6.0.1"
+    }
+}

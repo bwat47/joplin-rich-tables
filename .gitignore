@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+publish/
+*.log
+.DS_Store
+.env
+.vscode/
+*:Zone.Identifier
+*.patch
+*.diff
+gemini/
+prompts/
+.claude/settings.local.json
