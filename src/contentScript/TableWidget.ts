@@ -119,7 +119,8 @@ export class TableWidget extends WidgetType {
     }
 
     ignoreEvent(): boolean {
-        // Allow events to pass through for future interactivity
+        // Let CodeMirror handle interactions so clicking the widget can move
+        // the cursor into the underlying table and reveal raw markdown.
         return false;
     }
 }

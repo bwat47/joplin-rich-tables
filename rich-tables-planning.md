@@ -1,8 +1,10 @@
-# Visual Tables Plugin - Architecture & Planning
+# Rich tables plugin documentation
 
 ## Overview
 
-A Joplin plugin that provides a rich table editor in Joplin's CodeMirror 6 markdown editor using a **Block Replacement Widget** strategy combined with a **Restricted Subview** pattern for cell editing.
+A Joplin plugin that renders Markdown tables as rich HTML tables in Joplin's CodeMirror 6 markdown editor using a **Block Replacement Widget** strategy.
+
+Editing is intentionally kept simple: when the cursor/selection is inside a table, the widget is not shown and the raw Markdown table is revealed for editing.
 
 ---
 
@@ -26,6 +28,11 @@ The editor does **not** attempt to style Markdown tables in-place. Instead, it c
 - Tables with cursor inside are NOT replaced - raw markdown shown for editing
 - Moving cursor out triggers widget re-render
 
+**Current implementation notes**
+
+- Content script extension: `src/contentScript/tableWidgetExtension.ts`
+- Table parsing/rendering: `src/contentScript/TableWidget.ts`
+
 ### 2. Visual Layer (✅ Implemented)
 
 The `TableWidget` class renders the interactive table UI.
@@ -46,7 +53,11 @@ The `TableWidget` class renders the interactive table UI.
 - Light and dark theme support via `EditorView.baseTheme`
 - Margins stripped from rendered markdown elements
 
-### 3. Editing (TBD)
+### 3. Editing Model (✅ Implemented)
+
+- No in-widget editing: the table widget is display-only.
+- To edit, place the cursor/selection within the table range to reveal the raw Markdown table.
+- When the cursor/selection leaves the table, the widget replaces the table again.
 
 ## References
 

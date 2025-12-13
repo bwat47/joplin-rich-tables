@@ -25,8 +25,7 @@ interface EditorControl {
 }
 
 /**
- * Find table ranges in the document using the syntax tree
- * Falls back to regex-based detection if syntax tree doesn't have Table nodes
+ * Find table ranges in the document using the syntax tree.
  */
 function findTableRanges(state: EditorState): Array<{ from: number; to: number; text: string }> {
     const tables: Array<{ from: number; to: number; text: string }> = [];
@@ -50,7 +49,7 @@ function findTableRanges(state: EditorState): Array<{ from: number; to: number; 
 }
 
 /**
- * Check if cursor is inside a given range
+ * Check if cursor/selection overlaps a given range.
  */
 function cursorInRange(state: EditorState, from: number, to: number): boolean {
     const selection = state.selection;
@@ -63,8 +62,8 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
 }
 
 /**
- * Build decorations for all tables in the document
- * Tables with cursor inside are not decorated (allows editing raw markdown)
+ * Build decorations for all tables in the document.
+ * Tables with cursor inside are not decorated (raw markdown is shown for editing).
  */
 function buildTableDecorations(state: EditorState): DecorationSet {
     const decorations: Range<Decoration>[] = [];
@@ -94,8 +93,8 @@ function buildTableDecorations(state: EditorState): DecorationSet {
 }
 
 /**
- * StateField that manages table widget decorations
- * Block decorations MUST be provided via StateField, not ViewPlugin
+ * StateField that manages table widget decorations.
+ * Block decorations MUST be provided via StateField, not ViewPlugin.
  */
 const tableDecorationField = StateField.define<DecorationSet>({
     create(state) {
@@ -113,7 +112,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
 });
 
 /**
- * Basic styles for the table widget
+ * Basic styles for the table widget.
  */
 const tableStyles = EditorView.baseTheme({
     '.cm-table-widget': {
@@ -181,7 +180,7 @@ const tableStyles = EditorView.baseTheme({
 });
 
 /**
- * Content script module export
+ * Content script module export.
  */
 export default function (context: ContentScriptContext) {
     console.info(PLUGIN_PREFIX, 'Content script loaded');
@@ -191,7 +190,7 @@ export default function (context: ContentScriptContext) {
 
     return {
         plugin: (editorControl: EditorControl) => {
-            console.info(PLUGIN_PREFIX, 'Registering table editor extension');
+            console.info(PLUGIN_PREFIX, 'Registering table widget extension');
 
             // Check for CM6
             if (!editorControl.cm6) {
@@ -202,7 +201,7 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             editorControl.addExtension([tableDecorationField, tableStyles]);
 
-            console.info(PLUGIN_PREFIX, 'Table editor extension registered');
+            console.info(PLUGIN_PREFIX, 'Table widget extension registered');
         },
     };
 }

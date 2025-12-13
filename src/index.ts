@@ -2,7 +2,7 @@ import joplin from 'api';
 import { ContentScriptType } from 'api/types';
 import { logger } from './logger';
 
-const CONTENT_SCRIPT_ID = 'rich-tables-editor';
+const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 
 // Joplin's internal MarkupLanguage enum values
 const MarkupLanguage = {
@@ -24,7 +24,7 @@ joplin.plugins.register({
         await joplin.contentScripts.register(
             ContentScriptType.CodeMirrorPlugin,
             CONTENT_SCRIPT_ID,
-            './contentScript/tableEditor.js'
+            './contentScript/tableWidgetExtension.js'
         );
 
         // Handle messages from content script
