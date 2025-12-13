@@ -90,10 +90,7 @@ export async function renderMarkdown(markdown: string): Promise<string> {
  * Render markdown and call callback when done (for use in widget toDOM)
  * This is useful when you can't await in synchronous code
  */
-export function renderMarkdownAsync(
-    markdown: string,
-    callback: (html: string) => void
-): void {
+export function renderMarkdownAsync(markdown: string, callback: (html: string) => void): void {
     const cached = renderCache.get(markdown);
     if (cached !== undefined) {
         callback(cached);

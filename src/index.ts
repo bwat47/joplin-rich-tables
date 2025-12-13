@@ -28,39 +28,36 @@ joplin.plugins.register({
         );
 
         // Handle messages from content script
-        await joplin.contentScripts.onMessage(
-            CONTENT_SCRIPT_ID,
-            async (message: unknown) => {
-                if (
-                    typeof message === 'object' &&
-                    message !== null &&
-                    'type' in message &&
-                    (message as { type: string }).type === 'renderMarkup'
-                ) {
-                    const { markdown, id } = message as RenderMarkupMessage;
-                    try {
-                        const result = await joplin.commands.execute(
-                            'renderMarkup',
-                            MarkupLanguage.Markdown,
-                            markdown,
-                            null, // rendererOptions (unused)
-                            { bodyOnly: true } // renderOptions - prevents wrapping in rendered-md div
-                        );
-                        // renderMarkup returns { html: string } or just a string
-                        const html =
-                            typeof result === 'object' && result !== null && 'html' in result
-                                ? (result as { html: string }).html
-                                : String(result);
-                        logger.debug('Rendered markup:', { markdown, html });
-                        return { id, html };
-                    } catch (error) {
-                        logger.error('Failed to render markup:', error);
-                        return { id, html: markdown, error: true };
-                    }
+        await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, async (message: unknown) => {
+            if (
+                typeof message === 'object' &&
+                message !== null &&
+                'type' in message &&
+                (message as { type: string }).type === 'renderMarkup'
+            ) {
+                const { markdown, id } = message as RenderMarkupMessage;
+                try {
+                    const result = await joplin.commands.execute(
+                        'renderMarkup',
+                        MarkupLanguage.Markdown,
+                        markdown,
+                        null, // rendererOptions (unused)
+                        { bodyOnly: true } // renderOptions - prevents wrapping in rendered-md div
+                    );
+                    // renderMarkup returns { html: string } or just a string
+                    const html =
+                        typeof result === 'object' && result !== null && 'html' in result
+                            ? (result as { html: string }).html
+                            : String(result);
+                    logger.debug('Rendered markup:', { markdown, html });
+                    return { id, html };
+                } catch (error) {
+                    logger.error('Failed to render markup:', error);
+                    return { id, html: markdown, error: true };
                 }
-                return null;
             }
-        );
+            return null;
+        });
 
         logger.info('Rich Tables plugin started');
     },
