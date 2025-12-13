@@ -43,10 +43,8 @@ joplin.plugins.register({
                             'renderMarkup',
                             MarkupLanguage.Markdown,
                             markdown,
-                            {
-                                // Render inline only (no wrapping <p> tags for single lines)
-                                plainResourceRendering: true,
-                            }
+                            null, // rendererOptions (unused)
+                            { bodyOnly: true } // renderOptions - prevents wrapping in rendered-md div
                         );
                         // renderMarkup returns { html: string } or just a string
                         const html =

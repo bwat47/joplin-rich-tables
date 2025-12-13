@@ -175,6 +175,16 @@ const tableStyles = EditorView.baseTheme({
         border: '1px solid #ddd',
         padding: '8px 12px',
     },
+    // Remove margins from rendered markdown elements inside cells
+    '.cm-table-widget-table th p, .cm-table-widget-table td p': {
+        margin: '0',
+    },
+    '.cm-table-widget-table th :first-child, .cm-table-widget-table td :first-child': {
+        marginTop: '0',
+    },
+    '.cm-table-widget-table th :last-child, .cm-table-widget-table td :last-child': {
+        marginBottom: '0',
+    },
     '.cm-table-widget-table th': {
         backgroundColor: '#f5f5f5',
         fontWeight: 'bold',
