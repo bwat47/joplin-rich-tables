@@ -1,5 +1,5 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget, parseMarkdownTable } from './TableWidget';
 import { initRenderer } from './markdownRenderer';
@@ -34,15 +34,20 @@ function findTableRanges(state: EditorState): Array<{ from: number; to: number; 
 
     // Try syntax tree first
     let foundInTree = false;
-    syntaxTree(state).iterate({
-        enter: (node) => {
-            if (node.name === 'Table') {
-                foundInTree = true;
-                const text = doc.sliceString(node.from, node.to);
-                tables.push({ from: node.from, to: node.to, text });
-            }
-        },
-    });
+    // Use ensureSyntaxTree to attempt getting a complete tree (100ms timeout)
+    const tree = ensureSyntaxTree(state, state.doc.length, 100);
+
+    if (tree) {
+        tree.iterate({
+            enter: (node) => {
+                if (node.name === 'Table') {
+                    foundInTree = true;
+                    const text = doc.sliceString(node.from, node.to);
+                    tables.push({ from: node.from, to: node.to, text });
+                }
+            },
+        });
+    }
 
     if (foundInTree) {
         return tables;
