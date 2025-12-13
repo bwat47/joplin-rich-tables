@@ -174,6 +174,7 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-widget-table th, .cm-table-widget-table td': {
         border: '1px solid #ddd',
         padding: '8px 12px',
+        minWidth: '100px',
     },
     // Remove margins from rendered markdown elements inside cells
     '.cm-table-widget-table th p, .cm-table-widget-table td p': {
