@@ -185,6 +185,14 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-widget-table th :last-child, .cm-table-widget-table td :last-child': {
         marginBottom: '0',
     },
+    // Inline code styling
+    '.cm-table-widget-table code': {
+        backgroundColor: 'rgba(0, 0, 0, 0.06)',
+        padding: '2px 4px',
+        borderRadius: '3px',
+        fontFamily: 'monospace',
+        fontSize: '0.9em',
+    },
     '.cm-table-widget-table th': {
         backgroundColor: '#f5f5f5',
         fontWeight: 'bold',
@@ -201,6 +209,9 @@ const tableStyles = EditorView.baseTheme({
     },
     '&dark .cm-table-widget-table tr:hover': {
         backgroundColor: '#2a2a2a',
+    },
+    '&dark .cm-table-widget-table code': {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
 });
 
