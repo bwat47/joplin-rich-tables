@@ -1,10 +1,10 @@
 ## Project Documentation
 
-visual-tables-planning.md
+rich-tables-planning.md
 
 - Current implementation status and project plan
 
-visual-tables-documentation.md (will be created later)
+rich-tables-documentation.md (will be created later)
 
 - Internal documentation about project architecture, intended for LLMs to reference for context
 - Keep up to date with architecture changes when applicable
