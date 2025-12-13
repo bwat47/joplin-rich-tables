@@ -33,6 +33,11 @@ export default [
             // Turn off rules TypeScript handles (prevents NodeJS / type-only false positives)
             'no-undef': 'off',
             ...tsPlugin.configs.recommended.rules,
+            // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+            ],
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
             'no-useless-escape': 'off',
