@@ -15,7 +15,6 @@ The editor does **not** attempt to style Markdown tables in-place. Instead, it c
 **Detection**
 
 - Document is scanned for table-related AST nodes via Lezer syntax tree
-- Falls back to regex-based detection if syntax tree doesn't have Table nodes
 
 **Replacement**
 
