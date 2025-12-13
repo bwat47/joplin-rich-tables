@@ -32,8 +32,6 @@ function findTableRanges(state: EditorState): Array<{ from: number; to: number; 
     const tables: Array<{ from: number; to: number; text: string }> = [];
     const doc = state.doc;
 
-    // Try syntax tree first
-    let foundInTree = false;
     // Use ensureSyntaxTree to attempt getting a complete tree (100ms timeout)
     const tree = ensureSyntaxTree(state, state.doc.length, 100);
 
@@ -41,60 +39,11 @@ function findTableRanges(state: EditorState): Array<{ from: number; to: number; 
         tree.iterate({
             enter: (node) => {
                 if (node.name === 'Table') {
-                    foundInTree = true;
                     const text = doc.sliceString(node.from, node.to);
                     tables.push({ from: node.from, to: node.to, text });
                 }
             },
         });
-    }
-
-    if (foundInTree) {
-        return tables;
-    }
-
-    // Fallback: regex-based table detection
-    // Match lines that look like table rows (contain |)
-    const text = doc.toString();
-    const lines = text.split('\n');
-    let tableStart: number | null = null;
-    let tableEnd: number | null = null;
-    let currentPos = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const lineStart = currentPos;
-        const lineEnd = currentPos + line.length;
-
-        const isTableLine = line.includes('|') && line.trim().length > 0;
-
-        if (isTableLine) {
-            if (tableStart === null) {
-                tableStart = lineStart;
-            }
-            tableEnd = lineEnd;
-        } else {
-            // End of table block
-            if (tableStart !== null && tableEnd !== null) {
-                const tableText = text.slice(tableStart, tableEnd);
-                // Validate it's actually a table (has separator row)
-                if (parseMarkdownTable(tableText)) {
-                    tables.push({ from: tableStart, to: tableEnd, text: tableText });
-                }
-            }
-            tableStart = null;
-            tableEnd = null;
-        }
-
-        currentPos = lineEnd + 1; // +1 for newline
-    }
-
-    // Handle table at end of document
-    if (tableStart !== null && tableEnd !== null) {
-        const tableText = text.slice(tableStart, tableEnd);
-        if (parseMarkdownTable(tableText)) {
-            tables.push({ from: tableStart, to: tableEnd, text: tableText });
-        }
     }
 
     return tables;
