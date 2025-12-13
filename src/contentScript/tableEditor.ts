@@ -194,6 +194,12 @@ const tableStyles = EditorView.baseTheme({
         fontFamily: 'monospace',
         fontSize: '0.9em',
     },
+    // Highlight/mark styling (==text==)
+    '.cm-table-widget-table mark': {
+        backgroundColor: '#EED47B',
+        color: '#000000',
+        padding: '1px 2px',
+    },
     '.cm-table-widget-table th': {
         backgroundColor: '#f5f5f5',
         fontWeight: 'bold',
