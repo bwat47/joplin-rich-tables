@@ -2,6 +2,7 @@ import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget, parseMarkdownTable } from './TableWidget';
+import { initRenderer } from './markdownRenderer';
 
 const PLUGIN_PREFIX = '[RichTables]';
 
@@ -196,8 +197,11 @@ const tableStyles = EditorView.baseTheme({
 /**
  * Content script module export
  */
-export default function (_context: ContentScriptContext) {
+export default function (context: ContentScriptContext) {
     console.info(PLUGIN_PREFIX, 'Content script loaded');
+
+    // Initialize the markdown renderer with postMessage function
+    initRenderer(context.postMessage);
 
     return {
         plugin: (editorControl: EditorControl) => {

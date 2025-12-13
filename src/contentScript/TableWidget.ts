@@ -1,4 +1,5 @@
 import { WidgetType, EditorView } from '@codemirror/view';
+import { getCached, renderMarkdownAsync } from './markdownRenderer';
 
 /**
  * Represents a parsed markdown table structure
@@ -11,6 +12,7 @@ export interface TableData {
 
 /**
  * Widget that renders a markdown table as an interactive HTML table
+ * Supports rendering markdown content inside cells
  */
 export class TableWidget extends WidgetType {
     constructor(
@@ -36,7 +38,8 @@ export class TableWidget extends WidgetType {
         const headerRow = document.createElement('tr');
         for (let i = 0; i < this.tableData.headers.length; i++) {
             const th = document.createElement('th');
-            th.textContent = this.tableData.headers[i].trim();
+            const content = this.tableData.headers[i].trim();
+            this.renderCellContent(th, content);
             const align = this.tableData.alignments[i];
             if (align) {
                 th.style.textAlign = align;
@@ -52,7 +55,8 @@ export class TableWidget extends WidgetType {
             const tr = document.createElement('tr');
             for (let i = 0; i < row.length; i++) {
                 const td = document.createElement('td');
-                td.textContent = row[i].trim();
+                const content = row[i].trim();
+                this.renderCellContent(td, content);
                 const align = this.tableData.alignments[i];
                 if (align) {
                     td.style.textAlign = align;
@@ -65,6 +69,52 @@ export class TableWidget extends WidgetType {
 
         container.appendChild(table);
         return container;
+    }
+
+    /**
+     * Render cell content with markdown support
+     * Uses cached HTML if available, otherwise shows text and updates async
+     */
+    private renderCellContent(cell: HTMLElement, markdown: string): void {
+        // Check if we have cached rendered HTML
+        const cached = getCached(markdown);
+        if (cached !== undefined) {
+            cell.innerHTML = cached;
+            return;
+        }
+
+        // Show raw text initially
+        cell.textContent = markdown;
+
+        // Check if content likely contains markdown (optimization)
+        if (this.containsMarkdown(markdown)) {
+            // Request async rendering and update when ready
+            renderMarkdownAsync(markdown, (html) => {
+                // Only update if the cell is still in the DOM and content hasn't changed
+                if (cell.isConnected && cell.textContent === markdown) {
+                    cell.innerHTML = html;
+                }
+            });
+        }
+    }
+
+    /**
+     * Quick check if content likely contains markdown formatting
+     * Avoids unnecessary render requests for plain text
+     */
+    private containsMarkdown(text: string): boolean {
+        // Common markdown patterns
+        return (
+            text.includes('**') || // bold
+            text.includes('__') || // bold
+            text.includes('*') || // italic (single asterisk)
+            text.includes('_') || // italic (single underscore)
+            text.includes('`') || // code
+            text.includes('[') || // links
+            text.includes('~~') || // strikethrough
+            text.includes('![') || // images
+            text.includes('<') // HTML tags
+        );
     }
 
     ignoreEvent(): boolean {
