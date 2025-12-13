@@ -200,6 +200,10 @@ const tableStyles = EditorView.baseTheme({
         color: '#000000',
         padding: '1px 2px',
     },
+    // Link styling
+    '.cm-table-widget-table a': {
+        textDecoration: 'underline',
+    },
     '.cm-table-widget-table th': {
         backgroundColor: '#f5f5f5',
         fontWeight: 'bold',
