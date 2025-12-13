@@ -113,7 +113,8 @@ export class TableWidget extends WidgetType {
             text.includes('[') || // links
             text.includes('~~') || // strikethrough
             text.includes('![') || // images
-            text.includes('<') // HTML tags
+            text.includes('<') || // HTML tags
+            text.includes('==') // Highlights
         );
     }
 
