@@ -9,8 +9,10 @@ import {
     Transaction,
 } from '@codemirror/state';
 
+/** Annotation used to mark transactions synchronization transactions to prevent loops. */
 export const syncAnnotation = Annotation.define<boolean>();
 
+/** Tracks the current start/end positions of the active cell in the document. */
 export interface SubviewCellRange {
     from: number;
     to: number;
@@ -18,6 +20,7 @@ export interface SubviewCellRange {
 
 export const setSubviewCellRangeEffect = StateEffect.define<SubviewCellRange>();
 
+/** Creates a StateField that tracks the cell range, mapping it through document changes. */
 export function createSubviewCellRangeField(initial: SubviewCellRange): StateField<SubviewCellRange> {
     return StateField.define<SubviewCellRange>({
         create() {
@@ -41,6 +44,7 @@ export function createSubviewCellRangeField(initial: SubviewCellRange): StateFie
     });
 }
 
+/** Escapes any pipe characters in the text that aren't already escaped. */
 export function escapeUnescapedPipes(text: string): string {
     // Escape any '|' that is not already escaped as '\|'.
     // This is intentionally simple and operates on the inserted text only.
@@ -61,10 +65,15 @@ export function escapeUnescapedPipes(text: string): string {
     return result;
 }
 
+/** Clamps a value between min and max. */
 export function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
 }
 
+/**
+ * Creates a transaction filter that enforces cell boundaries and table syntax.
+ * Rejects newlines and escapes unescaped pipes.
+ */
 export function createCellTransactionFilter(rangeField: StateField<SubviewCellRange>): Extension {
     return EditorState.transactionFilter.of((tr) => {
         if (!tr.docChanged && !tr.selection) {
@@ -139,6 +148,7 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
     });
 }
 
+/** Creates an extension that disables history for local transactions (history is managed by main editor). */
 export function createHistoryExtender(): Extension {
     return EditorState.transactionExtender.of((tr) => {
         // Ensure local transactions don't build history. Main editor owns history.

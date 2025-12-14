@@ -14,6 +14,7 @@ class HiddenWidget extends WidgetType {
     }
 }
 
+/** Creates a decoration extension that hides all content outside the active cell range. */
 export function createHideOutsideRangeExtension(rangeField: StateField<SubviewCellRange>) {
     const hiddenWidget = new HiddenWidget();
 
@@ -42,6 +43,7 @@ export function createHideOutsideRangeExtension(rangeField: StateField<SubviewCe
     });
 }
 
+/** Ensures the cell element has the required structure (content div and editor host div). */
 export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; editorHost: HTMLElement } {
     let content = cell.querySelector(':scope > .cm-table-cell-content') as HTMLElement | null;
     if (!content) {

@@ -13,6 +13,7 @@ import { createNestedEditorDomHandlers } from './nestedEditor/domHandlers';
 
 export { syncAnnotation };
 
+/** Manages the lifecycle and state of the nested CodeMirror instance for cell editing. */
 class NestedCellEditorManager {
     private subview: EditorView | null = null;
     private contentEl: HTMLElement | null = null;
@@ -195,6 +196,7 @@ class NestedCellEditorManager {
 
 const nestedCellEditorManager = new NestedCellEditorManager();
 
+/** Opens a nested editor for the specified cell. */
 export function openNestedCellEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
@@ -204,14 +206,17 @@ export function openNestedCellEditor(params: {
     nestedCellEditorManager.open(params);
 }
 
+/** Closes the currently open nested editor, if any. */
 export function closeNestedCellEditor(): void {
     nestedCellEditorManager.close();
 }
 
+/** Checks if a nested editor is currently open. */
 export function isNestedCellEditorOpen(): boolean {
     return nestedCellEditorManager.isOpen();
 }
 
+/** Forwards transactions from the main editor to the nested editor to keep them in sync. */
 export function applyMainTransactionsToNestedEditor(params: {
     transactions: readonly Transaction[];
     cellFrom: number;

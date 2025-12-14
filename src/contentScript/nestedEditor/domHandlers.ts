@@ -2,6 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { Transaction } from '@codemirror/state';
 
+/** Creates DOM event handlers for the nested editor (keydown, contextmenu). */
 export function createNestedEditorDomHandlers(mainView: EditorView) {
     return EditorView.domEventHandlers({
         keydown: (e) => {
