@@ -1,8 +1,9 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
+import type { EditorView } from '@codemirror/view';
 import { computeMarkdownTableCellRanges, type TableCellRanges, type CellRange } from './markdownTableCellRanges';
-import type { ActiveCellSection } from './activeCellState';
+import { getActiveCell, type ActiveCellSection } from './activeCellState';
 
 export interface ResolvedTable {
     from: number;
@@ -67,6 +68,53 @@ export function findTableRanges(
     });
 
     return tables;
+}
+
+/**
+ * Resolve a table from an event target, using a best-effort set of fallbacks.
+ *
+ * Order:
+ * 1) DOM -> doc position via `view.posAtDOM`
+ * 2) Active cell fallback (when nested editor is open)
+ * 3) Widget container dataset fallback (tableFrom/tableTo)
+ */
+export function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
+    // Best case: map DOM->doc position.
+    try {
+        const pos = view.posAtDOM(target, 0);
+        const resolved = resolveTableAtPos(view.state, pos);
+        if (resolved) {
+            return resolved;
+        }
+    } catch {
+        // Some DOM nodes inside replacement widgets can fail `posAtDOM`.
+    }
+
+    // Fallback: when a nested cell editor is open, activeCell is mapped through changes and
+    // provides a stable in-doc position.
+    const activeCell = getActiveCell(view.state);
+    if (activeCell) {
+        const resolved = resolveTableAtPos(view.state, activeCell.cellFrom);
+        if (resolved) {
+            return resolved;
+        }
+    }
+
+    // Last fallback: if the widget provides table bounds on its container.
+    const container = target.closest('.cm-table-widget') as HTMLElement | null;
+    if (container) {
+        const tableFrom = Number(container.dataset.tableFrom);
+        const tableTo = Number(container.dataset.tableTo);
+        if (Number.isFinite(tableFrom) && Number.isFinite(tableTo) && tableFrom >= 0 && tableTo >= tableFrom) {
+            return {
+                from: tableFrom,
+                to: tableTo,
+                text: view.state.doc.sliceString(tableFrom, tableTo),
+            };
+        }
+    }
+
+    return null;
 }
 
 export function getTableCellRanges(tableText: string): TableCellRanges | null {

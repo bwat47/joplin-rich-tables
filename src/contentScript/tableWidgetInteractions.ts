@@ -1,53 +1,8 @@
 import type { EditorView } from '@codemirror/view';
-import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
+import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from './nestedCellEditor';
 import { openLink } from './markdownRenderer';
-import { getTableCellRanges, resolveCellDocRange, resolveTableAtPos } from './tablePositioning';
-
-interface ResolvedTable {
-    from: number;
-    to: number;
-    text: string;
-}
-
-function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
-    // Best case: map DOM->doc position.
-    try {
-        const pos = view.posAtDOM(target, 0);
-        const resolved = resolveTableAtPos(view.state, pos);
-        if (resolved) {
-            return resolved;
-        }
-    } catch {
-        // Some DOM nodes inside replacement widgets can fail `posAtDOM`.
-    }
-
-    // Fallback: when a nested cell editor is open, activeCell is mapped through changes and
-    // provides a stable in-doc position.
-    const activeCell = getActiveCell(view.state);
-    if (activeCell) {
-        const resolved = resolveTableAtPos(view.state, activeCell.cellFrom);
-        if (resolved) {
-            return resolved;
-        }
-    }
-
-    // Last fallback: if the widget provides table bounds on its container.
-    const container = target.closest('.cm-table-widget') as HTMLElement | null;
-    if (container) {
-        const tableFrom = Number(container.dataset.tableFrom);
-        const tableTo = Number(container.dataset.tableTo);
-        if (Number.isFinite(tableFrom) && Number.isFinite(tableTo) && tableFrom >= 0 && tableTo >= tableFrom) {
-            return {
-                from: tableFrom,
-                to: tableTo,
-                text: view.state.doc.sliceString(tableFrom, tableTo),
-            };
-        }
-    }
-
-    return null;
-}
+import { getTableCellRanges, resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
 
 function tryHandleLinkClick(target: HTMLElement): boolean {
     const link = target.closest('a');
