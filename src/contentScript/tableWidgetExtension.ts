@@ -1,9 +1,10 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
-import { TableWidget, parseMarkdownTable } from './TableWidget';
+import { TableWidget, computeMarkdownTableCellRanges, parseMarkdownTable } from './TableWidget';
 import { initRenderer } from './markdownRenderer';
 import { logger } from '../logger';
+import { activeCellField } from './activeCellState';
 
 /**
  * Content script context provided by Joplin
@@ -79,7 +80,8 @@ function buildTableDecorations(state: EditorState): DecorationSet {
             continue;
         }
 
-        const widget = new TableWidget(tableData, table.text, table.from);
+        const cellRanges = computeMarkdownTableCellRanges(table.text);
+        const widget = new TableWidget(tableData, table.text, table.from, table.to, cellRanges);
         const decoration = Decoration.replace({
             widget,
             block: true,
@@ -220,7 +222,7 @@ export default function (context: ContentScriptContext) {
             }
 
             // Register the extension
-            editorControl.addExtension([tableDecorationField, tableStyles]);
+            editorControl.addExtension([activeCellField, tableDecorationField, tableStyles]);
 
             logger.info('Table widget extension registered');
         },
