@@ -277,6 +277,28 @@ class NestedCellEditorManager {
                 forwardChangesToMain,
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
+                EditorView.domEventHandlers({
+                    keydown: (e) => {
+                        // Block modifier key combinations from bubbling to Joplin.
+                        // Allow Ctrl+A/C/V/X/Z/Y which work correctly via browser/CodeMirror.
+                        const isMod = e.ctrlKey || e.metaKey;
+                        if (isMod) {
+                            const allowedKeys = ['a', 'c', 'v', 'x', 'z', 'y'];
+                            if (!allowedKeys.includes(e.key.toLowerCase())) {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                return true;
+                            }
+                        }
+                        return false;
+                    },
+                    contextmenu: (e) => {
+                        // Prevent Joplin's context menu.
+                        e.stopPropagation();
+                        // Don't preventDefault - allow browser's native menu.
+                        return false;
+                    },
+                }),
                 EditorView.theme({
                     '&': {
                         backgroundColor: 'transparent',
