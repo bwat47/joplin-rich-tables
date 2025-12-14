@@ -38,11 +38,12 @@ export const activeCellField = StateField.define<ActiveCell | null>({
         }
 
         if (tr.docChanged) {
-            const mappedTableFrom = tr.changes.mapPos(value.tableFrom, 1);
-            const mappedTableTo = tr.changes.mapPos(value.tableTo, -1);
+            const mappedTableFrom = tr.changes.mapPos(value.tableFrom, -1);
+            const mappedTableTo = tr.changes.mapPos(value.tableTo, 1);
 
-            const mappedCellFrom = tr.changes.mapPos(value.cellFrom, 1);
-            // Use assoc=1 so insertions at the end boundary remain visible.
+            // Use assoc=-1 for 'from' so insertions at start boundary stay visible.
+            const mappedCellFrom = tr.changes.mapPos(value.cellFrom, -1);
+            // Use assoc=1 for 'to' so insertions at end boundary stay visible.
             const mappedCellTo = tr.changes.mapPos(value.cellTo, 1);
 
             if (

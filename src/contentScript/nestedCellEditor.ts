@@ -30,8 +30,9 @@ function createSubviewCellRangeField(initial: SubviewCellRange) {
                 }
             }
             if (tr.docChanged) {
-                const mappedFrom = tr.changes.mapPos(value.from, 1);
-                // Use assoc=1 so insertions at the end boundary remain visible.
+                // Use assoc=-1 for 'from' so insertions at start boundary stay visible.
+                const mappedFrom = tr.changes.mapPos(value.from, -1);
+                // Use assoc=1 for 'to' so insertions at end boundary stay visible.
                 const mappedTo = tr.changes.mapPos(value.to, 1);
                 return { from: mappedFrom, to: mappedTo };
             }
@@ -166,8 +167,9 @@ class NestedCellEditorManager {
                 }
 
                 // Keep the local hide-range aligned as edits happen.
-                this.cellFrom = tr.changes.mapPos(this.cellFrom, 1);
-                // Use assoc=1 so insertions at the end boundary remain visible.
+                // Use assoc=-1 for 'from' so insertions at start boundary stay visible.
+                this.cellFrom = tr.changes.mapPos(this.cellFrom, -1);
+                // Use assoc=1 for 'to' so insertions at end boundary stay visible.
                 this.cellTo = tr.changes.mapPos(this.cellTo, 1);
 
                 // Forward to main editor (source of truth).
