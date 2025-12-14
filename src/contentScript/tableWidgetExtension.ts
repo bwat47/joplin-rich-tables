@@ -80,7 +80,7 @@ function buildTableDecorations(state: EditorState): DecorationSet {
             continue;
         }
 
-        const widget = new TableWidget(tableData, table.text);
+        const widget = new TableWidget(tableData, table.text, table.from);
         const decoration = Decoration.replace({
             widget,
             block: true,
@@ -117,6 +117,28 @@ const tableDecorationField = StateField.define<DecorationSet>({
 const tableStyles = EditorView.baseTheme({
     '.cm-table-widget': {
         padding: '8px 0',
+        position: 'relative',
+    },
+    '.cm-table-widget-edit-button': {
+        position: 'absolute',
+        top: '12px',
+        right: '4px',
+        padding: '2px 6px',
+        fontSize: '12px',
+        background: 'transparent',
+        border: '1px solid transparent',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        opacity: '0.5',
+        transition: 'opacity 0.2s, border-color 0.2s',
+        zIndex: '10',
+    },
+    '.cm-table-widget-edit-button:hover': {
+        opacity: '1',
+        borderColor: '#ccc',
+    },
+    '&dark .cm-table-widget-edit-button:hover': {
+        borderColor: '#555',
     },
     '.cm-table-widget-table': {
         borderCollapse: 'collapse',

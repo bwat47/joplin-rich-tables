@@ -1,3 +1,5 @@
+import { logger } from '../logger';
+
 /**
  * Markdown rendering service that communicates with the main plugin
  * to render markdown content using Joplin's renderMarkup command.
@@ -119,4 +121,22 @@ export function isCached(markdown: string): boolean {
  */
 export function getCached(markdown: string): string | undefined {
     return renderCache.get(markdown);
+}
+
+/**
+ * Open a link using Joplin's openItem command
+ * Handles both internal Joplin links and external URLs
+ */
+export function openLink(href: string): void {
+    if (!postMessageFn) {
+        logger.warn('Renderer not initialized, cannot open link');
+        return;
+    }
+
+    postMessageFn({
+        type: 'openLink',
+        href,
+    }).catch((error) => {
+        logger.error('Failed to open link:', error);
+    });
 }

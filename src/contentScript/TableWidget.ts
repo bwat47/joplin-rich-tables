@@ -1,5 +1,5 @@
 import { WidgetType, EditorView } from '@codemirror/view';
-import { getCached, renderMarkdownAsync } from './markdownRenderer';
+import { getCached, renderMarkdownAsync, openLink } from './markdownRenderer';
 
 /**
  * Represents a parsed markdown table structure
@@ -17,7 +17,8 @@ export interface TableData {
 export class TableWidget extends WidgetType {
     constructor(
         private tableData: TableData,
-        private rawText: string
+        private rawText: string,
+        private tableFrom: number
     ) {
         super();
     }
@@ -26,9 +27,41 @@ export class TableWidget extends WidgetType {
         return this.rawText === other.rawText;
     }
 
-    toDOM(_view: EditorView): HTMLElement {
+    toDOM(view: EditorView): HTMLElement {
         const container = document.createElement('div');
         container.className = 'cm-table-widget';
+
+        // Create edit button
+        const editButton = document.createElement('button');
+        editButton.className = 'cm-table-widget-edit-button';
+        editButton.title = 'Edit table';
+        editButton.innerHTML = '✏️';
+        editButton.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            view.dispatch({
+                selection: { anchor: this.tableFrom },
+            });
+            view.focus();
+        });
+        container.appendChild(editButton);
+
+        // Handle clicks on links
+        container.addEventListener('mousedown', (e) => {
+            const target = e.target as HTMLElement;
+
+            // Check if clicked on a link
+            const link = target.closest('a');
+            if (link) {
+                e.preventDefault();
+                e.stopPropagation();
+                const href = link.getAttribute('href');
+                if (href) {
+                    openLink(href);
+                }
+                return;
+            }
+        });
 
         const table = document.createElement('table');
         table.className = 'cm-table-widget-table';
@@ -119,9 +152,8 @@ export class TableWidget extends WidgetType {
     }
 
     ignoreEvent(): boolean {
-        // Let CodeMirror handle interactions so clicking the widget can move
-        // the cursor into the underlying table and reveal raw markdown.
-        return false;
+        // We handle mouse events ourselves to reliably move cursor into table
+        return true;
     }
 }
 

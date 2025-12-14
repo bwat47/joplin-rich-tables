@@ -16,6 +16,11 @@ interface RenderMarkupMessage {
     id: string;
 }
 
+interface OpenLinkMessage {
+    type: 'openLink';
+    href: string;
+}
+
 joplin.plugins.register({
     onStart: async function () {
         logger.info('Rich Tables plugin starting...');
@@ -29,12 +34,13 @@ joplin.plugins.register({
 
         // Handle messages from content script
         await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, async (message: unknown) => {
-            if (
-                typeof message === 'object' &&
-                message !== null &&
-                'type' in message &&
-                (message as { type: string }).type === 'renderMarkup'
-            ) {
+            if (typeof message !== 'object' || message === null || !('type' in message)) {
+                return null;
+            }
+
+            const msgType = (message as { type: string }).type;
+
+            if (msgType === 'renderMarkup') {
                 const { markdown, id } = message as RenderMarkupMessage;
                 try {
                     const result = await joplin.commands.execute(
@@ -56,6 +62,19 @@ joplin.plugins.register({
                     return { id, html: markdown, error: true };
                 }
             }
+
+            if (msgType === 'openLink') {
+                const { href } = message as OpenLinkMessage;
+                try {
+                    await joplin.commands.execute('openItem', href);
+                    logger.debug('Opened link:', href);
+                    return { success: true };
+                } catch (error) {
+                    logger.error('Failed to open link:', error);
+                    return { success: false, error: String(error) };
+                }
+            }
+
             return null;
         });
 
