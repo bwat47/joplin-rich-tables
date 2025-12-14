@@ -251,6 +251,11 @@ const tableStyles = EditorView.baseTheme({
     },
     '.cm-table-cell-editor .cm-editor': {
         width: '100%',
+        minHeight: '1.2em',
+    },
+    '.cm-table-cell-editor .cm-content': {
+        margin: '0',
+        minHeight: '1.2em',
     },
     // Remove margins from rendered markdown elements inside cells
     '.cm-table-widget-table th p, .cm-table-widget-table td p': {

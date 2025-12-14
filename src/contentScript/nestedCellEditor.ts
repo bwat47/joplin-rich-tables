@@ -18,24 +18,26 @@ interface SubviewCellRange {
 
 const setSubviewCellRangeEffect = StateEffect.define<SubviewCellRange>();
 
-const subviewCellRangeField = StateField.define<SubviewCellRange>({
-    create() {
-        return { from: 0, to: 0 };
-    },
-    update(value, tr) {
-        for (const effect of tr.effects) {
-            if (effect.is(setSubviewCellRangeEffect)) {
-                return effect.value;
+function createSubviewCellRangeField(initial: SubviewCellRange) {
+    return StateField.define<SubviewCellRange>({
+        create() {
+            return initial;
+        },
+        update(value, tr) {
+            for (const effect of tr.effects) {
+                if (effect.is(setSubviewCellRangeEffect)) {
+                    return effect.value;
+                }
             }
-        }
-        if (tr.docChanged) {
-            const mappedFrom = tr.changes.mapPos(value.from, 1);
-            const mappedTo = tr.changes.mapPos(value.to, -1);
-            return { from: mappedFrom, to: mappedTo };
-        }
-        return value;
-    },
-});
+            if (tr.docChanged) {
+                const mappedFrom = tr.changes.mapPos(value.from, 1);
+                const mappedTo = tr.changes.mapPos(value.to, -1);
+                return { from: mappedFrom, to: mappedTo };
+            }
+            return value;
+        },
+    });
+}
 
 function escapeUnescapedPipes(text: string): string {
     // Escape any '|' that is not already escaped as '\|'.
@@ -73,11 +75,11 @@ class HiddenWidget extends WidgetType {
     }
 }
 
-function createHideOutsideRangeExtension() {
+function createHideOutsideRangeExtension(rangeField: StateField<SubviewCellRange>) {
     const hiddenWidget = new HiddenWidget();
 
-    return EditorView.decorations.compute(['doc'], (state) => {
-        const { from: cellFrom, to: cellTo } = state.field(subviewCellRangeField);
+    return EditorView.decorations.compute(['doc', rangeField], (state) => {
+        const { from: cellFrom, to: cellTo } = state.field(rangeField);
         const ranges: Array<{ from: number; to: number; value: Decoration }> = [];
         const docLen = state.doc.length;
 
@@ -182,11 +184,13 @@ class NestedCellEditorManager {
             }
         });
 
+        const rangeField = createSubviewCellRangeField({ from: params.cellFrom, to: params.cellTo });
+
         const state = EditorState.create({
             doc: params.mainView.state.doc,
             selection: { anchor: params.cellFrom },
             extensions: [
-                subviewCellRangeField,
+                rangeField,
                 EditorState.transactionFilter.of((tr) => {
                     if (!tr.docChanged && !tr.selection) {
                         return tr;
@@ -197,7 +201,7 @@ class NestedCellEditorManager {
                         return tr;
                     }
 
-                    const { from: cellFrom, to: cellTo } = tr.startState.field(subviewCellRangeField);
+                    const { from: cellFrom, to: cellTo } = tr.startState.field(rangeField);
 
                     // Ensure selection stays in-bounds.
                     let selectionSpec: EditorSelection | undefined;
@@ -261,7 +265,7 @@ class NestedCellEditorManager {
                     return { annotations: Transaction.addToHistory.of(false) };
                 }),
                 forwardChangesToMain,
-                createHideOutsideRangeExtension(),
+                createHideOutsideRangeExtension(rangeField),
                 EditorView.theme(
                     {
                         '&': {
@@ -296,12 +300,6 @@ class NestedCellEditorManager {
         this.subview = new EditorView({
             state,
             parent: editorHost,
-        });
-
-        // Initialize the hide-range state.
-        this.subview.dispatch({
-            effects: setSubviewCellRangeEffect.of({ from: params.cellFrom, to: params.cellTo }),
-            annotations: syncAnnotation.of(true),
         });
 
         this.subview.focus();
