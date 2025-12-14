@@ -9,9 +9,7 @@ This plan assumes the current rendering strategy stays the same: tables are rend
 ## Constraints / non-goals
 
 - No contenteditable-based editing.
-- No “full table editor UI” (toolbars, resizing, etc.).
 - One active cell editor at a time.
-- Preserve the existing design: clicking inside the widget should allow editing; otherwise the widget behaves as it does now.
 - Keep Markdown table syntax structurally valid.
 
 ## Current relevant code
