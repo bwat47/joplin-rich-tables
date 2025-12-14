@@ -141,7 +141,7 @@ Duplication increases drift risk (especially with trimming rules, escaped pipe h
 
 ---
 
-## 3) Split `NestedCellEditorManager` responsibilities
+## 3) Split `NestedCellEditorManager` responsibilities - DONE
 
 ### Goal
 
@@ -157,6 +157,12 @@ Reduce cognitive load by splitting nested editor code into smaller, single-purpo
 - input routing (undo/redo forwarding, shortcut suppression)
 
 Those are separable concerns with different change frequency.
+
+### Status (implemented)
+
+- Refactored `NestedCellEditorManager` into `transactionPolicy.ts`, `domHandlers.ts`, and `mounting.ts` in `src/contentScript/nestedEditor/`.
+- `NestedCellEditorManager` now acts as a coordinator, delegating specific logic to these modules.
+- Verification passed: Linting, Formatting, and Build checks successful.
 
 ### Proposed shape
 
