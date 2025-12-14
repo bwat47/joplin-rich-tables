@@ -208,12 +208,17 @@ class NestedCellEditorManager {
 
                     const { from: cellFrom, to: cellTo } = tr.startState.field(rangeField);
 
-                    // Ensure selection stays in-bounds.
+                    // Compute new bounds after changes for selection clamping.
+                    // The selection in the transaction is the NEW selection, so clamp to NEW bounds.
+                    const newCellFrom = tr.docChanged ? tr.changes.mapPos(cellFrom, -1) : cellFrom;
+                    const newCellTo = tr.docChanged ? tr.changes.mapPos(cellTo, 1) : cellTo;
+
+                    // Ensure selection stays in-bounds (using new bounds).
                     let selectionSpec: EditorSelection | undefined;
                     if (tr.selection) {
                         const boundedRanges = tr.selection.ranges.map((range) => {
-                            const anchor = clamp(range.anchor, cellFrom, cellTo);
-                            const head = clamp(range.head, cellFrom, cellTo);
+                            const anchor = clamp(range.anchor, newCellFrom, newCellTo);
+                            const head = clamp(range.head, newCellFrom, newCellTo);
                             return EditorSelection.range(anchor, head);
                         });
                         selectionSpec = EditorSelection.create(boundedRanges, tr.selection.mainIndex);
