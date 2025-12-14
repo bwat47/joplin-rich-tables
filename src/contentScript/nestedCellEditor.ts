@@ -8,6 +8,7 @@ import {
     Transaction,
 } from '@codemirror/state';
 import { Decoration, drawSelection, EditorView, WidgetType } from '@codemirror/view';
+import { undo, redo } from '@codemirror/commands';
 
 export const syncAnnotation = Annotation.define<boolean>();
 
@@ -279,12 +280,31 @@ class NestedCellEditorManager {
                 EditorView.lineWrapping,
                 EditorView.domEventHandlers({
                     keydown: (e) => {
-                        // Block modifier key combinations from bubbling to Joplin.
-                        // Allow Ctrl+A/C/V/X/Z/Y which work correctly via browser/CodeMirror.
                         const isMod = e.ctrlKey || e.metaKey;
                         if (isMod) {
-                            const allowedKeys = ['a', 'c', 'v', 'x', 'z', 'y'];
-                            if (!allowedKeys.includes(e.key.toLowerCase())) {
+                            const key = e.key.toLowerCase();
+
+                            // Forward undo/redo to main editor (subview has no history).
+                            if (key === 'z') {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                if (e.shiftKey) {
+                                    redo(params.mainView);
+                                } else {
+                                    undo(params.mainView);
+                                }
+                                return true;
+                            }
+                            if (key === 'y') {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                redo(params.mainView);
+                                return true;
+                            }
+
+                            // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
+                            const allowedKeys = ['a', 'c', 'v', 'x'];
+                            if (!allowedKeys.includes(key)) {
                                 e.stopPropagation();
                                 e.preventDefault();
                                 return true;
