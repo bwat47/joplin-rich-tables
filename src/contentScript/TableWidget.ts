@@ -15,7 +15,7 @@ export interface CellRange {
     to: number;
 }
 
-interface TableCellRanges {
+export interface TableCellRanges {
     headers: CellRange[];
     rows: CellRange[][];
 }
@@ -27,7 +27,7 @@ interface TableCellRanges {
 export class TableWidget extends WidgetType {
     constructor(
         private tableData: TableData,
-        private rawText: string,
+        private tableText: string,
         private tableFrom: number,
         private tableTo: number
     ) {
@@ -35,7 +35,7 @@ export class TableWidget extends WidgetType {
     }
 
     eq(other: TableWidget): boolean {
-        return this.rawText === other.rawText;
+        return this.tableText === other.tableText;
     }
 
     toDOM(view: EditorView): HTMLElement {
