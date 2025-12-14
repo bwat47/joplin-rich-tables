@@ -87,7 +87,7 @@ That coupling makes future changes riskier (e.g., changing cell activation polic
 
 ## 2) Centralize table resolution + cell range utilities
 
-**Status:** PARTIALLY DONE (cell-range utilities extracted)
+**Status:** DONE
 
 ### Goal
 
@@ -107,34 +107,18 @@ There are multiple related concepts spread across files:
 
 Duplication increases drift risk (especially with trimming rules, escaped pipe handling, and syntax-tree timeouts).
 
-### Proposed shape
+### Status (implemented)
 
-Create a module like:
-
-- `src/contentScript/tablePositioning.ts`
-
-#### What’s already done
-
-- Extracted cell range computation into `src/contentScript/markdownTableCellRanges.ts`:
-    - `computeMarkdownTableCellRanges()`
-    - `CellRange` / `TableCellRanges`
-    - `isSeparatorRow()`
-    - `isUnescapedPipeAt()` (deduped; `TableWidget` imports it now)
-- Updated the interaction/controller to import `computeMarkdownTableCellRanges()` from the utility module (so it no longer depends on the widget module).
-
-#### What remains (if we continue refactor #2)
-
-- Create a true “positioning” module (e.g. `tablePositioning.ts`) that centralizes:
-    - syntax-tree table resolution (`resolveTableAtPos`, current table node lookup)
-    - section/row/col → doc range mapping (and any related policy)
-- Standardize syntax-tree timeouts in that module (ties into refactor #6).
-- Optionally move `parseMarkdownTable()` out of `TableWidget.ts` into a pure utility too, so `tableWidgetExtension.ts` doesn’t import from the widget module at all.
-
-Exports (example API):
-
-- `resolveTableAtPos(state: EditorState, pos: number): { from: number; to: number; text: string } | null`
-- `getTableCellRanges(tableText: string): TableCellRanges | null` (thin wrapper around `computeMarkdownTableCellRanges`)
-- `resolveCellDocRange(params: { tableFrom: number; ranges: TableCellRanges; section: 'header'|'body'; row: number; col: number }): { cellFrom: number; cellTo: number } | null`
+- Table-positioning concerns are centralized in `src/contentScript/tablePositioning.ts`:
+    - syntax-tree scanning (`findTableRanges`, 100ms timeout)
+    - syntax-tree resolving (`resolveTableAtPos`, 250ms timeout)
+    - DOM target → table resolution fallback policy (`resolveTableFromEventTarget`)
+    - section/row/col → doc range mapping (`resolveCellDocRange`)
+- Cell-range computation remains in `src/contentScript/markdownTableCellRanges.ts` and is consumed via a thin wrapper (`getTableCellRanges`).
+- `parseMarkdownTable()` moved into `src/contentScript/markdownTableParsing.ts` so `tableWidgetExtension.ts` no longer imports parsing from `TableWidget.ts`.
+- Callsites updated:
+    - `tableWidgetExtension.ts` uses `findTableRanges`.
+    - `tableWidgetInteractions.ts` uses `resolveTableFromEventTarget` / `resolveCellDocRange`.
 
 ### Plan
 
