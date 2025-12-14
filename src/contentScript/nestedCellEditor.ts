@@ -350,12 +350,8 @@ class NestedCellEditorManager {
         this.cellFrom = cellFrom;
         this.cellTo = cellTo;
 
-        // Keep hide-range aligned to the (mapped) active cell.
-        this.subview.dispatch({
-            effects: setSubviewCellRangeEffect.of({ from: cellFrom, to: cellTo }),
-            annotations: syncAnnotation.of(true),
-        });
-
+        // Collect all changes from non-sync transactions.
+        const allChanges: ChangeSpec[] = [];
         for (const tr of transactions) {
             if (!tr.docChanged) {
                 continue;
@@ -364,12 +360,17 @@ class NestedCellEditorManager {
             if (isSync) {
                 continue;
             }
-
-            this.subview.dispatch({
-                changes: tr.changes,
-                annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
-            });
+            allChanges.push(tr.changes);
         }
+
+        // Apply changes and range update in a single transaction.
+        // The effect takes precedence over docChanged mapping in rangeField,
+        // preventing double-mapping of the already-mapped cellFrom/cellTo.
+        this.subview.dispatch({
+            changes: allChanges.length > 0 ? allChanges : undefined,
+            effects: setSubviewCellRangeEffect.of({ from: cellFrom, to: cellTo }),
+            annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+        });
     }
 
     close(): void {
