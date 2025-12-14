@@ -196,6 +196,9 @@ class NestedCellEditorManager {
             doc: params.mainView.state.doc,
             selection: { anchor: params.cellFrom },
             extensions: [
+                // Needed for a visible caret in this environment. We intentionally hide
+                // CodeMirror's drawn selection layer below (to avoid double-highlighting),
+                // which means selection highlight comes from native browser selection.
                 drawSelection(),
                 rangeField,
                 EditorState.transactionFilter.of((tr) => {
@@ -356,6 +359,12 @@ class NestedCellEditorManager {
                 EditorView.theme({
                     '&': {
                         backgroundColor: 'transparent',
+                    },
+                    // Keep drawSelection() enabled (restores a visible caret), but hide its
+                    // selection overlay to avoid a second highlight layer. With this disabled,
+                    // selection highlight uses the browser's native selection styling.
+                    '.cm-selectionLayer': {
+                        display: 'none',
                     },
                     '.cm-scroller': {
                         overflow: 'hidden',
