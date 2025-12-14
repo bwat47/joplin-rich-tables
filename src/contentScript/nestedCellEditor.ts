@@ -290,21 +290,49 @@ class NestedCellEditorManager {
                         if (isMod) {
                             const key = e.key.toLowerCase();
 
+                            const preserveMainScroll = (fn: () => void) => {
+                                const mainView = params.mainView;
+
+                                // In this CodeMirror build, `scrollSnapshot()` returns an effect that can
+                                // be dispatched later to restore the current scroll position.
+                                const snapshot = mainView.scrollSnapshot();
+                                fn();
+
+                                // Undo/redo can restore an old selection which causes CodeMirror
+                                // to scroll the main editor into view. When editing via nested
+                                // editor we want to keep the viewport anchored where the user is.
+                                //
+                                // Restoring only in rAF can cause a visible one-frame scroll jump.
+                                // Apply immediately, then re-apply in rAF to override any later
+                                // scroll-into-view measurement passes.
+                                mainView.dispatch({
+                                    effects: snapshot,
+                                    annotations: Transaction.addToHistory.of(false),
+                                });
+
+                                requestAnimationFrame(() => {
+                                    mainView.dispatch({
+                                        effects: snapshot,
+                                        annotations: Transaction.addToHistory.of(false),
+                                    });
+                                });
+                            };
+
                             // Forward undo/redo to main editor (subview has no history).
                             if (key === 'z') {
                                 e.stopPropagation();
                                 e.preventDefault();
                                 if (e.shiftKey) {
-                                    redo(params.mainView);
+                                    preserveMainScroll(() => redo(params.mainView));
                                 } else {
-                                    undo(params.mainView);
+                                    preserveMainScroll(() => undo(params.mainView));
                                 }
                                 return true;
                             }
                             if (key === 'y') {
                                 e.stopPropagation();
                                 e.preventDefault();
-                                redo(params.mainView);
+                                preserveMainScroll(() => redo(params.mainView));
                                 return true;
                             }
 
