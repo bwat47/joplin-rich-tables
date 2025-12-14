@@ -10,7 +10,7 @@ Editing is intentionally kept simple: when the cursor/selection is inside a tabl
 
 ## Architecture
 
-### 1. Block Widget Replacement (✅ Implemented)
+### 1. Block Widget Replacement
 
 The editor does **not** attempt to style Markdown tables in-place. Instead, it completely hides the raw Markdown text and replaces it with a DOM-based `WidgetType`.
 
@@ -28,21 +28,17 @@ The editor does **not** attempt to style Markdown tables in-place. Instead, it c
 - Tables with cursor inside are NOT replaced - raw markdown shown for editing
 - Moving cursor out triggers widget re-render
 
-**Current implementation notes**
+**Implementation notes**
 
 - Content script extension: `src/contentScript/tableWidgetExtension.ts`
 - Table parsing/rendering: `src/contentScript/TableWidget.ts`
-
-### 2. Visual Layer (✅ Implemented)
-
-The `TableWidget` class renders the interactive table UI.
 
 **Rendering**
 
 - Produces standard HTML `<table>` structure with `<thead>` and `<tbody>`
 - Respects column alignments from separator row (`:---`, `:---:`, `---:`)
 
-**Markdown in Cells** (✅ Implemented)
+**Markdown in Cells**
 
 - Cell content rendered as HTML via Joplin's `renderMarkup` command
 - Async rendering with caching to avoid redundant requests
@@ -53,7 +49,7 @@ The `TableWidget` class renders the interactive table UI.
 - Light and dark theme support via `EditorView.baseTheme`
 - Margins stripped from rendered markdown elements
 
-### 3. Editing Model (✅ Implemented)
+### 3. Editing
 
 - No in-widget editing: the table widget is display-only.
 - To edit, place the cursor/selection within the table range to reveal the raw Markdown table.
