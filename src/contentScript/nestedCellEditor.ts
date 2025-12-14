@@ -1,4 +1,12 @@
-import { Annotation, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
+import {
+    Annotation,
+    ChangeSpec,
+    EditorSelection,
+    EditorState,
+    StateEffect,
+    StateField,
+    Transaction,
+} from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 
 export const syncAnnotation = Annotation.define<boolean>();
@@ -28,6 +36,30 @@ const subviewCellRangeField = StateField.define<SubviewCellRange>({
         return value;
     },
 });
+
+function escapeUnescapedPipes(text: string): string {
+    // Escape any '|' that is not already escaped as '\|'.
+    // This is intentionally simple and operates on the inserted text only.
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '|') {
+            const prev = i > 0 ? text[i - 1] : '';
+            if (prev === '\\') {
+                result += '|';
+            } else {
+                result += '\\|';
+            }
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+function clamp(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, n));
+}
 
 class HiddenWidget extends WidgetType {
     toDOM(): HTMLElement {
@@ -155,6 +187,72 @@ class NestedCellEditorManager {
             selection: { anchor: params.cellFrom },
             extensions: [
                 subviewCellRangeField,
+                EditorState.transactionFilter.of((tr) => {
+                    if (!tr.docChanged && !tr.selection) {
+                        return tr;
+                    }
+
+                    // Allow main->subview sync transactions through untouched.
+                    if (tr.annotation(syncAnnotation)) {
+                        return tr;
+                    }
+
+                    const { from: cellFrom, to: cellTo } = tr.startState.field(subviewCellRangeField);
+
+                    // Ensure selection stays in-bounds.
+                    let selectionSpec: EditorSelection | undefined;
+                    if (tr.selection) {
+                        const boundedRanges = tr.selection.ranges.map((range) => {
+                            const anchor = clamp(range.anchor, cellFrom, cellTo);
+                            const head = clamp(range.head, cellFrom, cellTo);
+                            return EditorSelection.range(anchor, head);
+                        });
+                        selectionSpec = EditorSelection.create(boundedRanges, tr.selection.mainIndex);
+                    }
+
+                    if (!tr.docChanged) {
+                        // Selection-only transaction.
+                        return selectionSpec ? { selection: selectionSpec } : tr;
+                    }
+
+                    let rejected = false;
+                    let needsPipeEscape = false;
+                    const nextChanges: ChangeSpec[] = [];
+
+                    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+                        if (fromA < cellFrom || toA > cellTo) {
+                            rejected = true;
+                            return;
+                        }
+
+                        const insertedText = inserted.toString();
+                        if (insertedText.includes('\n') || insertedText.includes('\r')) {
+                            rejected = true;
+                            return;
+                        }
+
+                        const escaped = insertedText.includes('|') ? escapeUnescapedPipes(insertedText) : insertedText;
+                        if (escaped !== insertedText) {
+                            needsPipeEscape = true;
+                        }
+
+                        nextChanges.push({ from: fromA, to: toA, insert: escaped });
+                    });
+
+                    if (rejected) {
+                        return [];
+                    }
+
+                    // If we didn't modify inserts and selection is unchanged, keep transaction.
+                    if (!needsPipeEscape && !selectionSpec) {
+                        return tr;
+                    }
+
+                    return {
+                        changes: nextChanges,
+                        ...(selectionSpec ? { selection: selectionSpec } : null),
+                    };
+                }),
                 EditorState.transactionExtender.of((tr) => {
                     // Ensure local transactions don't build history. Main editor owns history.
                     if (tr.annotation(syncAnnotation)) {
