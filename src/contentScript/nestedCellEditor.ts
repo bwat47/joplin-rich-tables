@@ -9,6 +9,7 @@ import {
 } from '@codemirror/state';
 import { Decoration, drawSelection, EditorView, WidgetType } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
+import { getCached, renderMarkdownAsync } from './markdownRenderer';
 
 export const syncAnnotation = Annotation.define<boolean>();
 
@@ -384,7 +385,24 @@ class NestedCellEditorManager {
             this.editorHostEl.style.display = 'none';
         }
 
-        if (this.contentEl) {
+        // Update cell content with current document text before showing.
+        if (this.contentEl && this.mainView) {
+            const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
+
+            // Check cache first for rendered HTML.
+            const cached = getCached(cellText);
+            if (cached !== undefined) {
+                this.contentEl.innerHTML = cached;
+            } else {
+                // Show raw text immediately, then update when render completes.
+                this.contentEl.textContent = cellText;
+                const contentEl = this.contentEl;
+                renderMarkdownAsync(cellText, (html) => {
+                    if (contentEl.isConnected) {
+                        contentEl.innerHTML = html;
+                    }
+                });
+            }
             this.contentEl.style.display = '';
         }
 
