@@ -192,6 +192,12 @@ class NestedCellEditorManager {
     isOpen(): boolean {
         return this.subview !== null;
     }
+
+    checkAndCloseIfHostedIn(container: HTMLElement): void {
+        if (this.editorHostEl && container.contains(this.editorHostEl)) {
+            this.close();
+        }
+    }
 }
 
 const nestedCellEditorManager = new NestedCellEditorManager();
@@ -223,4 +229,12 @@ export function applyMainTransactionsToNestedEditor(params: {
     cellTo: number;
 }): void {
     nestedCellEditorManager.applyMainTransactions(params.transactions, params.cellFrom, params.cellTo);
+}
+
+/**
+ * Checks if the currently open nested editor is hosted within the given container.
+ * If so, closes it. Used by parent widgets to clean up on destroy.
+ */
+export function cleanupHostedEditors(container: HTMLElement): void {
+    nestedCellEditorManager.checkAndCloseIfHostedIn(container);
 }
