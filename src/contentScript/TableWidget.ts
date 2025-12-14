@@ -55,7 +55,27 @@ export class TableWidget extends WidgetType {
             if (link) {
                 e.preventDefault();
                 e.stopPropagation();
-                const href = link.getAttribute('href');
+
+                // Check for Joplin internal link data attributes first
+                // renderMarkup converts :/id links to href="#" with data attributes
+                const resourceId = link.getAttribute('data-resource-id');
+                const noteId =
+                    link.getAttribute('data-note-id') ||
+                    link.getAttribute('data-item-id');
+
+                let href: string | null = null;
+                if (resourceId) {
+                    href = `:/${resourceId}`;
+                } else if (noteId) {
+                    href = `:/${noteId}`;
+                } else {
+                    href = link.getAttribute('href');
+                    // Skip empty or placeholder hrefs
+                    if (href === '#' || href === '') {
+                        href = null;
+                    }
+                }
+
                 if (href) {
                     openLink(href);
                 }
