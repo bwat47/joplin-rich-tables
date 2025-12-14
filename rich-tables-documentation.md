@@ -1,62 +1,61 @@
-# Rich tables plugin documentation
+# Rich Tables Plugin
 
-## Overview
-
-A Joplin plugin that renders Markdown tables as rich HTML tables in Joplin's CodeMirror 6 markdown editor using a **Block Replacement Widget** strategy.
-
-Editing is intentionally kept simple: when the cursor/selection is inside a table, the widget is not shown and the raw Markdown table is revealed for editing.
-
----
+Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMirror 6, with in-cell editing via nested editors.
 
 ## Architecture
 
-### 1. Block Widget Replacement
+### Core Components
 
-The editor does **not** attempt to style Markdown tables in-place. Instead, it completely hides the raw Markdown text and replaces it with a DOM-based `WidgetType`.
+| File | Purpose |
+|------|---------|
+| `tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles |
+| `TableWidget.ts` | Table parsing, HTML rendering, click-to-cell mapping |
+| `activeCellState.ts` | Tracks active cell range in main editor state |
+| `nestedCellEditor.ts` | Manages nested CodeMirror subview for cell editing |
+| `markdownRenderer.ts` | Async markdown rendering with caching |
 
-**Detection**
+### Table Display
 
-- Document is scanned for table-related AST nodes via Lezer syntax tree
+- Tables detected via Lezer syntax tree
+- Replaced with `Decoration.replace({ widget, block: true })` via StateField
+- Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached)
+- Supports column alignments (`:---`, `:---:`, `---:`)
 
-**Replacement**
+### In-Cell Editing (Nested Editor Pattern)
 
-- Entire table range replaced using `Decoration.replace({ widget, block: true })`
-- Block decorations provided via `StateField` (required by CM6)
+**Strategy**: Embed a CodeMirror subview inside the clicked cell. Subview contains the full document but hides everything outside the active cell range.
 
-**Selection Awareness**
+**Activation**: Click cell → compute cell range → dispatch `setActiveCellEffect` → open nested editor
 
-- Tables with cursor inside are NOT replaced - raw markdown shown for editing
-- Moving cursor out triggers widget re-render
+**Sync**:
+- `syncAnnotation` prevents infinite loops
+- Subview → Main: `forwardChangesToMain` listener dispatches changes with sync annotation
+- Main → Subview: `nestedEditorLifecyclePlugin` calls `applyMainTransactionsToNestedEditor`
+- Changes and range updates combined in single transaction to prevent double-mapping
 
-**Implementation notes**
+**History**: Main editor owns undo history. Subview uses `addToHistory: false`. Ctrl+Z/Y intercepted and forwarded to main via `undo()`/`redo()` commands.
 
-- Content script extension: `src/contentScript/tableWidgetExtension.ts`
-- Table parsing/rendering: `src/contentScript/TableWidget.ts`
+**Boundary Enforcement** (transaction filter):
+- Rejects changes outside `[cellFrom, cellTo]`
+- Rejects newlines (`\n`, `\r`)
+- Escapes unescaped pipes (`|` → `\|`)
+- Clamps selection to cell bounds (using mapped new bounds for doc changes)
 
-**Rendering**
+**Range Mapping**: Uses `assoc=-1` for `from` positions, `assoc=1` for `to` positions, so insertions at boundaries expand the visible range.
 
-- Produces standard HTML `<table>` structure with `<thead>` and `<tbody>`
-- Respects column alignments from separator row (`:---`, `:---:`, `---:`)
+**Event Handling**:
+- Keyboard shortcuts (Ctrl+B, etc.) blocked to prevent Joplin handlers
+- Ctrl+A/C/V/X allowed (browser/CM handles correctly)
+- Context menu suppressed entirely
 
-**Markdown in Cells**
+### Deactivation
 
-- Cell content rendered as HTML via Joplin's `renderMarkup` command
-- Async rendering with caching to avoid redundant requests
-- Plain text shown initially, updated when render completes
-
-**Styling**
-
-- Light and dark theme support via `EditorView.baseTheme`
-- Margins stripped from rendered markdown elements
-
-### 3. Editing
-
-- No in-widget editing: the table widget is display-only.
-- To edit, place the cursor/selection within the table range to reveal the raw Markdown table.
-- When the cursor/selection leaves the table, the widget replaces the table again.
+- Click outside table or widget
+- `clearActiveCellEffect` dispatched
+- `nestedEditorLifecyclePlugin` closes subview
+- Decorations rebuilt to show updated rendered content
 
 ## References
 
-- [Joplin Plugin API - Content Scripts](https://joplinapp.org/help/api/tutorials/cm6_plugin/)
-- [CodeMirror 6 - Decorations](https://codemirror.net/docs/ref/#view.Decoration)
-- [joplin-plugin-extra-editor-settings](https://github.com/personalizedrefrigerator/joplin-plugin-extra-editor-settings) - Reference implementation for CM6 widgets
+- [Joplin CM6 Plugin API](https://joplinapp.org/help/api/tutorials/cm6_plugin/)
+- [CodeMirror 6 Decorations](https://codemirror.net/docs/ref/#view.Decoration)
