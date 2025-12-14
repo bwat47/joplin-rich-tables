@@ -1,43 +1,5 @@
 import { WidgetType, EditorView } from '@codemirror/view';
-import { ensureSyntaxTree } from '@codemirror/language';
-import type { SyntaxNode } from '@lezer/common';
-import { getCached, renderMarkdownAsync, openLink } from './markdownRenderer';
-import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
-import { openNestedCellEditor } from './nestedCellEditor';
-
-function resolveCurrentTableAtDocPos(
-    view: EditorView,
-    pos: number
-): { from: number; to: number; text: string; cellRanges: TableCellRanges | null } | null {
-    const tree = ensureSyntaxTree(view.state, view.state.doc.length, 250);
-    if (!tree) {
-        return null;
-    }
-
-    let node: SyntaxNode | null = tree.resolve(pos, 1);
-    while (node && node.name !== 'Table') {
-        node = node.parent;
-    }
-
-    if (!node || node.name !== 'Table') {
-        return null;
-    }
-
-    const from = node.from;
-    const to = node.to;
-    const text = view.state.doc.sliceString(from, to);
-    const cellRanges = computeMarkdownTableCellRanges(text);
-
-    return { from, to, text, cellRanges };
-}
-
-function resolveCurrentTableAtDomTarget(
-    view: EditorView,
-    domTarget: HTMLElement
-): { from: number; to: number; text: string; cellRanges: TableCellRanges | null } | null {
-    const pos = view.posAtDOM(domTarget, 0);
-    return resolveCurrentTableAtDocPos(view, pos);
-}
+import { getCached, renderMarkdownAsync } from './markdownRenderer';
 
 /**
  * Represents a parsed markdown table structure
@@ -67,8 +29,7 @@ export class TableWidget extends WidgetType {
         private tableData: TableData,
         private rawText: string,
         private tableFrom: number,
-        private tableTo: number,
-        private cellRanges: TableCellRanges | null
+        private tableTo: number
     ) {
         super();
     }
@@ -81,6 +42,10 @@ export class TableWidget extends WidgetType {
         const container = document.createElement('div');
         container.className = 'cm-table-widget';
 
+        // Used by extension-level interaction handlers as a reliable fallback.
+        container.dataset.tableFrom = String(this.tableFrom);
+        container.dataset.tableTo = String(this.tableTo);
+
         // Create edit button
         const editButton = document.createElement('button');
         editButton.className = 'cm-table-widget-edit-button';
@@ -89,121 +54,10 @@ export class TableWidget extends WidgetType {
         editButton.addEventListener('mousedown', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            view.dispatch({
-                selection: { anchor: this.tableFrom },
-            });
+            view.dispatch({ selection: { anchor: this.tableFrom } });
             view.focus();
         });
         container.appendChild(editButton);
-
-        // Handle clicks inside the widget (links + cell activation)
-        container.addEventListener('mousedown', (e) => {
-            const target = e.target as HTMLElement;
-
-            // If interacting with the nested editor, let it handle events.
-            if (target.closest('.cm-table-cell-editor')) {
-                return;
-            }
-
-            // 1) Links
-            const link = target.closest('a');
-            if (link) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Check for Joplin internal link data attributes first
-                // renderMarkup converts :/id links to href="#" with data attributes
-                const resourceId = link.getAttribute('data-resource-id');
-                const noteId = link.getAttribute('data-note-id') || link.getAttribute('data-item-id');
-
-                let href: string | null = null;
-                if (resourceId) {
-                    href = `:/${resourceId}`;
-                } else if (noteId) {
-                    href = `:/${noteId}`;
-                } else {
-                    href = link.getAttribute('href');
-                    // Skip empty or placeholder hrefs
-                    if (href === '#' || href === '') {
-                        href = null;
-                    }
-                }
-
-                if (href) {
-                    openLink(href);
-                }
-                return;
-            }
-
-            // 2) Cell activation (Phase 2: map DOM cell -> source range)
-            const cell = target.closest('td, th') as HTMLElement | null;
-            if (!cell) {
-                return;
-            }
-
-            const section = (cell.dataset.section as ActiveCellSection | undefined) ?? null;
-            const row = Number(cell.dataset.row);
-            const col = Number(cell.dataset.col);
-
-            if (!section || Number.isNaN(row) || Number.isNaN(col)) {
-                return;
-            }
-
-            // When a nested cell editor is open, the decoration set is mapped through changes
-            // to keep the widget DOM stable. That means widget instance fields (tableFrom/tableTo/cellRanges)
-            // can become stale after edits elsewhere. Resolve the current table range from the live syntax
-            // tree at click time to always compute correct absolute positions.
-            const resolvedTable =
-                resolveCurrentTableAtDomTarget(view, cell) ??
-                (() => {
-                    // Fallback: in some cases `posAtDOM` inside replacement widgets can be unreliable.
-                    // When a nested editor is open, activeCell positions are mapped through transactions
-                    // and provide a stable doc position inside the current table.
-                    const activeCell = getActiveCell(view.state);
-                    if (!activeCell) {
-                        return null;
-                    }
-                    return resolveCurrentTableAtDocPos(view, activeCell.cellFrom);
-                })();
-            const tableFrom = resolvedTable?.from ?? this.tableFrom;
-            const tableTo = resolvedTable?.to ?? this.tableTo;
-            const currentCellRanges = resolvedTable?.cellRanges ?? this.cellRanges;
-
-            if (!currentCellRanges) {
-                return;
-            }
-
-            const range = section === 'header' ? currentCellRanges.headers[col] : currentCellRanges.rows[row]?.[col];
-
-            if (!range) {
-                return;
-            }
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            const cellFrom = tableFrom + range.from;
-            const cellTo = tableFrom + range.to;
-
-            view.dispatch({
-                effects: setActiveCellEffect.of({
-                    tableFrom,
-                    tableTo,
-                    cellFrom,
-                    cellTo,
-                    section,
-                    row: section === 'header' ? 0 : row,
-                    col,
-                }),
-            });
-
-            openNestedCellEditor({
-                mainView: view,
-                cellElement: cell,
-                cellFrom,
-                cellTo,
-            });
-        });
 
         const table = document.createElement('table');
         table.className = 'cm-table-widget-table';
@@ -216,8 +70,10 @@ export class TableWidget extends WidgetType {
             th.dataset.section = 'header';
             th.dataset.row = '0';
             th.dataset.col = String(i);
+
             const content = this.tableData.headers[i].trim();
             this.renderCellContent(th, content);
+
             const align = this.tableData.alignments[i];
             if (align) {
                 th.style.textAlign = align;
@@ -232,14 +88,16 @@ export class TableWidget extends WidgetType {
         for (let r = 0; r < this.tableData.rows.length; r++) {
             const row = this.tableData.rows[r];
             const tr = document.createElement('tr');
-            for (let i = 0; i < row.length; i++) {
+            for (let c = 0; c < row.length; c++) {
                 const td = document.createElement('td');
                 td.dataset.section = 'body';
                 td.dataset.row = String(r);
-                td.dataset.col = String(i);
-                const content = row[i].trim();
+                td.dataset.col = String(c);
+
+                const content = row[c].trim();
                 this.renderCellContent(td, content);
-                const align = this.tableData.alignments[i];
+
+                const align = this.tableData.alignments[c];
                 if (align) {
                     td.style.textAlign = align;
                 }
@@ -301,8 +159,8 @@ export class TableWidget extends WidgetType {
     }
 
     ignoreEvent(): boolean {
-        // We handle mouse events ourselves to reliably move cursor into table
-        return true;
+        // Events are handled by extension-level domEventHandlers.
+        return false;
     }
 }
 

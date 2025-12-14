@@ -1,7 +1,7 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
-import { TableWidget, computeMarkdownTableCellRanges, parseMarkdownTable } from './TableWidget';
+import { TableWidget, parseMarkdownTable } from './TableWidget';
 import { initRenderer } from './markdownRenderer';
 import { logger } from '../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
@@ -11,6 +11,7 @@ import {
     isNestedCellEditorOpen,
     syncAnnotation,
 } from './nestedCellEditor';
+import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
 
 /**
  * Content script context provided by Joplin
@@ -86,8 +87,7 @@ function buildTableDecorations(state: EditorState): DecorationSet {
             continue;
         }
 
-        const cellRanges = computeMarkdownTableCellRanges(table.text);
-        const widget = new TableWidget(tableData, table.text, table.from, table.to, cellRanges);
+        const widget = new TableWidget(tableData, table.text, table.from, table.to);
         const decoration = Decoration.replace({
             widget,
             block: true,
@@ -157,6 +157,12 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         }
 
         return false;
+    },
+});
+
+const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+        return handleTableWidgetMouseDown(view, event);
     },
 });
 
@@ -346,6 +352,7 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             editorControl.addExtension([
                 activeCellField,
+                tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,

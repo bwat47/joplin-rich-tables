@@ -1,0 +1,186 @@
+import { ensureSyntaxTree } from '@codemirror/language';
+import type { EditorState } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
+import type { SyntaxNode } from '@lezer/common';
+import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
+import { openNestedCellEditor } from './nestedCellEditor';
+import { openLink } from './markdownRenderer';
+import { computeMarkdownTableCellRanges } from './TableWidget';
+
+interface ResolvedTable {
+    from: number;
+    to: number;
+    text: string;
+}
+
+function resolveTableAtPos(state: EditorState, pos: number, timeoutMs: number): ResolvedTable | null {
+    const tree = ensureSyntaxTree(state, state.doc.length, timeoutMs);
+    if (!tree) {
+        return null;
+    }
+
+    let node: SyntaxNode | null = tree.resolve(pos, 1);
+    while (node && node.name !== 'Table') {
+        node = node.parent;
+    }
+
+    if (!node || node.name !== 'Table') {
+        return null;
+    }
+
+    return {
+        from: node.from,
+        to: node.to,
+        text: state.doc.sliceString(node.from, node.to),
+    };
+}
+
+function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
+    // Best case: map DOM->doc position.
+    try {
+        const pos = view.posAtDOM(target, 0);
+        const resolved = resolveTableAtPos(view.state, pos, 250);
+        if (resolved) {
+            return resolved;
+        }
+    } catch {
+        // Some DOM nodes inside replacement widgets can fail `posAtDOM`.
+    }
+
+    // Fallback: when a nested cell editor is open, activeCell is mapped through changes and
+    // provides a stable in-doc position.
+    const activeCell = getActiveCell(view.state);
+    if (activeCell) {
+        const resolved = resolveTableAtPos(view.state, activeCell.cellFrom, 250);
+        if (resolved) {
+            return resolved;
+        }
+    }
+
+    // Last fallback: if the widget provides table bounds on its container.
+    const container = target.closest('.cm-table-widget') as HTMLElement | null;
+    if (container) {
+        const tableFrom = Number(container.dataset.tableFrom);
+        const tableTo = Number(container.dataset.tableTo);
+        if (Number.isFinite(tableFrom) && Number.isFinite(tableTo) && tableFrom >= 0 && tableTo >= tableFrom) {
+            return {
+                from: tableFrom,
+                to: tableTo,
+                text: view.state.doc.sliceString(tableFrom, tableTo),
+            };
+        }
+    }
+
+    return null;
+}
+
+function tryHandleLinkClick(target: HTMLElement): boolean {
+    const link = target.closest('a');
+    if (!link) {
+        return false;
+    }
+
+    // Check for Joplin internal link data attributes first
+    // renderMarkup converts :/id links to href="#" with data attributes
+    const resourceId = link.getAttribute('data-resource-id');
+    const noteId = link.getAttribute('data-note-id') || link.getAttribute('data-item-id');
+
+    let href: string | null = null;
+    if (resourceId) {
+        href = `:/${resourceId}`;
+    } else if (noteId) {
+        href = `:/${noteId}`;
+    } else {
+        href = link.getAttribute('href');
+        if (href === '#' || href === '') {
+            href = null;
+        }
+    }
+
+    if (href) {
+        openLink(href);
+    }
+
+    return true;
+}
+
+export function handleTableWidgetMouseDown(view: EditorView, event: MouseEvent): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+        return false;
+    }
+
+    // Only handle events inside table widgets.
+    const widget = target.closest('.cm-table-widget');
+    if (!widget) {
+        return false;
+    }
+
+    // Let the nested editor handle its own events.
+    if (target.closest('.cm-table-cell-editor')) {
+        return false;
+    }
+
+    // Links: open, prevent selection.
+    if (tryHandleLinkClick(target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+    }
+
+    // Cell activation
+    const cell = target.closest('td, th') as HTMLElement | null;
+    if (!cell) {
+        return false;
+    }
+
+    const section = (cell.dataset.section as ActiveCellSection | undefined) ?? null;
+    const row = Number(cell.dataset.row);
+    const col = Number(cell.dataset.col);
+
+    if (!section || Number.isNaN(row) || Number.isNaN(col)) {
+        return false;
+    }
+
+    const table = resolveTableFromEventTarget(view, cell);
+    if (!table) {
+        return false;
+    }
+
+    const cellRanges = computeMarkdownTableCellRanges(table.text);
+    if (!cellRanges) {
+        return false;
+    }
+
+    const relRange = section === 'header' ? cellRanges.headers[col] : cellRanges.rows[row]?.[col];
+    if (!relRange) {
+        return false;
+    }
+
+    const cellFrom = table.from + relRange.from;
+    const cellTo = table.from + relRange.to;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    view.dispatch({
+        effects: setActiveCellEffect.of({
+            tableFrom: table.from,
+            tableTo: table.to,
+            cellFrom,
+            cellTo,
+            section,
+            row: section === 'header' ? 0 : row,
+            col,
+        }),
+    });
+
+    openNestedCellEditor({
+        mainView: view,
+        cellElement: cell,
+        cellFrom,
+        cellTo,
+    });
+
+    return true;
+}

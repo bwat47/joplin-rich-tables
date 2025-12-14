@@ -281,6 +281,11 @@ class NestedCellEditorManager {
                 EditorView.lineWrapping,
                 EditorView.domEventHandlers({
                     keydown: (e) => {
+                        // Never let key events bubble to the main editor. The main editor may still
+                        // have a selection outside the table, and handling Backspace/Delete there
+                        // would appear as "deleting outside the cell".
+                        e.stopPropagation();
+
                         const isMod = e.ctrlKey || e.metaKey;
                         if (isMod) {
                             const key = e.key.toLowerCase();
@@ -306,7 +311,6 @@ class NestedCellEditorManager {
                             // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
                             const allowedKeys = ['a', 'c', 'v', 'x'];
                             if (!allowedKeys.includes(key)) {
-                                e.stopPropagation();
                                 e.preventDefault();
                                 return true;
                             }
