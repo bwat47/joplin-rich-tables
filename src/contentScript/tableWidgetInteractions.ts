@@ -1,11 +1,8 @@
-import { ensureSyntaxTree } from '@codemirror/language';
-import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import type { SyntaxNode } from '@lezer/common';
 import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from './nestedCellEditor';
 import { openLink } from './markdownRenderer';
-import { computeMarkdownTableCellRanges } from './markdownTableCellRanges';
+import { getTableCellRanges, resolveCellDocRange, resolveTableAtPos } from './tablePositioning';
 
 interface ResolvedTable {
     from: number;
@@ -13,33 +10,11 @@ interface ResolvedTable {
     text: string;
 }
 
-function resolveTableAtPos(state: EditorState, pos: number, timeoutMs: number): ResolvedTable | null {
-    const tree = ensureSyntaxTree(state, state.doc.length, timeoutMs);
-    if (!tree) {
-        return null;
-    }
-
-    let node: SyntaxNode | null = tree.resolve(pos, 1);
-    while (node && node.name !== 'Table') {
-        node = node.parent;
-    }
-
-    if (!node || node.name !== 'Table') {
-        return null;
-    }
-
-    return {
-        from: node.from,
-        to: node.to,
-        text: state.doc.sliceString(node.from, node.to),
-    };
-}
-
 function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
     // Best case: map DOM->doc position.
     try {
         const pos = view.posAtDOM(target, 0);
-        const resolved = resolveTableAtPos(view.state, pos, 250);
+        const resolved = resolveTableAtPos(view.state, pos);
         if (resolved) {
             return resolved;
         }
@@ -51,7 +26,7 @@ function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): Res
     // provides a stable in-doc position.
     const activeCell = getActiveCell(view.state);
     if (activeCell) {
-        const resolved = resolveTableAtPos(view.state, activeCell.cellFrom, 250);
+        const resolved = resolveTableAtPos(view.state, activeCell.cellFrom);
         if (resolved) {
             return resolved;
         }
@@ -147,18 +122,23 @@ export function handleTableWidgetMouseDown(view: EditorView, event: MouseEvent):
         return false;
     }
 
-    const cellRanges = computeMarkdownTableCellRanges(table.text);
+    const cellRanges = getTableCellRanges(table.text);
     if (!cellRanges) {
         return false;
     }
 
-    const relRange = section === 'header' ? cellRanges.headers[col] : cellRanges.rows[row]?.[col];
-    if (!relRange) {
+    const resolvedRange = resolveCellDocRange({
+        tableFrom: table.from,
+        ranges: cellRanges,
+        section,
+        row,
+        col,
+    });
+    if (!resolvedRange) {
         return false;
     }
 
-    const cellFrom = table.from + relRange.from;
-    const cellTo = table.from + relRange.to;
+    const { cellFrom, cellTo } = resolvedRange;
 
     event.preventDefault();
     event.stopPropagation();

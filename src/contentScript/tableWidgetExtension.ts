@@ -1,7 +1,7 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
-import { TableWidget, parseMarkdownTable } from './TableWidget';
+import { TableWidget } from './TableWidget';
+import { parseMarkdownTable } from './markdownTableParsing';
 import { initRenderer } from './markdownRenderer';
 import { logger } from '../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
@@ -12,6 +12,7 @@ import {
     syncAnnotation,
 } from './nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
+import { findTableRanges } from './tablePositioning';
 
 /**
  * Content script context provided by Joplin
@@ -29,30 +30,6 @@ interface EditorControl {
     editor: EditorView;
     cm6: EditorView;
     addExtension: (extension: unknown) => void;
-}
-
-/**
- * Find table ranges in the document using the syntax tree.
- */
-function findTableRanges(state: EditorState): Array<{ from: number; to: number; text: string }> {
-    const tables: Array<{ from: number; to: number; text: string }> = [];
-    const doc = state.doc;
-
-    // Use ensureSyntaxTree to attempt getting a complete tree (100ms timeout)
-    const tree = ensureSyntaxTree(state, state.doc.length, 100);
-
-    if (tree) {
-        tree.iterate({
-            enter: (node) => {
-                if (node.name === 'Table') {
-                    const text = doc.sliceString(node.from, node.to);
-                    tables.push({ from: node.from, to: node.to, text });
-                }
-            },
-        });
-    }
-
-    return tables;
 }
 
 /**
