@@ -6,13 +6,14 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 ### Core Components
 
-| File | Purpose |
-|------|---------|
-| `tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles |
-| `TableWidget.ts` | Table parsing, HTML rendering, click-to-cell mapping |
-| `activeCellState.ts` | Tracks active cell range in main editor state |
-| `nestedCellEditor.ts` | Manages nested CodeMirror subview for cell editing |
-| `markdownRenderer.ts` | Async markdown rendering with caching |
+| File                      | Purpose                                                           |
+| ------------------------- | ----------------------------------------------------------------- |
+| `tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles             |
+| `TableWidget.ts`          | Table parsing, HTML rendering, click-to-cell mapping              |
+| `activeCellState.ts`      | Tracks active cell range in main editor state                     |
+| `nestedCellEditor.ts`     | Orchestrates nested editor (delegates to `nestedEditor/` modules) |
+| `nestedEditor/`           | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`       |
+| `markdownRenderer.ts`     | Provides `MarkdownRenderService` (async rendering with caching)   |
 
 ### Table Display
 
@@ -28,6 +29,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 **Activation**: Click cell → compute cell range → dispatch `setActiveCellEffect` → open nested editor
 
 **Sync**:
+
 - `syncAnnotation` prevents infinite loops
 - Subview → Main: `forwardChangesToMain` listener dispatches changes with sync annotation
 - Main → Subview: `nestedEditorLifecyclePlugin` calls `applyMainTransactionsToNestedEditor`
@@ -36,6 +38,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 **History**: Main editor owns undo history. Subview uses `addToHistory: false`. Ctrl+Z/Y intercepted and forwarded to main via `undo()`/`redo()` commands.
 
 **Boundary Enforcement** (transaction filter):
+
 - Rejects changes outside `[cellFrom, cellTo]`
 - Rejects newlines (`\n`, `\r`)
 - Escapes unescaped pipes (`|` → `\|`)
@@ -44,6 +47,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 **Range Mapping**: Uses `assoc=-1` for `from` positions, `assoc=1` for `to` positions, so insertions at boundaries expand the visible range.
 
 **Event Handling**:
+
 - Keyboard shortcuts (Ctrl+B, etc.) blocked to prevent Joplin handlers
 - Ctrl+A/C/V/X allowed (browser/CM handles correctly)
 - Context menu suppressed entirely
