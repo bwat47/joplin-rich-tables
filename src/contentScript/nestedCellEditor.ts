@@ -276,34 +276,18 @@ class NestedCellEditorManager {
                 }),
                 forwardChangesToMain,
                 createHideOutsideRangeExtension(rangeField),
-                EditorView.theme(
-                    {
-                        '&': {
-                            backgroundColor: 'transparent',
-                        },
-                        '.cm-scroller': {
-                            overflow: 'hidden',
-                        },
-                        '.cm-content': {
-                            padding: '0',
-                        },
+                EditorView.lineWrapping,
+                EditorView.theme({
+                    '&': {
+                        backgroundColor: 'transparent',
                     },
-                    { dark: false }
-                ),
-                EditorView.theme(
-                    {
-                        '&': {
-                            backgroundColor: 'transparent',
-                        },
-                        '.cm-scroller': {
-                            overflow: 'hidden',
-                        },
-                        '.cm-content': {
-                            padding: '0',
-                        },
+                    '.cm-scroller': {
+                        overflow: 'hidden',
                     },
-                    { dark: true }
-                ),
+                    '.cm-content': {
+                        padding: '0',
+                    },
+                }),
             ],
         });
 
