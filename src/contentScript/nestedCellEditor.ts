@@ -9,7 +9,7 @@ import {
     syncAnnotation,
 } from './nestedEditor/transactionPolicy';
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './nestedEditor/mounting';
-import { createNestedEditorDomHandlers } from './nestedEditor/domHandlers';
+import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './nestedEditor/domHandlers';
 
 export { syncAnnotation };
 
@@ -90,7 +90,8 @@ class NestedCellEditorManager {
                 forwardChangesToMain,
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
-                createNestedEditorDomHandlers(params.mainView),
+                createNestedEditorDomHandlers(),
+                createNestedEditorKeymap(params.mainView),
                 EditorView.theme({
                     '&': {
                         backgroundColor: 'transparent',

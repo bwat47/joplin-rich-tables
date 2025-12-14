@@ -1,9 +1,76 @@
-import { EditorView } from '@codemirror/view';
+import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { Transaction } from '@codemirror/state';
+import { Transaction, StateEffect } from '@codemirror/state';
+
+// Define a separate interface for the Joplin-specific extension
+interface WithScrollSnapshot {
+    scrollSnapshot?: () => StateEffect<unknown>;
+}
+
+/**
+ * Creates a helper function that preserves the main editor's scroll position
+ * while executing a callback (like undo/redo).
+ */
+function createPreserveScroll(mainView: EditorView) {
+    return (fn: () => void) => {
+        // In this CodeMirror build, `scrollSnapshot()` returns an effect that can
+        // be dispatched later to restore the current scroll position.
+        const view = mainView as unknown as WithScrollSnapshot;
+        const snapshot = view.scrollSnapshot ? view.scrollSnapshot() : null;
+
+        fn();
+
+        if (snapshot) {
+            // Undo/redo can restore an old selection which causes CodeMirror
+            // to scroll the main editor into view. When editing via nested
+            // editor we want to keep the viewport anchored where the user is.
+            const restoreEffect = {
+                effects: snapshot,
+                annotations: Transaction.addToHistory.of(false),
+            };
+
+            // Apply immediately
+            mainView.dispatch(restoreEffect);
+
+            // Re-apply in rAF to override any later scroll-into-view measurement passes.
+            requestAnimationFrame(() => {
+                mainView.dispatch(restoreEffect);
+            });
+        }
+    };
+}
+
+/** Creates a keymap for the nested editor to handle undo/redo. */
+export function createNestedEditorKeymap(mainView: EditorView) {
+    const preserveMainScroll = createPreserveScroll(mainView);
+
+    return keymap.of([
+        {
+            key: 'Mod-z',
+            run: () => {
+                preserveMainScroll(() => undo(mainView));
+                return true;
+            },
+        },
+        {
+            key: 'Mod-y',
+            run: () => {
+                preserveMainScroll(() => redo(mainView));
+                return true;
+            },
+        },
+        {
+            key: 'Mod-Shift-z',
+            run: () => {
+                preserveMainScroll(() => redo(mainView));
+                return true;
+            },
+        },
+    ]);
+}
 
 /** Creates DOM event handlers for the nested editor (keydown, contextmenu). */
-export function createNestedEditorDomHandlers(mainView: EditorView) {
+export function createNestedEditorDomHandlers() {
     return EditorView.domEventHandlers({
         keydown: (e) => {
             // Never let key events bubble to the main editor. The main editor may still
@@ -15,52 +82,9 @@ export function createNestedEditorDomHandlers(mainView: EditorView) {
             if (isMod) {
                 const key = e.key.toLowerCase();
 
-                const preserveMainScroll = (fn: () => void) => {
-                    // In this CodeMirror build, `scrollSnapshot()` returns an effect that can
-                    // be dispatched later to restore the current scroll position.
-                    const snapshot = mainView.scrollSnapshot();
-                    fn();
-
-                    // Undo/redo can restore an old selection which causes CodeMirror
-                    // to scroll the main editor into view. When editing via nested
-                    // editor we want to keep the viewport anchored where the user is.
-                    //
-                    // Restoring only in rAF can cause a visible one-frame scroll jump.
-                    // Apply immediately, then re-apply in rAF to override any later
-                    // scroll-into-view measurement passes.
-                    mainView.dispatch({
-                        effects: snapshot,
-                        annotations: Transaction.addToHistory.of(false),
-                    });
-
-                    requestAnimationFrame(() => {
-                        mainView.dispatch({
-                            effects: snapshot,
-                            annotations: Transaction.addToHistory.of(false),
-                        });
-                    });
-                };
-
-                // Forward undo/redo to main editor (subview has no history).
-                if (key === 'z') {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                        preserveMainScroll(() => redo(mainView));
-                    } else {
-                        preserveMainScroll(() => undo(mainView));
-                    }
-                    return true;
-                }
-                if (key === 'y') {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    preserveMainScroll(() => redo(mainView));
-                    return true;
-                }
-
                 // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
-                const allowedKeys = ['a', 'c', 'v', 'x'];
+                // Allow Ctrl+Z/Y to pass through to the keymap.
+                const allowedKeys = ['a', 'c', 'v', 'x', 'z', 'y'];
                 if (!allowedKeys.includes(key)) {
                     e.preventDefault();
                     return true;
