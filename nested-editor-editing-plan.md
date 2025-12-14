@@ -81,7 +81,7 @@ These are specifically to avoid UX and correctness pitfalls.
 
 ## Implementation phases
 
-### Phase 1 — Represent “active cell” in editor state
+### Phase 1 — Represent “active cell” in editor state - DONE
 
 Add a small state layer (state field or facet) to represent the active cell.
 
@@ -98,7 +98,7 @@ Exit criteria:
 
 - You can toggle an “active cell” range from widget click, and clear it on demand.
 
-### Phase 2 — Click mapping: DOM cell → doc range
+### Phase 2 — Click mapping: DOM cell → doc range - DONE
 
 When user clicks a rendered cell, map it to the corresponding Markdown cell text range in the source.
 
@@ -115,7 +115,7 @@ Exit criteria:
 
 - Clicking a cell yields stable `{ cellFrom, cellTo }` doc coordinates.
 
-### Phase 3 — Create/destroy the subview inside the widget
+### Phase 3 — Create/destroy the subview inside the widget - DONE
 
 Embed a nested `EditorView` inside the clicked cell.
 
@@ -133,7 +133,7 @@ Exit criteria:
 
 - Subview appears inside the cell and accepts input.
 
-### Phase 4 — Hide-outside-range decorations in subview
+### Phase 4 — Hide-outside-range decorations in subview - DONE
 
 Add a decoration field to the subview that replaces everything outside the active cell range.
 
@@ -145,7 +145,7 @@ Exit criteria:
 
 - Only the active cell content is visible in the subview.
 
-### Phase 5 — Synchronization + loop prevention
+### Phase 5 — Synchronization + loop prevention - DONE
 
 Implement bidirectional sync between subview and main.
 
@@ -171,7 +171,7 @@ Exit criteria:
 - External changes in main (e.g. typing elsewhere or commands) update subview.
 - No infinite loops.
 
-### Phase 6 — Boundary filters (integrity enforcement)
+### Phase 6 — Boundary filters (integrity enforcement) - DONE
 
 Add a transaction filter on the subview to keep edits safe.
 

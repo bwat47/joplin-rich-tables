@@ -262,15 +262,40 @@ function parseAlignment(cell: string): 'left' | 'center' | 'right' | null {
 }
 
 /**
- * Parse a row of pipe-separated cells
+ * Parse a row of pipe-separated cells, respecting escaped pipes (\|)
  */
 function parseRow(line: string): string[] {
-    // Remove leading/trailing pipes and split
-    let trimmed = line.trim();
-    if (trimmed.startsWith('|')) trimmed = trimmed.slice(1);
-    if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+    const trimmed = line.trim();
 
-    return trimmed.split('|').map((cell) => cell.trim());
+    // Find boundaries (same logic as parseLineCellRanges)
+    let innerFrom = 0;
+    let innerTo = trimmed.length;
+
+    if (trimmed[innerFrom] === '|' && isUnescapedPipeAt(trimmed, innerFrom)) {
+        innerFrom += 1;
+    }
+    if (innerTo > innerFrom && trimmed[innerTo - 1] === '|' && isUnescapedPipeAt(trimmed, innerTo - 1)) {
+        innerTo -= 1;
+    }
+
+    // Find unescaped pipe delimiters
+    const delimiters: number[] = [];
+    for (let i = innerFrom; i < innerTo; i++) {
+        if (isUnescapedPipeAt(trimmed, i)) {
+            delimiters.push(i);
+        }
+    }
+
+    // Extract cell contents
+    const cells: string[] = [];
+    let segmentStart = innerFrom;
+    for (const delimiterIndex of delimiters) {
+        cells.push(trimmed.slice(segmentStart, delimiterIndex).trim());
+        segmentStart = delimiterIndex + 1;
+    }
+    cells.push(trimmed.slice(segmentStart, innerTo).trim());
+
+    return cells;
 }
 
 /**
