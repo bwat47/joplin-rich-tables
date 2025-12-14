@@ -5,7 +5,12 @@ import { TableWidget, computeMarkdownTableCellRanges, parseMarkdownTable } from 
 import { initRenderer } from './markdownRenderer';
 import { logger } from '../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
-import { closeNestedCellEditor, isNestedCellEditorOpen } from './nestedCellEditor';
+import {
+    applyMainTransactionsToNestedEditor,
+    closeNestedCellEditor,
+    isNestedCellEditorOpen,
+    syncAnnotation,
+} from './nestedCellEditor';
 
 /**
  * Content script context provided by Joplin
@@ -104,10 +109,28 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
-        // Rebuild decorations when document or selection changes
-        if (transaction.docChanged || transaction.selection) {
+        // If we are actively editing a cell via nested editor, keep the existing
+        // widget DOM stable by mapping decorations through changes instead of
+        // rebuilding (which would recreate widgets and destroy the subview host).
+        const activeCell = getActiveCell(transaction.state);
+
+        // When active cell is cleared, rebuild to render updated content.
+        if (transaction.effects.some((e) => e.is(clearActiveCellEffect))) {
             return buildTableDecorations(transaction.state);
         }
+
+        if (transaction.docChanged) {
+            if (activeCell) {
+                return decorations.map(transaction.changes);
+            }
+            return buildTableDecorations(transaction.state);
+        }
+
+        // Rebuild decorations when selection changes (enter/exit raw editing mode).
+        if (transaction.selection) {
+            return buildTableDecorations(transaction.state);
+        }
+
         return decorations;
     },
     provide: (field) => EditorView.decorations.from(field),
@@ -147,15 +170,26 @@ const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         update(update: ViewUpdate): void {
             const hasActiveCell = Boolean(getActiveCell(update.state));
+            const activeCell = getActiveCell(update.state);
+            const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
 
             // If active cell was cleared, close the nested editor.
             if (!hasActiveCell && this.hadActiveCell) {
                 closeNestedCellEditor();
             }
 
-            // If the document changed externally, close for now (sync comes later).
-            if (update.docChanged && hasActiveCell) {
-                closeNestedCellEditor();
+            // Main -> subview sync.
+            if (update.docChanged && hasActiveCell && activeCell && isNestedCellEditorOpen() && !isSync) {
+                applyMainTransactionsToNestedEditor({
+                    transactions: update.transactions,
+                    cellFrom: activeCell.cellFrom,
+                    cellTo: activeCell.cellTo,
+                });
+            }
+
+            // If the document changed externally while editing but we don't have an open subview,
+            // clear state to avoid stale ranges.
+            if (update.docChanged && hasActiveCell && !isNestedCellEditorOpen() && !isSync) {
                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
             }
 
