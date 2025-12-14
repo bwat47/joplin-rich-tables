@@ -1,7 +1,43 @@
 import { WidgetType, EditorView } from '@codemirror/view';
+import { ensureSyntaxTree } from '@codemirror/language';
+import type { SyntaxNode } from '@lezer/common';
 import { getCached, renderMarkdownAsync, openLink } from './markdownRenderer';
-import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
+import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from './nestedCellEditor';
+
+function resolveCurrentTableAtDocPos(
+    view: EditorView,
+    pos: number
+): { from: number; to: number; text: string; cellRanges: TableCellRanges | null } | null {
+    const tree = ensureSyntaxTree(view.state, view.state.doc.length, 250);
+    if (!tree) {
+        return null;
+    }
+
+    let node: SyntaxNode | null = tree.resolve(pos, 1);
+    while (node && node.name !== 'Table') {
+        node = node.parent;
+    }
+
+    if (!node || node.name !== 'Table') {
+        return null;
+    }
+
+    const from = node.from;
+    const to = node.to;
+    const text = view.state.doc.sliceString(from, to);
+    const cellRanges = computeMarkdownTableCellRanges(text);
+
+    return { from, to, text, cellRanges };
+}
+
+function resolveCurrentTableAtDomTarget(
+    view: EditorView,
+    domTarget: HTMLElement
+): { from: number; to: number; text: string; cellRanges: TableCellRanges | null } | null {
+    const pos = view.posAtDOM(domTarget, 0);
+    return resolveCurrentTableAtDocPos(view, pos);
+}
 
 /**
  * Represents a parsed markdown table structure
@@ -101,7 +137,7 @@ export class TableWidget extends WidgetType {
 
             // 2) Cell activation (Phase 2: map DOM cell -> source range)
             const cell = target.closest('td, th') as HTMLElement | null;
-            if (!cell || !this.cellRanges) {
+            if (!cell) {
                 return;
             }
 
@@ -113,7 +149,31 @@ export class TableWidget extends WidgetType {
                 return;
             }
 
-            const range = section === 'header' ? this.cellRanges.headers[col] : this.cellRanges.rows[row]?.[col];
+            // When a nested cell editor is open, the decoration set is mapped through changes
+            // to keep the widget DOM stable. That means widget instance fields (tableFrom/tableTo/cellRanges)
+            // can become stale after edits elsewhere. Resolve the current table range from the live syntax
+            // tree at click time to always compute correct absolute positions.
+            const resolvedTable =
+                resolveCurrentTableAtDomTarget(view, cell) ??
+                (() => {
+                    // Fallback: in some cases `posAtDOM` inside replacement widgets can be unreliable.
+                    // When a nested editor is open, activeCell positions are mapped through transactions
+                    // and provide a stable doc position inside the current table.
+                    const activeCell = getActiveCell(view.state);
+                    if (!activeCell) {
+                        return null;
+                    }
+                    return resolveCurrentTableAtDocPos(view, activeCell.cellFrom);
+                })();
+            const tableFrom = resolvedTable?.from ?? this.tableFrom;
+            const tableTo = resolvedTable?.to ?? this.tableTo;
+            const currentCellRanges = resolvedTable?.cellRanges ?? this.cellRanges;
+
+            if (!currentCellRanges) {
+                return;
+            }
+
+            const range = section === 'header' ? currentCellRanges.headers[col] : currentCellRanges.rows[row]?.[col];
 
             if (!range) {
                 return;
@@ -122,13 +182,13 @@ export class TableWidget extends WidgetType {
             e.preventDefault();
             e.stopPropagation();
 
-            const cellFrom = this.tableFrom + range.from;
-            const cellTo = this.tableFrom + range.to;
+            const cellFrom = tableFrom + range.from;
+            const cellTo = tableFrom + range.to;
 
             view.dispatch({
                 effects: setActiveCellEffect.of({
-                    tableFrom: this.tableFrom,
-                    tableTo: this.tableTo,
+                    tableFrom,
+                    tableTo,
                     cellFrom,
                     cellTo,
                     section,
