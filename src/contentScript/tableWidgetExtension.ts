@@ -251,12 +251,21 @@ const tableStyles = EditorView.baseTheme({
     },
     '.cm-table-cell-editor .cm-editor': {
         width: '100%',
-        minHeight: '1.2em',
+    },
+    '.cm-table-cell-editor .cm-scroller': {
+        lineHeight: 'inherit',
+        fontFamily: 'inherit',
+        fontSize: 'inherit',
     },
     '.cm-table-cell-editor .cm-content': {
         margin: '0',
-        minHeight: '1.2em',
+        padding: '0 !important',
+        minHeight: 'unset',
+        lineHeight: 'inherit',
         color: 'inherit',
+    },
+    '.cm-table-cell-editor .cm-line': {
+        padding: '0',
     },
     '.cm-table-cell-editor .cm-cursor': {
         borderLeftColor: 'currentColor',
