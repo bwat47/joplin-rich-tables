@@ -7,7 +7,7 @@ import {
     StateField,
     Transaction,
 } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType } from '@codemirror/view';
+import { Decoration, drawSelection, EditorView, WidgetType } from '@codemirror/view';
 
 export const syncAnnotation = Annotation.define<boolean>();
 
@@ -192,6 +192,7 @@ class NestedCellEditorManager {
             doc: params.mainView.state.doc,
             selection: { anchor: params.cellFrom },
             extensions: [
+                drawSelection(),
                 rangeField,
                 EditorState.transactionFilter.of((tr) => {
                     if (!tr.docChanged && !tr.selection) {

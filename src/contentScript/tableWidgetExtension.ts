@@ -244,7 +244,7 @@ const tableStyles = EditorView.baseTheme({
         position: 'relative',
     },
     '.cm-table-cell-editor-hidden': {
-        display: 'none',
+        // Empty span - no display:none to preserve cursor positioning at boundaries
     },
     '.cm-table-cell-editor': {
         width: '100%',
