@@ -7,6 +7,6 @@
         "allowJs": true,
         "baseUrl": ".",
         "esModuleInterop": true,
-        "types": ["node", "jest"]
+        "types": ["node"]
     }
 }

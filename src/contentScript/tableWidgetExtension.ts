@@ -3,8 +3,7 @@ import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget, parseMarkdownTable } from './TableWidget';
 import { initRenderer } from './markdownRenderer';
-
-const PLUGIN_PREFIX = '[RichTables]';
+import { logger } from '../logger';
 
 /**
  * Content script context provided by Joplin
@@ -98,7 +97,7 @@ function buildTableDecorations(state: EditorState): DecorationSet {
  */
 const tableDecorationField = StateField.define<DecorationSet>({
     create(state) {
-        console.info(PLUGIN_PREFIX, 'Table decoration field initialized');
+        logger.info('Table decoration field initialized');
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
@@ -205,25 +204,25 @@ const tableStyles = EditorView.baseTheme({
  * Content script module export.
  */
 export default function (context: ContentScriptContext) {
-    console.info(PLUGIN_PREFIX, 'Content script loaded');
+    logger.info('Content script loaded');
 
     // Initialize the markdown renderer with postMessage function
     initRenderer(context.postMessage);
 
     return {
         plugin: (editorControl: EditorControl) => {
-            console.info(PLUGIN_PREFIX, 'Registering table widget extension');
+            logger.info('Registering table widget extension');
 
             // Check for CM6
             if (!editorControl.cm6) {
-                console.warn(PLUGIN_PREFIX, 'CodeMirror 6 not available, skipping');
+                logger.warn('CodeMirror 6 not available, skipping');
                 return;
             }
 
             // Register the extension
             editorControl.addExtension([tableDecorationField, tableStyles]);
 
-            console.info(PLUGIN_PREFIX, 'Table widget extension registered');
+            logger.info('Table widget extension registered');
         },
     };
 }
