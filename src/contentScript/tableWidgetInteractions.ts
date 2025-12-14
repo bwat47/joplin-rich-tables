@@ -5,7 +5,7 @@ import type { SyntaxNode } from '@lezer/common';
 import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from './nestedCellEditor';
 import { openLink } from './markdownRenderer';
-import { computeMarkdownTableCellRanges } from './TableWidget';
+import { computeMarkdownTableCellRanges } from './markdownTableCellRanges';
 
 interface ResolvedTable {
     from: number;
