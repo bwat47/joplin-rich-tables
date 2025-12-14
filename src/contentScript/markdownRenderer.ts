@@ -54,7 +54,7 @@ export async function renderMarkdown(markdown: string): Promise<string> {
     }
 
     if (!postMessageFn) {
-        console.warn('[RichTables] Renderer not initialized, returning raw markdown');
+        logger.warn('Renderer not initialized, returning raw markdown');
         return markdown;
     }
 
@@ -77,7 +77,7 @@ export async function renderMarkdown(markdown: string): Promise<string> {
             // Fallback to raw markdown if rendering failed
             return markdown;
         } catch (error) {
-            console.error('[RichTables] Failed to render markdown:', error);
+            logger.error('Failed to render markdown:', error);
             return markdown;
         } finally {
             pendingRequests.delete(markdown);
