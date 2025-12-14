@@ -13,6 +13,16 @@ interface RenderResult {
     error?: boolean;
 }
 
+/**
+ * Interface for markdown rendering service.
+ * Allows decoupling widgets/editors from the specific caching/rendering implementation.
+ */
+export interface MarkdownRenderService {
+    renderAsync(text: string, callback: (html: string) => void): void;
+    getCached(text: string): string | undefined;
+    clear(): void;
+}
+
 // Cache for rendered markdown to avoid redundant rendering
 const renderCache = new Map<string, string>();
 
@@ -40,7 +50,7 @@ function generateRequestId(): string {
  * Render markdown to HTML asynchronously
  * Returns cached result if available, otherwise sends request to main plugin
  */
-export async function renderMarkdown(markdown: string): Promise<string> {
+async function renderMarkdown(markdown: string): Promise<string> {
     // Return cached result if available
     const cached = renderCache.get(markdown);
     if (cached !== undefined) {
@@ -89,20 +99,6 @@ export async function renderMarkdown(markdown: string): Promise<string> {
 }
 
 /**
- * Render markdown and call callback when done (for use in widget toDOM)
- * This is useful when you can't await in synchronous code
- */
-export function renderMarkdownAsync(markdown: string, callback: (html: string) => void): void {
-    const cached = renderCache.get(markdown);
-    if (cached !== undefined) {
-        callback(cached);
-        return;
-    }
-
-    renderMarkdown(markdown).then(callback);
-}
-
-/**
  * Clear the render cache (useful when document changes significantly)
  */
 export function clearRenderCache(): void {
@@ -117,11 +113,28 @@ export function isCached(markdown: string): boolean {
 }
 
 /**
- * Get cached HTML for markdown (returns undefined if not cached)
+ * Default renderer implementation using internal cache and postMessage.
  */
-export function getCached(markdown: string): string | undefined {
-    return renderCache.get(markdown);
+class DefaultMarkdownRenderer implements MarkdownRenderService {
+    renderAsync(text: string, callback: (html: string) => void): void {
+        const cached = renderCache.get(text);
+        if (cached !== undefined) {
+            callback(cached);
+            return;
+        }
+        renderMarkdown(text).then(callback);
+    }
+
+    getCached(text: string): string | undefined {
+        return renderCache.get(text);
+    }
+
+    clear(): void {
+        renderCache.clear();
+    }
 }
+
+export const renderer: MarkdownRenderService = new DefaultMarkdownRenderer();
 
 /**
  * Open a link using Joplin's openItem command

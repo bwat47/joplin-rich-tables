@@ -1,5 +1,5 @@
 import { WidgetType, EditorView } from '@codemirror/view';
-import { getCached, renderMarkdownAsync } from './markdownRenderer';
+import { renderer } from './markdownRenderer';
 import type { TableData } from './markdownTableParsing';
 
 /**
@@ -99,7 +99,7 @@ export class TableWidget extends WidgetType {
      */
     private renderCellContent(cell: HTMLElement, markdown: string): void {
         // Check if we have cached rendered HTML
-        const cached = getCached(markdown);
+        const cached = renderer.getCached(markdown);
         if (cached !== undefined) {
             cell.innerHTML = cached;
             return;
@@ -111,7 +111,7 @@ export class TableWidget extends WidgetType {
         // Check if content likely contains markdown (optimization)
         if (this.containsMarkdown(markdown)) {
             // Request async rendering and update when ready
-            renderMarkdownAsync(markdown, (html) => {
+            renderer.renderAsync(markdown, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed
                 if (cell.isConnected && cell.textContent === markdown) {
                     cell.innerHTML = html;

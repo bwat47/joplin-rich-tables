@@ -1,6 +1,6 @@
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
-import { getCached, renderMarkdownAsync } from './markdownRenderer';
+import { renderer } from './markdownRenderer';
 import {
     createCellTransactionFilter,
     createHistoryExtender,
@@ -166,14 +166,14 @@ class NestedCellEditorManager {
             const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
 
             // Check cache first for rendered HTML.
-            const cached = getCached(cellText);
+            const cached = renderer.getCached(cellText);
             if (cached !== undefined) {
                 this.contentEl.innerHTML = cached;
             } else {
                 // Show raw text immediately, then update when render completes.
                 this.contentEl.textContent = cellText;
                 const contentEl = this.contentEl;
-                renderMarkdownAsync(cellText, (html) => {
+                renderer.renderAsync(cellText, (html) => {
                     if (contentEl.isConnected) {
                         contentEl.innerHTML = html;
                     }

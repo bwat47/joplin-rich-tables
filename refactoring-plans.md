@@ -247,7 +247,7 @@ The trickiest bugs so far are “off by N characters” range mapping issues. Th
 
 ---
 
-## 5) (Lower priority) Put renderer cache behind a tiny interface
+## 5) (Lower priority) Put renderer cache behind a tiny interface - DONE
 
 ### Goal
 
@@ -262,6 +262,15 @@ Both `TableWidget` and `nestedCellEditor` depend directly on caching details (`g
 - different caching keys
 
 …you’ll need to touch multiple callsites.
+
+...you’ll need to touch multiple callsites.
+
+### Status (implemented)
+
+- Introduced `MarkdownRenderService` interface in `src/contentScript/markdownRenderer.ts`.
+- `markdownRenderer.ts` now exports a default `renderer` instance.
+- Updated `TableWidget.ts` and `nestedCellEditor.ts` to use `renderer.renderAsync` and `renderer.getCached`.
+- Removed old standalone exports (`renderMarkdownAsync`, `getCached`) to enforce usage of the service.
 
 ### Proposed shape
 
