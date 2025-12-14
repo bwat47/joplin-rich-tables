@@ -13,7 +13,7 @@ Each refactor includes:
 
 ---
 
-## 1) Make `TableWidget` render-only (move interaction/controller code out)
+## 1) Make `TableWidget` render-only (move interaction/controller code out) - DONE
 
 ### Goal
 
@@ -41,6 +41,18 @@ That coupling makes future changes riskier (e.g., changing cell activation polic
 - New module (one of these):
     - `src/contentScript/tableInteractions.ts` (recommended)
     - OR fold into `tableWidgetExtension.ts` as a ViewPlugin
+
+### Status (implemented)
+
+- Controller lives in `src/contentScript/tableWidgetInteractions.ts` and is wired via `EditorView.domEventHandlers({ mousedown })` in `src/contentScript/tableWidgetExtension.ts`.
+- `TableWidget` no longer handles link clicks / cell activation / nested editor orchestration.
+- Minor exception: `TableWidget` still renders an “Edit table” button that dispatches selection to reveal raw markdown (kept intentionally small and self-contained).
+
+### Notes / gotchas encountered
+
+- `TableWidget.ignoreEvent()` must return `false` so the extension-level DOM handlers receive widget events.
+- Nested editor keydown events must not bubble to the main editor (otherwise Backspace/Delete can affect the outer selection).
+- Undo/redo forwarded from the nested editor needed scroll preservation (`scrollSnapshot()` dispatched immediately and again on the next animation frame to avoid a one-frame jump).
 
 ### Plan
 
@@ -75,6 +87,8 @@ That coupling makes future changes riskier (e.g., changing cell activation polic
 
 ## 2) Centralize table resolution + cell range utilities
 
+**Status:** PARTIALLY DONE (cell-range utilities extracted)
+
 ### Goal
 
 Have one canonical place for:
@@ -98,6 +112,23 @@ Duplication increases drift risk (especially with trimming rules, escaped pipe h
 Create a module like:
 
 - `src/contentScript/tablePositioning.ts`
+
+#### What’s already done
+
+- Extracted cell range computation into `src/contentScript/markdownTableCellRanges.ts`:
+    - `computeMarkdownTableCellRanges()`
+    - `CellRange` / `TableCellRanges`
+    - `isSeparatorRow()`
+    - `isUnescapedPipeAt()` (deduped; `TableWidget` imports it now)
+- Updated the interaction/controller to import `computeMarkdownTableCellRanges()` from the utility module (so it no longer depends on the widget module).
+
+#### What remains (if we continue refactor #2)
+
+- Create a true “positioning” module (e.g. `tablePositioning.ts`) that centralizes:
+    - syntax-tree table resolution (`resolveTableAtPos`, current table node lookup)
+    - section/row/col → doc range mapping (and any related policy)
+- Standardize syntax-tree timeouts in that module (ties into refactor #6).
+- Optionally move `parseMarkdownTable()` out of `TableWidget.ts` into a pure utility too, so `tableWidgetExtension.ts` doesn’t import from the widget module at all.
 
 Exports (example API):
 
