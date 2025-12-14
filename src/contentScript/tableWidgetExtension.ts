@@ -256,6 +256,14 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-cell-editor .cm-content': {
         margin: '0',
         minHeight: '1.2em',
+        color: 'inherit',
+    },
+    '.cm-table-cell-editor .cm-cursor': {
+        borderLeftColor: 'currentColor',
+    },
+    '.cm-table-cell-editor .cm-fat-cursor': {
+        backgroundColor: 'currentColor',
+        color: 'inherit',
     },
     // Remove margins from rendered markdown elements inside cells
     '.cm-table-widget-table th p, .cm-table-widget-table td p': {

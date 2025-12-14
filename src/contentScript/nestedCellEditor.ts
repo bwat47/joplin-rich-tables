@@ -31,7 +31,8 @@ function createSubviewCellRangeField(initial: SubviewCellRange) {
             }
             if (tr.docChanged) {
                 const mappedFrom = tr.changes.mapPos(value.from, 1);
-                const mappedTo = tr.changes.mapPos(value.to, -1);
+                // Use assoc=1 so insertions at the end boundary remain visible.
+                const mappedTo = tr.changes.mapPos(value.to, 1);
                 return { from: mappedFrom, to: mappedTo };
             }
             return value;
@@ -166,7 +167,8 @@ class NestedCellEditorManager {
 
                 // Keep the local hide-range aligned as edits happen.
                 this.cellFrom = tr.changes.mapPos(this.cellFrom, 1);
-                this.cellTo = tr.changes.mapPos(this.cellTo, -1);
+                // Use assoc=1 so insertions at the end boundary remain visible.
+                this.cellTo = tr.changes.mapPos(this.cellTo, 1);
 
                 // Forward to main editor (source of truth).
                 this.mainView.dispatch({

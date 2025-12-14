@@ -42,7 +42,8 @@ export const activeCellField = StateField.define<ActiveCell | null>({
             const mappedTableTo = tr.changes.mapPos(value.tableTo, -1);
 
             const mappedCellFrom = tr.changes.mapPos(value.cellFrom, 1);
-            const mappedCellTo = tr.changes.mapPos(value.cellTo, -1);
+            // Use assoc=1 so insertions at the end boundary remain visible.
+            const mappedCellTo = tr.changes.mapPos(value.cellTo, 1);
 
             if (
                 !isValidRange(mappedTableFrom, mappedTableTo) ||
