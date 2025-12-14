@@ -293,10 +293,11 @@ class NestedCellEditorManager {
                         return false;
                     },
                     contextmenu: (e) => {
-                        // Prevent Joplin's context menu.
+                        // Prevent all context menus - Joplin's menu doesn't work
+                        // in the nested editor, so suppress it entirely.
                         e.stopPropagation();
-                        // Don't preventDefault - allow browser's native menu.
-                        return false;
+                        e.preventDefault();
+                        return true;
                     },
                 }),
                 EditorView.theme({
