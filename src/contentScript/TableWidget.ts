@@ -1,6 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { getCached, renderMarkdownAsync, openLink } from './markdownRenderer';
 import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
+import { openNestedCellEditor } from './nestedCellEditor';
 
 /**
  * Represents a parsed markdown table structure
@@ -62,6 +63,11 @@ export class TableWidget extends WidgetType {
         // Handle clicks inside the widget (links + cell activation)
         container.addEventListener('mousedown', (e) => {
             const target = e.target as HTMLElement;
+
+            // If interacting with the nested editor, let it handle events.
+            if (target.closest('.cm-table-cell-editor')) {
+                return;
+            }
 
             // 1) Links
             const link = target.closest('a');
@@ -129,11 +135,14 @@ export class TableWidget extends WidgetType {
                     row: section === 'header' ? 0 : row,
                     col,
                 }),
-                // For now, keep existing "reveal markdown" behavior by moving cursor inside the cell.
-                // Phase 3 will keep the widget visible and mount the nested editor instead.
-                selection: { anchor: cellFrom },
             });
-            view.focus();
+
+            openNestedCellEditor({
+                mainView: view,
+                cellElement: cell,
+                cellFrom,
+                cellTo,
+            });
         });
 
         const table = document.createElement('table');

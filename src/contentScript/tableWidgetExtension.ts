@@ -1,10 +1,11 @@
-import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
+import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget, computeMarkdownTableCellRanges, parseMarkdownTable } from './TableWidget';
 import { initRenderer } from './markdownRenderer';
 import { logger } from '../logger';
-import { activeCellField } from './activeCellState';
+import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { closeNestedCellEditor, isNestedCellEditorOpen } from './nestedCellEditor';
 
 /**
  * Content script context provided by Joplin
@@ -112,6 +113,61 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
+const closeOnOutsideClick = EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+        const target = event.target as HTMLElement | null;
+        if (!target) {
+            return false;
+        }
+
+        // Keep editor open if clicking inside the widget or nested editor.
+        if (target.closest('.cm-table-widget') || target.closest('.cm-table-cell-editor')) {
+            return false;
+        }
+
+        if (getActiveCell(view.state)) {
+            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        }
+
+        if (isNestedCellEditorOpen()) {
+            closeNestedCellEditor();
+        }
+
+        return false;
+    },
+});
+
+const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
+    class {
+        private hadActiveCell: boolean;
+
+        constructor(private view: EditorView) {
+            this.hadActiveCell = Boolean(getActiveCell(view.state));
+        }
+
+        update(update: ViewUpdate): void {
+            const hasActiveCell = Boolean(getActiveCell(update.state));
+
+            // If active cell was cleared, close the nested editor.
+            if (!hasActiveCell && this.hadActiveCell) {
+                closeNestedCellEditor();
+            }
+
+            // If the document changed externally, close for now (sync comes later).
+            if (update.docChanged && hasActiveCell) {
+                closeNestedCellEditor();
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+            }
+
+            this.hadActiveCell = hasActiveCell;
+        }
+
+        destroy(): void {
+            closeNestedCellEditor();
+        }
+    }
+);
+
 /**
  * Basic styles for the table widget.
  */
@@ -151,6 +207,16 @@ const tableStyles = EditorView.baseTheme({
         border: '1px solid #ddd',
         padding: '8px 12px',
         minWidth: '100px',
+        position: 'relative',
+    },
+    '.cm-table-cell-editor-hidden': {
+        display: 'none',
+    },
+    '.cm-table-cell-editor': {
+        width: '100%',
+    },
+    '.cm-table-cell-editor .cm-editor': {
+        width: '100%',
     },
     // Remove margins from rendered markdown elements inside cells
     '.cm-table-widget-table th p, .cm-table-widget-table td p': {
@@ -222,7 +288,13 @@ export default function (context: ContentScriptContext) {
             }
 
             // Register the extension
-            editorControl.addExtension([activeCellField, tableDecorationField, tableStyles]);
+            editorControl.addExtension([
+                activeCellField,
+                closeOnOutsideClick,
+                nestedEditorLifecyclePlugin,
+                tableDecorationField,
+                tableStyles,
+            ]);
 
             logger.info('Table widget extension registered');
         },
