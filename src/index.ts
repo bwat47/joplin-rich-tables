@@ -1,8 +1,12 @@
 import joplin from 'api';
-import { ContentScriptType } from 'api/types';
+import { ContentScriptType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
+
+const INSERT_TABLE_COMMAND = 'richTables.insertTable';
+
+const EMPTY_TABLE_MARKDOWN = ['|     |     |', '| --- | --- |', '|     |     |', '', ''].join('\n');
 
 // Joplin's internal MarkupLanguage enum values
 const MarkupLanguage = {
@@ -24,6 +28,35 @@ interface OpenLinkMessage {
 joplin.plugins.register({
     onStart: async function () {
         logger.info('Rich Tables plugin starting...');
+
+        await joplin.commands.register({
+            name: INSERT_TABLE_COMMAND,
+            label: 'Insert table',
+            iconName: 'fas fa-table',
+            execute: async () => {
+                // Insert the markdown and leave the cursor on a blank line after the table
+                // so the table renders immediately.
+                try {
+                    // Most reliable on desktop: built-in command.
+                    await joplin.commands.execute('insertText', EMPTY_TABLE_MARKDOWN);
+                    return;
+                } catch (error) {
+                    logger.warn('insertText command failed, falling back to editor.execCommand', error);
+                }
+
+                // Fallback: try editor command APIs.
+                await joplin.commands.execute('editor.execCommand', {
+                    name: 'replaceSelection',
+                    args: [EMPTY_TABLE_MARKDOWN],
+                });
+            },
+        });
+
+        await joplin.views.toolbarButtons.create(
+            'richTablesInsertTable',
+            INSERT_TABLE_COMMAND,
+            ToolbarButtonLocation.EditorToolbar
+        );
 
         // Register the CodeMirror content script
         await joplin.contentScripts.register(
