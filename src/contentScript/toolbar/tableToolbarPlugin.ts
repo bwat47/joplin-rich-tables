@@ -293,21 +293,21 @@ class TableToolbarPlugin {
                 operation: (t, c) => updateColumnAlignment(t, c.col, 'left'),
                 // Keep cursor in current cell.
                 computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
-                forceWidgetRebuild: false,
+                forceWidgetRebuild: true,
             });
         });
         createIconBtn('Align center', 'Align column center', alignCenterIcon(), () => {
             this.modifyTable({
                 operation: (t, c) => updateColumnAlignment(t, c.col, 'center'),
                 computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
-                forceWidgetRebuild: false,
+                forceWidgetRebuild: true,
             });
         });
         createIconBtn('Align right', 'Align column right', alignRightIcon(), () => {
             this.modifyTable({
                 operation: (t, c) => updateColumnAlignment(t, c.col, 'right'),
                 computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
-                forceWidgetRebuild: false,
+                forceWidgetRebuild: true,
             });
         });
 
