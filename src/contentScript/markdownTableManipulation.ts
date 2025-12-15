@@ -7,9 +7,42 @@ function createEmptyRow(columnCount: number): string[] {
     return new Array(columnCount).fill('');
 }
 
+function getColumnCount(table: TableData): number {
+    let maxCols = Math.max(table.headers.length, table.alignments.length);
+    for (const row of table.rows) {
+        maxCols = Math.max(maxCols, row.length);
+    }
+    return maxCols;
+}
+
+function padArrayToLength<T>(arr: T[], length: number, filler: T): T[] {
+    if (arr.length >= length) {
+        return arr;
+    }
+    return [...arr, ...new Array(length - arr.length).fill(filler)];
+}
+
+function normalizeTableColumns(table: TableData): TableData {
+    const columnCount = getColumnCount(table);
+    if (
+        columnCount === table.headers.length &&
+        columnCount === table.alignments.length &&
+        table.rows.every((r) => r.length === columnCount)
+    ) {
+        return table;
+    }
+
+    const headers = padArrayToLength([...table.headers], columnCount, '');
+    const alignments = padArrayToLength([...table.alignments], columnCount, null);
+    const rows = table.rows.map((row) => padArrayToLength([...row], columnCount, ''));
+
+    return { headers, alignments, rows };
+}
+
 export function insertRow(table: TableData, rowIndex: number, where: 'before' | 'after'): TableData {
-    const newRow = createEmptyRow(table.headers.length);
-    const newRows = [...table.rows];
+    const normalized = normalizeTableColumns(table);
+    const newRow = createEmptyRow(getColumnCount(normalized));
+    const newRows = [...normalized.rows];
 
     // rowIndex is 0-based index of the body rows
     const targetIndex = where === 'before' ? rowIndex : rowIndex + 1;
@@ -20,7 +53,7 @@ export function insertRow(table: TableData, rowIndex: number, where: 'before' | 
     newRows.splice(actualIndex, 0, newRow);
 
     return {
-        ...table,
+        ...normalized,
         rows: newRows,
     };
 }
@@ -47,21 +80,24 @@ export function deleteRow(table: TableData, rowIndex: number): TableData {
 }
 
 export function insertColumn(table: TableData, colIndex: number, where: 'before' | 'after'): TableData {
+    const normalized = normalizeTableColumns(table);
+    const columnCount = getColumnCount(normalized);
+
     const targetIndex = where === 'before' ? colIndex : colIndex + 1;
 
     // Clamp index
-    const actualIndex = Math.max(0, Math.min(targetIndex, table.headers.length));
+    const actualIndex = Math.max(0, Math.min(targetIndex, columnCount));
 
     // Update headers
-    const newHeaders = [...table.headers];
+    const newHeaders = [...normalized.headers];
     newHeaders.splice(actualIndex, 0, 'New Col');
 
     // Update alignments
-    const newAlignments = [...table.alignments];
+    const newAlignments = [...normalized.alignments];
     newAlignments.splice(actualIndex, 0, null);
 
     // Update rows
-    const newRows = table.rows.map((row) => {
+    const newRows = normalized.rows.map((row) => {
         const newRow = [...row];
         newRow.splice(actualIndex, 0, '');
         return newRow;
@@ -75,25 +111,30 @@ export function insertColumn(table: TableData, colIndex: number, where: 'before'
 }
 
 export function deleteColumn(table: TableData, colIndex: number): TableData {
+    const columnCount = getColumnCount(table);
+
     // Don't allow deleting the last remaining column.
-    if (table.headers.length <= 1) {
+    if (columnCount <= 1) {
         return table;
     }
 
-    if (colIndex < 0 || colIndex >= table.headers.length) {
+    if (colIndex < 0 || colIndex >= columnCount) {
         return table;
     }
 
-    // Prevent deleting the last column?
-    // Usually tables should have at least one column, but empty tables are possible.
+    // Column deletes operate on the effective table width (max of header/alignments/row lengths).
+    // If the source is inconsistent, we treat missing header/alignments cells as empty and
+    // preserve the extra columns rather than dropping them during serialization.
 
-    const newHeaders = [...table.headers];
+    const normalized = normalizeTableColumns(table);
+
+    const newHeaders = [...normalized.headers];
     newHeaders.splice(colIndex, 1);
 
-    const newAlignments = [...table.alignments];
+    const newAlignments = [...normalized.alignments];
     newAlignments.splice(colIndex, 1);
 
-    const newRows = table.rows.map((row) => {
+    const newRows = normalized.rows.map((row) => {
         const newRow = [...row];
         newRow.splice(colIndex, 1);
         return newRow;
@@ -111,8 +152,10 @@ export function deleteColumn(table: TableData, colIndex: number): TableData {
  * It attempts to align columns by padding with spaces.
  */
 export function serializeTable(table: TableData): string {
+    const normalized = normalizeTableColumns(table);
+
     // 1. Calculate column widths
-    const colWidths = table.headers.map((h) => h.length);
+    const colWidths = normalized.headers.map((h) => h.length);
 
     // Check alignments row
     // Alignment row usually looks like ---, :---, :---:, ---:
@@ -122,30 +165,26 @@ export function serializeTable(table: TableData): string {
     }
 
     // Check body rows
-    for (const row of table.rows) {
+    for (const row of normalized.rows) {
         for (let i = 0; i < row.length; i++) {
-            // If row has more cells than headers, ignore extras for width calc (or expand?)
-            // Usually we assume consistent structure.
-            if (i < colWidths.length) {
-                colWidths[i] = Math.max(colWidths[i], row[i].length);
-            }
+            colWidths[i] = Math.max(colWidths[i], row[i].length);
         }
     }
 
     // Helper to pad cell
     const pad = (text: string, width: number, _align: 'left' | 'right' | 'center' | null) => {
-        // For simplicity, we just right-pad everything unless it's strictly numeric maybe?
-        // Standard Markdown usually just pads with spaces to fill the cell.
-        // alignment only affects the separator row `:-:` syntax, but visual padding aids readability.
+        // Current behavior: always right-pad with spaces to the computed column width.
+        // This normalizes/pretty-prints the table source so pipes line up, but can introduce
+        // whitespace-only diffs. Alignment is represented only in the separator row.
         return text + ' '.repeat(Math.max(0, width - text.length));
     };
 
     // 2. Build Header
-    const headerCells = table.headers.map((h, i) => pad(h, colWidths[i], null));
+    const headerCells = normalized.headers.map((h, i) => pad(h, colWidths[i], null));
     const headerLine = '| ' + headerCells.join(' | ') + ' |';
 
     // 3. Build Separator
-    const separatorCells = table.alignments.map((align, i) => {
+    const separatorCells = normalized.alignments.map((align, i) => {
         const width = colWidths[i];
         let sep = '-'.repeat(width);
 
@@ -162,13 +201,8 @@ export function serializeTable(table: TableData): string {
     const separatorLine = '| ' + separatorCells.join(' | ') + ' |';
 
     // 4. Build Body
-    const bodyLines = table.rows.map((row) => {
-        // Ensure row has enough cells (pad with empty if missing)
-        const rowCells: string[] = [];
-        for (let i = 0; i < table.headers.length; i++) {
-            const cellText = row[i] || '';
-            rowCells.push(pad(cellText, colWidths[i], null));
-        }
+    const bodyLines = normalized.rows.map((row) => {
+        const rowCells = row.map((cellText, i) => pad(cellText, colWidths[i], null));
         return '| ' + rowCells.join(' | ') + ' |';
     });
 

@@ -108,4 +108,23 @@ describe('markdownTableManipulation', () => {
         expect(newData).toBe(data);
         expect(newData.rows.length).toBe(1);
     });
+
+    it('should preserve extra row cells by expanding headers on serialize', () => {
+        const inconsistentTable = `
+| H |
+| --- |
+| A | B |
+`.trim();
+
+        const data = parseMarkdownTable(inconsistentTable)!;
+        expect(data.headers).toEqual(['H']);
+        expect(data.rows[0]).toEqual(['A', 'B']);
+
+        const serialized = serializeTable(data);
+        const reparsed = parseMarkdownTable(serialized)!;
+
+        // Missing header/alignments are created as empty/null so we don't drop data.
+        expect(reparsed.headers.length).toBe(2);
+        expect(reparsed.rows[0]).toEqual(['A', 'B']);
+    });
 });
