@@ -348,6 +348,15 @@ const tableStyles = EditorView.baseTheme({
         whiteSpace: 'nowrap',
         transition: 'all 0.2s',
     },
+    '.cm-table-toolbar-btn .cm-table-toolbar-icon': {
+        width: '18px',
+        height: '18px',
+        display: 'block',
+    },
+    '.cm-table-toolbar-btn:has(.cm-table-toolbar-icon)': {
+        padding: '4px 6px',
+        lineHeight: '0',
+    },
     '.cm-table-toolbar-btn:hover': {
         backgroundColor: 'var(--joplin-selected-color, rgba(0,0,0,0.05))', // fallback
         borderColor: 'var(--joplin-divider-color, #cccccc)',
