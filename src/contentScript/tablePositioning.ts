@@ -90,12 +90,27 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
         // Some DOM nodes inside replacement widgets can fail `posAtDOM`.
     }
 
+    // Next best: try mapping the widget container itself. This avoids relying on
+    // potentially-stale dataset anchors when decorations are mapped through edits
+    // while a nested editor is open.
+    const container = target.closest('.cm-table-widget') as HTMLElement | null;
+    if (container) {
+        try {
+            const pos = view.posAtDOM(container, 0);
+            const resolved = resolveTableAtPos(view.state, pos);
+            if (resolved) {
+                return resolved;
+            }
+        } catch {
+            // Fall through to dataset-based fallback.
+        }
+    }
+
     // Fallback: if the widget provides its original `tableFrom` on the container, use that
     // as a stable anchor to re-resolve the current `Table` node from the syntax tree.
     //
     // This is important when quickly switching between tables: `activeCell` may still refer
     // to the previously-active table at the time this handler runs.
-    const container = target.closest('.cm-table-widget') as HTMLElement | null;
     if (container) {
         const tableFrom = Number(container.dataset.tableFrom);
         if (Number.isFinite(tableFrom) && tableFrom >= 0 && tableFrom <= view.state.doc.length) {
