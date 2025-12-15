@@ -18,7 +18,15 @@ export class TableWidget extends WidgetType {
     }
 
     eq(other: TableWidget): boolean {
-        return this.tableText === other.tableText;
+        // IMPORTANT: include doc positions in equality.
+        // CodeMirror may reuse widget DOM when `eq()` returns true.
+        // Our edit button handler closes over `tableFrom`, so if the table shifts
+        // (e.g. user inserts a newline above it) but the table text is unchanged,
+        // reusing DOM would keep a stale `tableFrom` and the edit button would
+        // stop working.
+        return (
+            this.tableText === other.tableText && this.tableFrom === other.tableFrom && this.tableTo === other.tableTo
+        );
     }
 
     toDOM(view: EditorView): HTMLElement {
