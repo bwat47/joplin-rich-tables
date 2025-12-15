@@ -75,8 +75,8 @@ export function findTableRanges(
  *
  * Order:
  * 1) DOM -> doc position via `view.posAtDOM`
- * 2) Active cell fallback (when nested editor is open)
- * 3) Widget container dataset fallback (tableFrom/tableTo)
+ * 2) Widget container dataset fallback (tableFrom anchor)
+ * 3) Active cell fallback (when nested editor is open)
  */
 export function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
     // Best case: map DOM->doc position.
@@ -90,6 +90,34 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
         // Some DOM nodes inside replacement widgets can fail `posAtDOM`.
     }
 
+    // Fallback: if the widget provides its original `tableFrom` on the container, use that
+    // as a stable anchor to re-resolve the current `Table` node from the syntax tree.
+    //
+    // This is important when quickly switching between tables: `activeCell` may still refer
+    // to the previously-active table at the time this handler runs.
+    const container = target.closest('.cm-table-widget') as HTMLElement | null;
+    if (container) {
+        const tableFrom = Number(container.dataset.tableFrom);
+        if (Number.isFinite(tableFrom) && tableFrom >= 0 && tableFrom <= view.state.doc.length) {
+            const anchorPos = Math.min(tableFrom + 1, view.state.doc.length);
+            const resolved = resolveTableAtPos(view.state, anchorPos);
+            if (resolved) {
+                return resolved;
+            }
+
+            // If the table node cannot be resolved (e.g., parser not ready), fall back to
+            // slicing using the stored bounds if present.
+            const tableTo = Number(container.dataset.tableTo);
+            if (Number.isFinite(tableTo) && tableTo >= tableFrom) {
+                return {
+                    from: tableFrom,
+                    to: tableTo,
+                    text: view.state.doc.sliceString(tableFrom, tableTo),
+                };
+            }
+        }
+    }
+
     // Fallback: when a nested cell editor is open, activeCell is mapped through changes and
     // provides a stable in-doc position.
     const activeCell = getActiveCell(view.state);
@@ -97,20 +125,6 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
         const resolved = resolveTableAtPos(view.state, activeCell.cellFrom);
         if (resolved) {
             return resolved;
-        }
-    }
-
-    // Last fallback: if the widget provides table bounds on its container.
-    const container = target.closest('.cm-table-widget') as HTMLElement | null;
-    if (container) {
-        const tableFrom = Number(container.dataset.tableFrom);
-        const tableTo = Number(container.dataset.tableTo);
-        if (Number.isFinite(tableFrom) && Number.isFinite(tableTo) && tableFrom >= 0 && tableTo >= tableFrom) {
-            return {
-                from: tableFrom,
-                to: tableTo,
-                text: view.state.doc.sliceString(tableFrom, tableTo),
-            };
         }
     }
 
