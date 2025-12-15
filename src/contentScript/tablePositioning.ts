@@ -11,8 +11,8 @@ export interface ResolvedTable {
     text: string;
 }
 
-export const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 100;
-export const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 250;
+export const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
+export const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
 
 /**
  * Resolve the Lezer `Table` node that contains `pos`.
