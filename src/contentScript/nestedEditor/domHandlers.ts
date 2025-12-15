@@ -42,7 +42,7 @@ function createPreserveScroll(mainView: EditorView) {
     };
 }
 
-/** Creates a keymap for the nested editor to handle undo/redo. */
+/** Creates a keymap for the nested editor to handle undo/redo and table navigation (arrows, tab, enter). */
 export function createNestedEditorKeymap(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
     const preserveMainScroll = createPreserveScroll(mainView);
 
