@@ -17,6 +17,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`       |
 | `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                |
 | `contentScript/toolbar/`                            | Floating table toolbar + header semantics                         |
+| `contentScript/toolbar/toolbarPositioning.ts`       | Pure helper for floating-toolbar anchor/visibility decisions      |
 | `contentScript/services/markdownRenderer.ts`        | `MarkdownRenderService` (async rendering with caching)            |
 
 ### Table Display
@@ -70,6 +71,12 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - `nestedEditorLifecyclePlugin` closes subview
 - Decorations rebuilt to show updated rendered content
 - Widget destruction also closes any hosted nested editor to avoid orphaned subviews
+
+### Floating Toolbar Behavior
+
+- Anchored to the active table (top or bottom); never free-floating mid-viewport.
+- Repositions on scroll/resize to keep the toolbar visible while the table is visible.
+- Hidden when the table is fully outside the editor viewport.
 
 ## References
 
