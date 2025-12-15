@@ -19,6 +19,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 - Tables detected via Lezer syntax tree
 - Replaced with `Decoration.replace({ widget, block: true })` via StateField
+- Widget reports an estimated height to reduce scroll jumps while rendering
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached)
 - Supports column alignments (`:---`, `:---:`, `---:`)
 
@@ -27,6 +28,8 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 **Strategy**: Embed a CodeMirror subview inside the clicked cell. Subview contains the full document but hides everything outside the active cell range.
 
 **Activation**: Click cell → compute cell range → dispatch `setActiveCellEffect` → open nested editor
+
+**Active cell styling**: The hosting `<td>` is marked with an active class for outline styling.
 
 **Sync**:
 
@@ -58,6 +61,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - `clearActiveCellEffect` dispatched
 - `nestedEditorLifecyclePlugin` closes subview
 - Decorations rebuilt to show updated rendered content
+- Widget destruction also closes any hosted nested editor to avoid orphaned subviews
 
 ## References
 
