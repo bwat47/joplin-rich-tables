@@ -76,4 +76,36 @@ describe('markdownTableManipulation', () => {
         expect(newData.rows[0].length).toBe(1);
         expect(newData.rows[0][0]).toBe('Row 1 Col 2');
     });
+
+    it('should not delete last remaining column', () => {
+        const oneColTable = `
+| H |
+| --- |
+| A |
+| B |
+`.trim();
+
+        const data = parseMarkdownTable(oneColTable)!;
+        const newData = deleteColumn(data, 0);
+
+        // No-op
+        expect(newData).toBe(data);
+        expect(newData.headers).toEqual(['H']);
+        expect(newData.rows.length).toBe(2);
+    });
+
+    it('should not delete last remaining body row', () => {
+        const oneBodyRowTable = `
+| H1 | H2 |
+| --- | --- |
+| A | B |
+`.trim();
+
+        const data = parseMarkdownTable(oneBodyRowTable)!;
+        const newData = deleteRow(data, 0);
+
+        // No-op
+        expect(newData).toBe(data);
+        expect(newData.rows.length).toBe(1);
+    });
 });

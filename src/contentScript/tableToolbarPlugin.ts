@@ -1,7 +1,8 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { activeCellField, ActiveCell, clearActiveCellEffect } from './activeCellState';
 import { parseMarkdownTable, TableData } from './markdownTableParsing';
-import { insertRow, deleteRow, insertColumn, deleteColumn, serializeTable } from './markdownTableManipulation';
+import { insertColumn, deleteColumn, serializeTable } from './markdownTableManipulation';
+import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 
 class TableToolbarPlugin {
     dom: HTMLElement;
@@ -52,9 +53,13 @@ class TableToolbarPlugin {
         };
 
         // Row Operations
-        createBtn('Row+ Before', 'Insert row before', () => this.modifyTable((t, c) => insertRow(t, c.row, 'before')));
-        createBtn('Row+ After', 'Insert row after', () => this.modifyTable((t, c) => insertRow(t, c.row, 'after')));
-        createBtn('Row-', 'Delete row', () => this.modifyTable((t, c) => deleteRow(t, c.row)));
+        createBtn('Row+ Before', 'Insert row before', () =>
+            this.modifyTable((t, c) => insertRowForActiveCell(t, c, 'before'))
+        );
+        createBtn('Row+ After', 'Insert row after', () =>
+            this.modifyTable((t, c) => insertRowForActiveCell(t, c, 'after'))
+        );
+        createBtn('Row-', 'Delete row', () => this.modifyTable((t, c) => deleteRowForActiveCell(t, c)));
 
         // Spacer
         const spacer1 = document.createElement('span');
@@ -95,6 +100,9 @@ class TableToolbarPlugin {
         if (!tableData) return;
 
         const newTableData = operation(tableData, this.currentActiveCell);
+        if (newTableData === tableData) {
+            return;
+        }
         const newText = serializeTable(newTableData);
 
         this.view.dispatch({

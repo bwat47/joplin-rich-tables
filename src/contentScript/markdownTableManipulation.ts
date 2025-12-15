@@ -26,6 +26,13 @@ export function insertRow(table: TableData, rowIndex: number, where: 'before' | 
 }
 
 export function deleteRow(table: TableData, rowIndex: number): TableData {
+    // Don't allow deleting the last remaining body row.
+    // A markdown table with only a header row is a valid syntax, but this plugin
+    // expects at least one body row for interactive editing semantics.
+    if (table.rows.length <= 1) {
+        return table;
+    }
+
     if (rowIndex < 0 || rowIndex >= table.rows.length) {
         return table;
     }
@@ -68,6 +75,11 @@ export function insertColumn(table: TableData, colIndex: number, where: 'before'
 }
 
 export function deleteColumn(table: TableData, colIndex: number): TableData {
+    // Don't allow deleting the last remaining column.
+    if (table.headers.length <= 1) {
+        return table;
+    }
+
     if (colIndex < 0 || colIndex >= table.headers.length) {
         return table;
     }
