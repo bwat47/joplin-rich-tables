@@ -29,26 +29,13 @@ export class TableWidget extends WidgetType {
         );
     }
 
-    toDOM(view: EditorView): HTMLElement {
+    toDOM(_view: EditorView): HTMLElement {
         const container = document.createElement('div');
         container.className = 'cm-table-widget';
 
         // Used by extension-level interaction handlers as a reliable fallback.
         container.dataset.tableFrom = String(this.tableFrom);
         container.dataset.tableTo = String(this.tableTo);
-
-        // Create edit button
-        const editButton = document.createElement('button');
-        editButton.className = 'cm-table-widget-edit-button';
-        editButton.title = 'Edit table';
-        editButton.innerHTML = '✏️';
-        editButton.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            view.dispatch({ selection: { anchor: this.tableFrom } });
-            view.focus();
-        });
-        container.appendChild(editButton);
 
         const table = document.createElement('table');
         table.className = 'cm-table-widget-table';

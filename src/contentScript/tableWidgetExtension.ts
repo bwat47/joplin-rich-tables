@@ -13,6 +13,7 @@ import {
 } from './nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
+import { tableToolbarPlugin } from './tableToolbarPlugin';
 
 /**
  * Content script context provided by Joplin
@@ -318,6 +319,48 @@ const tableStyles = EditorView.baseTheme({
     '&dark .cm-table-widget-table code': {
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
+    // Toolbar styles
+    '.cm-table-floating-toolbar': {
+        position: 'absolute',
+        backgroundColor: 'var(--joplin-background-color, #ffffff)',
+        border: '1px solid var(--joplin-divider-color, #dddddd)',
+        borderRadius: '6px',
+        padding: '4px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        display: 'flex',
+        gap: '4px',
+        alignItems: 'center',
+        zIndex: '100',
+        fontSize: '13px',
+    },
+    '.cm-table-toolbar-btn': {
+        background: 'none',
+        border: '1px solid transparent',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        padding: '4px 8px',
+        fontSize: 'inherit',
+        color: 'var(--joplin-color, #333333)',
+        whiteSpace: 'nowrap',
+        transition: 'all 0.2s',
+    },
+    '.cm-table-toolbar-btn:hover': {
+        backgroundColor: 'var(--joplin-selected-color, rgba(0,0,0,0.05))', // fallback
+        borderColor: 'var(--joplin-divider-color, #cccccc)',
+    },
+    // Dark mode for toolbar
+    '&dark .cm-table-floating-toolbar': {
+        backgroundColor: '#2d2d2d',
+        borderColor: '#444444',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+    },
+    '&dark .cm-table-toolbar-btn': {
+        color: '#dddddd',
+    },
+    '&dark .cm-table-toolbar-btn:hover': {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderColor: '#555555',
+    },
 });
 
 /**
@@ -347,6 +390,7 @@ export default function (context: ContentScriptContext) {
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
                 tableStyles,
+                tableToolbarPlugin,
             ]);
 
             logger.info('Table widget extension registered');
