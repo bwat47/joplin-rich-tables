@@ -8,7 +8,9 @@
         "update": "npm install -g generator-joplin && yo joplin --node-package-manager npm --update --force",
         "lint": "eslint --ext .ts src/",
         "lint:fix": "eslint --ext .ts src/ --fix",
-        "format": "prettier --write \"src/**/*.ts\""
+        "format": "prettier --write \"src/**/*.ts\"",
+        "test": "jest --passWithNoTests",
+        "test:watch": "jest --watch"
     },
     "license": "MIT",
     "keywords": [
@@ -35,6 +37,7 @@
         "@codemirror/view": "^6.38.8",
         "@codemirror/commands": "^6.10.0",
         "@types/markdown-it": "^14.1.2",
+        "@types/jest": "^30.0.0",
         "@eslint/eslintrc": "^3.3.1",
         "@eslint/js": "^9.39.1",
         "@types/node": "^24.10.0",
@@ -48,9 +51,11 @@
         "eslint-plugin-prettier": "^5.5.4",
         "fs-extra": "^10.1.0",
         "glob": "^8.0.3",
+        "jest": "^30.2.0",
         "markdown-it": "^14.1.0",
         "prettier": "^3.6.2",
         "tar": "^6.1.11",
+        "ts-jest": "^29.4.6",
         "ts-loader": "^9.3.1",
         "typescript": "^5.9.3",
         "webpack": "^5.102.1",
