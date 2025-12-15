@@ -7,7 +7,7 @@
 
 const PREFIX = '[Rich Tables]';
 
-let debugEnabled = false;
+let debugEnabled = true;
 
 export const logger = {
     setDebug(enabled: boolean): void {

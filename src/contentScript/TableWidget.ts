@@ -1,14 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
-import { getCached, renderMarkdownAsync, openLink } from './markdownRenderer';
-
-/**
- * Represents a parsed markdown table structure
- */
-export interface TableData {
-    headers: string[];
-    alignments: ('left' | 'center' | 'right' | null)[];
-    rows: string[][];
-}
+import { renderer } from './markdownRenderer';
+import { cleanupHostedEditors } from './nestedCellEditor';
+import type { TableData } from './markdownTableParsing';
 
 /**
  * Widget that renders a markdown table as an interactive HTML table
@@ -17,19 +10,32 @@ export interface TableData {
 export class TableWidget extends WidgetType {
     constructor(
         private tableData: TableData,
-        private rawText: string,
-        private tableFrom: number
+        private tableText: string,
+        private tableFrom: number,
+        private tableTo: number
     ) {
         super();
     }
 
     eq(other: TableWidget): boolean {
-        return this.rawText === other.rawText;
+        // IMPORTANT: include doc positions in equality.
+        // CodeMirror may reuse widget DOM when `eq()` returns true.
+        // Our edit button handler closes over `tableFrom`, so if the table shifts
+        // (e.g. user inserts a newline above it) but the table text is unchanged,
+        // reusing DOM would keep a stale `tableFrom` and the edit button would
+        // stop working.
+        return (
+            this.tableText === other.tableText && this.tableFrom === other.tableFrom && this.tableTo === other.tableTo
+        );
     }
 
     toDOM(view: EditorView): HTMLElement {
         const container = document.createElement('div');
         container.className = 'cm-table-widget';
+
+        // Used by extension-level interaction handlers as a reliable fallback.
+        container.dataset.tableFrom = String(this.tableFrom);
+        container.dataset.tableTo = String(this.tableTo);
 
         // Create edit button
         const editButton = document.createElement('button');
@@ -39,49 +45,10 @@ export class TableWidget extends WidgetType {
         editButton.addEventListener('mousedown', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            view.dispatch({
-                selection: { anchor: this.tableFrom },
-            });
+            view.dispatch({ selection: { anchor: this.tableFrom } });
             view.focus();
         });
         container.appendChild(editButton);
-
-        // Handle clicks on links
-        container.addEventListener('mousedown', (e) => {
-            const target = e.target as HTMLElement;
-
-            // Check if clicked on a link
-            const link = target.closest('a');
-            if (link) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Check for Joplin internal link data attributes first
-                // renderMarkup converts :/id links to href="#" with data attributes
-                const resourceId = link.getAttribute('data-resource-id');
-                const noteId =
-                    link.getAttribute('data-note-id') ||
-                    link.getAttribute('data-item-id');
-
-                let href: string | null = null;
-                if (resourceId) {
-                    href = `:/${resourceId}`;
-                } else if (noteId) {
-                    href = `:/${noteId}`;
-                } else {
-                    href = link.getAttribute('href');
-                    // Skip empty or placeholder hrefs
-                    if (href === '#' || href === '') {
-                        href = null;
-                    }
-                }
-
-                if (href) {
-                    openLink(href);
-                }
-                return;
-            }
-        });
 
         const table = document.createElement('table');
         table.className = 'cm-table-widget-table';
@@ -91,8 +58,13 @@ export class TableWidget extends WidgetType {
         const headerRow = document.createElement('tr');
         for (let i = 0; i < this.tableData.headers.length; i++) {
             const th = document.createElement('th');
+            th.dataset.section = 'header';
+            th.dataset.row = '0';
+            th.dataset.col = String(i);
+
             const content = this.tableData.headers[i].trim();
             this.renderCellContent(th, content);
+
             const align = this.tableData.alignments[i];
             if (align) {
                 th.style.textAlign = align;
@@ -104,13 +76,19 @@ export class TableWidget extends WidgetType {
 
         // Render body
         const tbody = document.createElement('tbody');
-        for (const row of this.tableData.rows) {
+        for (let r = 0; r < this.tableData.rows.length; r++) {
+            const row = this.tableData.rows[r];
             const tr = document.createElement('tr');
-            for (let i = 0; i < row.length; i++) {
+            for (let c = 0; c < row.length; c++) {
                 const td = document.createElement('td');
-                const content = row[i].trim();
+                td.dataset.section = 'body';
+                td.dataset.row = String(r);
+                td.dataset.col = String(c);
+
+                const content = row[c].trim();
                 this.renderCellContent(td, content);
-                const align = this.tableData.alignments[i];
+
+                const align = this.tableData.alignments[c];
                 if (align) {
                     td.style.textAlign = align;
                 }
@@ -130,7 +108,7 @@ export class TableWidget extends WidgetType {
      */
     private renderCellContent(cell: HTMLElement, markdown: string): void {
         // Check if we have cached rendered HTML
-        const cached = getCached(markdown);
+        const cached = renderer.getCached(markdown);
         if (cached !== undefined) {
             cell.innerHTML = cached;
             return;
@@ -142,7 +120,7 @@ export class TableWidget extends WidgetType {
         // Check if content likely contains markdown (optimization)
         if (this.containsMarkdown(markdown)) {
             // Request async rendering and update when ready
-            renderMarkdownAsync(markdown, (html) => {
+            renderer.renderAsync(markdown, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed
                 if (cell.isConnected && cell.textContent === markdown) {
                     cell.innerHTML = html;
@@ -167,83 +145,71 @@ export class TableWidget extends WidgetType {
             text.includes('~~') || // strikethrough
             text.includes('![') || // images
             text.includes('<') || // HTML tags
-            text.includes('==') // Highlights
+            text.includes('==') || // Highlights
+            text.includes('#') // Headings
         );
     }
 
-    ignoreEvent(): boolean {
-        // We handle mouse events ourselves to reliably move cursor into table
-        return true;
+    /**
+     * Estimated height of the widget in pixels.
+     * This is crucial for CodeMirror's scroll position calculations.
+     * Without it, CM6 guesses the height, finds the real height on render,
+     * and jumps the scroll position.
+     */
+    get estimatedHeight(): number {
+        return this.calculateEstimatedHeight();
     }
-}
 
-/**
- * Parse alignment from separator row cell
- * Examples: :--- (left), :---: (center), ---: (right), --- (none)
- */
-function parseAlignment(cell: string): 'left' | 'center' | 'right' | null {
-    const trimmed = cell.trim();
-    const left = trimmed.startsWith(':');
-    const right = trimmed.endsWith(':');
+    private calculateEstimatedHeight(): number {
+        const ROW_HEIGHT_BASE = 35; // Approx px per row (including padding/border)
+        const WRAP_CHARS = 60; // Approx chars before wrapping
+        const WRAP_HEIGHT = 20; // Additional px per wrapped line
+        const IMAGE_HEIGHT = 100; // Approx px per image
 
-    if (left && right) return 'center';
-    if (left) return 'left';
-    if (right) return 'right';
-    return null;
-}
+        let totalHeight = 0;
 
-/**
- * Parse a row of pipe-separated cells
- */
-function parseRow(line: string): string[] {
-    // Remove leading/trailing pipes and split
-    let trimmed = line.trim();
-    if (trimmed.startsWith('|')) trimmed = trimmed.slice(1);
-    if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+        // Header height
+        totalHeight += ROW_HEIGHT_BASE;
 
-    return trimmed.split('|').map((cell) => cell.trim());
-}
+        // Rows
+        for (const row of this.tableData.rows) {
+            let maxRowHeight = ROW_HEIGHT_BASE;
 
-/**
- * Check if a line is a valid separator row (contains only dashes, colons, pipes, spaces)
- */
-function isSeparatorRow(line: string): boolean {
-    const trimmed = line.trim();
-    // Must have at least one dash
-    if (!trimmed.includes('-')) return false;
-    // Should only contain valid separator characters
-    return /^[\s|:\-]+$/.test(trimmed);
-}
+            for (const cell of row) {
+                let cellHeight = ROW_HEIGHT_BASE;
+                const textLength = cell.length;
 
-/**
- * Parse markdown table text into structured TableData
- * Returns null if the text is not a valid table
- */
-export function parseMarkdownTable(text: string): TableData | null {
-    const lines = text.split('\n').filter((line) => line.trim().length > 0);
+                // Estimate text wrapping
+                if (textLength > WRAP_CHARS) {
+                    const extraLines = Math.floor(textLength / WRAP_CHARS);
+                    cellHeight += extraLines * WRAP_HEIGHT;
+                }
 
-    if (lines.length < 2) return null;
+                // Estimate images (naive check)
+                const imageCount = (cell.match(/!\[.*?\]\(.*?\)/g) || []).length;
+                if (imageCount > 0) {
+                    cellHeight += imageCount * IMAGE_HEIGHT;
+                }
 
-    // First line should be the header
-    const headerLine = lines[0];
-    if (!headerLine.includes('|')) return null;
-
-    // Second line should be the separator
-    const separatorLine = lines[1];
-    if (!isSeparatorRow(separatorLine)) return null;
-
-    const headers = parseRow(headerLine);
-    const separatorCells = parseRow(separatorLine);
-    const alignments = separatorCells.map(parseAlignment);
-
-    // Parse data rows
-    const rows: string[][] = [];
-    for (let i = 2; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.includes('|')) {
-            rows.push(parseRow(line));
+                if (cellHeight > maxRowHeight) {
+                    maxRowHeight = cellHeight;
+                }
+            }
+            totalHeight += maxRowHeight;
         }
+
+        // Add some buffer for container padding
+        return totalHeight + 20;
     }
 
-    return { headers, alignments, rows };
+    ignoreEvent(): boolean {
+        // Events are handled by extension-level domEventHandlers.
+        return false;
+    }
+
+    destroy(dom: HTMLElement): void {
+        // Ensure any nested editor hosted in this widget is closed when the widget is destroyed.
+        // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
+        cleanupHostedEditors(dom);
+    }
 }
