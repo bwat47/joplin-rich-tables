@@ -1,5 +1,6 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import type { StateEffect } from '@codemirror/state';
+import { activeCellField, ActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import {
     insertColumn,
@@ -9,6 +10,8 @@ import {
 } from '../tableModel/markdownTableManipulation';
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 import { computeToolbarPosition } from './toolbarPositioning';
+import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { computeActiveCellForTableText, type TargetCell } from './tableToolbarActiveCell';
 
 const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -195,15 +198,47 @@ class TableToolbarPlugin {
         };
 
         // Row Operations
-        createIconBtn('Insert row before', 'Insert row before', rowInsertTopIcon(), () =>
-            this.modifyTable((t, c) => insertRowForActiveCell(t, c, 'before'))
-        );
-        createIconBtn('Insert row after', 'Insert row after', rowInsertBottomIcon(), () =>
-            this.modifyTable((t, c) => insertRowForActiveCell(t, c, 'after'))
-        );
-        createIconBtn('Delete row', 'Delete row', rowRemoveIcon(), () =>
-            this.modifyTable((t, c) => deleteRowForActiveCell(t, c))
-        );
+        createIconBtn('Insert row before', 'Insert row before', rowInsertTopIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => insertRowForActiveCell(t, c, 'before'),
+                computeTargetCell: (cell) => {
+                    if (cell.section === 'header') {
+                        // Header insert-before creates a new header row.
+                        return { section: 'header', row: 0, col: cell.col };
+                    }
+                    // New row inserted at current row index.
+                    return { section: 'body', row: cell.row, col: cell.col };
+                },
+                forceWidgetRebuild: true,
+            });
+        });
+        createIconBtn('Insert row after', 'Insert row after', rowInsertBottomIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => insertRowForActiveCell(t, c, 'after'),
+                computeTargetCell: (cell) => {
+                    if (cell.section === 'header') {
+                        // Header insert-after creates the first body row.
+                        return { section: 'body', row: 0, col: cell.col };
+                    }
+                    return { section: 'body', row: cell.row + 1, col: cell.col };
+                },
+                forceWidgetRebuild: true,
+            });
+        });
+        createIconBtn('Delete row', 'Delete row', rowRemoveIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => deleteRowForActiveCell(t, c),
+                computeTargetCell: (cell) => {
+                    if (cell.section === 'header') {
+                        // Header delete promotes first body row to header.
+                        return { section: 'header', row: 0, col: cell.col };
+                    }
+                    // After deletion, the next row takes the deleted row's index.
+                    return { section: 'body', row: cell.row, col: cell.col };
+                },
+                forceWidgetRebuild: true,
+            });
+        });
 
         // Spacer
         const spacer1 = document.createElement('span');
@@ -212,15 +247,39 @@ class TableToolbarPlugin {
         this.dom.appendChild(spacer1);
 
         // Column Operations
-        createIconBtn('Insert column before', 'Insert column before', columnInsertLeftIcon(), () =>
-            this.modifyTable((t, c) => insertColumn(t, c.col, 'before'))
-        );
-        createIconBtn('Insert column after', 'Insert column after', columnInsertRightIcon(), () =>
-            this.modifyTable((t, c) => insertColumn(t, c.col, 'after'))
-        );
-        createIconBtn('Delete column', 'Delete column', columnRemoveIcon(), () =>
-            this.modifyTable((t, c) => deleteColumn(t, c.col))
-        );
+        createIconBtn('Insert column before', 'Insert column before', columnInsertLeftIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => insertColumn(t, c.col, 'before'),
+                computeTargetCell: (cell) => ({
+                    section: cell.section,
+                    row: cell.row,
+                    col: cell.col,
+                }),
+                forceWidgetRebuild: true,
+            });
+        });
+        createIconBtn('Insert column after', 'Insert column after', columnInsertRightIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => insertColumn(t, c.col, 'after'),
+                computeTargetCell: (cell) => ({
+                    section: cell.section,
+                    row: cell.row,
+                    col: cell.col + 1,
+                }),
+                forceWidgetRebuild: true,
+            });
+        });
+        createIconBtn('Delete column', 'Delete column', columnRemoveIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => deleteColumn(t, c.col),
+                computeTargetCell: (cell) => ({
+                    section: cell.section,
+                    row: cell.row,
+                    col: cell.col,
+                }),
+                forceWidgetRebuild: true,
+            });
+        });
 
         // Spacer
         const spacer3 = document.createElement('span');
@@ -229,15 +288,28 @@ class TableToolbarPlugin {
         this.dom.appendChild(spacer3);
 
         // Alignment Operations
-        createIconBtn('Align left', 'Align column left', alignLeftIcon(), () =>
-            this.modifyTable((t, c) => updateColumnAlignment(t, c.col, 'left'))
-        );
-        createIconBtn('Align center', 'Align column center', alignCenterIcon(), () =>
-            this.modifyTable((t, c) => updateColumnAlignment(t, c.col, 'center'))
-        );
-        createIconBtn('Align right', 'Align column right', alignRightIcon(), () =>
-            this.modifyTable((t, c) => updateColumnAlignment(t, c.col, 'right'))
-        );
+        createIconBtn('Align left', 'Align column left', alignLeftIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => updateColumnAlignment(t, c.col, 'left'),
+                // Keep cursor in current cell.
+                computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
+                forceWidgetRebuild: false,
+            });
+        });
+        createIconBtn('Align center', 'Align column center', alignCenterIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => updateColumnAlignment(t, c.col, 'center'),
+                computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
+                forceWidgetRebuild: false,
+            });
+        });
+        createIconBtn('Align right', 'Align column right', alignRightIcon(), () => {
+            this.modifyTable({
+                operation: (t, c) => updateColumnAlignment(t, c.col, 'right'),
+                computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
+                forceWidgetRebuild: false,
+            });
+        });
 
         // Spacer
         const spacer2 = document.createElement('span');
@@ -253,7 +325,11 @@ class TableToolbarPlugin {
         });
     }
 
-    private modifyTable(operation: (table: TableData, cell: ActiveCell) => TableData) {
+    private modifyTable(params: {
+        operation: (table: TableData, cell: ActiveCell) => TableData;
+        computeTargetCell: (cell: ActiveCell, oldTable: TableData, newTable: TableData) => TargetCell;
+        forceWidgetRebuild: boolean;
+    }) {
         if (!this.currentActiveCell) return;
 
         const { tableFrom, tableTo } = this.currentActiveCell;
@@ -262,11 +338,22 @@ class TableToolbarPlugin {
 
         if (!tableData) return;
 
-        const newTableData = operation(tableData, this.currentActiveCell);
+        const newTableData = params.operation(tableData, this.currentActiveCell);
         if (newTableData === tableData) {
             return;
         }
         const newText = serializeTable(newTableData);
+
+        const target = params.computeTargetCell(this.currentActiveCell, tableData, newTableData);
+        const nextActiveCell = computeActiveCellForTableText({ tableFrom, tableText: newText, target });
+        if (!nextActiveCell) {
+            return;
+        }
+
+        const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell)];
+        if (params.forceWidgetRebuild) {
+            effects.push(rebuildTableWidgetsEffect.of(undefined));
+        }
 
         this.view.dispatch({
             changes: {
@@ -274,9 +361,7 @@ class TableToolbarPlugin {
                 to: tableTo,
                 insert: newText,
             },
-            // Structural edits (row/column changes) can invalidate the active cell's
-            // logical meaning. We use the simple policy: exit cell-editing mode.
-            effects: clearActiveCellEffect.of(undefined),
+            effects,
         });
     }
 
