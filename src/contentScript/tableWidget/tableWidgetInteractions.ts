@@ -1,7 +1,7 @@
 import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
-import { openNestedCellEditor } from './nestedCellEditor';
-import { openLink } from './markdownRenderer';
+import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
+import { openLink } from '../services/markdownRenderer';
 import { getTableCellRanges, resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
 
 function tryHandleLinkClick(target: HTMLElement): boolean {

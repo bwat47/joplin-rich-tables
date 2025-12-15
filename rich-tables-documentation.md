@@ -6,15 +6,18 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 ### Core Components
 
-| File                      | Purpose                                                           |
-| ------------------------- | ----------------------------------------------------------------- |
-| `tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles             |
-| `TableWidget.ts`          | Table parsing, HTML rendering, click-to-cell mapping              |
-| `activeCellState.ts`      | Tracks active cell range in main editor state                     |
-| `nestedCellEditor.ts`     | Orchestrates nested editor (delegates to `nestedEditor/` modules) |
-| `nestedEditor/`           | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`       |
-| `tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching            |
-| `markdownRenderer.ts`     | Provides `MarkdownRenderService` (async rendering with caching)   |
+| File                                                | Purpose                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| `contentScript/tableWidget/tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles             |
+| `contentScript/tableWidget/TableWidget.ts`          | Table HTML rendering + click-to-cell mapping                      |
+| `contentScript/tableWidget/activeCellState.ts`      | Tracks active cell range in main editor state                     |
+| `contentScript/tableWidget/tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching            |
+| `contentScript/tableWidget/tablePositioning.ts`     | Maps DOM/table positions to document ranges                       |
+| `contentScript/nestedEditor/nestedCellEditor.ts`    | Orchestrates nested editor (delegates to `nestedEditor/` modules) |
+| `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`       |
+| `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                |
+| `contentScript/toolbar/`                            | Floating table toolbar + header semantics                         |
+| `contentScript/services/markdownRenderer.ts`        | `MarkdownRenderService` (async rendering with caching)            |
 
 ### Table Display
 

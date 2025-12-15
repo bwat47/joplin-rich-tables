@@ -79,11 +79,14 @@ function trimCellBounds(line: string, from: number, to: number): { from: number;
 
     // If the cell is empty or whitespace-only (e.g. `|   |`), trimming collapses the
     // range to a boundary. That makes edits land right next to a pipe and removes
-    // any trailing padding. Instead, pick a stable insertion point inside the
-    // whitespace run so both leading and trailing padding are preserved.
+    // any trailing padding.
+    //
+    // For whitespace-only cells we pick a stable insertion point near the left edge
+    // of the cell (after the first whitespace character, when possible). This avoids
+    // typing appearing visually "centered" when tables are pretty-padded with spaces.
     if (start === end) {
-        const midpoint = Math.floor((from + to) / 2);
-        return { from: midpoint, to: midpoint };
+        const insertion = Math.min(from + 1, to);
+        return { from: insertion, to: insertion };
     }
 
     return { from: start, to: end };

@@ -1,18 +1,19 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
-import { parseMarkdownTable } from './markdownTableParsing';
-import { initRenderer } from './markdownRenderer';
-import { logger } from '../logger';
+import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
+import { initRenderer } from '../services/markdownRenderer';
+import { logger } from '../../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import {
     applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
     isNestedCellEditorOpen,
     syncAnnotation,
-} from './nestedCellEditor';
+} from '../nestedEditor/nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
+import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 
 /**
  * Content script context provided by Joplin
@@ -121,7 +122,11 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         }
 
         // Keep editor open if clicking inside the widget or nested editor.
-        if (target.closest('.cm-table-widget') || target.closest('.cm-table-cell-editor')) {
+        if (
+            target.closest('.cm-table-widget') ||
+            target.closest('.cm-table-cell-editor') ||
+            target.closest('.cm-table-floating-toolbar')
+        ) {
             return false;
         }
 
@@ -192,27 +197,6 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-widget': {
         padding: '8px 0',
         position: 'relative',
-    },
-    '.cm-table-widget-edit-button': {
-        position: 'absolute',
-        top: '12px',
-        right: '4px',
-        padding: '2px 6px',
-        fontSize: '12px',
-        background: 'transparent',
-        border: '1px solid transparent',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        opacity: '0.5',
-        transition: 'opacity 0.2s, border-color 0.2s',
-        zIndex: '10',
-    },
-    '.cm-table-widget-edit-button:hover': {
-        opacity: '1',
-        borderColor: '#ccc',
-    },
-    '&dark .cm-table-widget-edit-button:hover': {
-        borderColor: '#555',
     },
     '.cm-table-widget-table': {
         borderCollapse: 'collapse',
@@ -318,6 +302,7 @@ const tableStyles = EditorView.baseTheme({
     '&dark .cm-table-widget-table code': {
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
+    // Toolbar styles
 });
 
 /**
@@ -347,6 +332,8 @@ export default function (context: ContentScriptContext) {
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
                 tableStyles,
+                tableToolbarTheme,
+                tableToolbarPlugin,
             ]);
 
             logger.info('Table widget extension registered');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { computeMarkdownTableCellRanges } from '../markdownTableCellRanges';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 
 function sliceRange(text: string, from: number, to: number): string {
     return text.slice(from, to);

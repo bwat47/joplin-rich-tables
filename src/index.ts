@@ -29,7 +29,7 @@ joplin.plugins.register({
         await joplin.contentScripts.register(
             ContentScriptType.CodeMirrorPlugin,
             CONTENT_SCRIPT_ID,
-            './contentScript/tableWidgetExtension.js'
+            './contentScript/tableWidget/tableWidgetExtension.js'
         );
 
         // Handle messages from content script

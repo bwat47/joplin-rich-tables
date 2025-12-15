@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
-import { openNestedCellEditor } from './nestedCellEditor';
+import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 
 export function navigateCell(
     view: EditorView,
