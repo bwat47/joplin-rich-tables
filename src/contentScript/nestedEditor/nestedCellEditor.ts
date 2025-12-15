@@ -120,7 +120,7 @@ class NestedCellEditorManager {
                         display: 'none',
                     },
                     '.cm-scroller': {
-                        overflow: 'hidden',
+                        overflow: 'hidden !important',
                     },
                     '.cm-content': {
                         padding: '0',
