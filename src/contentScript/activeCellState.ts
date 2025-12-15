@@ -51,7 +51,7 @@ export const activeCellField = StateField.define<ActiveCell | null>({
                 !isValidRange(mappedCellFrom, mappedCellTo) ||
                 mappedCellFrom < mappedTableFrom ||
                 mappedCellTo > mappedTableTo ||
-                mappedCellFrom >= mappedCellTo
+                mappedCellFrom > mappedCellTo
             ) {
                 return null;
             }
