@@ -149,62 +149,35 @@ export function deleteColumn(table: TableData, colIndex: number): TableData {
 
 /**
  * Serializes the TableData back to a Markdown table string.
- * It attempts to align columns by padding with spaces.
+ * It normalizes to a minimal format: exactly one space after each starting pipe
+ * and one space before each ending pipe, with no additional pretty alignment.
  */
 export function serializeTable(table: TableData): string {
     const normalized = normalizeTableColumns(table);
 
-    // 1. Calculate column widths
-    const colWidths = normalized.headers.map((h) => h.length);
+    const joinRow = (cells: string[]): string => {
+        // Keep cell text as-is; only enforce one space around the pipe separators.
+        // This intentionally does not try to align columns via additional padding.
+        return '| ' + cells.join(' | ') + ' |';
+    };
 
-    // Check alignments row
-    // Alignment row usually looks like ---, :---, :---:, ---:
-    // Minimum width for alignment is 3.
-    for (let i = 0; i < colWidths.length; i++) {
-        colWidths[i] = Math.max(colWidths[i], 3);
-    }
-
-    // Check body rows
-    for (const row of normalized.rows) {
-        for (let i = 0; i < row.length; i++) {
-            colWidths[i] = Math.max(colWidths[i], row[i].length);
-        }
-    }
-
-    // Helper to pad cell
-    const pad = (text: string, width: number, _align: 'left' | 'right' | 'center' | null) => {
-        // Current behavior: always right-pad with spaces to the computed column width.
-        // This normalizes/pretty-prints the table source so pipes line up, but can introduce
-        // whitespace-only diffs. Alignment is represented only in the separator row.
-        return text + ' '.repeat(Math.max(0, width - text.length));
+    const separatorCellForAlignment = (align: 'left' | 'right' | 'center' | null): string => {
+        // Markdown requires at least 3 dashes.
+        if (align === 'center') return ':---:';
+        if (align === 'left') return ':---';
+        if (align === 'right') return '---:';
+        return '---';
     };
 
     // 2. Build Header
-    const headerCells = normalized.headers.map((h, i) => pad(h, colWidths[i], null));
-    const headerLine = '| ' + headerCells.join(' | ') + ' |';
+    const headerLine = joinRow(normalized.headers);
 
     // 3. Build Separator
-    const separatorCells = normalized.alignments.map((align, i) => {
-        const width = colWidths[i];
-        let sep = '-'.repeat(width);
-
-        // Adjust for colons
-        if (align === 'center') {
-            sep = ':' + '-'.repeat(width - 2) + ':';
-        } else if (align === 'left') {
-            sep = ':' + '-'.repeat(width - 1);
-        } else if (align === 'right') {
-            sep = '-'.repeat(width - 1) + ':';
-        }
-        return sep;
-    });
-    const separatorLine = '| ' + separatorCells.join(' | ') + ' |';
+    const separatorCells = normalized.alignments.map(separatorCellForAlignment);
+    const separatorLine = joinRow(separatorCells);
 
     // 4. Build Body
-    const bodyLines = normalized.rows.map((row) => {
-        const rowCells = row.map((cellText, i) => pad(cellText, colWidths[i], null));
-        return '| ' + rowCells.join(' | ') + ' |';
-    });
+    const bodyLines = normalized.rows.map((row) => joinRow(row));
 
     return [headerLine, separatorLine, ...bodyLines].join('\n');
 }

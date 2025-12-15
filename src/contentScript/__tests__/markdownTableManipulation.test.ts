@@ -127,4 +127,20 @@ describe('markdownTableManipulation', () => {
         expect(reparsed.headers.length).toBe(2);
         expect(reparsed.rows[0]).toEqual(['A', 'B']);
     });
+
+    it('should serialize with minimal single-space padding around pipes', () => {
+        const text = `
+| H1 | H2 |
+| --- | --- |
+| abc | def |
+`.trim();
+
+        const data = parseMarkdownTable(text)!;
+        const serialized = serializeTable(data);
+
+        // No extra spacing beyond the single spaces around delimiters.
+        expect(serialized).toContain('| abc | def |');
+        expect(serialized).not.toContain('| abc  |');
+        expect(serialized).not.toContain('|  abc |');
+    });
 });
