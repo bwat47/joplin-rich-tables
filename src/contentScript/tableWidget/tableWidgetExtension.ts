@@ -12,7 +12,7 @@ import {
     syncAnnotation,
 } from '../nestedEditor/nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
-import { findTableRanges } from '../tableWidget/tablePositioning';
+import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
 /**
