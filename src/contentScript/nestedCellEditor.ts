@@ -23,7 +23,13 @@ class NestedCellEditorManager {
     private cellFrom: number = 0;
     private cellTo: number = 0;
 
-    open(params: { mainView: EditorView; cellElement: HTMLElement; cellFrom: number; cellTo: number }): void {
+    open(params: {
+        mainView: EditorView;
+        cellElement: HTMLElement;
+        cellFrom: number;
+        cellTo: number;
+        initialCursorPos?: 'start' | 'end';
+    }): void {
         this.close();
 
         this.mainView = params.mainView;
@@ -81,9 +87,15 @@ class NestedCellEditorManager {
 
         const rangeField = createSubviewCellRangeField({ from: params.cellFrom, to: params.cellTo });
 
+        // Determine initial selection anchor
+        let initialAnchor = params.cellFrom;
+        if (params.initialCursorPos === 'end') {
+            initialAnchor = params.cellTo;
+        }
+
         const state = EditorState.create({
             doc: params.mainView.state.doc,
-            selection: { anchor: params.cellFrom },
+            selection: { anchor: initialAnchor },
             extensions: [
                 // Needed for a visible caret in this environment. We intentionally hide
                 // CodeMirror's drawn selection layer below (to avoid double-highlighting),
@@ -96,7 +108,7 @@ class NestedCellEditorManager {
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
                 createNestedEditorDomHandlers(),
-                createNestedEditorKeymap(params.mainView),
+                createNestedEditorKeymap(params.mainView, rangeField),
                 EditorView.theme({
                     '&': {
                         backgroundColor: 'transparent',
@@ -219,6 +231,7 @@ export function openNestedCellEditor(params: {
     cellElement: HTMLElement;
     cellFrom: number;
     cellTo: number;
+    initialCursorPos?: 'start' | 'end';
 }): void {
     nestedCellEditorManager.open(params);
 }

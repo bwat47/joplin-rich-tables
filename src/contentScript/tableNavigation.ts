@@ -3,7 +3,11 @@ import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './ac
 import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from './nestedCellEditor';
 
-export function navigateCell(view: EditorView, direction: 'next' | 'previous' | 'below'): boolean {
+export function navigateCell(
+    view: EditorView,
+    direction: 'next' | 'previous' | 'up' | 'down',
+    options: { cursorPos?: 'start' | 'end' } = {}
+): boolean {
     const state = view.state;
     const activeCell = getActiveCell(state);
 
@@ -58,12 +62,24 @@ export function navigateCell(view: EditorView, direction: 'next' | 'previous' | 
                 return true;
             }
         }
-    } else if (direction === 'below') {
+    } else if (direction === 'down') {
         if (targetSection === 'header') {
             targetSection = 'body';
             targetRow = 0;
         } else {
             targetRow++;
+        }
+    } else if (direction === 'up') {
+        if (targetSection === 'body') {
+            if (targetRow === 0) {
+                targetSection = 'header';
+                targetRow = 0;
+            } else {
+                targetRow--;
+            }
+        } else {
+            // Already at header, stop
+            return true;
         }
     }
 
@@ -129,6 +145,7 @@ export function navigateCell(view: EditorView, direction: 'next' | 'previous' | 
                 cellElement,
                 cellFrom,
                 cellTo,
+                initialCursorPos: options.cursorPos,
             });
         }
     }, 0);

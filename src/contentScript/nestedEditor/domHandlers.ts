@@ -1,7 +1,8 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { Transaction, StateEffect } from '@codemirror/state';
+import { Transaction, StateEffect, StateField } from '@codemirror/state';
 import { navigateCell } from '../tableNavigation';
+import { SubviewCellRange } from './transactionPolicy';
 
 // Define a separate interface for the Joplin-specific extension
 interface WithScrollSnapshot {
@@ -42,7 +43,7 @@ function createPreserveScroll(mainView: EditorView) {
 }
 
 /** Creates a keymap for the nested editor to handle undo/redo. */
-export function createNestedEditorKeymap(mainView: EditorView) {
+export function createNestedEditorKeymap(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
     const preserveMainScroll = createPreserveScroll(mainView);
 
     return keymap.of([
@@ -83,7 +84,79 @@ export function createNestedEditorKeymap(mainView: EditorView) {
         {
             key: 'Enter',
             run: () => {
-                return navigateCell(mainView, 'below');
+                return navigateCell(mainView, 'down');
+            },
+        },
+        {
+            key: 'ArrowLeft',
+            run: (nestedView) => {
+                const { from } = nestedView.state.field(rangeField);
+                const { head } = nestedView.state.selection.main;
+                if (head === from) {
+                    return navigateCell(mainView, 'previous', { cursorPos: 'end' });
+                }
+                return false;
+            },
+        },
+        {
+            key: 'ArrowRight',
+            run: (nestedView) => {
+                const { to } = nestedView.state.field(rangeField);
+                const { head } = nestedView.state.selection.main;
+                if (head === to) {
+                    return navigateCell(mainView, 'next', { cursorPos: 'start' });
+                }
+                return false;
+            },
+        },
+        {
+            key: 'ArrowUp',
+            run: (nestedView) => {
+                const { from } = nestedView.state.field(rangeField);
+                const { head } = nestedView.state.selection.main;
+
+                // Use coordinate check to determine if we are on the first visual line.
+                // We compare the top coordinate of the cursor with the top coordinate of the start of the cell.
+                const headRect = nestedView.coordsAtPos(head);
+                const fromRect = nestedView.coordsAtPos(from);
+
+                if (headRect && fromRect) {
+                    // Allow small sub-pixel differences
+                    const isSameLine = Math.abs(headRect.top - fromRect.top) < 2;
+                    if (isSameLine) {
+                        return navigateCell(mainView, 'up', { cursorPos: 'start' });
+                    }
+                } else if (head === from) {
+                    // Fallback if coords unavailable (e.g. invalid layout), relying on position.
+                    return navigateCell(mainView, 'up', { cursorPos: 'start' });
+                }
+
+                return false;
+            },
+        },
+        {
+            key: 'ArrowDown',
+            run: (nestedView) => {
+                const { to } = nestedView.state.field(rangeField);
+                const { head } = nestedView.state.selection.main;
+
+                // Use coordinate check to determine if we are on the last visual line.
+                const headRect = nestedView.coordsAtPos(head);
+                const toRect = nestedView.coordsAtPos(to);
+
+                if (headRect && toRect) {
+                    // Compare bottoms? Or tops?
+                    // If we are on the last line, our top should be the same as the last character's top.
+                    const isSameLine = Math.abs(headRect.top - toRect.top) < 2;
+
+                    if (isSameLine) {
+                        return navigateCell(mainView, 'down', { cursorPos: 'start' });
+                    }
+                } else if (head === to) {
+                    return navigateCell(mainView, 'down', { cursorPos: 'start' });
+                }
+
+                return false;
             },
         },
     ]);
