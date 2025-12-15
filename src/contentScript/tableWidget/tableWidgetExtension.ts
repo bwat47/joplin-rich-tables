@@ -13,7 +13,7 @@ import {
 } from '../nestedEditor/nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
-import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
+import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 
 /**
  * Content script context provided by Joplin
@@ -198,27 +198,6 @@ const tableStyles = EditorView.baseTheme({
         padding: '8px 0',
         position: 'relative',
     },
-    '.cm-table-widget-edit-button': {
-        position: 'absolute',
-        top: '12px',
-        right: '4px',
-        padding: '2px 6px',
-        fontSize: '12px',
-        background: 'transparent',
-        border: '1px solid transparent',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        opacity: '0.5',
-        transition: 'opacity 0.2s, border-color 0.2s',
-        zIndex: '10',
-    },
-    '.cm-table-widget-edit-button:hover': {
-        opacity: '1',
-        borderColor: '#ccc',
-    },
-    '&dark .cm-table-widget-edit-button:hover': {
-        borderColor: '#555',
-    },
     '.cm-table-widget-table': {
         borderCollapse: 'collapse',
         width: '100%',
@@ -324,56 +303,6 @@ const tableStyles = EditorView.baseTheme({
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     // Toolbar styles
-    '.cm-table-floating-toolbar': {
-        position: 'absolute',
-        backgroundColor: 'var(--joplin-background-color, #ffffff)',
-        border: '1px solid var(--joplin-divider-color, #dddddd)',
-        borderRadius: '6px',
-        padding: '4px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        display: 'flex',
-        gap: '4px',
-        alignItems: 'center',
-        zIndex: '1000',
-        fontSize: '13px',
-    },
-    '.cm-table-toolbar-btn': {
-        background: 'none',
-        border: '1px solid transparent',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        padding: '4px 8px',
-        fontSize: 'inherit',
-        color: 'var(--joplin-color, #333333)',
-        whiteSpace: 'nowrap',
-        transition: 'all 0.2s',
-    },
-    '.cm-table-toolbar-btn .cm-table-toolbar-icon': {
-        width: '18px',
-        height: '18px',
-        display: 'block',
-    },
-    '.cm-table-toolbar-btn:has(.cm-table-toolbar-icon)': {
-        padding: '4px 6px',
-        lineHeight: '0',
-    },
-    '.cm-table-toolbar-btn:hover': {
-        backgroundColor: 'var(--joplin-selected-color, rgba(0,0,0,0.05))', // fallback
-        borderColor: 'var(--joplin-divider-color, #cccccc)',
-    },
-    // Dark mode for toolbar
-    '&dark .cm-table-floating-toolbar': {
-        backgroundColor: '#2d2d2d',
-        borderColor: '#444444',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-    },
-    '&dark .cm-table-toolbar-btn': {
-        color: '#dddddd',
-    },
-    '&dark .cm-table-toolbar-btn:hover': {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderColor: '#555555',
-    },
 });
 
 /**
@@ -403,6 +332,7 @@ export default function (context: ContentScriptContext) {
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
                 tableStyles,
+                tableToolbarTheme,
                 tableToolbarPlugin,
             ]);
 

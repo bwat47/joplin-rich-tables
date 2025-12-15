@@ -5,6 +5,87 @@ import { insertColumn, deleteColumn, serializeTable } from '../tableModel/markdo
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 import { computeToolbarPosition } from './toolbarPositioning';
 
+const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svg.setAttribute('width', '24');
+    svg.setAttribute('height', '24');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.classList.add('cm-table-toolbar-icon');
+
+    for (const pathSpec of paths) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathSpec.d);
+        if (pathSpec.fill) path.setAttribute('fill', pathSpec.fill);
+        if (pathSpec.stroke) path.setAttribute('stroke', pathSpec.stroke);
+        svg.appendChild(path);
+    }
+
+    return svg;
+};
+
+// Tabler icons
+const rowInsertTopIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z' },
+        { d: 'M12 9v-4' },
+        { d: 'M10 7l4 0' },
+    ]);
+
+const rowInsertBottomIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M20 6v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1z' },
+        { d: 'M12 15l0 4' },
+        { d: 'M14 17l-4 0' },
+    ]);
+
+const rowRemoveIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M20 6v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1z' },
+        { d: 'M10 16l4 4' },
+        { d: 'M10 20l4 -4' },
+    ]);
+
+const columnInsertLeftIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
+        { d: 'M5 12l4 0' },
+        { d: 'M7 10l0 4' },
+    ]);
+
+const columnInsertRightIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M6 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
+        { d: 'M15 12l4 0' },
+        { d: 'M17 10l0 4' },
+    ]);
+
+const columnRemoveIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M6 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
+        { d: 'M16 10l4 4' },
+        { d: 'M16 14l4 -4' },
+    ]);
+
+const editMarkdownIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1' },
+        { d: 'M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z' },
+        { d: 'M16 5l3 3' },
+    ]);
+
 class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
@@ -67,30 +148,6 @@ class TableToolbarPlugin {
     }
 
     private createButtons() {
-        const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            svg.setAttribute('width', '24');
-            svg.setAttribute('height', '24');
-            svg.setAttribute('viewBox', '0 0 24 24');
-            svg.setAttribute('fill', 'none');
-            svg.setAttribute('stroke', 'currentColor');
-            svg.setAttribute('stroke-width', '2');
-            svg.setAttribute('stroke-linecap', 'round');
-            svg.setAttribute('stroke-linejoin', 'round');
-            svg.classList.add('cm-table-toolbar-icon');
-
-            for (const pathSpec of paths) {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('d', pathSpec.d);
-                if (pathSpec.fill) path.setAttribute('fill', pathSpec.fill);
-                if (pathSpec.stroke) path.setAttribute('stroke', pathSpec.stroke);
-                svg.appendChild(path);
-            }
-
-            return svg;
-        };
-
         const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => void) => {
             const btn = document.createElement('button');
             btn.title = title;
@@ -107,63 +164,6 @@ class TableToolbarPlugin {
             this.dom.appendChild(btn);
             return btn;
         };
-
-        // Tabler icons
-        const rowInsertTopIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z' },
-                { d: 'M12 9v-4' },
-                { d: 'M10 7l4 0' },
-            ]);
-
-        const rowInsertBottomIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M20 6v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1z' },
-                { d: 'M12 15l0 4' },
-                { d: 'M14 17l-4 0' },
-            ]);
-
-        const rowRemoveIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M20 6v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1z' },
-                { d: 'M10 16l4 4' },
-                { d: 'M10 20l4 -4' },
-            ]);
-
-        const columnInsertLeftIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
-                { d: 'M5 12l4 0' },
-                { d: 'M7 10l0 4' },
-            ]);
-
-        const columnInsertRightIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M6 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
-                { d: 'M15 12l4 0' },
-                { d: 'M17 10l0 4' },
-            ]);
-
-        const columnRemoveIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M6 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
-                { d: 'M16 10l4 4' },
-                { d: 'M16 14l4 -4' },
-            ]);
-
-        const editMarkdownIcon = () =>
-            createSvg([
-                { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-                { d: 'M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1' },
-                { d: 'M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z' },
-                { d: 'M16 5l3 3' },
-            ]);
 
         // Row Operations
         createIconBtn('Insert row before', 'Insert row before', rowInsertTopIcon(), () =>
@@ -279,3 +279,56 @@ class TableToolbarPlugin {
 }
 
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);
+
+export const tableToolbarTheme = EditorView.baseTheme({
+    '.cm-table-floating-toolbar': {
+        position: 'absolute',
+        backgroundColor: 'var(--joplin-background-color, #ffffff)',
+        border: '1px solid var(--joplin-divider-color, #dddddd)',
+        borderRadius: '6px',
+        padding: '4px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        display: 'flex',
+        gap: '4px',
+        alignItems: 'center',
+        zIndex: '1000',
+        fontSize: '13px',
+    },
+    '.cm-table-toolbar-btn': {
+        background: 'none',
+        border: '1px solid transparent',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        padding: '4px 8px',
+        fontSize: 'inherit',
+        color: 'var(--joplin-color, #333333)',
+        whiteSpace: 'nowrap',
+        transition: 'all 0.2s',
+    },
+    '.cm-table-toolbar-btn .cm-table-toolbar-icon': {
+        width: '18px',
+        height: '18px',
+        display: 'block',
+    },
+    '.cm-table-toolbar-btn:has(.cm-table-toolbar-icon)': {
+        padding: '4px 6px',
+        lineHeight: '0',
+    },
+    '.cm-table-toolbar-btn:hover': {
+        backgroundColor: 'var(--joplin-selected-color, rgba(0,0,0,0.05))', // fallback
+        borderColor: 'var(--joplin-divider-color, #cccccc)',
+    },
+    // Dark mode for toolbar
+    '&dark .cm-table-floating-toolbar': {
+        backgroundColor: '#2d2d2d',
+        borderColor: '#444444',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+    },
+    '&dark .cm-table-toolbar-btn': {
+        color: '#dddddd',
+    },
+    '&dark .cm-table-toolbar-btn:hover': {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderColor: '#555555',
+    },
+});
