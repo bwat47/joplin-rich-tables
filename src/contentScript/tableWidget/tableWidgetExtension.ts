@@ -334,7 +334,7 @@ const tableStyles = EditorView.baseTheme({
         display: 'flex',
         gap: '4px',
         alignItems: 'center',
-        zIndex: '100',
+        zIndex: '1000',
         fontSize: '13px',
     },
     '.cm-table-toolbar-btn': {
