@@ -204,7 +204,7 @@ class NestedCellEditorManager {
         return this.subview !== null;
     }
 
-    checkAndCloseIfHostedIn(container: HTMLElement): void {
+    public checkAndCloseIfHostedIn(container: HTMLElement): void {
         if (this.editorHostEl && container.contains(this.editorHostEl)) {
             this.close();
         }

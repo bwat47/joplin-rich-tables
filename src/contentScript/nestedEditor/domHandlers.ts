@@ -1,6 +1,7 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { Transaction, StateEffect } from '@codemirror/state';
+import { navigateCell } from '../tableNavigation';
 
 // Define a separate interface for the Joplin-specific extension
 interface WithScrollSnapshot {
@@ -64,6 +65,25 @@ export function createNestedEditorKeymap(mainView: EditorView) {
             run: () => {
                 preserveMainScroll(() => redo(mainView));
                 return true;
+            },
+        },
+
+        {
+            key: 'Tab',
+            run: () => {
+                return navigateCell(mainView, 'next');
+            },
+        },
+        {
+            key: 'Shift-Tab',
+            run: () => {
+                return navigateCell(mainView, 'previous');
+            },
+        },
+        {
+            key: 'Enter',
+            run: () => {
+                return navigateCell(mainView, 'below');
             },
         },
     ]);
