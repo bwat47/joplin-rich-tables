@@ -13,11 +13,12 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `activeCellState.ts`      | Tracks active cell range in main editor state                     |
 | `nestedCellEditor.ts`     | Orchestrates nested editor (delegates to `nestedEditor/` modules) |
 | `nestedEditor/`           | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`       |
+| `tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching            |
 | `markdownRenderer.ts`     | Provides `MarkdownRenderService` (async rendering with caching)   |
 
 ### Table Display
 
-- Tables detected via Lezer syntax tree
+- Tables detected via Lezer syntax tree (scan timeout increased to 500ms, resolve to 1500ms for large tables)
 - Replaced with `Decoration.replace({ widget, block: true })` via StateField
 - Widget reports an estimated height to reduce scroll jumps while rendering
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached)
@@ -47,13 +48,17 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Escapes unescaped pipes (`|` → `\|`)
 - Clamps selection to cell bounds (using mapped new bounds for doc changes)
 
-**Range Mapping**: Uses `assoc=-1` for `from` positions, `assoc=1` for `to` positions, so insertions at boundaries expand the visible range.
+**Range Mapping**: Uses `assoc=-1` for `from` positions, `assoc=1` for `to` positions, so insertions at boundaries expand the visible range (even for empty cells).
 
-**Event Handling**:
+**Event Handling & Navigation**:
 
-- Keyboard shortcuts (Ctrl+B, etc.) blocked to prevent Joplin handlers
-- Ctrl+A/C/V/X allowed (browser/CM handles correctly)
-- Context menu suppressed entirely
+- **Keyboard Navigation**:
+    - `Tab` / `Shift+Tab`: Next/Previous cell
+    - `Enter`: Cell below
+    - `ArrowLeft` / `ArrowRight`: Navigate to prev/next cell when at content boundary
+    - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
+- **Shortcuts**: standard Joplin shortcuts (Ctrl+B) blocked; Ctrl+A/C/V/X supported natively.
+- **Context Menu**: suppressed.
 
 ### Deactivation
 
