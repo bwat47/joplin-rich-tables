@@ -1,7 +1,12 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { activeCellField, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
-import { insertColumn, deleteColumn, serializeTable } from '../tableModel/markdownTableManipulation';
+import {
+    insertColumn,
+    deleteColumn,
+    serializeTable,
+    updateColumnAlignment,
+} from '../tableModel/markdownTableManipulation';
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 import { computeToolbarPosition } from './toolbarPositioning';
 
@@ -84,6 +89,30 @@ const editMarkdownIcon = () =>
         { d: 'M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1' },
         { d: 'M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z' },
         { d: 'M16 5l3 3' },
+    ]);
+
+const alignLeftIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M4 6l16 0' },
+        { d: 'M4 12l10 0' },
+        { d: 'M4 18l14 0' },
+    ]);
+
+const alignCenterIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M4 6l16 0' },
+        { d: 'M8 12l8 0' },
+        { d: 'M6 18l12 0' },
+    ]);
+
+const alignRightIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M4 6l16 0' },
+        { d: 'M10 12l10 0' },
+        { d: 'M6 18l14 0' },
     ]);
 
 class TableToolbarPlugin {
@@ -191,6 +220,23 @@ class TableToolbarPlugin {
         );
         createIconBtn('Delete column', 'Delete column', columnRemoveIcon(), () =>
             this.modifyTable((t, c) => deleteColumn(t, c.col))
+        );
+
+        // Spacer
+        const spacer3 = document.createElement('span');
+        spacer3.style.width = '10px';
+        spacer3.style.display = 'inline-block';
+        this.dom.appendChild(spacer3);
+
+        // Alignment Operations
+        createIconBtn('Align left', 'Align column left', alignLeftIcon(), () =>
+            this.modifyTable((t, c) => updateColumnAlignment(t, c.col, 'left'))
+        );
+        createIconBtn('Align center', 'Align column center', alignCenterIcon(), () =>
+            this.modifyTable((t, c) => updateColumnAlignment(t, c.col, 'center'))
+        );
+        createIconBtn('Align right', 'Align column right', alignRightIcon(), () =>
+            this.modifyTable((t, c) => updateColumnAlignment(t, c.col, 'right'))
         );
 
         // Spacer

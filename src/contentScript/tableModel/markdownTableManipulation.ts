@@ -147,6 +147,26 @@ export function deleteColumn(table: TableData, colIndex: number): TableData {
     };
 }
 
+export function updateColumnAlignment(
+    table: TableData,
+    colIndex: number,
+    alignment: 'left' | 'center' | 'right' | null
+): TableData {
+    const normalized = normalizeTableColumns(table);
+
+    if (colIndex < 0 || colIndex >= normalized.alignments.length) {
+        return table;
+    }
+
+    const newAlignments = [...normalized.alignments];
+    newAlignments[colIndex] = alignment;
+
+    return {
+        ...normalized,
+        alignments: newAlignments,
+    };
+}
+
 /**
  * Serializes the TableData back to a Markdown table string.
  * It normalizes to a minimal format: exactly one space after each starting pipe
