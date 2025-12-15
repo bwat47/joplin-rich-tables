@@ -253,6 +253,19 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-cell-editor .cm-cursor': {
         borderLeftColor: 'currentColor',
     },
+    // Hide the default outline of the nested editor so we can style the cell instead
+    '.cm-table-cell-editor .cm-editor.cm-focused': {
+        outline: 'none',
+    },
+    // Style the active cell (td)
+    '.cm-table-widget-table td.cm-table-cell-active': {
+        // Use a box-shadow or outline that typically sits "inside" or "on" the border
+        // absolute positioning an overlay might be cleaner to avoid layout shifts,
+        // but a simple outline usually works well for spreadsheets.
+        outline: '2px solid var(--joplin-divider-color, #4a90e2)',
+        outlineOffset: '-1px', // Draw inside existing border
+        zIndex: '5', // Ensure on top of neighbors
+    },
     '.cm-table-cell-editor .cm-fat-cursor': {
         backgroundColor: 'currentColor',
         color: 'inherit',

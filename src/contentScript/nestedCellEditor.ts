@@ -18,6 +18,7 @@ class NestedCellEditorManager {
     private subview: EditorView | null = null;
     private contentEl: HTMLElement | null = null;
     private editorHostEl: HTMLElement | null = null;
+    private cellElement: HTMLElement | null = null;
     private mainView: EditorView | null = null;
     private cellFrom: number = 0;
     private cellTo: number = 0;
@@ -32,6 +33,10 @@ class NestedCellEditorManager {
         const { content, editorHost } = ensureCellWrapper(params.cellElement);
         this.contentEl = content;
         this.editorHostEl = editorHost;
+        this.cellElement = params.cellElement;
+
+        // Add active class to cell for styling
+        this.cellElement.classList.add('cm-table-cell-active');
 
         content.style.display = 'none';
         editorHost.style.display = '';
@@ -160,6 +165,11 @@ class NestedCellEditorManager {
         if (this.editorHostEl) {
             this.editorHostEl.textContent = '';
             this.editorHostEl.style.display = 'none';
+        }
+
+        if (this.cellElement) {
+            this.cellElement.classList.remove('cm-table-cell-active');
+            this.cellElement = null;
         }
 
         // Update cell content with current document text before showing.
