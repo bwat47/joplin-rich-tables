@@ -5,11 +5,13 @@ import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
 import { logger } from '../../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
     isNestedCellEditorOpen,
     syncAnnotation,
+    openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
@@ -92,8 +94,16 @@ const tableDecorationField = StateField.define<DecorationSet>({
         // rebuilding (which would recreate widgets and destroy the subview host).
         const activeCell = getActiveCell(transaction.state);
 
+        // Some edits (row/col insert/delete) intentionally require a rebuild so the
+        // rendered HTML table matches the new structure.
+        const forceRebuild = transaction.effects.some((e) => e.is(rebuildTableWidgetsEffect));
+
         // When active cell is cleared, rebuild to render updated content.
         if (transaction.effects.some((e) => e.is(clearActiveCellEffect))) {
+            return buildTableDecorations(transaction.state);
+        }
+
+        if (forceRebuild) {
             return buildTableDecorations(transaction.state);
         }
 
@@ -160,6 +170,51 @@ const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const hasActiveCell = Boolean(getActiveCell(update.state));
             const activeCell = getActiveCell(update.state);
             const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+            const forceRebuild = update.transactions.some((tr) =>
+                tr.effects.some((e) => e.is(rebuildTableWidgetsEffect))
+            );
+
+            // If the transaction forces a widget rebuild, the existing table widget DOM will be
+            // destroyed *after* plugin updates run. That means the nested editor can still be
+            // open at this point, but will be closed during DOM update, leaving focus/caret in
+            // the main editor. To keep the editing experience stable, proactively close and
+            // re-open after the new widget DOM is mounted.
+            if (forceRebuild && hasActiveCell && activeCell && !isSync) {
+                if (isNestedCellEditorOpen()) {
+                    closeNestedCellEditor();
+                }
+
+                requestAnimationFrame(() => {
+                    const widgetDOM = this.view.dom.querySelector(
+                        `.cm-table-widget[data-table-from="${activeCell.tableFrom}"]`
+                    );
+                    if (!widgetDOM) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    const selector =
+                        activeCell.section === 'header'
+                            ? `th[data-section="header"][data-col="${activeCell.col}"]`
+                            : `td[data-section="body"][data-row="${activeCell.row}"][data-col="${activeCell.col}"]`;
+
+                    const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
+                    if (!cellElement) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    openNestedCellEditor({
+                        mainView: this.view,
+                        cellElement,
+                        cellFrom: activeCell.cellFrom,
+                        cellTo: activeCell.cellTo,
+                    });
+                });
+
+                this.hadActiveCell = hasActiveCell;
+                return;
+            }
 
             // If active cell was cleared, close the nested editor.
             if (!hasActiveCell && this.hadActiveCell) {
@@ -177,7 +232,7 @@ const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // If the document changed externally while editing but we don't have an open subview,
             // clear state to avoid stale ranges.
-            if (update.docChanged && hasActiveCell && !isNestedCellEditorOpen() && !isSync) {
+            if (update.docChanged && hasActiveCell && activeCell && !isNestedCellEditorOpen() && !isSync) {
                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
             }
 
