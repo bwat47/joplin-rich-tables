@@ -1,7 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
-import { renderer } from './markdownRenderer';
-import { cleanupHostedEditors } from './nestedCellEditor';
-import type { TableData } from './markdownTableParsing';
+import { renderer } from '../services/markdownRenderer';
+import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
+import type { TableData } from '../tableModel/markdownTableParsing';
 
 /**
  * Widget that renders a markdown table as an interactive HTML table

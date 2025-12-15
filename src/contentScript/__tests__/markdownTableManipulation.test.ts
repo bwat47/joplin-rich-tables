@@ -1,5 +1,11 @@
-import { parseMarkdownTable } from '../markdownTableParsing';
-import { insertRow, deleteRow, insertColumn, deleteColumn, serializeTable } from '../markdownTableManipulation';
+import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
+import {
+    insertRow,
+    deleteRow,
+    insertColumn,
+    deleteColumn,
+    serializeTable,
+} from '../tableModel/markdownTableManipulation';
 
 describe('markdownTableManipulation', () => {
     const basicTable = `

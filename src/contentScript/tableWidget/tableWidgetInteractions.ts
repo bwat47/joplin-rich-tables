@@ -1,8 +1,8 @@
 import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
-import { openNestedCellEditor } from './nestedCellEditor';
-import { openLink } from './markdownRenderer';
-import { getTableCellRanges, resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
+import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
+import { openLink } from '../services/markdownRenderer';
+import { getTableCellRanges, resolveCellDocRange, resolveTableFromEventTarget } from '../tableWidget/tablePositioning';
 
 function tryHandleLinkClick(target: HTMLElement): boolean {
     const link = target.closest('a');

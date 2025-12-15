@@ -2,7 +2,11 @@ import { ensureSyntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import type { EditorView } from '@codemirror/view';
-import { computeMarkdownTableCellRanges, type TableCellRanges, type CellRange } from './markdownTableCellRanges';
+import {
+    computeMarkdownTableCellRanges,
+    type TableCellRanges,
+    type CellRange,
+} from '../tableModel/markdownTableCellRanges';
 import { getActiveCell, type ActiveCellSection } from './activeCellState';
 
 export interface ResolvedTable {

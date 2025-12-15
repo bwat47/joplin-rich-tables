@@ -1,6 +1,6 @@
-import type { ActiveCell } from './activeCellState';
-import type { TableData } from './markdownTableParsing';
-import { deleteRow, insertRow } from './markdownTableManipulation';
+import type { ActiveCell } from '../tableWidget/activeCellState';
+import type { TableData } from '../tableModel/markdownTableParsing';
+import { deleteRow, insertRow } from '../tableModel/markdownTableManipulation';
 
 function createEmptyCells(columnCount: number): string[] {
     return new Array(columnCount).fill('');

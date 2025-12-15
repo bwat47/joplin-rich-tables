@@ -1,7 +1,7 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, ActiveCell, clearActiveCellEffect } from './activeCellState';
-import { parseMarkdownTable, TableData } from './markdownTableParsing';
-import { insertColumn, deleteColumn, serializeTable } from './markdownTableManipulation';
+import { activeCellField, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
+import { insertColumn, deleteColumn, serializeTable } from '../tableModel/markdownTableManipulation';
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 
 class TableToolbarPlugin {

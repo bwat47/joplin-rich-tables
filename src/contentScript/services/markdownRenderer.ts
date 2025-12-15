@@ -1,4 +1,4 @@
-import { logger } from '../logger';
+import { logger } from '../../logger';
 
 /**
  * Markdown rendering service that communicates with the main plugin

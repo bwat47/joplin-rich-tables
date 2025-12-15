@@ -1,19 +1,19 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
-import { parseMarkdownTable } from './markdownTableParsing';
-import { initRenderer } from './markdownRenderer';
-import { logger } from '../logger';
+import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
+import { initRenderer } from '../services/markdownRenderer';
+import { logger } from '../../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import {
     applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
     isNestedCellEditorOpen,
     syncAnnotation,
-} from './nestedCellEditor';
+} from '../nestedEditor/nestedCellEditor';
 import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
-import { findTableRanges } from './tablePositioning';
-import { tableToolbarPlugin } from './tableToolbarPlugin';
+import { findTableRanges } from '../tableWidget/tablePositioning';
+import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
 /**
  * Content script context provided by Joplin

@@ -1,15 +1,15 @@
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
-import { renderer } from './markdownRenderer';
+import { renderer } from '../services/markdownRenderer';
 import {
     createCellTransactionFilter,
     createHistoryExtender,
     createSubviewCellRangeField,
     setSubviewCellRangeEffect,
     syncAnnotation,
-} from './nestedEditor/transactionPolicy';
-import { ensureCellWrapper, createHideOutsideRangeExtension } from './nestedEditor/mounting';
-import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './nestedEditor/domHandlers';
+} from './transactionPolicy';
+import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
+import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 
 export { syncAnnotation };
 

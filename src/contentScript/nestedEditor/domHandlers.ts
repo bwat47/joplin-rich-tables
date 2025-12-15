@@ -1,7 +1,7 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { Transaction, StateEffect, StateField } from '@codemirror/state';
-import { navigateCell } from '../tableNavigation';
+import { navigateCell } from '../tableWidget/tableNavigation';
 import { SubviewCellRange } from './transactionPolicy';
 
 // Define a separate interface for the Joplin-specific extension
