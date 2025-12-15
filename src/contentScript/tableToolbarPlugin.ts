@@ -1,5 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, ActiveCell } from './activeCellState';
+import { activeCellField, ActiveCell, clearActiveCellEffect } from './activeCellState';
 import { parseMarkdownTable, TableData } from './markdownTableParsing';
 import { insertRow, deleteRow, insertColumn, deleteColumn, serializeTable } from './markdownTableManipulation';
 
@@ -103,6 +103,9 @@ class TableToolbarPlugin {
                 to: tableTo,
                 insert: newText,
             },
+            // Structural edits (row/column changes) can invalidate the active cell's
+            // logical meaning. We use the simple policy: exit cell-editing mode.
+            effects: clearActiveCellEffect.of(undefined),
         });
     }
 

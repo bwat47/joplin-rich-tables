@@ -122,7 +122,11 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         }
 
         // Keep editor open if clicking inside the widget or nested editor.
-        if (target.closest('.cm-table-widget') || target.closest('.cm-table-cell-editor')) {
+        if (
+            target.closest('.cm-table-widget') ||
+            target.closest('.cm-table-cell-editor') ||
+            target.closest('.cm-table-floating-toolbar')
+        ) {
             return false;
         }
 
