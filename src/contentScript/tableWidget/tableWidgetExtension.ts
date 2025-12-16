@@ -306,7 +306,7 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-widget-table th, .cm-table-widget-table td': {
         border: '1px solid var(--joplin-divider-color)',
         padding: '8px 12px',
-        minWidth: '50px',
+        minWidth: '75px',
         position: 'relative',
     },
     '.cm-table-cell-editor-hidden': {
