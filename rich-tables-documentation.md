@@ -6,19 +6,19 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 ### Core Components
 
-| File                                                | Purpose                                                           |
-| --------------------------------------------------- | ----------------------------------------------------------------- |
-| `contentScript/tableWidget/tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles             |
-| `contentScript/tableWidget/TableWidget.ts`          | Table HTML rendering + click-to-cell mapping                      |
-| `contentScript/tableWidget/activeCellState.ts`      | Tracks active cell range in main editor state                     |
-| `contentScript/tableWidget/tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching            |
-| `contentScript/tableWidget/tablePositioning.ts`     | Maps DOM/table positions to document ranges                       |
-| `contentScript/nestedEditor/nestedCellEditor.ts`    | Orchestrates nested editor (delegates to `nestedEditor/` modules) |
+| File                                                | Purpose                                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `contentScript/tableWidget/tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles                          |
+| `contentScript/tableWidget/TableWidget.ts`          | Table HTML rendering + click-to-cell mapping                                   |
+| `contentScript/tableWidget/activeCellState.ts`      | Tracks active cell range in main editor state                                  |
+| `contentScript/tableWidget/tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching                         |
+| `contentScript/tableWidget/tablePositioning.ts`     | Maps DOM/table positions to document ranges                                    |
+| `contentScript/nestedEditor/nestedCellEditor.ts`    | Orchestrates nested editor (delegates to `nestedEditor/` modules)              |
 | `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
-| `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                |
-| `contentScript/toolbar/`                            | Floating table toolbar + header semantics                         |
-| `contentScript/toolbar/toolbarPositioning.ts`       | Pure helper for floating-toolbar anchor/visibility decisions      |
-| `contentScript/services/markdownRenderer.ts`        | `MarkdownRenderService` (async rendering with caching)            |
+| `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                             |
+| `contentScript/toolbar/`                            | Floating table toolbar + header semantics                                      |
+| `contentScript/toolbar/toolbarPositioning.ts`       | Pure helper for floating-toolbar anchor/visibility decisions                   |
+| `contentScript/services/markdownRenderer.ts`        | `MarkdownRenderService` (async rendering with caching)                         |
 
 ### Table Display
 
@@ -61,9 +61,10 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - `Enter`: Cell below
     - `ArrowLeft` / `ArrowRight`: Navigate to prev/next cell when at content boundary
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
+    - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard. Uses `requestAnimationFrame` and only scrolls CodeMirror's container (preserves Joplin's sidebar layout).
 - **Shortcuts**: standard Joplin shortcuts (Ctrl+B) blocked; Ctrl+A/C/V/X supported natively.
 - **Context Menu**: suppressed.
-- **Mobile (Android)**: `beforeinput`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell while nested editor is open; focus delayed 100ms to avoid keyboard scroll conflicts.
+- **Mobile (Android)**: `beforeinput`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell and newlines while nested editor is open.
 
 ### Deactivation
 
