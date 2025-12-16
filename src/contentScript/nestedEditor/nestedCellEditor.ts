@@ -116,6 +116,7 @@ class NestedCellEditorManager {
                     // Keep drawSelection() enabled (restores a visible caret), but hide its
                     // selection overlay to avoid a second highlight layer. With this disabled,
                     // selection highlight uses the browser's native selection styling.
+                    // Unfortunately, using joplin css variables doesn't seem to work here.
                     '.cm-selectionLayer': {
                         display: 'none',
                     },
