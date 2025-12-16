@@ -13,7 +13,8 @@ import {
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
-import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
+import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
+import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 
@@ -55,10 +56,17 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
 function buildTableDecorations(state: EditorState): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
+    const activeCell = getActiveCell(state);
 
     for (const table of tables) {
-        // Skip tables where cursor is inside - let user edit raw markdown
-        if (cursorInRange(state, table.from, table.to)) {
+        // Check if this table is currently active (has an open cell editor).
+        const isActiveTable = activeCell && activeCell.tableFrom === table.from;
+
+        // Skip tables where cursor is inside - let user edit raw markdown.
+        // EXCEPTION: If the table is active, we MUST render the widget to support the nested editor,
+        // even if the main selection has moved inside the table range (e.g. via Android touch events,
+        // which might update selection despite preventDefault handlers).
+        if (!isActiveTable && cursorInRange(state, table.from, table.to)) {
             continue;
         }
 
@@ -116,6 +124,15 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         // Rebuild decorations when selection changes (enter/exit raw editing mode).
         if (transaction.selection) {
+            // Optimization: If the active table hasn't changed, and we are just moving cursor/selection
+            // within the active table's widget (or switching cells), we DON'T want to rebuild (which destroys the DOM).
+            const prevActiveCell = getActiveCell(transaction.startState);
+            const nextActiveCell = getActiveCell(transaction.state);
+
+            if (prevActiveCell && nextActiveCell && prevActiveCell.tableFrom === nextActiveCell.tableFrom) {
+                return decorations;
+            }
+
             return buildTableDecorations(transaction.state);
         }
 
@@ -124,6 +141,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
+// while it might seem better to use pointerdown, it causes scrolling issues on android
 const closeOnOutsideClick = EditorView.domEventHandlers({
     mousedown: (event, view) => {
         const target = event.target as HTMLElement | null;
@@ -154,7 +172,7 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
-        return handleTableWidgetMouseDown(view, event);
+        return handleTableInteraction(view, event);
     },
 });
 
@@ -382,6 +400,7 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             editorControl.addExtension([
                 activeCellField,
+                createMainEditorActiveCellGuard(isNestedCellEditorOpen),
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
                 nestedEditorLifecyclePlugin,

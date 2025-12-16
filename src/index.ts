@@ -6,7 +6,7 @@ const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 
 const INSERT_TABLE_COMMAND = 'richTables.insertTable';
 
-const EMPTY_TABLE_MARKDOWN = ['|     |     |', '| --- | --- |', '|     |     |', '', ''].join('\n');
+const EMPTY_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |', '', ''].join('\n');
 
 // Joplin's internal MarkupLanguage enum values
 const MarkupLanguage = {

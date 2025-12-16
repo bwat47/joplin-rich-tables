@@ -1,6 +1,11 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import type { StateEffect } from '@codemirror/state';
-import { activeCellField, ActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
+import {
+    activeCellField,
+    ActiveCell,
+    setActiveCellEffect,
+    clearActiveCellEffect,
+} from '../tableWidget/activeCellState';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import {
     insertColumn,
@@ -320,7 +325,10 @@ class TableToolbarPlugin {
         // Edit Mode
         createIconBtn('Edit table as markdown', 'Edit table as markdown', editMarkdownIcon(), () => {
             if (this.currentActiveCell) {
-                this.view.dispatch({ selection: { anchor: this.currentActiveCell.tableFrom } });
+                this.view.dispatch({
+                    selection: { anchor: this.currentActiveCell.tableFrom },
+                    effects: [clearActiveCellEffect.of(undefined)],
+                });
             }
         });
     }

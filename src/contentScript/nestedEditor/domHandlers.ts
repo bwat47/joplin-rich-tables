@@ -165,6 +165,29 @@ export function createNestedEditorKeymap(mainView: EditorView, rangeField: State
 /** Creates DOM event handlers for the nested editor (keydown, contextmenu). */
 export function createNestedEditorDomHandlers() {
     return EditorView.domEventHandlers({
+        // Android virtual keyboards commonly emit `beforeinput`/composition events
+        // rather than `keydown`. These events bubble, and since the nested editor
+        // is mounted inside the main editor DOM, they can accidentally trigger
+        // main-editor handlers (e.g. Backspace deleting table pipes).
+        //
+        // We only stop propagation (do NOT preventDefault) so CodeMirror can still
+        // handle the input normally inside the nested editor.
+        beforeinput: (e) => {
+            e.stopPropagation();
+            return false;
+        },
+        compositionstart: (e) => {
+            e.stopPropagation();
+            return false;
+        },
+        compositionupdate: (e) => {
+            e.stopPropagation();
+            return false;
+        },
+        compositionend: (e) => {
+            e.stopPropagation();
+            return false;
+        },
         keydown: (e) => {
             // Never let key events bubble to the main editor. The main editor may still
             // have a selection outside the table, and handling Backspace/Delete there
