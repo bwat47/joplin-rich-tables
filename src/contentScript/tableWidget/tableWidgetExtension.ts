@@ -123,6 +123,15 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         // Rebuild decorations when selection changes (enter/exit raw editing mode).
         if (transaction.selection) {
+            // Optimization: If the active table hasn't changed, and we are just moving cursor/selection
+            // within the active table's widget (or switching cells), we DON'T want to rebuild (which destroys the DOM).
+            const prevActiveCell = getActiveCell(transaction.startState);
+            const nextActiveCell = getActiveCell(transaction.state);
+
+            if (prevActiveCell && nextActiveCell && prevActiveCell.tableFrom === nextActiveCell.tableFrom) {
+                return decorations;
+            }
+
             return buildTableDecorations(transaction.state);
         }
 
