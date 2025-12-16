@@ -14,7 +14,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching            |
 | `contentScript/tableWidget/tablePositioning.ts`     | Maps DOM/table positions to document ranges                       |
 | `contentScript/nestedEditor/nestedCellEditor.ts`    | Orchestrates nested editor (delegates to `nestedEditor/` modules) |
-| `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`       |
+| `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
 | `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                |
 | `contentScript/toolbar/`                            | Floating table toolbar + header semantics                         |
 | `contentScript/toolbar/toolbarPositioning.ts`       | Pure helper for floating-toolbar anchor/visibility decisions      |
@@ -25,7 +25,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Tables detected via Lezer syntax tree (scan timeout increased to 500ms, resolve to 1500ms for large tables)
 - Replaced with `Decoration.replace({ widget, block: true })` via StateField
 - Widget reports an estimated height to reduce scroll jumps while rendering
-- Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached)
+- Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached with FIFO eviction at 500 entries)
 - Supports column alignments (`:---`, `:---:`, `---:`)
 
 ### In-Cell Editing (Nested Editor Pattern)
@@ -63,6 +63,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
 - **Shortcuts**: standard Joplin shortcuts (Ctrl+B) blocked; Ctrl+A/C/V/X supported natively.
 - **Context Menu**: suppressed.
+- **Mobile (Android)**: `beforeinput`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell while nested editor is open; focus delayed 100ms to avoid keyboard scroll conflicts.
 
 ### Deactivation
 
@@ -72,11 +73,10 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Decorations rebuilt to show updated rendered content
 - Widget destruction also closes any hosted nested editor to avoid orphaned subviews
 
-### Floating Toolbar Behavior
+### Toolbar
 
-- Anchored to the active table (top or bottom); never free-floating mid-viewport.
-- Repositions on scroll/resize to keep the toolbar visible while the table is visible.
-- Hidden when the table is fully outside the editor viewport.
+- **Insert Table**: Button in Joplin's editor toolbar inserts a 2x2 empty table.
+- **Floating Toolbar**: Appears when a cell is active; anchored to table (top or bottom), repositions on scroll/resize, hidden when table leaves viewport.
 
 ## References
 
