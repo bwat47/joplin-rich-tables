@@ -29,11 +29,6 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
 - No support for multi-line content (unless you manually enter `<br>` tags)
 
-#### Mobile limitations
-
-- Table editing is janky on mobile (viewport can jump around while selecting cells). It's not bad with simple tables, but annoying with large tables.
-- There's an issue on mobile (android) when the editor has elements that have a horizontal scroll (e.g. a wide table elsewhere in the document), focusing a cell in another table will unnecessarily scroll to the right, looks almost identical to the video in this issue: https://github.com/codemirror/dev/issues/752
-
 #### Editing limitations
 
 In order to provide table editing, the plugin uses a nested codemirror editor subview. Because of this, the following limitations are present:
