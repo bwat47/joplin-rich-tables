@@ -278,7 +278,7 @@ const tableStyles = EditorView.baseTheme({
         fontSize: 'inherit',
     },
     '.cm-table-widget-table th, .cm-table-widget-table td': {
-        border: '1px solid #ddd',
+        border: '1px solid var(--joplin-divider-color)',
         padding: '8px 12px',
         minWidth: '50px',
         position: 'relative',
@@ -339,7 +339,8 @@ const tableStyles = EditorView.baseTheme({
     },
     // Inline code styling
     '.cm-table-widget-table code': {
-        backgroundColor: 'rgba(0, 0, 0, 0.06)',
+        backgroundColor: 'var(--joplin-code-background-color)',
+        color: 'var(--joplin-code-color)',
         padding: '2px 4px',
         borderRadius: '3px',
         fontFamily: 'monospace',
@@ -347,35 +348,22 @@ const tableStyles = EditorView.baseTheme({
     },
     // Highlight/mark styling (==text==)
     '.cm-table-widget-table mark': {
-        backgroundColor: '#EED47B',
-        color: '#000000',
+        backgroundColor: 'var(--joplin-mark-highlight-background-color)',
+        color: 'var(--joplin-mark-highlight-color)',
         padding: '1px 2px',
     },
     // Link styling
     '.cm-table-widget-table a': {
         textDecoration: 'underline',
+        color: 'var(--joplin-url-color)',
     },
     '.cm-table-widget-table th': {
-        backgroundColor: '#f5f5f5',
+        backgroundColor: 'var(--joplin-table-background-color)',
         fontWeight: 'bold',
     },
     '.cm-table-widget-table tr:hover': {
-        backgroundColor: '#f9f9f9',
+        backgroundColor: 'var(--joplin-selected-color)',
     },
-    // Dark theme support
-    '&dark .cm-table-widget-table th, &dark .cm-table-widget-table td': {
-        borderColor: '#444',
-    },
-    '&dark .cm-table-widget-table th': {
-        backgroundColor: '#333',
-    },
-    '&dark .cm-table-widget-table tr:hover': {
-        backgroundColor: '#2a2a2a',
-    },
-    '&dark .cm-table-widget-table code': {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    // Toolbar styles
 });
 
 /**

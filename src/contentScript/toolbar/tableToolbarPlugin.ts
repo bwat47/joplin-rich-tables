@@ -422,11 +422,11 @@ export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);
 export const tableToolbarTheme = EditorView.baseTheme({
     '.cm-table-floating-toolbar': {
         position: 'absolute',
-        backgroundColor: 'var(--joplin-background-color, #ffffff)',
-        border: '1px solid var(--joplin-divider-color, #dddddd)',
+        backgroundColor: 'var(--joplin-background-color)',
+        border: '1px solid var(--joplin-divider-color)',
         borderRadius: '6px',
         padding: '4px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        boxShadow: '0 4px 12px var(--joplin-background-color-transparent2)',
         display: 'flex',
         gap: '4px',
         alignItems: 'center',
@@ -440,7 +440,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         cursor: 'pointer',
         padding: '4px 8px',
         fontSize: 'inherit',
-        color: 'var(--joplin-color, #333333)',
+        color: 'var(--joplin-color)',
         whiteSpace: 'nowrap',
         transition: 'all 0.2s',
     },
@@ -454,20 +454,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         lineHeight: '0',
     },
     '.cm-table-toolbar-btn:hover': {
-        backgroundColor: 'var(--joplin-selected-color, rgba(0,0,0,0.05))', // fallback
-        borderColor: 'var(--joplin-divider-color, #cccccc)',
-    },
-    // Dark mode for toolbar
-    '&dark .cm-table-floating-toolbar': {
-        backgroundColor: '#2d2d2d',
-        borderColor: '#444444',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-    },
-    '&dark .cm-table-toolbar-btn': {
-        color: '#dddddd',
-    },
-    '&dark .cm-table-toolbar-btn:hover': {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderColor: '#555555',
+        backgroundColor: 'var(--joplin-selected-color)',
+        borderColor: 'var(--joplin-divider-color)',
     },
 });
