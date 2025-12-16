@@ -10,7 +10,7 @@ Tables are rendered as HTML in the markdown editor, allowing you to see the HTML
 
 Table rendering includes rendering of inline markdown and image embeds.
 
-<img width="1900" height="1458" alt="image" src="https://github.com/user-attachments/assets/78cd374f-8f8f-4644-b29d-843a8f52ce96" />
+<img width="1898" height="1438" alt="image" src="https://github.com/user-attachments/assets/52c453eb-f45b-4615-809c-869f68cf7c33" />
 
 ### Table Editing
 
