@@ -2,7 +2,7 @@
 
 A Joplin plugin to provide table rendering & table editing in the Markdown editor.
 
-![example](https://github.com/user-attachments/assets/e98b344d-2f76-4070-9bcc-fac1cd05b9a6)
+![example](https://github.com/user-attachments/assets/e16608bf-ec86-4083-b47a-bab0d15e6f9e)
 
 ## Features
 
