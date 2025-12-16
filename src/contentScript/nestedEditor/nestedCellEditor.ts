@@ -33,19 +33,19 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
         // Vertical scrolling
         if (cellRect.top < scrollRect.top + margin) {
             // Cell is above visible area
-            newScrollTop -= (scrollRect.top - cellRect.top) + margin;
+            newScrollTop -= scrollRect.top - cellRect.top + margin;
         } else if (cellRect.bottom > scrollRect.bottom - margin) {
             // Cell is below visible area
-            newScrollTop += (cellRect.bottom - scrollRect.bottom) + margin;
+            newScrollTop += cellRect.bottom - scrollRect.bottom + margin;
         }
 
         // Horizontal scrolling
         if (cellRect.left < scrollRect.left + margin) {
             // Cell is to the left of visible area
-            newScrollLeft -= (scrollRect.left - cellRect.left) + margin;
+            newScrollLeft -= scrollRect.left - cellRect.left + margin;
         } else if (cellRect.right > scrollRect.right - margin) {
             // Cell is to the right of visible area
-            newScrollLeft += (cellRect.right - scrollRect.right) + margin;
+            newScrollLeft += cellRect.right - scrollRect.right + margin;
         }
 
         if (newScrollTop !== scrollDOM.scrollTop || newScrollLeft !== scrollDOM.scrollLeft) {
@@ -179,14 +179,7 @@ class NestedCellEditorManager {
         // Scroll the cell into view within CodeMirror's scroll container
         scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
 
-        // Delay focus slightly to prevent race conditions with Android keyboard/scrolling.
-        // If we focus immediately on touch, the virtual keyboard animation can conflict
-        // with the viewport scroll, causing the editor to jump to the top.
-        setTimeout(() => {
-            if (this.subview) {
-                this.subview.focus();
-            }
-        }, 100);
+        this.subview.focus();
     }
 
     applyMainTransactions(transactions: readonly Transaction[], cellFrom: number, cellTo: number): void {
