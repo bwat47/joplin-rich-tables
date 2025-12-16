@@ -1,0 +1,120 @@
+import { describe, expect, it } from '@jest/globals';
+import { EditorState } from '@codemirror/state';
+import { activeCellField, setActiveCellEffect } from '../tableWidget/activeCellState';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
+import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+
+function createState(params: { doc: string; nestedOpen: boolean }) {
+    return EditorState.create({
+        doc: params.doc,
+        extensions: [activeCellField, createMainEditorActiveCellGuard(() => params.nestedOpen)],
+    });
+}
+
+describe('createMainEditorActiveCellGuard', () => {
+    it('blocks deleting a delimiter pipe outside the active cell when nested editor is open', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        expect(tableRanges).not.toBeNull();
+
+        // Active cell: header col 0 ("H1")
+        const cellFrom = tableRanges!.headers[0].from;
+        const cellTo = tableRanges!.headers[0].to;
+
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                tableTo: doc.length,
+                cellFrom,
+                cellTo,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        // Find the delimiter pipe between H1 and H2 on the first line.
+        const firstLine = '| H1 | H2 |';
+        const pipeIndexInLine = firstLine.indexOf('|', 1 + firstLine.indexOf('H1'));
+        expect(pipeIndexInLine).toBeGreaterThan(0);
+
+        const pipePosInDoc = pipeIndexInLine; // table starts at 0
+
+        const tr = state.update({
+            changes: { from: pipePosInDoc, to: pipePosInDoc + 1, insert: '' },
+        });
+
+        // Transaction should be dropped; doc stays unchanged.
+        expect(tr.state.doc.toString()).toBe(doc);
+    });
+
+    it('allows deleting within the active cell when nested editor is open', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        expect(tableRanges).not.toBeNull();
+
+        const cellFrom = tableRanges!.headers[0].from;
+        const cellTo = tableRanges!.headers[0].to;
+
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                tableTo: doc.length,
+                cellFrom,
+                cellTo,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        // Delete the "1" in "H1" (this is inside the trimmed cell range).
+        const deleteFrom = doc.indexOf('1');
+        expect(deleteFrom).toBeGreaterThan(0);
+
+        const tr = state.update({
+            changes: { from: deleteFrom, to: deleteFrom + 1, insert: '' },
+        });
+
+        expect(tr.state.doc.toString()).toContain('| H |');
+    });
+
+    it('allows structural table edits that force rebuild', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        expect(tableRanges).not.toBeNull();
+
+        const cellFrom = tableRanges!.headers[0].from;
+        const cellTo = tableRanges!.headers[0].to;
+
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                tableTo: doc.length,
+                cellFrom,
+                cellTo,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        // Replace the first line (outside cell range) but mark as rebuild, like toolbar does.
+        const firstLineEnd = doc.indexOf('\n');
+        expect(firstLineEnd).toBeGreaterThan(0);
+
+        const tr = state.update({
+            changes: { from: 0, to: firstLineEnd, insert: '| X | Y |' },
+            effects: rebuildTableWidgetsEffect.of(undefined),
+        });
+
+        expect(tr.state.doc.toString()).toContain('| X | Y |');
+    });
+});

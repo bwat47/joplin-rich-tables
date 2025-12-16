@@ -13,6 +13,7 @@ import {
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
+import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
@@ -399,6 +400,7 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             editorControl.addExtension([
                 activeCellField,
+                createMainEditorActiveCellGuard(isNestedCellEditorOpen),
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
                 nestedEditorLifecyclePlugin,
