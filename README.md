@@ -19,7 +19,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Adding/Deleting columns
 - Changing column alignment (left/center/right)
 
-### Import Notes/Limitations
+### Important Notes/Limitations
 
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
 - Table editing is janky on mobile (viewport can jump around while selecting cells). It's not bad with simple tables, but annoying with large tables.
