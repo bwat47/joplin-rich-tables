@@ -123,6 +123,15 @@ const alignRightIcon = () =>
         { d: 'M6 18l14 0' },
     ]);
 
+const formatTableIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M3 21v-4a4 4 0 1 1 4 4h-4' },
+        { d: 'M21 3a16 16 0 0 0 -12.8 10.2' },
+        { d: 'M21 3a16 16 0 0 1 -10.2 12.8' },
+        { d: 'M10.6 9a9 9 0 0 1 4.4 4.4' },
+    ]);
+
 class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
@@ -321,6 +330,16 @@ class TableToolbarPlugin {
         spacer2.style.width = '10px';
         spacer2.style.display = 'inline-block';
         this.dom.appendChild(spacer2);
+
+        // Format table (re-serialize to normalize whitespace)
+        createIconBtn('Format table', 'Format table', formatTableIcon(), () => {
+            this.modifyTable({
+                // Return a shallow copy to bypass identity check and trigger re-serialization
+                operation: (t) => ({ ...t }),
+                computeTargetCell: (cell) => ({ section: cell.section, row: cell.row, col: cell.col }),
+                forceWidgetRebuild: true,
+            });
+        });
 
         // Edit Mode
         createIconBtn('Edit table as markdown', 'Edit table as markdown', editMarkdownIcon(), () => {
