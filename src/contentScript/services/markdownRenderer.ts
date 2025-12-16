@@ -23,8 +23,21 @@ export interface MarkdownRenderService {
     clear(): void;
 }
 
-// Cache for rendered markdown to avoid redundant rendering
+// Cache for rendered markdown to avoid redundant rendering.
+// Limited to MAX_CACHE_SIZE entries with FIFO eviction to prevent unbounded memory growth.
+const MAX_CACHE_SIZE = 500;
 const renderCache = new Map<string, string>();
+
+function setCacheEntry(key: string, value: string): void {
+    if (renderCache.size >= MAX_CACHE_SIZE) {
+        // Delete oldest entry (Map maintains insertion order)
+        const firstKey = renderCache.keys().next().value;
+        if (firstKey !== undefined) {
+            renderCache.delete(firstKey);
+        }
+    }
+    renderCache.set(key, value);
+}
 
 // Pending render requests to avoid duplicate requests
 const pendingRequests = new Map<string, Promise<string>>();
@@ -80,7 +93,7 @@ async function renderMarkdown(markdown: string): Promise<string> {
 
             if (result && result.html) {
                 const html = result.html;
-                renderCache.set(markdown, html);
+                setCacheEntry(markdown, html);
                 return html;
             }
 
