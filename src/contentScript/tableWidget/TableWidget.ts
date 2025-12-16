@@ -133,6 +133,7 @@ export class TableWidget extends WidgetType {
             text.includes('![') || // images
             text.includes('<') || // HTML tags
             text.includes('==') || // Highlights
+            text.includes('\\') || // Escaped Text
             text.includes('#') // Headings
         );
     }
