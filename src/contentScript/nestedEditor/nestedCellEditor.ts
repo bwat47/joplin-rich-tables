@@ -13,6 +13,47 @@ import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHa
 
 export { syncAnnotation };
 
+/**
+ * Scrolls a cell element into view within only CodeMirror's scroll container.
+ * Unlike native scrollIntoView(), this won't affect parent scrollable elements
+ * (e.g., Joplin's sidebar layout).
+ */
+function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
+    // Use RAF to ensure layout is stable after editor mount
+    requestAnimationFrame(() => {
+        const scrollDOM = mainView.scrollDOM;
+        const scrollRect = scrollDOM.getBoundingClientRect();
+        const cellRect = cellElement.getBoundingClientRect();
+
+        const margin = 8; // Pixels of margin to keep around the cell
+
+        let newScrollTop = scrollDOM.scrollTop;
+        let newScrollLeft = scrollDOM.scrollLeft;
+
+        // Vertical scrolling
+        if (cellRect.top < scrollRect.top + margin) {
+            // Cell is above visible area
+            newScrollTop -= (scrollRect.top - cellRect.top) + margin;
+        } else if (cellRect.bottom > scrollRect.bottom - margin) {
+            // Cell is below visible area
+            newScrollTop += (cellRect.bottom - scrollRect.bottom) + margin;
+        }
+
+        // Horizontal scrolling
+        if (cellRect.left < scrollRect.left + margin) {
+            // Cell is to the left of visible area
+            newScrollLeft -= (scrollRect.left - cellRect.left) + margin;
+        } else if (cellRect.right > scrollRect.right - margin) {
+            // Cell is to the right of visible area
+            newScrollLeft += (cellRect.right - scrollRect.right) + margin;
+        }
+
+        if (newScrollTop !== scrollDOM.scrollTop || newScrollLeft !== scrollDOM.scrollLeft) {
+            scrollDOM.scrollTo(newScrollLeft, newScrollTop);
+        }
+    });
+}
+
 /** Manages the lifecycle and state of the nested CodeMirror instance for cell editing. */
 class NestedCellEditorManager {
     private subview: EditorView | null = null;
@@ -134,6 +175,9 @@ class NestedCellEditorManager {
             state,
             parent: editorHost,
         });
+
+        // Scroll the cell into view within CodeMirror's scroll container
+        scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
 
         // Delay focus slightly to prevent race conditions with Android keyboard/scrolling.
         // If we focus immediately on touch, the virtual keyboard animation can conflict
