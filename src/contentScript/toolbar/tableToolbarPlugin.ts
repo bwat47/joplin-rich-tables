@@ -254,11 +254,13 @@ class TableToolbarPlugin {
             });
         });
 
-        // Spacer
-        const spacer1 = document.createElement('span');
-        spacer1.style.width = '10px';
-        spacer1.style.display = 'inline-block';
-        this.dom.appendChild(spacer1);
+        // Separator
+        const createSeparator = () => {
+            const sep = document.createElement('span');
+            sep.className = 'cm-table-toolbar-separator';
+            this.dom.appendChild(sep);
+        };
+        createSeparator();
 
         // Column Operations
         createIconBtn('Insert column before', 'Insert column before', columnInsertLeftIcon(), () => {
@@ -295,11 +297,7 @@ class TableToolbarPlugin {
             });
         });
 
-        // Spacer
-        const spacer3 = document.createElement('span');
-        spacer3.style.width = '10px';
-        spacer3.style.display = 'inline-block';
-        this.dom.appendChild(spacer3);
+        createSeparator();
 
         // Alignment Operations
         createIconBtn('Align left', 'Align column left', alignLeftIcon(), () => {
@@ -325,11 +323,7 @@ class TableToolbarPlugin {
             });
         });
 
-        // Spacer
-        const spacer2 = document.createElement('span');
-        spacer2.style.width = '10px';
-        spacer2.style.display = 'inline-block';
-        this.dom.appendChild(spacer2);
+        createSeparator();
 
         // Format table (re-serialize to normalize whitespace)
         createIconBtn('Format table', 'Format table', formatTableIcon(), () => {
@@ -475,5 +469,11 @@ export const tableToolbarTheme = EditorView.baseTheme({
     '.cm-table-toolbar-btn:hover': {
         backgroundColor: 'var(--joplin-selected-color)',
         borderColor: 'var(--joplin-divider-color)',
+    },
+    '.cm-table-toolbar-separator': {
+        width: '1px',
+        height: '18px',
+        backgroundColor: 'var(--joplin-divider-color)',
+        margin: '0 4px',
     },
 });
