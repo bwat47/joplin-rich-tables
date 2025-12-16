@@ -134,6 +134,7 @@ export class TableWidget extends WidgetType {
             text.includes('<') || // HTML tags
             text.includes('==') || // Highlights
             text.includes('\\') || // Escaped Text
+            text.includes('mailto:') || // Mailto links
             text.includes('#') // Headings
         );
     }
