@@ -131,6 +131,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
+// while it might seem better to use pointerdown, it causes scrolling issues on android
 const closeOnOutsideClick = EditorView.domEventHandlers({
     mousedown: (event, view) => {
         const target = event.target as HTMLElement | null;
