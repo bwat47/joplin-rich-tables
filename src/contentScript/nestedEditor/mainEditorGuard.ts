@@ -42,8 +42,15 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
         }
 
         let rejected = false;
-        tr.changes.iterChanges((fromA, toA) => {
+        tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+            // Reject changes outside the active cell range.
             if (fromA < activeCell.cellFrom || toA > activeCell.cellTo) {
+                rejected = true;
+                return;
+            }
+            // Reject newlines (table cells cannot contain line breaks).
+            const insertedText = inserted.toString();
+            if (insertedText.includes('\n') || insertedText.includes('\r')) {
                 rejected = true;
             }
         });
