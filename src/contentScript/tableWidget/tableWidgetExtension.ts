@@ -13,7 +13,7 @@ import {
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
-import { handleTableWidgetMouseDown } from './tableWidgetInteractions';
+import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 
@@ -55,10 +55,17 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
 function buildTableDecorations(state: EditorState): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
+    const activeCell = getActiveCell(state);
 
     for (const table of tables) {
-        // Skip tables where cursor is inside - let user edit raw markdown
-        if (cursorInRange(state, table.from, table.to)) {
+        // Check if this table is currently active (has an open cell editor).
+        const isActiveTable = activeCell && activeCell.tableFrom === table.from;
+
+        // Skip tables where cursor is inside - let user edit raw markdown.
+        // EXCEPTION: If the table is active, we MUST render the widget to support the nested editor,
+        // even if the main selection has moved inside the table range (e.g. via Android touch events,
+        // which might update selection despite preventDefault handlers).
+        if (!isActiveTable && cursorInRange(state, table.from, table.to)) {
             continue;
         }
 
@@ -154,7 +161,10 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
-        return handleTableWidgetMouseDown(view, event);
+        return handleTableInteraction(view, event);
+    },
+    touchstart: (event, view) => {
+        return handleTableInteraction(view, event);
     },
 });
 

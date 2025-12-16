@@ -134,7 +134,14 @@ class NestedCellEditorManager {
             parent: editorHost,
         });
 
-        this.subview.focus();
+        // Delay focus slightly to prevent race conditions with Android keyboard/scrolling.
+        // If we focus immediately on touch, the virtual keyboard animation can conflict
+        // with the viewport scroll, causing the editor to jump to the top.
+        setTimeout(() => {
+            if (this.subview) {
+                this.subview.focus();
+            }
+        }, 100);
     }
 
     applyMainTransactions(transactions: readonly Transaction[], cellFrom: number, cellTo: number): void {

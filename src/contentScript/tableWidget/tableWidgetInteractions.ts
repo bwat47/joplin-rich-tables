@@ -34,7 +34,7 @@ function tryHandleLinkClick(target: HTMLElement): boolean {
     return true;
 }
 
-export function handleTableWidgetMouseDown(view: EditorView, event: MouseEvent): boolean {
+export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
     if (!target) {
         return false;
@@ -99,6 +99,7 @@ export function handleTableWidgetMouseDown(view: EditorView, event: MouseEvent):
     event.stopPropagation();
 
     view.dispatch({
+        selection: { anchor: cellFrom },
         effects: setActiveCellEffect.of({
             tableFrom: table.from,
             tableTo: table.to,
