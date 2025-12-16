@@ -163,9 +163,6 @@ const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
         return handleTableInteraction(view, event);
     },
-    touchstart: (event, view) => {
-        return handleTableInteraction(view, event);
-    },
 });
 
 const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
