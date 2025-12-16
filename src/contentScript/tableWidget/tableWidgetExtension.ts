@@ -273,14 +273,14 @@ const tableStyles = EditorView.baseTheme({
     },
     '.cm-table-widget-table': {
         borderCollapse: 'collapse',
-        width: '100%',
+        width: 'auto',
         fontFamily: 'inherit',
         fontSize: 'inherit',
     },
     '.cm-table-widget-table th, .cm-table-widget-table td': {
         border: '1px solid #ddd',
         padding: '8px 12px',
-        minWidth: '100px',
+        minWidth: '50px',
         position: 'relative',
     },
     '.cm-table-cell-editor-hidden': {
