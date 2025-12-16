@@ -119,8 +119,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
             if (activeCell) {
                 // Undo/redo can restore structural changes (add/delete row/col) that require
                 // a full rebuild. Position mapping alone can't handle these cases correctly.
-                const isUndoRedo =
-                    transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
+                const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
                 if (isUndoRedo) {
                     return buildTableDecorations(transaction.state);
                 }
