@@ -340,6 +340,7 @@ const tableStyles = EditorView.baseTheme({
     // Inline code styling
     '.cm-table-widget-table code': {
         backgroundColor: 'var(--joplin-code-background-color)',
+        border: '1px solid var(--joplin-divider-color)',
         color: 'var(--joplin-code-color)',
         padding: '2px 4px',
         borderRadius: '3px',
