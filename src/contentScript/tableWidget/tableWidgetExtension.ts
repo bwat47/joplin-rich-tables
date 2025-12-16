@@ -117,6 +117,13 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         if (transaction.docChanged) {
             if (activeCell) {
+                // Undo/redo can restore structural changes (add/delete row/col) that require
+                // a full rebuild. Position mapping alone can't handle these cases correctly.
+                const isUndoRedo =
+                    transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
+                if (isUndoRedo) {
+                    return buildTableDecorations(transaction.state);
+                }
                 return decorations.map(transaction.changes);
             }
             return buildTableDecorations(transaction.state);
@@ -139,6 +146,25 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return decorations;
     },
     provide: (field) => EditorView.decorations.from(field),
+});
+
+/**
+ * Clears the active cell on undo/redo since position mapping cannot reliably
+ * handle structural table changes (row/column add/delete).
+ */
+const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
+    if (!tr.docChanged) {
+        return null;
+    }
+    const isUndoRedo = tr.isUserEvent('undo') || tr.isUserEvent('redo');
+    if (!isUndoRedo) {
+        return null;
+    }
+    const activeCell = getActiveCell(tr.startState);
+    if (!activeCell) {
+        return null;
+    }
+    return { effects: clearActiveCellEffect.of(undefined) };
 });
 
 // while it might seem better to use pointerdown, it causes scrolling issues on android
@@ -390,6 +416,7 @@ export default function (context: ContentScriptContext) {
             editorControl.addExtension([
                 activeCellField,
                 createMainEditorActiveCellGuard(isNestedCellEditorOpen),
+                clearActiveCellOnUndoRedo,
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
                 nestedEditorLifecyclePlugin,
