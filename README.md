@@ -20,6 +20,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Adding/Deleting rows
 - Adding/Deleting columns
 - Changing column alignment (left/center/right)
+- Format table (currently just normalizes whitespace to one space around cell content, no full-on pretty formatting currently).
 
 ### Important Notes/Limitations
 
@@ -36,3 +37,5 @@ In order to provide table editing, the plugin uses a nested codemirror editor su
 - Formatting functions from joplin's formatting toolbar will not work properly.
 
 - Cell editing is plaintext only (markdown will not be rendered until you leave the cell).
+
+- No context menu when editing cells
