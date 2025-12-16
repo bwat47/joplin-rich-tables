@@ -34,6 +34,7 @@ interface EditorControl {
     editor: EditorView;
     cm6: EditorView;
     addExtension: (extension: unknown) => void;
+    registerCommand: (name: string, callback: (...args: unknown[]) => unknown) => void;
 }
 
 /**
@@ -424,6 +425,18 @@ export default function (context: ContentScriptContext) {
                 tableToolbarTheme,
                 tableToolbarPlugin,
             ]);
+
+            // Register command to close nested editor (called from plugin on note switch)
+            editorControl.registerCommand('richTablesCloseNestedEditor', () => {
+                const view = editorControl.cm6;
+                if (isNestedCellEditorOpen()) {
+                    closeNestedCellEditor();
+                }
+                if (getActiveCell(view.state)) {
+                    view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                }
+                return true;
+            });
 
             logger.info('Table widget extension registered');
         },
