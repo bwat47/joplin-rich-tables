@@ -363,7 +363,7 @@ const tableStyles = EditorView.baseTheme({
         fontWeight: 'bold',
     },
     '.cm-table-widget-table tr:hover': {
-        backgroundColor: 'var(--joplin-selected-color)',
+        backgroundColor: 'var(joplin-table-background-color)',
     },
 });
 
