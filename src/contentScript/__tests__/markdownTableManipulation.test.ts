@@ -60,7 +60,7 @@ describe('markdownTableManipulation', () => {
         const newData = insertColumn(data, 1, 'before'); // Insert before 2nd col
 
         expect(newData.headers.length).toBe(3);
-        expect(newData.headers).toEqual(['Header 1', 'New Col', 'Header 2']);
+        expect(newData.headers).toEqual(['Header 1', '', 'Header 2']);
         expect(newData.alignments[1]).toBeNull();
         expect(newData.rows[0]).toEqual(['Row 1 Col 1', '', 'Row 1 Col 2']);
     });
@@ -69,7 +69,7 @@ describe('markdownTableManipulation', () => {
         const data = parseMarkdownTable(basicTable)!;
         const newData = insertColumn(data, 0, 'after'); // Insert after 1st col
 
-        expect(newData.headers).toEqual(['Header 1', 'New Col', 'Header 2']);
+        expect(newData.headers).toEqual(['Header 1', '', 'Header 2']);
         expect(newData.rows[0]).toEqual(['Row 1 Col 1', '', 'Row 1 Col 2']);
     });
 

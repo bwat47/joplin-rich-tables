@@ -90,7 +90,7 @@ export function insertColumn(table: TableData, colIndex: number, where: 'before'
 
     // Update headers
     const newHeaders = [...normalized.headers];
-    newHeaders.splice(actualIndex, 0, 'New Col');
+    newHeaders.splice(actualIndex, 0, '');
 
     // Update alignments
     const newAlignments = [...normalized.alignments];
