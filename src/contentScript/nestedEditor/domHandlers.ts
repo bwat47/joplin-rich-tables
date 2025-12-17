@@ -176,6 +176,13 @@ export function createNestedEditorDomHandlers() {
             e.stopPropagation();
             return false;
         },
+        // Some Android IMEs still emit `input` events that bubble even when `beforeinput`
+        // is stopped. If these reach the main editor, CodeMirror may try to respond
+        // (selection/scroll updates) even though the nested editor is the real target.
+        input: (e) => {
+            e.stopPropagation();
+            return false;
+        },
         compositionstart: (e) => {
             e.stopPropagation();
             return false;
