@@ -1,6 +1,5 @@
 import {
     Annotation,
-    ChangeSpec,
     ChangeSet,
     EditorSelection,
     EditorState,
@@ -228,7 +227,7 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
         }
 
         return {
-            changes: didModifyInserts ? (nextChanges as unknown as ChangeSpec) : tr.changes,
+            changes: didModifyInserts ? nextChanges : tr.changes,
             ...(selectionSpec ? { selection: selectionSpec } : null),
         };
     });
