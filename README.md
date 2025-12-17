@@ -1,3 +1,6 @@
+> [!note]
+> This plugin was created entirely with AI tools, and I may be limited in my ability to fix any issues.
+
 # Rich Tables
 
 A Joplin plugin to provide table rendering & table editing in the Markdown editor.
