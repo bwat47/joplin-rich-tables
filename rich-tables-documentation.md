@@ -15,6 +15,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tablePositioning.ts`     | Maps DOM/table positions to document ranges                                    |
 | `contentScript/nestedEditor/nestedCellEditor.ts`    | Orchestrates nested editor (delegates to `nestedEditor/` modules)              |
 | `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
+| `contentScript/tableModel/markdownTableRowScanner.ts` | Shared scanner: detects pipe delimiters, handles escaped pipes and inline code |
 | `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                             |
 | `contentScript/toolbar/`                            | Floating table toolbar + header semantics                                      |
 | `contentScript/toolbar/toolbarPositioning.ts`       | Pure helper for floating-toolbar anchor/visibility decisions                   |
@@ -28,6 +29,8 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached with FIFO eviction at 500 entries)
 - Supports column alignments (`:---`, `:---:`, `---:`)
 - Wide tables scroll horizontally within the widget container
+
+**Table Parsing**: Shared scanner detects cell boundaries by identifying unescaped pipe delimiters while ignoring pipes inside inline code spans (`` `code` ``). Unclosed backticks are treated as literals.
 
 ### In-Cell Editing (Nested Editor Pattern)
 
