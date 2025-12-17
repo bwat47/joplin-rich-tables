@@ -184,15 +184,33 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
             return false;
         }
 
-        if (getActiveCell(view.state)) {
+        const hasActiveCell = Boolean(getActiveCell(view.state));
+        const hasNestedEditor = isNestedCellEditorOpen();
+
+        if (!hasActiveCell && !hasNestedEditor) {
+            return false;
+        }
+
+        // Capture the document position BEFORE we close the nested editor and rebuild
+        // decorations. Layout changes from rebuilding decorations would otherwise cause
+        // CodeMirror to map screen coordinates to the wrong document position.
+        const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+
+        if (hasActiveCell) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
 
-        if (isNestedCellEditorOpen()) {
+        if (hasNestedEditor) {
             closeNestedCellEditor();
         }
 
-        return false;
+        // Set selection to the captured position and focus the main editor.
+        if (clickPos !== null) {
+            view.dispatch({ selection: { anchor: clickPos } });
+            view.focus();
+        }
+
+        return true; // Consume the event to prevent stale coordinate mapping
     },
 });
 
