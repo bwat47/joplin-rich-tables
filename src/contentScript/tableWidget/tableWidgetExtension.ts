@@ -184,15 +184,47 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
             return false;
         }
 
-        if (getActiveCell(view.state)) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        const hasActiveCell = Boolean(getActiveCell(view.state));
+        const hasNestedEditor = isNestedCellEditorOpen();
+
+        if (!hasActiveCell && !hasNestedEditor) {
+            return false;
         }
 
-        if (isNestedCellEditorOpen()) {
+        // Capture the document position BEFORE we close the nested editor and rebuild
+        // decorations. Layout changes from rebuilding decorations would otherwise cause
+        // CodeMirror to map screen coordinates to the wrong document position.
+        const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+
+        // Close the nested editor first to ensure widget DOM is cleaned up before rebuild.
+        if (hasNestedEditor) {
             closeNestedCellEditor();
         }
 
-        return false;
+        // Combine clearing active cell and setting selection in a single dispatch.
+        // Use scrollIntoView: false to prevent CodeMirror's automatic scroll during the
+        // decoration rebuild. The rebuild may change widget heights (if cell content was
+        // edited), and scrolling during this layout change can cause unexpected jumps.
+        if (clickPos !== null) {
+            view.dispatch({
+                selection: { anchor: clickPos },
+                effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+                scrollIntoView: false,
+            });
+            view.focus();
+
+            // After layout stabilizes, scroll the cursor into view. Using RAF ensures
+            // the decoration rebuild has completed and heights are accurate.
+            requestAnimationFrame(() => {
+                view.dispatch({
+                    effects: EditorView.scrollIntoView(clickPos, { y: 'nearest' }),
+                });
+            });
+        } else if (hasActiveCell) {
+            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        }
+
+        return clickPos !== null; // Consume the event only if we handled cursor positioning
     },
 });
 
@@ -296,6 +328,11 @@ const tableStyles = EditorView.baseTheme({
     '.cm-table-widget': {
         padding: '8px 0',
         position: 'relative',
+        display: 'block',
+        width: '100%',
+        maxWidth: '100%',
+        overflowX: 'auto',
+        contain: 'inline-size', // <-- explicit size containment
     },
     '.cm-table-widget-table': {
         borderCollapse: 'collapse',

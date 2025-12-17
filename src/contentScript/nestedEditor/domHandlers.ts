@@ -1,13 +1,8 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { Transaction, StateEffect, StateField } from '@codemirror/state';
+import { StateField } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { SubviewCellRange } from './transactionPolicy';
-
-// Define a separate interface for the Joplin-specific extension
-interface WithScrollSnapshot {
-    scrollSnapshot?: () => StateEffect<unknown>;
-}
 
 /**
  * Creates a helper function that preserves the main editor's scroll position
@@ -15,30 +10,28 @@ interface WithScrollSnapshot {
  */
 function createPreserveScroll(mainView: EditorView) {
     return (fn: () => void) => {
-        // In this CodeMirror build, `scrollSnapshot()` returns an effect that can
-        // be dispatched later to restore the current scroll position.
-        const view = mainView as unknown as WithScrollSnapshot;
-        const snapshot = view.scrollSnapshot ? view.scrollSnapshot() : null;
+        // 1. Capture current scroll position using standard DOM API
+        const scrollDOM = mainView.scrollDOM;
+        const { scrollTop, scrollLeft } = scrollDOM;
 
+        // 2. Execute the action (undo/redo)
         fn();
 
-        if (snapshot) {
-            // Undo/redo can restore an old selection which causes CodeMirror
-            // to scroll the main editor into view. When editing via nested
-            // editor we want to keep the viewport anchored where the user is.
-            const restoreEffect = {
-                effects: snapshot,
-                annotations: Transaction.addToHistory.of(false),
-            };
+        // 3. Define the restoration logic
+        const restoreScroll = () => {
+            // Check if scroll position drifted; only write if needed to minimize layout thrashing
+            if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
+                scrollDOM.scrollTo(scrollLeft, scrollTop);
+            }
+        };
 
-            // Apply immediately
-            mainView.dispatch(restoreEffect);
+        // 4. Restore immediately to fight synchronous layout shifts
+        restoreScroll();
 
-            // Re-apply in rAF to override any later scroll-into-view measurement passes.
-            requestAnimationFrame(() => {
-                mainView.dispatch(restoreEffect);
-            });
-        }
+        // 5. Restore again in the next animation frame
+        // This ensures we override CodeMirror's internal "scrollIntoView"
+        // behavior which runs during the view update cycle.
+        requestAnimationFrame(restoreScroll);
     };
 }
 
@@ -176,6 +169,13 @@ export function createNestedEditorDomHandlers() {
             e.stopPropagation();
             return false;
         },
+        // Some Android IMEs still emit `input` events that bubble even when `beforeinput`
+        // is stopped. If these reach the main editor, CodeMirror may try to respond
+        // (selection/scroll updates) even though the nested editor is the real target.
+        input: (e) => {
+            e.stopPropagation();
+            return false;
+        },
         compositionstart: (e) => {
             e.stopPropagation();
             return false;
@@ -189,15 +189,20 @@ export function createNestedEditorDomHandlers() {
             return false;
         },
         keydown: (e) => {
-            // Never let key events bubble to the main editor. The main editor may still
+            const isMod = e.ctrlKey || e.metaKey;
+            const key = e.key.toLowerCase();
+
+            // Allow common application shortcuts (that aren't problematic) to bubble to the main window
+            if (isMod && ['s', 'p'].includes(key)) {
+                return false;
+            }
+
+            // Never let other key events bubble to the main editor. The main editor may still
             // have a selection outside the table, and handling Backspace/Delete there
             // would appear as "deleting outside the cell".
             e.stopPropagation();
 
-            const isMod = e.ctrlKey || e.metaKey;
             if (isMod) {
-                const key = e.key.toLowerCase();
-
                 // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
                 // Allow Ctrl+Z/Y to pass through to the keymap.
                 const allowedKeys = ['a', 'c', 'v', 'x', 'z', 'y'];

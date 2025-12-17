@@ -21,6 +21,7 @@ export { syncAnnotation };
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
     // Use RAF to ensure layout is stable after editor mount
     requestAnimationFrame(() => {
+        // 1. Scroll the main editor to keep the cell in view vertically/horizontally in the main viewport
         const scrollDOM = mainView.scrollDOM;
         const scrollRect = scrollDOM.getBoundingClientRect();
         const cellRect = cellElement.getBoundingClientRect();
@@ -30,26 +31,46 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
         let newScrollTop = scrollDOM.scrollTop;
         let newScrollLeft = scrollDOM.scrollLeft;
 
-        // Vertical scrolling
+        // Vertical scrolling (Main Editor)
         if (cellRect.top < scrollRect.top + margin) {
-            // Cell is above visible area
             newScrollTop -= scrollRect.top - cellRect.top + margin;
         } else if (cellRect.bottom > scrollRect.bottom - margin) {
-            // Cell is below visible area
             newScrollTop += cellRect.bottom - scrollRect.bottom + margin;
         }
 
-        // Horizontal scrolling
+        // Horizontal scrolling (Main Editor)
         if (cellRect.left < scrollRect.left + margin) {
-            // Cell is to the left of visible area
             newScrollLeft -= scrollRect.left - cellRect.left + margin;
         } else if (cellRect.right > scrollRect.right - margin) {
-            // Cell is to the right of visible area
             newScrollLeft += cellRect.right - scrollRect.right + margin;
         }
 
         if (newScrollTop !== scrollDOM.scrollTop || newScrollLeft !== scrollDOM.scrollLeft) {
             scrollDOM.scrollTo(newScrollLeft, newScrollTop);
+        }
+
+        // 2. Scroll the table widget itself if it has internal scroll (e.g. on mobile or wide tables)
+        const widgetContainer = cellElement.closest('.cm-table-widget') as HTMLElement;
+        if (widgetContainer) {
+            const widgetRect = widgetContainer.getBoundingClientRect();
+            // We need to re-measure cellRect relative to the widget or just check overlap
+            // Note: cellRect from above is still valid relative to viewport.
+            // widgetRect is also relative to viewport.
+
+            let newWidgetScrollLeft = widgetContainer.scrollLeft;
+
+            // Check if cell is to the left of the widget's visible area
+            if (cellRect.left < widgetRect.left + margin) {
+                newWidgetScrollLeft -= widgetRect.left - cellRect.left + margin;
+            }
+            // Check if cell is to the right of the widget's visible area
+            else if (cellRect.right > widgetRect.right - margin) {
+                newWidgetScrollLeft += cellRect.right - widgetRect.right + margin;
+            }
+
+            if (newWidgetScrollLeft !== widgetContainer.scrollLeft) {
+                widgetContainer.scrollTo({ left: newWidgetScrollLeft, behavior: 'auto' });
+            }
         }
     });
 }
@@ -111,10 +132,35 @@ class NestedCellEditorManager {
                 this.cellTo = tr.changes.mapPos(this.cellTo, 1);
 
                 // Forward to main editor (source of truth).
+                //
+                // SCROLL LOCKING STRATEGY:
+                // When we type in a cell, the content changes. If the cell content
+                // wraps to a new line, the row height increases. CodeMirror observes
+                // this DOM size change and might try to adjust the scroll position
+                // to keep the "virtual" viewport stable. This often results in jumping.
+                //
+                // We manually capture and restore the scroll position to fight this.
+                const scrollDOM = this.mainView.scrollDOM;
+                const { scrollTop, scrollLeft } = scrollDOM;
+
                 this.mainView.dispatch({
                     changes: tr.changes,
                     annotations: syncAnnotation.of(true),
+                    scrollIntoView: false,
                 });
+
+                // Restore logic
+                const restoreScroll = () => {
+                    if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
+                        scrollDOM.scrollTo(scrollLeft, scrollTop);
+                    }
+                };
+
+                // 1. Restore immediately
+                restoreScroll();
+
+                // 2. Restore again in next frame to override layout shifts
+                requestAnimationFrame(restoreScroll);
 
                 // Also update the subview's own range field so decorations stay correct.
                 if (this.subview) {
