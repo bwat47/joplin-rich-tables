@@ -119,25 +119,16 @@ export function navigateCell(
         }),
     });
 
-    // Determine the DOM element for the target cell to anchor the editor
-    // We can't easily find the exact DOM node synchronously because it might need a re-render
-    // if the table was just modified. However, since we are just navigating, the structure
-    // likely exists.
-    //
-    // We need the cell element for `openNestedCellEditor` to mount the subview.
-    // We can try to find it via the data attributes on the rendered widget.
-
-    // Slight delay to allow DOM to settle if needed, or try immediate lookup
-    setTimeout(() => {
-        const widgetDOM = view.dom.querySelector(`.cm-table-widget[data-table-from="${table.from}"]`);
-        if (!widgetDOM) return;
-
+    // After dispatch, query for the fresh cell element using data attributes.
+    // The DOM is ready synchronously after dispatch since CodeMirror applies decorations synchronously.
+    const widgetDOM = view.dom.querySelector(`.cm-table-widget[data-table-from="${table.from}"]`);
+    if (widgetDOM) {
         const selector =
             targetSection === 'header'
                 ? `th[data-section="header"][data-col="${targetCol}"]`
                 : `td[data-section="body"][data-row="${targetRow}"][data-col="${targetCol}"]`;
 
-        const cellElement = widgetDOM.querySelector(selector) as HTMLElement;
+        const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
 
         if (cellElement) {
             openNestedCellEditor({
@@ -148,7 +139,7 @@ export function navigateCell(
                 initialCursorPos: options.cursorPos,
             });
         }
-    }, 0);
+    }
 
     return true;
 }
