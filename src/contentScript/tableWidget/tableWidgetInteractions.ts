@@ -111,12 +111,27 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         }),
     });
 
-    openNestedCellEditor({
-        mainView: view,
-        cellElement: cell,
-        cellFrom,
-        cellTo,
-    });
+    // After dispatch, the decoration rebuild may have destroyed and recreated widget DOM.
+    // Re-query for the fresh cell element using data attributes to avoid stale references.
+    const freshWidget = view.dom.querySelector(
+        `.cm-table-widget[data-table-from="${table.from}"]`
+    ) as HTMLElement | null;
+
+    if (freshWidget) {
+        const cellSelector = section === 'header' ? 'th' : 'td';
+        const freshCell = freshWidget.querySelector(
+            `${cellSelector}[data-section="${section}"][data-row="${row}"][data-col="${col}"]`
+        ) as HTMLElement | null;
+
+        if (freshCell) {
+            openNestedCellEditor({
+                mainView: view,
+                cellElement: freshCell,
+                cellFrom,
+                cellTo,
+            });
+        }
+    }
 
     return true;
 }
