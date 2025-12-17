@@ -73,6 +73,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - `nestedEditorLifecyclePlugin` closes subview
 - Decorations rebuilt to show updated rendered content
 - Widget destruction also closes any hosted nested editor to avoid orphaned subviews
+- **Note switch**: `richTablesCloseNestedEditor` command (called via `onNoteSelectionChange`) closes nested editor and moves cursor out of any table to prevent raw markdown display
 
 ### Toolbar
 
