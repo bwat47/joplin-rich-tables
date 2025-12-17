@@ -1,4 +1,4 @@
-import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
+import { ChangeSpec, EditorState, StateEffect, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import {
@@ -111,10 +111,27 @@ class NestedCellEditorManager {
                 this.cellTo = tr.changes.mapPos(this.cellTo, 1);
 
                 // Forward to main editor (source of truth).
+                // Preserve scroll position to prevent jumps. When typing changes cell
+                // content, the table's actual DOM height may change, which can cause
+                // CodeMirror to adjust scroll position unexpectedly.
+                const mainView = this.mainView as unknown as {
+                    scrollSnapshot?: () => StateEffect<unknown>;
+                };
+                const snapshot = mainView.scrollSnapshot ? mainView.scrollSnapshot() : null;
+
                 this.mainView.dispatch({
                     changes: tr.changes,
                     annotations: syncAnnotation.of(true),
+                    scrollIntoView: false,
                 });
+
+                // Restore scroll position if we captured a snapshot
+                if (snapshot) {
+                    this.mainView.dispatch({
+                        effects: snapshot,
+                        annotations: Transaction.addToHistory.of(false),
+                    });
+                }
 
                 // Also update the subview's own range field so decorations stay correct.
                 if (this.subview) {

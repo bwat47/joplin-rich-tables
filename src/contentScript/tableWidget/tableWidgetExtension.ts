@@ -196,18 +196,32 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         // CodeMirror to map screen coordinates to the wrong document position.
         const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
 
-        if (hasActiveCell) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-
+        // Close the nested editor first to ensure widget DOM is cleaned up before rebuild.
         if (hasNestedEditor) {
             closeNestedCellEditor();
         }
 
-        // Set selection to the captured position and focus the main editor.
+        // Combine clearing active cell and setting selection in a single dispatch.
+        // Use scrollIntoView: false to prevent CodeMirror's automatic scroll during the
+        // decoration rebuild. The rebuild may change widget heights (if cell content was
+        // edited), and scrolling during this layout change can cause unexpected jumps.
         if (clickPos !== null) {
-            view.dispatch({ selection: { anchor: clickPos } });
+            view.dispatch({
+                selection: { anchor: clickPos },
+                effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+                scrollIntoView: false,
+            });
             view.focus();
+
+            // After layout stabilizes, scroll the cursor into view. Using RAF ensures
+            // the decoration rebuild has completed and heights are accurate.
+            requestAnimationFrame(() => {
+                view.dispatch({
+                    effects: EditorView.scrollIntoView(clickPos, { y: 'nearest' }),
+                });
+            });
+        } else if (hasActiveCell) {
+            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
 
         return clickPos !== null; // Consume the event only if we handled cursor positioning
