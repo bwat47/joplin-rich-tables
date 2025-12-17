@@ -435,6 +435,18 @@ export default function (context: ContentScriptContext) {
                 if (getActiveCell(view.state)) {
                     view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                 }
+
+                // Move cursor out of table if inside one (prevents showing raw markdown
+                // when Joplin restores cursor position on note switch)
+                const tables = findTableRanges(view.state);
+                const cursor = view.state.selection.main.head;
+                const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
+                if (tableContainingCursor) {
+                    // Place cursor just after the table
+                    const newPos = Math.min(tableContainingCursor.to + 1, view.state.doc.length);
+                    view.dispatch({ selection: { anchor: newPos } });
+                }
+
                 return true;
             });
 
