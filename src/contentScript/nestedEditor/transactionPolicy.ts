@@ -47,23 +47,47 @@ export function createSubviewCellRangeField(initial: SubviewCellRange): StateFie
 
 /** Escapes any pipe characters in the text that aren't already escaped. */
 export function escapeUnescapedPipes(text: string): string {
+    return escapeUnescapedPipesWithContext(text, 0);
+}
+
+function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
     // Escape any '|' that is not already escaped as '\|'.
-    // This is intentionally simple and operates on the inserted text only.
+    // A pipe is considered escaped only when preceded by an odd-length backslash run.
+    // Example: `\\|` (two backslashes + pipe) is NOT escaped in Markdown (the pipe is active).
     let result = '';
+    let backslashRun = precedingBackslashes;
+
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];
-        if (ch === '|') {
-            const prev = i > 0 ? text[i - 1] : '';
-            if (prev === '\\') {
-                result += '|';
-            } else {
-                result += '\\|';
-            }
-        } else {
+        if (ch === '\\') {
             result += ch;
+            backslashRun++;
+            continue;
         }
+
+        if (ch === '|') {
+            const isAlreadyEscaped = backslashRun % 2 === 1;
+            result += isAlreadyEscaped ? '|' : '\\|';
+            backslashRun = 0;
+            continue;
+        }
+
+        result += ch;
+        backslashRun = 0;
     }
+
     return result;
+}
+
+function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
+    let count = 0;
+    for (let i = pos - 1; i >= 0; i--) {
+        if (doc.sliceString(i, i + 1) !== '\\') {
+            break;
+        }
+        count++;
+    }
+    return count;
 }
 
 /** Converts CR/LF newlines to `<br>` to keep table cells single-line in Markdown. */
@@ -146,7 +170,12 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
                 sanitizedText = convertNewlinesToBr(sanitizedText);
             }
 
-            const escaped = sanitizedText.includes('|') ? escapeUnescapedPipes(sanitizedText) : sanitizedText;
+            const escaped = sanitizedText.includes('|')
+                ? escapeUnescapedPipesWithContext(
+                      sanitizedText,
+                      countTrailingBackslashesInDoc(tr.startState.doc, fromA)
+                  )
+                : sanitizedText;
             if (escaped !== insertedText) {
                 didModifyInserts = true;
             }
