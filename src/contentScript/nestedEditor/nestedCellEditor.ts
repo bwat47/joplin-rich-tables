@@ -1,4 +1,4 @@
-import { ChangeSpec, EditorState, StateEffect, Transaction } from '@codemirror/state';
+import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import {
@@ -132,13 +132,16 @@ class NestedCellEditorManager {
                 this.cellTo = tr.changes.mapPos(this.cellTo, 1);
 
                 // Forward to main editor (source of truth).
-                // Preserve scroll position to prevent jumps. When typing changes cell
-                // content, the table's actual DOM height may change, which can cause
-                // CodeMirror to adjust scroll position unexpectedly.
-                const mainView = this.mainView as unknown as {
-                    scrollSnapshot?: () => StateEffect<unknown>;
-                };
-                const snapshot = mainView.scrollSnapshot ? mainView.scrollSnapshot() : null;
+                //
+                // SCROLL LOCKING STRATEGY:
+                // When we type in a cell, the content changes. If the cell content
+                // wraps to a new line, the row height increases. CodeMirror observes
+                // this DOM size change and might try to adjust the scroll position
+                // to keep the "virtual" viewport stable. This often results in jumping.
+                //
+                // We manually capture and restore the scroll position to fight this.
+                const scrollDOM = this.mainView.scrollDOM;
+                const { scrollTop, scrollLeft } = scrollDOM;
 
                 this.mainView.dispatch({
                     changes: tr.changes,
@@ -146,13 +149,18 @@ class NestedCellEditorManager {
                     scrollIntoView: false,
                 });
 
-                // Restore scroll position if we captured a snapshot
-                if (snapshot) {
-                    this.mainView.dispatch({
-                        effects: snapshot,
-                        annotations: Transaction.addToHistory.of(false),
-                    });
-                }
+                // Restore logic
+                const restoreScroll = () => {
+                    if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
+                        scrollDOM.scrollTo(scrollLeft, scrollTop);
+                    }
+                };
+
+                // 1. Restore immediately
+                restoreScroll();
+
+                // 2. Restore again in next frame to override layout shifts
+                requestAnimationFrame(restoreScroll);
 
                 // Also update the subview's own range field so decorations stay correct.
                 if (this.subview) {

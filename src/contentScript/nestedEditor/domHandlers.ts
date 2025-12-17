@@ -1,13 +1,8 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { Transaction, StateEffect, StateField } from '@codemirror/state';
+import { StateField } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { SubviewCellRange } from './transactionPolicy';
-
-// Define a separate interface for the Joplin-specific extension
-interface WithScrollSnapshot {
-    scrollSnapshot?: () => StateEffect<unknown>;
-}
 
 /**
  * Creates a helper function that preserves the main editor's scroll position
@@ -15,30 +10,28 @@ interface WithScrollSnapshot {
  */
 function createPreserveScroll(mainView: EditorView) {
     return (fn: () => void) => {
-        // In this CodeMirror build, `scrollSnapshot()` returns an effect that can
-        // be dispatched later to restore the current scroll position.
-        const view = mainView as unknown as WithScrollSnapshot;
-        const snapshot = view.scrollSnapshot ? view.scrollSnapshot() : null;
+        // 1. Capture current scroll position using standard DOM API
+        const scrollDOM = mainView.scrollDOM;
+        const { scrollTop, scrollLeft } = scrollDOM;
 
+        // 2. Execute the action (undo/redo)
         fn();
 
-        if (snapshot) {
-            // Undo/redo can restore an old selection which causes CodeMirror
-            // to scroll the main editor into view. When editing via nested
-            // editor we want to keep the viewport anchored where the user is.
-            const restoreEffect = {
-                effects: snapshot,
-                annotations: Transaction.addToHistory.of(false),
-            };
+        // 3. Define the restoration logic
+        const restoreScroll = () => {
+            // Check if scroll position drifted; only write if needed to minimize layout thrashing
+            if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
+                scrollDOM.scrollTo(scrollLeft, scrollTop);
+            }
+        };
 
-            // Apply immediately
-            mainView.dispatch(restoreEffect);
+        // 4. Restore immediately to fight synchronous layout shifts
+        restoreScroll();
 
-            // Re-apply in rAF to override any later scroll-into-view measurement passes.
-            requestAnimationFrame(() => {
-                mainView.dispatch(restoreEffect);
-            });
-        }
+        // 5. Restore again in the next animation frame
+        // This ensures we override CodeMirror's internal "scrollIntoView"
+        // behavior which runs during the view update cycle.
+        requestAnimationFrame(restoreScroll);
     };
 }
 
