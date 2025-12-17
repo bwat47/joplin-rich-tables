@@ -1,3 +1,5 @@
+import { scanMarkdownTableRow } from './markdownTableRowScanner';
+
 export interface CellRange {
     from: number;
     to: number;
@@ -17,19 +19,6 @@ export function isSeparatorRow(line: string): boolean {
     if (!trimmed.includes('-')) return false;
     // Should only contain valid separator characters
     return /^[\s|:\-]+$/.test(trimmed);
-}
-
-export function isUnescapedPipeAt(line: string, index: number): boolean {
-    if (line[index] !== '|') {
-        return false;
-    }
-
-    let backslashCount = 0;
-    for (let i = index - 1; i >= 0 && line[i] === '\\'; i--) {
-        backslashCount++;
-    }
-
-    return backslashCount % 2 === 0;
 }
 
 function getNonEmptyLinesWithOffsets(text: string): Array<{ line: string; from: number }> {
@@ -98,22 +87,21 @@ function parseLineCellRanges(line: string, lineFromInTable: number): CellRange[]
         return [];
     }
 
+    // Get all pipe delimiters from the scanner
+    const { delimiters: allDelimiters } = scanMarkdownTableRow(line);
+
     // Remove leading/trailing pipes after trimming whitespace.
     let innerFrom = trimFrom;
     let innerTo = trimTo;
-    if (line[innerFrom] === '|' && isUnescapedPipeAt(line, innerFrom)) {
+    if (allDelimiters.length > 0 && allDelimiters[0] === trimFrom) {
         innerFrom += 1;
     }
-    if (innerTo > innerFrom && line[innerTo - 1] === '|' && isUnescapedPipeAt(line, innerTo - 1)) {
+    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimTo - 1) {
         innerTo -= 1;
     }
 
-    const delimiters: number[] = [];
-    for (let i = innerFrom; i < innerTo; i++) {
-        if (line[i] === '|' && isUnescapedPipeAt(line, i)) {
-            delimiters.push(i);
-        }
-    }
+    // Filter delimiters to only those within the inner range
+    const delimiters = allDelimiters.filter((i) => i > innerFrom && i < innerTo);
 
     const ranges: CellRange[] = [];
     let segmentStart = innerFrom;

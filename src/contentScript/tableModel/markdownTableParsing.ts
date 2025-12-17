@@ -1,4 +1,5 @@
-import { isSeparatorRow, isUnescapedPipeAt } from './markdownTableCellRanges';
+import { isSeparatorRow } from './markdownTableCellRanges';
+import { scanMarkdownTableRow } from './markdownTableRowScanner';
 
 /**
  * Represents a parsed markdown table structure.
@@ -25,29 +26,27 @@ function parseAlignment(cell: string): 'left' | 'center' | 'right' | null {
 }
 
 /**
- * Parse a row of pipe-separated cells, respecting escaped pipes (\|).
+ * Parse a row of pipe-separated cells, respecting escaped pipes (\|) and inline code.
  */
 function parseRow(line: string): string[] {
     const trimmed = line.trim();
+
+    // Get all pipe delimiters from the scanner
+    const { delimiters: allDelimiters } = scanMarkdownTableRow(trimmed);
 
     // Find boundaries (same logic as parseLineCellRanges)
     let innerFrom = 0;
     let innerTo = trimmed.length;
 
-    if (trimmed[innerFrom] === '|' && isUnescapedPipeAt(trimmed, innerFrom)) {
+    if (allDelimiters.length > 0 && allDelimiters[0] === 0) {
         innerFrom += 1;
     }
-    if (innerTo > innerFrom && trimmed[innerTo - 1] === '|' && isUnescapedPipeAt(trimmed, innerTo - 1)) {
+    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimmed.length - 1) {
         innerTo -= 1;
     }
 
-    // Find unescaped pipe delimiters
-    const delimiters: number[] = [];
-    for (let i = innerFrom; i < innerTo; i++) {
-        if (isUnescapedPipeAt(trimmed, i)) {
-            delimiters.push(i);
-        }
-    }
+    // Filter delimiters to only those within the inner range
+    const delimiters = allDelimiters.filter((i) => i > innerFrom && i < innerTo);
 
     // Extract cell contents
     const cells: string[] = [];

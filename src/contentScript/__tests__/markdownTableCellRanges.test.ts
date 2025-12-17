@@ -77,4 +77,15 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(ranges.rows[0]).toHaveLength(1);
         expect(sliceRange(text, ranges.rows[0][0].from, ranges.rows[0][0].to)).toBe('c');
     });
+
+    it('ignores pipes inside inline code spans', () => {
+        const text = ['| `grep | sort` | Value |', '| --- | --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        expect(ranges.headers).toHaveLength(2);
+        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe('`grep | sort`');
+        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('Value');
+    });
 });
