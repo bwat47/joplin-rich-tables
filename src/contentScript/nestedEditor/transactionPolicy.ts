@@ -1,6 +1,6 @@
 import {
     Annotation,
-    ChangeSpec,
+    ChangeSet,
     EditorSelection,
     EditorState,
     Extension,
@@ -46,23 +46,53 @@ export function createSubviewCellRangeField(initial: SubviewCellRange): StateFie
 
 /** Escapes any pipe characters in the text that aren't already escaped. */
 export function escapeUnescapedPipes(text: string): string {
+    return escapeUnescapedPipesWithContext(text, 0);
+}
+
+function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
     // Escape any '|' that is not already escaped as '\|'.
-    // This is intentionally simple and operates on the inserted text only.
+    // A pipe is considered escaped only when preceded by an odd-length backslash run.
+    // Example: `\\|` (two backslashes + pipe) is NOT escaped in Markdown (the pipe is active).
     let result = '';
+    let backslashRun = precedingBackslashes;
+
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];
-        if (ch === '|') {
-            const prev = i > 0 ? text[i - 1] : '';
-            if (prev === '\\') {
-                result += '|';
-            } else {
-                result += '\\|';
-            }
-        } else {
+        if (ch === '\\') {
             result += ch;
+            backslashRun++;
+            continue;
         }
+
+        if (ch === '|') {
+            const isAlreadyEscaped = backslashRun % 2 === 1;
+            result += isAlreadyEscaped ? '|' : '\\|';
+            backslashRun = 0;
+            continue;
+        }
+
+        result += ch;
+        backslashRun = 0;
     }
+
     return result;
+}
+
+function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
+    let count = 0;
+    for (let i = pos - 1; i >= 0; i--) {
+        if (doc.sliceString(i, i + 1) !== '\\') {
+            break;
+        }
+        count++;
+    }
+    return count;
+}
+
+/** Converts CR/LF newlines to `<br>` to keep table cells single-line in Markdown. */
+export function convertNewlinesToBr(text: string): string {
+    // Normalize CRLF/CR to LF first, then replace each LF with <br>.
+    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
 }
 
 /** Clamps a value between min and max. */
@@ -87,30 +117,42 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
 
         const { from: cellFrom, to: cellTo } = tr.startState.field(rangeField);
 
-        // Compute new bounds after changes for selection clamping.
-        // The selection in the transaction is the NEW selection, so clamp to NEW bounds.
-        const newCellFrom = tr.docChanged ? tr.changes.mapPos(cellFrom, -1) : cellFrom;
-        const newCellTo = tr.docChanged ? tr.changes.mapPos(cellTo, 1) : cellTo;
-
-        // Ensure selection stays in-bounds (using new bounds).
-        let selectionSpec: EditorSelection | undefined;
-        if (tr.selection) {
-            const boundedRanges = tr.selection.ranges.map((range) => {
-                const anchor = clamp(range.anchor, newCellFrom, newCellTo);
-                const head = clamp(range.head, newCellFrom, newCellTo);
+        const clampSelectionToBounds = (selection: EditorSelection, from: number, to: number): EditorSelection => {
+            const boundedRanges = selection.ranges.map((range) => {
+                const anchor = clamp(range.anchor, from, to);
+                const head = clamp(range.head, from, to);
                 return EditorSelection.range(anchor, head);
             });
-            selectionSpec = EditorSelection.create(boundedRanges, tr.selection.mainIndex);
-        }
+            return EditorSelection.create(boundedRanges, selection.mainIndex);
+        };
+
+        const mapSelectionWithAssoc = (
+            selection: EditorSelection,
+            changes: ChangeSet,
+            assoc: number
+        ): EditorSelection => {
+            const mappedRanges = selection.ranges.map((range) => {
+                const anchor = changes.mapPos(range.anchor, assoc);
+                const head = changes.mapPos(range.head, assoc);
+                return EditorSelection.range(anchor, head);
+            });
+            return EditorSelection.create(mappedRanges, selection.mainIndex);
+        };
 
         if (!tr.docChanged) {
             // Selection-only transaction.
-            return selectionSpec ? { selection: selectionSpec } : tr;
+            if (!tr.selection) {
+                return tr;
+            }
+            const selectionSpec = clampSelectionToBounds(tr.selection, cellFrom, cellTo);
+            return { selection: selectionSpec };
         }
 
+        type SimpleChange = { from: number; to: number; insert: string };
+
         let rejected = false;
-        let needsPipeEscape = false;
-        const nextChanges: ChangeSpec[] = [];
+        let didModifyInserts = false;
+        const nextChanges: SimpleChange[] = [];
 
         tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
             if (fromA < cellFrom || toA > cellTo) {
@@ -119,14 +161,22 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
             }
 
             const insertedText = inserted.toString();
-            if (insertedText.includes('\n') || insertedText.includes('\r')) {
-                rejected = true;
-                return;
+
+            // Markdown tables can't contain literal newlines inside a cell without breaking the table.
+            // Instead of rejecting multi-line pastes, sanitize them into inline HTML.
+            let sanitizedText = insertedText;
+            if (sanitizedText.includes('\n') || sanitizedText.includes('\r')) {
+                sanitizedText = convertNewlinesToBr(sanitizedText);
             }
 
-            const escaped = insertedText.includes('|') ? escapeUnescapedPipes(insertedText) : insertedText;
+            const escaped = sanitizedText.includes('|')
+                ? escapeUnescapedPipesWithContext(
+                      sanitizedText,
+                      countTrailingBackslashesInDoc(tr.startState.doc, fromA)
+                  )
+                : sanitizedText;
             if (escaped !== insertedText) {
-                needsPipeEscape = true;
+                didModifyInserts = true;
             }
 
             nextChanges.push({ from: fromA, to: toA, insert: escaped });
@@ -136,13 +186,48 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
             return [];
         }
 
+        // Selection handling:
+        // - If we changed inserted text length (e.g. `|` -> `\|`, `\n` -> `<br>`),
+        //   we must also update the selection so the caret ends up after the inserted content.
+        // - For unmodified changes, CodeMirror's normal selection mapping is fine; we only clamp.
+        let selectionSpec: EditorSelection | undefined;
+        if (didModifyInserts) {
+            const changeSet = ChangeSet.of(nextChanges, tr.startState.doc.length);
+            const newCellFrom = changeSet.mapPos(cellFrom, -1);
+            const newCellTo = changeSet.mapPos(cellTo, 1);
+
+            // If the user is replacing a single selection range with a single change,
+            // put the caret after the inserted text.
+            const main = tr.startState.selection.main;
+            if (
+                !main.empty &&
+                nextChanges.length === 1 &&
+                nextChanges[0].from === main.from &&
+                nextChanges[0].to === main.to &&
+                typeof nextChanges[0].insert === 'string'
+            ) {
+                const insertedLength = nextChanges[0].insert.length;
+                selectionSpec = EditorSelection.single(nextChanges[0].from + insertedLength);
+                selectionSpec = clampSelectionToBounds(selectionSpec, newCellFrom, newCellTo);
+            } else {
+                // Map the *pre-change* selection through the rewritten changes.
+                // Use assoc=1 so positions at insert boundaries end up *after* inserted content.
+                const mappedSelection = mapSelectionWithAssoc(tr.startState.selection, changeSet, 1);
+                selectionSpec = clampSelectionToBounds(mappedSelection, newCellFrom, newCellTo);
+            }
+        } else if (tr.selection) {
+            const newCellFrom = tr.changes.mapPos(cellFrom, -1);
+            const newCellTo = tr.changes.mapPos(cellTo, 1);
+            selectionSpec = clampSelectionToBounds(tr.selection, newCellFrom, newCellTo);
+        }
+
         // If we didn't modify inserts and selection is unchanged, keep transaction.
-        if (!needsPipeEscape && !selectionSpec) {
+        if (!didModifyInserts && !selectionSpec) {
             return tr;
         }
 
         return {
-            changes: nextChanges,
+            changes: didModifyInserts ? nextChanges : tr.changes,
             ...(selectionSpec ? { selection: selectionSpec } : null),
         };
     });
