@@ -196,15 +196,20 @@ export function createNestedEditorDomHandlers() {
             return false;
         },
         keydown: (e) => {
-            // Never let key events bubble to the main editor. The main editor may still
+            const isMod = e.ctrlKey || e.metaKey;
+            const key = e.key.toLowerCase();
+
+            // Allow common application shortcuts (that aren't problematic) to bubble to the main window
+            if (isMod && ['s', 'p'].includes(key)) {
+                return false;
+            }
+
+            // Never let other key events bubble to the main editor. The main editor may still
             // have a selection outside the table, and handling Backspace/Delete there
             // would appear as "deleting outside the cell".
             e.stopPropagation();
 
-            const isMod = e.ctrlKey || e.metaKey;
             if (isMod) {
-                const key = e.key.toLowerCase();
-
                 // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
                 // Allow Ctrl+Z/Y to pass through to the keymap.
                 const allowedKeys = ['a', 'c', 'v', 'x', 'z', 'y'];
