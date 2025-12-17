@@ -332,11 +332,7 @@ const tableStyles = EditorView.baseTheme({
         width: '100%',
         maxWidth: '100%',
         overflowX: 'auto',
-    },
-    '@media (max-width: 800px)': {
-        '.cm-table-widget': {
-            maxWidth: 'calc(100vw - 32px)',
-        },
+        contain: 'inline-size', // <-- explicit size containment
     },
     '.cm-table-widget-table': {
         borderCollapse: 'collapse',
