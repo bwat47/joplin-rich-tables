@@ -210,7 +210,7 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
             view.focus();
         }
 
-        return true; // Consume the event to prevent stale coordinate mapping
+        return clickPos !== null; // Consume the event only if we handled cursor positioning
     },
 });
 
