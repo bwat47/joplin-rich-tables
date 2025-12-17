@@ -38,8 +38,8 @@ In order to provide table editing, the plugin uses a nested codemirror editor su
 
 - Keyboard shortcuts are limited when editing table cells (only basics like ctrl +c, ctrl + v, ctrl + z, ctrl +x)
 
-- Formatting functions from joplin's formatting toolbar will not work properly.
+- Formatting functions from joplin's formatting toolbar will not work properly when editing table cells.
 
-- Cell editing is plaintext only (markdown will not be rendered until you leave the cell).
+- Table Cell editing is plaintext only (markdown will not be rendered until you leave the cell).
 
 - No context menu when editing cells
