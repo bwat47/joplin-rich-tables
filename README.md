@@ -30,7 +30,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 #### Table limitations
 
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
-- No support for multi-line content (unless you manually enter `<br>` tags)
+- Limited support for multi-line content (you can use shift + enter to add a `<br>` and newlines will be converted to `<br>` for pasted content, but they aren't rendered as line breaks during editing).
 
 #### Editing limitations
 
