@@ -162,7 +162,9 @@ class TableToolbarPlugin {
                 requestAnimationFrame(() => this.updatePosition());
             } else {
                 this.cleanupPositioning();
-                this.hideToolbar();
+                // When the toolbar is no longer needed, remove it from layout entirely
+                // to avoid any one-frame paint artifacts.
+                this.hideToolbarCompletely();
             }
             return;
         }
