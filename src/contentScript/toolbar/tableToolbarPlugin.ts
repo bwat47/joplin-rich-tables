@@ -173,6 +173,13 @@ class TableToolbarPlugin {
         if (this.currentActiveCell && prevActiveCell && this.currentActiveCell.tableFrom !== prevActiveCell.tableFrom) {
             // Defer to next frame to ensure new table widget DOM is ready
             requestAnimationFrame(() => this.updatePosition());
+            return;
+        }
+
+        // Table was modified (rows/columns added/removed) - reposition toolbar
+        if (this.currentActiveCell && update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))) {
+            // Defer to next frame to ensure rebuilt widget DOM is ready
+            requestAnimationFrame(() => this.updatePosition());
         }
 
         // Note: autoUpdate handles other cases (scroll/resize)
