@@ -4,79 +4,27 @@ import { StateField } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { SubviewCellRange } from './transactionPolicy';
 
-/**
- * Creates a helper function that preserves scroll positions while executing
- * a callback (like undo/redo).
- * - Preserves main editor's vertical scroll (scrollTop)
- * - Preserves table widget's horizontal scroll (scrollLeft)
- */
-function createPreserveScroll(mainView: EditorView) {
-    return (fn: () => void) => {
-        // Capture main editor's vertical scroll
-        const scrollDOM = mainView.scrollDOM;
-        const scrollTop = scrollDOM.scrollTop;
-
-        // Capture the table widget's horizontal scroll if one is currently active
-        const tableWidget = mainView.dom.querySelector('.cm-table-widget') as HTMLElement | null;
-        const tableScrollLeft = tableWidget?.scrollLeft ?? null;
-        const tableSelector = tableWidget?.dataset.tableFrom
-            ? `.cm-table-widget[data-table-from="${tableWidget.dataset.tableFrom}"]`
-            : null;
-
-        // Execute the action (undo/redo)
-        fn();
-
-        // Define the restoration logic
-        const restoreScroll = () => {
-            // Restore main editor's vertical scroll
-            if (scrollDOM.scrollTop !== scrollTop) {
-                scrollDOM.scrollTop = scrollTop;
-            }
-
-            // Restore table widget's horizontal scroll if we had one
-            if (tableScrollLeft !== null && tableSelector) {
-                const currentTableWidget = mainView.dom.querySelector(tableSelector) as HTMLElement | null;
-                if (currentTableWidget && currentTableWidget.scrollLeft !== tableScrollLeft) {
-                    currentTableWidget.scrollLeft = tableScrollLeft;
-                }
-            }
-        };
-
-        // Restore immediately
-        restoreScroll();
-
-        // Restore again in the next animation frame
-        requestAnimationFrame(restoreScroll);
-
-        // Restore one more time after a delay to catch widget rebuilds
-        // Table widgets may be rebuilt asynchronously after undo/redo
-        setTimeout(restoreScroll, 50);
-    };
-}
-
 /** Creates a keymap for the nested editor to handle undo/redo and table navigation (arrows, tab, enter). */
 export function createNestedEditorKeymap(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
-    const preserveMainScroll = createPreserveScroll(mainView);
-
     return keymap.of([
         {
             key: 'Mod-z',
             run: () => {
-                preserveMainScroll(() => undo(mainView));
+                undo(mainView);
                 return true;
             },
         },
         {
             key: 'Mod-y',
             run: () => {
-                preserveMainScroll(() => redo(mainView));
+                redo(mainView);
                 return true;
             },
         },
         {
             key: 'Mod-Shift-z',
             run: () => {
-                preserveMainScroll(() => redo(mainView));
+                redo(mainView);
                 return true;
             },
         },
