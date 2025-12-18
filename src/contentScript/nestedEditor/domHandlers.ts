@@ -2,7 +2,45 @@ import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { StateField } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
+import { getActiveCell } from '../tableWidget/activeCellState';
 import { SubviewCellRange } from './transactionPolicy';
+
+function runWithMainScrollPreserved(mainView: EditorView, action: () => void): void {
+    const scrollDOM = mainView.scrollDOM;
+    const { scrollTop, scrollLeft } = scrollDOM;
+
+    // Wide tables have their own horizontal scroller on the widget container.
+    // Undo/redo can rebuild widgets or trigger internal scroll adjustments, which
+    // otherwise snaps this back to the left.
+    const activeCell = getActiveCell(mainView.state);
+    const tableFrom = activeCell?.tableFrom;
+    const widgetContainer =
+        tableFrom !== undefined
+            ? (mainView.dom.querySelector(`.cm-table-widget[data-table-from="${tableFrom}"]`) as HTMLElement | null)
+            : null;
+    const widgetScrollLeft = widgetContainer ? widgetContainer.scrollLeft : 0;
+
+    action();
+
+    const restore = () => {
+        if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
+            scrollDOM.scrollTo(scrollLeft, scrollTop);
+        }
+
+        if (tableFrom !== undefined) {
+            const currentWidget = mainView.dom.querySelector(
+                `.cm-table-widget[data-table-from="${tableFrom}"]`
+            ) as HTMLElement | null;
+            if (currentWidget && currentWidget.scrollLeft !== widgetScrollLeft) {
+                currentWidget.scrollLeft = widgetScrollLeft;
+            }
+        }
+    };
+
+    // Restore immediately, then again after layout stabilizes.
+    restore();
+    requestAnimationFrame(restore);
+}
 
 /** Creates a keymap for the nested editor to handle undo/redo and table navigation (arrows, tab, enter). */
 export function createNestedEditorKeymap(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
@@ -10,21 +48,21 @@ export function createNestedEditorKeymap(mainView: EditorView, rangeField: State
         {
             key: 'Mod-z',
             run: () => {
-                undo(mainView);
+                runWithMainScrollPreserved(mainView, () => undo(mainView));
                 return true;
             },
         },
         {
             key: 'Mod-y',
             run: () => {
-                redo(mainView);
+                runWithMainScrollPreserved(mainView, () => redo(mainView));
                 return true;
             },
         },
         {
             key: 'Mod-Shift-z',
             run: () => {
-                redo(mainView);
+                runWithMainScrollPreserved(mainView, () => redo(mainView));
                 return true;
             },
         },
