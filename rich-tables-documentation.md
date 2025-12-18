@@ -6,21 +6,21 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 ### Core Components
 
-| File                                                | Purpose                                                                        |
-| --------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `contentScript/tableWidget/tableWidgetExtension.ts` | Main extension: decorations, lifecycle plugin, styles                          |
-| `contentScript/tableWidget/TableWidget.ts`          | Table HTML rendering + click-to-cell mapping                                   |
-| `contentScript/tableWidget/tableHeightCache.ts`     | LRU cache for measured table heights (improves scroll stability)               |
-| `contentScript/tableWidget/activeCellState.ts`      | Tracks active cell range in main editor state                                  |
-| `contentScript/tableWidget/tableNavigation.ts`      | Navigation logic (Tab/Enter/Arrows) and cell switching                         |
-| `contentScript/tableWidget/tablePositioning.ts`     | Maps DOM/table positions to document ranges                                    |
-| `contentScript/nestedEditor/nestedCellEditor.ts`    | Orchestrates nested editor (delegates to `nestedEditor/` modules)              |
-| `contentScript/nestedEditor/`                       | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
+| File                                                  | Purpose                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `contentScript/tableWidget/tableWidgetExtension.ts`   | Main extension: decorations, lifecycle plugin, styles                          |
+| `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                   |
+| `contentScript/tableWidget/tableHeightCache.ts`       | LRU cache for measured table heights (improves scroll stability)               |
+| `contentScript/tableWidget/activeCellState.ts`        | Tracks active cell range in main editor state                                  |
+| `contentScript/tableWidget/tableNavigation.ts`        | Navigation logic (Tab/Enter/Arrows) and cell switching                         |
+| `contentScript/tableWidget/tablePositioning.ts`       | Maps DOM/table positions to document ranges                                    |
+| `contentScript/nestedEditor/nestedCellEditor.ts`      | Orchestrates nested editor (delegates to `nestedEditor/` modules)              |
+| `contentScript/nestedEditor/`                         | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
 | `contentScript/tableModel/markdownTableRowScanner.ts` | Shared scanner: detects pipe delimiters, handles escaped pipes and inline code |
-| `contentScript/tableModel/`                         | Markdown table parsing/ranges/manipulation helpers                             |
-| `contentScript/toolbar/`                            | Floating table toolbar + header semantics                                      |
-| `contentScript/toolbar/toolbarPositioning.ts`       | Pure helper for floating-toolbar anchor/visibility decisions                   |
-| `contentScript/services/markdownRenderer.ts`        | `MarkdownRenderService` (async rendering with caching)                         |
+| `contentScript/tableModel/`                           | Markdown table parsing/ranges/manipulation helpers                             |
+| `contentScript/toolbar/`                              | Floating table toolbar + header semantics                                      |
+| `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating-toolbar view plugin (uses Floating UI for positioning)                |
+| `contentScript/services/markdownRenderer.ts`          | `MarkdownRenderService` (async rendering with caching)                         |
 
 ### Table Display
 
@@ -83,7 +83,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 ### Toolbar
 
 - **Insert Table**: Button in Joplin's editor toolbar inserts a 2x2 empty table.
-- **Floating Toolbar**: Appears when a cell is active; anchored to table (top or bottom), repositions on scroll/resize, hidden when table leaves viewport.
+- **Floating Toolbar**: Appears when a cell is active; positioned by `@floating-ui/dom` (auto-updated on scroll/resize/layout shifts) and hidden when its table is clipped/out of view.
 
 ## References
 

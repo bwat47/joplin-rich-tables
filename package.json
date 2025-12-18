@@ -32,13 +32,14 @@
         "webpack-cli": "^4.10.0"
     },
     "dependencies": {
+        "@codemirror/commands": "^6.10.0",
         "@codemirror/language": "^6.11.3",
         "@codemirror/state": "^6.5.2",
         "@codemirror/view": "^6.38.8",
-        "@codemirror/commands": "^6.10.0",
-        "@types/jest": "^30.0.0",
         "@eslint/eslintrc": "^3.3.1",
         "@eslint/js": "^9.39.1",
+        "@floating-ui/dom": "^1.7.4",
+        "@types/jest": "^30.0.0",
         "@types/node": "^24.10.0",
         "@typescript-eslint/eslint-plugin": "^8.46.3",
         "@typescript-eslint/parser": "^8.46.3",
