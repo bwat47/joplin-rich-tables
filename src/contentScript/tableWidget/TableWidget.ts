@@ -2,12 +2,15 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import type { TableData } from '../tableModel/markdownTableParsing';
+import { tableHeightCache } from './tableHeightCache';
 
 /**
  * Widget that renders a markdown table as an interactive HTML table
  * Supports rendering markdown content inside cells
  */
 export class TableWidget extends WidgetType {
+    private static readonly pendingHeightMeasure = new WeakSet<HTMLElement>();
+
     constructor(
         private tableData: TableData,
         private tableText: string,
@@ -29,7 +32,7 @@ export class TableWidget extends WidgetType {
         );
     }
 
-    toDOM(_view: EditorView): HTMLElement {
+    toDOM(view: EditorView): HTMLElement {
         const container = document.createElement('div');
         container.className = 'cm-table-widget';
 
@@ -86,6 +89,21 @@ export class TableWidget extends WidgetType {
         table.appendChild(tbody);
 
         container.appendChild(table);
+
+        // Measure and cache the rendered height so future mounts/rebuilds can provide a more
+        // accurate `estimatedHeight`, reducing scroll jumps.
+        const measureKey = tableHeightCache.getMeasureKey(this.tableFrom, this.tableText);
+        view.requestMeasure({
+            read: () => {
+                if (!container.isConnected) {
+                    return;
+                }
+                const height = container.getBoundingClientRect().height;
+                tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
+            },
+            key: measureKey,
+        });
+
         return container;
     }
 
@@ -111,9 +129,46 @@ export class TableWidget extends WidgetType {
                 // Only update if the cell is still in the DOM and content hasn't changed
                 if (cell.isConnected && cell.textContent === markdown) {
                     cell.innerHTML = html;
+
+                    // Async rendering can change row/table height after mount.
+                    // Schedule a re-measure so the height cache tracks the settled DOM.
+                    this.scheduleHeightMeasurementFromCell(cell);
                 }
             });
         }
+    }
+
+    private scheduleHeightMeasurementFromCell(cell: HTMLElement): void {
+        const container = cell.closest('.cm-table-widget') as HTMLElement | null;
+        if (!container) {
+            return;
+        }
+
+        // Throttle per container to avoid excessive measurements when many cells render.
+        if (TableWidget.pendingHeightMeasure.has(container)) {
+            return;
+        }
+        TableWidget.pendingHeightMeasure.add(container);
+
+        requestAnimationFrame(() => {
+            TableWidget.pendingHeightMeasure.delete(container);
+            const view = EditorView.findFromDOM(container);
+            if (!view) {
+                return;
+            }
+
+            const measureKey = tableHeightCache.getMeasureKey(this.tableFrom, this.tableText);
+            view.requestMeasure({
+                read: () => {
+                    if (!container.isConnected) {
+                        return;
+                    }
+                    const height = container.getBoundingClientRect().height;
+                    tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
+                },
+                key: measureKey,
+            });
+        });
     }
 
     /**
@@ -146,6 +201,10 @@ export class TableWidget extends WidgetType {
      * and jumps the scroll position.
      */
     get estimatedHeight(): number {
+        const cached = tableHeightCache.get({ tableFrom: this.tableFrom, tableText: this.tableText });
+        if (cached !== undefined && cached > 0) {
+            return cached;
+        }
         return this.calculateEstimatedHeight();
     }
 
@@ -197,6 +256,11 @@ export class TableWidget extends WidgetType {
     }
 
     destroy(dom: HTMLElement): void {
+        // Record a last-known height right before teardown. This helps future remounts even if
+        // the widget is destroyed before the measurement queue runs.
+        const height = dom.getBoundingClientRect().height;
+        tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
+
         // Ensure any nested editor hosted in this widget is closed when the widget is destroyed.
         // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
         cleanupHostedEditors(dom);
