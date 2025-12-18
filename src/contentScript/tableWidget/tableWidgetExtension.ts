@@ -149,8 +149,9 @@ const tableDecorationField = StateField.define<DecorationSet>({
 });
 
 /**
- * Clears the active cell on undo/redo since position mapping cannot reliably
- * handle structural table changes (row/column add/delete).
+ * Clears the active cell on undo/redo if the changes affect areas outside
+ * the active cell. This handles structural table changes (row/column add/delete)
+ * while allowing simple text edits within a cell to undo without rebuilding.
  */
 const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
     if (!tr.docChanged) {
@@ -164,7 +165,22 @@ const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
     if (!activeCell) {
         return null;
     }
-    return { effects: clearActiveCellEffect.of(undefined) };
+
+    // Check if any changes are outside the active cell range
+    let hasChangesOutsideCell = false;
+    tr.changes.iterChanges((fromA, toA) => {
+        // If change starts before cell or ends after cell, it's outside
+        if (fromA < activeCell.cellFrom || toA > activeCell.cellTo) {
+            hasChangesOutsideCell = true;
+        }
+    });
+
+    // Only clear active cell if changes affect the table structure outside the cell
+    if (hasChangesOutsideCell) {
+        return { effects: clearActiveCellEffect.of(undefined) };
+    }
+
+    return null;
 });
 
 // while it might seem better to use pointerdown, it causes scrolling issues on android
