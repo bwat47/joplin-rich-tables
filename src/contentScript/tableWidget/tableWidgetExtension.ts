@@ -118,10 +118,12 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         if (transaction.docChanged) {
             if (activeCell) {
-                // When active cell exists and wasn't cleared by clearActiveCellOnUndoRedo,
-                // the changes are within the cell - use position mapping to avoid rebuild.
-                // Structural undo/redo (row/col changes) will have cleared the active cell,
-                // triggering a rebuild via the clearActiveCellEffect check above.
+                // Undo/redo can restore structural changes (add/delete row/col) that require
+                // a full rebuild. Position mapping alone can't handle these cases correctly.
+                const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
+                if (isUndoRedo) {
+                    return buildTableDecorations(transaction.state);
+                }
                 return decorations.map(transaction.changes);
             }
             return buildTableDecorations(transaction.state);
