@@ -1,8 +1,65 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { StateField } from '@codemirror/state';
+import { StateField, Transaction } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
+import { getActiveCell } from '../tableWidget/activeCellState';
 import { SubviewCellRange } from './transactionPolicy';
+
+function runHistoryCommandWithMainScrollPreserved(
+    mainView: EditorView,
+    command: (target: { state: EditorView['state']; dispatch: (tr: Transaction) => void }) => boolean
+): boolean {
+    const scrollSnapshotEffect = mainView.scrollSnapshot();
+
+    // Wide tables have their own horizontal scroller on the widget container.
+    // Undo/redo can rebuild widgets or trigger internal scroll adjustments, which
+    // otherwise snaps this back to the left.
+    const activeCell = getActiveCell(mainView.state);
+    const tableFrom = activeCell?.tableFrom;
+    const widgetContainer =
+        tableFrom !== undefined
+            ? (mainView.dom.querySelector(`.cm-table-widget[data-table-from="${tableFrom}"]`) as HTMLElement | null)
+            : null;
+    const widgetScrollLeft = widgetContainer ? widgetContainer.scrollLeft : 0;
+
+    const restoreWidgetScroll = () => {
+        if (tableFrom === undefined) {
+            return;
+        }
+
+        const currentWidget = mainView.dom.querySelector(
+            `.cm-table-widget[data-table-from="${tableFrom}"]`
+        ) as HTMLElement | null;
+        if (currentWidget && currentWidget.scrollLeft !== widgetScrollLeft) {
+            currentWidget.scrollLeft = widgetScrollLeft;
+        }
+    };
+
+    const dispatch = (tr: Transaction) => {
+        mainView.dispatch(tr);
+
+        // Map the snapshot effect through the document changes made by undo/redo.
+        // This keeps the scroll restoration accurate even if the doc changed.
+        const mappedScrollSnapshot = scrollSnapshotEffect.map(tr.changes);
+
+        const restore = () => {
+            // Restore the editor's own scroll position.
+            mainView.dispatch({
+                effects: mappedScrollSnapshot,
+                annotations: Transaction.addToHistory.of(false),
+            });
+
+            // Restore the table widget's internal horizontal scroll.
+            restoreWidgetScroll();
+        };
+
+        // Restore immediately, then again after layout stabilizes.
+        restore();
+        requestAnimationFrame(restore);
+    };
+
+    return command({ state: mainView.state, dispatch });
+}
 
 /** Creates a keymap for the nested editor to handle undo/redo and table navigation (arrows, tab, enter). */
 export function createNestedEditorKeymap(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
@@ -10,22 +67,19 @@ export function createNestedEditorKeymap(mainView: EditorView, rangeField: State
         {
             key: 'Mod-z',
             run: () => {
-                undo(mainView);
-                return true;
+                return runHistoryCommandWithMainScrollPreserved(mainView, undo);
             },
         },
         {
             key: 'Mod-y',
             run: () => {
-                redo(mainView);
-                return true;
+                return runHistoryCommandWithMainScrollPreserved(mainView, redo);
             },
         },
         {
             key: 'Mod-Shift-z',
             run: () => {
-                redo(mainView);
-                return true;
+                return runHistoryCommandWithMainScrollPreserved(mainView, redo);
             },
         },
 
