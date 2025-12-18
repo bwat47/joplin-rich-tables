@@ -158,7 +158,8 @@ class TableToolbarPlugin {
         // Active cell state changed
         if (!!prevActiveCell !== !!this.currentActiveCell) {
             if (this.currentActiveCell) {
-                this.updatePosition();
+                // Defer to next frame to ensure widget DOM is ready
+                requestAnimationFrame(() => this.updatePosition());
             } else {
                 this.cleanupPositioning();
                 this.hideToolbar();
@@ -168,7 +169,8 @@ class TableToolbarPlugin {
 
         // Active cell changed to different table
         if (this.currentActiveCell && prevActiveCell && this.currentActiveCell.tableFrom !== prevActiveCell.tableFrom) {
-            this.updatePosition();
+            // Defer to next frame to ensure new table widget DOM is ready
+            requestAnimationFrame(() => this.updatePosition());
         }
 
         // Note: autoUpdate handles other cases (scroll/resize)
@@ -411,7 +413,7 @@ class TableToolbarPlugin {
             async () => {
                 const currentRef = this.view.contentDOM.querySelector(selector) as HTMLElement;
                 if (!currentRef) {
-                    this.cleanupPositioning();
+                    // Don't cleanup here - just hide and let the next update() call handle cleanup
                     this.hideToolbar();
                     return;
                 }
