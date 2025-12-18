@@ -375,11 +375,30 @@ class TableToolbarPlugin {
     }
 
     private showToolbar() {
+        // Keep the element measurable for Floating UI.
         this.dom.style.display = 'flex';
+        this.dom.style.visibility = 'visible';
     }
 
     private hideToolbar() {
+        // Prefer visibility over display:none while a cell is active so
+        // Floating UI can still measure the element.
+        this.dom.style.visibility = 'hidden';
+    }
+
+    private hideToolbarCompletely() {
+        this.dom.style.visibility = 'hidden';
         this.dom.style.display = 'none';
+    }
+
+    private prepareToolbarForPositioning() {
+        // Floating UI requires the element to be rendered (not display:none).
+        // Start hidden to avoid flicker until we have a positioned x/y.
+        this.dom.style.display = 'flex';
+        this.dom.style.visibility = 'hidden';
+        // Defensive: ensure a stable initial layout for measurement.
+        if (!this.dom.style.left) this.dom.style.left = '0px';
+        if (!this.dom.style.top) this.dom.style.top = '0px';
     }
 
     private cleanupPositioning() {
@@ -392,7 +411,7 @@ class TableToolbarPlugin {
     private updatePosition() {
         if (!this.currentActiveCell) {
             this.cleanupPositioning();
-            this.hideToolbar();
+            this.hideToolbarCompletely();
             return;
         }
 
@@ -401,11 +420,12 @@ class TableToolbarPlugin {
 
         if (!referenceElement) {
             this.cleanupPositioning();
-            this.hideToolbar();
+            this.hideToolbarCompletely();
             return;
         }
 
         this.cleanupPositioning();
+        this.prepareToolbarForPositioning();
 
         this.cleanupAutoUpdate = autoUpdate(
             referenceElement,
