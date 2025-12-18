@@ -14,7 +14,7 @@ import {
     updateColumnAlignment,
 } from '../tableModel/markdownTableManipulation';
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
-import { computeToolbarPosition } from './toolbarPositioning';
+import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './tableToolbarActiveCell';
 
@@ -135,8 +135,7 @@ const formatTableIcon = () =>
 class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
-    private rafId: number | null = null;
-    private readonly schedulePositionUpdate: () => void;
+    private cleanupAutoUpdate: (() => void) | null = null;
 
     constructor(private view: EditorView) {
         this.dom = document.createElement('div');
@@ -144,52 +143,39 @@ class TableToolbarPlugin {
         this.dom.style.position = 'absolute';
         this.dom.style.display = 'none';
 
-        this.schedulePositionUpdate = () => {
-            if (!this.currentActiveCell) {
-                return;
-            }
-
-            if (this.rafId !== null) {
-                return;
-            }
-
-            this.rafId = window.requestAnimationFrame(() => {
-                this.rafId = null;
-                if (this.currentActiveCell) {
-                    this.updatePosition();
-                }
-            });
-        };
-
         // Add buttons
         this.createButtons();
 
         view.dom.appendChild(this.dom);
 
-        // Keep toolbar position in sync with scrolling and window resizing.
-        view.scrollDOM.addEventListener('scroll', this.schedulePositionUpdate, { passive: true });
-        window.addEventListener('resize', this.schedulePositionUpdate, { passive: true });
+        // Note: No scroll/resize event listeners - autoUpdate handles it
     }
 
     update(update: ViewUpdate) {
+        const prevActiveCell = this.currentActiveCell;
         this.currentActiveCell = update.state.field(activeCellField);
 
-        if (this.currentActiveCell) {
-            this.showToolbar();
-            this.schedulePositionUpdate();
-        } else {
-            this.hideToolbar();
+        // Active cell state changed
+        if (!!prevActiveCell !== !!this.currentActiveCell) {
+            if (this.currentActiveCell) {
+                this.updatePosition();
+            } else {
+                this.cleanupPositioning();
+                this.hideToolbar();
+            }
+            return;
         }
+
+        // Active cell changed to different table
+        if (this.currentActiveCell && prevActiveCell && this.currentActiveCell.tableFrom !== prevActiveCell.tableFrom) {
+            this.updatePosition();
+        }
+
+        // Note: autoUpdate handles other cases (scroll/resize)
     }
 
     destroy() {
-        this.view.scrollDOM.removeEventListener('scroll', this.schedulePositionUpdate);
-        window.removeEventListener('resize', this.schedulePositionUpdate);
-
-        if (this.rafId !== null) {
-            window.cancelAnimationFrame(this.rafId);
-            this.rafId = null;
-        }
+        this.cleanupPositioning();
         this.dom.remove();
     }
 
@@ -394,39 +380,71 @@ class TableToolbarPlugin {
         this.dom.style.display = 'none';
     }
 
+    private cleanupPositioning() {
+        if (this.cleanupAutoUpdate) {
+            this.cleanupAutoUpdate();
+            this.cleanupAutoUpdate = null;
+        }
+    }
+
     private updatePosition() {
-        if (!this.currentActiveCell) return;
-
-        // Find the table widget element
-        const selector = `.cm-table-widget[data-table-from="${this.currentActiveCell.tableFrom}"]`;
-        const widgetElement = this.view.contentDOM.querySelector(selector) as HTMLElement;
-
-        if (!widgetElement) return;
-
-        const widgetRect = widgetElement.getBoundingClientRect();
-        const viewportRect = this.view.scrollDOM.getBoundingClientRect();
-
-        // Position toolbar relative to its offset parent.
-        const parentRect = this.dom.offsetParent?.getBoundingClientRect() || this.view.dom.getBoundingClientRect();
-
-        const toolbarHeight = this.dom.offsetHeight || 30;
-
-        const position = computeToolbarPosition({
-            tableRect: widgetRect,
-            viewportRect,
-            parentRect,
-            toolbar: { height: toolbarHeight, width: this.dom.offsetWidth },
-            margin: 5,
-        });
-
-        if (!position.visible) {
+        if (!this.currentActiveCell) {
+            this.cleanupPositioning();
             this.hideToolbar();
             return;
         }
 
-        this.showToolbar();
-        this.dom.style.left = `${position.left}px`;
-        this.dom.style.top = `${position.top}px`;
+        const selector = `.cm-table-widget[data-table-from="${this.currentActiveCell.tableFrom}"]`;
+        const referenceElement = this.view.contentDOM.querySelector(selector) as HTMLElement;
+
+        if (!referenceElement) {
+            this.cleanupPositioning();
+            this.hideToolbar();
+            return;
+        }
+
+        this.cleanupPositioning();
+
+        this.cleanupAutoUpdate = autoUpdate(
+            referenceElement,
+            this.dom,
+            async () => {
+                const currentRef = this.view.contentDOM.querySelector(selector) as HTMLElement;
+                if (!currentRef) {
+                    this.cleanupPositioning();
+                    this.hideToolbar();
+                    return;
+                }
+
+                const { x, y, middlewareData } = await computePosition(currentRef, this.dom, {
+                    placement: 'top',
+                    middleware: [
+                        offset(5),
+                        flip({ fallbackPlacements: ['bottom', 'top'] }),
+                        shift({ padding: 5 }),
+                        hide(),
+                    ],
+                });
+
+                if (middlewareData.hide?.referenceHidden) {
+                    this.hideToolbar();
+                    return;
+                }
+
+                this.showToolbar();
+                Object.assign(this.dom.style, {
+                    left: `${x}px`,
+                    top: `${y}px`,
+                });
+            },
+            {
+                ancestorScroll: true,
+                ancestorResize: true,
+                elementResize: true,
+                layoutShift: true,
+                animationFrame: false,
+            }
+        );
     }
 }
 
