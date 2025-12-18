@@ -419,10 +419,10 @@ class TableToolbarPlugin {
                 }
 
                 const { x, y, middlewareData } = await computePosition(currentRef, this.dom, {
-                    placement: 'top',
+                    placement: 'top-start',
                     middleware: [
                         offset(5),
-                        flip({ fallbackPlacements: ['bottom', 'top'] }),
+                        flip({ fallbackPlacements: ['bottom-start', 'top-start'] }),
                         shift({ padding: 5 }),
                         hide(),
                     ],
