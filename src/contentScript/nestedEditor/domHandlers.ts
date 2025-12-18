@@ -5,33 +5,52 @@ import { navigateCell } from '../tableWidget/tableNavigation';
 import { SubviewCellRange } from './transactionPolicy';
 
 /**
- * Creates a helper function that preserves the main editor's scroll position
- * while executing a callback (like undo/redo).
+ * Creates a helper function that preserves scroll positions while executing
+ * a callback (like undo/redo).
+ * - Preserves main editor's vertical scroll (scrollTop)
+ * - Preserves table widget's horizontal scroll (scrollLeft)
  */
 function createPreserveScroll(mainView: EditorView) {
     return (fn: () => void) => {
-        // 1. Capture current scroll position using standard DOM API
+        // Capture main editor's vertical scroll
         const scrollDOM = mainView.scrollDOM;
-        const { scrollTop, scrollLeft } = scrollDOM;
+        const scrollTop = scrollDOM.scrollTop;
 
-        // 2. Execute the action (undo/redo)
+        // Capture the table widget's horizontal scroll if one is currently active
+        const tableWidget = mainView.dom.querySelector('.cm-table-widget') as HTMLElement | null;
+        const tableScrollLeft = tableWidget?.scrollLeft ?? null;
+        const tableSelector = tableWidget?.dataset.tableFrom
+            ? `.cm-table-widget[data-table-from="${tableWidget.dataset.tableFrom}"]`
+            : null;
+
+        // Execute the action (undo/redo)
         fn();
 
-        // 3. Define the restoration logic
+        // Define the restoration logic
         const restoreScroll = () => {
-            // Check if scroll position drifted; only write if needed to minimize layout thrashing
-            if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
-                scrollDOM.scrollTo(scrollLeft, scrollTop);
+            // Restore main editor's vertical scroll
+            if (scrollDOM.scrollTop !== scrollTop) {
+                scrollDOM.scrollTop = scrollTop;
+            }
+
+            // Restore table widget's horizontal scroll if we had one
+            if (tableScrollLeft !== null && tableSelector) {
+                const currentTableWidget = mainView.dom.querySelector(tableSelector) as HTMLElement | null;
+                if (currentTableWidget && currentTableWidget.scrollLeft !== tableScrollLeft) {
+                    currentTableWidget.scrollLeft = tableScrollLeft;
+                }
             }
         };
 
-        // 4. Restore immediately to fight synchronous layout shifts
+        // Restore immediately
         restoreScroll();
 
-        // 5. Restore again in the next animation frame
-        // This ensures we override CodeMirror's internal "scrollIntoView"
-        // behavior which runs during the view update cycle.
+        // Restore again in the next animation frame
         requestAnimationFrame(restoreScroll);
+
+        // Restore one more time after a delay to catch widget rebuilds
+        // Table widgets may be rebuilt asynchronously after undo/redo
+        setTimeout(restoreScroll, 50);
     };
 }
 
