@@ -440,7 +440,8 @@ class TableToolbarPlugin {
                     return;
                 }
 
-                const { x, y, middlewareData } = await computePosition(currentRef, this.dom, {
+                // First compute with preferred top placement
+                let result = await computePosition(currentRef, this.dom, {
                     placement: 'top-start',
                     middleware: [
                         offset(5),
@@ -450,15 +451,25 @@ class TableToolbarPlugin {
                     ],
                 });
 
-                if (middlewareData.hide?.referenceHidden) {
+                // Check if toolbar would be obscured near top of viewport (where Joplin's toolbar lives)
+                const obscurationThreshold = 60; // Pixels from top of viewport
+                if (result.y < obscurationThreshold) {
+                    // Recompute with forced bottom placement
+                    result = await computePosition(currentRef, this.dom, {
+                        placement: 'bottom-start',
+                        middleware: [offset(5), shift({ padding: 5 }), hide()],
+                    });
+                }
+
+                if (result.middlewareData.hide?.referenceHidden) {
                     this.hideToolbar();
                     return;
                 }
 
                 this.showToolbar();
                 Object.assign(this.dom.style, {
-                    left: `${x}px`,
-                    top: `${y}px`,
+                    left: `${result.x}px`,
+                    top: `${result.y}px`,
                 });
             },
             {
