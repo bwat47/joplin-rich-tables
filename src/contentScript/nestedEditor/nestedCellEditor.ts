@@ -139,27 +139,32 @@ class NestedCellEditorManager {
                 // this DOM size change and might try to adjust the scroll position
                 // to keep the "virtual" viewport stable. This often results in jumping.
                 //
-                // We manually capture and restore the scroll position to fight this.
-                const scrollDOM = this.mainView.scrollDOM;
-                const { scrollTop, scrollLeft } = scrollDOM;
+                // Use CodeMirror's native scrollSnapshot() effect to restore the
+                // editor's own scroll position reliably.
+                const scrollSnapshotEffect = this.mainView.scrollSnapshot();
 
-                this.mainView.dispatch({
+                const mainTr = this.mainView.state.update({
                     changes: tr.changes,
                     annotations: syncAnnotation.of(true),
                     scrollIntoView: false,
                 });
+                this.mainView.dispatch(mainTr);
 
-                // Restore logic
+                const mappedSnapshot = scrollSnapshotEffect.map(mainTr.changes);
                 const restoreScroll = () => {
-                    if (scrollDOM.scrollTop !== scrollTop || scrollDOM.scrollLeft !== scrollLeft) {
-                        scrollDOM.scrollTo(scrollLeft, scrollTop);
+                    if (!this.mainView) {
+                        return;
                     }
+
+                    this.mainView.dispatch({
+                        effects: mappedSnapshot,
+                        annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+                        scrollIntoView: false,
+                    });
                 };
 
-                // 1. Restore immediately
+                // Restore immediately, then again after layout stabilizes.
                 restoreScroll();
-
-                // 2. Restore again in next frame to override layout shifts
                 requestAnimationFrame(restoreScroll);
 
                 // Also update the subview's own range field so decorations stay correct.
