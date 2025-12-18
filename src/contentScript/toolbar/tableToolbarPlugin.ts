@@ -173,6 +173,13 @@ class TableToolbarPlugin {
         if (this.currentActiveCell && prevActiveCell && this.currentActiveCell.tableFrom !== prevActiveCell.tableFrom) {
             // Defer to next frame to ensure new table widget DOM is ready
             requestAnimationFrame(() => this.updatePosition());
+            return;
+        }
+
+        // Table was modified (rows/columns added/removed) - reposition toolbar
+        if (this.currentActiveCell && update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))) {
+            // Defer to next frame to ensure rebuilt widget DOM is ready
+            requestAnimationFrame(() => this.updatePosition());
         }
 
         // Note: autoUpdate handles other cases (scroll/resize)
@@ -440,7 +447,8 @@ class TableToolbarPlugin {
                     return;
                 }
 
-                const { x, y, middlewareData } = await computePosition(currentRef, this.dom, {
+                // First compute with preferred top placement
+                let result = await computePosition(currentRef, this.dom, {
                     placement: 'top-start',
                     middleware: [
                         offset(5),
@@ -450,15 +458,25 @@ class TableToolbarPlugin {
                     ],
                 });
 
-                if (middlewareData.hide?.referenceHidden) {
+                // Check if toolbar would be obscured near top of viewport (where Joplin's toolbar lives)
+                const obscurationThreshold = 60; // Pixels from top of viewport
+                if (result.y < obscurationThreshold) {
+                    // Recompute with forced bottom placement
+                    result = await computePosition(currentRef, this.dom, {
+                        placement: 'bottom-start',
+                        middleware: [offset(5), shift({ padding: 5 }), hide()],
+                    });
+                }
+
+                if (result.middlewareData.hide?.referenceHidden) {
                     this.hideToolbar();
                     return;
                 }
 
                 this.showToolbar();
                 Object.assign(this.dom.style, {
-                    left: `${x}px`,
-                    top: `${y}px`,
+                    left: `${result.x}px`,
+                    top: `${result.y}px`,
                 });
             },
             {
