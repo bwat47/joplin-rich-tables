@@ -177,7 +177,10 @@ class TableToolbarPlugin {
         }
 
         // Table was modified (rows/columns added/removed) - reposition toolbar
-        if (this.currentActiveCell && update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))) {
+        if (
+            this.currentActiveCell &&
+            update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))
+        ) {
             // Defer to next frame to ensure rebuilt widget DOM is ready
             requestAnimationFrame(() => this.updatePosition());
         }
@@ -459,7 +462,7 @@ class TableToolbarPlugin {
                 });
 
                 // Check if toolbar would be obscured near top of viewport (where Joplin's toolbar lives)
-                const obscurationThreshold = 60; // Pixels from top of viewport
+                const obscurationThreshold = 5; // Pixels from top of viewport
                 if (result.y < obscurationThreshold) {
                     // Recompute with forced bottom placement
                     result = await computePosition(currentRef, this.dom, {
