@@ -7,6 +7,7 @@ import {
     type TableCellRanges,
     type CellRange,
 } from '../tableModel/markdownTableCellRanges';
+import { DATA_TABLE_FROM, DATA_TABLE_TO, getWidgetSelector } from './domConstants';
 import { getActiveCell, type ActiveCellSection } from './activeCellState';
 
 export interface ResolvedTable {
@@ -97,7 +98,7 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
     // Next best: try mapping the widget container itself. This avoids relying on
     // potentially-stale dataset anchors when decorations are mapped through edits
     // while a nested editor is open.
-    const container = target.closest('.cm-table-widget') as HTMLElement | null;
+    const container = target.closest(getWidgetSelector()) as HTMLElement | null;
     if (container) {
         try {
             const pos = view.posAtDOM(container, 0);
@@ -116,7 +117,7 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
     // This is important when quickly switching between tables: `activeCell` may still refer
     // to the previously-active table at the time this handler runs.
     if (container) {
-        const tableFrom = Number(container.dataset.tableFrom);
+        const tableFrom = Number(container.dataset[DATA_TABLE_FROM]);
         if (Number.isFinite(tableFrom) && tableFrom >= 0 && tableFrom <= view.state.doc.length) {
             const anchorPos = Math.min(tableFrom + 1, view.state.doc.length);
             const resolved = resolveTableAtPos(view.state, anchorPos);
@@ -126,7 +127,7 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
 
             // If the table node cannot be resolved (e.g., parser not ready), fall back to
             // slicing using the stored bounds if present.
-            const tableTo = Number(container.dataset.tableTo);
+            const tableTo = Number(container.dataset[DATA_TABLE_TO]);
             if (Number.isFinite(tableTo) && tableTo >= tableFrom) {
                 return {
                     from: tableFrom,

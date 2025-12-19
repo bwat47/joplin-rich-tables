@@ -3,6 +3,18 @@ import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import type { TableData } from '../tableModel/markdownTableParsing';
 import { tableHeightCache } from './tableHeightCache';
+import {
+    CLASS_TABLE_WIDGET,
+    CLASS_TABLE_WIDGET_TABLE,
+    DATA_COL,
+    DATA_ROW,
+    DATA_SECTION,
+    DATA_TABLE_FROM,
+    DATA_TABLE_TO,
+    SECTION_BODY,
+    SECTION_HEADER,
+    getWidgetSelector,
+} from './domConstants';
 
 /**
  * Widget that renders a markdown table as an interactive HTML table
@@ -34,23 +46,23 @@ export class TableWidget extends WidgetType {
 
     toDOM(view: EditorView): HTMLElement {
         const container = document.createElement('div');
-        container.className = 'cm-table-widget';
+        container.className = CLASS_TABLE_WIDGET;
 
         // Used by extension-level interaction handlers as a reliable fallback.
-        container.dataset.tableFrom = String(this.tableFrom);
-        container.dataset.tableTo = String(this.tableTo);
+        container.dataset[DATA_TABLE_FROM] = String(this.tableFrom);
+        container.dataset[DATA_TABLE_TO] = String(this.tableTo);
 
         const table = document.createElement('table');
-        table.className = 'cm-table-widget-table';
+        table.className = CLASS_TABLE_WIDGET_TABLE;
 
         // Render header
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
         for (let i = 0; i < this.tableData.headers.length; i++) {
             const th = document.createElement('th');
-            th.dataset.section = 'header';
-            th.dataset.row = '0';
-            th.dataset.col = String(i);
+            th.dataset[DATA_SECTION] = SECTION_HEADER;
+            th.dataset[DATA_ROW] = '0';
+            th.dataset[DATA_COL] = String(i);
 
             const content = this.tableData.headers[i].trim();
             this.renderCellContent(th, content);
@@ -71,9 +83,9 @@ export class TableWidget extends WidgetType {
             const tr = document.createElement('tr');
             for (let c = 0; c < row.length; c++) {
                 const td = document.createElement('td');
-                td.dataset.section = 'body';
-                td.dataset.row = String(r);
-                td.dataset.col = String(c);
+                td.dataset[DATA_SECTION] = SECTION_BODY;
+                td.dataset[DATA_ROW] = String(r);
+                td.dataset[DATA_COL] = String(c);
 
                 const content = row[c].trim();
                 this.renderCellContent(td, content);
@@ -139,7 +151,7 @@ export class TableWidget extends WidgetType {
     }
 
     private scheduleHeightMeasurementFromCell(cell: HTMLElement): void {
-        const container = cell.closest('.cm-table-widget') as HTMLElement | null;
+        const container = cell.closest(getWidgetSelector()) as HTMLElement | null;
         if (!container) {
             return;
         }

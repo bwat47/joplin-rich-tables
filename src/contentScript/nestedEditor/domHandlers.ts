@@ -3,6 +3,7 @@ import { undo, redo } from '@codemirror/commands';
 import { StateField, Transaction } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
+import { getWidgetSelector } from '../tableWidget/domConstants';
 import { SubviewCellRange } from './transactionPolicy';
 
 function runHistoryCommandWithMainScrollPreserved(
@@ -18,7 +19,7 @@ function runHistoryCommandWithMainScrollPreserved(
     const tableFrom = activeCell?.tableFrom;
     const widgetContainer =
         tableFrom !== undefined
-            ? (mainView.dom.querySelector(`.cm-table-widget[data-table-from="${tableFrom}"]`) as HTMLElement | null)
+            ? (mainView.dom.querySelector(getWidgetSelector(tableFrom)) as HTMLElement | null)
             : null;
     const widgetScrollLeft = widgetContainer ? widgetContainer.scrollLeft : 0;
 
@@ -27,9 +28,7 @@ function runHistoryCommandWithMainScrollPreserved(
             return;
         }
 
-        const currentWidget = mainView.dom.querySelector(
-            `.cm-table-widget[data-table-from="${tableFrom}"]`
-        ) as HTMLElement | null;
+        const currentWidget = mainView.dom.querySelector(getWidgetSelector(tableFrom)) as HTMLElement | null;
         if (currentWidget && currentWidget.scrollLeft !== widgetScrollLeft) {
             currentWidget.scrollLeft = widgetScrollLeft;
         }

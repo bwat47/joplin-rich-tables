@@ -3,6 +3,15 @@ import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
 import { getTableCellRanges, resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
+import {
+    DATA_COL,
+    DATA_ROW,
+    DATA_SECTION,
+    CLASS_CELL_EDITOR,
+    SECTION_HEADER,
+    getCellSelector,
+    getWidgetSelector,
+} from './domConstants';
 
 function tryHandleLinkClick(target: HTMLElement): boolean {
     const link = target.closest('a');
@@ -41,13 +50,13 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
     }
 
     // Only handle events inside table widgets.
-    const widget = target.closest('.cm-table-widget');
+    const widget = target.closest(getWidgetSelector());
     if (!widget) {
         return false;
     }
 
     // Let the nested editor handle its own events.
-    if (target.closest('.cm-table-cell-editor')) {
+    if (target.closest(`.${CLASS_CELL_EDITOR}`)) {
         return false;
     }
 
@@ -64,9 +73,9 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    const section = (cell.dataset.section as ActiveCellSection | undefined) ?? null;
-    const row = Number(cell.dataset.row);
-    const col = Number(cell.dataset.col);
+    const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
+    const row = Number(cell.dataset[DATA_ROW]);
+    const col = Number(cell.dataset[DATA_COL]);
 
     if (!section || Number.isNaN(row) || Number.isNaN(col)) {
         return false;
@@ -106,22 +115,17 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             cellFrom,
             cellTo,
             section,
-            row: section === 'header' ? 0 : row,
+            row: section === SECTION_HEADER ? 0 : row,
             col,
         }),
     });
 
     // After dispatch, the decoration rebuild may have destroyed and recreated widget DOM.
     // Re-query for the fresh cell element using data attributes to avoid stale references.
-    const freshWidget = view.dom.querySelector(
-        `.cm-table-widget[data-table-from="${table.from}"]`
-    ) as HTMLElement | null;
+    const freshWidget = view.dom.querySelector(getWidgetSelector(table.from)) as HTMLElement | null;
 
     if (freshWidget) {
-        const cellSelector = section === 'header' ? 'th' : 'td';
-        const freshCell = freshWidget.querySelector(
-            `${cellSelector}[data-section="${section}"][data-row="${row}"][data-col="${col}"]`
-        ) as HTMLElement | null;
+        const freshCell = freshWidget.querySelector(getCellSelector(section, row, col)) as HTMLElement | null;
 
         if (freshCell) {
             openNestedCellEditor({
