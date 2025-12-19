@@ -1,4 +1,4 @@
-import { syntaxHighlighting } from '@codemirror/language';
+import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
@@ -227,6 +227,11 @@ class NestedCellEditorManager {
                 }),
             ],
         });
+
+        // Force the syntax tree to parse synchronously so that syntax highlighting
+        // is available immediately on the first paint, preventing a "flicker" of unstyled text.
+        // 500ms timeout is plenty for a table cell.
+        ensureSyntaxTree(state, state.doc.length, 500);
 
         this.subview = new EditorView({
             state,
