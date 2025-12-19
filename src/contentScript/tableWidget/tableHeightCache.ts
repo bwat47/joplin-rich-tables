@@ -8,7 +8,7 @@
 const MAX_ENTRIES = 200;
 
 function hashTableText(text: string): string {
-    // FNV-1a 32-bit (fast, deterministic, good enough for cache keys)
+    // FNV-1a 32-bit hash. Used to avoid storing full table strings in the LRU cache.
     let hash = 2166136261;
     for (let i = 0; i < text.length; i++) {
         hash ^= text.charCodeAt(i);
