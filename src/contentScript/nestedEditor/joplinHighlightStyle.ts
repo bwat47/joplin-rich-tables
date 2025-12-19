@@ -34,10 +34,12 @@ export const joplinHighlightStyle = HighlightStyle.define([
     },
     {
         tag: tags.monospace,
+        border: '1px solid var(--joplin-divider-color)',
         color: 'var(--joplin-code-color)',
-        backgroundColor: 'var(--joplin-code-background-color)',
         borderRadius: '3px',
-        padding: '1px 2px',
+        padding: '2px 4px',
+        fontFamily: 'monospace !important',
+        fontSize: '0.9em',
     },
     {
         tag: tags.comment,
