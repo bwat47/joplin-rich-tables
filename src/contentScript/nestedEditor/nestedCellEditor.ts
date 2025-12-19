@@ -1,5 +1,8 @@
+import { syntaxHighlighting } from '@codemirror/language';
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
+import { markdown } from '@codemirror/lang-markdown';
+import { joplinHighlightStyle } from './joplinHighlightStyle';
 import { renderer } from '../services/markdownRenderer';
 import {
     createCellTransactionFilter,
@@ -202,6 +205,8 @@ class NestedCellEditorManager {
                 EditorView.lineWrapping,
                 createNestedEditorDomHandlers(),
                 createNestedEditorKeymap(params.mainView, rangeField),
+                markdown(),
+                syntaxHighlighting(joplinHighlightStyle, { fallback: true }),
                 EditorView.theme({
                     '&': {
                         backgroundColor: 'transparent',
