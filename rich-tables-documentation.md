@@ -11,6 +11,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tableWidgetExtension.ts`   | Main extension: decorations, lifecycle plugin, styles                          |
 | `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                   |
 | `contentScript/tableWidget/tableHeightCache.ts`       | LRU cache for measured table heights (improves scroll stability)               |
+| `contentScript/tableWidget/domConstants.ts`           | Centralized DOM selectors, class names, and data attributes                    |
 | `contentScript/tableWidget/activeCellState.ts`        | Tracks active cell range in main editor state                                  |
 | `contentScript/tableWidget/tableNavigation.ts`        | Navigation logic (Tab/Enter/Arrows) and cell switching                         |
 | `contentScript/tableWidget/tablePositioning.ts`       | Maps DOM/table positions to document ranges                                    |
