@@ -39,5 +39,7 @@ export function getCellSelector(section: string, row: number, col: number): stri
     // data-section="header|body"
     // data-row="0..N"
     // data-col="0..M"
+    // These constants (section, row, col) are already lowercase, so they don't require
+    // datasetKeyToDataAttributeName conversion like DATA_TABLE_FROM does.
     return `[data-${DATA_SECTION}="${section}"][data-${DATA_ROW}="${row}"][data-${DATA_COL}="${col}"]`;
 }
