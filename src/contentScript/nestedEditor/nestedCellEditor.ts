@@ -3,6 +3,7 @@ import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM, Strikethrough, Table, TaskList, Autolink } from '@lezer/markdown';
+import { inlineCodePlugin, markPlugin } from './decorationPlugins';
 import { joplinHighlightStyle } from './joplinHighlightStyle';
 import { renderer } from '../services/markdownRenderer';
 import {
@@ -209,6 +210,8 @@ class NestedCellEditorManager {
                 markdown({
                     extensions: [GFM, Strikethrough, Table, TaskList, Autolink],
                 }),
+                inlineCodePlugin,
+                markPlugin,
                 syntaxHighlighting(joplinHighlightStyle, { fallback: true }),
                 EditorView.theme({
                     '&': {
@@ -226,6 +229,19 @@ class NestedCellEditorManager {
                     },
                     '.cm-content': {
                         padding: '0',
+                    },
+                    '.cm-inline-code': {
+                        backgroundColor: 'var(--joplin-code-background-color)',
+                        // border: '1px solid var(--joplin-divider-color)', // Optional: if you want a border around the whole block
+                        borderRadius: '3px',
+                        padding: '2px 4px',
+                        // border-radius and padding help frame the content nicely including backticks
+                    },
+                    '.cm-highlighted': {
+                        backgroundColor: 'var(--joplin-mark-highlight-background-color, #fcf8e3)',
+                        color: 'var(--joplin-mark-highlight-color, black)',
+                        padding: '1px 2px',
+                        borderRadius: '2px',
                     },
                 }),
             ],
