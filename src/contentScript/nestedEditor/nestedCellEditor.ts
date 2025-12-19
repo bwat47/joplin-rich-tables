@@ -10,6 +10,7 @@ import {
 } from './transactionPolicy';
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
+import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
 
 export { syncAnnotation };
 
@@ -50,7 +51,7 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
         }
 
         // 2. Scroll the table widget itself if it has internal scroll (e.g. on mobile or wide tables)
-        const widgetContainer = cellElement.closest('.cm-table-widget') as HTMLElement;
+        const widgetContainer = cellElement.closest(getWidgetSelector()) as HTMLElement;
         if (widgetContainer) {
             const widgetRect = widgetContainer.getBoundingClientRect();
             // We need to re-measure cellRect relative to the widget or just check overlap
@@ -104,7 +105,7 @@ class NestedCellEditorManager {
         this.cellElement = params.cellElement;
 
         // Add active class to cell for styling
-        this.cellElement.classList.add('cm-table-cell-active');
+        this.cellElement.classList.add(CLASS_CELL_ACTIVE);
 
         content.style.display = 'none';
         editorHost.style.display = '';
@@ -276,7 +277,7 @@ class NestedCellEditorManager {
         }
 
         if (this.cellElement) {
-            this.cellElement.classList.remove('cm-table-cell-active');
+            this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
             this.cellElement = null;
         }
 

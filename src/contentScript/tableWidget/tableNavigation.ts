@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+import { SECTION_BODY, SECTION_HEADER, getCellSelector, getWidgetSelector } from './domConstants';
 import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
@@ -38,8 +39,8 @@ export function navigateCell(
         targetCol++;
         if (targetCol >= numCols) {
             targetCol = 0;
-            if (targetSection === 'header') {
-                targetSection = 'body';
+            if (targetSection === SECTION_HEADER) {
+                targetSection = SECTION_BODY;
                 targetRow = 0;
             } else {
                 targetRow++;
@@ -49,9 +50,9 @@ export function navigateCell(
         targetCol--;
         if (targetCol < 0) {
             targetCol = numCols - 1;
-            if (targetSection === 'body') {
+            if (targetSection === SECTION_BODY) {
                 if (targetRow === 0) {
-                    targetSection = 'header';
+                    targetSection = SECTION_HEADER;
                     targetRow = 0; // Header is effectively row 0
                 } else {
                     targetRow--;
@@ -63,16 +64,16 @@ export function navigateCell(
             }
         }
     } else if (direction === 'down') {
-        if (targetSection === 'header') {
-            targetSection = 'body';
+        if (targetSection === SECTION_HEADER) {
+            targetSection = SECTION_BODY;
             targetRow = 0;
         } else {
             targetRow++;
         }
     } else if (direction === 'up') {
-        if (targetSection === 'body') {
+        if (targetSection === SECTION_BODY) {
             if (targetRow === 0) {
-                targetSection = 'header';
+                targetSection = SECTION_HEADER;
                 targetRow = 0;
             } else {
                 targetRow--;
@@ -84,7 +85,7 @@ export function navigateCell(
     }
 
     // Boundary checks
-    if (targetSection === 'body') {
+    if (targetSection === SECTION_BODY) {
         if (targetRow >= numRows) {
             // End of table
             return true;
@@ -114,19 +115,19 @@ export function navigateCell(
             cellFrom,
             cellTo,
             section: targetSection,
-            row: targetSection === 'header' ? 0 : targetRow,
+            row: targetSection === SECTION_HEADER ? 0 : targetRow,
             col: targetCol,
         }),
     });
 
     // After dispatch, query for the fresh cell element using data attributes.
     // The DOM is ready synchronously after dispatch since CodeMirror applies decorations synchronously.
-    const widgetDOM = view.dom.querySelector(`.cm-table-widget[data-table-from="${table.from}"]`);
+    const widgetDOM = view.dom.querySelector(getWidgetSelector(table.from));
     if (widgetDOM) {
         const selector =
-            targetSection === 'header'
-                ? `th[data-section="header"][data-col="${targetCol}"]`
-                : `td[data-section="body"][data-row="${targetRow}"][data-col="${targetCol}"]`;
+            targetSection === SECTION_HEADER
+                ? getCellSelector(SECTION_HEADER, 0, targetCol)
+                : getCellSelector(SECTION_BODY, targetRow, targetCol);
 
         const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
 
