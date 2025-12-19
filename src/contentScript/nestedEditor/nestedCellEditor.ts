@@ -2,6 +2,7 @@ import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
+import { GFM, Strikethrough, Table, TaskList, Autolink } from '@lezer/markdown';
 import { joplinHighlightStyle } from './joplinHighlightStyle';
 import { renderer } from '../services/markdownRenderer';
 import {
@@ -205,7 +206,9 @@ class NestedCellEditorManager {
                 EditorView.lineWrapping,
                 createNestedEditorDomHandlers(),
                 createNestedEditorKeymap(params.mainView, rangeField),
-                markdown(),
+                markdown({
+                    extensions: [GFM, Strikethrough, Table, TaskList, Autolink],
+                }),
                 syntaxHighlighting(joplinHighlightStyle, { fallback: true }),
                 EditorView.theme({
                     '&': {
