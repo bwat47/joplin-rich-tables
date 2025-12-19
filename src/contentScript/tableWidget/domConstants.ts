@@ -2,6 +2,14 @@ export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_ACTIVE = 'cm-table-cell-active';
 
+// Nested editor wrapper elements hosted inside table cells
+export const CLASS_CELL_CONTENT = 'cm-table-cell-content';
+export const CLASS_CELL_EDITOR = 'cm-table-cell-editor';
+export const CLASS_CELL_EDITOR_HIDDEN = 'cm-table-cell-editor-hidden';
+
+// Floating toolbar container (positioned relative to the active table widget)
+export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';
+
 export const DATA_TABLE_FROM = 'tableFrom';
 export const DATA_TABLE_TO = 'tableTo';
 export const DATA_SECTION = 'section';
@@ -11,15 +19,17 @@ export const DATA_COL = 'col';
 export const SECTION_HEADER = 'header';
 export const SECTION_BODY = 'body';
 
+function datasetKeyToDataAttributeName(datasetKey: string): string {
+    // dataset properties (camelCase) map to kebab-case attributes in HTML.
+    // e.g. dataset.tableFrom -> data-table-from
+    return datasetKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+}
+
 export function getWidgetSelector(tableFrom?: number | string): string {
     const base = `.${CLASS_TABLE_WIDGET}`;
     if (tableFrom !== undefined) {
-        return `${base}[data-${
-            // dataset properties (camelCase) map to kebab-case attributes in HTML.
-            // e.g. dataset.tableFrom -> data-table-from.
-            // We correspond to DATA_TABLE_FROM ('tableFrom') but hardcode the attribute name here.
-            'table-from'
-        }="${tableFrom}"]`;
+        const dataAttr = datasetKeyToDataAttributeName(DATA_TABLE_FROM);
+        return `${base}[data-${dataAttr}="${tableFrom}"]`;
     }
     return base;
 }

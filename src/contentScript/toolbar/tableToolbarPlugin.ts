@@ -17,6 +17,7 @@ import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSe
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './tableToolbarActiveCell';
+import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domConstants';
 
 const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -139,7 +140,7 @@ class TableToolbarPlugin {
 
     constructor(private view: EditorView) {
         this.dom = document.createElement('div');
-        this.dom.className = 'cm-table-floating-toolbar';
+        this.dom.className = CLASS_FLOATING_TOOLBAR;
         this.dom.style.position = 'absolute';
         this.dom.style.display = 'none';
 
@@ -427,7 +428,7 @@ class TableToolbarPlugin {
             return;
         }
 
-        const selector = `.cm-table-widget[data-table-from="${this.currentActiveCell.tableFrom}"]`;
+        const selector = getWidgetSelector(this.currentActiveCell.tableFrom);
         const referenceElement = this.view.contentDOM.querySelector(selector) as HTMLElement;
 
         if (!referenceElement) {
@@ -496,7 +497,7 @@ class TableToolbarPlugin {
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);
 
 export const tableToolbarTheme = EditorView.baseTheme({
-    '.cm-table-floating-toolbar': {
+    [`.${CLASS_FLOATING_TOOLBAR}`]: {
         position: 'absolute',
         backgroundColor: 'var(--joplin-background-color)',
         border: '1px solid var(--joplin-divider-color)',

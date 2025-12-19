@@ -17,6 +17,17 @@ import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
+import {
+    CLASS_CELL_ACTIVE,
+    CLASS_CELL_EDITOR,
+    CLASS_CELL_EDITOR_HIDDEN,
+    CLASS_TABLE_WIDGET_TABLE,
+    CLASS_FLOATING_TOOLBAR,
+    SECTION_BODY,
+    SECTION_HEADER,
+    getCellSelector,
+    getWidgetSelector,
+} from './domConstants';
 
 /**
  * Content script context provided by Joplin
@@ -193,9 +204,9 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
 
         // Keep editor open if clicking inside the widget or nested editor.
         if (
-            target.closest('.cm-table-widget') ||
-            target.closest('.cm-table-cell-editor') ||
-            target.closest('.cm-table-floating-toolbar')
+            target.closest(getWidgetSelector()) ||
+            target.closest(`.${CLASS_CELL_EDITOR}`) ||
+            target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
         ) {
             return false;
         }
@@ -277,18 +288,16 @@ const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 }
 
                 requestAnimationFrame(() => {
-                    const widgetDOM = this.view.dom.querySelector(
-                        `.cm-table-widget[data-table-from="${activeCell.tableFrom}"]`
-                    );
+                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(activeCell.tableFrom));
                     if (!widgetDOM) {
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
 
                     const selector =
-                        activeCell.section === 'header'
-                            ? `th[data-section="header"][data-col="${activeCell.col}"]`
-                            : `td[data-section="body"][data-row="${activeCell.row}"][data-col="${activeCell.col}"]`;
+                        activeCell.section === SECTION_HEADER
+                            ? getCellSelector(SECTION_HEADER, 0, activeCell.col)
+                            : getCellSelector(SECTION_BODY, activeCell.row, activeCell.col);
 
                     const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
                     if (!cellElement) {
@@ -341,7 +350,7 @@ const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
  * Basic styles for the table widget.
  */
 const tableStyles = EditorView.baseTheme({
-    '.cm-table-widget': {
+    [getWidgetSelector()]: {
         padding: '8px 0',
         position: 'relative',
         display: 'block',
@@ -350,51 +359,51 @@ const tableStyles = EditorView.baseTheme({
         overflowX: 'auto',
         contain: 'inline-size', // <-- explicit size containment
     },
-    '.cm-table-widget-table': {
+    [`.${CLASS_TABLE_WIDGET_TABLE}`]: {
         borderCollapse: 'collapse',
         width: 'auto',
         fontFamily: 'inherit',
         fontSize: 'inherit',
     },
-    '.cm-table-widget-table th, .cm-table-widget-table td': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
         border: '1px solid var(--joplin-divider-color)',
         padding: '8px 12px',
         minWidth: '75px',
         position: 'relative',
     },
-    '.cm-table-cell-editor-hidden': {
+    [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
     },
-    '.cm-table-cell-editor': {
+    [`.${CLASS_CELL_EDITOR}`]: {
         width: '100%',
     },
-    '.cm-table-cell-editor .cm-editor': {
+    [`.${CLASS_CELL_EDITOR} .cm-editor`]: {
         width: '100%',
     },
-    '.cm-table-cell-editor .cm-scroller': {
+    [`.${CLASS_CELL_EDITOR} .cm-scroller`]: {
         lineHeight: 'inherit',
         fontFamily: 'inherit',
         fontSize: 'inherit',
     },
-    '.cm-table-cell-editor .cm-content': {
+    [`.${CLASS_CELL_EDITOR} .cm-content`]: {
         margin: '0',
         padding: '0 !important',
         minHeight: 'unset',
         lineHeight: 'inherit',
         color: 'inherit',
     },
-    '.cm-table-cell-editor .cm-line': {
+    [`.${CLASS_CELL_EDITOR} .cm-line`]: {
         padding: '0',
     },
-    '.cm-table-cell-editor .cm-cursor': {
+    [`.${CLASS_CELL_EDITOR} .cm-cursor`]: {
         borderLeftColor: 'currentColor',
     },
     // Hide the default outline of the nested editor so we can style the cell instead
-    '.cm-table-cell-editor .cm-editor.cm-focused': {
+    [`.${CLASS_CELL_EDITOR} .cm-editor.cm-focused`]: {
         outline: 'none',
     },
     // Style the active cell (td)
-    '.cm-table-widget-table td.cm-table-cell-active': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE}`]: {
         // Use a box-shadow or outline that typically sits "inside" or "on" the border
         // absolute positioning an overlay might be cleaner to avoid layout shifts,
         // but a simple outline usually works well for spreadsheets.
@@ -402,22 +411,22 @@ const tableStyles = EditorView.baseTheme({
         outlineOffset: '-1px', // Draw inside existing border
         zIndex: '5', // Ensure on top of neighbors
     },
-    '.cm-table-cell-editor .cm-fat-cursor': {
+    [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
         backgroundColor: 'currentColor',
         color: 'inherit',
     },
     // Remove margins from rendered markdown elements inside cells
-    '.cm-table-widget-table th p, .cm-table-widget-table td p': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} th p, .${CLASS_TABLE_WIDGET_TABLE} td p`]: {
         margin: '0',
     },
-    '.cm-table-widget-table th :first-child, .cm-table-widget-table td :first-child': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} th :first-child, .${CLASS_TABLE_WIDGET_TABLE} td :first-child`]: {
         marginTop: '0',
     },
-    '.cm-table-widget-table th :last-child, .cm-table-widget-table td :last-child': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} th :last-child, .${CLASS_TABLE_WIDGET_TABLE} td :last-child`]: {
         marginBottom: '0',
     },
     // Inline code styling
-    '.cm-table-widget-table code': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} code`]: {
         backgroundColor: 'var(--joplin-code-background-color)',
         border: '1px solid var(--joplin-divider-color)',
         color: 'var(--joplin-code-color)',
@@ -427,21 +436,21 @@ const tableStyles = EditorView.baseTheme({
         fontSize: '0.9em',
     },
     // Highlight/mark styling (==text==)
-    '.cm-table-widget-table mark': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} mark`]: {
         backgroundColor: 'var(--joplin-mark-highlight-background-color)',
         color: 'var(--joplin-mark-highlight-color)',
         padding: '1px 2px',
     },
     // Link styling
-    '.cm-table-widget-table a': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} a`]: {
         textDecoration: 'underline',
         color: 'var(--joplin-url-color)',
     },
-    '.cm-table-widget-table th': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} th`]: {
         backgroundColor: 'var(--joplin-table-background-color)',
         fontWeight: 'bold',
     },
-    '.cm-table-widget-table tr:hover': {
+    [`.${CLASS_TABLE_WIDGET_TABLE} tr:hover`]: {
         backgroundColor: 'var(joplin-table-background-color)',
     },
 });
