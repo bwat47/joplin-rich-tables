@@ -245,12 +245,9 @@ export function createNestedEditorDomHandlers() {
             }
             return false;
         },
-        contextmenu: (e) => {
-            // Prevent all context menus - Joplin's menu doesn't work
-            // in the nested editor, so suppress it entirely.
-            e.stopPropagation();
-            e.preventDefault();
-            return true;
+        contextmenu: (_e) => {
+            // Allow context menu to show (Paste works, Copy is always grayed out- haven't found a way to make that work).
+            return false;
         },
     });
 }
