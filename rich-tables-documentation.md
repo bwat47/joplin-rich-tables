@@ -41,7 +41,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 **Activation**: Click cell → compute cell range → dispatch `setActiveCellEffect` → open nested editor
 
-**Active cell styling**: The hosting `<td>` is marked with an active class for outline styling.
+**Active cell styling**: The hosting `<td>` is marked with an active class for outline styling. CodeMirror's drawn selection background is hidden to prevent double-highlighting, relying on the native browser selection.
 
 **Sync**:
 
@@ -77,7 +77,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - `ArrowLeft` / `ArrowRight`: Navigate to prev/next cell when at content boundary
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
     - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard. Uses `requestAnimationFrame` and only scrolls CodeMirror's container (preserves Joplin's sidebar layout).
-- **Shortcuts**: Standard Joplin formatting shortcuts (e.g. Ctrl+B) are blocked. Standard editor shortcuts (Ctrl+A/C/V/X/Z/Y) are supported. Global shortcuts Ctrl+S (save) and Ctrl+P (go to anything) are allowed to bubble to the app. Ctrl+F is blocked (doesn't work properly with nested editor open).
+- **Shortcuts**: formatting shortcuts (Ctrl+B/I, Ctrl+Shift+U, Ctrl+`/Ctrl+E) are supported within the cell. Ctrl+A selects all text in the current cell. Standard editor shortcuts (Ctrl+C/V/X/Z/Y) are supported. Global shortcuts (Ctrl+S, Ctrl+P) bubble to the app. Ctrl+F is blocked.
 - **Context Menu**: suppressed.
 - **Mobile (Android)**: `beforeinput`/`input`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell and newlines while nested editor is open.
 
