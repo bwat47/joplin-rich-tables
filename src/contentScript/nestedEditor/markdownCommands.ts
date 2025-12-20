@@ -1,4 +1,5 @@
-import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
+import { EditorSelection, StateCommand, Transaction, StateField } from '@codemirror/state';
+import { SubviewCellRange } from './transactionPolicy';
 
 /**
  * Helper to toggle a markdown delimiter around the selection.
@@ -67,4 +68,19 @@ function toggleWrapper(delimiter: string): StateCommand {
 export const toggleBold: StateCommand = toggleWrapper('**');
 export const toggleItalic: StateCommand = toggleWrapper('*');
 export const toggleStrikethrough: StateCommand = toggleWrapper('~~');
+
 export const toggleInlineCode: StateCommand = toggleWrapper('`');
+
+export function selectAllInCell(rangeField: StateField<SubviewCellRange>): StateCommand {
+    return ({ state, dispatch }) => {
+        const { from, to } = state.field(rangeField);
+        dispatch(
+            state.update({
+                selection: EditorSelection.single(from, to),
+                scrollIntoView: true,
+                annotations: Transaction.userEvent.of('select.all'),
+            })
+        );
+        return true;
+    };
+}
