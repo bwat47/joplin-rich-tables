@@ -1,6 +1,6 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { StateField, Transaction } from '@codemirror/state';
+import { StateField, Transaction, StateCommand } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
 import { getWidgetSelector } from '../tableWidget/domConstants';
@@ -61,8 +61,12 @@ function runHistoryCommandWithMainScrollPreserved(
 }
 
 /** Creates a keymap for the nested editor to handle undo/redo and table navigation (arrows, tab, enter). */
-export function createNestedEditorKeymap(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
-    return keymap.of([
+export function createNestedEditorKeymap(
+    mainView: EditorView,
+    rangeField: StateField<SubviewCellRange>,
+    extraBindings?: Record<string, StateCommand>
+) {
+    const bindings = [
         {
             key: 'Mod-z',
             run: () => {
@@ -172,7 +176,15 @@ export function createNestedEditorKeymap(mainView: EditorView, rangeField: State
                 return false;
             },
         },
-    ]);
+    ];
+
+    if (extraBindings) {
+        for (const [key, command] of Object.entries(extraBindings)) {
+            bindings.push({ key, run: command });
+        }
+    }
+
+    return keymap.of(bindings);
 }
 
 /** Creates DOM event handlers for the nested editor (keydown, contextmenu). */
@@ -225,7 +237,7 @@ export function createNestedEditorDomHandlers() {
             if (isMod) {
                 // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
                 // Allow Ctrl+Z/Y to pass through to the keymap.
-                const allowedKeys = ['a', 'c', 'v', 'x', 'z', 'y'];
+                const allowedKeys = ['`', 'a', 'b', 'c', 'i', 'l', 's', 'u', 'v', 'x', 'y', 'z'];
                 if (!allowedKeys.includes(key)) {
                     e.preventDefault();
                     return true;

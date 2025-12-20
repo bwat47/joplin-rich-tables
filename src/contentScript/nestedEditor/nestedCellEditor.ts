@@ -15,6 +15,7 @@ import {
 } from './transactionPolicy';
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
+import { toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode, selectAllInCell } from './markdownCommands';
 import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
 
 export { syncAnnotation };
@@ -195,9 +196,9 @@ class NestedCellEditorManager {
             doc: params.mainView.state.doc,
             selection: { anchor: initialAnchor },
             extensions: [
-                // Needed for a visible caret in this environment. We intentionally hide
-                // CodeMirror's drawn selection layer below (to avoid double-highlighting),
-                // which means selection highlight comes from native browser selection.
+                // Needed for a visible caret. We use drawSelection() but hide its background
+                // so we rely on the native browser selection for the highlight (fixing double-highlight)
+                // while keeping the CodeMirror-drawn caret.
                 drawSelection(),
                 rangeField,
                 createCellTransactionFilter(rangeField),
@@ -206,7 +207,14 @@ class NestedCellEditorManager {
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
                 createNestedEditorDomHandlers(),
-                createNestedEditorKeymap(params.mainView, rangeField),
+                createNestedEditorKeymap(params.mainView, rangeField, {
+                    'Mod-b': toggleBold,
+                    'Mod-i': toggleItalic,
+                    'Mod-Shift-u': toggleStrikethrough,
+                    'Mod-`': toggleInlineCode,
+                    'Mod-e': toggleInlineCode,
+                    'Mod-a': selectAllInCell(rangeField),
+                }),
                 markdown({
                     extensions: [GFM], // GFM bundle includes Table, Strikethrough, etc.
                 }),
@@ -218,11 +226,9 @@ class NestedCellEditorManager {
                     '&': {
                         backgroundColor: 'transparent',
                     },
-                    // Keep drawSelection() enabled (restores a visible caret), but hide its
-                    // selection overlay to avoid a second highlight layer. With this disabled,
-                    // selection highlight uses the browser's native selection styling.
-                    // Unfortunately, using joplin css variables doesn't seem to work here.
-                    '.cm-selectionLayer': {
+                    // We hide the drawn selection BACKGROUND to avoid double-highlight (native + drawn).
+                    // We keep the selectionLayer visible because it contains the caret (cm-cursor).
+                    '.cm-selectionBackground': {
                         display: 'none',
                     },
                     '.cm-scroller': {
