@@ -62,7 +62,6 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     const mouseEvent = event as MouseEvent;
 
-    // Links: open on left click, allow context menu on right click.
     const link = target.closest('a');
     if (link) {
         if (mouseEvent.button === 0 && tryHandleLinkClick(target)) {
@@ -71,7 +70,8 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return true;
         }
         // If it's a link but NOT a left click (e.g. right click),
-        // return false immediately to allow default behavior (context menu).
+        // return false to prevent link from opening on right-click.
+        // I haven't found a way to get the right click menu to show when right clicking inside a block widget.
         return false;
     }
 
