@@ -16,6 +16,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tableNavigation.ts`        | Navigation logic (Tab/Enter/Arrows) and cell switching                         |
 | `contentScript/tableWidget/tablePositioning.ts`       | Maps DOM/table positions to document ranges                                    |
 | `contentScript/nestedEditor/nestedCellEditor.ts`      | Orchestrates nested editor (delegates to `nestedEditor/` modules)              |
+| `contentScript/nestedEditor/decorationPlugins.ts`     | View plugins for custom syntax (inline code borders, `==mark==`)               |
 | `contentScript/nestedEditor/`                         | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
 | `contentScript/tableModel/markdownTableRowScanner.ts` | Shared scanner: detects pipe delimiters, handles escaped pipes and inline code |
 | `contentScript/tableModel/`                           | Markdown table parsing/ranges/manipulation helpers                             |
@@ -59,6 +60,14 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Clamps selection to cell bounds (using mapped new bounds for doc changes)
 
 **Range Mapping**: Uses `assoc=-1` for `from` positions, `assoc=1` for `to` positions, so insertions at boundaries expand the visible range (even for empty cells).
+
+**Syntax Highlighting**:
+
+- Uses `markdown({ extensions: [GFM, ...] })` to support GitHub Flavored Markdown (tables, strikethrough, tasklists).
+- **Custom Decorations** (`decorationPlugins.ts`):
+    - **Inline Code**: ViewPlugin wraps the entire `InlineCode` node (including backticks) to provide a unified border/background. Uses `ensureSyntaxTree` (100ms timeout) to guarantee styling in large documents.
+    - **Mark**: `MatchDecorator` highlights `==text==` syntax (Joplin specific).
+- **Sync Parsing**: `ensureSyntaxTree` (500ms timeout) is called before subview mount to prevent highlighting flicker (FOUC).
 
 **Event Handling & Navigation**:
 

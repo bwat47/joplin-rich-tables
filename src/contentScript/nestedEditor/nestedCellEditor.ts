@@ -1,5 +1,10 @@
+import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
+import { markdown } from '@codemirror/lang-markdown';
+import { GFM } from '@lezer/markdown';
+import { inlineCodePlugin, markPlugin, insertPlugin } from './decorationPlugins';
+import { joplinHighlightStyle } from './joplinHighlightStyle';
 import { renderer } from '../services/markdownRenderer';
 import {
     createCellTransactionFilter,
@@ -202,6 +207,13 @@ class NestedCellEditorManager {
                 EditorView.lineWrapping,
                 createNestedEditorDomHandlers(),
                 createNestedEditorKeymap(params.mainView, rangeField),
+                markdown({
+                    extensions: [GFM], // GFM bundle includes Table, Strikethrough, etc.
+                }),
+                inlineCodePlugin,
+                markPlugin,
+                insertPlugin,
+                syntaxHighlighting(joplinHighlightStyle, { fallback: true }),
                 EditorView.theme({
                     '&': {
                         backgroundColor: 'transparent',
@@ -219,9 +231,32 @@ class NestedCellEditorManager {
                     '.cm-content': {
                         padding: '0',
                     },
+                    '.cm-inline-code': {
+                        backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',
+                        // border: '1px solid var(--joplin-divider-color)', // Optional: if you want a border around the whole block
+                        borderRadius: '3px',
+                        border: '1px solid var(--joplin-divider-color, #dddddd)',
+                        padding: '2px 4px',
+                        // border-radius and padding help frame the content nicely including backticks
+                    },
+                    '.cm-highlighted': {
+                        backgroundColor: 'var(--joplin-mark-highlight-background-color, #F7D26E)',
+                        color: 'var(--joplin-mark-highlight-color, black)',
+                        padding: '1px 2px',
+                        borderRadius: '2px',
+                    },
+                    '.cm-inserted': {
+                        textDecoration: 'underline',
+                        textDecorationStyle: 'solid',
+                    },
                 }),
             ],
         });
+
+        // Force the syntax tree to parse synchronously so that syntax highlighting
+        // is available immediately on the first paint, preventing a "flicker" of unstyled text.
+        // 500ms timeout is plenty for a table cell.
+        ensureSyntaxTree(state, state.doc.length, 500);
 
         this.subview = new EditorView({
             state,
