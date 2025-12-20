@@ -13,10 +13,10 @@ import {
     getWidgetSelector,
 } from './domConstants';
 
-function tryHandleLinkClick(target: HTMLElement): boolean {
+function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
     if (!link) {
-        return false;
+        return null;
     }
 
     // Check for Joplin internal link data attributes first
@@ -24,23 +24,20 @@ function tryHandleLinkClick(target: HTMLElement): boolean {
     const resourceId = link.getAttribute('data-resource-id');
     const noteId = link.getAttribute('data-note-id') || link.getAttribute('data-item-id');
 
-    let href: string | null = null;
     if (resourceId) {
-        href = `:/${resourceId}`;
-    } else if (noteId) {
-        href = `:/${noteId}`;
-    } else {
-        href = link.getAttribute('href');
-        if (href === '#' || href === '') {
-            href = null;
-        }
+        return `:/${resourceId}`;
     }
 
-    if (href) {
-        openLink(href);
+    if (noteId) {
+        return `:/${noteId}`;
     }
 
-    return Boolean(href);
+    const href = link.getAttribute('href');
+    if (!href || href === '#' || href === '') {
+        return null;
+    }
+
+    return href;
 }
 
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
@@ -64,17 +61,20 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     const isInsideLink = Boolean(target.closest('a'));
     if (isInsideLink) {
-        if (mouseEvent.button === 0 && tryHandleLinkClick(target)) {
-            event.preventDefault();
-            event.stopPropagation();
-            return true;
-        }
-
-        // If it's a link but NOT a left click (e.g. right click), return false
-        // to prevent link from opening on right-click.
+        // Only handle left-click. For right/middle click, don't treat it as a table interaction.
         if (mouseEvent.button !== 0) {
             return false;
         }
+
+        const href = getLinkHrefFromTarget(target);
+        if (href) {
+            event.preventDefault();
+            event.stopPropagation();
+            openLink(href);
+            return true;
+        }
+
+        // Left-click on a link-like element without a usable href should behave like a normal cell click.
     }
 
     // Cell activation
