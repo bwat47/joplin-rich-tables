@@ -10,31 +10,48 @@ function toggleWrapper(delimiter: string): StateCommand {
             const rangeFrom = range.from;
             const rangeTo = range.to;
             const doc = state.doc;
+            const len = delimiter.length;
 
-            // Check if the selection is already wrapped by the delimiter
-            const startStr = doc.sliceString(rangeFrom - delimiter.length, rangeFrom);
-            const endStr = doc.sliceString(rangeTo, rangeTo + delimiter.length);
-            const isWrapped = startStr === delimiter && endStr === delimiter;
+            // Case 1: Detect delimiters OUTSIDE the selection (e.g. selection is "foo" in "**foo**")
+            const before = doc.sliceString(rangeFrom - len, rangeFrom);
+            const after = doc.sliceString(rangeTo, rangeTo + len);
+            const isWrappedOutside = before === delimiter && after === delimiter;
 
-            if (isWrapped) {
-                // Unwrap
+            if (isWrappedOutside) {
                 return {
                     changes: [
-                        { from: rangeFrom - delimiter.length, to: rangeFrom, insert: '' },
-                        { from: rangeTo, to: rangeTo + delimiter.length, insert: '' },
+                        { from: rangeFrom - len, to: rangeFrom, insert: '' },
+                        { from: rangeTo, to: rangeTo + len, insert: '' },
                     ],
-                    range: EditorSelection.range(rangeFrom - delimiter.length, rangeTo - delimiter.length),
-                };
-            } else {
-                // Wrap
-                return {
-                    changes: [
-                        { from: rangeFrom, insert: delimiter },
-                        { from: rangeTo, insert: delimiter },
-                    ],
-                    range: EditorSelection.range(rangeFrom + delimiter.length, rangeTo + delimiter.length),
+                    range: EditorSelection.range(rangeFrom - len, rangeTo - len),
                 };
             }
+
+            // Case 2: Detect delimiters INSIDE the selection (e.g. selection is "**foo**")
+            const startInside = doc.sliceString(rangeFrom, rangeFrom + len);
+            const endInside = doc.sliceString(rangeTo - len, rangeTo);
+            const isWrappedInside =
+                startInside === delimiter && endInside === delimiter && rangeTo - rangeFrom >= 2 * len;
+
+            if (isWrappedInside) {
+                return {
+                    changes: [
+                        { from: rangeFrom, to: rangeFrom + len, insert: '' },
+                        { from: rangeTo - len, to: rangeTo, insert: '' },
+                    ],
+                    // We shrink the selection to just the content
+                    range: EditorSelection.range(rangeFrom, rangeTo - 2 * len),
+                };
+            }
+
+            // Default: Wrap
+            return {
+                changes: [
+                    { from: rangeFrom, insert: delimiter },
+                    { from: rangeTo, insert: delimiter },
+                ],
+                range: EditorSelection.range(rangeFrom + len, rangeTo + len),
+            };
         });
 
         dispatch(
