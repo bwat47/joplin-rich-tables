@@ -210,7 +210,7 @@ class NestedCellEditorManager {
                 createNestedEditorKeymap(params.mainView, rangeField, {
                     'Mod-b': toggleBold,
                     'Mod-i': toggleItalic,
-                    'Mod-u': toggleStrikethrough,
+                    'Mod-Shift-u': toggleStrikethrough,
                     'Mod-`': toggleInlineCode,
                 }),
                 markdown({
