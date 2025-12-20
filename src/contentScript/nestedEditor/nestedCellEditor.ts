@@ -16,36 +16,9 @@ import {
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 import { toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode, selectAllInCell } from './markdownCommands';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, getWidgetSelector } from '../tableWidget/domConstants';
+import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
 
 export { syncAnnotation };
-
-/**
- * Injects a global <style> tag to override Joplin's ::selection styles for nested editors.
- * This bypasses CodeMirror's scoped theme system which can't win specificity battles
- * against Joplin's main editor styles.
- */
-let globalStylesInjected = false;
-function injectGlobalSelectionStyles(): void {
-    if (globalStylesInjected) return;
-    globalStylesInjected = true;
-
-    const style = document.createElement('style');
-    style.id = 'rich-tables-selection-styles';
-    style.textContent = `
-        /* Override Joplin's ::selection styles for nested table cell editors */
-        .${CLASS_CELL_EDITOR} .cm-content ::selection,
-        .${CLASS_CELL_EDITOR} .cm-content:focus ::selection,
-        .${CLASS_CELL_EDITOR} .cm-content *::selection,
-        .${CLASS_CELL_EDITOR} .cm-line ::selection,
-        .${CLASS_CELL_EDITOR} .cm-line:focus ::selection,
-        .${CLASS_CELL_EDITOR} .cm-line *::selection {
-            background: transparent !important;
-            background-color: transparent !important;
-        }
-    `;
-    document.head.appendChild(style);
-}
 
 /**
  * Scrolls a cell element into view within only CodeMirror's scroll container.
@@ -126,9 +99,6 @@ class NestedCellEditorManager {
         cellTo: number;
         initialCursorPos?: 'start' | 'end';
     }): void {
-        // Inject global selection styles once on first open
-        injectGlobalSelectionStyles();
-
         this.close();
 
         this.mainView = params.mainView;
@@ -256,9 +226,10 @@ class NestedCellEditorManager {
                     '&': {
                         backgroundColor: 'transparent',
                     },
-                    // Style CodeMirror's drawn selection (native ::selection is hidden via global styles)
-                    '&.cm-focused .cm-selectionBackground': {
-                        background: 'var(--joplin-text-selection-color, #0096FF)',
+                    // We hide the drawn selection BACKGROUND to avoid double-highlight (native + (drawn).
+                    // We keep the selectionLayer visible because it contains the caret (cm-cursor).
+                    '.cm-selectionBackground': {
+                        display: 'none',
                     },
                     '.cm-scroller': {
                         overflow: 'hidden !important',
