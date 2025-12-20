@@ -40,7 +40,7 @@ function tryHandleLinkClick(target: HTMLElement): boolean {
         openLink(href);
     }
 
-    return true;
+    return Boolean(href);
 }
 
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
@@ -62,17 +62,19 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     const mouseEvent = event as MouseEvent;
 
-    const link = target.closest('a');
-    if (link) {
+    const isInsideLink = Boolean(target.closest('a'));
+    if (isInsideLink) {
         if (mouseEvent.button === 0 && tryHandleLinkClick(target)) {
             event.preventDefault();
             event.stopPropagation();
             return true;
         }
-        // If it's a link but NOT a left click (e.g. right click),
-        // return false to prevent link from opening on right-click.
-        // I haven't found a way to get the right click menu to show when right clicking inside a block widget.
-        return false;
+
+        // If it's a link but NOT a left click (e.g. right click), return false
+        // to prevent link from opening on right-click.
+        if (mouseEvent.button !== 0) {
+            return false;
+        }
     }
 
     // Cell activation
