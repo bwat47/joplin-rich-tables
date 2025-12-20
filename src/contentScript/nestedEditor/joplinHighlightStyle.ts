@@ -44,7 +44,7 @@ export const joplinHighlightStyle = HighlightStyle.define([
     },
     {
         tag: [tags.strikethrough, tags.deleted],
-        textDecoration: 'line-through !important',
+        textDecoration: 'line-through',
     },
     // Generic fallback for keywords (lists, blockquotes markers, etc)
     {
