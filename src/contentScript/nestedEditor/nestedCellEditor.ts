@@ -226,7 +226,7 @@ class NestedCellEditorManager {
                     '&': {
                         backgroundColor: 'transparent',
                     },
-                    // We hide the drawn selection BACKGROUND to avoid double-highlight (native + (drawn).
+                    // We hide the drawn selection BACKGROUND to avoid double-highlight (native + drawn).
                     // We keep the selectionLayer visible because it contains the caret (cm-cursor).
                     '.cm-selectionBackground': {
                         display: 'none',
