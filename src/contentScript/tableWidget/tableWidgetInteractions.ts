@@ -60,11 +60,19 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    // Links: open, prevent selection.
-    if (tryHandleLinkClick(target)) {
-        event.preventDefault();
-        event.stopPropagation();
-        return true;
+    const mouseEvent = event as MouseEvent;
+
+    // Links: open on left click, allow context menu on right click.
+    const link = target.closest('a');
+    if (link) {
+        if (mouseEvent.button === 0 && tryHandleLinkClick(target)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+        }
+        // If it's a link but NOT a left click (e.g. right click),
+        // return false immediately to allow default behavior (context menu).
+        return false;
     }
 
     // Cell activation
