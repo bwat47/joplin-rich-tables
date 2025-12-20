@@ -15,6 +15,7 @@ import {
 } from './transactionPolicy';
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
+import { toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode } from './markdownCommands';
 import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
 
 export { syncAnnotation };
@@ -206,7 +207,12 @@ class NestedCellEditorManager {
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
                 createNestedEditorDomHandlers(),
-                createNestedEditorKeymap(params.mainView, rangeField),
+                createNestedEditorKeymap(params.mainView, rangeField, {
+                    'Mod-b': toggleBold,
+                    'Mod-i': toggleItalic,
+                    'Mod-u': toggleStrikethrough,
+                    'Mod-`': toggleInlineCode,
+                }),
                 markdown({
                     extensions: [GFM], // GFM bundle includes Table, Strikethrough, etc.
                 }),
