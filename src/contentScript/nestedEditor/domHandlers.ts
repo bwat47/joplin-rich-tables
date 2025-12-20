@@ -237,7 +237,7 @@ export function createNestedEditorDomHandlers() {
             if (isMod) {
                 // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
                 // Allow Ctrl+Z/Y to pass through to the keymap.
-                const allowedKeys = ['`', 'a', 'b', 'c', 'i', 'l', 's', 'u', 'v', 'x', 'y', 'z'];
+                const allowedKeys = ['`', 'a', 'b', 'c', 'i', 'l', 's', 'v', 'x', 'y', 'z'];
                 if (!allowedKeys.includes(key)) {
                     e.preventDefault();
                     return true;
