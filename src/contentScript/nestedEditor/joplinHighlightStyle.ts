@@ -8,12 +8,12 @@ import { tags } from '@lezer/highlight';
 export const joplinHighlightStyle = HighlightStyle.define([
     {
         tag: tags.link,
-        color: 'var(--joplin-url-color)',
+        color: 'var(--joplin-url-color, #155BDA)',
         textDecoration: 'underline',
     },
     {
         tag: tags.url,
-        color: 'var(--joplin-url-color)',
+        color: 'var(--joplin-url-color, #155BDA)',
         textDecoration: 'underline',
     },
     {
@@ -30,17 +30,17 @@ export const joplinHighlightStyle = HighlightStyle.define([
     },
     {
         tag: tags.quote,
-        color: 'var(--joplin-code-color)',
+        color: 'var(--joplin-code-color, rgb(0,0,0))',
     },
     {
         tag: tags.monospace,
-        color: 'var(--joplin-code-color)',
+        color: 'var(--joplin-code-color, rgb(0,0,0))',
         fontFamily: 'monospace !important',
         fontSize: '0.9em',
     },
     {
         tag: tags.comment,
-        color: 'var(--joplin-color-faded)',
+        color: 'var(--joplin-color-faded, #627184)',
     },
     {
         tag: [tags.strikethrough, tags.deleted],
@@ -49,10 +49,10 @@ export const joplinHighlightStyle = HighlightStyle.define([
     // Generic fallback for keywords (lists, blockquotes markers, etc)
     {
         tag: tags.keyword,
-        color: 'var(--joplin-color-warn-url)', // often used for syntax chars in some themes
+        color: 'var(--joplin-color-warn-url, #155BDA)', // often used for syntax chars in some themes
     },
     {
         tag: tags.meta,
-        color: 'var(--joplin-color-faded)',
+        color: 'var(--joplin-color-faded, #627184)',
     },
 ]);
