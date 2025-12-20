@@ -2,7 +2,7 @@ import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
 import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
-import { GFM, Strikethrough, Table, TaskList, Autolink } from '@lezer/markdown';
+import { GFM } from '@lezer/markdown';
 import { inlineCodePlugin, markPlugin } from './decorationPlugins';
 import { joplinHighlightStyle } from './joplinHighlightStyle';
 import { renderer } from '../services/markdownRenderer';
@@ -208,7 +208,7 @@ class NestedCellEditorManager {
                 createNestedEditorDomHandlers(),
                 createNestedEditorKeymap(params.mainView, rangeField),
                 markdown({
-                    extensions: [GFM, Strikethrough, Table, TaskList, Autolink],
+                    extensions: [GFM], // GFM bundle includes Table, Strikethrough, etc.
                 }),
                 inlineCodePlugin,
                 markPlugin,
