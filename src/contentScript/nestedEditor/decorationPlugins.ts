@@ -79,3 +79,27 @@ export const markPlugin = ViewPlugin.define(
         decorations: (v) => v.decorations,
     }
 );
+
+/**
+ * Decorates `++insert++` syntax with an underline class.
+ * Matches `++text++`.
+ */
+const insertDecorator = new MatchDecorator({
+    regexp: /\+\+[^+]+\+\+/g,
+    decoration: (_match) =>
+        Decoration.mark({
+            class: 'cm-inserted',
+        }),
+});
+
+export const insertPlugin = ViewPlugin.define(
+    (view) => ({
+        decorations: insertDecorator.createDeco(view),
+        update(u) {
+            this.decorations = insertDecorator.updateDeco(u, this.decorations);
+        },
+    }),
+    {
+        decorations: (v) => v.decorations,
+    }
+);

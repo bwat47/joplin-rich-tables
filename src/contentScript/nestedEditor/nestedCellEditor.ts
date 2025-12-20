@@ -3,7 +3,7 @@ import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { inlineCodePlugin, markPlugin } from './decorationPlugins';
+import { inlineCodePlugin, markPlugin, insertPlugin } from './decorationPlugins';
 import { joplinHighlightStyle } from './joplinHighlightStyle';
 import { renderer } from '../services/markdownRenderer';
 import {
@@ -212,6 +212,7 @@ class NestedCellEditorManager {
                 }),
                 inlineCodePlugin,
                 markPlugin,
+                insertPlugin,
                 syntaxHighlighting(joplinHighlightStyle, { fallback: true }),
                 EditorView.theme({
                     '&': {
@@ -243,6 +244,10 @@ class NestedCellEditorManager {
                         color: 'var(--joplin-mark-highlight-color, black)',
                         padding: '1px 2px',
                         borderRadius: '2px',
+                    },
+                    '.cm-inserted': {
+                        textDecoration: 'underline',
+                        textDecorationStyle: 'solid',
                     },
                 }),
             ],
