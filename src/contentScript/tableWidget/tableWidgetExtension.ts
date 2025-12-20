@@ -366,7 +366,7 @@ const tableStyles = EditorView.baseTheme({
         fontSize: 'inherit',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
-        border: '1px solid var(--joplin-divider-color)',
+        border: '1px solid var(--joplin-divider-color, #dddddd)',
         padding: '8px 12px',
         minWidth: '75px',
         position: 'relative',
@@ -407,7 +407,7 @@ const tableStyles = EditorView.baseTheme({
         // Use a box-shadow or outline that typically sits "inside" or "on" the border
         // absolute positioning an overlay might be cleaner to avoid layout shifts,
         // but a simple outline usually works well for spreadsheets.
-        outline: '2px solid var(--joplin-divider-color, #4a90e2)',
+        outline: '2px solid var(--joplin-divider-color, #dddddd)',
         outlineOffset: '-1px', // Draw inside existing border
         zIndex: '5', // Ensure on top of neighbors
     },
@@ -427,9 +427,9 @@ const tableStyles = EditorView.baseTheme({
     },
     // Inline code styling
     [`.${CLASS_TABLE_WIDGET_TABLE} code`]: {
-        backgroundColor: 'var(--joplin-code-background-color)',
-        border: '1px solid var(--joplin-divider-color)',
-        color: 'var(--joplin-code-color)',
+        backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',
+        border: '1px solid var(--joplin-divider-color, #dddddd)',
+        color: 'var(--joplin-code-color, rgb(0,0,0))',
         padding: '2px 4px',
         borderRadius: '3px',
         fontFamily: 'monospace',
@@ -437,21 +437,18 @@ const tableStyles = EditorView.baseTheme({
     },
     // Highlight/mark styling (==text==)
     [`.${CLASS_TABLE_WIDGET_TABLE} mark`]: {
-        backgroundColor: 'var(--joplin-mark-highlight-background-color)',
-        color: 'var(--joplin-mark-highlight-color)',
+        backgroundColor: 'var(--joplin-mark-highlight-background-color, #F7D26E)',
+        color: 'var(--joplin-mark-highlight-color, black)',
         padding: '1px 2px',
     },
     // Link styling
     [`.${CLASS_TABLE_WIDGET_TABLE} a`]: {
         textDecoration: 'underline',
-        color: 'var(--joplin-url-color)',
+        color: 'var(--joplin-url-color, #155BDA)',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE} th`]: {
-        backgroundColor: 'var(--joplin-table-background-color)',
+        backgroundColor: 'var(--joplin-table-background-color, rgb(247, 247, 247))',
         fontWeight: 'bold',
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE} tr:hover`]: {
-        backgroundColor: 'var(joplin-table-background-color)',
     },
 });
 
