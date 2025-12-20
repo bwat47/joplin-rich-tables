@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
-import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
+import { ChangeSpec, EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
@@ -15,7 +15,7 @@ import {
 } from './transactionPolicy';
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
-import { toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode, selectAllInCell } from './markdownCommands';
+import { selectAllInCell } from './markdownCommands';
 import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
 
 export { syncAnnotation };
@@ -184,6 +184,37 @@ class NestedCellEditorManager {
             }
         });
 
+        const forwardSelectionToMain = EditorView.updateListener.of((update) => {
+            if (!this.mainView) {
+                return;
+            }
+
+            if (!update.selectionSet) {
+                return;
+            }
+
+            // Avoid selection ping-pong for our own mirrored updates.
+            const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+            if (isSync) {
+                return;
+            }
+
+            const nestedSel = update.state.selection.main;
+            const mainSel = this.mainView.state.selection.main;
+
+            if (nestedSel.anchor === mainSel.anchor && nestedSel.head === mainSel.head) {
+                return;
+            }
+
+            // Mirror selection so Joplin's native toolbar/context-sensitive actions,
+            // which read the main editor state, operate on the correct range.
+            this.mainView.dispatch({
+                selection: EditorSelection.single(nestedSel.anchor, nestedSel.head),
+                annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+                scrollIntoView: false,
+            });
+        });
+
         const rangeField = createSubviewCellRangeField({ from: params.cellFrom, to: params.cellTo });
 
         // Determine initial selection anchor
@@ -204,15 +235,11 @@ class NestedCellEditorManager {
                 createCellTransactionFilter(rangeField),
                 createHistoryExtender(),
                 forwardChangesToMain,
+                forwardSelectionToMain,
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
-                createNestedEditorDomHandlers(),
+                createNestedEditorDomHandlers(params.mainView, rangeField),
                 createNestedEditorKeymap(params.mainView, rangeField, {
-                    'Mod-b': toggleBold,
-                    'Mod-i': toggleItalic,
-                    'Mod-Shift-u': toggleStrikethrough,
-                    'Mod-`': toggleInlineCode,
-                    'Mod-e': toggleInlineCode,
                     'Mod-a': selectAllInCell(rangeField),
                 }),
                 markdown({
@@ -268,6 +295,16 @@ class NestedCellEditorManager {
             parent: editorHost,
         });
 
+        // Ensure the main editor selection matches the newly opened nested editor selection.
+        // This is important because some Joplin-native commands (like Insert Link) operate
+        // on the main editor selection immediately, and re-opening after a table rebuild
+        // may not have dispatched a fresh main selection update.
+        params.mainView.dispatch({
+            selection: EditorSelection.single(initialAnchor, initialAnchor),
+            annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+            scrollIntoView: false,
+        });
+
         // Scroll the cell into view within CodeMirror's scroll container
         scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
 
@@ -303,6 +340,40 @@ class NestedCellEditorManager {
             effects: setSubviewCellRangeEffect.of({ from: cellFrom, to: cellTo }),
             annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
         });
+    }
+
+    applyMainSelection(selection: EditorSelection, cellFrom: number, cellTo: number, focus: boolean): void {
+        if (!this.subview) {
+            return;
+        }
+
+        this.cellFrom = cellFrom;
+        this.cellTo = cellTo;
+
+        const clamp = (pos: number) => Math.max(cellFrom, Math.min(cellTo, pos));
+
+        // Joplin mostly uses a single-range selection for these commands.
+        const mainRange = selection.main;
+        const anchor = clamp(mainRange.anchor);
+        const head = clamp(mainRange.head);
+
+        const current = this.subview.state.selection.main;
+        if (current.anchor === anchor && current.head === head) {
+            if (focus) {
+                requestAnimationFrame(() => this.subview?.focus());
+            }
+            return;
+        }
+
+        this.subview.dispatch({
+            selection: EditorSelection.single(anchor, head),
+            annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+            scrollIntoView: false,
+        });
+
+        if (focus) {
+            requestAnimationFrame(() => this.subview?.focus());
+        }
     }
 
     close(): void {
@@ -390,6 +461,16 @@ export function applyMainTransactionsToNestedEditor(params: {
     cellTo: number;
 }): void {
     nestedCellEditorManager.applyMainTransactions(params.transactions, params.cellFrom, params.cellTo);
+}
+
+/** Mirrors the main editor selection into the nested editor (used for Joplin-native commands). */
+export function applyMainSelectionToNestedEditor(params: {
+    selection: EditorSelection;
+    cellFrom: number;
+    cellTo: number;
+    focus?: boolean;
+}): void {
+    nestedCellEditorManager.applyMainSelection(params.selection, params.cellFrom, params.cellTo, Boolean(params.focus));
 }
 
 /**

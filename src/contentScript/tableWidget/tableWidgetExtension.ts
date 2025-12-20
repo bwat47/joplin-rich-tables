@@ -7,6 +7,7 @@ import { logger } from '../../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
+    applyMainSelectionToNestedEditor,
     applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
     isNestedCellEditorOpen,
@@ -328,6 +329,40 @@ const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     transactions: update.transactions,
                     cellFrom: activeCell.cellFrom,
                     cellTo: activeCell.cellTo,
+                });
+            }
+
+            // Main -> subview selection sync.
+            // Some Joplin-native commands (e.g. Insert Link dialog) update the main editor
+            // selection after inserting text. Mirror that selection into the nested editor
+            // so the caret ends up where the user expects inside the cell.
+            // IMPORTANT: Avoid doing this while switching between cells. Cell switches are
+            // driven by a selection+activeCell update that happens before the nested editor
+            // is re-mounted in the new cell.
+            const prevActiveCell = getActiveCell(update.startState);
+            // NOTE: `cellFrom/cellTo` can change when the cell content changes (e.g. when
+            // inserting `[]()` for a link). We only use stable identity fields here.
+            const isSameActiveCell =
+                prevActiveCell &&
+                activeCell &&
+                prevActiveCell.tableFrom === activeCell.tableFrom &&
+                prevActiveCell.section === activeCell.section &&
+                prevActiveCell.row === activeCell.row &&
+                prevActiveCell.col === activeCell.col;
+
+            if (
+                update.selectionSet &&
+                isSameActiveCell &&
+                hasActiveCell &&
+                activeCell &&
+                isNestedCellEditorOpen() &&
+                !isSync
+            ) {
+                applyMainSelectionToNestedEditor({
+                    selection: update.state.selection,
+                    cellFrom: activeCell.cellFrom,
+                    cellTo: activeCell.cellTo,
+                    focus: true,
                 });
             }
 
