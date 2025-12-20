@@ -19,7 +19,7 @@ Table rendering includes rendering of inline markdown and image embeds.
 
 Provides table editing from the rendered HTML table similar to the Rich text editor. The following operations are supported:
 
-- Editing table cells
+- Editing table cells (with syntax highlighting for markdown)
 - Adding/Deleting rows
 - Adding/Deleting columns
 - Changing column alignment (left/center/right)
@@ -36,10 +36,8 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 
 In order to provide table editing, the plugin uses a nested codemirror editor subview. Because of this, the following limitations are present:
 
-- Keyboard shortcuts are limited when editing table cells (only basics like ctrl +c, ctrl + v, ctrl + z, ctrl +x)
+- Keyboard shortcuts are limited when editing table cells (only basics like ctrl +c, ctrl + v, ctrl + z, ctrl +x, ctrl + a, ctrl + y). Also supports basic markdown formatting (bold: ctrl + b, italic: ctrl + i, strike: ctrl + shift + u, code: ctrl + `).
 
-- Formatting functions from joplin's formatting toolbar will not work properly when editing table cells.
+- Formatting functions from joplin's formatting toolbar will not work properly when editing table cells (they will insert the formatting characters at beginning of the cell instead of wrapping selected text).
 
-- Table Cell editing is plaintext only (markdown will not be rendered until you leave the cell).
-
-- No context menu when editing cells
+- Context menu is only partially functional when editing table cells (cut/copy are always grayed out on desktop, paste works. Both copy/paste do work on android).
