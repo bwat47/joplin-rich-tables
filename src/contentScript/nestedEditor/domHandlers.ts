@@ -265,10 +265,19 @@ export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: 
             const isMod = e.ctrlKey || e.metaKey;
             const key = e.key.toLowerCase();
 
+            // Block shortcuts that conflict with the nested editor.
+            // We intentionally block find-in-page to avoid stealing focus or showing
+            // a find UI that doesn't work well inside the nested editor.
+            if (isMod && key === 'f') {
+                e.preventDefault();
+                e.stopPropagation();
+                return true;
+            }
+
             // Let Joplin's native markdown formatting shortcuts handle these.
             // We mirror the nested selection into the main editor, so applying
             // formatting at the "main" layer targets the correct range.
-            if (isMod && ['b', 'i', 'u', '`', 'e'].includes(key)) {
+            if (isMod && ['b', 'i', 'u', '`', 'e', 'k'].includes(key)) {
                 return false;
             }
 
@@ -281,16 +290,6 @@ export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: 
             // have a selection outside the table, and handling Backspace/Delete there
             // would appear as "deleting outside the cell".
             e.stopPropagation();
-
-            if (isMod) {
-                // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
-                // Allow Ctrl+Z/Y to pass through to the keymap.
-                const allowedKeys = ['`', 'a', 'b', 'c', 'i', 'k', 'l', 's', 'u', 'v', 'x', 'y', 'z'];
-                if (!allowedKeys.includes(key)) {
-                    e.preventDefault();
-                    return true;
-                }
-            }
             return false;
         },
         mousedown: (e, view) => {
