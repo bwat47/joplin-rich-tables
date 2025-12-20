@@ -234,6 +234,7 @@ class NestedCellEditorManager {
                         backgroundColor: 'var(--joplin-code-background-color)',
                         // border: '1px solid var(--joplin-divider-color)', // Optional: if you want a border around the whole block
                         borderRadius: '3px',
+                        border: '1px solid var(--joplin-divider-color)',
                         padding: '2px 4px',
                         // border-radius and padding help frame the content nicely including backticks
                     },
