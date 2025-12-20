@@ -360,7 +360,7 @@ class NestedCellEditorManager {
         const current = this.subview.state.selection.main;
         if (current.anchor === anchor && current.head === head) {
             if (focus) {
-                requestAnimationFrame(() => this.subview?.focus());
+                requestAnimationFrame(() => this.subview?.contentDOM.focus({ preventScroll: true }));
             }
             return;
         }
@@ -372,7 +372,17 @@ class NestedCellEditorManager {
         });
 
         if (focus) {
-            requestAnimationFrame(() => this.subview?.focus());
+            requestAnimationFrame(() => this.subview?.contentDOM.focus({ preventScroll: true }));
+        }
+    }
+
+    /**
+     * Refocuses the nested editor without triggering scroll.
+     * Used to reclaim focus when it's unexpectedly stolen (e.g., by Android focus management).
+     */
+    refocusWithPreventScroll(): void {
+        if (this.subview) {
+            this.subview.contentDOM.focus({ preventScroll: true });
         }
     }
 
@@ -479,4 +489,12 @@ export function applyMainSelectionToNestedEditor(params: {
  */
 export function cleanupHostedEditors(container: HTMLElement): void {
     nestedCellEditorManager.checkAndCloseIfHostedIn(container);
+}
+
+/**
+ * Refocuses the nested editor without triggering scroll.
+ * Used to reclaim focus when it's unexpectedly stolen (e.g., by Android focus management).
+ */
+export function refocusNestedEditor(): void {
+    nestedCellEditorManager.refocusWithPreventScroll();
 }

@@ -11,6 +11,7 @@ import {
     applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
     isNestedCellEditorOpen,
+    refocusNestedEditor,
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
@@ -259,6 +260,24 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
         return handleTableInteraction(view, event);
+    },
+});
+
+/**
+ * Defensive focus handler that reclaims focus for the nested editor when it's
+ * unexpectedly stolen (e.g., by Android's focus management after toolbar commands).
+ * Uses preventScroll to avoid scroll jumps.
+ */
+const nestedEditorFocusGuard = EditorView.domEventHandlers({
+    focus: (_event, view) => {
+        // If the nested editor is open and should have focus, reclaim it.
+        // This handles cases where Android or other focus management systems
+        // redirect focus to the main editor after toolbar button presses.
+        if (isNestedCellEditorOpen() && getActiveCell(view.state)) {
+            refocusNestedEditor();
+            return true;
+        }
+        return false;
     },
 });
 
@@ -513,6 +532,7 @@ export default function (context: ContentScriptContext) {
                 clearActiveCellOnUndoRedo,
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
+                nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
                 tableStyles,
