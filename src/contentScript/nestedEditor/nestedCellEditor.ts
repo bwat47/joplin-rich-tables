@@ -264,15 +264,7 @@ class NestedCellEditorManager {
                         backgroundColor: 'transparent !important',
                         color: 'inherit !important',
                     },
-                    '&.cm-editor.cm-focused .cm-content::-moz-selection, &.cm-editor.cm-focused .cm-content *::-moz-selection':
-                        {
-                            backgroundColor: 'transparent !important',
-                            color: 'inherit !important',
-                        },
-                    '&.cm-editor .cm-content::-moz-selection, &.cm-editor .cm-content *::-moz-selection': {
-                        backgroundColor: 'transparent !important',
-                        color: 'inherit !important',
-                    },
+
                     '.cm-scroller': {
                         overflow: 'hidden !important',
                     },
