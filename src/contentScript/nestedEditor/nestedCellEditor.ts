@@ -257,7 +257,7 @@ class NestedCellEditorManager {
                     // Make the browser's native selection highlight transparent so we don't see
                     // the default blue overlay on top of CodeMirror's highlight.
                     '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
-                        backgroundColor: 'var(--joplin-divider-color, #3297fd) !important',
+                        backgroundColor: 'var(--joplin-selected-color, #6B6B6B) !important',
                     },
                     // NOTE: `::selection` must be attached to an element selector.
                     // Make the native highlight transparent inside the nested editor.
