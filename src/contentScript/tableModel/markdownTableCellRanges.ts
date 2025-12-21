@@ -1,3 +1,9 @@
+/**
+ * Computes source ranges (from/to positions) for each table cell.
+ *
+ * Works with Lezer: Lezer detects table blocks, this module detects cell boundaries.
+ * Uses `scanMarkdownTableRow()` for consistency. See markdownTableRowScanner.ts for rationale.
+ */
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
 
 export interface CellRange {

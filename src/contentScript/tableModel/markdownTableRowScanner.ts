@@ -1,18 +1,33 @@
 /**
- * Scans a markdown table row and returns indices of pipe characters
- * that act as cell delimiters.
+ * Scans a markdown table row and returns indices of pipe delimiters.
  *
- * IMPORTANT: Any logic that reasons about table cell boundaries MUST use this scanner.
- * Do not split rows manually on '|'.
+ * IMPORTANT: All table cell boundary logic MUST use this scanner. Do not split on '|' manually.
  *
- * Handles:
- * - Escaped pipes (\|) - not treated as delimiters
- * - Pipes inside inline code (`code`) - not treated as delimiters
- * - Unclosed backticks - treated as literal characters (matches Joplin renderer)
+ * Handles: escaped pipes (\|), pipes in inline code (`code`), unclosed backticks (as literals).
+ * Does NOT handle: multi-backtick code spans (```code```), full markdown parsing.
  *
- * Intentionally does NOT handle:
- * - Multi-backtick code spans (```code```)
- * - Full markdown parsing (emphasis, links, etc.)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * WHY CUSTOM PARSING?
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * Lezer's GFM parser provides TableCell nodes, however, it doesn't skip pipes
+ * inside inline code when detecting cell boundaries. Example that breaks:
+ *
+ *   | `ls | grep` | Description |
+ *
+ * Lezer only handles backslash escapes (\|), not backtick-delimited code spans.
+ * This scanner fixes that limitation and matches Joplin's rendering behavior.
+ *
+ * Architecture:
+ * 1. Lezer detects table blocks (Table/TableRow nodes)
+ * 2. This scanner detects cell boundaries (handles inline code correctly)
+ * 3. All plugin code uses this scanner (single source of truth)
+ *
+ * Alternatives rejected:
+ * - Lezer's TableCell nodes: Incorrect for cells with inline code
+ * - Custom Lezer extension: Can't override Joplin's parser from plugin
+ * - Regex/manual splitting: Fragile for edge cases
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 export interface TableRowScanResult {

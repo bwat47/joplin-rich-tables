@@ -1,3 +1,7 @@
+/**
+ * Parses markdown tables into structured TableData (headers, alignments, rows).
+ * Uses `scanMarkdownTableRow()` for cell boundaries. See markdownTableRowScanner.ts for rationale.
+ */
 import { isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
 
