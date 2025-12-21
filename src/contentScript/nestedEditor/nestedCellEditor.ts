@@ -219,9 +219,7 @@ class NestedCellEditorManager {
             doc: params.mainView.state.doc,
             selection: { anchor: initialAnchor },
             extensions: [
-                // Needed for a visible caret. We use drawSelection() but hide its background
-                // so we rely on the native browser selection for the highlight (fixing double-highlight)
-                // while keeping the CodeMirror-drawn caret.
+                // Needed for a visible caret.
                 drawSelection(),
                 rangeField,
                 createCellTransactionFilter(rangeField),
