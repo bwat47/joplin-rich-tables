@@ -111,6 +111,17 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
+        // Skip decoration rebuilds for internal sync transactions (nested <-> main editor mirroring).
+        // These are internal bookkeeping and shouldn't trigger widget recreation.
+        const isSync = Boolean(transaction.annotation(syncAnnotation));
+        if (isSync) {
+            // For sync transactions with doc changes, still map the decorations through.
+            if (transaction.docChanged) {
+                return decorations.map(transaction.changes);
+            }
+            return decorations;
+        }
+
         // If we are actively editing a cell via nested editor, keep the existing
         // widget DOM stable by mapping decorations through changes instead of
         // rebuilding (which would recreate widgets and destroy the subview host).

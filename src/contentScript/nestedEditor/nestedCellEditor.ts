@@ -148,31 +148,23 @@ class NestedCellEditorManager {
                 //
                 // Use CodeMirror's native scrollSnapshot() effect to restore the
                 // editor's own scroll position reliably.
-                const scrollSnapshotEffect = this.mainView.scrollSnapshot();
 
-                const mainTr = this.mainView.state.update({
+                // Include the scroll snapshot effect in the same dispatch as the doc change
+                // to minimize the number of transactions (reducing flickering on mobile).
+                //
+                // Also include the selection update in the same dispatch to prevent
+                // the forwardSelectionToMain listener from dispatching a separate transaction
+                // (which causes flickering on delete operations where position mapping differs).
+                const scrollSnapshotEffect = this.mainView.scrollSnapshot();
+                const nestedSel = update.state.selection.main;
+
+                this.mainView.dispatch({
                     changes: tr.changes,
+                    selection: EditorSelection.single(nestedSel.anchor, nestedSel.head),
+                    effects: scrollSnapshotEffect,
                     annotations: syncAnnotation.of(true),
                     scrollIntoView: false,
                 });
-                this.mainView.dispatch(mainTr);
-
-                const mappedSnapshot = scrollSnapshotEffect.map(mainTr.changes);
-                const restoreScroll = () => {
-                    if (!this.mainView) {
-                        return;
-                    }
-
-                    this.mainView.dispatch({
-                        effects: mappedSnapshot,
-                        annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
-                        scrollIntoView: false,
-                    });
-                };
-
-                // Restore immediately, then again after layout stabilizes.
-                restoreScroll();
-                requestAnimationFrame(restoreScroll);
 
                 // Also update the subview's own range field so decorations stay correct.
                 if (this.subview) {
