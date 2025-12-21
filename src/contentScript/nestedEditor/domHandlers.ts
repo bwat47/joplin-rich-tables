@@ -1,10 +1,51 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
-import { StateField, Transaction, StateCommand } from '@codemirror/state';
+import { StateField, Transaction, StateCommand, EditorSelection } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
 import { getWidgetSelector } from '../tableWidget/domConstants';
-import { SubviewCellRange } from './transactionPolicy';
+import { SubviewCellRange, syncAnnotation } from './transactionPolicy';
+
+function syncNestedSelectionToMain(params: {
+    nestedView: EditorView;
+    mainView: EditorView;
+    rangeField: StateField<SubviewCellRange>;
+    event?: MouseEvent;
+}): void {
+    const { nestedView, mainView, rangeField, event } = params;
+
+    // Ensure the nested editor is focused so the browser/electron selection APIs
+    // see the correct active editable element.
+    nestedView.focus();
+
+    // If this is a right-click with an empty selection, move the caret to the click.
+    // This matches the user expectation for context-sensitive actions.
+    const nestedSel = nestedView.state.selection.main;
+    const isEmpty = nestedSel.empty;
+    if (event && isEmpty) {
+        const clickedPos = nestedView.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (clickedPos != null) {
+            const { from, to } = nestedView.state.field(rangeField);
+            const clamped = Math.max(from, Math.min(to, clickedPos));
+            if (clamped !== nestedSel.head) {
+                nestedView.dispatch({
+                    selection: EditorSelection.single(clamped, clamped),
+                    annotations: Transaction.addToHistory.of(false),
+                    scrollIntoView: false,
+                });
+            }
+        }
+    }
+
+    // Mirror the nested selection into the main editor so Joplin/plugin context menus
+    // that read from the main editor state use the correct cursor/selection.
+    const selToMirror = nestedView.state.selection.main;
+    mainView.dispatch({
+        selection: EditorSelection.single(selToMirror.anchor, selToMirror.head),
+        annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+        scrollIntoView: false,
+    });
+}
 
 function runHistoryCommandWithMainScrollPreserved(
     mainView: EditorView,
@@ -188,7 +229,7 @@ export function createNestedEditorKeymap(
 }
 
 /** Creates DOM event handlers for the nested editor (keydown, contextmenu). */
-export function createNestedEditorDomHandlers() {
+export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: StateField<SubviewCellRange>) {
     return EditorView.domEventHandlers({
         // Android virtual keyboards commonly emit `beforeinput`/composition events
         // rather than `keydown`. These events bubble, and since the nested editor
@@ -224,8 +265,24 @@ export function createNestedEditorDomHandlers() {
             const isMod = e.ctrlKey || e.metaKey;
             const key = e.key.toLowerCase();
 
+            // Block shortcuts that conflict with the nested editor.
+            // We intentionally block find-in-page to avoid stealing focus or showing
+            // a find UI that doesn't work well inside the nested editor.
+            if (isMod && key === 'f') {
+                e.preventDefault();
+                e.stopPropagation();
+                return true;
+            }
+
+            // Let Joplin's native markdown formatting shortcuts handle these.
+            // We mirror the nested selection into the main editor, so applying
+            // formatting at the "main" layer targets the correct range.
+            if (isMod && ['b', 'i', 'u', '`', 'e', 'k'].includes(key)) {
+                return false;
+            }
+
             // Allow common application shortcuts (that aren't problematic) to bubble to the main window
-            if (isMod && ['s', 'p'].includes(key)) {
+            if (isMod && ['s', 'p', 'v'].includes(key)) {
                 return false;
             }
 
@@ -233,20 +290,40 @@ export function createNestedEditorDomHandlers() {
             // have a selection outside the table, and handling Backspace/Delete there
             // would appear as "deleting outside the cell".
             e.stopPropagation();
-
-            if (isMod) {
-                // Allow Ctrl+A/C/V/X which work correctly via browser/CodeMirror.
-                // Allow Ctrl+Z/Y to pass through to the keymap.
-                const allowedKeys = ['`', 'a', 'b', 'c', 'i', 'l', 's', 'u', 'v', 'x', 'y', 'z'];
-                if (!allowedKeys.includes(key)) {
-                    e.preventDefault();
-                    return true;
-                }
+            return false;
+        },
+        mousedown: (e, view) => {
+            // On desktop, right-click often does not move focus/caret by default.
+            // Sync focus + selection so Joplin's context menu and other plugins
+            // see the correct cursor/selection.
+            const mouseEvent = e as MouseEvent;
+            if (mouseEvent.button === 2) {
+                syncNestedSelectionToMain({
+                    nestedView: view,
+                    mainView,
+                    rangeField,
+                    event: mouseEvent,
+                });
             }
             return false;
         },
-        contextmenu: (_e) => {
-            // Allow context menu to show (Paste works, Copy is always grayed out- haven't found a way to make that work).
+        contextmenu: (e, view) => {
+            // On desktop, this is a true right-click and we want Joplin/plugins to see
+            // the correct cursor/selection.
+            //
+            // On Android, a long-press can emit a `contextmenu` event during the
+            // selection gesture; syncing here can collapse the selection and make
+            // text effectively unselectable.
+            const mouseEvent = e as MouseEvent;
+            if (mouseEvent.button === 2) {
+                syncNestedSelectionToMain({
+                    nestedView: view,
+                    mainView,
+                    rangeField,
+                    event: mouseEvent,
+                });
+            }
+            // Allow the context menu to show.
             return false;
         },
     });

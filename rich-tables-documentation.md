@@ -41,14 +41,17 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 **Activation**: Click cell → compute cell range → dispatch `setActiveCellEffect` → open nested editor
 
-**Active cell styling**: The hosting `<td>` is marked with an active class for outline styling. CodeMirror's drawn selection background is hidden to prevent double-highlighting, relying on the native browser selection.
+**Active cell styling**: The hosting `<td>` is marked with an active class for outline styling. The nested editor uses CodeMirror's selection layer for highlighting (styled via Joplin CSS vars) and makes the native `::selection` highlight transparent (to avoid the default blue overlay).
 
 **Sync**:
 
 - `syncAnnotation` prevents infinite loops
 - Subview → Main: `forwardChangesToMain` listener dispatches changes with sync annotation
+- Subview → Main: selection is mirrored so Joplin-native toolbar/actions operate on the active cell selection
 - Main → Subview: `nestedEditorLifecyclePlugin` calls `applyMainTransactionsToNestedEditor`
+- Main → Subview: selection is mirrored after Joplin-native commands that update the main selection (e.g. Insert Link)
 - Changes and range updates combined in single transaction to prevent double-mapping
+- Mobile focus: a defensive focus guard reclaims nested-editor focus (with `preventScroll`) when Android steals focus after toolbar actions
 
 **History**: Main editor owns undo history. Subview uses `addToHistory: false`. Ctrl+Z/Y intercepted and forwarded to main via `undo()`/`redo()` commands.
 
@@ -77,7 +80,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - `ArrowLeft` / `ArrowRight`: Navigate to prev/next cell when at content boundary
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
     - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard. Uses `requestAnimationFrame` and only scrolls CodeMirror's container (preserves Joplin's sidebar layout).
-- **Shortcuts**: formatting shortcuts (Ctrl+B/I, Ctrl+Shift+U, Ctrl+`/Ctrl+E) are supported within the cell. Ctrl+A selects all text in the current cell. Standard editor shortcuts (Ctrl+C/V/X/Z/Y) are supported. Global shortcuts (Ctrl+S, Ctrl+P) bubble to the app. Ctrl+F is blocked.
+- **Shortcuts**: formatting shortcuts (Ctrl+B/I, Ctrl+`/Ctrl+E) and Insert Link (Ctrl+K) are supported within the cell. Ctrl+A selects all text in the current cell. Standard editor shortcuts (Ctrl+C/V/X/Z/Y) are supported. Global shortcuts (Ctrl+S, Ctrl+P) bubble to the app. Ctrl+F is blocked.
 - **Context Menu**: Native browser context menu is allowed (Paste works, Copy may be disabled).
 - **Mobile (Android)**: `beforeinput`/`input`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell and newlines while nested editor is open.
 

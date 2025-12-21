@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
-import { ChangeSpec, EditorState, Transaction } from '@codemirror/state';
+import { ChangeSpec, EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
@@ -15,7 +15,7 @@ import {
 } from './transactionPolicy';
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
-import { toggleBold, toggleItalic, toggleStrikethrough, toggleInlineCode, selectAllInCell } from './markdownCommands';
+import { selectAllInCell } from './markdownCommands';
 import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
 
 export { syncAnnotation };
@@ -184,6 +184,37 @@ class NestedCellEditorManager {
             }
         });
 
+        const forwardSelectionToMain = EditorView.updateListener.of((update) => {
+            if (!this.mainView) {
+                return;
+            }
+
+            if (!update.selectionSet) {
+                return;
+            }
+
+            // Avoid selection ping-pong for our own mirrored updates.
+            const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+            if (isSync) {
+                return;
+            }
+
+            const nestedSel = update.state.selection.main;
+            const mainSel = this.mainView.state.selection.main;
+
+            if (nestedSel.anchor === mainSel.anchor && nestedSel.head === mainSel.head) {
+                return;
+            }
+
+            // Mirror selection so Joplin's native toolbar/context-sensitive actions,
+            // which read the main editor state, operate on the correct range.
+            this.mainView.dispatch({
+                selection: EditorSelection.single(nestedSel.anchor, nestedSel.head),
+                annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+                scrollIntoView: false,
+            });
+        });
+
         const rangeField = createSubviewCellRangeField({ from: params.cellFrom, to: params.cellTo });
 
         // Determine initial selection anchor
@@ -204,15 +235,11 @@ class NestedCellEditorManager {
                 createCellTransactionFilter(rangeField),
                 createHistoryExtender(),
                 forwardChangesToMain,
+                forwardSelectionToMain,
                 createHideOutsideRangeExtension(rangeField),
                 EditorView.lineWrapping,
-                createNestedEditorDomHandlers(),
+                createNestedEditorDomHandlers(params.mainView, rangeField),
                 createNestedEditorKeymap(params.mainView, rangeField, {
-                    'Mod-b': toggleBold,
-                    'Mod-i': toggleItalic,
-                    'Mod-Shift-u': toggleStrikethrough,
-                    'Mod-`': toggleInlineCode,
-                    'Mod-e': toggleInlineCode,
                     'Mod-a': selectAllInCell(rangeField),
                 }),
                 markdown({
@@ -226,10 +253,33 @@ class NestedCellEditorManager {
                     '&': {
                         backgroundColor: 'transparent',
                     },
-                    // We hide the drawn selection BACKGROUND to avoid double-highlight (native + drawn).
-                    // We keep the selectionLayer visible because it contains the caret (cm-cursor).
-                    '.cm-selectionBackground': {
-                        display: 'none',
+                    // CodeMirror draws the selection background in a separate layer.
+                    // Make the browser's native selection highlight transparent so we don't see
+                    // the default blue overlay on top of CodeMirror's highlight.
+                    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+                        backgroundColor: 'var(--joplin-selected-color, #6B6B6B) !important',
+                    },
+                    // NOTE: `::selection` must be attached to an element selector.
+                    // Make the native highlight transparent inside the nested editor.
+                    // Joplin applies `&.cm-focused ::selection` on the *main* editor, and the
+                    // nested editor lives inside the main editor DOM. Use higher specificity
+                    // + !important so the browser's default blue overlay never wins here.
+                    '&.cm-editor.cm-focused .cm-content::selection, &.cm-editor.cm-focused .cm-content *::selection': {
+                        backgroundColor: 'transparent !important',
+                        color: 'inherit !important',
+                    },
+                    '&.cm-editor .cm-content::selection, &.cm-editor .cm-content *::selection': {
+                        backgroundColor: 'transparent !important',
+                        color: 'inherit !important',
+                    },
+                    '&.cm-editor.cm-focused .cm-content::-moz-selection, &.cm-editor.cm-focused .cm-content *::-moz-selection':
+                        {
+                            backgroundColor: 'transparent !important',
+                            color: 'inherit !important',
+                        },
+                    '&.cm-editor .cm-content::-moz-selection, &.cm-editor .cm-content *::-moz-selection': {
+                        backgroundColor: 'transparent !important',
+                        color: 'inherit !important',
                     },
                     '.cm-scroller': {
                         overflow: 'hidden !important',
@@ -268,6 +318,16 @@ class NestedCellEditorManager {
             parent: editorHost,
         });
 
+        // Ensure the main editor selection matches the newly opened nested editor selection.
+        // This is important because some Joplin-native commands (like Insert Link) operate
+        // on the main editor selection immediately, and re-opening after a table rebuild
+        // may not have dispatched a fresh main selection update.
+        params.mainView.dispatch({
+            selection: EditorSelection.single(initialAnchor, initialAnchor),
+            annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+            scrollIntoView: false,
+        });
+
         // Scroll the cell into view within CodeMirror's scroll container
         scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
 
@@ -303,6 +363,50 @@ class NestedCellEditorManager {
             effects: setSubviewCellRangeEffect.of({ from: cellFrom, to: cellTo }),
             annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
         });
+    }
+
+    applyMainSelection(selection: EditorSelection, cellFrom: number, cellTo: number, focus: boolean): void {
+        if (!this.subview) {
+            return;
+        }
+
+        this.cellFrom = cellFrom;
+        this.cellTo = cellTo;
+
+        const clamp = (pos: number) => Math.max(cellFrom, Math.min(cellTo, pos));
+
+        // Joplin mostly uses a single-range selection for these commands.
+        const mainRange = selection.main;
+        const anchor = clamp(mainRange.anchor);
+        const head = clamp(mainRange.head);
+
+        const current = this.subview.state.selection.main;
+        if (current.anchor === anchor && current.head === head) {
+            if (focus) {
+                requestAnimationFrame(() => this.subview?.contentDOM.focus({ preventScroll: true }));
+            }
+            return;
+        }
+
+        this.subview.dispatch({
+            selection: EditorSelection.single(anchor, head),
+            annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+            scrollIntoView: false,
+        });
+
+        if (focus) {
+            requestAnimationFrame(() => this.subview?.contentDOM.focus({ preventScroll: true }));
+        }
+    }
+
+    /**
+     * Refocuses the nested editor without triggering scroll.
+     * Used to reclaim focus when it's unexpectedly stolen (e.g., by Android focus management).
+     */
+    refocusWithPreventScroll(): void {
+        if (this.subview) {
+            this.subview.contentDOM.focus({ preventScroll: true });
+        }
     }
 
     close(): void {
@@ -392,10 +496,28 @@ export function applyMainTransactionsToNestedEditor(params: {
     nestedCellEditorManager.applyMainTransactions(params.transactions, params.cellFrom, params.cellTo);
 }
 
+/** Mirrors the main editor selection into the nested editor (used for Joplin-native commands). */
+export function applyMainSelectionToNestedEditor(params: {
+    selection: EditorSelection;
+    cellFrom: number;
+    cellTo: number;
+    focus?: boolean;
+}): void {
+    nestedCellEditorManager.applyMainSelection(params.selection, params.cellFrom, params.cellTo, Boolean(params.focus));
+}
+
 /**
  * Checks if the currently open nested editor is hosted within the given container.
  * If so, closes it. Used by parent widgets to clean up on destroy.
  */
 export function cleanupHostedEditors(container: HTMLElement): void {
     nestedCellEditorManager.checkAndCloseIfHostedIn(container);
+}
+
+/**
+ * Refocuses the nested editor without triggering scroll.
+ * Used to reclaim focus when it's unexpectedly stolen (e.g., by Android focus management).
+ */
+export function refocusNestedEditor(): void {
+    nestedCellEditorManager.refocusWithPreventScroll();
 }
