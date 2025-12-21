@@ -3,8 +3,8 @@ import { clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { findTableRanges } from './tablePositioning';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
-import { insertRowForActiveCell } from '../toolbar/tableToolbarSemantics';
-import { insertColumn } from '../tableModel/markdownTableManipulation';
+import { insertRowForActiveCell, deleteRowForActiveCell } from '../toolbar/tableToolbarSemantics';
+import { insertColumn, deleteColumn, updateColumnAlignment } from '../tableModel/markdownTableManipulation';
 
 /**
  * Editor control interface provided by Joplin
@@ -115,6 +115,91 @@ export function registerTableCommands(editorControl: EditorControl): void {
                 row: c.row,
                 col: c.col + 1,
             }),
+            forceWidgetRebuild: true,
+        });
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.deleteRow', () => {
+        const view = editorControl.cm6;
+        const cell = getActiveCell(view.state);
+        if (!cell) return false;
+
+        runTableOperation({
+            view,
+            cell,
+            operation: (t, c) => deleteRowForActiveCell(t, c),
+            computeTargetCell: (c) => {
+                if (c.section === 'header') {
+                    // Header row deleted, first body row promoted
+                    return { section: 'header', row: 0, col: c.col };
+                }
+                const newRow = Math.max(0, c.row - 1);
+                return { section: 'body', row: newRow, col: c.col };
+            },
+            forceWidgetRebuild: true,
+        });
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.deleteColumn', () => {
+        const view = editorControl.cm6;
+        const cell = getActiveCell(view.state);
+        if (!cell) return false;
+
+        runTableOperation({
+            view,
+            cell,
+            operation: (t, c) => deleteColumn(t, c.col),
+            computeTargetCell: (c) => {
+                const newCol = Math.max(0, c.col - 1);
+                return { section: c.section, row: c.row, col: newCol };
+            },
+            forceWidgetRebuild: true,
+        });
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.alignLeft', () => {
+        const view = editorControl.cm6;
+        const cell = getActiveCell(view.state);
+        if (!cell) return false;
+
+        runTableOperation({
+            view,
+            cell,
+            operation: (t, c) => updateColumnAlignment(t, c.col, 'left'),
+            computeTargetCell: (c) => c,
+            forceWidgetRebuild: true,
+        });
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.alignRight', () => {
+        const view = editorControl.cm6;
+        const cell = getActiveCell(view.state);
+        if (!cell) return false;
+
+        runTableOperation({
+            view,
+            cell,
+            operation: (t, c) => updateColumnAlignment(t, c.col, 'right'),
+            computeTargetCell: (c) => c,
+            forceWidgetRebuild: true,
+        });
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.alignCenter', () => {
+        const view = editorControl.cm6;
+        const cell = getActiveCell(view.state);
+        if (!cell) return false;
+
+        runTableOperation({
+            view,
+            cell,
+            operation: (t, c) => updateColumnAlignment(t, c.col, 'center'),
+            computeTargetCell: (c) => c,
             forceWidgetRebuild: true,
         });
         return true;
