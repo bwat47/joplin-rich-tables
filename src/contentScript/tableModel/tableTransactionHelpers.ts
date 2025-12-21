@@ -4,7 +4,7 @@ import { ActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState'
 import { parseMarkdownTable, TableData } from './markdownTableParsing';
 import { serializeTable } from './markdownTableManipulation';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { computeActiveCellForTableText, type TargetCell } from '../toolbar/tableToolbarActiveCell';
+import { computeActiveCellForTableText, type TargetCell } from './activeCellForTableText';
 
 interface ModifyTableParams {
     view: EditorView;

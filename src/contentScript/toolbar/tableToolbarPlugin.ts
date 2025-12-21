@@ -5,7 +5,7 @@ import { insertColumn, deleteColumn, updateColumnAlignment } from '../tableModel
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { type TargetCell } from './tableToolbarActiveCell';
+import { type TargetCell } from '../tableModel/activeCellForTableText';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domConstants';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 
