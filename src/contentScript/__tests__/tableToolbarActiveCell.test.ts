@@ -6,7 +6,7 @@ import {
     updateColumnAlignment,
 } from '../tableModel/markdownTableManipulation';
 import { deleteRowForActiveCell, insertRowForActiveCell } from '../toolbar/tableToolbarSemantics';
-import { computeActiveCellForTableText } from '../toolbar/tableToolbarActiveCell';
+import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 
 function sliceCellText(tableText: string, cellFrom: number, cellTo: number): string {
     return tableText.slice(cellFrom, cellTo);

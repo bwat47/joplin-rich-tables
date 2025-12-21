@@ -1,4 +1,4 @@
-import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
+import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
@@ -7,29 +7,19 @@ import { logger } from '../../logger';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
-    applyMainSelectionToNestedEditor,
-    applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
     isNestedCellEditorOpen,
     refocusNestedEditor,
     syncAnnotation,
-    openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
-import {
-    CLASS_CELL_ACTIVE,
-    CLASS_CELL_EDITOR,
-    CLASS_CELL_EDITOR_HIDDEN,
-    CLASS_TABLE_WIDGET_TABLE,
-    CLASS_FLOATING_TOOLBAR,
-    SECTION_BODY,
-    SECTION_HEADER,
-    getCellSelector,
-    getWidgetSelector,
-} from './domConstants';
+import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domConstants';
+import { tableStyles } from './tableStyles';
+import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
+import { registerTableCommands } from './tableCommands';
 
 /**
  * Content script context provided by Joplin
@@ -292,233 +282,6 @@ const nestedEditorFocusGuard = EditorView.domEventHandlers({
     },
 });
 
-const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
-    class {
-        private hadActiveCell: boolean;
-
-        constructor(private view: EditorView) {
-            this.hadActiveCell = Boolean(getActiveCell(view.state));
-        }
-
-        update(update: ViewUpdate): void {
-            const hasActiveCell = Boolean(getActiveCell(update.state));
-            const activeCell = getActiveCell(update.state);
-            const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
-            const forceRebuild = update.transactions.some((tr) =>
-                tr.effects.some((e) => e.is(rebuildTableWidgetsEffect))
-            );
-
-            // If the transaction forces a widget rebuild, the existing table widget DOM will be
-            // destroyed *after* plugin updates run. That means the nested editor can still be
-            // open at this point, but will be closed during DOM update, leaving focus/caret in
-            // the main editor. To keep the editing experience stable, proactively close and
-            // re-open after the new widget DOM is mounted.
-            if (forceRebuild && hasActiveCell && activeCell && !isSync) {
-                if (isNestedCellEditorOpen()) {
-                    closeNestedCellEditor();
-                }
-
-                requestAnimationFrame(() => {
-                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(activeCell.tableFrom));
-                    if (!widgetDOM) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    const selector =
-                        activeCell.section === SECTION_HEADER
-                            ? getCellSelector(SECTION_HEADER, 0, activeCell.col)
-                            : getCellSelector(SECTION_BODY, activeCell.row, activeCell.col);
-
-                    const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
-                    if (!cellElement) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    openNestedCellEditor({
-                        mainView: this.view,
-                        cellElement,
-                        cellFrom: activeCell.cellFrom,
-                        cellTo: activeCell.cellTo,
-                    });
-                });
-
-                this.hadActiveCell = hasActiveCell;
-                return;
-            }
-
-            // If active cell was cleared, close the nested editor.
-            if (!hasActiveCell && this.hadActiveCell) {
-                closeNestedCellEditor();
-            }
-
-            // Main -> subview sync.
-            if (update.docChanged && hasActiveCell && activeCell && isNestedCellEditorOpen() && !isSync) {
-                applyMainTransactionsToNestedEditor({
-                    transactions: update.transactions,
-                    cellFrom: activeCell.cellFrom,
-                    cellTo: activeCell.cellTo,
-                });
-            }
-
-            // Main -> subview selection sync.
-            // Some Joplin-native commands (e.g. Insert Link dialog) update the main editor
-            // selection after inserting text. Mirror that selection into the nested editor
-            // so the caret ends up where the user expects inside the cell.
-            // IMPORTANT: Avoid doing this while switching between cells. Cell switches are
-            // driven by a selection+activeCell update that happens before the nested editor
-            // is re-mounted in the new cell.
-            const prevActiveCell = getActiveCell(update.startState);
-            // NOTE: `cellFrom/cellTo` can change when the cell content changes (e.g. when
-            // inserting `[]()` for a link). We only use stable identity fields here.
-            const isSameActiveCell =
-                prevActiveCell &&
-                activeCell &&
-                prevActiveCell.tableFrom === activeCell.tableFrom &&
-                prevActiveCell.section === activeCell.section &&
-                prevActiveCell.row === activeCell.row &&
-                prevActiveCell.col === activeCell.col;
-
-            if (
-                update.selectionSet &&
-                isSameActiveCell &&
-                hasActiveCell &&
-                activeCell &&
-                isNestedCellEditorOpen() &&
-                !isSync
-            ) {
-                applyMainSelectionToNestedEditor({
-                    selection: update.state.selection,
-                    cellFrom: activeCell.cellFrom,
-                    cellTo: activeCell.cellTo,
-                    focus: true,
-                });
-            }
-
-            // If the document changed externally while editing but we don't have an open subview,
-            // clear state to avoid stale ranges.
-            if (update.docChanged && hasActiveCell && activeCell && !isNestedCellEditorOpen() && !isSync) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-            }
-
-            this.hadActiveCell = hasActiveCell;
-        }
-
-        destroy(): void {
-            closeNestedCellEditor();
-        }
-    }
-);
-
-/**
- * Basic styles for the table widget.
- */
-const tableStyles = EditorView.baseTheme({
-    [getWidgetSelector()]: {
-        padding: '8px 0',
-        position: 'relative',
-        display: 'block',
-        width: '100%',
-        maxWidth: '100%',
-        overflowX: 'auto',
-        contain: 'inline-size', // <-- explicit size containment
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE}`]: {
-        borderCollapse: 'collapse',
-        width: 'auto',
-        fontFamily: 'inherit',
-        fontSize: 'inherit',
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
-        border: '1px solid var(--joplin-divider-color, #dddddd)',
-        padding: '8px 12px',
-        overflowWrap: 'normal',
-        wordBreak: 'normal',
-        minWidth: '75px',
-        position: 'relative',
-    },
-    [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
-        // Empty span - no display:none to preserve cursor positioning at boundaries
-    },
-    [`.${CLASS_CELL_EDITOR}`]: {
-        width: '100%',
-    },
-    [`.${CLASS_CELL_EDITOR} .cm-editor`]: {
-        width: '100%',
-    },
-    [`.${CLASS_CELL_EDITOR} .cm-scroller`]: {
-        lineHeight: 'inherit',
-        fontFamily: 'inherit',
-        fontSize: 'inherit',
-    },
-    [`.${CLASS_CELL_EDITOR} .cm-content`]: {
-        margin: '0',
-        padding: '0 !important',
-        minHeight: 'unset',
-        lineHeight: 'inherit',
-        color: 'inherit',
-    },
-    [`.${CLASS_CELL_EDITOR} .cm-line`]: {
-        padding: '0',
-    },
-    [`.${CLASS_CELL_EDITOR} .cm-cursor`]: {
-        borderLeftColor: 'currentColor',
-    },
-    // Hide the default outline of the nested editor so we can style the cell instead
-    [`.${CLASS_CELL_EDITOR} .cm-editor.cm-focused`]: {
-        outline: 'none',
-    },
-    // Style the active cell (td)
-    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE}`]: {
-        // Use a box-shadow or outline that typically sits "inside" or "on" the border
-        // absolute positioning an overlay might be cleaner to avoid layout shifts,
-        // but a simple outline usually works well for spreadsheets.
-        outline: '2px solid var(--joplin-divider-color, #dddddd)',
-        outlineOffset: '-1px', // Draw inside existing border
-        zIndex: '5', // Ensure on top of neighbors
-    },
-    [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
-        backgroundColor: 'currentColor',
-        color: 'inherit',
-    },
-    // Remove margins from rendered markdown elements inside cells
-    [`.${CLASS_TABLE_WIDGET_TABLE} th p, .${CLASS_TABLE_WIDGET_TABLE} td p`]: {
-        margin: '0',
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE} th :first-child, .${CLASS_TABLE_WIDGET_TABLE} td :first-child`]: {
-        marginTop: '0',
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE} th :last-child, .${CLASS_TABLE_WIDGET_TABLE} td :last-child`]: {
-        marginBottom: '0',
-    },
-    // Inline code styling
-    [`.${CLASS_TABLE_WIDGET_TABLE} code`]: {
-        backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',
-        border: '1px solid var(--joplin-divider-color, #dddddd)',
-        color: 'var(--joplin-code-color, rgb(0,0,0))',
-        padding: '2px 4px',
-        borderRadius: '3px',
-        fontFamily: 'monospace',
-        fontSize: '0.9em',
-    },
-    // Highlight/mark styling (==text==)
-    [`.${CLASS_TABLE_WIDGET_TABLE} mark`]: {
-        backgroundColor: 'var(--joplin-mark-highlight-background-color, #F7D26E)',
-        color: 'var(--joplin-mark-highlight-color, black)',
-        padding: '1px 2px',
-    },
-    // Link styling
-    [`.${CLASS_TABLE_WIDGET_TABLE} a`]: {
-        textDecoration: 'underline',
-        color: 'var(--joplin-url-color, #155BDA)',
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE} th`]: {
-        backgroundColor: 'var(--joplin-table-background-color, rgb(247, 247, 247))',
-        fontWeight: 'bold',
-    },
-});
-
 /**
  * Content script module export.
  */
@@ -553,29 +316,7 @@ export default function (context: ContentScriptContext) {
                 tableToolbarPlugin,
             ]);
 
-            // Register command to close nested editor (called from plugin on note switch)
-            editorControl.registerCommand('richTablesCloseNestedEditor', () => {
-                const view = editorControl.cm6;
-                if (isNestedCellEditorOpen()) {
-                    closeNestedCellEditor();
-                }
-                if (getActiveCell(view.state)) {
-                    view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                }
-
-                // Move cursor out of table if inside one (prevents showing raw markdown
-                // when Joplin restores cursor position on note switch)
-                const tables = findTableRanges(view.state);
-                const cursor = view.state.selection.main.head;
-                const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
-                if (tableContainingCursor) {
-                    // Place cursor just after the table
-                    const newPos = Math.min(tableContainingCursor.to + 1, view.state.doc.length);
-                    view.dispatch({ selection: { anchor: newPos } });
-                }
-
-                return true;
-            });
+            registerTableCommands(editorControl);
 
             logger.info('Table widget extension registered');
         },

@@ -1,8 +1,10 @@
-import { computeMarkdownTableCellRanges, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
-import type { ActiveCell, ActiveCellSection } from '../tableWidget/activeCellState';
+import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
+import type { ActiveCell } from '../tableWidget/activeCellState';
+
+export type TableSection = 'header' | 'body';
 
 export interface TargetCell {
-    section: ActiveCellSection;
+    section: TableSection;
     row: number;
     col: number;
 }

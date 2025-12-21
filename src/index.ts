@@ -1,5 +1,5 @@
 import joplin from 'api';
-import { ContentScriptType, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
@@ -51,6 +51,87 @@ joplin.plugins.register({
                 });
             },
         });
+
+        const registerTableCommand = async (name: string, label: string) => {
+            await joplin.commands.register({
+                name,
+                label,
+                execute: async () => {
+                    await joplin.commands.execute('editor.execCommand', {
+                        name,
+                    });
+                },
+            });
+        };
+
+        await registerTableCommand('richTables.addRowAbove', 'Insert row above');
+        await registerTableCommand('richTables.addRowBelow', 'Insert row below');
+        await registerTableCommand('richTables.addColumnLeft', 'Insert column left');
+        await registerTableCommand('richTables.addColumnRight', 'Insert column right');
+        await registerTableCommand('richTables.deleteRow', 'Delete row');
+        await registerTableCommand('richTables.deleteColumn', 'Delete column');
+        await registerTableCommand('richTables.alignLeft', 'Align column left');
+        await registerTableCommand('richTables.alignCenter', 'Align column center');
+        await registerTableCommand('richTables.alignRight', 'Align column right');
+
+        // Create menu items with keyboard shortcuts
+        await joplin.views.menus.create(
+            'richTablesMenu',
+            'Rich Tables',
+            [
+                {
+                    label: 'Insert table',
+                    commandName: INSERT_TABLE_COMMAND,
+                    accelerator: 'Alt+Shift+T',
+                },
+                {
+                    label: 'Insert row above',
+                    commandName: 'richTables.addRowAbove',
+                    accelerator: 'Alt+Shift+Up',
+                },
+                {
+                    label: 'Insert row below',
+                    commandName: 'richTables.addRowBelow',
+                    accelerator: 'Alt+Shift+Down',
+                },
+                {
+                    label: 'Insert column left',
+                    commandName: 'richTables.addColumnLeft',
+                    accelerator: 'Alt+Shift+Left',
+                },
+                {
+                    label: 'Insert column right',
+                    commandName: 'richTables.addColumnRight',
+                    accelerator: 'Alt+Shift+Right',
+                },
+                {
+                    label: 'Delete row',
+                    commandName: 'richTables.deleteRow',
+                    accelerator: 'Alt+Shift+D',
+                },
+                {
+                    label: 'Delete column',
+                    commandName: 'richTables.deleteColumn',
+                    accelerator: 'Ctrl+Alt+Shift+D',
+                },
+                {
+                    label: 'Align left',
+                    commandName: 'richTables.alignLeft',
+                    accelerator: 'Ctrl+Alt+Left',
+                },
+                {
+                    label: 'Align center',
+                    commandName: 'richTables.alignCenter',
+                    accelerator: 'Ctrl+Alt+Up',
+                },
+                {
+                    label: 'Align right',
+                    commandName: 'richTables.alignRight',
+                    accelerator: 'Ctrl+Alt+Right',
+                },
+            ],
+            MenuItemLocation.Tools
+        );
 
         await joplin.views.toolbarButtons.create(
             'richTablesInsertTable',
