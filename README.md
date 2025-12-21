@@ -31,13 +31,3 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
 - Limited support for multi-line content (you can use shift + enter to add a `<br>` and newlines will be converted to `<br>` for pasted content, but they aren't rendered as line breaks during editing).
-
-#### Editing limitations
-
-In order to provide table editing, the plugin uses a nested codemirror editor subview. Because of this, the following limitations are present:
-
-- Keyboard shortcuts are limited when editing table cells (only basics like ctrl +c, ctrl + v, ctrl + z, ctrl +x, ctrl + a, ctrl + y). Also supports basic markdown formatting (bold: ctrl + b, italic: ctrl + i, strike: ctrl + shift + u, code: ctrl + `).
-
-- Formatting functions from joplin's formatting toolbar will not work properly when editing table cells (they will insert the formatting characters at beginning of the cell instead of wrapping selected text).
-
-- Context menu is only partially functional when editing table cells (cut/copy are always grayed out on desktop, paste works. Both copy/paste do work on android).
