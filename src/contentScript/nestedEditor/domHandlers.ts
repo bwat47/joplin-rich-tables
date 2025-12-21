@@ -282,7 +282,7 @@ export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: 
             }
 
             // Allow common application shortcuts (that aren't problematic) to bubble to the main window
-            if (isMod && ['s', 'p'].includes(key)) {
+            if (isMod && ['s', 'p', 'v'].includes(key)) {
                 return false;
             }
 
