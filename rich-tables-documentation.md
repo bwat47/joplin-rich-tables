@@ -8,7 +8,11 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 | File                                                  | Purpose                                                                        |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `contentScript/tableWidget/tableWidgetExtension.ts`   | Main extension: decorations, lifecycle plugin, styles                          |
+| `contentScript/tableWidget/tableWidgetExtension.ts`   | Main wiring: connects plugins, styles, and command registration                |
+| `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS styles for the table widget                                          |
+| `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Manages nested editor lifecycle (open/close/sync)                              |
+| `contentScript/tableWidget/tableCommands.ts`          | Registers table manipulation commands                                          |
+| `contentScript/tableModel/tableTransactionHelpers.ts` | Shared transaction logic (`runTableOperation`) for table edits                 |
 | `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                   |
 | `contentScript/tableWidget/tableHeightCache.ts`       | LRU cache for measured table heights (improves scroll stability)               |
 | `contentScript/tableWidget/domConstants.ts`           | Centralized DOM selectors, class names, and data attributes                    |
@@ -93,10 +97,25 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Widget destruction also closes any hosted nested editor to avoid orphaned subviews
 - **Note switch**: `richTablesCloseNestedEditor` command (called via `onNoteSelectionChange`) closes nested editor and moves cursor out of any table to prevent raw markdown display
 
-### Toolbar
+### Commands & Interface
+
+**Menus**: A "Rich Tables" submenu in Joplin's Tools menu provides access to structural editing commands.
+
+**Structural Shortcuts**:
+
+| Action                       | Shortcut                             |
+| :--------------------------- | :----------------------------------- |
+| **Insert Table**             | `Alt + Shift + T`                    |
+| **Insert Row Above/Below**   | `Alt + Shift + Up` / `Down`          |
+| **Insert Column Left/Right** | `Alt + Shift + Left` / `Right`       |
+| **Delete Row**               | `Alt + Shift + D`                    |
+| **Delete Column**            | `Ctrl + Alt + Shift + D`             |
+| **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
+
+**Toolbars**:
 
 - **Insert Table**: Button in Joplin's editor toolbar inserts a 2x2 empty table.
-- **Floating Toolbar**: Appears when a cell is active; positioned by `@floating-ui/dom` (auto-updated on scroll/resize/layout shifts) and hidden when its table is clipped/out of view.
+- **Floating Toolbar**: Appears when a cell is active; positioned by `@floating-ui/dom`.
 
 ## References
 

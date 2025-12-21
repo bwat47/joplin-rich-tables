@@ -25,9 +25,18 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Changing column alignment (left/center/right)
 - Format table (currently just normalizes whitespace to one space around cell content, no full-on pretty formatting currently).
 
-### Important Notes/Limitations
+### Keyboard Shortcuts
 
-#### Table limitations
+| Action                       | Shortcut                             |
+| :--------------------------- | :----------------------------------- |
+| **Insert Table**             | `Alt + Shift + T`                    |
+| **Insert Row Above/Below**   | `Alt + Shift + Up` / `Down`          |
+| **Insert Column Left/Right** | `Alt + Shift + Left` / `Right`       |
+| **Delete Row**               | `Alt + Shift + D`                    |
+| **Delete Column**            | `Ctrl + Alt + Shift + D`             |
+| **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
+
+### Important Notes/Limitations
 
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
 - Limited support for multi-line content (you can use shift + enter to add a `<br>` and newlines will be converted to `<br>` for pasted content, but they aren't rendered as line breaks during editing).
