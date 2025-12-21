@@ -58,6 +58,11 @@ joplin.plugins.register({
             'Rich Tables',
             [
                 {
+                    label: 'Insert table',
+                    commandName: INSERT_TABLE_COMMAND,
+                    accelerator: 'Alt+Shift+T',
+                },
+                {
                     label: 'Insert row above',
                     commandName: 'richTables.addRowAbove',
                     accelerator: 'Alt+Shift+Up',
@@ -78,6 +83,7 @@ joplin.plugins.register({
                     accelerator: 'Alt+Shift+Right',
                 },
             ],
+
             MenuItemLocation.Tools
         );
 
