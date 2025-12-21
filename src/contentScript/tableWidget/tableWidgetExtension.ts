@@ -19,6 +19,9 @@ import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
+import { runTableOperation } from '../tableModel/tableTransactionHelpers';
+import { insertRowForActiveCell } from '../toolbar/tableToolbarSemantics';
+import { insertColumn } from '../tableModel/markdownTableManipulation';
 import {
     CLASS_CELL_ACTIVE,
     CLASS_CELL_EDITOR,
@@ -574,6 +577,85 @@ export default function (context: ContentScriptContext) {
                     view.dispatch({ selection: { anchor: newPos } });
                 }
 
+                return true;
+            });
+
+            // Register table manipulation commands
+            editorControl.registerCommand('richTables.addRowAbove', () => {
+                const view = editorControl.cm6;
+                const cell = getActiveCell(view.state);
+                if (!cell) return false;
+
+                runTableOperation({
+                    view,
+                    cell,
+                    operation: (t, c) => insertRowForActiveCell(t, c, 'before'),
+                    computeTargetCell: (c) => {
+                        if (c.section === 'header') {
+                            return { section: 'header', row: 0, col: c.col };
+                        }
+                        return { section: 'body', row: c.row, col: c.col };
+                    },
+                    forceWidgetRebuild: true,
+                });
+                return true;
+            });
+
+            editorControl.registerCommand('richTables.addRowBelow', () => {
+                const view = editorControl.cm6;
+                const cell = getActiveCell(view.state);
+                if (!cell) return false;
+
+                runTableOperation({
+                    view,
+                    cell,
+                    operation: (t, c) => insertRowForActiveCell(t, c, 'after'),
+                    computeTargetCell: (c) => {
+                        if (c.section === 'header') {
+                            return { section: 'body', row: 0, col: c.col };
+                        }
+                        return { section: 'body', row: c.row + 1, col: c.col };
+                    },
+                    forceWidgetRebuild: true,
+                });
+                return true;
+            });
+
+            editorControl.registerCommand('richTables.addColumnLeft', () => {
+                const view = editorControl.cm6;
+                const cell = getActiveCell(view.state);
+                if (!cell) return false;
+
+                runTableOperation({
+                    view,
+                    cell,
+                    operation: (t, c) => insertColumn(t, c.col, 'before'),
+                    computeTargetCell: (c) => ({
+                        section: c.section,
+                        row: c.row,
+                        col: c.col,
+                    }),
+                    forceWidgetRebuild: true,
+                });
+                return true;
+            });
+
+            editorControl.registerCommand('richTables.addColumnRight', () => {
+                const view = editorControl.cm6;
+                const cell = getActiveCell(view.state);
+                if (!cell) return false;
+
+                runTableOperation({
+                    view,
+                    cell,
+                    operation: (t, c) => insertColumn(t, c.col, 'after'),
+                    computeTargetCell: (c) => ({
+                        section: c.section,
+                        row: c.row,
+                        col: c.col + 1,
+                    }),
+                    forceWidgetRebuild: true,
+                });
                 return true;
             });
 

@@ -1,5 +1,5 @@
 import joplin from 'api';
-import { ContentScriptType, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
@@ -51,6 +51,52 @@ joplin.plugins.register({
                 });
             },
         });
+
+        // Create menu items with keyboard shortcuts
+        await joplin.views.menus.create(
+            'richTablesMenu',
+            'Rich Tables',
+            [
+                {
+                    label: 'Insert row above',
+                    commandName: 'richTables.addRowAbove',
+                    accelerator: 'Alt+Shift+Up',
+                },
+                {
+                    label: 'Insert row below',
+                    commandName: 'richTables.addRowBelow',
+                    accelerator: 'Alt+Shift+Down',
+                },
+                {
+                    label: 'Insert column left',
+                    commandName: 'richTables.addColumnLeft',
+                    accelerator: 'Alt+Shift+Left',
+                },
+                {
+                    label: 'Insert column right',
+                    commandName: 'richTables.addColumnRight',
+                    accelerator: 'Alt+Shift+Right',
+                },
+            ],
+            MenuItemLocation.Tools
+        );
+
+        const registerTableCommand = async (name: string, label: string) => {
+            await joplin.commands.register({
+                name,
+                label,
+                execute: async () => {
+                    await joplin.commands.execute('editor.execCommand', {
+                        name,
+                    });
+                },
+            });
+        };
+
+        await registerTableCommand('richTables.addRowAbove', 'Insert row above');
+        await registerTableCommand('richTables.addRowBelow', 'Insert row below');
+        await registerTableCommand('richTables.addColumnLeft', 'Insert column left');
+        await registerTableCommand('richTables.addColumnRight', 'Insert column right');
 
         await joplin.views.toolbarButtons.create(
             'richTablesInsertTable',

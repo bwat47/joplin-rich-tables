@@ -1,23 +1,13 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import type { StateEffect } from '@codemirror/state';
-import {
-    activeCellField,
-    ActiveCell,
-    setActiveCellEffect,
-    clearActiveCellEffect,
-} from '../tableWidget/activeCellState';
-import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
-import {
-    insertColumn,
-    deleteColumn,
-    serializeTable,
-    updateColumnAlignment,
-} from '../tableModel/markdownTableManipulation';
+import { activeCellField, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { TableData } from '../tableModel/markdownTableParsing';
+import { insertColumn, deleteColumn, updateColumnAlignment } from '../tableModel/markdownTableManipulation';
 import { deleteRowForActiveCell, insertRowForActiveCell } from './tableToolbarSemantics';
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { computeActiveCellForTableText, type TargetCell } from './tableToolbarActiveCell';
+import { type TargetCell } from './tableToolbarActiveCell';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domConstants';
+import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 
 const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -354,36 +344,12 @@ class TableToolbarPlugin {
     }) {
         if (!this.currentActiveCell) return;
 
-        const { tableFrom, tableTo } = this.currentActiveCell;
-        const text = this.view.state.sliceDoc(tableFrom, tableTo);
-        const tableData = parseMarkdownTable(text);
-
-        if (!tableData) return;
-
-        const newTableData = params.operation(tableData, this.currentActiveCell);
-        if (newTableData === tableData) {
-            return;
-        }
-        const newText = serializeTable(newTableData);
-
-        const target = params.computeTargetCell(this.currentActiveCell, tableData, newTableData);
-        const nextActiveCell = computeActiveCellForTableText({ tableFrom, tableText: newText, target });
-        if (!nextActiveCell) {
-            return;
-        }
-
-        const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell)];
-        if (params.forceWidgetRebuild) {
-            effects.push(rebuildTableWidgetsEffect.of(undefined));
-        }
-
-        this.view.dispatch({
-            changes: {
-                from: tableFrom,
-                to: tableTo,
-                insert: newText,
-            },
-            effects,
+        runTableOperation({
+            view: this.view,
+            cell: this.currentActiveCell,
+            operation: params.operation,
+            computeTargetCell: params.computeTargetCell,
+            forceWidgetRebuild: params.forceWidgetRebuild,
         });
     }
 
