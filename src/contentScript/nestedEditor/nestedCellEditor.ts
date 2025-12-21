@@ -146,33 +146,16 @@ class NestedCellEditorManager {
                 // this DOM size change and might try to adjust the scroll position
                 // to keep the "virtual" viewport stable. This often results in jumping.
                 //
-                // Use CodeMirror's native scrollSnapshot() effect to restore the
-                // editor's own scroll position reliably.
+                // Include the scroll snapshot effect in the same dispatch as the doc change
+                // to minimize the number of transactions (reducing flickering on mobile).
                 const scrollSnapshotEffect = this.mainView.scrollSnapshot();
 
-                const mainTr = this.mainView.state.update({
+                this.mainView.dispatch({
                     changes: tr.changes,
+                    effects: scrollSnapshotEffect,
                     annotations: syncAnnotation.of(true),
                     scrollIntoView: false,
                 });
-                this.mainView.dispatch(mainTr);
-
-                const mappedSnapshot = scrollSnapshotEffect.map(mainTr.changes);
-                const restoreScroll = () => {
-                    if (!this.mainView) {
-                        return;
-                    }
-
-                    this.mainView.dispatch({
-                        effects: mappedSnapshot,
-                        annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
-                        scrollIntoView: false,
-                    });
-                };
-
-                // Restore immediately, then again after layout stabilizes.
-                restoreScroll();
-                requestAnimationFrame(restoreScroll);
 
                 // Also update the subview's own range field so decorations stay correct.
                 if (this.subview) {
