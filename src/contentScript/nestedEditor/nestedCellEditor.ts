@@ -278,6 +278,8 @@ class NestedCellEditorManager {
                     },
                     '.cm-content': {
                         padding: '0',
+                        overflowWrap: 'normal',
+                        wordBreak: 'normal',
                     },
                     '.cm-inline-code': {
                         backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',

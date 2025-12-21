@@ -433,6 +433,8 @@ const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
         border: '1px solid var(--joplin-divider-color, #dddddd)',
         padding: '8px 12px',
+        overflowWrap: 'normal',
+        wordBreak: 'normal',
         minWidth: '75px',
         position: 'relative',
     },
