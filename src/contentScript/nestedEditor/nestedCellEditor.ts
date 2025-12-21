@@ -146,6 +146,9 @@ class NestedCellEditorManager {
                 // this DOM size change and might try to adjust the scroll position
                 // to keep the "virtual" viewport stable. This often results in jumping.
                 //
+                // Use CodeMirror's native scrollSnapshot() effect to restore the
+                // editor's own scroll position reliably.
+
                 // Include the scroll snapshot effect in the same dispatch as the doc change
                 // to minimize the number of transactions (reducing flickering on mobile).
                 //
