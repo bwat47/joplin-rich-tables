@@ -253,10 +253,33 @@ class NestedCellEditorManager {
                     '&': {
                         backgroundColor: 'transparent',
                     },
-                    // We hide the drawn selection BACKGROUND to avoid double-highlight (native + drawn).
-                    // We keep the selectionLayer visible because it contains the caret (cm-cursor).
-                    '.cm-selectionBackground': {
-                        display: 'none',
+                    // CodeMirror draws the selection background in a separate layer.
+                    // Make the browser's native selection highlight transparent so we don't see
+                    // the default blue overlay on top of CodeMirror's highlight.
+                    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+                        backgroundColor: 'var(--joplin-divider-color, #3297fd) !important',
+                    },
+                    // NOTE: `::selection` must be attached to an element selector.
+                    // Make the native highlight transparent inside the nested editor.
+                    // Joplin applies `&.cm-focused ::selection` on the *main* editor, and the
+                    // nested editor lives inside the main editor DOM. Use higher specificity
+                    // + !important so the browser's default blue overlay never wins here.
+                    '&.cm-editor.cm-focused .cm-content::selection, &.cm-editor.cm-focused .cm-content *::selection': {
+                        backgroundColor: 'transparent !important',
+                        color: 'inherit !important',
+                    },
+                    '&.cm-editor .cm-content::selection, &.cm-editor .cm-content *::selection': {
+                        backgroundColor: 'transparent !important',
+                        color: 'inherit !important',
+                    },
+                    '&.cm-editor.cm-focused .cm-content::-moz-selection, &.cm-editor.cm-focused .cm-content *::-moz-selection':
+                        {
+                            backgroundColor: 'transparent !important',
+                            color: 'inherit !important',
+                        },
+                    '&.cm-editor .cm-content::-moz-selection, &.cm-editor .cm-content *::-moz-selection': {
+                        backgroundColor: 'transparent !important',
+                        color: 'inherit !important',
                     },
                     '.cm-scroller': {
                         overflow: 'hidden !important',
