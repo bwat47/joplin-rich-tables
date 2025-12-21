@@ -52,6 +52,28 @@ joplin.plugins.register({
             },
         });
 
+        const registerTableCommand = async (name: string, label: string) => {
+            await joplin.commands.register({
+                name,
+                label,
+                execute: async () => {
+                    await joplin.commands.execute('editor.execCommand', {
+                        name,
+                    });
+                },
+            });
+        };
+
+        await registerTableCommand('richTables.addRowAbove', 'Insert row above');
+        await registerTableCommand('richTables.addRowBelow', 'Insert row below');
+        await registerTableCommand('richTables.addColumnLeft', 'Insert column left');
+        await registerTableCommand('richTables.addColumnRight', 'Insert column right');
+        await registerTableCommand('richTables.deleteRow', 'Delete row');
+        await registerTableCommand('richTables.deleteColumn', 'Delete column');
+        await registerTableCommand('richTables.alignLeft', 'Align column left');
+        await registerTableCommand('richTables.alignCenter', 'Align column center');
+        await registerTableCommand('richTables.alignRight', 'Align column right');
+
         // Create menu items with keyboard shortcuts
         await joplin.views.menus.create(
             'richTablesMenu',
@@ -110,28 +132,6 @@ joplin.plugins.register({
             ],
             MenuItemLocation.Tools
         );
-
-        const registerTableCommand = async (name: string, label: string) => {
-            await joplin.commands.register({
-                name,
-                label,
-                execute: async () => {
-                    await joplin.commands.execute('editor.execCommand', {
-                        name,
-                    });
-                },
-            });
-        };
-
-        await registerTableCommand('richTables.addRowAbove', 'Insert row above');
-        await registerTableCommand('richTables.addRowBelow', 'Insert row below');
-        await registerTableCommand('richTables.addColumnLeft', 'Insert column left');
-        await registerTableCommand('richTables.addColumnRight', 'Insert column right');
-        await registerTableCommand('richTables.deleteRow', 'Delete row');
-        await registerTableCommand('richTables.deleteColumn', 'Delete column');
-        await registerTableCommand('richTables.alignLeft', 'Align column left');
-        await registerTableCommand('richTables.alignCenter', 'Align column center');
-        await registerTableCommand('richTables.alignRight', 'Align column right');
 
         await joplin.views.toolbarButtons.create(
             'richTablesInsertTable',
