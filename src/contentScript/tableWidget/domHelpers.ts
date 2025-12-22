@@ -14,7 +14,6 @@ export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';
 
 // Data attribute names (as they appear in the DOM, use with setAttribute/getAttribute)
 export const ATTR_TABLE_FROM = 'table-from';
-export const ATTR_TABLE_TO = 'table-to';
 
 // Data attribute names (simple names that work with both dataset API and selectors)
 export const DATA_SECTION = 'section';

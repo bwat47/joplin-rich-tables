@@ -5,7 +5,6 @@ import type { TableData } from '../tableModel/markdownTableParsing';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
-    ATTR_TABLE_TO,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
@@ -50,7 +49,6 @@ export class TableWidget extends WidgetType {
 
         // Used by extension-level interaction handlers as a reliable fallback.
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
-        container.setAttribute(`data-${ATTR_TABLE_TO}`, String(this.tableTo));
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
