@@ -19,12 +19,30 @@ export const DATA_COL = 'col';
 export const SECTION_HEADER = 'header';
 export const SECTION_BODY = 'body';
 
+/**
+ * Converts a camelCase dataset key to its corresponding kebab-case data attribute name.
+ *
+ * @param datasetKey - The dataset key (e.g., 'tableFrom').
+ * @returns The data attribute name suffix (e.g., '-table-from').
+ *
+ * @example
+ * datasetKeyToDataAttributeName('tableFrom'); // returns '-table-from'
+ * datasetKeyToDataAttributeName('fooBarBaz'); // returns '-foo-bar-baz'
+ */
 function datasetKeyToDataAttributeName(datasetKey: string): string {
-    // dataset properties (camelCase) map to kebab-case attributes in HTML.
-    // e.g. dataset.tableFrom -> data-table-from
     return datasetKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 }
 
+/**
+ * Returns the CSS selector for the table widget, optionally targeting a specific table instance.
+ *
+ * @param tableFrom - The starting position of the table in the document.
+ * @returns The CSS selector string.
+ *
+ * @example
+ * getWidgetSelector(); // returns '.cm-table-widget'
+ * getWidgetSelector(105); // returns '.cm-table-widget[data-table-from="105"]'
+ */
 export function getWidgetSelector(tableFrom?: number | string): string {
     const base = `.${CLASS_TABLE_WIDGET}`;
     if (tableFrom !== undefined) {
@@ -34,12 +52,18 @@ export function getWidgetSelector(tableFrom?: number | string): string {
     return base;
 }
 
+/**
+ * Returns the CSS selector for a specific cell within a table widget.
+ *
+ * @param section - The section of the table ('header' or 'body').
+ * @param row - The 0-based row index.
+ * @param col - The 0-based column index.
+ * @returns The CSS selector string targeting the specific data attributes.
+ *
+ * @example
+ * getCellSelector('header', 0, 2); // returns '[data-section="header"][data-row="0"][data-col="2"]'
+ * getCellSelector('body', 1, 0);   // returns '[data-section="body"][data-row="1"][data-col="0"]'
+ */
 export function getCellSelector(section: string, row: number, col: number): string {
-    // Note: row is 0-based.
-    // data-section="header|body"
-    // data-row="0..N"
-    // data-col="0..M"
-    // These constants (section, row, col) are already lowercase, so they don't require
-    // datasetKeyToDataAttributeName conversion like DATA_TABLE_FROM does.
     return `[data-${DATA_SECTION}="${section}"][data-${DATA_ROW}="${row}"][data-${DATA_COL}="${col}"]`;
 }
