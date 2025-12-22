@@ -7,7 +7,7 @@ import {
     type TableCellRanges,
     type CellRange,
 } from '../tableModel/markdownTableCellRanges';
-import { ATTR_TABLE_FROM, ATTR_TABLE_TO, getWidgetSelector } from './domHelpers';
+import { ATTR_TABLE_FROM, getWidgetSelector } from './domHelpers';
 import { getActiveCell } from './activeCellState';
 import type { CellCoords } from '../tableModel/types';
 
@@ -124,17 +124,6 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
             const resolved = resolveTableAtPos(view.state, anchorPos);
             if (resolved) {
                 return resolved;
-            }
-
-            // If the table node cannot be resolved (e.g., parser not ready), fall back to
-            // slicing using the stored bounds if present.
-            const tableTo = Number(container.getAttribute(`data-${ATTR_TABLE_TO}`));
-            if (Number.isFinite(tableTo) && tableTo >= tableFrom) {
-                return {
-                    from: tableFrom,
-                    to: tableTo,
-                    text: view.state.doc.sliceString(tableFrom, tableTo),
-                };
             }
         }
     }
