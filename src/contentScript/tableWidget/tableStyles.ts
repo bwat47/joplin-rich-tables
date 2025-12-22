@@ -5,7 +5,7 @@ import {
     CLASS_CELL_EDITOR_HIDDEN,
     CLASS_TABLE_WIDGET_TABLE,
     getWidgetSelector,
-} from './domConstants';
+} from './domHelpers';
 
 /**
  * Basic styles for the table widget.

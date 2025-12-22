@@ -14,7 +14,7 @@ import {
     SECTION_BODY,
     SECTION_HEADER,
     getWidgetSelector,
-} from './domConstants';
+} from './domHelpers';
 
 /**
  * Widget that renders a markdown table as an interactive HTML table

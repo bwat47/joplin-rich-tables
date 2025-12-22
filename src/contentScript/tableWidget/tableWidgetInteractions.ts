@@ -11,7 +11,7 @@ import {
     SECTION_HEADER,
     getCellSelector,
     getWidgetSelector,
-} from './domConstants';
+} from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {

@@ -12,7 +12,7 @@ import {
 } from '../tableCommands/tableCommands';
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domConstants';
+import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 
 const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {

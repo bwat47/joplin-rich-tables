@@ -1,7 +1,7 @@
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import { StateField } from '@codemirror/state';
 import { SubviewCellRange } from './transactionPolicy';
-import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR, CLASS_CELL_EDITOR_HIDDEN } from '../tableWidget/domConstants';
+import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR, CLASS_CELL_EDITOR_HIDDEN } from '../tableWidget/domHelpers';
 
 class HiddenWidget extends WidgetType {
     toDOM(): HTMLElement {

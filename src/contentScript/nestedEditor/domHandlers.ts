@@ -3,7 +3,7 @@ import { undo, redo } from '@codemirror/commands';
 import { StateField, Transaction, StateCommand, EditorSelection } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
-import { getWidgetSelector } from '../tableWidget/domConstants';
+import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { SubviewCellRange, syncAnnotation } from './transactionPolicy';
 import { makeTableId } from '../tableModel/types';
 

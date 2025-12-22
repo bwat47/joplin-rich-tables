@@ -9,7 +9,7 @@ import {
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
-import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from './domConstants';
+import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(

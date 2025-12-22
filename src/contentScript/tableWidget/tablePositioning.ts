@@ -7,7 +7,7 @@ import {
     type TableCellRanges,
     type CellRange,
 } from '../tableModel/markdownTableCellRanges';
-import { ATTR_TABLE_FROM, ATTR_TABLE_TO, getWidgetSelector } from './domConstants';
+import { ATTR_TABLE_FROM, ATTR_TABLE_TO, getWidgetSelector } from './domHelpers';
 import { getActiveCell } from './activeCellState';
 import type { CellCoords } from '../tableModel/types';
 

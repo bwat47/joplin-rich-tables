@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { SECTION_BODY, SECTION_HEADER, getCellSelector, getWidgetSelector } from './domConstants';
+import { SECTION_BODY, SECTION_HEADER, getCellSelector, getWidgetSelector } from './domHelpers';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
