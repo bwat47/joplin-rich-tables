@@ -7,7 +7,7 @@ function createEmptyCells(columnCount: number): string[] {
 }
 
 /**
- * Applies the floating-toolbar row-insert action relative to the currently active cell.
+ * Applies the row-insert action relative to the currently active cell.
  *
  * Header-row semantics:
  * - Insert row after: add a new body row after header (as the 1st body row)
@@ -35,7 +35,7 @@ export function insertRowForActiveCell(table: TableData, cell: ActiveCell, where
 }
 
 /**
- * Applies the floating-toolbar row-delete action relative to the currently active cell.
+ * Applies the row-delete action relative to the currently active cell.
  *
  * Header-row semantics:
  * - Delete header: delete header row and promote 1st body row to header
