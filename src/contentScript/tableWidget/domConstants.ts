@@ -12,28 +12,17 @@ export const CLASS_CELL_EDITOR_HIDDEN = 'cm-table-cell-editor-hidden';
 // Floating toolbar container (positioned relative to the active table widget)
 export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';
 
-export const DATA_TABLE_FROM = 'tableFrom';
-export const DATA_TABLE_TO = 'tableTo';
+// Data attribute names (as they appear in the DOM, use with setAttribute/getAttribute)
+export const ATTR_TABLE_FROM = 'table-from';
+export const ATTR_TABLE_TO = 'table-to';
+
+// Data attribute names (simple names that work with both dataset API and selectors)
 export const DATA_SECTION = 'section';
 export const DATA_ROW = 'row';
 export const DATA_COL = 'col';
 
 export const SECTION_HEADER = 'header';
 export const SECTION_BODY = 'body';
-
-/**
- * Converts a camelCase dataset key to its corresponding kebab-case data attribute name.
- *
- * @param datasetKey - The dataset key (e.g., 'tableFrom').
- * @returns The data attribute name suffix (e.g., '-table-from').
- *
- * @example
- * datasetKeyToDataAttributeName('tableFrom'); // returns '-table-from'
- * datasetKeyToDataAttributeName('fooBarBaz'); // returns '-foo-bar-baz'
- */
-function datasetKeyToDataAttributeName(datasetKey: string): string {
-    return datasetKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
-}
 
 /**
  * Returns the CSS selector for the table widget, optionally targeting a specific table instance.
@@ -48,8 +37,7 @@ function datasetKeyToDataAttributeName(datasetKey: string): string {
 export function getWidgetSelector(tableId?: TableId): string {
     const base = `.${CLASS_TABLE_WIDGET}`;
     if (tableId !== undefined) {
-        const dataAttr = datasetKeyToDataAttributeName(DATA_TABLE_FROM);
-        return `${base}[data-${dataAttr}="${tableId}"]`;
+        return `${base}[data-${ATTR_TABLE_FROM}="${tableId}"]`;
     }
     return base;
 }
