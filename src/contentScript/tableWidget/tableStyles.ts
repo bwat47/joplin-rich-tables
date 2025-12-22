@@ -93,7 +93,7 @@ export const tableStyles = EditorView.baseTheme({
         backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',
         border: '1px solid var(--joplin-divider-color, #dddddd)',
         color: 'var(--joplin-code-color, rgb(0,0,0))',
-        padding: '2px 4px',
+        padding: '0 2px',
         borderRadius: '3px',
         fontFamily: 'monospace',
         fontSize: '0.9em',

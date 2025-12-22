@@ -272,10 +272,8 @@ class NestedCellEditorManager {
                         wordBreak: 'normal',
                     },
                     '.cm-inline-code': {
-                        backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',
                         borderRadius: '3px',
                         border: '1px solid var(--joplin-divider-color, #dddddd)',
-                        padding: '2px 4px',
                         // border-radius and padding help frame the content nicely including backticks
                     },
                     '.cm-highlighted': {
