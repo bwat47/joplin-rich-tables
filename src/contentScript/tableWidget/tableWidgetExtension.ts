@@ -19,7 +19,7 @@ import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPl
 import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domConstants';
 import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
-import { registerTableCommands } from './tableCommands';
+import { registerTableCommands } from '../tableCommands/tableCommands';
 
 /**
  * Content script context provided by Joplin

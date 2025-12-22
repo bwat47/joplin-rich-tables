@@ -1,6 +1,6 @@
 import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
 import type { ActiveCell } from '../tableWidget/activeCellState';
-import { deleteRowForActiveCell, insertRowForActiveCell } from '../toolbar/tableToolbarSemantics';
+import { deleteRowForActiveCell, insertRowForActiveCell } from '../tableCommands/tableCommandSemantics';
 
 /**
  * These tests validate the header-row semantics used by the floating toolbar.

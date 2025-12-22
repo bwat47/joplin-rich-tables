@@ -18,7 +18,7 @@ export const tableStyles = EditorView.baseTheme({
         width: '100%',
         maxWidth: '100%',
         overflowX: 'auto',
-        contain: 'inline-size', // <-- explicit size containment
+        contain: 'inline-size',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE}`]: {
         borderCollapse: 'collapse',

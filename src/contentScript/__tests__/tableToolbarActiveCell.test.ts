@@ -5,7 +5,7 @@ import {
     serializeTable,
     updateColumnAlignment,
 } from '../tableModel/markdownTableManipulation';
-import { deleteRowForActiveCell, insertRowForActiveCell } from '../toolbar/tableToolbarSemantics';
+import { deleteRowForActiveCell, insertRowForActiveCell } from '../tableCommands/tableCommandSemantics';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 
 function sliceCellText(tableText: string, cellFrom: number, cellTo: number): string {
