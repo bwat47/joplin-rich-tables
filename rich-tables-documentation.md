@@ -11,7 +11,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tableWidgetExtension.ts`   | Main wiring: connects plugins, styles, and command registration                |
 | `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS styles for the table widget                                          |
 | `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Manages nested editor lifecycle (open/close/sync)                              |
-| `contentScript/tableWidget/tableCommands.ts`          | Registers table manipulation commands                                          |
+| `contentScript/tableCommands/`                        | Table manipulation commands and shared execution logic                         |
 | `contentScript/tableModel/tableTransactionHelpers.ts` | Shared transaction logic (`runTableOperation`) for table edits                 |
 | `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                   |
 | `contentScript/tableWidget/tableHeightCache.ts`       | LRU cache for measured table heights (improves scroll stability)               |
@@ -24,7 +24,6 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/nestedEditor/`                         | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
 | `contentScript/tableModel/markdownTableRowScanner.ts` | Shared scanner: detects pipe delimiters, handles escaped pipes and inline code |
 | `contentScript/tableModel/`                           | Markdown table parsing/ranges/manipulation helpers                             |
-| `contentScript/toolbar/`                              | Floating table toolbar + header semantics                                      |
 | `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating-toolbar view plugin (uses Floating UI for positioning)                |
 | `contentScript/services/markdownRenderer.ts`          | `MarkdownRenderService` (async rendering with caching)                         |
 
