@@ -1,3 +1,5 @@
+import type { CellCoords, TableId } from '../tableModel/types';
+
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_ACTIVE = 'cm-table-cell-active';
@@ -36,18 +38,18 @@ function datasetKeyToDataAttributeName(datasetKey: string): string {
 /**
  * Returns the CSS selector for the table widget, optionally targeting a specific table instance.
  *
- * @param tableFrom - The starting position of the table in the document.
+ * @param tableId - Optional TableId identifying the table.
  * @returns The CSS selector string.
  *
  * @example
  * getWidgetSelector(); // returns '.cm-table-widget'
- * getWidgetSelector(105); // returns '.cm-table-widget[data-table-from="105"]'
+ * getWidgetSelector(makeTableId(105)); // returns '.cm-table-widget[data-table-from="105"]'
  */
-export function getWidgetSelector(tableFrom?: number | string): string {
+export function getWidgetSelector(tableId?: TableId): string {
     const base = `.${CLASS_TABLE_WIDGET}`;
-    if (tableFrom !== undefined) {
+    if (tableId !== undefined) {
         const dataAttr = datasetKeyToDataAttributeName(DATA_TABLE_FROM);
-        return `${base}[data-${dataAttr}="${tableFrom}"]`;
+        return `${base}[data-${dataAttr}="${tableId}"]`;
     }
     return base;
 }
@@ -55,15 +57,13 @@ export function getWidgetSelector(tableFrom?: number | string): string {
 /**
  * Returns the CSS selector for a specific cell within a table widget.
  *
- * @param section - The section of the table ('header' or 'body').
- * @param row - The 0-based row index.
- * @param col - The 0-based column index.
+ * @param coords - The cell coordinates (section, row, col).
  * @returns The CSS selector string targeting the specific data attributes.
  *
  * @example
- * getCellSelector('header', 0, 2); // returns '[data-section="header"][data-row="0"][data-col="2"]'
- * getCellSelector('body', 1, 0);   // returns '[data-section="body"][data-row="1"][data-col="0"]'
+ * getCellSelector({ section: 'header', row: 0, col: 2 }); // returns '[data-section="header"][data-row="0"][data-col="2"]'
+ * getCellSelector({ section: 'body', row: 1, col: 0 });   // returns '[data-section="body"][data-row="1"][data-col="0"]'
  */
-export function getCellSelector(section: string, row: number, col: number): string {
-    return `[data-${DATA_SECTION}="${section}"][data-${DATA_ROW}="${row}"][data-${DATA_COL}="${col}"]`;
+export function getCellSelector(coords: CellCoords): string {
+    return `[data-${DATA_SECTION}="${coords.section}"][data-${DATA_ROW}="${coords.row}"][data-${DATA_COL}="${coords.col}"]`;
 }

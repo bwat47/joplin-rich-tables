@@ -8,7 +8,8 @@ import {
     type CellRange,
 } from '../tableModel/markdownTableCellRanges';
 import { DATA_TABLE_FROM, DATA_TABLE_TO, getWidgetSelector } from './domConstants';
-import { getActiveCell, type ActiveCellSection } from './activeCellState';
+import { getActiveCell } from './activeCellState';
+import type { CellCoords } from '../tableModel/types';
 
 export interface ResolvedTable {
     from: number;
@@ -158,13 +159,11 @@ export function getTableCellRanges(tableText: string): TableCellRanges | null {
 export function resolveCellDocRange(params: {
     tableFrom: number;
     ranges: TableCellRanges;
-    section: ActiveCellSection;
-    row: number;
-    col: number;
+    coords: CellCoords;
 }): { cellFrom: number; cellTo: number; relRange: CellRange } | null {
-    const { tableFrom, ranges, section, row, col } = params;
+    const { tableFrom, ranges, coords } = params;
 
-    const relRange = section === 'header' ? ranges.headers[col] : ranges.rows[row]?.[col];
+    const relRange = coords.section === 'header' ? ranges.headers[coords.col] : ranges.rows[coords.row]?.[coords.col];
     if (!relRange) {
         return null;
     }

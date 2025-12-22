@@ -1,13 +1,8 @@
 import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
 import type { ActiveCell } from '../tableWidget/activeCellState';
+import type { CellCoords } from './types';
 
-export type TableSection = 'header' | 'body';
-
-export interface TargetCell {
-    section: TableSection;
-    row: number;
-    col: number;
-}
+export type TargetCell = CellCoords;
 
 function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));

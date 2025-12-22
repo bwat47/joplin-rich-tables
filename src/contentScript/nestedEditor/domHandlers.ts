@@ -5,6 +5,7 @@ import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
 import { getWidgetSelector } from '../tableWidget/domConstants';
 import { SubviewCellRange, syncAnnotation } from './transactionPolicy';
+import { makeTableId } from '../tableModel/types';
 
 function syncNestedSelectionToMain(params: {
     nestedView: EditorView;
@@ -60,7 +61,7 @@ function runHistoryCommandWithMainScrollPreserved(
     const tableFrom = activeCell?.tableFrom;
     const widgetContainer =
         tableFrom !== undefined
-            ? (mainView.dom.querySelector(getWidgetSelector(tableFrom)) as HTMLElement | null)
+            ? (mainView.dom.querySelector(getWidgetSelector(makeTableId(tableFrom))) as HTMLElement | null)
             : null;
     const widgetScrollLeft = widgetContainer ? widgetContainer.scrollLeft : 0;
 
@@ -69,7 +70,9 @@ function runHistoryCommandWithMainScrollPreserved(
             return;
         }
 
-        const currentWidget = mainView.dom.querySelector(getWidgetSelector(tableFrom)) as HTMLElement | null;
+        const currentWidget = mainView.dom.querySelector(
+            getWidgetSelector(makeTableId(tableFrom))
+        ) as HTMLElement | null;
         if (currentWidget && currentWidget.scrollLeft !== widgetScrollLeft) {
             currentWidget.scrollLeft = widgetScrollLeft;
         }

@@ -1,8 +1,9 @@
 import { EditorView } from '@codemirror/view';
 import { SECTION_BODY, SECTION_HEADER, getCellSelector, getWidgetSelector } from './domConstants';
-import { getActiveCell, setActiveCellEffect, type ActiveCellSection } from './activeCellState';
+import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
+import { makeTableId, type CellCoords } from '../tableModel/types';
 
 export function navigateCell(
     view: EditorView,
@@ -31,31 +32,33 @@ export function navigateCell(
     // Assuming uniform column count for now, based on header
     const numCols = cellRanges.headers.length;
 
-    let targetSection: ActiveCellSection = activeCell.section;
-    let targetRow = activeCell.row;
-    let targetCol = activeCell.col;
+    let target: CellCoords = {
+        section: activeCell.section,
+        row: activeCell.row,
+        col: activeCell.col,
+    };
 
     if (direction === 'next') {
-        targetCol++;
-        if (targetCol >= numCols) {
-            targetCol = 0;
-            if (targetSection === SECTION_HEADER) {
-                targetSection = SECTION_BODY;
-                targetRow = 0;
+        target.col++;
+        if (target.col >= numCols) {
+            target.col = 0;
+            if (target.section === SECTION_HEADER) {
+                target.section = SECTION_BODY;
+                target.row = 0;
             } else {
-                targetRow++;
+                target.row++;
             }
         }
     } else if (direction === 'previous') {
-        targetCol--;
-        if (targetCol < 0) {
-            targetCol = numCols - 1;
-            if (targetSection === SECTION_BODY) {
-                if (targetRow === 0) {
-                    targetSection = SECTION_HEADER;
-                    targetRow = 0; // Header is effectively row 0
+        target.col--;
+        if (target.col < 0) {
+            target.col = numCols - 1;
+            if (target.section === SECTION_BODY) {
+                if (target.row === 0) {
+                    target.section = SECTION_HEADER;
+                    target.row = 0; // Header is effectively row 0
                 } else {
-                    targetRow--;
+                    target.row--;
                 }
             } else {
                 // Wrap to previous table? Or stop?
@@ -64,19 +67,19 @@ export function navigateCell(
             }
         }
     } else if (direction === 'down') {
-        if (targetSection === SECTION_HEADER) {
-            targetSection = SECTION_BODY;
-            targetRow = 0;
+        if (target.section === SECTION_HEADER) {
+            target.section = SECTION_BODY;
+            target.row = 0;
         } else {
-            targetRow++;
+            target.row++;
         }
     } else if (direction === 'up') {
-        if (targetSection === SECTION_BODY) {
-            if (targetRow === 0) {
-                targetSection = SECTION_HEADER;
-                targetRow = 0;
+        if (target.section === SECTION_BODY) {
+            if (target.row === 0) {
+                target.section = SECTION_HEADER;
+                target.row = 0;
             } else {
-                targetRow--;
+                target.row--;
             }
         } else {
             // Already at header, stop
@@ -85,8 +88,8 @@ export function navigateCell(
     }
 
     // Boundary checks
-    if (targetSection === SECTION_BODY) {
-        if (targetRow >= numRows) {
+    if (target.section === SECTION_BODY) {
+        if (target.row >= numRows) {
             // End of table
             return true;
         }
@@ -96,9 +99,7 @@ export function navigateCell(
     const resolvedRange = resolveCellDocRange({
         tableFrom: table.from,
         ranges: cellRanges,
-        section: targetSection,
-        row: targetRow,
-        col: targetCol,
+        coords: target,
     });
 
     if (!resolvedRange) {
@@ -107,27 +108,23 @@ export function navigateCell(
 
     const { cellFrom, cellTo } = resolvedRange;
 
-    // Dispatch update to active cell state
     view.dispatch({
         effects: setActiveCellEffect.of({
             tableFrom: table.from,
             tableTo: table.to,
             cellFrom,
             cellTo,
-            section: targetSection,
-            row: targetSection === SECTION_HEADER ? 0 : targetRow,
-            col: targetCol,
+            section: target.section,
+            row: target.section === SECTION_HEADER ? 0 : target.row,
+            col: target.col,
         }),
     });
 
     // After dispatch, query for the fresh cell element using data attributes.
     // The DOM is ready synchronously after dispatch since CodeMirror applies decorations synchronously.
-    const widgetDOM = view.dom.querySelector(getWidgetSelector(table.from));
+    const widgetDOM = view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
     if (widgetDOM) {
-        const selector =
-            targetSection === SECTION_HEADER
-                ? getCellSelector(SECTION_HEADER, 0, targetCol)
-                : getCellSelector(SECTION_BODY, targetRow, targetCol);
+        const selector = getCellSelector(target);
 
         const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
 

@@ -13,6 +13,7 @@ import {
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domConstants';
+import { makeTableId } from '../tableModel/types';
 
 const createSvg = (paths: Array<{ d: string; fill?: string; stroke?: string }>) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -329,7 +330,7 @@ class TableToolbarPlugin {
             return;
         }
 
-        const selector = getWidgetSelector(this.currentActiveCell.tableFrom);
+        const selector = getWidgetSelector(makeTableId(this.currentActiveCell.tableFrom));
         const referenceElement = this.view.contentDOM.querySelector(selector) as HTMLElement;
 
         if (!referenceElement) {
