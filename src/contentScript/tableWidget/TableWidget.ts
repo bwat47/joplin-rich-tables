@@ -25,6 +25,7 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
  */
 export class TableWidget extends WidgetType {
     private static readonly pendingHeightMeasure = new WeakSet<HTMLElement>();
+    private readonly contentHash: string;
 
     constructor(
         private tableData: TableData,
@@ -33,6 +34,7 @@ export class TableWidget extends WidgetType {
         private tableTo: number
     ) {
         super();
+        this.contentHash = hashTableText(tableText);
     }
 
     eq(_other: TableWidget): boolean {
@@ -44,10 +46,7 @@ export class TableWidget extends WidgetType {
     updateDOM(dom: HTMLElement, _view: EditorView): boolean {
         // Called when eq() returns false. We decide here whether to reuse the DOM.
         // Check if the table content is the same by comparing stored hash.
-        const storedHash = dom.dataset.tableTextHash;
-        const newHash = hashTableText(this.tableText);
-
-        if (storedHash !== newHash) {
+        if (dom.dataset.tableTextHash !== this.contentHash) {
             // Content changed (structural edit) - must rebuild DOM via toDOM().
             return false;
         }
@@ -66,7 +65,7 @@ export class TableWidget extends WidgetType {
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
 
         // Store content hash for updateDOM() to detect content vs position-only changes.
-        container.dataset.tableTextHash = hashTableText(this.tableText);
+        container.dataset.tableTextHash = this.contentHash;
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
