@@ -5,19 +5,9 @@
  * can stabilize scrolling when large block widgets are mounted/rebuilt.
  */
 
+import { hashTableText } from './hashUtils';
+
 const MAX_ENTRIES = 200;
-
-function hashTableText(text: string): string {
-    // FNV-1a 32-bit hash. Used to avoid storing full table strings in the LRU cache.
-    let hash = 2166136261;
-    for (let i = 0; i < text.length; i++) {
-        hash ^= text.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
-    }
-
-    // Include length to reduce accidental collisions in practice.
-    return `${(hash >>> 0).toString(16)}:${text.length}`;
-}
 
 class TableHeightCache {
     private readonly cache = new Map<string, number>();

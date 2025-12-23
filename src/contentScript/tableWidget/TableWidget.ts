@@ -14,6 +14,7 @@ import {
     SECTION_HEADER,
     getWidgetSelector,
 } from './domHelpers';
+import { hashTableText } from './hashUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -34,19 +35,6 @@ export class TableWidget extends WidgetType {
         super();
     }
 
-    /**
-     * Simple hash of table text for quick comparison in updateDOM().
-     * Uses FNV-1a algorithm for fast, reasonable distribution.
-     */
-    private static hashTableText(text: string): string {
-        let hash = 2166136261;
-        for (let i = 0; i < text.length; i++) {
-            hash ^= text.charCodeAt(i);
-            hash = Math.imul(hash, 16777619);
-        }
-        return (hash >>> 0).toString(16);
-    }
-
     eq(_other: TableWidget): boolean {
         // Always return false to trigger updateDOM() call.
         // updateDOM() will decide whether to reuse the DOM based on content hash.
@@ -57,7 +45,7 @@ export class TableWidget extends WidgetType {
         // Called when eq() returns false. We decide here whether to reuse the DOM.
         // Check if the table content is the same by comparing stored hash.
         const storedHash = dom.dataset.tableTextHash;
-        const newHash = TableWidget.hashTableText(this.tableText);
+        const newHash = hashTableText(this.tableText);
 
         if (storedHash !== newHash) {
             // Content changed (structural edit) - must rebuild DOM via toDOM().
@@ -78,7 +66,7 @@ export class TableWidget extends WidgetType {
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
 
         // Store content hash for updateDOM() to detect content vs position-only changes.
-        container.dataset.tableTextHash = TableWidget.hashTableText(this.tableText);
+        container.dataset.tableTextHash = hashTableText(this.tableText);
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
