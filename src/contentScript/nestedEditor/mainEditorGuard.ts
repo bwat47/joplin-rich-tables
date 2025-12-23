@@ -1,4 +1,4 @@
-import { EditorState, Extension } from '@codemirror/state';
+import { ChangeSet, EditorState, Extension } from '@codemirror/state';
 import { getActiveCell } from '../tableWidget/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { sanitizeCellChanges, syncAnnotation } from './transactionPolicy';
@@ -44,11 +44,7 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             return tr;
         }
 
-        const { rejected, didModifyInserts, changes } = sanitizeCellChanges(
-            tr,
-            activeCell.cellFrom,
-            activeCell.cellTo
-        );
+        const { rejected, didModifyInserts, changes } = sanitizeCellChanges(tr, activeCell.cellFrom, activeCell.cellTo);
 
         if (rejected) {
             return [];
@@ -59,10 +55,14 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
         }
 
         // Return a new transaction with sanitized changes.
-        // CodeMirror automatically maps the selection through the new changes.
+        // We must map the selection through the new changes explicitly to ensure
+        // the cursor tracks the end of the insertion (assoc=1).
+        const changeSet = ChangeSet.of(changes, tr.startState.doc.length);
+        const newSelection = tr.startState.selection.map(changeSet, 1);
+
         return {
             changes,
-            selection: tr.selection,
+            selection: newSelection,
             effects: tr.effects,
             scrollIntoView: tr.scrollIntoView,
         };
