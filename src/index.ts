@@ -146,17 +146,21 @@ joplin.plugins.register({
             './contentScript/tableWidget/tableWidgetExtension.js'
         );
 
-        // Close nested editor when switching notes to prevent stale editor state
-        await joplin.workspace.onNoteSelectionChange(async () => {
-            try {
-                await joplin.commands.execute('editor.execCommand', {
-                    name: 'richTablesCloseNestedEditor',
-                });
-            } catch (error) {
-                // Command may not be available if editor isn't ready, ignore
-                logger.debug('Could not close nested editor on note switch:', error);
-            }
-        });
+        // Close nested editor when switching notes to prevent stale editor state (Desktop only)
+        // Mobile/Web don't support this command style or have different navigation models where this isn't needed.
+        const versionInfo = await joplin.versionInfo();
+        if (versionInfo.platform === 'desktop') {
+            await joplin.workspace.onNoteSelectionChange(async () => {
+                try {
+                    await joplin.commands.execute('editor.execCommand', {
+                        name: 'richTablesCloseNestedEditor',
+                    });
+                } catch (error) {
+                    // Command may not be available if editor isn't ready, ignore
+                    logger.debug('Could not close nested editor on note switch:', error);
+                }
+            });
+        }
 
         // Handle messages from content script
         await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, async (message: unknown) => {
