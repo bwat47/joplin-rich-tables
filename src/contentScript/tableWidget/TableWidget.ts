@@ -43,7 +43,7 @@ export class TableWidget extends WidgetType {
         return false;
     }
 
-    updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+    updateDOM(dom: HTMLElement, view: EditorView): boolean {
         // Called when eq() returns false. We decide here whether to reuse the DOM.
         // Check if the table content is the same by comparing stored hash.
         if (dom.dataset.tableTextHash !== this.contentHash) {
@@ -54,6 +54,10 @@ export class TableWidget extends WidgetType {
         // Content is the same, only position changed (typing above table).
         // Update position-dependent attributes and reuse the DOM.
         dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+
+        // Update the view mapping so destroy() can clean up correctly.
+        widgetViews.set(dom, view);
+
         return true;
     }
 
