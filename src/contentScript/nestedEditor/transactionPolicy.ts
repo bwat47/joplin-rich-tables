@@ -49,7 +49,7 @@ export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
 }
 
-function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
+export function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
     // Escape any '|' that is not already escaped as '\|'.
     // A pipe is considered escaped only when preceded by an odd-length backslash run.
     // Example: `\\|` (two backslashes + pipe) is NOT escaped in Markdown (the pipe is active).
@@ -78,7 +78,7 @@ function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: num
     return result;
 }
 
-function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
+export function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
     let count = 0;
     for (let i = pos - 1; i >= 0; i--) {
         if (doc.sliceString(i, i + 1) !== '\\') {
