@@ -6,26 +6,26 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 ### Core Components
 
-| File                                                  | Purpose                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `contentScript/tableWidget/tableWidgetExtension.ts`   | Main wiring: connects plugins, styles, and command registration                |
-| `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS styles for the table widget                                          |
-| `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Manages nested editor lifecycle (open/close/sync)                              |
-| `contentScript/tableCommands/`                        | Table manipulation commands and shared execution logic                         |
-| `contentScript/tableModel/tableTransactionHelpers.ts` | Shared transaction logic (`runTableOperation`) for table edits                 |
-| `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                   |
-| `contentScript/tableWidget/tableHeightCache.ts`       | LRU cache for measured table heights (improves scroll stability)               |
-| `contentScript/tableWidget/domHelpers.ts`             | Centralized DOM selectors, class names, and data attributes                    |
-| `contentScript/tableWidget/activeCellState.ts`        | Tracks active cell range in main editor state                                  |
-| `contentScript/tableWidget/tableNavigation.ts`        | Navigation logic (Tab/Enter/Arrows) and cell switching                         |
-| `contentScript/tableWidget/tablePositioning.ts`       | Maps DOM/table positions to document ranges                                    |
-| `contentScript/nestedEditor/nestedCellEditor.ts`      | Orchestrates nested editor (delegates to `nestedEditor/` modules)              |
-| `contentScript/nestedEditor/decorationPlugins.ts`     | View plugins for custom syntax (inline code borders, `==mark==`)               |
-| `contentScript/nestedEditor/`                         | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard` |
-| `contentScript/tableModel/markdownTableRowScanner.ts` | Shared scanner: detects pipe delimiters, handles escaped pipes and inline code |
-| `contentScript/tableModel/`                           | Markdown table parsing/ranges/manipulation helpers                             |
-| `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating-toolbar view plugin (uses Floating UI for positioning)                |
-| `contentScript/services/markdownRenderer.ts`          | `MarkdownRenderService` (async rendering with caching)                         |
+| File                                                  | Purpose                                                                            |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `contentScript/tableWidget/tableWidgetExtension.ts`   | Main wiring: connects plugins, styles, and command registration                    |
+| `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS styles for the table widget                                              |
+| `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Manages nested editor lifecycle (open/close/sync)                                  |
+| `contentScript/tableCommands/`                        | Table manipulation commands and shared execution logic                             |
+| `contentScript/tableModel/tableTransactionHelpers.ts` | Shared transaction logic (`runTableOperation`) for table edits                     |
+| `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                       |
+| `contentScript/tableWidget/tableHeightCache.ts`       | LRU cache for measured table heights (improves scroll stability)                   |
+| `contentScript/tableWidget/domHelpers.ts`             | Centralized DOM selectors, class names, and data attributes                        |
+| `contentScript/tableWidget/activeCellState.ts`        | Tracks active cell range in main editor state                                      |
+| `contentScript/tableWidget/tableNavigation.ts`        | Navigation logic (Tab/Enter/Arrows) and cell switching                             |
+| `contentScript/tableWidget/tablePositioning.ts`       | Maps DOM/table positions to document ranges                                        |
+| `contentScript/nestedEditor/nestedCellEditor.ts`      | ViewPlugin managing nested editor lifecycle (delegates to `nestedEditor/` modules) |
+| `contentScript/nestedEditor/decorationPlugins.ts`     | View plugins for custom syntax (inline code borders, `==mark==`)                   |
+| `contentScript/nestedEditor/`                         | Sub-modules: `transactionPolicy`, `mounting`, `domHandlers`, `mainEditorGuard`     |
+| `contentScript/tableModel/markdownTableRowScanner.ts` | Shared scanner: detects pipe delimiters, handles escaped pipes and inline code     |
+| `contentScript/tableModel/`                           | Markdown table parsing/ranges/manipulation helpers                                 |
+| `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating-toolbar view plugin (uses Floating UI for positioning)                    |
+| `contentScript/services/markdownRenderer.ts`          | `MarkdownRenderService` (async rendering with caching)                             |
 
 ### Table Display
 
