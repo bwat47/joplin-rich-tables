@@ -49,7 +49,7 @@ export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
 }
 
-function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
+export function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
     // Escape any '|' that is not already escaped as '\|'.
     // A pipe is considered escaped only when preceded by an odd-length backslash run.
     // Example: `\\|` (two backslashes + pipe) is NOT escaped in Markdown (the pipe is active).
@@ -78,7 +78,7 @@ function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: num
     return result;
 }
 
-function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
+export function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
     let count = 0;
     for (let i = pos - 1; i >= 0; i--) {
         if (doc.sliceString(i, i + 1) !== '\\') {
@@ -93,6 +93,60 @@ function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): nu
 export function convertNewlinesToBr(text: string): string {
     // Normalize CRLF/CR to LF first, then replace each LF with <br>.
     return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
+}
+
+/** A simple change spec for building sanitized transactions. */
+export type SimpleChange = { from: number; to: number; insert: string };
+
+/** Result of sanitizing cell changes. */
+export interface SanitizeChangesResult {
+    /** True if any change touched outside the cell bounds. */
+    rejected: boolean;
+    /** True if any inserted text was modified (newlines converted, pipes escaped). */
+    didModifyInserts: boolean;
+    /** The sanitized changes to apply. */
+    changes: SimpleChange[];
+}
+
+/**
+ * Sanitizes transaction changes for table cell editing.
+ * - Rejects changes that touch outside the cell bounds
+ * - Converts newlines to `<br>` tags
+ * - Escapes unescaped pipe characters
+ */
+export function sanitizeCellChanges(tr: Transaction, cellFrom: number, cellTo: number): SanitizeChangesResult {
+    const changes: SimpleChange[] = [];
+    let rejected = false;
+    let didModifyInserts = false;
+
+    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        if (fromA < cellFrom || toA > cellTo) {
+            rejected = true;
+            return;
+        }
+
+        const insertedText = inserted.toString();
+        let sanitized = insertedText;
+
+        if (sanitized.includes('\n') || sanitized.includes('\r')) {
+            sanitized = convertNewlinesToBr(sanitized);
+        }
+
+        if (sanitized.includes('|')) {
+            sanitized = escapeUnescapedPipesWithContext(
+                sanitized,
+                countTrailingBackslashesInDoc(tr.startState.doc, fromA)
+            );
+        }
+
+        if (sanitized !== insertedText) {
+            didModifyInserts = true;
+        }
+
+        changes.push({ from: fromA, to: toA, insert: sanitized });
+    });
+
+    return { rejected, didModifyInserts, changes };
 }
 
 /** Clamps a value between min and max. */
@@ -148,39 +202,7 @@ export function createCellTransactionFilter(rangeField: StateField<SubviewCellRa
             return { selection: selectionSpec };
         }
 
-        type SimpleChange = { from: number; to: number; insert: string };
-
-        let rejected = false;
-        let didModifyInserts = false;
-        const nextChanges: SimpleChange[] = [];
-
-        tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-            if (fromA < cellFrom || toA > cellTo) {
-                rejected = true;
-                return;
-            }
-
-            const insertedText = inserted.toString();
-
-            // Markdown tables can't contain literal newlines inside a cell without breaking the table.
-            // Instead of rejecting multi-line pastes, sanitize them into inline HTML.
-            let sanitizedText = insertedText;
-            if (sanitizedText.includes('\n') || sanitizedText.includes('\r')) {
-                sanitizedText = convertNewlinesToBr(sanitizedText);
-            }
-
-            const escaped = sanitizedText.includes('|')
-                ? escapeUnescapedPipesWithContext(
-                      sanitizedText,
-                      countTrailingBackslashesInDoc(tr.startState.doc, fromA)
-                  )
-                : sanitizedText;
-            if (escaped !== insertedText) {
-                didModifyInserts = true;
-            }
-
-            nextChanges.push({ from: fromA, to: toA, insert: escaped });
-        });
+        const { rejected, didModifyInserts, changes: nextChanges } = sanitizeCellChanges(tr, cellFrom, cellTo);
 
         if (rejected) {
             return [];

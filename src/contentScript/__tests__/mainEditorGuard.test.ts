@@ -117,4 +117,79 @@ describe('createMainEditorActiveCellGuard', () => {
 
         expect(tr.state.doc.toString()).toContain('| X | Y |');
     });
+
+    it('sanitizes pasted content (newlines/pipes) inside active cell instead of rejecting', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        expect(tableRanges).not.toBeNull();
+
+        const cellFrom = tableRanges!.headers[0].from;
+        const cellTo = tableRanges!.headers[0].to;
+
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                tableTo: doc.length,
+                cellFrom,
+                cellTo,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        // Simulate pasting "Line1\nLine2|Val" into H1
+        const pasteContent = 'Line1\nLine2|Val';
+        const expectedContent = 'Line1<br>Line2\\|Val';
+
+        // Insert at start of cell
+        const tr = state.update({
+            changes: { from: cellFrom, to: cellFrom, insert: pasteContent },
+        });
+
+        // The guard should rewrite the changes
+        const cellText = tr.state.doc.sliceString(cellFrom, cellFrom + expectedContent.length);
+        expect(cellText).toBe(expectedContent);
+    });
+
+    it('updates selection correctly when sanitized content length differs from original', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |'].join('\n');
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        const cellFrom = tableRanges!.headers[0].from;
+        const cellTo = tableRanges!.headers[0].to;
+
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                tableTo: doc.length,
+                cellFrom,
+                cellTo,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+            selection: { anchor: cellFrom, head: cellFrom },
+        }).state;
+
+        // Paste "a\nb" (length 3). Sanitized "a<br>b" (length 6).
+        const pasteContent = 'a\nb';
+        const expectedContent = 'a<br>b';
+
+        // 1. Create a transaction interacting with the guard
+        const tr = state.update({
+            changes: { from: cellFrom, to: cellFrom, insert: pasteContent },
+        });
+
+        // 2. The guard intercepts and returns a NEW transaction spec.
+        const resultingState = tr.state;
+        const resultingSelection = resultingState.selection.main;
+
+        // Original insert was length 3 ("a\nb").
+        // Sanitized insert is length 6 ("a<br>b").
+        // We expect cursor to be at cellFrom + 6.
+        expect(resultingSelection.head).toBe(cellFrom + expectedContent.length);
+    });
 });
