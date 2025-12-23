@@ -7,8 +7,9 @@ import {
     type TableCellRanges,
     type CellRange,
 } from '../tableModel/markdownTableCellRanges';
-import { DATA_TABLE_FROM, DATA_TABLE_TO, getWidgetSelector } from './domConstants';
-import { getActiveCell, type ActiveCellSection } from './activeCellState';
+import { ATTR_TABLE_FROM, getWidgetSelector } from './domHelpers';
+import { getActiveCell } from './activeCellState';
+import type { CellCoords } from '../tableModel/types';
 
 export interface ResolvedTable {
     from: number;
@@ -117,23 +118,12 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
     // This is important when quickly switching between tables: `activeCell` may still refer
     // to the previously-active table at the time this handler runs.
     if (container) {
-        const tableFrom = Number(container.dataset[DATA_TABLE_FROM]);
+        const tableFrom = Number(container.getAttribute(`data-${ATTR_TABLE_FROM}`));
         if (Number.isFinite(tableFrom) && tableFrom >= 0 && tableFrom <= view.state.doc.length) {
             const anchorPos = Math.min(tableFrom + 1, view.state.doc.length);
             const resolved = resolveTableAtPos(view.state, anchorPos);
             if (resolved) {
                 return resolved;
-            }
-
-            // If the table node cannot be resolved (e.g., parser not ready), fall back to
-            // slicing using the stored bounds if present.
-            const tableTo = Number(container.dataset[DATA_TABLE_TO]);
-            if (Number.isFinite(tableTo) && tableTo >= tableFrom) {
-                return {
-                    from: tableFrom,
-                    to: tableTo,
-                    text: view.state.doc.sliceString(tableFrom, tableTo),
-                };
             }
         }
     }
@@ -158,13 +148,11 @@ export function getTableCellRanges(tableText: string): TableCellRanges | null {
 export function resolveCellDocRange(params: {
     tableFrom: number;
     ranges: TableCellRanges;
-    section: ActiveCellSection;
-    row: number;
-    col: number;
+    coords: CellCoords;
 }): { cellFrom: number; cellTo: number; relRange: CellRange } | null {
-    const { tableFrom, ranges, section, row, col } = params;
+    const { tableFrom, ranges, coords } = params;
 
-    const relRange = section === 'header' ? ranges.headers[col] : ranges.rows[row]?.[col];
+    const relRange = coords.section === 'header' ? ranges.headers[coords.col] : ranges.rows[coords.row]?.[coords.col];
     if (!relRange) {
         return null;
     }

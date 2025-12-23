@@ -16,7 +16,7 @@ import {
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 import { selectAllInCell } from './markdownCommands';
-import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domConstants';
+import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domHelpers';
 
 export { syncAnnotation };
 

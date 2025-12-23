@@ -11,7 +11,8 @@ import {
     SECTION_HEADER,
     getCellSelector,
     getWidgetSelector,
-} from './domConstants';
+} from './domHelpers';
+import { makeTableId } from '../tableModel/types';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -104,9 +105,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
     const resolvedRange = resolveCellDocRange({
         tableFrom: table.from,
         ranges: cellRanges,
-        section,
-        row,
-        col,
+        coords: { section, row, col },
     });
     if (!resolvedRange) {
         return false;
@@ -132,10 +131,10 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     // After dispatch, the decoration rebuild may have destroyed and recreated widget DOM.
     // Re-query for the fresh cell element using data attributes to avoid stale references.
-    const freshWidget = view.dom.querySelector(getWidgetSelector(table.from)) as HTMLElement | null;
+    const freshWidget = view.dom.querySelector(getWidgetSelector(makeTableId(table.from))) as HTMLElement | null;
 
     if (freshWidget) {
-        const freshCell = freshWidget.querySelector(getCellSelector(section, row, col)) as HTMLElement | null;
+        const freshCell = freshWidget.querySelector(getCellSelector({ section, row, col })) as HTMLElement | null;
 
         if (freshCell) {
             openNestedCellEditor({

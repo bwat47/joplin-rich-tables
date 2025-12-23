@@ -4,17 +4,16 @@ import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import type { TableData } from '../tableModel/markdownTableParsing';
 import { tableHeightCache } from './tableHeightCache';
 import {
+    ATTR_TABLE_FROM,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
     DATA_ROW,
     DATA_SECTION,
-    DATA_TABLE_FROM,
-    DATA_TABLE_TO,
     SECTION_BODY,
     SECTION_HEADER,
     getWidgetSelector,
-} from './domConstants';
+} from './domHelpers';
 
 /**
  * Widget that renders a markdown table as an interactive HTML table
@@ -49,8 +48,7 @@ export class TableWidget extends WidgetType {
         container.className = CLASS_TABLE_WIDGET;
 
         // Used by extension-level interaction handlers as a reliable fallback.
-        container.dataset[DATA_TABLE_FROM] = String(this.tableFrom);
-        container.dataset[DATA_TABLE_TO] = String(this.tableTo);
+        container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;

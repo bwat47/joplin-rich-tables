@@ -1,15 +1,14 @@
 import { EditorState, StateEffect, StateField } from '@codemirror/state';
+import type { CellCoords, TableSection } from '../tableModel/types';
 
-export type ActiveCellSection = 'header' | 'body';
+export type ActiveCellSection = TableSection;
 
-export interface ActiveCell {
+export interface ActiveCell extends CellCoords {
     tableFrom: number;
     tableTo: number;
     cellFrom: number;
     cellTo: number;
-    section: ActiveCellSection;
-    row: number; // For body only; 0-based. For header, row is always 0.
-    col: number; // 0-based
+    // section, row, col inherited from CellCoords
 }
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();

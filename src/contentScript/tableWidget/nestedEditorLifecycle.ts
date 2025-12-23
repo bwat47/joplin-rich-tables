@@ -9,7 +9,8 @@ import {
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
-import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from './domConstants';
+import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from './domHelpers';
+import { makeTableId } from '../tableModel/types';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
@@ -38,7 +39,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 }
 
                 requestAnimationFrame(() => {
-                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(activeCell.tableFrom));
+                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(activeCell.tableFrom)));
                     if (!widgetDOM) {
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
@@ -46,8 +47,8 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                     const selector =
                         activeCell.section === SECTION_HEADER
-                            ? getCellSelector(SECTION_HEADER, 0, activeCell.col)
-                            : getCellSelector(SECTION_BODY, activeCell.row, activeCell.col);
+                            ? getCellSelector({ section: SECTION_HEADER, row: 0, col: activeCell.col })
+                            : getCellSelector({ section: SECTION_BODY, row: activeCell.row, col: activeCell.col });
 
                     const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
                     if (!cellElement) {
