@@ -14,6 +14,7 @@ import {
     SECTION_HEADER,
     getWidgetSelector,
 } from './domHelpers';
+import { hashTableText } from './hashUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -24,6 +25,7 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
  */
 export class TableWidget extends WidgetType {
     private static readonly pendingHeightMeasure = new WeakSet<HTMLElement>();
+    private readonly contentHash: string;
 
     constructor(
         private tableData: TableData,
@@ -32,18 +34,31 @@ export class TableWidget extends WidgetType {
         private tableTo: number
     ) {
         super();
+        this.contentHash = hashTableText(tableText);
     }
 
-    eq(other: TableWidget): boolean {
-        // IMPORTANT: include doc positions in equality.
-        // CodeMirror may reuse widget DOM when `eq()` returns true.
-        // Our edit button handler closes over `tableFrom`, so if the table shifts
-        // (e.g. user inserts a newline above it) but the table text is unchanged,
-        // reusing DOM would keep a stale `tableFrom` and the edit button would
-        // stop working.
-        return (
-            this.tableText === other.tableText && this.tableFrom === other.tableFrom && this.tableTo === other.tableTo
-        );
+    eq(_other: TableWidget): boolean {
+        // Always return false to trigger updateDOM() call.
+        // updateDOM() will decide whether to reuse the DOM based on content hash.
+        return false;
+    }
+
+    updateDOM(dom: HTMLElement, view: EditorView): boolean {
+        // Called when eq() returns false. We decide here whether to reuse the DOM.
+        // Check if the table content is the same by comparing stored hash.
+        if (dom.dataset.tableTextHash !== this.contentHash) {
+            // Content changed (structural edit) - must rebuild DOM via toDOM().
+            return false;
+        }
+
+        // Content is the same, only position changed (typing above table).
+        // Update position-dependent attributes and reuse the DOM.
+        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+
+        // Update the view mapping so destroy() can clean up correctly.
+        widgetViews.set(dom, view);
+
+        return true;
     }
 
     toDOM(view: EditorView): HTMLElement {
@@ -52,6 +67,9 @@ export class TableWidget extends WidgetType {
 
         // Used by extension-level interaction handlers as a reliable fallback.
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+
+        // Store content hash for updateDOM() to detect content vs position-only changes.
+        container.dataset.tableTextHash = this.contentHash;
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
