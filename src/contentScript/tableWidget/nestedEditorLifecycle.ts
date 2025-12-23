@@ -34,8 +34,8 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             // the main editor. To keep the editing experience stable, proactively close and
             // re-open after the new widget DOM is mounted.
             if (forceRebuild && hasActiveCell && activeCell && !isSync) {
-                if (isNestedCellEditorOpen()) {
-                    closeNestedCellEditor();
+                if (isNestedCellEditorOpen(this.view)) {
+                    closeNestedCellEditor(this.view);
                 }
 
                 requestAnimationFrame(() => {
@@ -70,12 +70,12 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // If active cell was cleared, close the nested editor.
             if (!hasActiveCell && this.hadActiveCell) {
-                closeNestedCellEditor();
+                closeNestedCellEditor(this.view);
             }
 
             // Main -> subview sync.
-            if (update.docChanged && hasActiveCell && activeCell && isNestedCellEditorOpen() && !isSync) {
-                applyMainTransactionsToNestedEditor({
+            if (update.docChanged && hasActiveCell && activeCell && isNestedCellEditorOpen(this.view) && !isSync) {
+                applyMainTransactionsToNestedEditor(this.view, {
                     transactions: update.transactions,
                     cellFrom: activeCell.cellFrom,
                     cellTo: activeCell.cellTo,
@@ -105,10 +105,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 isSameActiveCell &&
                 hasActiveCell &&
                 activeCell &&
-                isNestedCellEditorOpen() &&
+                isNestedCellEditorOpen(this.view) &&
                 !isSync
             ) {
-                applyMainSelectionToNestedEditor({
+                applyMainSelectionToNestedEditor(this.view, {
                     selection: update.state.selection,
                     cellFrom: activeCell.cellFrom,
                     cellTo: activeCell.cellTo,
@@ -118,7 +118,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // If the document changed externally while editing but we don't have an open subview,
             // clear state to avoid stale ranges.
-            if (update.docChanged && hasActiveCell && activeCell && !isNestedCellEditorOpen() && !isSync) {
+            if (update.docChanged && hasActiveCell && activeCell && !isNestedCellEditorOpen(this.view) && !isSync) {
                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
             }
 
@@ -126,7 +126,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         destroy(): void {
-            closeNestedCellEditor();
+            closeNestedCellEditor(this.view);
         }
     }
 );

@@ -15,6 +15,9 @@ import {
     getWidgetSelector,
 } from './domHelpers';
 
+/** Associates widget DOM elements with their EditorView for cleanup during destroy. */
+const widgetViews = new WeakMap<HTMLElement, EditorView>();
+
 /**
  * Widget that renders a markdown table as an interactive HTML table
  * Supports rendering markdown content inside cells
@@ -113,6 +116,9 @@ export class TableWidget extends WidgetType {
             },
             key: measureKey,
         });
+
+        // Store view reference for cleanup when widget is destroyed
+        widgetViews.set(container, view);
 
         return container;
     }
@@ -273,6 +279,9 @@ export class TableWidget extends WidgetType {
 
         // Ensure any nested editor hosted in this widget is closed when the widget is destroyed.
         // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
-        cleanupHostedEditors(dom);
+        const view = widgetViews.get(dom);
+        if (view) {
+            cleanupHostedEditors(view, dom);
+        }
     }
 }
