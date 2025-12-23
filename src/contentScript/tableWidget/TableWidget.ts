@@ -34,16 +34,40 @@ export class TableWidget extends WidgetType {
         super();
     }
 
-    eq(other: TableWidget): boolean {
-        // IMPORTANT: include doc positions in equality.
-        // CodeMirror may reuse widget DOM when `eq()` returns true.
-        // Our edit button handler closes over `tableFrom`, so if the table shifts
-        // (e.g. user inserts a newline above it) but the table text is unchanged,
-        // reusing DOM would keep a stale `tableFrom` and the edit button would
-        // stop working.
-        return (
-            this.tableText === other.tableText && this.tableFrom === other.tableFrom && this.tableTo === other.tableTo
-        );
+    /**
+     * Simple hash of table text for quick comparison in updateDOM().
+     * Uses FNV-1a algorithm for fast, reasonable distribution.
+     */
+    private static hashTableText(text: string): string {
+        let hash = 2166136261;
+        for (let i = 0; i < text.length; i++) {
+            hash ^= text.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        return (hash >>> 0).toString(16);
+    }
+
+    eq(_other: TableWidget): boolean {
+        // Always return false to trigger updateDOM() call.
+        // updateDOM() will decide whether to reuse the DOM based on content hash.
+        return false;
+    }
+
+    updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+        // Called when eq() returns false. We decide here whether to reuse the DOM.
+        // Check if the table content is the same by comparing stored hash.
+        const storedHash = dom.dataset.tableTextHash;
+        const newHash = TableWidget.hashTableText(this.tableText);
+
+        if (storedHash !== newHash) {
+            // Content changed (structural edit) - must rebuild DOM via toDOM().
+            return false;
+        }
+
+        // Content is the same, only position changed (typing above table).
+        // Update position-dependent attributes and reuse the DOM.
+        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+        return true;
     }
 
     toDOM(view: EditorView): HTMLElement {
@@ -52,6 +76,9 @@ export class TableWidget extends WidgetType {
 
         // Used by extension-level interaction handlers as a reliable fallback.
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+
+        // Store content hash for updateDOM() to detect content vs position-only changes.
+        container.dataset.tableTextHash = TableWidget.hashTableText(this.tableText);
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
