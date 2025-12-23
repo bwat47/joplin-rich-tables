@@ -133,8 +133,8 @@ export function registerTableCommands(editorControl: EditorControl): void {
     // Register command to close nested editor (called from plugin on note switch)
     editorControl.registerCommand('richTablesCloseNestedEditor', () => {
         const view = editorControl.cm6;
-        if (isNestedCellEditorOpen()) {
-            closeNestedCellEditor();
+        if (isNestedCellEditorOpen(view)) {
+            closeNestedCellEditor(view);
         }
         if (getActiveCell(view.state)) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });

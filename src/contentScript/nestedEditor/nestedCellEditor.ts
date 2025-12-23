@@ -1,6 +1,6 @@
 import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
 import { ChangeSpec, EditorSelection, EditorState, Transaction } from '@codemirror/state';
-import { drawSelection, EditorView } from '@codemirror/view';
+import { drawSelection, EditorView, ViewPlugin } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { inlineCodePlugin, markPlugin, insertPlugin } from './decorationPlugins';
@@ -446,7 +446,29 @@ class NestedCellEditorManager {
     }
 }
 
-const nestedCellEditorManager = new NestedCellEditorManager();
+/**
+ * ViewPlugin that manages the NestedCellEditorManager lifecycle.
+ * This attaches the manager to the EditorView instance rather than using a global singleton.
+ */
+export const nestedCellEditorPlugin = ViewPlugin.fromClass(
+    class {
+        manager: NestedCellEditorManager;
+
+        constructor(_view: EditorView) {
+            this.manager = new NestedCellEditorManager();
+        }
+
+        destroy() {
+            this.manager.close();
+        }
+    }
+);
+
+/** Retrieves the NestedCellEditorManager for the given view. */
+function getManager(view: EditorView): NestedCellEditorManager | null {
+    const plugin = view.plugin(nestedCellEditorPlugin);
+    return plugin ? plugin.manager : null;
+}
 
 /** Opens a nested editor for the specified cell. */
 export function openNestedCellEditor(params: {
@@ -456,50 +478,56 @@ export function openNestedCellEditor(params: {
     cellTo: number;
     initialCursorPos?: 'start' | 'end';
 }): void {
-    nestedCellEditorManager.open(params);
+    getManager(params.mainView)?.open(params);
 }
 
 /** Closes the currently open nested editor, if any. */
-export function closeNestedCellEditor(): void {
-    nestedCellEditorManager.close();
+export function closeNestedCellEditor(view: EditorView): void {
+    getManager(view)?.close();
 }
 
 /** Checks if a nested editor is currently open. */
-export function isNestedCellEditorOpen(): boolean {
-    return nestedCellEditorManager.isOpen();
+export function isNestedCellEditorOpen(view: EditorView): boolean {
+    return getManager(view)?.isOpen() ?? false;
 }
 
 /** Forwards transactions from the main editor to the nested editor to keep them in sync. */
-export function applyMainTransactionsToNestedEditor(params: {
-    transactions: readonly Transaction[];
-    cellFrom: number;
-    cellTo: number;
-}): void {
-    nestedCellEditorManager.applyMainTransactions(params.transactions, params.cellFrom, params.cellTo);
+export function applyMainTransactionsToNestedEditor(
+    view: EditorView,
+    params: {
+        transactions: readonly Transaction[];
+        cellFrom: number;
+        cellTo: number;
+    }
+): void {
+    getManager(view)?.applyMainTransactions(params.transactions, params.cellFrom, params.cellTo);
 }
 
 /** Mirrors the main editor selection into the nested editor (used for Joplin-native commands). */
-export function applyMainSelectionToNestedEditor(params: {
-    selection: EditorSelection;
-    cellFrom: number;
-    cellTo: number;
-    focus?: boolean;
-}): void {
-    nestedCellEditorManager.applyMainSelection(params.selection, params.cellFrom, params.cellTo, Boolean(params.focus));
+export function applyMainSelectionToNestedEditor(
+    view: EditorView,
+    params: {
+        selection: EditorSelection;
+        cellFrom: number;
+        cellTo: number;
+        focus?: boolean;
+    }
+): void {
+    getManager(view)?.applyMainSelection(params.selection, params.cellFrom, params.cellTo, Boolean(params.focus));
 }
 
 /**
  * Checks if the currently open nested editor is hosted within the given container.
  * If so, closes it. Used by parent widgets to clean up on destroy.
  */
-export function cleanupHostedEditors(container: HTMLElement): void {
-    nestedCellEditorManager.checkAndCloseIfHostedIn(container);
+export function cleanupHostedEditors(view: EditorView, container: HTMLElement): void {
+    getManager(view)?.checkAndCloseIfHostedIn(container);
 }
 
 /**
  * Refocuses the nested editor without triggering scroll.
  * Used to reclaim focus when it's unexpectedly stolen (e.g., by Android focus management).
  */
-export function refocusNestedEditor(): void {
-    nestedCellEditorManager.refocusWithPreventScroll();
+export function refocusNestedEditor(view: EditorView): void {
+    getManager(view)?.refocusWithPreventScroll();
 }

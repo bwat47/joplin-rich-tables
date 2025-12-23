@@ -9,6 +9,7 @@ import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
     isNestedCellEditorOpen,
+    nestedCellEditorPlugin,
     refocusNestedEditor,
     syncAnnotation,
 } from '../nestedEditor/nestedCellEditor';
@@ -215,7 +216,7 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         }
 
         const hasActiveCell = Boolean(getActiveCell(view.state));
-        const hasNestedEditor = isNestedCellEditorOpen();
+        const hasNestedEditor = isNestedCellEditorOpen(view);
 
         if (!hasActiveCell && !hasNestedEditor) {
             return false;
@@ -228,7 +229,7 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
 
         // Close the nested editor first to ensure widget DOM is cleaned up before rebuild.
         if (hasNestedEditor) {
-            closeNestedCellEditor();
+            closeNestedCellEditor(view);
         }
 
         // Combine clearing active cell and setting selection in a single dispatch.
@@ -274,8 +275,8 @@ const nestedEditorFocusGuard = EditorView.domEventHandlers({
         // If the nested editor is open and should have focus, reclaim it.
         // This handles cases where Android or other focus management systems
         // redirect focus to the main editor after toolbar button presses.
-        if (isNestedCellEditorOpen() && getActiveCell(view.state)) {
-            refocusNestedEditor();
+        if (isNestedCellEditorOpen(view) && getActiveCell(view.state)) {
+            refocusNestedEditor(view);
             return true;
         }
         return false;
@@ -302,9 +303,11 @@ export default function (context: ContentScriptContext) {
             }
 
             // Register the extension
+            const cm6View = editorControl.cm6;
             editorControl.addExtension([
+                nestedCellEditorPlugin,
                 activeCellField,
-                createMainEditorActiveCellGuard(isNestedCellEditorOpen),
+                createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
                 clearActiveCellOnUndoRedo,
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
