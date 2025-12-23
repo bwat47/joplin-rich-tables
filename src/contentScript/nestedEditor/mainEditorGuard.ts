@@ -1,12 +1,7 @@
 import { EditorState, Extension } from '@codemirror/state';
 import { getActiveCell } from '../tableWidget/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import {
-    convertNewlinesToBr,
-    countTrailingBackslashesInDoc,
-    escapeUnescapedPipesWithContext,
-    syncAnnotation,
-} from './transactionPolicy';
+import { sanitizeCellChanges, syncAnnotation } from './transactionPolicy';
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -49,39 +44,11 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             return tr;
         }
 
-        type SimpleChange = { from: number; to: number; insert: string };
-        const nextChanges: SimpleChange[] = [];
-        let rejected = false;
-        let didModifyInserts = false;
-
-        tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-            // Reject changes outside the active cell range.
-            if (fromA < activeCell.cellFrom || toA > activeCell.cellTo) {
-                rejected = true;
-                return;
-            }
-
-            // Sanitize changes inside the active cell (e.g. Paste from context menu).
-            const insertedText = inserted.toString();
-
-            let sanitizedText = insertedText;
-            if (sanitizedText.includes('\n') || sanitizedText.includes('\r')) {
-                sanitizedText = convertNewlinesToBr(sanitizedText);
-            }
-
-            const escaped = sanitizedText.includes('|')
-                ? escapeUnescapedPipesWithContext(
-                      sanitizedText,
-                      countTrailingBackslashesInDoc(tr.startState.doc, fromA)
-                  )
-                : sanitizedText;
-
-            if (escaped !== insertedText) {
-                didModifyInserts = true;
-            }
-
-            nextChanges.push({ from: fromA, to: toA, insert: escaped });
-        });
+        const { rejected, didModifyInserts, changes } = sanitizeCellChanges(
+            tr,
+            activeCell.cellFrom,
+            activeCell.cellTo
+        );
 
         if (rejected) {
             return [];
@@ -94,8 +61,8 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
         // Return a new transaction with sanitized changes.
         // CodeMirror automatically maps the selection through the new changes.
         return {
-            changes: nextChanges,
-            selection: tr.selection ? tr.selection : undefined,
+            changes,
+            selection: tr.selection,
             effects: tr.effects,
             scrollIntoView: tr.scrollIntoView,
         };
