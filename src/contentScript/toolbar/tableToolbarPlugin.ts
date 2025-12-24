@@ -296,8 +296,9 @@ class TableToolbarPlugin {
     }
 
     private hideToolbar() {
-        // Prefer visibility over display:none while a cell is active so
-        // Floating UI can still measure the element.
+        // We use display: none to ensure it is removed from the layout/paint immediately.
+        // This prevents "ghosting" or lingering 1-frame artifacts.
+        this.dom.style.display = 'none';
         this.dom.style.visibility = 'hidden';
     }
 
@@ -346,6 +347,10 @@ class TableToolbarPlugin {
             referenceElement,
             this.dom,
             async () => {
+                // Ensure element is measurable (display:flex) but hidden (visibility:hidden)
+                // before asking Floating UI to compute position.
+                this.prepareToolbarForPositioning();
+
                 const currentRef = this.view.contentDOM.querySelector(selector) as HTMLElement;
                 if (!currentRef) {
                     // Don't cleanup here - just hide and let the next update() call handle cleanup
@@ -423,7 +428,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         fontSize: 'inherit',
         color: 'var(--joplin-color)',
         whiteSpace: 'nowrap',
-        transition: 'all 0.2s',
+        transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
     },
     '.cm-table-toolbar-btn .cm-table-toolbar-icon': {
         width: '18px',
