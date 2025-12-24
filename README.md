@@ -22,6 +22,8 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Editing table cells (with syntax highlighting for markdown)
 - Adding/Deleting rows
 - Adding/Deleting columns
+- Moving rows (up/down)
+- Moving columns (left/right)
 - Changing column alignment (left/center/right)
 - Format table (currently just normalizes whitespace to one space around cell content, no full-on pretty formatting currently).
 
@@ -34,6 +36,8 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 | **Insert Column Left/Right** | `Alt + Shift + Left` / `Right`       |
 | **Delete Row**               | `Alt + Shift + D`                    |
 | **Delete Column**            | `Ctrl + Alt + Shift + D`             |
+| **Move Row Up/Down**         | `Alt + Up` / `Down`                  |
+| **Move Column Left/Right**   | `Alt + Left` / `Right`               |
 | **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
 
 ### Important Notes/Limitations

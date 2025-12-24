@@ -111,3 +111,35 @@ export const formatTableIcon = () =>
         { d: 'M21 3a16 16 0 0 1 -10.2 12.8' },
         { d: 'M10.6 9a9 9 0 0 1 4.4 4.4' },
     ]);
+
+export const moveColumnLeftIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M5 12l14 0' },
+        { d: 'M5 12l4 4' },
+        { d: 'M5 12l4 -4' },
+    ]);
+
+export const moveColumnRightIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M5 12l14 0' },
+        { d: 'M15 16l4 -4' },
+        { d: 'M15 8l4 4' },
+    ]);
+
+export const moveRowUpIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M12 5l0 14' },
+        { d: 'M16 9l-4 -4' },
+        { d: 'M8 9l4 -4' },
+    ]);
+
+export const moveRowDownIcon = () =>
+    createSvg([
+        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
+        { d: 'M12 5l0 14' },
+        { d: 'M16 15l-4 4' },
+        { d: 'M8 15l4 4' },
+    ]);

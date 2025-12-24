@@ -9,6 +9,10 @@ import {
     execDeleteColumn,
     execUpdateAlignment,
     execFormatTable,
+    execMoveRowUp,
+    execMoveRowDown,
+    execMoveColumnLeft,
+    execMoveColumnRight,
 } from '../tableCommands/tableCommands';
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
@@ -27,6 +31,10 @@ import {
     alignCenterIcon,
     alignRightIcon,
     formatTableIcon,
+    moveColumnLeftIcon,
+    moveColumnRightIcon,
+    moveRowUpIcon,
+    moveRowDownIcon,
 } from './icons';
 
 class TableToolbarPlugin {
@@ -124,6 +132,16 @@ class TableToolbarPlugin {
                 execDeleteRow(this.view, this.currentActiveCell);
             }
         });
+        createIconBtn('Move row up', 'Move row up', moveRowUpIcon(), () => {
+            if (this.currentActiveCell) {
+                execMoveRowUp(this.view, this.currentActiveCell);
+            }
+        });
+        createIconBtn('Move row down', 'Move row down', moveRowDownIcon(), () => {
+            if (this.currentActiveCell) {
+                execMoveRowDown(this.view, this.currentActiveCell);
+            }
+        });
 
         // Separator
         const createSeparator = () => {
@@ -147,6 +165,16 @@ class TableToolbarPlugin {
         createIconBtn('Delete column', 'Delete column', columnRemoveIcon(), () => {
             if (this.currentActiveCell) {
                 execDeleteColumn(this.view, this.currentActiveCell);
+            }
+        });
+        createIconBtn('Move column left', 'Move column left', moveColumnLeftIcon(), () => {
+            if (this.currentActiveCell) {
+                execMoveColumnLeft(this.view, this.currentActiveCell);
+            }
+        });
+        createIconBtn('Move column right', 'Move column right', moveColumnRightIcon(), () => {
+            if (this.currentActiveCell) {
+                execMoveColumnRight(this.view, this.currentActiveCell);
             }
         });
 

@@ -73,6 +73,10 @@ joplin.plugins.register({
         await registerTableCommand('richTables.alignLeft', 'Align column left');
         await registerTableCommand('richTables.alignCenter', 'Align column center');
         await registerTableCommand('richTables.alignRight', 'Align column right');
+        await registerTableCommand('richTables.moveRowUp', 'Move row up');
+        await registerTableCommand('richTables.moveRowDown', 'Move row down');
+        await registerTableCommand('richTables.moveColumnLeft', 'Move column left');
+        await registerTableCommand('richTables.moveColumnRight', 'Move column right');
 
         // Create menu items with keyboard shortcuts
         await joplin.views.menus.create(
@@ -128,6 +132,26 @@ joplin.plugins.register({
                     label: 'Align right',
                     commandName: 'richTables.alignRight',
                     accelerator: 'Ctrl+Alt+Right',
+                },
+                {
+                    label: 'Move row up',
+                    commandName: 'richTables.moveRowUp',
+                    accelerator: 'Alt+Up',
+                },
+                {
+                    label: 'Move row down',
+                    commandName: 'richTables.moveRowDown',
+                    accelerator: 'Alt+Down',
+                },
+                {
+                    label: 'Move column left',
+                    commandName: 'richTables.moveColumnLeft',
+                    accelerator: 'Alt+Left',
+                },
+                {
+                    label: 'Move column right',
+                    commandName: 'richTables.moveColumnRight',
+                    accelerator: 'Alt+Right',
                 },
             ],
             MenuItemLocation.Tools

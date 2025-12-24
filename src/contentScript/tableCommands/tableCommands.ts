@@ -3,7 +3,12 @@ import { clearActiveCellEffect, getActiveCell, ActiveCell } from '../tableWidget
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { findTableRanges } from '../tableWidget/tablePositioning';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
-import { insertRowForActiveCell, deleteRowForActiveCell } from './tableCommandSemantics';
+import {
+    insertRowForActiveCell,
+    deleteRowForActiveCell,
+    moveRowForActiveCell,
+    moveColumnForActiveCell,
+} from './tableCommandSemantics';
 import { insertColumn, deleteColumn, updateColumnAlignment } from '../tableModel/markdownTableManipulation';
 
 export type CommandColumnAlignment = 'left' | 'center' | 'right' | null;
@@ -118,6 +123,68 @@ export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: C
     });
 }
 
+export function execMoveRowUp(view: EditorView, cell: ActiveCell) {
+    runTableOperation({
+        view,
+        cell,
+        operation: (t, c) => moveRowForActiveCell(t, c, 'up'),
+        computeTargetCell: (c) => {
+            // If we are at the first body row (row 0) and move "up", we swap with header.
+            // Our new position becomes the header.
+            if (c.row === 0) {
+                return { section: 'header', row: 0, col: c.col };
+            }
+
+            // Otherwise we just move up one row index
+            return { section: 'body', row: c.row - 1, col: c.col };
+        },
+        forceWidgetRebuild: true,
+    });
+}
+
+export function execMoveRowDown(view: EditorView, cell: ActiveCell) {
+    runTableOperation({
+        view,
+        cell,
+        operation: (t, c) => moveRowForActiveCell(t, c, 'down'),
+        computeTargetCell: (c) => {
+            // Follow the row to its new position.
+            // Note: If the move is invalid (e.g. at bottom), the operation returns early
+            // and this target calculation is never executed.
+
+            if (c.section === 'header') {
+                return { section: 'body', row: 0, col: c.col };
+            }
+            return { section: 'body', row: c.row + 1, col: c.col };
+        },
+        forceWidgetRebuild: true,
+    });
+}
+
+export function execMoveColumnLeft(view: EditorView, cell: ActiveCell) {
+    runTableOperation({
+        view,
+        cell,
+        operation: (t, c) => moveColumnForActiveCell(t, c, 'left'),
+        computeTargetCell: (c) => {
+            return { ...c, col: c.col - 1 };
+        },
+        forceWidgetRebuild: true,
+    });
+}
+
+export function execMoveColumnRight(view: EditorView, cell: ActiveCell) {
+    runTableOperation({
+        view,
+        cell,
+        operation: (t, c) => moveColumnForActiveCell(t, c, 'right'),
+        computeTargetCell: (c) => {
+            return { ...c, col: c.col + 1 };
+        },
+        forceWidgetRebuild: true,
+    });
+}
+
 export function execFormatTable(view: EditorView, cell: ActiveCell) {
     runTableOperation({
         view,
@@ -215,6 +282,34 @@ export function registerTableCommands(editorControl: EditorControl): void {
         const cell = getActiveCell(editorControl.cm6.state);
         if (!cell) return false;
         execUpdateAlignment(editorControl.cm6, cell, 'center');
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.moveRowUp', () => {
+        const cell = getActiveCell(editorControl.cm6.state);
+        if (!cell) return false;
+        execMoveRowUp(editorControl.cm6, cell);
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.moveRowDown', () => {
+        const cell = getActiveCell(editorControl.cm6.state);
+        if (!cell) return false;
+        execMoveRowDown(editorControl.cm6, cell);
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.moveColumnLeft', () => {
+        const cell = getActiveCell(editorControl.cm6.state);
+        if (!cell) return false;
+        execMoveColumnLeft(editorControl.cm6, cell);
+        return true;
+    });
+
+    editorControl.registerCommand('richTables.moveColumnRight', () => {
+        const cell = getActiveCell(editorControl.cm6.state);
+        if (!cell) return false;
+        execMoveColumnRight(editorControl.cm6, cell);
         return true;
     });
 }
