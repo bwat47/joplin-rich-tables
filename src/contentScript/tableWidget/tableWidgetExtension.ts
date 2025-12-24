@@ -86,7 +86,11 @@ function buildTableDecorations(state: EditorState): DecorationSet {
         const tableHash = hashTableText(table.text);
         let tableData = tableParseCache.get(tableHash);
 
-        if (!tableData) {
+        if (tableData) {
+            // Refresh recency: move to end of Map (most recently used)
+            tableParseCache.delete(tableHash);
+            tableParseCache.set(tableHash, tableData);
+        } else {
             tableData = parseMarkdownTable(table.text);
             if (!tableData) {
                 continue;
