@@ -64,6 +64,21 @@ describe('scanMarkdownTableRow', () => {
         expect(delimiters).toEqual([0, 5, 9]);
     });
 
+    it('handles backslash inside inline code (not an escape)', () => {
+        // `\` is a valid inline code span containing a backslash
+        // Inside code spans, backslashes are literal characters
+        const line = '| `\\` | Next |';
+        const { delimiters } = scanMarkdownTableRow(line);
+        expect(delimiters).toEqual([0, 6, 13]);
+    });
+
+    it('handles backslash-pipe inside inline code', () => {
+        // Backslash doesn't escape the pipe inside code, but pipe is still ignored
+        const line = '| `\\|` | Next |';
+        const { delimiters } = scanMarkdownTableRow(line);
+        expect(delimiters).toEqual([0, 7, 14]);
+    });
+
     it('returns empty array for line with no pipes', () => {
         const line = 'no pipes here';
         const { delimiters } = scanMarkdownTableRow(line);
