@@ -62,11 +62,11 @@ export const joplinHighlightStyle = HighlightStyle.define([
 
     // HTML / XML
     {
-        tag: [tags.tagName],
+        tag: tags.tagName,
         color: 'var(--joplin-color-warn, rgb(228,86,0))',
     },
     {
-        tag: [tags.angleBracket],
+        tag: tags.angleBracket,
         color: 'var(--joplin-color, #32373F)',
     },
     {
