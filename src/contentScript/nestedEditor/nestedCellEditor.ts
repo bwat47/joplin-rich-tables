@@ -294,7 +294,6 @@ class NestedCellEditorManager {
 
         // Force the syntax tree to parse synchronously so that syntax highlighting
         // is available immediately on the first paint, preventing a "flicker" of unstyled text.
-        // 500ms timeout is plenty for a table cell.
         ensureSyntaxTree(state, state.doc.length, SYNTAX_TREE_PARSE_TIMEOUT);
 
         this.subview = new EditorView({
