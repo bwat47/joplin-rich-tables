@@ -167,6 +167,50 @@ export function updateColumnAlignment(
     };
 }
 
+export function swapRows(table: TableData, row1: number, row2: number): TableData {
+    const normalized = normalizeTableColumns(table);
+    // row indices: -1 for header, 0..N-1 for body rows
+    const allRows = [normalized.headers, ...normalized.rows];
+
+    // Map external indices (-1..N-1) to internal array indices (0..N)
+    const idx1 = row1 + 1;
+    const idx2 = row2 + 1;
+
+    if (idx1 < 0 || idx1 >= allRows.length || idx2 < 0 || idx2 >= allRows.length) {
+        return table;
+    }
+
+    const newAllRows = [...allRows];
+    [newAllRows[idx1], newAllRows[idx2]] = [newAllRows[idx2], newAllRows[idx1]];
+
+    return {
+        headers: newAllRows[0],
+        alignments: normalized.alignments,
+        rows: newAllRows.slice(1),
+    };
+}
+
+export function swapColumns(table: TableData, col1: number, col2: number): TableData {
+    const normalized = normalizeTableColumns(table);
+    const columnCount = getColumnCount(normalized);
+
+    if (col1 < 0 || col1 >= columnCount || col2 < 0 || col2 >= columnCount) {
+        return table;
+    }
+
+    const swapInArray = <T>(arr: T[]) => {
+        const newArr = [...arr];
+        [newArr[col1], newArr[col2]] = [newArr[col2], newArr[col1]];
+        return newArr;
+    };
+
+    return {
+        headers: swapInArray(normalized.headers),
+        alignments: swapInArray(normalized.alignments),
+        rows: normalized.rows.map(swapInArray),
+    };
+}
+
 /**
  * Serializes the TableData back to a Markdown table string.
  * It normalizes to a minimal format: exactly one space after each starting pipe
