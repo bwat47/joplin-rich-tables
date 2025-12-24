@@ -70,11 +70,9 @@ export function scanMarkdownTableRow(line: string): TableRowScanResult {
 }
 
 function findClosingBacktick(line: string, start: number): number {
+    // Inside inline code spans, backslashes are NOT escape characters.
+    // They are rendered literally: `\` displays as \
     for (let j = start; j < line.length; j++) {
-        if (line[j] === '\\' && j + 1 < line.length) {
-            j++; // Skip escaped character
-            continue;
-        }
         if (line[j] === '`') {
             return j;
         }
