@@ -59,4 +59,22 @@ export const joplinHighlightStyle = HighlightStyle.define([
         tag: tags.meta,
         color: 'var(--joplin-color-faded, #627184)',
     },
+
+    // HTML / XML
+    {
+        tag: [tags.tagName],
+        color: 'var(--joplin-color-warn, rgb(228,86,0))',
+    },
+    {
+        tag: [tags.angleBracket],
+        color: 'var(--joplin-color, #32373F)',
+    },
+    {
+        tag: tags.attributeName,
+        color: 'var(--joplin-color-warn3, #ff7626)',
+    },
+    {
+        tag: tags.attributeValue,
+        color: 'var(--joplin-url-color, #155BDA)',
+    },
 ]);
