@@ -129,8 +129,6 @@ export function execMoveRowUp(view: EditorView, cell: ActiveCell) {
         cell,
         operation: (t, c) => moveRowForActiveCell(t, c, 'up'),
         computeTargetCell: (c) => {
-            if (c.section === 'header') return c; // Header can't move up
-
             // If we are at the first body row (row 0) and move "up", we swap with header.
             // Our new position becomes the header.
             if (c.row === 0) {
@@ -169,7 +167,7 @@ export function execMoveColumnLeft(view: EditorView, cell: ActiveCell) {
         cell,
         operation: (t, c) => moveColumnForActiveCell(t, c, 'left'),
         computeTargetCell: (c) => {
-            return { ...c, col: Math.max(0, c.col - 1) };
+            return { ...c, col: c.col - 1 };
         },
         forceWidgetRebuild: true,
     });
