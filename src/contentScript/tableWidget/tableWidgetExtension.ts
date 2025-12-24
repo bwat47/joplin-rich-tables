@@ -1,9 +1,10 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
 import { EditorState, Range, StateField } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
-import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
+import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
 import { logger } from '../../logger';
+import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
@@ -55,6 +56,13 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
 }
 
 /**
+ * Cache for parsed table data to perform expensive parsing only when content changes.
+ * Keys are FNV-1a hashes of the table text.
+ * Capped at 50 entries to prevent memory leaks.
+ */
+const tableParseCache = new Map<string, TableData>();
+
+/**
  * Build decorations for all tables in the document.
  * Tables with cursor inside are not decorated (raw markdown is shown for editing).
  */
@@ -75,9 +83,25 @@ function buildTableDecorations(state: EditorState): DecorationSet {
             continue;
         }
 
-        const tableData = parseMarkdownTable(table.text);
-        if (!tableData) {
-            continue;
+        const tableHash = hashTableText(table.text);
+        let tableData = tableParseCache.get(tableHash);
+
+        if (tableData) {
+            // Refresh recency: move to end of Map (most recently used)
+            tableParseCache.delete(tableHash);
+            tableParseCache.set(tableHash, tableData);
+        } else {
+            tableData = parseMarkdownTable(table.text);
+            if (!tableData) {
+                continue;
+            }
+
+            // Simple LRU: Delete oldest if at capacity
+            if (tableParseCache.size >= 50) {
+                const firstKey = tableParseCache.keys().next().value;
+                if (firstKey) tableParseCache.delete(firstKey);
+            }
+            tableParseCache.set(tableHash, tableData);
         }
 
         const widget = new TableWidget(tableData, table.text, table.from, table.to);
