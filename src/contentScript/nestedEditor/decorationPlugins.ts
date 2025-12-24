@@ -2,6 +2,8 @@ import { Decoration, DecorationSet, EditorView, MatchDecorator, ViewPlugin, View
 import { ensureSyntaxTree } from '@codemirror/language';
 import { Range } from '@codemirror/state';
 
+const SYNTAX_TREE_TIMEOUT = 100;
+
 /**
  * Decorates the entire `InlineCode` syntax node (including backticks) with a unified class.
  * allowing for a continuous border/background around the whole segment.
@@ -29,7 +31,7 @@ export const inlineCodePlugin = ViewPlugin.fromClass(
                 //
                 // ensureSyntaxTree(view.state, to, timeout) attempts to parse up to `to`
                 // within the timeout.
-                const tree = ensureSyntaxTree(view.state, to, 100);
+                const tree = ensureSyntaxTree(view.state, to, SYNTAX_TREE_TIMEOUT);
                 if (!tree) {
                     continue;
                 }
