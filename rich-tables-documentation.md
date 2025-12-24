@@ -1,3 +1,5 @@
+This document is for LLM context, be concise and avoid excess verbose details.
+
 # Rich Tables Plugin
 
 Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMirror 6, with in-cell editing via nested editors.
@@ -109,6 +111,8 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | **Insert Column Left/Right** | `Alt + Shift + Left` / `Right`       |
 | **Delete Row**               | `Alt + Shift + D`                    |
 | **Delete Column**            | `Ctrl + Alt + Shift + D`             |
+| **Move Row Up/Down**         | `Alt + Up` / `Down`                  |
+| **Move Column Left/Right**   | `Alt + Left` / `Right`               |
 | **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
 
 **Toolbars**:
