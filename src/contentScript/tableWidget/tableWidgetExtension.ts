@@ -179,6 +179,19 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations;
             }
 
+            // Skip rebuilds during pointer drag operations (mouse drag selection).
+            // When users drag-select through a table, we don't want to reveal raw markdown
+            // mid-drag - this causes flickering and scroll jumps, especially when dragging upward
+            // through large tables. The selection extending into a table range should not
+            // trigger widget removal during the drag; only deliberate cursor placement should.
+            // We distinguish drag (non-empty selection range) from click (cursor at a point).
+            if (transaction.isUserEvent('select.pointer')) {
+                const hasNonEmptySelection = transaction.state.selection.ranges.some((r) => r.from !== r.to);
+                if (hasNonEmptySelection) {
+                    return decorations;
+                }
+            }
+
             return buildTableDecorations(transaction.state);
         }
 
