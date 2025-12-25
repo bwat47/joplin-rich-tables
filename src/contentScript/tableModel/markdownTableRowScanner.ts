@@ -6,28 +6,15 @@
  * Handles: escaped pipes (\|), pipes in inline code (`code`), unclosed backticks (as literals).
  * Does NOT handle: multi-backtick code spans (```code```), full markdown parsing.
  *
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * WHY CUSTOM PARSING?
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- *
- * Lezer's GFM parser provides TableCell nodes, however, it doesn't skip pipes
- * inside inline code when detecting cell boundaries. Example that breaks:
- *
- *   | `ls | grep` | Description |
- *
- * Lezer only handles backslash escapes (\|), not backtick-delimited code spans.
- * This scanner fixes that limitation and matches Joplin's rendering behavior.
+ * Compared to using Lezer's TableCell nodes, this scanner is more forgiving
+ * (handles unescaped pipes in inline code, temporarily malformed tables during editing),
+ * and handles all cells uniformly (including empty cells).
  *
  * Architecture:
  * 1. Lezer detects table blocks (Table/TableRow nodes)
- * 2. This scanner detects cell boundaries (handles inline code correctly)
+ * 2. This scanner detects cell boundaries
  * 3. All plugin code uses this scanner (single source of truth)
  *
- * Alternatives rejected:
- * - Lezer's TableCell nodes: Incorrect for cells with inline code
- * - Custom Lezer extension: Can't override Joplin's parser from plugin
- * - Regex/manual splitting: Fragile for edge cases
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 export interface TableRowScanResult {
