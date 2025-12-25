@@ -1,8 +1,9 @@
 /**
  * Parses markdown tables into structured TableData (headers, alignments, rows).
- * Uses `scanMarkdownTableRow()` for cell boundaries. See markdownTableRowScanner.ts for rationale.
+ * Uses `computeMarkdownTableCellRanges()` to ensure that the parsed text content
+ * matches the exact ranges used for editing.
  */
-import { isSeparatorRow } from './markdownTableCellRanges';
+import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
 
 /**
@@ -30,15 +31,17 @@ function parseAlignment(cell: string): 'left' | 'center' | 'right' | null {
 }
 
 /**
- * Parse a row of pipe-separated cells, respecting escaped pipes (\|) and inline code.
+ * Parse a row of pipe-separated cells from a raw separator string.
+ *
+ * Note: For the separator row, we still need to parse it "manually" here because `computeMarkdownTableCellRanges`
+ * gives us ranges for headers and body rows, but intentionally skips the separator itself (it doesn't have "ranges"
+ * useful for editing content).
  */
-function parseRow(line: string): string[] {
+function parseSeparatorRow(line: string): string[] {
     const trimmed = line.trim();
-
-    // Get all pipe delimiters from the scanner
     const { delimiters: allDelimiters } = scanMarkdownTableRow(trimmed);
 
-    // Find boundaries (same logic as parseLineCellRanges)
+    // Find boundaries (trim leading/trailing pipe)
     let innerFrom = 0;
     let innerTo = trimmed.length;
 
@@ -49,10 +52,8 @@ function parseRow(line: string): string[] {
         innerTo -= 1;
     }
 
-    // Filter delimiters to only those within the inner range
     const delimiters = allDelimiters.filter((i) => i > innerFrom && i < innerTo);
 
-    // Extract cell contents
     const cells: string[] = [];
     let segmentStart = innerFrom;
     for (const delimiterIndex of delimiters) {
@@ -69,30 +70,30 @@ function parseRow(line: string): string[] {
  * Returns null if the text is not a valid table.
  */
 export function parseMarkdownTable(text: string): TableData | null {
+    // 1. Validate structure quickly
     const lines = text.split('\n').filter((line) => line.trim().length > 0);
-
     if (lines.length < 2) return null;
 
-    // First line should be the header
-    const headerLine = lines[0];
-    if (!headerLine.includes('|')) return null;
+    if (!lines[0].includes('|')) return null;
+    if (!isSeparatorRow(lines[1])) return null;
 
-    // Second line should be the separator
-    const separatorLine = lines[1];
-    if (!isSeparatorRow(separatorLine)) return null;
-
-    const headers = parseRow(headerLine);
-    const separatorCells = parseRow(separatorLine);
+    // 2. Parse alignments from the separator row
+    // We do this manually because computeMarkdownTableCellRanges ignores the separator row.
+    const separatorCells = parseSeparatorRow(lines[1]);
     const alignments = separatorCells.map(parseAlignment);
 
-    // Parse data rows
-    const rows: string[][] = [];
-    for (let i = 2; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.includes('|')) {
-            rows.push(parseRow(line));
-        }
+    // 3. Compute ranges for headers and body
+    const ranges = computeMarkdownTableCellRanges(text);
+    if (!ranges) {
+        return null;
     }
+
+    // 4. Extract content using the computed ranges
+    const headers = ranges.headers.map((range) => text.slice(range.from, range.to));
+
+    const rows = ranges.rows.map((rowRanges) => {
+        return rowRanges.map((range) => text.slice(range.from, range.to));
+    });
 
     return { headers, alignments, rows };
 }

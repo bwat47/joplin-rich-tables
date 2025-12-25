@@ -1,7 +1,8 @@
 import { EditorView } from '@codemirror/view';
-import { SECTION_BODY, SECTION_HEADER, getCellSelector, getWidgetSelector } from './domHelpers';
+import { SECTION_BODY, SECTION_HEADER, findCellElement } from './domHelpers';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
-import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
+import { resolveTableAtPos, resolveCellDocRange } from './tablePositioning';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { makeTableId, type CellCoords } from '../tableModel/types';
 
@@ -23,77 +24,76 @@ export function navigateCell(
         return false;
     }
 
-    const cellRanges = getTableCellRanges(table.text);
+    const cellRanges = computeMarkdownTableCellRanges(table.text);
     if (!cellRanges) {
         return false;
     }
 
-    const numRows = cellRanges.rows.length;
+    const numBodyRows = cellRanges.rows.length;
     // Assuming uniform column count for now, based on header
     const numCols = cellRanges.headers.length;
 
-    let target: CellCoords = {
-        section: activeCell.section,
-        row: activeCell.row,
-        col: activeCell.col,
-    };
+    // Convert to unified grid coordinates:
+    // Header row = 0
+    // Body row i = i + 1
+    let unifiedRow = activeCell.section === SECTION_HEADER ? 0 : activeCell.row + 1;
+    let unifiedCol = activeCell.col;
+
+    // Total rows = header (1) + body rows
+    const totalRows = 1 + numBodyRows;
+
+    // --- Core Navigation Logic ---
 
     if (direction === 'next') {
-        target.col++;
-        if (target.col >= numCols) {
-            target.col = 0;
-            if (target.section === SECTION_HEADER) {
-                target.section = SECTION_BODY;
-                target.row = 0;
-            } else {
-                target.row++;
-            }
+        unifiedCol++;
+        if (unifiedCol >= numCols) {
+            unifiedCol = 0;
+            unifiedRow++;
         }
     } else if (direction === 'previous') {
-        target.col--;
-        if (target.col < 0) {
-            target.col = numCols - 1;
-            if (target.section === SECTION_BODY) {
-                if (target.row === 0) {
-                    target.section = SECTION_HEADER;
-                    target.row = 0; // Header is effectively row 0
-                } else {
-                    target.row--;
-                }
-            } else {
-                // Wrap to previous table? Or stop?
-                // For now, stop at first cell
-                return true;
-            }
+        unifiedCol--;
+        if (unifiedCol < 0) {
+            unifiedCol = numCols - 1;
+            unifiedRow--;
         }
     } else if (direction === 'down') {
-        if (target.section === SECTION_HEADER) {
-            target.section = SECTION_BODY;
-            target.row = 0;
-        } else {
-            target.row++;
-        }
+        unifiedRow++;
     } else if (direction === 'up') {
-        if (target.section === SECTION_BODY) {
-            if (target.row === 0) {
-                target.section = SECTION_HEADER;
-                target.row = 0;
-            } else {
-                target.row--;
-            }
-        } else {
-            // Already at header, stop
-            return true;
-        }
+        unifiedRow--;
     }
 
-    // Boundary checks
-    if (target.section === SECTION_BODY) {
-        if (target.row >= numRows) {
-            // End of table
-            return true;
-        }
+    // --- Boundary Handling ---
+
+    // Check if we walked off the table (top or bottom)
+    if (unifiedRow < 0) {
+        // Wrapped "previous" from start of table -> Stop at start? Or wrap to end?
+        // Standard behavior is usually stop.
+        return true;
     }
+
+    if (unifiedRow >= totalRows) {
+        // Walked off end of table
+        return true;
+    }
+
+    // --- Convert back to Section/Row ---
+
+    let targetSection: 'header' | 'body';
+    let targetRow: number;
+
+    if (unifiedRow === 0) {
+        targetSection = SECTION_HEADER;
+        targetRow = 0;
+    } else {
+        targetSection = SECTION_BODY;
+        targetRow = unifiedRow - 1;
+    }
+
+    const target: CellCoords = {
+        section: targetSection,
+        row: targetRow,
+        col: unifiedCol,
+    };
 
     // Activate target cell
     const resolvedRange = resolveCellDocRange({
@@ -114,29 +114,24 @@ export function navigateCell(
             tableTo: table.to,
             cellFrom,
             cellTo,
-            section: target.section,
-            row: target.section === SECTION_HEADER ? 0 : target.row,
+            section: target.section, // Use the proper Section type
+            row: target.row,
             col: target.col,
         }),
     });
 
     // After dispatch, query for the fresh cell element using data attributes.
     // The DOM is ready synchronously after dispatch since CodeMirror applies decorations synchronously.
-    const widgetDOM = view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
-    if (widgetDOM) {
-        const selector = getCellSelector(target);
+    const cellElement = findCellElement(view, makeTableId(table.from), target);
 
-        const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
-
-        if (cellElement) {
-            openNestedCellEditor({
-                mainView: view,
-                cellElement,
-                cellFrom,
-                cellTo,
-                initialCursorPos: options.cursorPos,
-            });
-        }
+    if (cellElement) {
+        openNestedCellEditor({
+            mainView: view,
+            cellElement,
+            cellFrom,
+            cellTo,
+            initialCursorPos: options.cursorPos,
+        });
     }
 
     return true;
