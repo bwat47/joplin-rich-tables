@@ -2,6 +2,7 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import type { TableData } from '../tableModel/markdownTableParsing';
+import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
@@ -282,6 +283,36 @@ export class TableWidget extends WidgetType {
 
         // Add some buffer for container padding
         return totalHeight + 20;
+    }
+
+    /**
+     * Returns the bounding rectangle of the cell containing the given document position.
+     * This helps CodeMirror scroll precisely to specific cells rather than just the table bounds.
+     */
+    coordsAt(
+        dom: HTMLElement,
+        pos: number,
+        _side: number
+    ): { top: number; bottom: number; left: number; right: number } | null {
+        const ranges = computeMarkdownTableCellRanges(this.tableText);
+        if (!ranges) {
+            return null;
+        }
+
+        const relativePos = pos - this.tableFrom;
+        const coords = findCellForPos(ranges, relativePos);
+        if (!coords) {
+            return null;
+        }
+
+        const section = coords.section === 'header' ? SECTION_HEADER : SECTION_BODY;
+        const selector = `[data-${DATA_SECTION}="${section}"][data-${DATA_ROW}="${coords.row}"][data-${DATA_COL}="${coords.col}"]`;
+        const cell = dom.querySelector(selector);
+        if (!cell) {
+            return null;
+        }
+
+        return cell.getBoundingClientRect();
     }
 
     ignoreEvent(): boolean {

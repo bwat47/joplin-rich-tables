@@ -5,6 +5,7 @@
  * Uses `scanMarkdownTableRow()` for consistency. See markdownTableRowScanner.ts for rationale.
  */
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
+import type { CellCoords } from './types';
 
 export interface CellRange {
     from: number;
@@ -167,4 +168,35 @@ export function computeMarkdownTableCellRanges(text: string): TableCellRanges | 
     }
 
     return { headers: headerRanges, rows: rowRanges };
+}
+
+/**
+ * Finds the cell coordinates for a given position within the table text.
+ * This is the inverse of resolveCellDocRange - given a position, find which cell contains it.
+ *
+ * @param ranges - The computed cell ranges for the table
+ * @param relativePos - Position relative to the table start (i.e., pos - tableFrom)
+ * @returns Cell coordinates if position is within a cell, null otherwise
+ */
+export function findCellForPos(ranges: TableCellRanges, relativePos: number): CellCoords | null {
+    // Check header cells
+    for (let col = 0; col < ranges.headers.length; col++) {
+        const r = ranges.headers[col];
+        if (relativePos >= r.from && relativePos <= r.to) {
+            return { section: 'header', row: 0, col };
+        }
+    }
+
+    // Check body cells
+    for (let row = 0; row < ranges.rows.length; row++) {
+        const rowCells = ranges.rows[row];
+        for (let col = 0; col < rowCells.length; col++) {
+            const r = rowCells[col];
+            if (relativePos >= r.from && relativePos <= r.to) {
+                return { section: 'body', row, col };
+            }
+        }
+    }
+
+    return null;
 }
