@@ -1,5 +1,7 @@
 import type { CellCoords, TableId } from '../tableModel/types';
+import type { EditorView } from '@codemirror/view';
 
+// Main widget structure classes
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_ACTIVE = 'cm-table-cell-active';
@@ -53,4 +55,28 @@ export function getWidgetSelector(tableId?: TableId): string {
  */
 export function getCellSelector(coords: CellCoords): string {
     return `[data-${DATA_SECTION}="${coords.section}"][data-${DATA_ROW}="${coords.row}"][data-${DATA_COL}="${coords.col}"]`;
+}
+
+/**
+ * Helper to locate a specific cell element in the DOM for a given table.
+ *
+ * @param view - The main EditorView
+ * @param tableId - The TableId (identifying the table instance)
+ * @param coords - The coordinates of the cell to find
+ * @returns The matching HTMLElement for the cell if found, otherwise null.
+ */
+
+export function findCellElement(view: EditorView, tableId: TableId, coords: CellCoords): HTMLElement | null {
+    // 1. Find the widget container first.
+    // Use the selector that includes the [data-table-from=...] attribute
+    const widgetSelector = getWidgetSelector(tableId);
+    const widgetDOM = view.dom.querySelector(widgetSelector);
+
+    if (!widgetDOM) {
+        return null;
+    }
+
+    // 2. Find the cell within that widget
+    const cellSelector = getCellSelector(coords);
+    return widgetDOM.querySelector(cellSelector) as HTMLElement | null;
 }
