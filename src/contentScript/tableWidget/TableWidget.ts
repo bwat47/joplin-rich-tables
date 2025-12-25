@@ -2,7 +2,11 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import type { TableData } from '../tableModel/markdownTableParsing';
-import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
+import {
+    computeMarkdownTableCellRanges,
+    findCellForPos,
+    type TableCellRanges,
+} from '../tableModel/markdownTableCellRanges';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
@@ -27,6 +31,7 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
 export class TableWidget extends WidgetType {
     private static readonly pendingHeightMeasure = new WeakSet<HTMLElement>();
     private readonly contentHash: string;
+    private readonly cellRanges: TableCellRanges | null;
 
     constructor(
         private tableData: TableData,
@@ -36,6 +41,8 @@ export class TableWidget extends WidgetType {
     ) {
         super();
         this.contentHash = hashTableText(tableText);
+        // Pre-compute cell ranges once, as the table text is immutable for this widget instance
+        this.cellRanges = computeMarkdownTableCellRanges(tableText);
     }
 
     eq(_other: TableWidget): boolean {
@@ -294,13 +301,12 @@ export class TableWidget extends WidgetType {
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        const ranges = computeMarkdownTableCellRanges(this.tableText);
-        if (!ranges) {
+        if (!this.cellRanges) {
             return null;
         }
 
         const relativePos = pos - this.tableFrom;
-        const coords = findCellForPos(ranges, relativePos);
+        const coords = findCellForPos(this.cellRanges, relativePos);
         if (!coords) {
             return null;
         }
