@@ -270,24 +270,15 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         }
 
         // Combine clearing active cell and setting selection in a single dispatch.
-        // Use scrollIntoView: false to prevent CodeMirror's automatic scroll during the
-        // decoration rebuild. The rebuild may change widget heights (if cell content was
-        // edited), and scrolling during this layout change can cause unexpected jumps.
+        // With coordsAt implemented, CodeMirror can now determine precise cell positions,
+        // so we can scroll directly without the RAF workaround.
         if (clickPos !== null) {
             view.dispatch({
                 selection: { anchor: clickPos },
                 effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
-                scrollIntoView: false,
+                scrollIntoView: true,
             });
             view.focus();
-
-            // After layout stabilizes, scroll the cursor into view. Using RAF ensures
-            // the decoration rebuild has completed and heights are accurate.
-            requestAnimationFrame(() => {
-                view.dispatch({
-                    effects: EditorView.scrollIntoView(clickPos, { y: 'nearest' }),
-                });
-            });
         } else if (hasActiveCell) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
