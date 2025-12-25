@@ -449,7 +449,7 @@ class NestedCellEditorManager {
     }
 
     isOpen(): boolean {
-        return this.subview !== null;
+        return this.subview !== null || this.pendingOpenRequestId !== null;
     }
 
     public checkAndCloseIfHostedIn(container: HTMLElement): void {
