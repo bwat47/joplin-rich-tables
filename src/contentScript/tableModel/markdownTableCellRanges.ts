@@ -200,3 +200,15 @@ export function findCellForPos(ranges: TableCellRanges, relativePos: number): Ce
 
     return null;
 }
+
+/**
+ * Gets the cell range for the given coordinates.
+ * Helper to avoid duplicating the section-based range lookup logic.
+ *
+ * @param ranges - The computed cell ranges for the table
+ * @param coords - Cell coordinates (section, row, col)
+ * @returns The cell range if valid, undefined otherwise
+ */
+export function getCellRange(ranges: TableCellRanges, coords: CellCoords): CellRange | undefined {
+    return coords.section === 'header' ? ranges.headers[coords.col] : ranges.rows[coords.row]?.[coords.col];
+}

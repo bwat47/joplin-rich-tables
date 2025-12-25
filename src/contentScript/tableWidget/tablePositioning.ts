@@ -2,11 +2,7 @@ import { ensureSyntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import type { EditorView } from '@codemirror/view';
-import {
-    computeMarkdownTableCellRanges,
-    type TableCellRanges,
-    type CellRange,
-} from '../tableModel/markdownTableCellRanges';
+import { getCellRange, type TableCellRanges, type CellRange } from '../tableModel/markdownTableCellRanges';
 import { ATTR_TABLE_FROM, getWidgetSelector } from './domHelpers';
 import { getActiveCell } from './activeCellState';
 import type { CellCoords } from '../tableModel/types';
@@ -141,10 +137,6 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
     return null;
 }
 
-export function getTableCellRanges(tableText: string): TableCellRanges | null {
-    return computeMarkdownTableCellRanges(tableText);
-}
-
 export function resolveCellDocRange(params: {
     tableFrom: number;
     ranges: TableCellRanges;
@@ -152,7 +144,7 @@ export function resolveCellDocRange(params: {
 }): { cellFrom: number; cellTo: number; relRange: CellRange } | null {
     const { tableFrom, ranges, coords } = params;
 
-    const relRange = coords.section === 'header' ? ranges.headers[coords.col] : ranges.rows[coords.row]?.[coords.col];
+    const relRange = getCellRange(ranges, coords);
     if (!relRange) {
         return null;
     }

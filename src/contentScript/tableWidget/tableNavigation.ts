@@ -1,7 +1,8 @@
 import { EditorView } from '@codemirror/view';
 import { SECTION_BODY, SECTION_HEADER, getCellSelector, getWidgetSelector } from './domHelpers';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
-import { resolveTableAtPos, getTableCellRanges, resolveCellDocRange } from './tablePositioning';
+import { resolveTableAtPos, resolveCellDocRange } from './tablePositioning';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { makeTableId, type CellCoords } from '../tableModel/types';
 
@@ -23,7 +24,7 @@ export function navigateCell(
         return false;
     }
 
-    const cellRanges = getTableCellRanges(table.text);
+    const cellRanges = computeMarkdownTableCellRanges(table.text);
     if (!cellRanges) {
         return false;
     }

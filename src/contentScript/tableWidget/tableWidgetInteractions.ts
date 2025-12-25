@@ -2,7 +2,8 @@ import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
-import { getTableCellRanges, resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
+import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import {
     DATA_COL,
     DATA_ROW,
@@ -97,7 +98,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    const cellRanges = getTableCellRanges(table.text);
+    const cellRanges = computeMarkdownTableCellRanges(table.text);
     if (!cellRanges) {
         return false;
     }

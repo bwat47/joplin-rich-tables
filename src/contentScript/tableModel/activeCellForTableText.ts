@@ -1,4 +1,4 @@
-import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
+import { computeMarkdownTableCellRanges, getCellRange, type TableCellRanges } from './markdownTableCellRanges';
 import type { ActiveCell } from '../tableWidget/activeCellState';
 import type { CellCoords } from './types';
 
@@ -49,8 +49,7 @@ export function computeActiveCellForTableText(params: {
 
     const clamped = clampTargetToRanges(target, ranges);
 
-    const relRange =
-        clamped.section === 'header' ? ranges.headers[clamped.col] : ranges.rows[clamped.row]?.[clamped.col];
+    const relRange = getCellRange(ranges, clamped);
     if (!relRange) {
         return null;
     }
