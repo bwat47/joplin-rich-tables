@@ -20,6 +20,7 @@ import {
     getWidgetSelector,
 } from './domHelpers';
 import { hashTableText } from './hashUtils';
+import { estimateTableHeight } from './tableHeightEstimation';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -251,49 +252,7 @@ export class TableWidget extends WidgetType {
         if (cached !== undefined && cached > 0) {
             return cached;
         }
-        return this.calculateEstimatedHeight();
-    }
-
-    private calculateEstimatedHeight(): number {
-        const ROW_HEIGHT_BASE = 35; // Approx px per row (including padding/border)
-        const WRAP_CHARS = 60; // Approx chars before wrapping
-        const WRAP_HEIGHT = 20; // Additional px per wrapped line
-        const IMAGE_HEIGHT = 100; // Approx px per image
-
-        let totalHeight = 0;
-
-        // Header height
-        totalHeight += ROW_HEIGHT_BASE;
-
-        // Rows
-        for (const row of this.tableData.rows) {
-            let maxRowHeight = ROW_HEIGHT_BASE;
-
-            for (const cell of row) {
-                let cellHeight = ROW_HEIGHT_BASE;
-                const textLength = cell.length;
-
-                // Estimate text wrapping
-                if (textLength > WRAP_CHARS) {
-                    const extraLines = Math.floor(textLength / WRAP_CHARS);
-                    cellHeight += extraLines * WRAP_HEIGHT;
-                }
-
-                // Estimate images (naive check)
-                const imageCount = (cell.match(/!\[.*?\]\(.*?\)/g) || []).length;
-                if (imageCount > 0) {
-                    cellHeight += imageCount * IMAGE_HEIGHT;
-                }
-
-                if (cellHeight > maxRowHeight) {
-                    maxRowHeight = cellHeight;
-                }
-            }
-            totalHeight += maxRowHeight;
-        }
-
-        // Add some buffer for container padding
-        return totalHeight + 20;
+        return estimateTableHeight(this.tableData);
     }
 
     /**
