@@ -268,13 +268,10 @@ export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: 
             const isMod = e.ctrlKey || e.metaKey;
             const key = e.key.toLowerCase();
 
-            // Block shortcuts that conflict with the nested editor.
-            // We intentionally block find-in-page to avoid stealing focus or showing
-            // a find UI that doesn't work well inside the nested editor.
+            // Allow Ctrl+F to bubble - the searchPanelWatcher will close the nested
+            // editor when the search panel opens.
             if (isMod && key === 'f') {
-                e.preventDefault();
-                e.stopPropagation();
-                return true;
+                return false;
             }
 
             // Let Joplin's native markdown formatting shortcuts handle these.

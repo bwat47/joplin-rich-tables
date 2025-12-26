@@ -22,6 +22,7 @@ import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './
 import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
+import { createSearchPanelWatcher } from './searchPanelWatcher';
 
 /**
  * Content script context provided by Joplin
@@ -333,6 +334,7 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             const cm6View = editorControl.cm6;
             editorControl.addExtension([
+                createSearchPanelWatcher(cm6View),
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
