@@ -66,8 +66,7 @@ export function navigateCell(
 
     // Check if we walked off the table (top or bottom)
     if (unifiedRow < 0) {
-        // Wrapped "previous" from start of table -> Stop at start? Or wrap to end?
-        // Standard behavior is usually stop.
+        // Navigation stopped at table start - don't wrap around or move cursor
         return true;
     }
 
