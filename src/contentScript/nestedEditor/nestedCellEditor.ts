@@ -30,12 +30,9 @@ export { syncAnnotation };
  * (e.g., Joplin's sidebar layout).
  */
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
-    // Use RAF to ensure layout is stable after editor mount
-    requestAnimationFrame(() => {
-        cellElement.scrollIntoView({
-            block: 'nearest',
-            inline: 'nearest',
-        });
+    cellElement.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
     });
 }
 
