@@ -411,16 +411,18 @@ class NestedCellEditorManager {
         // Update cell content with current document text before showing.
         if (this.contentEl && this.mainView) {
             const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
+            // Unescape pipes - they're only escaped for table syntax, not for rendering.
+            const renderableText = cellText.replace(/\\(\|)/g, '$1');
 
             // Check cache first for rendered HTML.
-            const cached = renderer.getCached(cellText);
+            const cached = renderer.getCached(renderableText);
             if (cached !== undefined) {
                 this.contentEl.innerHTML = cached;
             } else {
                 // Show raw text immediately, then update when render completes.
-                this.contentEl.textContent = cellText;
+                this.contentEl.textContent = renderableText;
                 const contentEl = this.contentEl;
-                renderer.renderAsync(cellText, (html) => {
+                renderer.renderAsync(renderableText, (html) => {
                     if (contentEl.isConnected) {
                         contentEl.innerHTML = html;
                     }
