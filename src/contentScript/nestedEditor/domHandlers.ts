@@ -2,10 +2,11 @@ import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { StateField, Transaction, StateCommand, EditorSelection } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
-import { getActiveCell } from '../tableWidget/activeCellState';
+import { getActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { SubviewCellRange, syncAnnotation } from './transactionPolicy';
 import { makeTableId } from '../tableModel/types';
+import { closeNestedCellEditor, isNestedCellEditorOpen } from './nestedCellEditor';
 
 function syncNestedSelectionToMain(params: {
     nestedView: EditorView;
@@ -268,13 +269,17 @@ export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: 
             const isMod = e.ctrlKey || e.metaKey;
             const key = e.key.toLowerCase();
 
-            // Block shortcuts that conflict with the nested editor.
-            // We intentionally block find-in-page to avoid stealing focus or showing
-            // a find UI that doesn't work well inside the nested editor.
+            // Close nested editor BEFORE letting Ctrl+F bubble, so focus transfers
+            // properly to the search panel (rather than using queueMicrotask which
+            // would cause our cleanup to run after the search panel tries to focus).
             if (isMod && key === 'f') {
-                e.preventDefault();
-                e.stopPropagation();
-                return true;
+                if (isNestedCellEditorOpen(mainView)) {
+                    closeNestedCellEditor(mainView);
+                }
+                if (getActiveCell(mainView.state)) {
+                    mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                }
+                return false;
             }
 
             // Let Joplin's native markdown formatting shortcuts handle these.
