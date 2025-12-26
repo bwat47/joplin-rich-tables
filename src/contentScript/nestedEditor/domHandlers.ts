@@ -2,10 +2,11 @@ import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { StateField, Transaction, StateCommand, EditorSelection } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
-import { getActiveCell } from '../tableWidget/activeCellState';
+import { getActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { SubviewCellRange, syncAnnotation } from './transactionPolicy';
 import { makeTableId } from '../tableModel/types';
+import { closeNestedCellEditor, isNestedCellEditorOpen } from './nestedCellEditor';
 
 function syncNestedSelectionToMain(params: {
     nestedView: EditorView;
@@ -268,9 +269,16 @@ export function createNestedEditorDomHandlers(mainView: EditorView, rangeField: 
             const isMod = e.ctrlKey || e.metaKey;
             const key = e.key.toLowerCase();
 
-            // Allow Ctrl+F to bubble - the searchPanelWatcher will close the nested
-            // editor when the search panel opens.
+            // Close nested editor BEFORE letting Ctrl+F bubble, so focus transfers
+            // properly to the search panel (rather than using queueMicrotask which
+            // would cause our cleanup to run after the search panel tries to focus).
             if (isMod && key === 'f') {
+                if (isNestedCellEditorOpen(mainView)) {
+                    closeNestedCellEditor(mainView);
+                }
+                if (getActiveCell(mainView.state)) {
+                    mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                }
                 return false;
             }
 

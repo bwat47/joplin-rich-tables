@@ -23,13 +23,14 @@ export function createSearchPanelWatcher(mainView: EditorView): Extension {
         update(wasOpen, tr) {
             const isOpen = searchPanelOpen(tr.state);
 
-            // Search panel just opened → close nested editor and clear active cell
+            // Search panel just opened → ensure nested editor is closed.
+            // Primary cleanup is done in domHandlers.ts keydown handler (for Ctrl+F),
+            // but this serves as a fallback for other ways to open search.
             if (!wasOpen && isOpen) {
                 queueMicrotask(() => {
                     if (isNestedCellEditorOpen(mainView)) {
                         closeNestedCellEditor(mainView);
                     }
-                    // Clear active cell state to dismiss toolbar and render table normally
                     if (getActiveCell(mainView.state)) {
                         mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                     }
