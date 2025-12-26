@@ -21,6 +21,7 @@ import {
 } from './domHelpers';
 import { hashTableText } from './hashUtils';
 import { estimateTableHeight } from './tableHeightEstimation';
+import { unescapePipesForRendering } from '../shared/cellContentUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -155,9 +156,7 @@ export class TableWidget extends WidgetType {
      * Uses cached HTML if available, otherwise shows text and updates async
      */
     private renderCellContent(cell: HTMLElement, markdown: string): void {
-        // Unescape pipes - they're only escaped for table syntax, not for rendering.
-        // Without this, `ls \| grep` would render as "ls \| grep" instead of "ls | grep".
-        const renderableMarkdown = markdown.replace(/\\(\|)/g, '$1');
+        const renderableMarkdown = unescapePipesForRendering(markdown);
 
         // Check if we have cached rendered HTML
         const cached = renderer.getCached(renderableMarkdown);
