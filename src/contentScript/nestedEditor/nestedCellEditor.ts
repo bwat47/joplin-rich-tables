@@ -5,7 +5,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { inlineCodePlugin, markPlugin, insertPlugin } from './decorationPlugins';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
-import { nestedEditorTheme } from './nestedEditorTheme';
+import { createNestedEditorTheme } from './nestedEditorTheme';
 import { renderer } from '../services/markdownRenderer';
 import { unescapePipesForRendering } from '../shared/cellContentUtils';
 import {
@@ -246,7 +246,7 @@ class NestedCellEditorManager {
                 markPlugin,
                 insertPlugin,
                 createJoplinSyntaxHighlighting(isDarkTheme),
-                nestedEditorTheme,
+                createNestedEditorTheme(isDarkTheme),
             ],
         });
 
