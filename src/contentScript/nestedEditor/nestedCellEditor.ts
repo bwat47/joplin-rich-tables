@@ -18,7 +18,7 @@ import {
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 import { selectAllInCell } from './markdownCommands';
-import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domHelpers';
+import { CLASS_CELL_ACTIVE } from '../tableWidget/domHelpers';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -32,57 +32,10 @@ export { syncAnnotation };
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
     // Use RAF to ensure layout is stable after editor mount
     requestAnimationFrame(() => {
-        // 1. Scroll the main editor to keep the cell in view vertically/horizontally in the main viewport
-        const scrollDOM = mainView.scrollDOM;
-        const scrollRect = scrollDOM.getBoundingClientRect();
-        const cellRect = cellElement.getBoundingClientRect();
-
-        const margin = 8; // Pixels of margin to keep around the cell
-
-        let newScrollTop = scrollDOM.scrollTop;
-        let newScrollLeft = scrollDOM.scrollLeft;
-
-        // Vertical scrolling (Main Editor)
-        if (cellRect.top < scrollRect.top + margin) {
-            newScrollTop -= scrollRect.top - cellRect.top + margin;
-        } else if (cellRect.bottom > scrollRect.bottom - margin) {
-            newScrollTop += cellRect.bottom - scrollRect.bottom + margin;
-        }
-
-        // Horizontal scrolling (Main Editor)
-        if (cellRect.left < scrollRect.left + margin) {
-            newScrollLeft -= scrollRect.left - cellRect.left + margin;
-        } else if (cellRect.right > scrollRect.right - margin) {
-            newScrollLeft += cellRect.right - scrollRect.right + margin;
-        }
-
-        if (newScrollTop !== scrollDOM.scrollTop || newScrollLeft !== scrollDOM.scrollLeft) {
-            scrollDOM.scrollTo(newScrollLeft, newScrollTop);
-        }
-
-        // 2. Scroll the table widget itself if it has internal scroll (e.g. on mobile or wide tables)
-        const widgetContainer = cellElement.closest(getWidgetSelector()) as HTMLElement;
-        if (widgetContainer) {
-            const widgetRect = widgetContainer.getBoundingClientRect();
-            // We need to re-measure cellRect relative to the widget or just check overlap
-            // Note: cellRect from above is still valid relative to viewport.
-            // widgetRect is also relative to viewport.
-
-            let newWidgetScrollLeft = widgetContainer.scrollLeft;
-
-            // Check if cell is to the left of the widget's visible area
-            if (cellRect.left < widgetRect.left + margin) {
-                newWidgetScrollLeft -= widgetRect.left - cellRect.left + margin;
-            }
-            // Check if cell is to the right of the widget's visible area
-            else if (cellRect.right > widgetRect.right - margin) {
-                newWidgetScrollLeft += cellRect.right - widgetRect.right + margin;
-            }
-
-            if (newWidgetScrollLeft !== widgetContainer.scrollLeft) {
-                widgetContainer.scrollTo({ left: newWidgetScrollLeft, behavior: 'auto' });
-            }
-        }
+        cellElement.scrollIntoView({
+            block: 'nearest',
+            inline: 'nearest',
+        });
     });
 }
 

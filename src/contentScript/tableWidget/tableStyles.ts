@@ -33,6 +33,7 @@ export const tableStyles = EditorView.baseTheme({
         wordBreak: 'normal',
         minWidth: '75px',
         position: 'relative',
+        scrollMargin: '8px',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
