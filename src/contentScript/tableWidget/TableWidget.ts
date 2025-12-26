@@ -154,22 +154,26 @@ export class TableWidget extends WidgetType {
      * Uses cached HTML if available, otherwise shows text and updates async
      */
     private renderCellContent(cell: HTMLElement, markdown: string): void {
+        // Unescape pipes - they're only escaped for table syntax, not for rendering.
+        // Without this, `ls \| grep` would render as "ls \| grep" instead of "ls | grep".
+        const renderableMarkdown = markdown.replace(/\\(\|)/g, '$1');
+
         // Check if we have cached rendered HTML
-        const cached = renderer.getCached(markdown);
+        const cached = renderer.getCached(renderableMarkdown);
         if (cached !== undefined) {
             cell.innerHTML = cached;
             return;
         }
 
         // Show raw text initially
-        cell.textContent = markdown;
+        cell.textContent = renderableMarkdown;
 
         // Check if content likely contains markdown (optimization)
-        if (this.containsMarkdown(markdown)) {
+        if (this.containsMarkdown(renderableMarkdown)) {
             // Request async rendering and update when ready
-            renderer.renderAsync(markdown, (html) => {
+            renderer.renderAsync(renderableMarkdown, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed
-                if (cell.isConnected && cell.textContent === markdown) {
+                if (cell.isConnected && cell.textContent === renderableMarkdown) {
                     cell.innerHTML = html;
 
                     // Async rendering can change row/table height after mount.
