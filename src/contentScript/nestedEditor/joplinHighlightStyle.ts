@@ -1,21 +1,16 @@
-import { HighlightStyle } from '@codemirror/language';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { Extension } from '@codemirror/state';
 
 /**
- * Custom highlight style that maps Markdown tokens to Joplin's native CSS variables.
- * This ensures the nested editor looks "native" in both Light and Dark themes.
+ * Theme-aware syntax highlighting that matches Joplin's native color schemes.
  */
-export const joplinHighlightStyle = HighlightStyle.define([
-    {
-        tag: tags.link,
-        color: 'var(--joplin-url-color, #155BDA)',
-        textDecoration: 'underline',
-    },
-    {
-        tag: tags.url,
-        color: 'var(--joplin-url-color, #155BDA)',
-        textDecoration: 'underline',
-    },
+
+/**
+ * Common highlight rules that work for both light and dark themes.
+ * These use CSS variables where Joplin provides them, or are styling-only rules.
+ */
+const commonHighlightRules = [
     {
         tag: tags.strong,
         fontWeight: 'bold',
@@ -29,52 +24,110 @@ export const joplinHighlightStyle = HighlightStyle.define([
         fontWeight: 'bold',
     },
     {
-        tag: tags.quote,
-        color: 'var(--joplin-code-color, rgb(0,0,0))',
-    },
-    {
         tag: tags.monospace,
-        color: 'var(--joplin-code-color, rgb(0,0,0))',
         fontFamily: 'monospace !important',
         fontSize: '0.9em',
     },
     {
         tag: tags.comment,
-        color: 'var(--joplin-color-faded, #627184)',
+        opacity: '0.9',
+        fontStyle: 'italic',
     },
     {
-        tag: [tags.strikethrough, tags.deleted],
+        tag: tags.strikethrough,
         textDecoration: 'line-through',
     },
     {
-        tag: tags.escape,
-        color: 'var(--joplin-color-faded, #627184)',
-    },
-    // Generic fallback for keywords (lists, blockquotes markers, etc)
-    {
-        tag: tags.keyword,
-        color: 'var(--joplin-color-warn-url, #155BDA)', // often used for syntax chars in some themes
-    },
-    {
-        tag: tags.meta,
-        color: 'var(--joplin-color-faded, #627184)',
-    },
-
-    // HTML / XML
-    {
-        tag: tags.tagName,
-        color: 'var(--joplin-color-warn, rgb(228,86,0))',
-    },
-    {
-        tag: tags.angleBracket,
-        color: 'var(--joplin-color, #32373F)',
-    },
-    {
-        tag: tags.attributeName,
-        color: 'var(--joplin-color-warn3, #ff7626)',
-    },
-    {
-        tag: tags.attributeValue,
+        tag: tags.link,
         color: 'var(--joplin-url-color, #155BDA)',
     },
+];
+
+/**
+ * Light theme syntax highlighting colors.
+ */
+const lightHighlightStyle = HighlightStyle.define([
+    ...commonHighlightRules,
+    {
+        tag: tags.keyword,
+        color: '#740',
+    },
+    {
+        tag: tags.operator,
+        color: '#490',
+    },
+    {
+        tag: tags.literal,
+        color: '#037',
+    },
+    {
+        tag: tags.typeName,
+        color: '#a00',
+    },
+    {
+        tag: tags.inserted,
+        color: '#471',
+    },
+    {
+        tag: tags.deleted,
+        color: '#a21',
+    },
+    {
+        tag: tags.propertyName,
+        color: '#940',
+    },
+    {
+        tag: tags.className,
+        color: '#904',
+    },
 ]);
+
+/**
+ * Dark theme syntax highlighting colors.
+ */
+const darkHighlightStyle = HighlightStyle.define([
+    ...commonHighlightRules,
+    {
+        tag: tags.keyword,
+        color: '#ff7',
+    },
+    {
+        tag: tags.operator,
+        color: '#fa9',
+    },
+    {
+        tag: tags.literal,
+        color: '#aaf',
+    },
+    {
+        tag: tags.typeName,
+        color: '#7ff',
+    },
+    {
+        tag: tags.inserted,
+        color: '#7f7',
+    },
+    {
+        tag: tags.deleted,
+        color: '#f96',
+    },
+    {
+        tag: tags.propertyName,
+        color: '#d96',
+    },
+    {
+        tag: tags.className,
+        color: '#d8a',
+    },
+]);
+
+/**
+ * Creates a syntax highlighting extension that matches Joplin's native theme.
+ *
+ * @param isDarkTheme - Whether the current Joplin theme is dark
+ * @returns CodeMirror extension for syntax highlighting
+ */
+export function createJoplinSyntaxHighlighting(isDarkTheme: boolean): Extension {
+    const style = isDarkTheme ? darkHighlightStyle : lightHighlightStyle;
+    return syntaxHighlighting(style, { fallback: true });
+}
