@@ -17,7 +17,6 @@ import {
     DATA_SECTION,
     SECTION_BODY,
     SECTION_HEADER,
-    getWidgetSelector,
 } from './domHelpers';
 import { hashTableText } from './hashUtils';
 import { estimateTableHeight } from './tableHeightEstimation';
@@ -31,9 +30,9 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
  * Supports rendering markdown content inside cells
  */
 export class TableWidget extends WidgetType {
-    private static readonly pendingHeightMeasure = new WeakSet<HTMLElement>();
     private readonly contentHash: string;
     private readonly cellRanges: TableCellRanges | null;
+    private resizeObserver: ResizeObserver | null = null;
 
     constructor(
         private tableData: TableData,
@@ -131,19 +130,22 @@ export class TableWidget extends WidgetType {
 
         container.appendChild(table);
 
-        // Measure and cache the rendered height so future mounts/rebuilds can provide a more
-        // accurate `estimatedHeight`, reducing scroll jumps.
-        const measureKey = tableHeightCache.getMeasureKey(this.tableFrom, this.tableText);
-        view.requestMeasure({
-            read: () => {
-                if (!container.isConnected) {
-                    return;
-                }
-                const height = container.getBoundingClientRect().height;
-                tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
-            },
-            key: measureKey,
+        // Use ResizeObserver to notify CodeMirror whenever the table height changes.
+        // This eliminates the race condition between async rendering and CM6's coordinate system.
+        this.resizeObserver = new ResizeObserver(() => {
+            // requestMeasure is debounced internally by CM6, so safe to call frequently.
+            view.requestMeasure({
+                read: () => {
+                    if (!container.isConnected) {
+                        return;
+                    }
+                    const height = container.getBoundingClientRect().height;
+                    tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
+                },
+                key: tableHeightCache.getMeasureKey(this.tableFrom, this.tableText),
+            });
         });
+        this.resizeObserver.observe(container);
 
         // Store view reference for cleanup when widget is destroyed
         widgetViews.set(container, view);
@@ -172,49 +174,13 @@ export class TableWidget extends WidgetType {
         if (this.containsMarkdown(renderableMarkdown)) {
             // Request async rendering and update when ready
             renderer.renderAsync(renderableMarkdown, (html) => {
-                // Only update if the cell is still in the DOM and content hasn't changed
+                // Only update if the cell is still in the DOM and content hasn't changed.
+                // Note: Height re-measurement is handled automatically by ResizeObserver.
                 if (cell.isConnected && cell.textContent === renderableMarkdown) {
                     cell.innerHTML = html;
-
-                    // Async rendering can change row/table height after mount.
-                    // Schedule a re-measure so the height cache tracks the settled DOM.
-                    this.scheduleHeightMeasurementFromCell(cell);
                 }
             });
         }
-    }
-
-    private scheduleHeightMeasurementFromCell(cell: HTMLElement): void {
-        const container = cell.closest(getWidgetSelector()) as HTMLElement | null;
-        if (!container) {
-            return;
-        }
-
-        // Throttle per container to avoid excessive measurements when many cells render.
-        if (TableWidget.pendingHeightMeasure.has(container)) {
-            return;
-        }
-        TableWidget.pendingHeightMeasure.add(container);
-
-        requestAnimationFrame(() => {
-            TableWidget.pendingHeightMeasure.delete(container);
-            const view = EditorView.findFromDOM(container);
-            if (!view) {
-                return;
-            }
-
-            const measureKey = tableHeightCache.getMeasureKey(this.tableFrom, this.tableText);
-            view.requestMeasure({
-                read: () => {
-                    if (!container.isConnected) {
-                        return;
-                    }
-                    const height = container.getBoundingClientRect().height;
-                    tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
-                },
-                key: measureKey,
-            });
-        });
     }
 
     /**
@@ -289,6 +255,12 @@ export class TableWidget extends WidgetType {
     }
 
     destroy(dom: HTMLElement): void {
+        // Disconnect ResizeObserver to prevent memory leaks.
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+
         // Record a last-known height right before teardown. This helps future remounts even if
         // the widget is destroyed before the measurement queue runs.
         const height = dom.getBoundingClientRect().height;
