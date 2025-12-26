@@ -1,10 +1,10 @@
-import { ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { ChangeSpec, EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { drawSelection, EditorView, ViewPlugin } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { inlineCodePlugin, markPlugin, insertPlugin } from './decorationPlugins';
-import { joplinHighlightStyle } from './joplinHighlightStyle';
+import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { nestedEditorTheme } from './nestedEditorTheme';
 import { renderer } from '../services/markdownRenderer';
 import { unescapePipesForRendering } from '../shared/cellContentUtils';
@@ -219,6 +219,9 @@ class NestedCellEditorManager {
             initialAnchor = params.cellTo;
         }
 
+        // Detect if Joplin is using a dark theme to select matching syntax colors
+        const isDarkTheme = params.mainView.state.facet(EditorView.darkTheme);
+
         const state = EditorState.create({
             doc: params.mainView.state.doc,
             selection: { anchor: initialAnchor },
@@ -242,7 +245,7 @@ class NestedCellEditorManager {
                 inlineCodePlugin,
                 markPlugin,
                 insertPlugin,
-                syntaxHighlighting(joplinHighlightStyle, { fallback: true }),
+                createJoplinSyntaxHighlighting(isDarkTheme),
                 nestedEditorTheme,
             ],
         });
