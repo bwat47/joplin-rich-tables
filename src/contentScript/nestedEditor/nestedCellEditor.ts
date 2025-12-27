@@ -111,7 +111,6 @@ class NestedCellEditorManager {
                 this.cellTo = tr.changes.mapPos(this.cellTo, 1);
 
                 // Forward to main editor (source of truth).
-                //
                 const nestedSel = update.state.selection.main;
 
                 this.mainView.dispatch({
