@@ -196,17 +196,17 @@ export function execFormatTable(view: EditorView, cell: ActiveCell) {
     });
 }
 
-export function execInsertRowAtBottomAndFocusFirst(view: EditorView, cell: ActiveCell) {
+export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, targetCol: number) {
     runTableOperation({
         view,
         cell,
         operation: (t, c) => insertRowForActiveCell(t, c, 'after'),
         computeTargetCell: (c) => {
-            // New row is always body, and we want the first column
+            // New row is always body
             if (c.section === 'header') {
-                return { section: 'body', row: 0, col: 0 };
+                return { section: 'body', row: 0, col: targetCol };
             }
-            return { section: 'body', row: c.row + 1, col: 0 };
+            return { section: 'body', row: c.row + 1, col: targetCol };
         },
         forceWidgetRebuild: true,
     });

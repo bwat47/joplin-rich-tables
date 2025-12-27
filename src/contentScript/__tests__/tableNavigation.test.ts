@@ -7,7 +7,7 @@ import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellR
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 
 import * as activeCellState from '../tableWidget/activeCellState';
-import { execInsertRowAtBottomAndFocusFirst } from '../tableCommands/tableCommands';
+import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
 jest.mock('../tableWidget/tablePositioning');
@@ -15,7 +15,7 @@ jest.mock('../tableModel/markdownTableCellRanges');
 jest.mock('../nestedEditor/nestedCellEditor');
 jest.mock('../tableCommands/tableCommands', () => ({
     __esModule: true,
-    execInsertRowAtBottomAndFocusFirst: jest.fn(),
+    execInsertRowAtBottom: jest.fn(),
 }));
 
 describe('navigateCell', () => {
@@ -45,7 +45,7 @@ describe('navigateCell', () => {
         (resolveTableAtPos as jest.Mock).mockReset();
         (computeMarkdownTableCellRanges as jest.Mock).mockReset();
         (resolveCellDocRange as jest.Mock).mockReset();
-        (execInsertRowAtBottomAndFocusFirst as jest.Mock).mockReset();
+        (execInsertRowAtBottom as jest.Mock).mockReset();
     });
 
     const setupTable = (rows: number, cols: number) => {
@@ -141,17 +141,27 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(mockDispatch).not.toHaveBeenCalled(); // No move
-        expect(execInsertRowAtBottomAndFocusFirst).not.toHaveBeenCalled();
+        expect(execInsertRowAtBottom).not.toHaveBeenCalled();
     });
 
-    it('should add row at end of table if allowRowCreation is true', () => {
+    it('should add row at end of table with col 0 when Tab (next) with allowRowCreation', () => {
         setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 1);
+        setupActiveCell(SECTION_BODY, 0, 1); // Last cell, col 1
 
         const result = navigateCell(mockView, 'next', { allowRowCreation: true });
 
         expect(result).toBe(true);
-        expect(execInsertRowAtBottomAndFocusFirst).toHaveBeenCalledWith(mockView, expect.anything());
+        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 0);
+    });
+
+    it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
+        setupTable(1, 2);
+        setupActiveCell(SECTION_BODY, 0, 1); // Last row, col 1
+
+        const result = navigateCell(mockView, 'down', { allowRowCreation: true });
+
+        expect(result).toBe(true);
+        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 1);
     });
 
     it('should NOT add row at end of table if allowRowCreation is false', () => {
@@ -161,7 +171,7 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'next', { allowRowCreation: false });
 
         expect(result).toBe(true);
-        expect(execInsertRowAtBottomAndFocusFirst).not.toHaveBeenCalled();
+        expect(execInsertRowAtBottom).not.toHaveBeenCalled();
     });
 
     it('should navigate previous from body start to header end', () => {

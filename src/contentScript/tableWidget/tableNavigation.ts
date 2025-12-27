@@ -4,7 +4,7 @@ import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import { resolveTableAtPos, resolveCellDocRange } from './tablePositioning';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { execInsertRowAtBottomAndFocusFirst } from '../tableCommands/tableCommands';
+import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 import { makeTableId, type CellCoords } from '../tableModel/types';
 
 export function navigateCell(
@@ -73,7 +73,9 @@ export function navigateCell(
 
     if (unifiedRow >= totalRows) {
         if (options.allowRowCreation) {
-            execInsertRowAtBottomAndFocusFirst(view, activeCell);
+            // Tab ('next') goes to first col, Enter/down stays in same col
+            const targetCol = direction === 'next' ? 0 : activeCell.col;
+            execInsertRowAtBottom(view, activeCell, targetCol);
             return true;
         }
         // Walked off end of table
