@@ -84,7 +84,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - `Enter`: Cell below
     - `ArrowLeft` / `ArrowRight`: Navigate to prev/next cell when at content boundary
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
-    - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard. Uses `requestAnimationFrame` and only scrolls CodeMirror's container (preserves Joplin's sidebar layout).
+    - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard.
 - **Shortcuts**: formatting shortcuts (Ctrl+B/I, Ctrl+`/Ctrl+E) and Insert Link (Ctrl+K) are supported within the cell. Ctrl+A selects all text in the current cell. Standard editor shortcuts (Ctrl+C/V/X/Z/Y) are supported. Global shortcuts (Ctrl+S, Ctrl+P) bubble to the app. Ctrl+F is blocked.
 - **Context Menu**: Native browser context menu is allowed (Paste works, Copy may be disabled).
 - **Mobile (Android)**: `beforeinput`/`input`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell and newlines while nested editor is open.
