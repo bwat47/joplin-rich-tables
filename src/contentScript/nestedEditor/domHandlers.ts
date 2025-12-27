@@ -55,9 +55,9 @@ function runHistoryCommandWithMainScrollPreserved(
 ): boolean {
     const scrollSnapshotEffect = mainView.scrollSnapshot();
 
-    // Wide tables have their own horizontal scroller on the widget container.
-    // Undo/redo can rebuild widgets or trigger internal scroll adjustments, which
-    // otherwise snaps this back to the left.
+    // While I was able to remove scrollSnapshot usage elsewhere after implementing coordsAt in TableWidget,
+    // this hack is still needed to prevent large scroll jumps when undoing/redoing
+    // because these operations may cause CodeMirror to lose its visual anchor on the table row.
     const activeCell = getActiveCell(mainView.state);
     const tableFrom = activeCell?.tableFrom;
     const widgetContainer =
