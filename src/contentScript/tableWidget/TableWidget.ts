@@ -17,6 +17,7 @@ import {
     DATA_SECTION,
     SECTION_BODY,
     SECTION_HEADER,
+    getCellSelector,
 } from './domHelpers';
 import { hashTableText } from './hashUtils';
 import { estimateTableHeight } from './tableHeightEstimation';
@@ -239,9 +240,7 @@ export class TableWidget extends WidgetType {
             return null;
         }
 
-        const section = coords.section === 'header' ? SECTION_HEADER : SECTION_BODY;
-        const selector = `[data-${DATA_SECTION}="${section}"][data-${DATA_ROW}="${coords.row}"][data-${DATA_COL}="${coords.col}"]`;
-        const cell = dom.querySelector(selector);
+        const cell = dom.querySelector(getCellSelector(coords));
         if (!cell) {
             return null;
         }
