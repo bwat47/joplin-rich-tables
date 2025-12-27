@@ -112,28 +112,11 @@ class NestedCellEditorManager {
 
                 // Forward to main editor (source of truth).
                 //
-                // SCROLL LOCKING STRATEGY:
-                // When we type in a cell, the content changes. If the cell content
-                // wraps to a new line, the row height increases. CodeMirror observes
-                // this DOM size change and might try to adjust the scroll position
-                // to keep the "virtual" viewport stable. This often results in jumping.
-                //
-                // Use CodeMirror's native scrollSnapshot() effect to restore the
-                // editor's own scroll position reliably.
-
-                // Include the scroll snapshot effect in the same dispatch as the doc change
-                // to minimize the number of transactions (reducing flickering on mobile).
-                //
-                // Also include the selection update in the same dispatch to prevent
-                // the forwardSelectionToMain listener from dispatching a separate transaction
-                // (which causes flickering on delete operations where position mapping differs).
-                const scrollSnapshotEffect = this.mainView.scrollSnapshot();
                 const nestedSel = update.state.selection.main;
 
                 this.mainView.dispatch({
                     changes: tr.changes,
                     selection: EditorSelection.single(nestedSel.anchor, nestedSel.head),
-                    effects: scrollSnapshotEffect,
                     annotations: syncAnnotation.of(true),
                     scrollIntoView: false,
                 });
