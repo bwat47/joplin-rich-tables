@@ -134,7 +134,7 @@ export function createNestedEditorKeymap(
         {
             key: 'Tab',
             run: () => {
-                return navigateCell(mainView, 'next');
+                return navigateCell(mainView, 'next', { allowRowCreation: true });
             },
         },
         {
@@ -146,7 +146,7 @@ export function createNestedEditorKeymap(
         {
             key: 'Enter',
             run: () => {
-                return navigateCell(mainView, 'down');
+                return navigateCell(mainView, 'down', { allowRowCreation: true });
             },
         },
         {

@@ -4,12 +4,13 @@ import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import { resolveTableAtPos, resolveCellDocRange } from './tablePositioning';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
+import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 import { makeTableId, type CellCoords } from '../tableModel/types';
 
 export function navigateCell(
     view: EditorView,
     direction: 'next' | 'previous' | 'up' | 'down',
-    options: { cursorPos?: 'start' | 'end' } = {}
+    options: { cursorPos?: 'start' | 'end'; allowRowCreation?: boolean } = {}
 ): boolean {
     const state = view.state;
     const activeCell = getActiveCell(state);
@@ -71,6 +72,12 @@ export function navigateCell(
     }
 
     if (unifiedRow >= totalRows) {
+        if (options.allowRowCreation) {
+            // Tab ('next') goes to first col, Enter/down stays in same col
+            const targetCol = direction === 'next' ? 0 : activeCell.col;
+            execInsertRowAtBottom(view, activeCell, targetCol);
+            return true;
+        }
         // Walked off end of table
         return true;
     }
