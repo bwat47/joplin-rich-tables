@@ -26,13 +26,24 @@ export { syncAnnotation };
 
 /**
  * Scrolls a cell element into view within only CodeMirror's scroll container.
- * Unlike native scrollIntoView(), this won't affect parent scrollable elements
- * (e.g., Joplin's sidebar layout).
+ * Uses CodeMirror's requestMeasure to defer scrolling until after layout is stable,
+ * ensuring height changes from closing the previous cell have propagated.
  */
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
-    cellElement.scrollIntoView({
-        block: 'nearest',
-        inline: 'nearest',
+    // Defer scrolling until after CodeMirror's next measurement phase.
+    // This ensures height changes from closing the previous cell (e.g., when
+    // markdown-heavy content switches from raw text to rendered HTML) have
+    // propagated and the viewport positions are accurate.
+    mainView.requestMeasure({
+        read: () => cellElement.isConnected,
+        write: (isConnected) => {
+            if (isConnected) {
+                cellElement.scrollIntoView({
+                    block: 'nearest',
+                    inline: 'nearest',
+                });
+            }
+        },
     });
 }
 
