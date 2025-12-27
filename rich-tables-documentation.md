@@ -81,7 +81,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 - **Keyboard Navigation**:
     - `Tab` / `Shift+Tab`: Next/Previous cell (or new row on last row/column).
-    - `Enter`: Cell below
+    - `Enter`: Cell below (or new row on last row).
     - `ArrowLeft` / `ArrowRight`: Navigate to prev/next cell when at content boundary
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
     - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard.
