@@ -18,7 +18,7 @@ import {
 import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 import { selectAllInCell } from './markdownCommands';
-import { CLASS_CELL_ACTIVE, getWidgetSelector } from '../tableWidget/domHelpers';
+import { CLASS_CELL_ACTIVE } from '../tableWidget/domHelpers';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -26,63 +26,24 @@ export { syncAnnotation };
 
 /**
  * Scrolls a cell element into view within only CodeMirror's scroll container.
- * Unlike native scrollIntoView(), this won't affect parent scrollable elements
- * (e.g., Joplin's sidebar layout).
+ * Uses CodeMirror's requestMeasure to defer scrolling until after layout is stable,
+ * ensuring height changes from closing the previous cell have propagated.
  */
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
-    // Use RAF to ensure layout is stable after editor mount
-    requestAnimationFrame(() => {
-        // 1. Scroll the main editor to keep the cell in view vertically/horizontally in the main viewport
-        const scrollDOM = mainView.scrollDOM;
-        const scrollRect = scrollDOM.getBoundingClientRect();
-        const cellRect = cellElement.getBoundingClientRect();
-
-        const margin = 8; // Pixels of margin to keep around the cell
-
-        let newScrollTop = scrollDOM.scrollTop;
-        let newScrollLeft = scrollDOM.scrollLeft;
-
-        // Vertical scrolling (Main Editor)
-        if (cellRect.top < scrollRect.top + margin) {
-            newScrollTop -= scrollRect.top - cellRect.top + margin;
-        } else if (cellRect.bottom > scrollRect.bottom - margin) {
-            newScrollTop += cellRect.bottom - scrollRect.bottom + margin;
-        }
-
-        // Horizontal scrolling (Main Editor)
-        if (cellRect.left < scrollRect.left + margin) {
-            newScrollLeft -= scrollRect.left - cellRect.left + margin;
-        } else if (cellRect.right > scrollRect.right - margin) {
-            newScrollLeft += cellRect.right - scrollRect.right + margin;
-        }
-
-        if (newScrollTop !== scrollDOM.scrollTop || newScrollLeft !== scrollDOM.scrollLeft) {
-            scrollDOM.scrollTo(newScrollLeft, newScrollTop);
-        }
-
-        // 2. Scroll the table widget itself if it has internal scroll (e.g. on mobile or wide tables)
-        const widgetContainer = cellElement.closest(getWidgetSelector()) as HTMLElement;
-        if (widgetContainer) {
-            const widgetRect = widgetContainer.getBoundingClientRect();
-            // We need to re-measure cellRect relative to the widget or just check overlap
-            // Note: cellRect from above is still valid relative to viewport.
-            // widgetRect is also relative to viewport.
-
-            let newWidgetScrollLeft = widgetContainer.scrollLeft;
-
-            // Check if cell is to the left of the widget's visible area
-            if (cellRect.left < widgetRect.left + margin) {
-                newWidgetScrollLeft -= widgetRect.left - cellRect.left + margin;
+    // Defer scrolling until after CodeMirror's next measurement phase.
+    // This ensures height changes from closing the previous cell (e.g., when
+    // markdown-heavy content switches from raw text to rendered HTML) have
+    // propagated and the viewport positions are accurate.
+    mainView.requestMeasure({
+        read: () => cellElement.isConnected,
+        write: (isConnected) => {
+            if (isConnected) {
+                cellElement.scrollIntoView({
+                    block: 'nearest',
+                    inline: 'nearest',
+                });
             }
-            // Check if cell is to the right of the widget's visible area
-            else if (cellRect.right > widgetRect.right - margin) {
-                newWidgetScrollLeft += cellRect.right - widgetRect.right + margin;
-            }
-
-            if (newWidgetScrollLeft !== widgetContainer.scrollLeft) {
-                widgetContainer.scrollTo({ left: newWidgetScrollLeft, behavior: 'auto' });
-            }
-        }
+        },
     });
 }
 
@@ -108,11 +69,18 @@ class NestedCellEditorManager {
         this.mainView = params.mainView;
         this.cellFrom = params.cellFrom;
         this.cellTo = params.cellTo;
+        this.cellElement = params.cellElement;
+
+        // Lock cell width before switching to edit mode to prevent horizontal
+        // expansion when raw markdown (e.g., long URLs) is shown instead of
+        // rendered content. Height will still adjust as text wraps.
+        // Use max-width (not just width) because table cells treat width as a minimum.
+        const cellWidth = this.cellElement.offsetWidth;
+        this.cellElement.style.maxWidth = `${cellWidth}px`;
 
         const { content, editorHost } = ensureCellWrapper(params.cellElement);
         this.contentEl = content;
         this.editorHostEl = editorHost;
-        this.cellElement = params.cellElement;
 
         // Add active class to cell for styling
         this.cellElement.classList.add(CLASS_CELL_ACTIVE);
@@ -363,6 +331,8 @@ class NestedCellEditorManager {
 
         if (this.cellElement) {
             this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
+            // Remove the width lock set during open()
+            this.cellElement.style.maxWidth = '';
             this.cellElement = null;
         }
 
