@@ -42,6 +42,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 
 **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
 **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
+**Enter Key:** Moves to next row, or creates new row on last row.
 
 ### Important Notes/Limitations
 
