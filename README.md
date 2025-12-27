@@ -5,7 +5,7 @@
 
 A Joplin plugin to provide table rendering & table editing in the Markdown editor.
 
-![example](https://github.com/user-attachments/assets/a68f8de5-7acb-43b8-9e5a-ad81adf8857f)
+![example](https://github.com/user-attachments/assets/0a1755d8-e1a8-4a13-af18-5162acd57b23)
 
 ## Features
 
@@ -40,10 +40,10 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 | **Move Column Left/Right**   | `Alt + Left` / `Right`               |
 | **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
 
-**Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
-**Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
-**Enter Key:** Moves to next row, or creates new row on last row.
-**Shift + Enter:** Insert `<br>` (line break)
+- **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
+- **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
+- **Enter Key:** Moves to next row, or creates new row on last row.
+- **Shift + Enter:** Insert `<br>` (line break)
 
 ### Important Notes/Limitations
 
