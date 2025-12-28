@@ -61,10 +61,15 @@ export class TableWidget extends WidgetType {
             return false;
         }
 
-        // Content is the same, only position changed (typing above table).
-        // Update position-dependent attributes and reuse the DOM.
-        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+        // Also check if position changed - when positions shift significantly (e.g., undo
+        // removes text above table), CodeMirror might incorrectly match DOMs. Force rebuild
+        // to ensure cell content is correct.
+        const oldFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`));
+        if (oldFrom !== this.tableFrom) {
+            return false;
+        }
 
+        // Content and position are the same - safe to reuse the DOM.
         // Update the view mapping so destroy() can clean up correctly.
         widgetViews.set(dom, view);
 
