@@ -13,6 +13,7 @@ import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
@@ -34,26 +35,34 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             // Detect structural undo/redo (changes containing newlines or pipes).
             // These require repositioning to an adjacent cell because the active cell's
             // coordinates may point to a different cell after the table structure changes.
-            const isStructuralUndo =
-                update.docChanged &&
-                !isSync &&
-                this.hadActiveCell &&
-                update.transactions.some((tr) => {
-                    if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) return false;
-                    let isStructural = false;
+            let isStructuralUndo = false;
+            let undoChangeFrom = -1; // Position where the undo change occurred
+
+            if (update.docChanged && !isSync && this.hadActiveCell) {
+                for (const tr of update.transactions) {
+                    if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) continue;
                     tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+                        undoChangeFrom = fromA; // Capture the change position
                         const deletedText = tr.startState.doc.sliceString(fromA, toA);
                         const insertedText = inserted.toString();
                         if (deletedText.includes('\n') || insertedText.includes('\n')) {
-                            isStructural = true;
+                            isStructuralUndo = true;
                         }
                         // Check for unescaped pipes
                         if (deletedText.includes('|') || insertedText.includes('|')) {
-                            isStructural = true;
+                            isStructuralUndo = true;
                         }
                     });
-                    return isStructural;
-                });
+                }
+            }
+
+            // Check if undo/redo affects a different cell than the currently active one.
+            // This happens when user edited cell A, moved to cell B, and undoes (which affects cell A).
+            const undoAffectsDifferentCell =
+                !isStructuralUndo &&
+                undoChangeFrom >= 0 &&
+                prevActiveCell &&
+                (undoChangeFrom < prevActiveCell.cellFrom || undoChangeFrom > prevActiveCell.cellTo);
 
             if (isStructuralUndo && prevActiveCell) {
                 console.log('[nestedEditorLifecycle] Structural undo detected, repositioning cell');
@@ -136,6 +145,125 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
                     if (!cellElement) {
                         console.log('[nestedEditorLifecycle] Cell element not found:', selector);
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    this.view.dispatch({
+                        effects: setActiveCellEffect.of(newActiveCell),
+                    });
+
+                    openNestedCellEditor({
+                        mainView: this.view,
+                        cellElement,
+                        cellFrom: newActiveCell.cellFrom,
+                        cellTo: newActiveCell.cellTo,
+                    });
+                });
+
+                this.hadActiveCell = hasActiveCell;
+                return;
+            }
+
+            // When undo/redo affects a different cell than the currently active one,
+            // switch to that cell so the user can see the change.
+            if (undoAffectsDifferentCell) {
+                console.log(
+                    '[nestedEditorLifecycle] Undo affects different cell, switching. undoChangeFrom:',
+                    undoChangeFrom
+                );
+
+                // Close the current nested editor
+                if (isNestedCellEditorOpen(this.view)) {
+                    closeNestedCellEditor(this.view);
+                }
+
+                // Map the change position through undo to find where it is now
+                const mappedPos = update.changes.mapPos(undoChangeFrom, 1);
+
+                // After DOM updates, find and open the affected cell
+                requestAnimationFrame(() => {
+                    const tables = findTableRanges(this.view.state);
+
+                    // Find the table containing the mapped position
+                    const table = tables.find((t) => mappedPos >= t.from && mappedPos <= t.to);
+
+                    if (!table) {
+                        console.log('[nestedEditorLifecycle] No table found at position', mappedPos);
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    // Find which cell in the table contains the position
+                    const relativePos = mappedPos - table.from;
+                    const ranges = computeMarkdownTableCellRanges(table.text);
+                    if (!ranges) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    // Find the cell containing this position
+                    let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
+
+                    // Check header cells
+                    for (let col = 0; col < ranges.headers.length; col++) {
+                        const range = ranges.headers[col];
+                        if (relativePos >= range.from && relativePos <= range.to) {
+                            targetCell = { section: 'header', row: 0, col };
+                            break;
+                        }
+                    }
+
+                    // Check body cells
+                    if (!targetCell) {
+                        for (let row = 0; row < ranges.rows.length; row++) {
+                            for (let col = 0; col < ranges.rows[row].length; col++) {
+                                const range = ranges.rows[row][col];
+                                if (relativePos >= range.from && relativePos <= range.to) {
+                                    targetCell = { section: 'body', row, col };
+                                    break;
+                                }
+                            }
+                            if (targetCell) break;
+                        }
+                    }
+
+                    if (!targetCell) {
+                        console.log('[nestedEditorLifecycle] Could not find cell at position', relativePos);
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    const newActiveCell = computeActiveCellForTableText({
+                        tableFrom: table.from,
+                        tableText: table.text,
+                        target: targetCell,
+                    });
+
+                    if (!newActiveCell) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    console.log('[nestedEditorLifecycle] Switching to cell:', targetCell);
+
+                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
+                    if (!widgetDOM) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    const selector =
+                        newActiveCell.section === SECTION_HEADER
+                            ? getCellSelector({ section: SECTION_HEADER, row: 0, col: newActiveCell.col })
+                            : getCellSelector({
+                                  section: SECTION_BODY,
+                                  row: newActiveCell.row,
+                                  col: newActiveCell.col,
+                              });
+
+                    const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
+                    if (!cellElement) {
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
