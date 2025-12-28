@@ -66,7 +66,6 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
 
 /**
  * Sanitize HTML rendered by Joplin to ensure security and fix display issues.
- * - Allows specific attributes needed for internal links/images
  * - Allows unknown protocols for joplin-content://
  * - Removes "resource-icon" spans via hook
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
@@ -74,7 +73,6 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
 function sanitizeHtml(html: string): string {
     return DOMPurify.sanitize(html, {
         ALLOW_UNKNOWN_PROTOCOLS: true,
-        ADD_ATTR: ['data-resource-id', 'data-note-id', 'data-item-id', 'data-from-md'],
     });
 }
 
