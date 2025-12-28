@@ -62,12 +62,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
     const mouseEvent = event as MouseEvent;
 
     const isInsideLink = Boolean(target.closest('a'));
-    if (isInsideLink) {
-        // Only handle left-click. For right/middle click, don't treat it as a table interaction.
-        if (mouseEvent.button !== 0) {
-            return false;
-        }
-
+    if (isInsideLink && mouseEvent.button === 0) {
         const href = getLinkHrefFromTarget(target);
         if (href) {
             event.preventDefault();
