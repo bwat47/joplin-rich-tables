@@ -32,40 +32,36 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 tr.effects.some((e) => e.is(rebuildTableWidgetsEffect))
             );
 
-            // Detect structural undo/redo (changes containing newlines or pipes).
-            // These require repositioning to an adjacent cell because the active cell's
-            // coordinates may point to a different cell after the table structure changes.
-            let isStructuralUndo = false;
-            let undoChangeFrom = -1; // Position where the undo change occurred
+            // Detect undo/redo that requires cell repositioning:
+            // 1. Structural changes (newlines/pipes) - table structure changed
+            // 2. Change affects a different cell than the currently active one
+            let needsUndoCellReposition = false;
 
-            if (update.docChanged && !isSync && this.hadActiveCell) {
+            if (update.docChanged && !isSync && this.hadActiveCell && prevActiveCell) {
                 for (const tr of update.transactions) {
                     if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) continue;
                     tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-                        undoChangeFrom = fromA; // Capture the change position
                         const deletedText = tr.startState.doc.sliceString(fromA, toA);
                         const insertedText = inserted.toString();
-                        if (deletedText.includes('\n') || insertedText.includes('\n')) {
-                            isStructuralUndo = true;
+                        // Structural change (newlines = rows, pipes = columns)
+                        if (
+                            deletedText.includes('\n') ||
+                            insertedText.includes('\n') ||
+                            deletedText.includes('|') ||
+                            insertedText.includes('|')
+                        ) {
+                            needsUndoCellReposition = true;
                         }
-                        // Check for unescaped pipes
-                        if (deletedText.includes('|') || insertedText.includes('|')) {
-                            isStructuralUndo = true;
+                        // Change affects different cell than active
+                        if (fromA < prevActiveCell.cellFrom || fromA > prevActiveCell.cellTo) {
+                            needsUndoCellReposition = true;
                         }
                     });
                 }
             }
 
-            // Check if undo/redo affects a different cell than the currently active one.
-            // This happens when user edited cell A, moved to cell B, and undoes (which affects cell A).
-            const undoAffectsDifferentCell =
-                !isStructuralUndo &&
-                undoChangeFrom >= 0 &&
-                prevActiveCell &&
-                (undoChangeFrom < prevActiveCell.cellFrom || undoChangeFrom > prevActiveCell.cellTo);
-
-            if (isStructuralUndo && prevActiveCell) {
-                                // Close the current nested editor
+            if (needsUndoCellReposition) {
+                // Close the current nested editor
                 if (isNestedCellEditorOpen(this.view)) {
                     closeNestedCellEditor(this.view);
                 }
@@ -73,214 +69,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 // CodeMirror history restores the cursor position as part of undo/redo.
                 // Use the main editor's selection position (after undo) to find the correct cell.
                 const cursorPos = update.state.selection.main.head;
-                
+
                 // After DOM updates, find and activate the cell at the cursor position
                 requestAnimationFrame(() => {
-                    const tables = findTableRanges(this.view.state);
-
-                    // Find the table containing the cursor position
-                    const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
-
-                    if (!table) {
-                                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    // Find which cell in the table contains the cursor
-                    const relativePos = cursorPos - table.from;
-                    const ranges = computeMarkdownTableCellRanges(table.text);
-                    if (!ranges) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    // Find the cell containing the cursor
-                    let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
-
-                    // Check header cells
-                    for (let col = 0; col < ranges.headers.length; col++) {
-                        const range = ranges.headers[col];
-                        if (relativePos >= range.from && relativePos <= range.to) {
-                            targetCell = { section: 'header', row: 0, col };
-                            break;
-                        }
-                    }
-
-                    // Check body cells
-                    if (!targetCell) {
-                        for (let row = 0; row < ranges.rows.length; row++) {
-                            for (let col = 0; col < ranges.rows[row].length; col++) {
-                                const range = ranges.rows[row][col];
-                                if (relativePos >= range.from && relativePos <= range.to) {
-                                    targetCell = { section: 'body', row, col };
-                                    break;
-                                }
-                            }
-                            if (targetCell) break;
-                        }
-                    }
-
-                    // If cursor not in any cell, use first body cell as fallback
-                    if (!targetCell) {
-                                                targetCell = { section: 'body', row: 0, col: 0 };
-                    }
-
-                    
-                    const newActiveCell = computeActiveCellForTableText({
-                        tableFrom: table.from,
-                        tableText: table.text,
-                        target: targetCell,
-                    });
-
-                    if (!newActiveCell) {
-                                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
-                    if (!widgetDOM) {
-                                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    const selector =
-                        newActiveCell.section === SECTION_HEADER
-                            ? getCellSelector({ section: SECTION_HEADER, row: 0, col: newActiveCell.col })
-                            : getCellSelector({
-                                  section: SECTION_BODY,
-                                  row: newActiveCell.row,
-                                  col: newActiveCell.col,
-                              });
-
-                    const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
-                    if (!cellElement) {
-                                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    this.view.dispatch({
-                        effects: setActiveCellEffect.of(newActiveCell),
-                    });
-
-                    openNestedCellEditor({
-                        mainView: this.view,
-                        cellElement,
-                        cellFrom: newActiveCell.cellFrom,
-                        cellTo: newActiveCell.cellTo,
-                    });
-                });
-
-                this.hadActiveCell = hasActiveCell;
-                return;
-            }
-
-            // When undo/redo affects a different cell than the currently active one,
-            // switch to that cell so the user can see the change.
-            // CodeMirror history restores the cursor to the correct position.
-            if (undoAffectsDifferentCell) {
-                
-                // Close the current nested editor
-                if (isNestedCellEditorOpen(this.view)) {
-                    closeNestedCellEditor(this.view);
-                }
-
-                // Use the cursor position restored by CodeMirror history
-                const cursorPos = update.state.selection.main.head;
-                
-                // After DOM updates, find and open the cell at cursor position
-                requestAnimationFrame(() => {
-                    const tables = findTableRanges(this.view.state);
-
-                    // Find the table containing the cursor position
-                    const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
-
-                    if (!table) {
-                                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    // Find which cell in the table contains the cursor
-                    const relativePos = cursorPos - table.from;
-                    const ranges = computeMarkdownTableCellRanges(table.text);
-                    if (!ranges) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    // Find the cell containing the cursor
-                    let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
-
-                    // Check header cells
-                    for (let col = 0; col < ranges.headers.length; col++) {
-                        const range = ranges.headers[col];
-                        if (relativePos >= range.from && relativePos <= range.to) {
-                            targetCell = { section: 'header', row: 0, col };
-                            break;
-                        }
-                    }
-
-                    // Check body cells
-                    if (!targetCell) {
-                        for (let row = 0; row < ranges.rows.length; row++) {
-                            for (let col = 0; col < ranges.rows[row].length; col++) {
-                                const range = ranges.rows[row][col];
-                                if (relativePos >= range.from && relativePos <= range.to) {
-                                    targetCell = { section: 'body', row, col };
-                                    break;
-                                }
-                            }
-                            if (targetCell) break;
-                        }
-                    }
-
-                    if (!targetCell) {
-                                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    
-                    const newActiveCell = computeActiveCellForTableText({
-                        tableFrom: table.from,
-                        tableText: table.text,
-                        target: targetCell,
-                    });
-
-                    if (!newActiveCell) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
-                    if (!widgetDOM) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    const selector =
-                        newActiveCell.section === SECTION_HEADER
-                            ? getCellSelector({ section: SECTION_HEADER, row: 0, col: newActiveCell.col })
-                            : getCellSelector({
-                                  section: SECTION_BODY,
-                                  row: newActiveCell.row,
-                                  col: newActiveCell.col,
-                              });
-
-                    const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
-                    if (!cellElement) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                        return;
-                    }
-
-                    this.view.dispatch({
-                        effects: setActiveCellEffect.of(newActiveCell),
-                    });
-
-                    openNestedCellEditor({
-                        mainView: this.view,
-                        cellElement,
-                        cellFrom: newActiveCell.cellFrom,
-                        cellTo: newActiveCell.cellTo,
-                    });
+                    this.activateCellAtPosition(cursorPos);
                 });
 
                 this.hadActiveCell = hasActiveCell;
@@ -383,9 +175,105 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             this.hadActiveCell = hasActiveCell;
         }
 
+        /**
+         * Find the cell at the given position and activate it (dispatch setActiveCellEffect and open nested editor).
+         */
+        private activateCellAtPosition(cursorPos: number): void {
+            const tables = findTableRanges(this.view.state);
+
+            // Find the table containing the cursor position
+            const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
+
+            if (!table) {
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return;
+            }
+
+            // Find which cell in the table contains the cursor
+            const relativePos = cursorPos - table.from;
+            const ranges = computeMarkdownTableCellRanges(table.text);
+            if (!ranges) {
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return;
+            }
+
+            // Find the cell containing the cursor
+            let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
+
+            // Check header cells
+            for (let col = 0; col < ranges.headers.length; col++) {
+                const range = ranges.headers[col];
+                if (relativePos >= range.from && relativePos <= range.to) {
+                    targetCell = { section: 'header', row: 0, col };
+                    break;
+                }
+            }
+
+            // Check body cells
+            if (!targetCell) {
+                for (let row = 0; row < ranges.rows.length; row++) {
+                    for (let col = 0; col < ranges.rows[row].length; col++) {
+                        const range = ranges.rows[row][col];
+                        if (relativePos >= range.from && relativePos <= range.to) {
+                            targetCell = { section: 'body', row, col };
+                            break;
+                        }
+                    }
+                    if (targetCell) break;
+                }
+            }
+
+            // If cursor not in any cell, use first body cell as fallback
+            if (!targetCell) {
+                targetCell = { section: 'body', row: 0, col: 0 };
+            }
+
+            const newActiveCell = computeActiveCellForTableText({
+                tableFrom: table.from,
+                tableText: table.text,
+                target: targetCell,
+            });
+
+            if (!newActiveCell) {
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return;
+            }
+
+            const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
+            if (!widgetDOM) {
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return;
+            }
+
+            const selector =
+                newActiveCell.section === SECTION_HEADER
+                    ? getCellSelector({ section: SECTION_HEADER, row: 0, col: newActiveCell.col })
+                    : getCellSelector({
+                          section: SECTION_BODY,
+                          row: newActiveCell.row,
+                          col: newActiveCell.col,
+                      });
+
+            const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
+            if (!cellElement) {
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return;
+            }
+
+            this.view.dispatch({
+                effects: setActiveCellEffect.of(newActiveCell),
+            });
+
+            openNestedCellEditor({
+                mainView: this.view,
+                cellElement,
+                cellFrom: newActiveCell.cellFrom,
+                cellTo: newActiveCell.cellTo,
+            });
+        }
+
         destroy(): void {
             closeNestedCellEditor(this.view);
         }
     }
 );
-

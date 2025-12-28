@@ -5,8 +5,7 @@ import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsin
 import { initRenderer } from '../services/markdownRenderer';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
-import { activeCellField, clearActiveCellEffect, setActiveCellEffect, getActiveCell } from './activeCellState';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
@@ -246,68 +245,11 @@ function hasUnescapedPipe(text: string): boolean {
     return false;
 }
 
-/**
- * Handles undo/redo of structural changes by moving to an adjacent cell.
- * Structural changes involve newlines or unescaped pipe delimiters (row/column add/delete).
- * Simple text edits within a cell can undo without affecting the active cell.
- */
-const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
-    if (!tr.docChanged) {
-        return null;
-    }
-    const isUndoRedo = tr.isUserEvent('undo') || tr.isUserEvent('redo');
-    if (!isUndoRedo) {
-        return null;
-    }
-    const activeCell = getActiveCell(tr.startState);
-    if (!activeCell) {
-        return null;
-    }
-
-    // Detect structural changes by checking content, not positions.
-    // Structural changes (add/remove row/column) involve newlines or pipe delimiters.
-    // In-cell text edits don't contain these characters (pipes are escaped, newlines converted to <br>).
-    let isStructuralChange = false;
-    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-        const deletedText = tr.startState.doc.sliceString(fromA, toA);
-        const insertedText = inserted.toString();
-        // Newlines indicate row additions/deletions
-        if (deletedText.includes('\n') || insertedText.includes('\n')) {
-            isStructuralChange = true;
-        }
-        // Unescaped pipes indicate column additions/deletions
-        if (hasUnescapedPipe(deletedText) || hasUnescapedPipe(insertedText)) {
-            isStructuralChange = true;
-        }
-    });
-
-    if (isStructuralChange) {
-        // Try to move to an adjacent cell in the new table structure.
-        // Map the table bounds through the changes to find the new table position.
-        const newTableFrom = tr.changes.mapPos(activeCell.tableFrom, -1);
-        const newTableTo = tr.changes.mapPos(activeCell.tableTo, 1);
-
-        // Get the new table text after undo/redo
-        const newDoc = tr.state.doc;
-        const newTableText = newDoc.sliceString(newTableFrom, newTableTo);
-
-        // Try to find a cell at the same coordinates (clamped to valid bounds)
-        const newActiveCell = computeActiveCellForTableText({
-            tableFrom: newTableFrom,
-            tableText: newTableText,
-            target: { section: activeCell.section, row: activeCell.row, col: activeCell.col },
-        });
-
-        if (newActiveCell) {
-            return { effects: setActiveCellEffect.of(newActiveCell) };
-        }
-
-        // If we couldn't find a valid cell, clear the active cell
-        return { effects: clearActiveCellEffect.of(undefined) };
-    }
-
-    return null;
-});
+// NOTE: clearActiveCellOnUndoRedo TransactionExtender was removed.
+// TransactionExtender effects aren't visible to StateField.update() in the same
+// transaction cycle, so dispatching setActiveCellEffect from here doesn't work.
+// The undo/redo handling is now done in nestedEditorLifecyclePlugin.update()
+// which uses CodeMirror's cursor position (restored by history) to find the correct cell.
 
 // while it might seem better to use pointerdown, it causes scrolling issues on android
 const closeOnOutsideClick = EditorView.domEventHandlers({
@@ -411,7 +353,7 @@ export default function (context: ContentScriptContext) {
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
-                clearActiveCellOnUndoRedo,
+
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
                 nestedEditorFocusGuard,
