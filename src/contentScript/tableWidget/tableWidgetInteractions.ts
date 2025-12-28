@@ -1,7 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import {
@@ -14,33 +13,6 @@ import {
     getWidgetSelector,
 } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
-
-function getLinkHrefFromTarget(target: HTMLElement): string | null {
-    const link = target.closest('a');
-    if (!link) {
-        return null;
-    }
-
-    // Check for Joplin internal link data attributes first
-    // renderMarkup converts :/id links to href="#" with data attributes
-    const resourceId = link.getAttribute('data-resource-id');
-    const noteId = link.getAttribute('data-note-id') || link.getAttribute('data-item-id');
-
-    if (resourceId) {
-        return `:/${resourceId}`;
-    }
-
-    if (noteId) {
-        return `:/${noteId}`;
-    }
-
-    const href = link.getAttribute('href');
-    if (!href || href === '#' || href === '') {
-        return null;
-    }
-
-    return href;
-}
 
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
@@ -57,21 +29,6 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
     // Let the nested editor handle its own events.
     if (target.closest(`.${CLASS_CELL_EDITOR}`)) {
         return false;
-    }
-
-    const mouseEvent = event as MouseEvent;
-
-    const isInsideLink = Boolean(target.closest('a'));
-    if (isInsideLink && mouseEvent.button === 0) {
-        const href = getLinkHrefFromTarget(target);
-        if (href) {
-            event.preventDefault();
-            event.stopPropagation();
-            openLink(href);
-            return true;
-        }
-
-        // Left-click on a link-like element without a usable href should behave like a normal cell click.
     }
 
     // Cell activation
