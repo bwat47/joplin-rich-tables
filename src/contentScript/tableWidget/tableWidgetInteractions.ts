@@ -59,88 +59,111 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    const mouseEvent = event as MouseEvent;
+    const isLink = Boolean(target.closest('a'));
 
-    const isInsideLink = Boolean(target.closest('a'));
-    if (isInsideLink && mouseEvent.button === 0) {
-        const href = getLinkHrefFromTarget(target);
-        if (href) {
-            event.preventDefault();
-            event.stopPropagation();
-            openLink(href);
-            return true;
+    // Handle Click events: strict link opening
+    if (event.type === 'click') {
+        const mouseEvent = event as MouseEvent;
+        // Only handle left clicks
+        if (mouseEvent.button !== 0) {
+            return false;
         }
 
-        // Left-click on a link-like element without a usable href should behave like a normal cell click.
-    }
-
-    // Cell activation
-    const cell = target.closest('td, th') as HTMLElement | null;
-    if (!cell) {
+        if (isLink) {
+            const href = getLinkHrefFromTarget(target);
+            if (href) {
+                event.preventDefault();
+                event.stopPropagation();
+                openLink(href);
+                return true;
+            }
+        }
         return false;
     }
 
-    const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
-    const row = Number(cell.dataset[DATA_ROW]);
-    const col = Number(cell.dataset[DATA_COL]);
+    // Handle Mousedown events: cell activation
+    if (event.type === 'mousedown') {
+        // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
+        // and open the link.
+        // If we processed cell activation here, it might swallow the event or change focus
+        // in a way that prevents the click.
+        // However, allow RIGHT click (button 2) to fall through to cell activation so we can open the editor
+        // and see the context menu.
+        const mouseEvent = event as MouseEvent;
+        if (isLink && mouseEvent.button === 0) {
+            return true; // Claim the event to prevent CodeMirror default selection, but don't activate cell
+        }
 
-    if (!section || Number.isNaN(row) || Number.isNaN(col)) {
-        return false;
-    }
+        // Cell activation logic
+        const cell = target.closest('td, th') as HTMLElement | null;
+        if (!cell) {
+            return false;
+        }
 
-    const table = resolveTableFromEventTarget(view, cell);
-    if (!table) {
-        return false;
-    }
+        const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
+        const row = Number(cell.dataset[DATA_ROW]);
+        const col = Number(cell.dataset[DATA_COL]);
 
-    const cellRanges = computeMarkdownTableCellRanges(table.text);
-    if (!cellRanges) {
-        return false;
-    }
+        if (!section || Number.isNaN(row) || Number.isNaN(col)) {
+            return false;
+        }
 
-    const resolvedRange = resolveCellDocRange({
-        tableFrom: table.from,
-        ranges: cellRanges,
-        coords: { section, row, col },
-    });
-    if (!resolvedRange) {
-        return false;
-    }
+        const table = resolveTableFromEventTarget(view, cell);
+        if (!table) {
+            return false;
+        }
 
-    const { cellFrom, cellTo } = resolvedRange;
+        const cellRanges = computeMarkdownTableCellRanges(table.text);
+        if (!cellRanges) {
+            return false;
+        }
 
-    event.preventDefault();
-    event.stopPropagation();
-
-    view.dispatch({
-        selection: { anchor: cellFrom },
-        effects: setActiveCellEffect.of({
+        const resolvedRange = resolveCellDocRange({
             tableFrom: table.from,
-            tableTo: table.to,
-            cellFrom,
-            cellTo,
-            section,
-            row: section === SECTION_HEADER ? 0 : row,
-            col,
-        }),
-    });
+            ranges: cellRanges,
+            coords: { section, row, col },
+        });
+        if (!resolvedRange) {
+            return false;
+        }
 
-    // After dispatch, the decoration rebuild may have destroyed and recreated widget DOM.
-    // Re-query for the fresh cell element using data attributes to avoid stale references.
-    const freshWidget = view.dom.querySelector(getWidgetSelector(makeTableId(table.from))) as HTMLElement | null;
+        const { cellFrom, cellTo } = resolvedRange;
 
-    if (freshWidget) {
-        const freshCell = freshWidget.querySelector(getCellSelector({ section, row, col })) as HTMLElement | null;
+        event.preventDefault();
+        event.stopPropagation();
 
-        if (freshCell) {
-            openNestedCellEditor({
-                mainView: view,
-                cellElement: freshCell,
+        view.dispatch({
+            selection: { anchor: cellFrom },
+            effects: setActiveCellEffect.of({
+                tableFrom: table.from,
+                tableTo: table.to,
                 cellFrom,
                 cellTo,
-            });
+                section,
+                row: section === SECTION_HEADER ? 0 : row,
+                col,
+            }),
+        });
+
+        // After dispatch, the decoration rebuild may have destroyed and recreated widget DOM.
+        // Re-query for the fresh cell element using data attributes to avoid stale references.
+        const freshWidget = view.dom.querySelector(getWidgetSelector(makeTableId(table.from))) as HTMLElement | null;
+
+        if (freshWidget) {
+            const freshCell = freshWidget.querySelector(getCellSelector({ section, row, col })) as HTMLElement | null;
+
+            if (freshCell) {
+                openNestedCellEditor({
+                    mainView: view,
+                    cellElement: freshCell,
+                    cellFrom,
+                    cellTo,
+                });
+            }
         }
+
+        return true;
     }
 
-    return true;
+    return false;
 }

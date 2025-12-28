@@ -300,6 +300,9 @@ const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
         return handleTableInteraction(view, event);
     },
+    click: (event, view) => {
+        return handleTableInteraction(view, event);
+    },
 });
 
 /**
