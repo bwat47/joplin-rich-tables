@@ -8,4 +8,7 @@ module.exports = {
     transform: {
         '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
     },
+    moduleNameMapper: {
+        '^dompurify$': '<rootDir>/__mocks__/dompurify.ts',
+    },
 };
