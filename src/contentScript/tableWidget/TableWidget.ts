@@ -206,8 +206,10 @@ export class TableWidget extends WidgetType {
             text.includes('![') || // images
             text.includes('<') || // HTML tags
             text.includes('==') || // Highlights
+            text.includes('++') || // Insert (++)
             text.includes('\\') || // Escaped Text
             text.includes('mailto:') || // Mailto links
+            text.includes('http') || // bare links
             text.includes('#') // Headings
         );
     }
