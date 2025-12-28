@@ -5,7 +5,8 @@ import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsin
 import { initRenderer } from '../services/markdownRenderer';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
-import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { activeCellField, clearActiveCellEffect, setActiveCellEffect, getActiveCell } from './activeCellState';
+import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
@@ -246,9 +247,9 @@ function hasUnescapedPipe(text: string): boolean {
 }
 
 /**
- * Clears the active cell on undo/redo if the changes are structural (affect table structure).
+ * Handles undo/redo of structural changes by moving to an adjacent cell.
  * Structural changes involve newlines or unescaped pipe delimiters (row/column add/delete).
- * Simple text edits within a cell can undo without closing the cell editor.
+ * Simple text edits within a cell can undo without affecting the active cell.
  */
 const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
     if (!tr.docChanged) {
@@ -281,6 +282,27 @@ const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
     });
 
     if (isStructuralChange) {
+        // Try to move to an adjacent cell in the new table structure.
+        // Map the table bounds through the changes to find the new table position.
+        const newTableFrom = tr.changes.mapPos(activeCell.tableFrom, -1);
+        const newTableTo = tr.changes.mapPos(activeCell.tableTo, 1);
+
+        // Get the new table text after undo/redo
+        const newDoc = tr.state.doc;
+        const newTableText = newDoc.sliceString(newTableFrom, newTableTo);
+
+        // Try to find a cell at the same coordinates (clamped to valid bounds)
+        const newActiveCell = computeActiveCellForTableText({
+            tableFrom: newTableFrom,
+            tableText: newTableText,
+            target: { section: activeCell.section, row: activeCell.row, col: activeCell.col },
+        });
+
+        if (newActiveCell) {
+            return { effects: setActiveCellEffect.of(newActiveCell) };
+        }
+
+        // If we couldn't find a valid cell, clear the active cell
         return { effects: clearActiveCellEffect.of(undefined) };
     }
 
