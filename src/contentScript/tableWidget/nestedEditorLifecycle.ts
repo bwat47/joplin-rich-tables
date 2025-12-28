@@ -71,46 +71,70 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     closeNestedCellEditor(this.view);
                 }
 
-                // Map the old table position through the undo changes to find where it is now
-                const mappedTableFrom = update.changes.mapPos(prevActiveCell.tableFrom, -1);
-                console.log(
-                    '[nestedEditorLifecycle] Mapping tableFrom:',
-                    prevActiveCell.tableFrom,
-                    '->',
-                    mappedTableFrom
-                );
+                // CodeMirror history restores the cursor position as part of undo/redo.
+                // Use the main editor's selection position (after undo) to find the correct cell.
+                const cursorPos = update.state.selection.main.head;
+                console.log('[nestedEditorLifecycle] Using cursor position after undo:', cursorPos);
 
-                // After DOM updates, find and activate an adjacent cell
+                // After DOM updates, find and activate the cell at the cursor position
                 requestAnimationFrame(() => {
                     const tables = findTableRanges(this.view.state);
-                    console.log(
-                        '[nestedEditorLifecycle] Tables found:',
-                        tables.length,
-                        'mapped tableFrom:',
-                        mappedTableFrom
-                    );
 
-                    // Find the table that contains the mapped position
-                    const table =
-                        tables.find((t) => mappedTableFrom >= t.from && mappedTableFrom <= t.to) ||
-                        tables.find((t) => Math.abs(t.from - mappedTableFrom) < 50);
+                    // Find the table containing the cursor position
+                    const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
 
                     if (!table) {
-                        console.log('[nestedEditorLifecycle] No table found');
+                        console.log('[nestedEditorLifecycle] Cursor not in any table at position', cursorPos);
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
 
-                    console.log('[nestedEditorLifecycle] Found table at', table.from);
+                    // Find which cell in the table contains the cursor
+                    const relativePos = cursorPos - table.from;
+                    const ranges = computeMarkdownTableCellRanges(table.text);
+                    if (!ranges) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        return;
+                    }
+
+                    // Find the cell containing the cursor
+                    let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
+
+                    // Check header cells
+                    for (let col = 0; col < ranges.headers.length; col++) {
+                        const range = ranges.headers[col];
+                        if (relativePos >= range.from && relativePos <= range.to) {
+                            targetCell = { section: 'header', row: 0, col };
+                            break;
+                        }
+                    }
+
+                    // Check body cells
+                    if (!targetCell) {
+                        for (let row = 0; row < ranges.rows.length; row++) {
+                            for (let col = 0; col < ranges.rows[row].length; col++) {
+                                const range = ranges.rows[row][col];
+                                if (relativePos >= range.from && relativePos <= range.to) {
+                                    targetCell = { section: 'body', row, col };
+                                    break;
+                                }
+                            }
+                            if (targetCell) break;
+                        }
+                    }
+
+                    // If cursor not in any cell, use first body cell as fallback
+                    if (!targetCell) {
+                        console.log('[nestedEditorLifecycle] Cursor not in cell, using first body cell');
+                        targetCell = { section: 'body', row: 0, col: 0 };
+                    }
+
+                    console.log('[nestedEditorLifecycle] Target cell:', targetCell);
 
                     const newActiveCell = computeActiveCellForTableText({
                         tableFrom: table.from,
                         tableText: table.text,
-                        target: {
-                            section: prevActiveCell.section,
-                            row: prevActiveCell.row,
-                            col: prevActiveCell.col,
-                        },
+                        target: targetCell,
                     });
 
                     if (!newActiveCell) {
@@ -118,13 +142,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
-
-                    console.log(
-                        '[nestedEditorLifecycle] New cell:',
-                        newActiveCell.section,
-                        newActiveCell.row,
-                        newActiveCell.col
-                    );
 
                     const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
                     if (!widgetDOM) {
@@ -167,42 +184,41 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // When undo/redo affects a different cell than the currently active one,
             // switch to that cell so the user can see the change.
+            // CodeMirror history restores the cursor to the correct position.
             if (undoAffectsDifferentCell) {
-                console.log(
-                    '[nestedEditorLifecycle] Undo affects different cell, switching. undoChangeFrom:',
-                    undoChangeFrom
-                );
+                console.log('[nestedEditorLifecycle] Undo affects different cell, switching');
 
                 // Close the current nested editor
                 if (isNestedCellEditorOpen(this.view)) {
                     closeNestedCellEditor(this.view);
                 }
 
-                // Map the change position through undo to find where it is now
-                const mappedPos = update.changes.mapPos(undoChangeFrom, 1);
+                // Use the cursor position restored by CodeMirror history
+                const cursorPos = update.state.selection.main.head;
+                console.log('[nestedEditorLifecycle] Using cursor position after undo:', cursorPos);
 
-                // After DOM updates, find and open the affected cell
+                // After DOM updates, find and open the cell at cursor position
                 requestAnimationFrame(() => {
                     const tables = findTableRanges(this.view.state);
 
-                    // Find the table containing the mapped position
-                    const table = tables.find((t) => mappedPos >= t.from && mappedPos <= t.to);
+                    // Find the table containing the cursor position
+                    const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
 
                     if (!table) {
-                        console.log('[nestedEditorLifecycle] No table found at position', mappedPos);
+                        console.log('[nestedEditorLifecycle] Cursor not in any table at position', cursorPos);
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
 
-                    // Find which cell in the table contains the position
-                    const relativePos = mappedPos - table.from;
+                    // Find which cell in the table contains the cursor
+                    const relativePos = cursorPos - table.from;
                     const ranges = computeMarkdownTableCellRanges(table.text);
                     if (!ranges) {
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
 
-                    // Find the cell containing this position
+                    // Find the cell containing the cursor
                     let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
 
                     // Check header cells
@@ -229,10 +245,12 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     }
 
                     if (!targetCell) {
-                        console.log('[nestedEditorLifecycle] Could not find cell at position', relativePos);
+                        console.log('[nestedEditorLifecycle] Cursor not in cell at position', relativePos);
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
+
+                    console.log('[nestedEditorLifecycle] Target cell:', targetCell);
 
                     const newActiveCell = computeActiveCellForTableText({
                         tableFrom: table.from,
@@ -244,8 +262,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
                     }
-
-                    console.log('[nestedEditorLifecycle] Switching to cell:', targetCell);
 
                     const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
                     if (!widgetDOM) {
