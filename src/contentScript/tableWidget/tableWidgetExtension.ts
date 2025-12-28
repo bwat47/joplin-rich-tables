@@ -17,6 +17,7 @@ import {
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
+import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
@@ -165,24 +166,8 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 // NOTE: We check this directly here because TransactionExtender effects aren't
                 // visible to StateField.update() in the same transaction cycle.
                 const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
-                if (isUndoRedo) {
-                    let isStructuralChange = false;
-                    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-                        const deletedText = transaction.startState.doc.sliceString(fromA, toA);
-                        const insertedText = inserted.toString();
-                        // Newlines indicate row changes; unescaped pipes indicate column changes
-                        if (
-                            deletedText.includes('\n') ||
-                            insertedText.includes('\n') ||
-                            hasUnescapedPipe(deletedText) ||
-                            hasUnescapedPipe(insertedText)
-                        ) {
-                            isStructuralChange = true;
-                        }
-                    });
-                    if (isStructuralChange) {
-                        return buildTableDecorations(transaction.state);
-                    }
+                if (isUndoRedo && isStructuralTableChange(transaction)) {
+                    return buildTableDecorations(transaction.state);
                 }
                 // In-cell edits: map decorations to preserve nested editor DOM
                 return decorations.map(transaction.changes);
@@ -221,29 +206,6 @@ const tableDecorationField = StateField.define<DecorationSet>({
     },
     provide: (field) => EditorView.decorations.from(field),
 });
-
-/**
- * Checks if a string contains an unescaped pipe character.
- * An unescaped pipe is one not preceded by an odd number of backslashes.
- */
-function hasUnescapedPipe(text: string): boolean {
-    let backslashRun = 0;
-    for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        if (ch === '\\') {
-            backslashRun++;
-            continue;
-        }
-        if (ch === '|') {
-            // Pipe is escaped only if preceded by odd number of backslashes
-            if (backslashRun % 2 === 0) {
-                return true;
-            }
-        }
-        backslashRun = 0;
-    }
-    return false;
-}
 
 // NOTE: clearActiveCellOnUndoRedo TransactionExtender was removed.
 // TransactionExtender effects aren't visible to StateField.update() in the same

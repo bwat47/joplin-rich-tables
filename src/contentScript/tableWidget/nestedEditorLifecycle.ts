@@ -14,6 +14,7 @@ import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
@@ -40,19 +41,14 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             if (update.docChanged && !isSync && this.hadActiveCell && prevActiveCell) {
                 for (const tr of update.transactions) {
                     if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) continue;
-                    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-                        const deletedText = tr.startState.doc.sliceString(fromA, toA);
-                        const insertedText = inserted.toString();
-                        // Structural change (newlines = rows, pipes = columns)
-                        if (
-                            deletedText.includes('\n') ||
-                            insertedText.includes('\n') ||
-                            deletedText.includes('|') ||
-                            insertedText.includes('|')
-                        ) {
-                            needsUndoCellReposition = true;
-                        }
-                        // Change affects different cell than active
+
+                    // Structural change (newlines = rows, unescaped pipes = columns)
+                    if (isStructuralTableChange(tr)) {
+                        needsUndoCellReposition = true;
+                    }
+
+                    // Change affects different cell than active
+                    tr.changes.iterChanges((fromA) => {
                         if (fromA < prevActiveCell.cellFrom || fromA > prevActiveCell.cellTo) {
                             needsUndoCellReposition = true;
                         }
@@ -72,6 +68,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                 // After DOM updates, find and activate the cell at the cursor position
                 requestAnimationFrame(() => {
+                    if (!this.view.dom.isConnected) return;
                     this.activateCellAtPosition(cursorPos);
                 });
 
@@ -90,6 +87,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 }
 
                 requestAnimationFrame(() => {
+                    if (!this.view.dom.isConnected) return;
                     const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(activeCell.tableFrom)));
                     if (!widgetDOM) {
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
