@@ -183,7 +183,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
 
             if (!table) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                // Cursor is outside any table - clear active cell and restore focus to main editor
+                this.view.dispatch({
+                    effects: clearActiveCellEffect.of(undefined),
+                    selection: { anchor: cursorPos },
+                    scrollIntoView: true,
+                });
+                this.view.focus();
                 return;
             }
 
