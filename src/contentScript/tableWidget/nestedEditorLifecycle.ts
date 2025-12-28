@@ -36,6 +36,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             // Detect undo/redo that requires cell repositioning:
             // 1. Structural changes (newlines/pipes) - table structure changed
             // 2. Change affects a different cell than the currently active one
+            // 3. Undo/redo moves cursor from outside a table into a table
             let needsUndoCellReposition = false;
 
             if (update.docChanged && !isSync && this.hadActiveCell && prevActiveCell) {
@@ -53,6 +54,20 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             needsUndoCellReposition = true;
                         }
                     });
+                }
+            }
+
+            // Also handle undo/redo when we had no active cell - cursor may move into a table
+            if (update.docChanged && !isSync && !this.hadActiveCell) {
+                const isUndoRedo = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
+                if (isUndoRedo) {
+                    // Check if cursor ends up inside a table
+                    const cursorPos = update.state.selection.main.head;
+                    const tables = findTableRanges(update.state);
+                    const cursorInTable = tables.some((t) => cursorPos >= t.from && cursorPos <= t.to);
+                    if (cursorInTable) {
+                        needsUndoCellReposition = true;
+                    }
                 }
             }
 
@@ -183,7 +198,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
 
             if (!table) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                // Cursor is outside any table - clear active cell and restore focus to main editor
+                this.view.dispatch({
+                    effects: clearActiveCellEffect.of(undefined),
+                    selection: { anchor: cursorPos },
+                    scrollIntoView: true,
+                });
+                this.view.focus();
                 return;
             }
 

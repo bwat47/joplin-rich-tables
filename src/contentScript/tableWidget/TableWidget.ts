@@ -47,28 +47,12 @@ export class TableWidget extends WidgetType {
         this.cellRanges = computeMarkdownTableCellRanges(tableText);
     }
 
-    eq(_other: TableWidget): boolean {
-        // Always return false to trigger updateDOM() call.
-        // updateDOM() will decide whether to reuse the DOM based on content hash.
-        return false;
-    }
-
-    updateDOM(dom: HTMLElement, view: EditorView): boolean {
-        // Called when eq() returns false. We decide here whether to reuse the DOM.
-        // Check if the table content is the same by comparing stored hash.
-        if (dom.dataset.tableTextHash !== this.contentHash) {
-            // Content changed (structural edit) - must rebuild DOM via toDOM().
-            return false;
-        }
-
-        // Content is the same, only position changed (typing above table).
-        // Update position-dependent attributes and reuse the DOM.
-        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
-
-        // Update the view mapping so destroy() can clean up correctly.
-        widgetViews.set(dom, view);
-
-        return true;
+    eq(other: TableWidget): boolean {
+        // Compare content hash (efficient O(1) vs O(n) string comparison) and position.
+        // Position check is critical: when text above table is removed (e.g., undo),
+        // CodeMirror may try to reuse widget DOM for a different table at a new position.
+        // Without position check, cells would show stale content from the wrong table.
+        return this.contentHash === other.contentHash && this.tableFrom === other.tableFrom;
     }
 
     toDOM(view: EditorView): HTMLElement {

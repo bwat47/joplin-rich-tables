@@ -64,11 +64,16 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
  */
 const tableParseCache = new Map<string, TableData>();
 
+interface BuildDecorationsOptions {
+    /** Skip cursor-in-range check (used during undo/redo to let lifecycle plugin handle activation) */
+    skipCursorCheck?: boolean;
+}
+
 /**
  * Build decorations for all tables in the document.
  * Tables with cursor inside are not decorated (raw markdown is shown for editing).
  */
-function buildTableDecorations(state: EditorState): DecorationSet {
+function buildTableDecorations(state: EditorState, options?: BuildDecorationsOptions): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
     const activeCell = getActiveCell(state);
@@ -78,10 +83,12 @@ function buildTableDecorations(state: EditorState): DecorationSet {
         const isActiveTable = activeCell && activeCell.tableFrom === table.from;
 
         // Skip tables where cursor is inside - let user edit raw markdown.
-        // EXCEPTION: If the table is active, we MUST render the widget to support the nested editor,
+        // EXCEPTION 1: If the table is active, we MUST render the widget to support the nested editor,
         // even if the main selection has moved inside the table range (e.g. via Android touch events,
         // which might update selection despite preventDefault handlers).
-        if (!isActiveTable && cursorInRange(state, table.from, table.to)) {
+        // EXCEPTION 2: During undo/redo, skip this check - the lifecycle plugin will handle
+        // activating the correct cell, and we need the widget rendered for that to work.
+        if (!isActiveTable && !options?.skipCursorCheck && cursorInRange(state, table.from, table.to)) {
             continue;
         }
 
@@ -168,7 +175,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 if (isUndoRedo) {
                     // Structural changes always need rebuild
                     if (isStructuralTableChange(transaction)) {
-                        return buildTableDecorations(transaction.state);
+                        return buildTableDecorations(transaction.state, { skipCursorCheck: true });
                     }
                     // Changes outside active cell need rebuild (other cells' rendered content changed)
                     // Use START state's active cell since change positions are in the old document
@@ -181,13 +188,21 @@ const tableDecorationField = StateField.define<DecorationSet>({
                             }
                         });
                         if (hasChangesOutsideCell) {
-                            return buildTableDecorations(transaction.state);
+                            return buildTableDecorations(transaction.state, { skipCursorCheck: true });
                         }
                     }
                 }
                 // In-cell edits: map decorations to preserve nested editor DOM
                 return decorations.map(transaction.changes);
             }
+
+            // No active cell - check if this is undo/redo (which may move cursor into a table)
+            const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
+            if (isUndoRedo) {
+                // Skip cursor check - lifecycle plugin will handle cell activation
+                return buildTableDecorations(transaction.state, { skipCursorCheck: true });
+            }
+
             return buildTableDecorations(transaction.state);
         }
 
