@@ -1,5 +1,5 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { EditorState, Range, StateField } from '@codemirror/state';
+import { EditorState, Range, StateField, Transaction } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
@@ -67,6 +67,47 @@ const tableParseCache = new Map<string, TableData>();
 interface BuildDecorationsOptions {
     /** Skip cursor-in-range check (used during undo/redo to let lifecycle plugin handle activation) */
     skipCursorCheck?: boolean;
+}
+
+/**
+ * Check if document changes could affect table structure or content.
+ * Returns true if we need to rebuild decorations, false if we can safely map them.
+ *
+ * Safe to skip rebuild when:
+ * - Insertions don't contain pipe or newline characters
+ * - Changes don't overlap existing table decorations
+ *
+ * We check for newlines because:
+ * - Inserting newlines can break table row structure
+ * - Inserting newlines at table boundaries can move cursor outside the table,
+ *   requiring rebuild to exit raw edit mode and show the widget
+ */
+function changesCouldAffectTables(transaction: Transaction, decorations: DecorationSet): boolean {
+    let couldAffect = false;
+
+    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        if (couldAffect) return; // Already determined
+
+        // If inserting text with pipes or newlines, might affect table structure.
+        // - Pipes: create/modify table syntax
+        // - Newlines: can break table rows, or move cursor outside table range
+        //   (important for exiting raw edit mode when pressing Enter at table boundary)
+        const insertedText = inserted.toString();
+        if (insertedText.includes('|') || insertedText.includes('\n')) {
+            couldAffect = true;
+            return;
+        }
+
+        // Check if change overlaps any existing table decoration.
+        // This catches both deletions (fromA < toA) AND insertions (fromA === toA)
+        // that land inside a table widget's range.
+        decorations.between(fromA, toA, () => {
+            couldAffect = true;
+            return false; // Stop iteration
+        });
+    });
+
+    return couldAffect;
 }
 
 /**
@@ -201,6 +242,13 @@ const tableDecorationField = StateField.define<DecorationSet>({
             if (isUndoRedo) {
                 // Skip cursor check - lifecycle plugin will handle cell activation
                 return buildTableDecorations(transaction.state, { skipCursorCheck: true });
+            }
+
+            // Optimization: if changes don't affect any table (no pipes inserted,
+            // no deletions overlapping table decorations), just map positions.
+            // This avoids expensive tree traversal + hashing on every keystroke.
+            if (!changesCouldAffectTables(transaction, decorations)) {
+                return decorations.map(transaction.changes);
             }
 
             return buildTableDecorations(transaction.state);
