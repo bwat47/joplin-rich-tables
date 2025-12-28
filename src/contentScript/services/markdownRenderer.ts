@@ -69,13 +69,12 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * - Allows specific attributes needed for internal links/images
  * - Allows unknown protocols for joplin-content://
  * - Removes "resource-icon" spans via hook
+ * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
  */
 function sanitizeHtml(html: string): string {
     return DOMPurify.sanitize(html, {
         ALLOW_UNKNOWN_PROTOCOLS: true,
         ADD_ATTR: ['data-resource-id', 'data-note-id', 'data-item-id', 'data-from-md'],
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'style', 'meta'],
-        FORBID_ATTR: ['onerror', 'onload', 'onmouseover'],
     });
 }
 
