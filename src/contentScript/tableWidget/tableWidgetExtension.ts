@@ -17,6 +17,7 @@ import {
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
+import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
@@ -146,9 +147,10 @@ const tableDecorationField = StateField.define<DecorationSet>({
         // Some edits (row/col insert/delete) intentionally require a rebuild so the
         // rendered HTML table matches the new structure.
         const forceRebuild = transaction.effects.some((e) => e.is(rebuildTableWidgetsEffect));
+        const hasClearEffect = transaction.effects.some((e) => e.is(clearActiveCellEffect));
 
         // When active cell is cleared, rebuild to render updated content.
-        if (transaction.effects.some((e) => e.is(clearActiveCellEffect))) {
+        if (hasClearEffect) {
             return buildTableDecorations(transaction.state);
         }
 
@@ -158,12 +160,16 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         if (transaction.docChanged) {
             if (activeCell) {
-                // Undo/redo can restore structural changes (add/delete row/col) that require
-                // a full rebuild. Position mapping alone can't handle these cases correctly.
+                // For undo/redo, we need to determine if it's a structural change (row/col add/delete)
+                // or an in-cell text edit. Structural changes require a full rebuild; in-cell edits
+                // should preserve the nested editor DOM.
+                // NOTE: We check this directly here because TransactionExtender effects aren't
+                // visible to StateField.update() in the same transaction cycle.
                 const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
-                if (isUndoRedo) {
+                if (isUndoRedo && isStructuralTableChange(transaction)) {
                     return buildTableDecorations(transaction.state);
                 }
+                // In-cell edits: map decorations to preserve nested editor DOM
                 return decorations.map(transaction.changes);
             }
             return buildTableDecorations(transaction.state);
@@ -201,40 +207,11 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
-/**
- * Clears the active cell on undo/redo if the changes affect areas outside
- * the active cell. This handles structural table changes (row/column add/delete)
- * while allowing simple text edits within a cell to undo without rebuilding.
- */
-const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
-    if (!tr.docChanged) {
-        return null;
-    }
-    const isUndoRedo = tr.isUserEvent('undo') || tr.isUserEvent('redo');
-    if (!isUndoRedo) {
-        return null;
-    }
-    const activeCell = getActiveCell(tr.startState);
-    if (!activeCell) {
-        return null;
-    }
-
-    // Check if any changes are outside the active cell range
-    let hasChangesOutsideCell = false;
-    tr.changes.iterChanges((fromA, toA) => {
-        // If change starts before cell or ends after cell, it's outside
-        if (fromA < activeCell.cellFrom || toA > activeCell.cellTo) {
-            hasChangesOutsideCell = true;
-        }
-    });
-
-    // Only clear active cell if changes affect the table structure outside the cell
-    if (hasChangesOutsideCell) {
-        return { effects: clearActiveCellEffect.of(undefined) };
-    }
-
-    return null;
-});
+// NOTE: clearActiveCellOnUndoRedo TransactionExtender was removed.
+// TransactionExtender effects aren't visible to StateField.update() in the same
+// transaction cycle, so dispatching setActiveCellEffect from here doesn't work.
+// The undo/redo handling is now done in nestedEditorLifecyclePlugin.update()
+// which uses CodeMirror's cursor position (restored by history) to find the correct cell.
 
 // while it might seem better to use pointerdown, it causes scrolling issues on android
 const closeOnOutsideClick = EditorView.domEventHandlers({
@@ -338,7 +315,7 @@ export default function (context: ContentScriptContext) {
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
-                clearActiveCellOnUndoRedo,
+
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
                 nestedEditorFocusGuard,
