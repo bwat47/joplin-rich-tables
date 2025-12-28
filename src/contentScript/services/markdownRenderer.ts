@@ -1,4 +1,5 @@
 import { logger } from '../../logger';
+import DOMPurify from 'dompurify';
 
 /**
  * Markdown rendering service that communicates with the main plugin
@@ -53,6 +54,31 @@ export function initRenderer(postMessage: PostMessageFn): void {
 }
 
 /**
+ * Configure DOMPurify hooks once globally to avoid re-adding them on every render.
+ */
+DOMPurify.addHook('afterSanitizeElements', (node) => {
+    // Remove <span class="resource-icon ..."> used by Joplin for resource icons,
+    // which don't render correctly in this context.
+    if (node instanceof Element && node.tagName === 'SPAN' && node.classList.contains('resource-icon')) {
+        node.remove();
+    }
+});
+
+/**
+ * Sanitize HTML rendered by Joplin to ensure security and fix display issues.
+ * - Allows specific attributes needed for internal links/images
+ * - Allows unknown protocols for joplin-content://
+ * - Removes "resource-icon" spans via hook
+ * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
+ */
+function sanitizeHtml(html: string): string {
+    return DOMPurify.sanitize(html, {
+        ALLOW_UNKNOWN_PROTOCOLS: true,
+        ADD_ATTR: ['data-resource-id', 'data-note-id', 'data-item-id', 'data-from-md'],
+    });
+}
+
+/**
  * Generate a unique request ID
  */
 function generateRequestId(): string {
@@ -92,7 +118,7 @@ async function renderMarkdown(markdown: string): Promise<string> {
             })) as RenderResult | null;
 
             if (result && result.html) {
-                const html = result.html;
+                const html = sanitizeHtml(result.html);
                 setCacheEntry(markdown, html);
                 return html;
             }
