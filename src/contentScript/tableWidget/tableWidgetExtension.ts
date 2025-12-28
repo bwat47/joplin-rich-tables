@@ -146,9 +146,10 @@ const tableDecorationField = StateField.define<DecorationSet>({
         // Some edits (row/col insert/delete) intentionally require a rebuild so the
         // rendered HTML table matches the new structure.
         const forceRebuild = transaction.effects.some((e) => e.is(rebuildTableWidgetsEffect));
+        const hasClearEffect = transaction.effects.some((e) => e.is(clearActiveCellEffect));
 
         // When active cell is cleared, rebuild to render updated content.
-        if (transaction.effects.some((e) => e.is(clearActiveCellEffect))) {
+        if (hasClearEffect) {
             return buildTableDecorations(transaction.state);
         }
 
@@ -158,12 +159,32 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         if (transaction.docChanged) {
             if (activeCell) {
-                // Undo/redo can restore structural changes (add/delete row/col) that require
-                // a full rebuild. Position mapping alone can't handle these cases correctly.
+                // For undo/redo, we need to determine if it's a structural change (row/col add/delete)
+                // or an in-cell text edit. Structural changes require a full rebuild; in-cell edits
+                // should preserve the nested editor DOM.
+                // NOTE: We check this directly here because TransactionExtender effects aren't
+                // visible to StateField.update() in the same transaction cycle.
                 const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
                 if (isUndoRedo) {
-                    return buildTableDecorations(transaction.state);
+                    let isStructuralChange = false;
+                    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+                        const deletedText = transaction.startState.doc.sliceString(fromA, toA);
+                        const insertedText = inserted.toString();
+                        // Newlines indicate row changes; unescaped pipes indicate column changes
+                        if (
+                            deletedText.includes('\n') ||
+                            insertedText.includes('\n') ||
+                            hasUnescapedPipe(deletedText) ||
+                            hasUnescapedPipe(insertedText)
+                        ) {
+                            isStructuralChange = true;
+                        }
+                    });
+                    if (isStructuralChange) {
+                        return buildTableDecorations(transaction.state);
+                    }
                 }
+                // In-cell edits: map decorations to preserve nested editor DOM
                 return decorations.map(transaction.changes);
             }
             return buildTableDecorations(transaction.state);
@@ -202,9 +223,32 @@ const tableDecorationField = StateField.define<DecorationSet>({
 });
 
 /**
- * Clears the active cell on undo/redo if the changes affect areas outside
- * the active cell. This handles structural table changes (row/column add/delete)
- * while allowing simple text edits within a cell to undo without rebuilding.
+ * Checks if a string contains an unescaped pipe character.
+ * An unescaped pipe is one not preceded by an odd number of backslashes.
+ */
+function hasUnescapedPipe(text: string): boolean {
+    let backslashRun = 0;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '\\') {
+            backslashRun++;
+            continue;
+        }
+        if (ch === '|') {
+            // Pipe is escaped only if preceded by odd number of backslashes
+            if (backslashRun % 2 === 0) {
+                return true;
+            }
+        }
+        backslashRun = 0;
+    }
+    return false;
+}
+
+/**
+ * Clears the active cell on undo/redo if the changes are structural (affect table structure).
+ * Structural changes involve newlines or unescaped pipe delimiters (row/column add/delete).
+ * Simple text edits within a cell can undo without closing the cell editor.
  */
 const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
     if (!tr.docChanged) {
@@ -219,17 +263,24 @@ const clearActiveCellOnUndoRedo = EditorState.transactionExtender.of((tr) => {
         return null;
     }
 
-    // Check if any changes are outside the active cell range
-    let hasChangesOutsideCell = false;
-    tr.changes.iterChanges((fromA, toA) => {
-        // If change starts before cell or ends after cell, it's outside
-        if (fromA < activeCell.cellFrom || toA > activeCell.cellTo) {
-            hasChangesOutsideCell = true;
+    // Detect structural changes by checking content, not positions.
+    // Structural changes (add/remove row/column) involve newlines or pipe delimiters.
+    // In-cell text edits don't contain these characters (pipes are escaped, newlines converted to <br>).
+    let isStructuralChange = false;
+    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        const deletedText = tr.startState.doc.sliceString(fromA, toA);
+        const insertedText = inserted.toString();
+        // Newlines indicate row additions/deletions
+        if (deletedText.includes('\n') || insertedText.includes('\n')) {
+            isStructuralChange = true;
+        }
+        // Unescaped pipes indicate column additions/deletions
+        if (hasUnescapedPipe(deletedText) || hasUnescapedPipe(insertedText)) {
+            isStructuralChange = true;
         }
     });
 
-    // Only clear active cell if changes affect the table structure outside the cell
-    if (hasChangesOutsideCell) {
+    if (isStructuralChange) {
         return { effects: clearActiveCellEffect.of(undefined) };
     }
 
