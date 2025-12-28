@@ -74,8 +74,13 @@ interface BuildDecorationsOptions {
  * Returns true if we need to rebuild decorations, false if we can safely map them.
  *
  * Safe to skip rebuild when:
- * - Insertions don't contain pipe characters (can't create/modify table structure)
- * - Deletions/replacements don't overlap existing table decorations
+ * - Insertions don't contain pipe or newline characters
+ * - Changes don't overlap existing table decorations
+ *
+ * We check for newlines because:
+ * - Inserting newlines can break table row structure
+ * - Inserting newlines at table boundaries can move cursor outside the table,
+ *   requiring rebuild to exit raw edit mode and show the widget
  */
 function changesCouldAffectTables(transaction: Transaction, decorations: DecorationSet): boolean {
     let couldAffect = false;
@@ -83,9 +88,12 @@ function changesCouldAffectTables(transaction: Transaction, decorations: Decorat
     transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         if (couldAffect) return; // Already determined
 
-        // If inserting text with pipes, might create/modify table structure
+        // If inserting text with pipes or newlines, might affect table structure.
+        // - Pipes: create/modify table syntax
+        // - Newlines: can break table rows, or move cursor outside table range
+        //   (important for exiting raw edit mode when pressing Enter at table boundary)
         const insertedText = inserted.toString();
-        if (insertedText.includes('|')) {
+        if (insertedText.includes('|') || insertedText.includes('\n')) {
             couldAffect = true;
             return;
         }
