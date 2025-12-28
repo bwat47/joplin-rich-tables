@@ -33,8 +33,10 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 - Tables detected via Lezer syntax tree (scan timeout increased to 500ms, resolve to 1500ms for large tables)
 - Replaced with `Decoration.replace({ widget, block: true })` via StateField
+- **Optimization**: Widget rebuilds skipped when changes don't affect tables (no pipes/newlines, no overlap with table ranges)
 - Widget uses cached measured heights for accurate `estimatedHeight` (keyed by position + content hash, measured on mount/async-render/destroy)
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached with FIFO eviction at 500 entries)
+- **Security**: Rendered HTML sanitized via DOMPurify with hook to remove resource-icon spans
 - Supports column alignments (`:---`, `:---:`, `---:`)
 - Wide tables scroll horizontally within the widget container
 
@@ -87,7 +89,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard.
 - **Shortcuts**: formatting shortcuts (Ctrl+B/I, Ctrl+`/Ctrl+E) and Insert Link (Ctrl+K) are supported within the cell. Ctrl+A selects all text in the current cell. Standard editor shortcuts (Ctrl+C/V/X/Z/Y) are supported. Global shortcuts (Ctrl+S, Ctrl+P) bubble to the app. Ctrl+F is blocked.
 - **Context Menu**: Native browser context menu is allowed (Paste works, Copy may be disabled).
-- **Mobile (Android)**: `beforeinput`/`input`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits outside active cell and newlines while nested editor is open.
+- **Mobile (Android)**: `beforeinput`/`input`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits within active table but outside active cell and rejects newlines while nested editor is open.
 
 ### Deactivation
 
