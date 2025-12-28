@@ -201,95 +201,30 @@ export function registerTableCommands(editorControl: EditorControl): void {
         return true;
     });
 
+    // Wrapper to reduce boilerplate for commands requiring an active cell
+    const registerCellCommand = (name: string, action: (view: EditorView, cell: ActiveCell) => void) => {
+        editorControl.registerCommand(name, () => {
+            const cell = getActiveCell(editorControl.cm6.state);
+            if (!cell) return false;
+            action(editorControl.cm6, cell);
+            return true;
+        });
+    };
+
     // Register table manipulation commands
-    editorControl.registerCommand('richTables.addRowAbove', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execInsertRowAbove(editorControl.cm6, cell);
-        return true;
-    });
+    registerCellCommand('richTables.addRowAbove', execInsertRowAbove);
+    registerCellCommand('richTables.addRowBelow', execInsertRowBelow);
+    registerCellCommand('richTables.addColumnLeft', execInsertColumnLeft);
+    registerCellCommand('richTables.addColumnRight', execInsertColumnRight);
+    registerCellCommand('richTables.deleteRow', execDeleteRow);
+    registerCellCommand('richTables.deleteColumn', execDeleteColumn);
 
-    editorControl.registerCommand('richTables.addRowBelow', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execInsertRowBelow(editorControl.cm6, cell);
-        return true;
-    });
+    registerCellCommand('richTables.alignLeft', (v, c) => execUpdateAlignment(v, c, 'left'));
+    registerCellCommand('richTables.alignRight', (v, c) => execUpdateAlignment(v, c, 'right'));
+    registerCellCommand('richTables.alignCenter', (v, c) => execUpdateAlignment(v, c, 'center'));
 
-    editorControl.registerCommand('richTables.addColumnLeft', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execInsertColumnLeft(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.addColumnRight', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execInsertColumnRight(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.deleteRow', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execDeleteRow(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.deleteColumn', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execDeleteColumn(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.alignLeft', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execUpdateAlignment(editorControl.cm6, cell, 'left');
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.alignRight', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execUpdateAlignment(editorControl.cm6, cell, 'right');
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.alignCenter', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execUpdateAlignment(editorControl.cm6, cell, 'center');
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.moveRowUp', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execMoveRowUp(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.moveRowDown', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execMoveRowDown(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.moveColumnLeft', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execMoveColumnLeft(editorControl.cm6, cell);
-        return true;
-    });
-
-    editorControl.registerCommand('richTables.moveColumnRight', () => {
-        const cell = getActiveCell(editorControl.cm6.state);
-        if (!cell) return false;
-        execMoveColumnRight(editorControl.cm6, cell);
-        return true;
-    });
+    registerCellCommand('richTables.moveRowUp', execMoveRowUp);
+    registerCellCommand('richTables.moveRowDown', execMoveRowDown);
+    registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
+    registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
 }
