@@ -19,6 +19,7 @@ import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 import { selectAllInCell } from './markdownCommands';
 import { CLASS_CELL_ACTIVE } from '../tableWidget/domHelpers';
+import { ctrlClickLinkExtension } from './ctrlClickExtension';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -189,6 +190,7 @@ class NestedCellEditorManager {
                 createNestedEditorKeymap(params.mainView, rangeField, {
                     'Mod-a': selectAllInCell(rangeField),
                 }),
+                ctrlClickLinkExtension(),
                 markdown({
                     extensions: [GFM], // GFM bundle includes Table, Strikethrough, etc.
                 }),
