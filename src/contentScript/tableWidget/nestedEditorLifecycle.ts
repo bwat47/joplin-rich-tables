@@ -13,7 +13,7 @@ import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
@@ -195,36 +195,8 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 return;
             }
 
-            // Find the cell containing the cursor
-            let targetCell: { section: 'header' | 'body'; row: number; col: number } | null = null;
-
-            // Check header cells
-            for (let col = 0; col < ranges.headers.length; col++) {
-                const range = ranges.headers[col];
-                if (relativePos >= range.from && relativePos <= range.to) {
-                    targetCell = { section: 'header', row: 0, col };
-                    break;
-                }
-            }
-
-            // Check body cells
-            if (!targetCell) {
-                for (let row = 0; row < ranges.rows.length; row++) {
-                    for (let col = 0; col < ranges.rows[row].length; col++) {
-                        const range = ranges.rows[row][col];
-                        if (relativePos >= range.from && relativePos <= range.to) {
-                            targetCell = { section: 'body', row, col };
-                            break;
-                        }
-                    }
-                    if (targetCell) break;
-                }
-            }
-
-            // If cursor not in any cell, use first body cell as fallback
-            if (!targetCell) {
-                targetCell = { section: 'body', row: 0, col: 0 };
-            }
+            // Find the cell containing the cursor, fallback to first body cell
+            const targetCell = findCellForPos(ranges, relativePos) ?? { section: 'body' as const, row: 0, col: 0 };
 
             const newActiveCell = computeActiveCellForTableText({
                 tableFrom: table.from,
