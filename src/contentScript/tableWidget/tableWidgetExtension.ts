@@ -160,14 +160,30 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         if (transaction.docChanged) {
             if (activeCell) {
-                // For undo/redo, we need to determine if it's a structural change (row/col add/delete)
-                // or an in-cell text edit. Structural changes require a full rebuild; in-cell edits
-                // should preserve the nested editor DOM.
-                // NOTE: We check this directly here because TransactionExtender effects aren't
-                // visible to StateField.update() in the same transaction cycle.
+                // For undo/redo, we need to determine if changes require a full rebuild:
+                // 1. Structural changes (row/col add/delete) - table structure changed
+                // 2. Changes outside active cell - other cells' content changed
+                // In-cell text edits should preserve the nested editor DOM.
                 const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
-                if (isUndoRedo && isStructuralTableChange(transaction)) {
-                    return buildTableDecorations(transaction.state);
+                if (isUndoRedo) {
+                    // Structural changes always need rebuild
+                    if (isStructuralTableChange(transaction)) {
+                        return buildTableDecorations(transaction.state);
+                    }
+                    // Changes outside active cell need rebuild (other cells' rendered content changed)
+                    // Use START state's active cell since change positions are in the old document
+                    const prevActiveCell = getActiveCell(transaction.startState);
+                    if (prevActiveCell) {
+                        let hasChangesOutsideCell = false;
+                        transaction.changes.iterChanges((fromA, toA) => {
+                            if (fromA < prevActiveCell.cellFrom || toA > prevActiveCell.cellTo) {
+                                hasChangesOutsideCell = true;
+                            }
+                        });
+                        if (hasChangesOutsideCell) {
+                            return buildTableDecorations(transaction.state);
+                        }
+                    }
                 }
                 // In-cell edits: map decorations to preserve nested editor DOM
                 return decorations.map(transaction.changes);
