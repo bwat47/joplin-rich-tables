@@ -25,12 +25,28 @@ export interface RenderableContent {
 }
 
 /**
+ * Check if text looks like a reference link definition.
+ * Pattern: [label]: URL (with optional title)
+ */
+function looksLikeDefinition(text: string): boolean {
+    return /^\s*\[[^\]]+\]:\s*\S/.test(text);
+}
+
+/**
  * Builds the content strings used for rendering and cache lookup.
  * Unescapes pipes and appends the definition block for reference link support.
  * Empty cells return empty string for both (no definition block appended).
+ *
+ * Definition block is NOT appended if the cell content itself looks like
+ * a reference definition, as this causes markdown-it to render definitions
+ * as visible text instead of consuming them.
  */
 export function buildRenderableContent(cellText: string, definitionBlock: string): RenderableContent {
     const displayText = unescapePipesForRendering(cellText);
-    const cacheKey = displayText && definitionBlock ? `${displayText}\n\n${definitionBlock}` : displayText;
+
+    // Skip appending definitions if cell content looks like a definition itself
+    const shouldAppendDefinitions = displayText && definitionBlock && !looksLikeDefinition(displayText);
+    const cacheKey = shouldAppendDefinitions ? `${displayText}\n\n${definitionBlock}` : displayText;
+
     return { displayText, cacheKey };
 }
