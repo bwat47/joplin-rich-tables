@@ -39,7 +39,8 @@ export class TableWidget extends WidgetType {
         private tableData: TableData,
         private tableText: string,
         private tableFrom: number,
-        private tableTo: number
+        private tableTo: number,
+        private definitionBlock: string
     ) {
         super();
         this.contentHash = hashTableText(tableText);
@@ -166,8 +167,15 @@ export class TableWidget extends WidgetType {
     private renderCellContent(cell: HTMLElement, markdown: string): void {
         const renderableMarkdown = unescapePipesForRendering(markdown);
 
-        // Check if we have cached rendered HTML
-        const cached = renderer.getCached(renderableMarkdown);
+        // Build content with injected definitions for context-dependent features
+        // (reference links, footnotes). Cache key uses original content to avoid
+        // cache misses when unrelated definitions change.
+        const contentWithContext = this.definitionBlock
+            ? `${renderableMarkdown}\n\n${this.definitionBlock}`
+            : renderableMarkdown;
+
+        // Check if we have cached rendered HTML (keyed by content WITH context)
+        const cached = renderer.getCached(contentWithContext);
         if (cached !== undefined) {
             cell.innerHTML = cached;
             return;
@@ -179,7 +187,7 @@ export class TableWidget extends WidgetType {
         // Check if content likely contains markdown (optimization)
         if (this.containsMarkdown(renderableMarkdown)) {
             // Request async rendering and update when ready
-            renderer.renderAsync(renderableMarkdown, (html) => {
+            renderer.renderAsync(contentWithContext, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed.
                 // Note: Height re-measurement is handled automatically by ResizeObserver.
                 if (cell.isConnected && cell.textContent === renderableMarkdown) {
