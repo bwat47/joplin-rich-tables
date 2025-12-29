@@ -10,5 +10,6 @@ module.exports = {
     },
     moduleNameMapper: {
         '^dompurify$': '<rootDir>/__mocks__/dompurify.ts',
+        '^@joplin/fork-uslug$': '<rootDir>/__mocks__/@joplin/fork-uslug.ts',
     },
 };
