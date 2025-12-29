@@ -12,7 +12,7 @@ function sliceCellText(tableText: string, cellFrom: number, cellTo: number): str
     return tableText.slice(cellFrom, cellTo);
 }
 
-describe('tableToolbarActiveCell', () => {
+describe('cursorTrackingIntegration', () => {
     const baseMarkdown = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 
     test('insert row after moves to new row cell', () => {
