@@ -178,11 +178,12 @@ export class TableWidget extends WidgetType {
         const renderableMarkdown = unescapePipesForRendering(markdown);
 
         // Build content with injected definitions for context-dependent features
-        // (reference links, footnotes). Cache key uses original content to avoid
-        // cache misses when unrelated definitions change.
-        const contentWithContext = this.definitionBlock
-            ? `${renderableMarkdown}\n\n${this.definitionBlock}`
-            : renderableMarkdown;
+        // (reference links, footnotes). Only append if cell has content - empty
+        // cells shouldn't show definitions.
+        const contentWithContext =
+            renderableMarkdown && this.definitionBlock
+                ? `${renderableMarkdown}\n\n${this.definitionBlock}`
+                : renderableMarkdown;
 
         // Check if we have cached rendered HTML (keyed by content WITH context)
         const cached = renderer.getCached(contentWithContext);

@@ -325,10 +325,12 @@ class NestedCellEditorManager {
             const renderableText = unescapePipesForRendering(cellText);
 
             // Include definition block for reference links (must match TableWidget cache key)
+            // Only append if cell has content - empty cells shouldn't show definitions
             const definitions = this.mainView.state.field(documentDefinitionsField);
-            const contentWithContext = definitions.definitionBlock
-                ? `${renderableText}\n\n${definitions.definitionBlock}`
-                : renderableText;
+            const contentWithContext =
+                renderableText && definitions.definitionBlock
+                    ? `${renderableText}\n\n${definitions.definitionBlock}`
+                    : renderableText;
 
             // Check cache first for rendered HTML.
             const cached = renderer.getCached(contentWithContext);
