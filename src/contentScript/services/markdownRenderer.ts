@@ -62,19 +62,6 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
     if (node instanceof Element && node.tagName === 'SPAN' && node.classList.contains('resource-icon')) {
         node.remove();
     }
-
-    // Remove footnote definition sections rendered by markdown-it-footnote.
-    // We inject footnote definitions to make [^ref] render as links, but we don't
-    // want the definition content to appear in table cells.
-    // Common patterns: <section class="footnotes">, <hr class="footnotes-sep">
-    if (node instanceof Element) {
-        if (
-            (node.tagName === 'SECTION' && node.classList.contains('footnotes')) ||
-            (node.tagName === 'HR' && node.classList.contains('footnotes-sep'))
-        ) {
-            node.remove();
-        }
-    }
 });
 
 /**
