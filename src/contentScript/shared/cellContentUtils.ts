@@ -37,15 +37,16 @@ function looksLikeDefinition(text: string): boolean {
  * Unescapes pipes and appends the definition block for reference link support.
  * Empty cells return empty string for both (no definition block appended).
  *
- * Definition block is NOT appended if the cell content itself looks like
- * a reference definition, as this causes markdown-it to render definitions
- * as visible text instead of consuming them.
+ * Definition block is NOT appended if:
+ * - The cell content itself looks like a reference definition (causes rendering issues)
+ * - The cell content has no brackets (can't contain reference links, improves cache stability)
  */
 export function buildRenderableContent(cellText: string, definitionBlock: string): RenderableContent {
     const displayText = unescapePipesForRendering(cellText);
 
-    // Skip appending definitions if cell content looks like a definition itself
-    const shouldAppendDefinitions = displayText && definitionBlock && !looksLikeDefinition(displayText);
+    const hasLinkSyntax = displayText.includes('[');
+    const shouldAppendDefinitions =
+        hasLinkSyntax && displayText && definitionBlock && !looksLikeDefinition(displayText);
     const cacheKey = shouldAppendDefinitions ? `${displayText}\n\n${definitionBlock}` : displayText;
 
     return { displayText, cacheKey };
