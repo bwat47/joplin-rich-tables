@@ -1,7 +1,11 @@
 /**
- * Tracks document-level link reference and footnote definitions.
+ * Tracks document-level link reference definitions.
  * Provides a pre-built definition block for injection into cell render payloads,
- * enabling reference-style links and footnotes to work inside table cells.
+ * enabling reference-style links to work inside table cells.
+ *
+ * NOTE: Footnotes are not handled here (they are handled by post processing the HTML).
+ * This is because markdown-it-footnote auto-numbers footnotes based on order of appearance in each render context.
+ * Since each cell is rendered independently, both [^1] and [^2] become footnote #1 in their respective cells.
  */
 
 import { StateField, EditorState } from '@codemirror/state';
@@ -17,7 +21,7 @@ export interface DocumentDefinitions {
 }
 
 /**
- * StateField that tracks all link reference and footnote definitions.
+ * StateField that tracks all link reference definitions.
  * Rebuilds on document changes.
  */
 export const documentDefinitionsField = StateField.define<DocumentDefinitions>({
@@ -56,8 +60,6 @@ function extractDefinitions(state: EditorState): DocumentDefinitions {
     }
 
     // Build the injectable definition block (link references only)
-    // Footnotes are NOT injected - they're handled via HTML post-processing
-    // to preserve correct label references
     const definitionBlock = buildDefinitionBlock(referenceLinks);
 
     return { referenceLinks, definitionBlock };
@@ -94,11 +96,6 @@ function extractLinkReference(node: SyntaxNode, state: EditorState): { label: st
 /**
  * Build a markdown definition block from extracted definitions.
  * This block is appended to cell content before rendering.
- *
- * NOTE: Only link reference definitions are injected. Footnotes are handled
- * via HTML post-processing to preserve correct label references (markdown-it
- * auto-numbers footnotes by order of appearance, which breaks when rendering
- * cells independently).
  */
 function buildDefinitionBlock(refs: Map<string, string>): string {
     if (refs.size === 0) {
