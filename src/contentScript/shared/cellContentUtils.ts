@@ -1,3 +1,13 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const uslug = require('@joplin/fork-uslug');
+
+/**
+ * Generate a slug for a heading text, matching Joplin's behavior.
+ */
+export function slugify(text: string): string {
+    return uslug(text);
+}
+
 /**
  * Unescapes pipe characters for rendering.
  * In GFM tables, pipes must be escaped (\|) to avoid being treated as cell delimiters.
@@ -21,7 +31,6 @@ export interface RenderableContent {
  */
 export function buildRenderableContent(cellText: string, definitionBlock: string): RenderableContent {
     const displayText = unescapePipesForRendering(cellText);
-    const cacheKey =
-        displayText && definitionBlock ? `${displayText}\n\n${definitionBlock}` : displayText;
+    const cacheKey = displayText && definitionBlock ? `${displayText}\n\n${definitionBlock}` : displayText;
     return { displayText, cacheKey };
 }

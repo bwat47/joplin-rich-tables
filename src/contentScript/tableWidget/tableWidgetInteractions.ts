@@ -46,25 +46,55 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
  * Handle internal anchor links by scrolling to the footnote definition.
  * Footnote anchors can be #fn1, #fn-1, #fnref1, #fnref-1 depending on markdown-it config.
  */
-function scrollToAnchor(view: EditorView, anchor: string): void {
-    // Extract the footnote label from anchor
-    // Handles: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
+import { slugify } from '../shared/cellContentUtils';
+
+export function scrollToAnchor(view: EditorView, anchor: string): void {
+    // 1. Try Footnote Extraction
+    // Defines: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
     const fnMatch = anchor.match(/^#fn-?(.+)$/) || anchor.match(/^#fnref-?(.+)$/);
-    if (!fnMatch) {
-        // Not a recognized footnote anchor format
+    if (fnMatch) {
+        const label = fnMatch[1];
+        // Search for the footnote definition [^label]: in the document
+        // We use a regex that is robust to spacing
+        const pattern = new RegExp(`^\\s*\\[\\^${escapeRegex(label)}\\]:`, 'i');
+        findAndScrollToPattern(view, pattern);
         return;
     }
 
-    const label = fnMatch[1];
+    // 2. Try Heading Extraction
+    const activeSlug = anchor.replace(/^#/, '');
 
-    // Search for the footnote definition [^label]: in the document
-    const pattern = new RegExp(`^\\s*\\[\\^${escapeRegex(label)}\\]:`, 'i');
+    // Search specifically for headings (lines starting with #)
     const doc = view.state.doc;
+    for (let i = 1; i <= doc.lines; i++) {
+        const line = doc.line(i);
+        const text = line.text;
 
+        // Fast check: must start with #
+        if (!text.startsWith('#')) continue;
+
+        // Verify it is a heading: 1-6 #s followed by space
+        const headingMatch = text.match(/^(#{1,6})\s+(.*)/);
+        if (headingMatch) {
+            const headingContent = headingMatch[2].trim();
+            // Slugify matches Joplin's ID generation
+            if (slugify(headingContent) === activeSlug) {
+                view.dispatch({
+                    selection: { anchor: line.from },
+                    scrollIntoView: true,
+                });
+                view.focus();
+                return;
+            }
+        }
+    }
+}
+
+function findAndScrollToPattern(view: EditorView, pattern: RegExp): void {
+    const doc = view.state.doc;
     for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
         if (pattern.test(line.text)) {
-            // Found the footnote definition - scroll to it
             view.dispatch({
                 selection: { anchor: line.from },
                 scrollIntoView: true,
