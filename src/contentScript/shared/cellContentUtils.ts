@@ -43,7 +43,6 @@ function looksLikeDefinition(text: string): boolean {
  */
 export function buildRenderableContent(cellText: string, definitionBlock: string): RenderableContent {
     const displayText = unescapePipesForRendering(cellText);
-
     const hasLinkSyntax = displayText.includes('[');
     const shouldAppendDefinitions =
         hasLinkSyntax && displayText && definitionBlock && !looksLikeDefinition(displayText);
