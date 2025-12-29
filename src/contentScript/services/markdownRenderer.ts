@@ -85,10 +85,18 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
  */
 function sanitizeHtml(html: string): string {
-    return DOMPurify.sanitize(html, {
+    let sanitized = DOMPurify.sanitize(html, {
         ALLOW_UNKNOWN_PROTOCOLS: true,
         ADD_ATTR: ['data-resource-id', 'data-note-id', 'data-item-id', 'data-from-md'],
     });
+
+    // Post-process: Convert literal [^label] patterns into footnote links.
+    // Markdown-it-footnote auto-numbers by first appearance, which breaks when
+    // rendering cells independently. Instead, we skip injection and manually
+    // convert any remaining [^label] text into styled superscript links.
+    sanitized = sanitized.replace(/\[\^([^\]]+)\]/g, '<sup class="footnote-ref"><a href="#fn-$1">$1</a></sup>');
+
+    return sanitized;
 }
 
 /**

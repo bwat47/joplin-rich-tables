@@ -12,8 +12,6 @@ import type { SyntaxNode } from '@lezer/common';
 export interface DocumentDefinitions {
     /** Reference link definitions: lowercase label → url */
     referenceLinks: Map<string, string>;
-    /** Footnote definition labels (lowercase) */
-    footnotes: Set<string>;
     /** Pre-built markdown block ready for injection */
     definitionBlock: string;
 }
@@ -37,7 +35,6 @@ export const documentDefinitionsField = StateField.define<DocumentDefinitions>({
  */
 function extractDefinitions(state: EditorState): DocumentDefinitions {
     const referenceLinks = new Map<string, string>();
-    const footnotes = new Set<string>();
 
     // Use syntax tree for reference link definitions
     // Timeout of 200ms is acceptable for background extraction
@@ -58,13 +55,12 @@ function extractDefinitions(state: EditorState): DocumentDefinitions {
         } while (cursor.next());
     }
 
-    // Extract footnote definitions via regex (CM6 doesn't parse these natively)
-    extractFootnoteDefinitions(state, footnotes);
+    // Build the injectable definition block (link references only)
+    // Footnotes are NOT injected - they're handled via HTML post-processing
+    // to preserve correct label references
+    const definitionBlock = buildDefinitionBlock(referenceLinks);
 
-    // Build the injectable definition block
-    const definitionBlock = buildDefinitionBlock(referenceLinks, footnotes);
-
-    return { referenceLinks, footnotes, definitionBlock };
+    return { referenceLinks, definitionBlock };
 }
 
 /**
@@ -96,40 +92,16 @@ function extractLinkReference(node: SyntaxNode, state: EditorState): { label: st
 }
 
 /**
- * Extract footnote definition labels from the document.
- * Pattern: [^label]: at start of line (not inside code blocks)
- */
-function extractFootnoteDefinitions(state: EditorState, footnotes: Set<string>): void {
-    const pattern = /^\s*\[\^([^\]]+)\]:/;
-    let inFencedCode = false;
-
-    for (let i = 1; i <= state.doc.lines; i++) {
-        const line = state.doc.line(i).text;
-
-        // Track fenced code blocks
-        if (/^(`{3,}|~{3,})/.test(line)) {
-            inFencedCode = !inFencedCode;
-            continue;
-        }
-
-        if (!inFencedCode) {
-            const match = pattern.exec(line);
-            if (match) {
-                footnotes.add(match[1].toLowerCase());
-            }
-        }
-    }
-}
-
-/**
  * Build a markdown definition block from extracted definitions.
  * This block is appended to cell content before rendering.
  *
- * NOTE: Footnote definitions are injected to make [^ref] render as links.
- * The rendered footnote section is stripped from HTML via DOMPurify hook.
+ * NOTE: Only link reference definitions are injected. Footnotes are handled
+ * via HTML post-processing to preserve correct label references (markdown-it
+ * auto-numbers footnotes by order of appearance, which breaks when rendering
+ * cells independently).
  */
-function buildDefinitionBlock(refs: Map<string, string>, footnotes: Set<string>): string {
-    if (refs.size === 0 && footnotes.size === 0) {
+function buildDefinitionBlock(refs: Map<string, string>): string {
+    if (refs.size === 0) {
         return '';
     }
 
@@ -137,12 +109,6 @@ function buildDefinitionBlock(refs: Map<string, string>, footnotes: Set<string>)
 
     for (const [label, url] of refs) {
         lines.push(`[${label}]: ${url}`);
-    }
-
-    for (const label of footnotes) {
-        // Inject minimal placeholder content for the footnote definition
-        // The rendered footnote section is stripped from HTML via DOMPurify hook
-        lines.push(`[^${label}]: .`);
     }
 
     return lines.join('\n');
