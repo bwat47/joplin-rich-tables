@@ -101,12 +101,38 @@ function processFootnotesInNode(node: Node): void {
         if (child.nodeType === Node.TEXT_NODE) {
             const text = child.textContent || '';
             if (/\[\^[^\]]+\]/.test(text)) {
-                const span = document.createElement('span');
-                span.innerHTML = text.replace(
-                    /\[\^([^\]]+)\]/g,
-                    '<sup class="footnote-ref"><a href="#fn-$1">$1</a></sup>'
-                );
-                child.replaceWith(...span.childNodes);
+                const fragment = document.createDocumentFragment();
+                let lastIndex = 0;
+                const regex = /\[\^([^\]]+)\]/g;
+                let match;
+
+                while ((match = regex.exec(text)) !== null) {
+                    // Add text before the footnote
+                    if (match.index > lastIndex) {
+                        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                    }
+
+                    const label = match[1];
+                    const sup = document.createElement('sup');
+                    sup.className = 'footnote-ref';
+
+                    const a = document.createElement('a');
+                    // Encode any unsafe characters in the label for the ID
+                    a.href = `#fn-${encodeURIComponent(label)}`;
+                    a.textContent = label;
+
+                    sup.appendChild(a);
+                    fragment.appendChild(sup);
+
+                    lastIndex = regex.lastIndex;
+                }
+
+                // Add remaining text
+                if (lastIndex < text.length) {
+                    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+                }
+
+                child.replaceWith(fragment);
             }
         } else if (child.nodeType === Node.ELEMENT_NODE) {
             const el = child as Element;
