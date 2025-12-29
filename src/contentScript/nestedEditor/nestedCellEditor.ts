@@ -8,7 +8,7 @@ import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorTheme } from './nestedEditorTheme';
 import { renderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
-import { unescapePipesForRendering } from '../shared/cellContentUtils';
+import { buildRenderableContent } from '../shared/cellContentUtils';
 import {
     createCellTransactionFilter,
     createHistoryExtender,
@@ -322,25 +322,18 @@ class NestedCellEditorManager {
         // Update cell content with current document text before showing.
         if (this.contentEl && this.mainView) {
             const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
-            const renderableText = unescapePipesForRendering(cellText);
-
-            // Include definition block for reference links (must match TableWidget cache key)
-            // Only append if cell has content - empty cells shouldn't show definitions
             const definitions = this.mainView.state.field(documentDefinitionsField);
-            const contentWithContext =
-                renderableText && definitions.definitionBlock
-                    ? `${renderableText}\n\n${definitions.definitionBlock}`
-                    : renderableText;
+            const { displayText, cacheKey } = buildRenderableContent(cellText, definitions.definitionBlock);
 
             // Check cache first for rendered HTML.
-            const cached = renderer.getCached(contentWithContext);
+            const cached = renderer.getCached(cacheKey);
             if (cached !== undefined) {
                 this.contentEl.innerHTML = cached;
             } else {
                 // Show raw text immediately, then update when render completes.
-                this.contentEl.textContent = renderableText;
+                this.contentEl.textContent = displayText;
                 const contentEl = this.contentEl;
-                renderer.renderAsync(contentWithContext, (html) => {
+                renderer.renderAsync(cacheKey, (html) => {
                     if (contentEl.isConnected) {
                         contentEl.innerHTML = html;
                     }

@@ -22,7 +22,7 @@ import {
 } from './domHelpers';
 import { hashTableText } from './hashUtils';
 import { estimateTableHeight } from './tableHeightEstimation';
-import { unescapePipesForRendering } from '../shared/cellContentUtils';
+import { buildRenderableContent } from '../shared/cellContentUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -175,33 +175,25 @@ export class TableWidget extends WidgetType {
      * Uses cached HTML if available, otherwise shows text and updates async
      */
     private renderCellContent(cell: HTMLElement, markdown: string): void {
-        const renderableMarkdown = unescapePipesForRendering(markdown);
-
-        // Build content with injected definitions for context-dependent features
-        // (reference links, footnotes). Only append if cell has content - empty
-        // cells shouldn't show definitions.
-        const contentWithContext =
-            renderableMarkdown && this.definitionBlock
-                ? `${renderableMarkdown}\n\n${this.definitionBlock}`
-                : renderableMarkdown;
+        const { displayText, cacheKey } = buildRenderableContent(markdown, this.definitionBlock);
 
         // Check if we have cached rendered HTML (keyed by content WITH context)
-        const cached = renderer.getCached(contentWithContext);
+        const cached = renderer.getCached(cacheKey);
         if (cached !== undefined) {
             cell.innerHTML = cached;
             return;
         }
 
         // Show raw text initially
-        cell.textContent = renderableMarkdown;
+        cell.textContent = displayText;
 
         // Check if content likely contains markdown (optimization)
-        if (this.containsMarkdown(renderableMarkdown)) {
+        if (this.containsMarkdown(displayText)) {
             // Request async rendering and update when ready
-            renderer.renderAsync(contentWithContext, (html) => {
+            renderer.renderAsync(cacheKey, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed.
                 // Note: Height re-measurement is handled automatically by ResizeObserver.
-                if (cell.isConnected && cell.textContent === renderableMarkdown) {
+                if (cell.isConnected && cell.textContent === displayText) {
                     cell.innerHTML = html;
                 }
             });
