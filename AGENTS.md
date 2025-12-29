@@ -17,8 +17,8 @@ rich-tables-documentation.md
 
 ## Design Principles
 
-- **Simple over complex:** prefer focused, single-responsibility modules.
-- **One clear way**: Single detection/validation path; avoid multiple competing approaches.
+- **Simple over complex:** Prefer focused, single-responsibility modules.
+- **One clear way**: Avoid multiple competing approaches.
 - **Separation of concerns**: Each module handles one aspect.
 - **Fail fast**: Validate inputs early; provide clear error messages to users.
 
