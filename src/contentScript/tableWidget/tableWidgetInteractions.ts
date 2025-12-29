@@ -1,5 +1,5 @@
 import type { EditorView } from '@codemirror/view';
-import { setActiveCellEffect, type ActiveCellSection } from './activeCellState';
+import { setActiveCellEffect, clearActiveCellEffect, getActiveCell, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
@@ -115,11 +115,15 @@ function findPatternPosition(view: EditorView, pattern: RegExp): number | null {
     return null;
 }
 
-/** Scroll to a document position and focus the editor */
+/** Scroll to a document position and focus the editor.
+ * Clears active cell state to ensure table decorations rebuild with current content.
+ */
 function scrollToPosition(view: EditorView, pos: number): void {
+    const hasActiveCell = getActiveCell(view.state) !== null;
     view.dispatch({
         selection: { anchor: pos },
         scrollIntoView: true,
+        effects: hasActiveCell ? [clearActiveCellEffect.of(undefined)] : [],
     });
     view.focus();
 }
