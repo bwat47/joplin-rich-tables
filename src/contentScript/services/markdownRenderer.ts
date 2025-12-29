@@ -72,18 +72,49 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
  */
 function sanitizeHtml(html: string): string {
-    let sanitized = DOMPurify.sanitize(html, {
+    const sanitized = DOMPurify.sanitize(html, {
         ALLOW_UNKNOWN_PROTOCOLS: true,
         ADD_ATTR: ['data-resource-id', 'data-note-id', 'data-item-id', 'data-from-md'],
     });
 
-    // Post-process: Convert literal [^label] patterns into footnote links.
-    // Markdown-it-footnote auto-numbers by first appearance, which breaks when
-    // rendering cells independently. Instead, we skip injection and manually
-    // convert any remaining [^label] text into styled superscript links.
-    sanitized = sanitized.replace(/\[\^([^\]]+)\]/g, '<sup class="footnote-ref"><a href="#fn-$1">$1</a></sup>');
+    return convertFootnoteRefs(sanitized);
+}
 
-    return sanitized;
+/**
+ * Convert [^label] patterns to footnote links, but only in text nodes
+ * outside of <code> and <pre> elements.
+ *
+ * Markdown-it-footnote auto-numbers by first appearance, which breaks when
+ * rendering cells independently. Instead, we convert any remaining [^label]
+ * text into styled superscript links that preserve the original label.
+ */
+function convertFootnoteRefs(html: string): string {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    processFootnotesInNode(template.content);
+    return template.innerHTML;
+}
+
+/** Recursively process text nodes, skipping code/pre elements */
+function processFootnotesInNode(node: Node): void {
+    for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType === Node.TEXT_NODE) {
+            const text = child.textContent || '';
+            if (/\[\^[^\]]+\]/.test(text)) {
+                const span = document.createElement('span');
+                span.innerHTML = text.replace(
+                    /\[\^([^\]]+)\]/g,
+                    '<sup class="footnote-ref"><a href="#fn-$1">$1</a></sup>'
+                );
+                child.replaceWith(...span.childNodes);
+            }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+            const el = child as Element;
+            if (el.tagName !== 'CODE' && el.tagName !== 'PRE') {
+                processFootnotesInNode(el);
+            }
+        }
+    }
 }
 
 /**
