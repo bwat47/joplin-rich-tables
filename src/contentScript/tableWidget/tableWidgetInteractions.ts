@@ -48,6 +48,9 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
  */
 import { slugify } from '../shared/cellContentUtils';
 
+/** Matches fenced code block delimiters (``` or ~~~) */
+const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
+
 export function scrollToAnchor(view: EditorView, anchor: string): void {
     // 1. Try Footnote Extraction
     // Defines: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
@@ -55,54 +58,70 @@ export function scrollToAnchor(view: EditorView, anchor: string): void {
     if (fnMatch) {
         const label = fnMatch[1];
         // Search for the footnote definition [^label]: in the document
-        // We use a regex that is robust to spacing
         const pattern = new RegExp(`^\\s*\\[\\^${escapeRegex(label)}\\]:`, 'i');
-        findAndScrollToPattern(view, pattern);
+        const pos = findPatternPosition(view, pattern);
+        if (pos !== null) {
+            scrollToPosition(view, pos);
+        }
         return;
     }
 
     // 2. Try Heading Extraction
     const activeSlug = anchor.replace(/^#/, '');
+    let lineStart = 0;
+    let inFencedCode = false;
 
-    // Search specifically for headings (lines starting with #)
-    const doc = view.state.doc;
-    for (let i = 1; i <= doc.lines; i++) {
-        const line = doc.line(i);
-        const text = line.text;
+    for (const line of view.state.doc.iterLines()) {
+        // Track fenced code blocks (``` or ~~~)
+        if (FENCED_CODE_REGEX.test(line)) {
+            inFencedCode = !inFencedCode;
+        }
 
-        // Fast check: must start with #
-        if (!text.startsWith('#')) continue;
-
-        // Verify it is a heading: 1-6 #s followed by space
-        const headingMatch = text.match(/^(#{1,6})\s+(.*)/);
-        if (headingMatch) {
-            const headingContent = headingMatch[2].trim();
-            // Slugify matches Joplin's ID generation
-            if (slugify(headingContent) === activeSlug) {
-                view.dispatch({
-                    selection: { anchor: line.from },
-                    scrollIntoView: true,
-                });
-                view.focus();
-                return;
+        if (!inFencedCode && line.startsWith('#')) {
+            const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
+            if (headingMatch) {
+                const headingContent = headingMatch[2].trim();
+                if (slugify(headingContent) === activeSlug) {
+                    scrollToPosition(view, lineStart);
+                    return;
+                }
             }
         }
+
+        lineStart += line.length + 1; // +1 for newline
     }
 }
 
-function findAndScrollToPattern(view: EditorView, pattern: RegExp): void {
-    const doc = view.state.doc;
-    for (let i = 1; i <= doc.lines; i++) {
-        const line = doc.line(i);
-        if (pattern.test(line.text)) {
-            view.dispatch({
-                selection: { anchor: line.from },
-                scrollIntoView: true,
-            });
-            view.focus();
-            return;
+/**
+ * Find position of first line matching pattern, skipping fenced code blocks.
+ */
+function findPatternPosition(view: EditorView, pattern: RegExp): number | null {
+    let lineStart = 0;
+    let inFencedCode = false;
+
+    for (const line of view.state.doc.iterLines()) {
+        // Track fenced code blocks (``` or ~~~)
+        if (FENCED_CODE_REGEX.test(line)) {
+            inFencedCode = !inFencedCode;
         }
+
+        if (!inFencedCode && pattern.test(line)) {
+            return lineStart;
+        }
+
+        lineStart += line.length + 1; // +1 for newline
     }
+
+    return null;
+}
+
+/** Scroll to a document position and focus the editor */
+function scrollToPosition(view: EditorView, pos: number): void {
+    view.dispatch({
+        selection: { anchor: pos },
+        scrollIntoView: true,
+    });
+    view.focus();
 }
 
 /** Escape special regex characters in a string */
