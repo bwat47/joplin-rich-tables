@@ -124,6 +124,9 @@ function extractFootnoteDefinitions(state: EditorState, footnotes: Set<string>):
 /**
  * Build a markdown definition block from extracted definitions.
  * This block is appended to cell content before rendering.
+ *
+ * NOTE: Footnote definitions are injected to make [^ref] render as links.
+ * The rendered footnote section is stripped from HTML via DOMPurify hook.
  */
 function buildDefinitionBlock(refs: Map<string, string>, footnotes: Set<string>): string {
     if (refs.size === 0 && footnotes.size === 0) {
@@ -138,7 +141,7 @@ function buildDefinitionBlock(refs: Map<string, string>, footnotes: Set<string>)
 
     for (const label of footnotes) {
         // Inject minimal placeholder content for the footnote definition
-        // The actual footnote content isn't needed for link resolution
+        // The rendered footnote section is stripped from HTML via DOMPurify hook
         lines.push(`[^${label}]: .`);
     }
 

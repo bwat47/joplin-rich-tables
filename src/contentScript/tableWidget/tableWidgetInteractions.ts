@@ -42,6 +42,44 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
     return href;
 }
 
+/**
+ * Handle internal anchor links by scrolling to the footnote definition.
+ * Footnote anchors can be #fn1, #fn-1, #fnref1, #fnref-1 depending on markdown-it config.
+ */
+function scrollToAnchor(view: EditorView, anchor: string): void {
+    // Extract the footnote label from anchor
+    // Handles: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
+    const fnMatch = anchor.match(/^#fn-?(.+)$/) || anchor.match(/^#fnref-?(.+)$/);
+    if (!fnMatch) {
+        // Not a recognized footnote anchor format
+        return;
+    }
+
+    const label = fnMatch[1];
+
+    // Search for the footnote definition [^label]: in the document
+    const pattern = new RegExp(`^\\s*\\[\\^${escapeRegex(label)}\\]:`, 'i');
+    const doc = view.state.doc;
+
+    for (let i = 1; i <= doc.lines; i++) {
+        const line = doc.line(i);
+        if (pattern.test(line.text)) {
+            // Found the footnote definition - scroll to it
+            view.dispatch({
+                selection: { anchor: line.from },
+                scrollIntoView: true,
+            });
+            view.focus();
+            return;
+        }
+    }
+}
+
+/** Escape special regex characters in a string */
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
     if (!target) {
@@ -74,6 +112,14 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             if (href) {
                 event.preventDefault();
                 event.stopPropagation();
+
+                // Handle internal anchor links (e.g., footnotes #fn-1, #fnref-1)
+                // Joplin's openItem doesn't support these, so we scroll manually
+                if (href.startsWith('#')) {
+                    scrollToAnchor(view, href);
+                    return true;
+                }
+
                 openLink(href);
                 return true;
             }
