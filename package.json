@@ -28,6 +28,7 @@
         "@codemirror/view": "^6.38.8",
         "@floating-ui/dom": "^1.7.4",
         "@lezer/markdown": "^1.6.1",
+        "@joplin/fork-uslug": "^2.0.3",
         "dompurify": "^3.3.1"
     },
     "devDependencies": {

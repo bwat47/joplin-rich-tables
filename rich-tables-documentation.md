@@ -28,6 +28,8 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableModel/`                           | Markdown table parsing/ranges/manipulation helpers                                 |
 | `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating-toolbar view plugin (uses Floating UI for positioning)                    |
 | `contentScript/services/markdownRenderer.ts`          | `MarkdownRenderService` (async rendering with caching)                             |
+| `contentScript/services/documentDefinitions.ts`       | StateField tracking reference link definitions for context injection               |
+| `contentScript/shared/cellContentUtils.ts`            | Utilities: pipe unescaping, slugify, renderable content builder                    |
 
 ### Table Display
 
@@ -37,6 +39,8 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Widget uses cached measured heights for accurate `estimatedHeight` (keyed by position + content hash, measured on mount/async-render/destroy)
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached with FIFO eviction at 500 entries)
 - **Security**: Rendered HTML sanitized via DOMPurify with hook to remove resource-icon spans
+- **Context Injection**: Reference link definitions extracted via syntax tree and injected into cell render payloads, enabling reference-style links `[text][label]` to work in cells. Definitions are skipped for cells containing definition-like syntax to prevent rendering issues.
+- **Footnotes**: Post-processed via regex replacement of `[^label]` literals into styled superscript links (markdown-it-footnote auto-numbering breaks with isolated cell rendering).
 - Supports column alignments (`:---`, `:---:`, `---:`)
 - Wide tables scroll horizontally within the widget container
 
@@ -88,6 +92,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
     - `ArrowUp` / `ArrowDown`: Navigate to cell above/below when at visual line boundary (handles wrapping)
     - **Scrolling**: Cells outside viewport are automatically scrolled into view when navigating via keyboard.
 - **Shortcuts**: formatting shortcuts (Ctrl+B/I, Ctrl+`/Ctrl+E) and Insert Link (Ctrl+K) are supported within the cell. Ctrl+A selects all text in the current cell. Standard editor shortcuts (Ctrl+C/V/X/Z/Y) are supported. Global shortcuts (Ctrl+S, Ctrl+P) bubble to the app. Ctrl+F is blocked.
+- **Links**: Clicking links in cells opens them via `joplin.commands.execute('openItem')`. Anchor links (footnotes `#fn-label`, headings `#slug`) are intercepted and scroll to the target in the main editor via `scrollToAnchor`.
 - **Context Menu**: Native browser context menu is allowed (Paste works, Copy may be disabled).
 - **Mobile (Android)**: `beforeinput`/`input`/composition events stopped from bubbling to main editor; `mainEditorGuard` rejects main-editor edits within active table but outside active cell and rejects newlines while nested editor is open.
 

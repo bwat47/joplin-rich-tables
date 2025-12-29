@@ -3,6 +3,7 @@ import { EditorState, Range, StateField, Transaction } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
+import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
@@ -118,6 +119,7 @@ function buildTableDecorations(state: EditorState, options?: BuildDecorationsOpt
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
     const activeCell = getActiveCell(state);
+    const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
         // Check if this table is currently active (has an open cell editor).
@@ -154,7 +156,7 @@ function buildTableDecorations(state: EditorState, options?: BuildDecorationsOpt
             tableParseCache.set(tableHash, tableData);
         }
 
-        const widget = new TableWidget(tableData, table.text, table.from, table.to);
+        const widget = new TableWidget(tableData, table.text, table.from, table.to, definitions.definitionBlock);
         const decoration = Decoration.replace({
             widget,
             block: true,
@@ -403,6 +405,7 @@ export default function (context: ContentScriptContext) {
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
+                documentDefinitionsField,
                 tableStyles,
                 tableToolbarTheme,
                 tableToolbarPlugin,

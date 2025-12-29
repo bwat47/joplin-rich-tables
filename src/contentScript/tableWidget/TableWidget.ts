@@ -10,6 +10,7 @@ import {
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
+    CLASS_CELL_EDITOR,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
@@ -21,7 +22,7 @@ import {
 } from './domHelpers';
 import { hashTableText } from './hashUtils';
 import { estimateTableHeight } from './tableHeightEstimation';
-import { unescapePipesForRendering } from '../shared/cellContentUtils';
+import { buildRenderableContent } from '../shared/cellContentUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -39,10 +40,13 @@ export class TableWidget extends WidgetType {
         private tableData: TableData,
         private tableText: string,
         private tableFrom: number,
-        private tableTo: number
+        private tableTo: number,
+        private definitionBlock: string
     ) {
         super();
-        this.contentHash = hashTableText(tableText);
+        // Include definition block in hash so widgets rebuild when definitions change.
+        // This ensures cells are re-rendered with context when definitions become available.
+        this.contentHash = hashTableText(tableText + definitionBlock);
         // Pre-compute cell ranges once, as the table text is immutable for this widget instance
         this.cellRanges = computeMarkdownTableCellRanges(tableText);
     }
@@ -66,6 +70,13 @@ export class TableWidget extends WidgetType {
         // to ensure cell content is correct.
         const oldFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`));
         if (oldFrom !== this.tableFrom) {
+            return false;
+        }
+
+        // Check if any cell has nested editor wrapper structure from a previous editing
+        // session. These wrappers (.cell-content, .cell-editor) must be cleaned up by
+        // rebuilding fresh DOM; otherwise the cell displays stale or incorrect content.
+        if (dom.querySelector(`.${CLASS_CELL_EDITOR}`)) {
             return false;
         }
 
@@ -164,25 +175,25 @@ export class TableWidget extends WidgetType {
      * Uses cached HTML if available, otherwise shows text and updates async
      */
     private renderCellContent(cell: HTMLElement, markdown: string): void {
-        const renderableMarkdown = unescapePipesForRendering(markdown);
+        const { displayText, cacheKey } = buildRenderableContent(markdown, this.definitionBlock);
 
-        // Check if we have cached rendered HTML
-        const cached = renderer.getCached(renderableMarkdown);
+        // Check if we have cached rendered HTML (keyed by content WITH context)
+        const cached = renderer.getCached(cacheKey);
         if (cached !== undefined) {
             cell.innerHTML = cached;
             return;
         }
 
         // Show raw text initially
-        cell.textContent = renderableMarkdown;
+        cell.textContent = displayText;
 
         // Check if content likely contains markdown (optimization)
-        if (this.containsMarkdown(renderableMarkdown)) {
+        if (this.containsMarkdown(displayText)) {
             // Request async rendering and update when ready
-            renderer.renderAsync(renderableMarkdown, (html) => {
+            renderer.renderAsync(cacheKey, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed.
                 // Note: Height re-measurement is handled automatically by ResizeObserver.
-                if (cell.isConnected && cell.textContent === renderableMarkdown) {
+                if (cell.isConnected && cell.textContent === displayText) {
                     cell.innerHTML = html;
                 }
             });

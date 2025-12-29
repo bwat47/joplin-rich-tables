@@ -7,7 +7,8 @@ import { inlineCodePlugin, markPlugin, insertPlugin } from './decorationPlugins'
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorTheme } from './nestedEditorTheme';
 import { renderer } from '../services/markdownRenderer';
-import { unescapePipesForRendering } from '../shared/cellContentUtils';
+import { documentDefinitionsField } from '../services/documentDefinitions';
+import { buildRenderableContent } from '../shared/cellContentUtils';
 import {
     createCellTransactionFilter,
     createHistoryExtender,
@@ -321,17 +322,18 @@ class NestedCellEditorManager {
         // Update cell content with current document text before showing.
         if (this.contentEl && this.mainView) {
             const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
-            const renderableText = unescapePipesForRendering(cellText);
+            const definitions = this.mainView.state.field(documentDefinitionsField);
+            const { displayText, cacheKey } = buildRenderableContent(cellText, definitions.definitionBlock);
 
             // Check cache first for rendered HTML.
-            const cached = renderer.getCached(renderableText);
+            const cached = renderer.getCached(cacheKey);
             if (cached !== undefined) {
                 this.contentEl.innerHTML = cached;
             } else {
                 // Show raw text immediately, then update when render completes.
-                this.contentEl.textContent = renderableText;
+                this.contentEl.textContent = displayText;
                 const contentEl = this.contentEl;
-                renderer.renderAsync(renderableText, (html) => {
+                renderer.renderAsync(cacheKey, (html) => {
                     if (contentEl.isConnected) {
                         contentEl.innerHTML = html;
                     }
