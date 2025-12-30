@@ -2,10 +2,8 @@ import { EditorView, keymap } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { StateField, Transaction, StateCommand, EditorSelection } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
-import { getActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
-import { getWidgetSelector } from '../tableWidget/domHelpers';
+import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
 import { SubviewCellRange, syncAnnotation } from './transactionPolicy';
-import { makeTableId } from '../tableModel/types';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from './nestedCellEditor';
 
 function syncNestedSelectionToMain(params: {
@@ -49,60 +47,43 @@ function syncNestedSelectionToMain(params: {
     });
 }
 
-function runHistoryCommandWithMainScrollPreserved(
-    mainView: EditorView,
-    command: (target: { state: EditorView['state']; dispatch: (tr: Transaction) => void }) => boolean
-): boolean {
-    const scrollSnapshotEffect = mainView.scrollSnapshot();
+/**
+ * Runs an undo/redo command on the main editor with smart scroll handling.
+ *
+ * For simple in-cell edits: Preserves scroll position to prevent jumping.
+ * For structural changes or cursor moving to different cell/outside table:
+ * Lets nestedEditorLifecyclePlugin handle scrolling appropriately.
+ */
+function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
+    const activeCellBefore = getActiveCell(mainView.state);
+    const scrollSnapshot = mainView.scrollSnapshot();
 
-    // While I was able to remove scrollSnapshot usage elsewhere after implementing coordsAt in TableWidget,
-    // this hack is still needed to prevent large scroll jumps when undoing/redoing
-    // because these operations may cause CodeMirror to lose its visual anchor on the table row.
-    const activeCell = getActiveCell(mainView.state);
-    const tableFrom = activeCell?.tableFrom;
-    const widgetContainer =
-        tableFrom !== undefined
-            ? (mainView.dom.querySelector(getWidgetSelector(makeTableId(tableFrom))) as HTMLElement | null)
-            : null;
-    const widgetScrollLeft = widgetContainer ? widgetContainer.scrollLeft : 0;
+    const result = command(mainView);
+    if (!result) return false;
 
-    const restoreWidgetScroll = () => {
-        if (tableFrom === undefined) {
-            return;
-        }
+    const activeCellAfter = getActiveCell(mainView.state);
 
-        const currentWidget = mainView.dom.querySelector(
-            getWidgetSelector(makeTableId(tableFrom))
-        ) as HTMLElement | null;
-        if (currentWidget && currentWidget.scrollLeft !== widgetScrollLeft) {
-            currentWidget.scrollLeft = widgetScrollLeft;
-        }
-    };
+    // Check if cursor stayed in the same table cell (simple in-cell edit).
+    // If so, restore scroll to prevent jumping. Otherwise, let lifecycle plugin handle.
+    const stayedInSameCell =
+        activeCellBefore &&
+        activeCellAfter &&
+        activeCellBefore.tableFrom === activeCellAfter.tableFrom &&
+        activeCellBefore.section === activeCellAfter.section &&
+        activeCellBefore.row === activeCellAfter.row &&
+        activeCellBefore.col === activeCellAfter.col;
 
-    const dispatch = (tr: Transaction) => {
-        mainView.dispatch(tr);
+    if (stayedInSameCell) {
+        // Restore scroll position for simple in-cell edits.
+        // For small edits within the same cell, restoring directly works well.
+        mainView.dispatch({
+            effects: scrollSnapshot,
+            annotations: Transaction.addToHistory.of(false),
+        });
+    }
+    // For cross-cell/structural changes, nestedEditorLifecyclePlugin handles scroll
 
-        // Map the snapshot effect through the document changes made by undo/redo.
-        // This keeps the scroll restoration accurate even if the doc changed.
-        const mappedScrollSnapshot = scrollSnapshotEffect.map(tr.changes);
-
-        const restore = () => {
-            // Restore the editor's own scroll position.
-            mainView.dispatch({
-                effects: mappedScrollSnapshot,
-                annotations: Transaction.addToHistory.of(false),
-            });
-
-            // Restore the table widget's internal horizontal scroll.
-            restoreWidgetScroll();
-        };
-
-        // Restore immediately, then again after layout stabilizes.
-        restore();
-        requestAnimationFrame(restore);
-    };
-
-    return command({ state: mainView.state, dispatch });
+    return true;
 }
 
 /** Creates a keymap for the nested editor to handle undo/redo and table navigation (arrows, tab, enter). */
@@ -115,19 +96,19 @@ export function createNestedEditorKeymap(
         {
             key: 'Mod-z',
             run: () => {
-                return runHistoryCommandWithMainScrollPreserved(mainView, undo);
+                return runHistoryCommand(mainView, undo);
             },
         },
         {
             key: 'Mod-y',
             run: () => {
-                return runHistoryCommandWithMainScrollPreserved(mainView, redo);
+                return runHistoryCommand(mainView, redo);
             },
         },
         {
             key: 'Mod-Shift-z',
             run: () => {
-                return runHistoryCommandWithMainScrollPreserved(mainView, redo);
+                return runHistoryCommand(mainView, redo);
             },
         },
 
