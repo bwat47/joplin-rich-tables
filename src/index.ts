@@ -6,8 +6,6 @@ const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 
 const INSERT_TABLE_COMMAND = 'richTables.insertTable';
 
-const EMPTY_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |', '', ''].join('\n');
-
 // Joplin's internal MarkupLanguage enum values
 const MarkupLanguage = {
     Markdown: 1,
@@ -34,21 +32,27 @@ joplin.plugins.register({
             label: 'Insert table',
             iconName: 'fas fa-table',
             execute: async () => {
-                // Insert the markdown and leave the cursor on a blank line after the table
-                // so the table renders immediately.
+                // Use the new CodeMirror command that inserts the table and activates the first cell
                 try {
-                    // Most reliable on desktop: built-in command.
-                    await joplin.commands.execute('insertText', EMPTY_TABLE_MARKDOWN);
+                    await joplin.commands.execute('editor.execCommand', {
+                        name: 'richTables.insertTableAndActivate',
+                    });
                     return;
                 } catch (error) {
-                    logger.warn('insertText command failed, falling back to editor.execCommand', error);
+                    logger.warn('insertTableAndActivate command failed, falling back to insertText', error);
                 }
 
-                // Fallback: try editor command APIs.
-                await joplin.commands.execute('editor.execCommand', {
-                    name: 'replaceSelection',
-                    args: [EMPTY_TABLE_MARKDOWN],
-                });
+                // Fallback: Insert markdown and leave cursor after table (old behavior)
+                const EMPTY_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |', '', ''].join('\n');
+                try {
+                    await joplin.commands.execute('insertText', EMPTY_TABLE_MARKDOWN);
+                } catch (insertError) {
+                    logger.warn('insertText failed, trying replaceSelection', insertError);
+                    await joplin.commands.execute('editor.execCommand', {
+                        name: 'replaceSelection',
+                        args: [EMPTY_TABLE_MARKDOWN],
+                    });
+                }
             },
         });
 

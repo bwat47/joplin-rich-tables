@@ -1,5 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { getActiveCell, clearActiveCellEffect, setActiveCellEffect } from './activeCellState';
+import { getActiveCell, clearActiveCellEffect } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     applyMainSelectionToNestedEditor,
@@ -12,9 +12,8 @@ import {
 import { getCellSelector, getWidgetSelector, SECTION_BODY, SECTION_HEADER } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
-import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
+import { activateCellAtPosition } from './cellActivation';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
@@ -84,7 +83,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 // After DOM updates, find and activate the cell at the cursor position
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
-                    this.activateCellAtPosition(cursorPos);
+                    activateCellAtPosition(this.view, cursorPos, { clearIfOutside: true });
                 });
 
                 this.hadActiveCell = hasActiveCell;
@@ -186,81 +185,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             }
 
             this.hadActiveCell = hasActiveCell;
-        }
-
-        /**
-         * Find the cell at the given position and activate it (dispatch setActiveCellEffect and open nested editor).
-         */
-        private activateCellAtPosition(cursorPos: number): void {
-            const tables = findTableRanges(this.view.state);
-
-            // Find the table containing the cursor position
-            const table = tables.find((t) => cursorPos >= t.from && cursorPos <= t.to);
-
-            if (!table) {
-                // Cursor is outside any table - clear active cell and restore focus to main editor
-                this.view.dispatch({
-                    effects: clearActiveCellEffect.of(undefined),
-                    selection: { anchor: cursorPos },
-                    scrollIntoView: true,
-                });
-                this.view.focus();
-                return;
-            }
-
-            // Find which cell in the table contains the cursor
-            const relativePos = cursorPos - table.from;
-            const ranges = computeMarkdownTableCellRanges(table.text);
-            if (!ranges) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                return;
-            }
-
-            // Find the cell containing the cursor, fallback to first body cell
-            const targetCell = findCellForPos(ranges, relativePos) ?? { section: 'body' as const, row: 0, col: 0 };
-
-            const newActiveCell = computeActiveCellForTableText({
-                tableFrom: table.from,
-                tableText: table.text,
-                target: targetCell,
-            });
-
-            if (!newActiveCell) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                return;
-            }
-
-            const widgetDOM = this.view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
-            if (!widgetDOM) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                return;
-            }
-
-            const selector =
-                newActiveCell.section === SECTION_HEADER
-                    ? getCellSelector({ section: SECTION_HEADER, row: 0, col: newActiveCell.col })
-                    : getCellSelector({
-                          section: SECTION_BODY,
-                          row: newActiveCell.row,
-                          col: newActiveCell.col,
-                      });
-
-            const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
-            if (!cellElement) {
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                return;
-            }
-
-            this.view.dispatch({
-                effects: setActiveCellEffect.of(newActiveCell),
-            });
-
-            openNestedCellEditor({
-                mainView: this.view,
-                cellElement,
-                cellFrom: newActiveCell.cellFrom,
-                cellTo: newActiveCell.cellTo,
-            });
         }
 
         destroy(): void {
