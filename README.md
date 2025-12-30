@@ -19,14 +19,10 @@ Table rendering includes rendering of inline markdown and image embeds.
 
 - Basic formatting: bold/italic/inline code/strikethrough/highlight(==mark==)/underline(++insert++).
 - Links (markdown links, autolinks, reference style links).
-- Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just uses the exact footnote number that's defined in the footnote link (e.g. `[^1]` and scrolls to the matching footnote definition if found).
+- Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just displays the exact footnote number that's defined in the footnote link (e.g. `[^1]`).
 - Images (markdown and html image embeds).
-- Katex (math)
+- Katex (math) - will be rendered, but not syntax highlighted when editing.
 - Line breaks (as html `<br>` tags).
-
-> [!note]
->
-> The plugin does not provide handling for ctrl + clicking links while editing a table cell. However, you can left click links on table cells that aren't actively being edited, and you can get right click context menu options for links using plugins like Rich Markdown or Context Utils.
 
 ### Table Editing
 
@@ -39,6 +35,10 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Moving columns (left/right)
 - Changing column alignment (left/center/right)
 - Format table (currently just normalizes whitespace to one space around cell content, no full-on pretty formatting currently).
+
+> [!note]
+>
+> The plugin does not provide handling for ctrl + clicking links while editing a table cell. However, you can left click links on table cells that aren't actively being edited, and you can get right click context menu options for links using plugins like Rich Markdown or Context Utils.
 
 ### Keyboard Shortcuts
 
