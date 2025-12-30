@@ -6,7 +6,7 @@ import { initRenderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
-import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { activeCellField, clearActiveCellEffect, setActiveCellEffect, getActiveCell } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
@@ -210,9 +210,16 @@ const tableDecorationField = StateField.define<DecorationSet>({
         // rendered HTML table matches the new structure.
         const forceRebuild = transaction.effects.some((e) => e.is(rebuildTableWidgetsEffect));
         const hasClearEffect = transaction.effects.some((e) => e.is(clearActiveCellEffect));
+        const hasSetEffect = transaction.effects.some((e) => e.is(setActiveCellEffect));
 
         // When active cell is cleared, rebuild to render updated content.
         if (hasClearEffect) {
+            return buildTableDecorations(transaction.state);
+        }
+
+        // When active cell is set (e.g., from cellActivation.ts after table insert or
+        // search panel close), rebuild to create the widget for the newly active table.
+        if (hasSetEffect) {
             return buildTableDecorations(transaction.state);
         }
 

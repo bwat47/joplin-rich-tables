@@ -3,6 +3,7 @@ import { clearActiveCellEffect, getActiveCell, ActiveCell } from '../tableWidget
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { findTableRanges } from '../tableWidget/tablePositioning';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
+import { activateTableCell } from '../tableWidget/cellActivation';
 import {
     insertRowForActiveCell,
     deleteRowForActiveCell,
@@ -227,4 +228,22 @@ export function registerTableCommands(editorControl: EditorControl): void {
     registerCellCommand('richTables.moveRowDown', execMoveRowDown);
     registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
     registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
+
+    // Register insert table command that activates the first cell
+    editorControl.registerCommand('richTables.insertTableAndActivate', () => {
+        const view = editorControl.cm6;
+        const cursorPos = view.state.selection.main.head;
+        const tableMarkdown = '\n|  |  |\n| --- | --- |\n|  |  |\n';
+
+        view.dispatch({
+            changes: { from: cursorPos, insert: tableMarkdown },
+            selection: { anchor: cursorPos + 3 }, // Position in first header cell (after "\n| ")
+        });
+
+        // Wait for widget to mount, then activate first header cell
+        // Table starts at cursorPos + 1 (after leading newline)
+        activateTableCell(view, cursorPos + 1, { section: 'header', row: 0, col: 0 });
+
+        return true;
+    });
 }

@@ -6,8 +6,6 @@ const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 
 const INSERT_TABLE_COMMAND = 'richTables.insertTable';
 
-const EMPTY_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |', '', ''].join('\n');
-
 // Joplin's internal MarkupLanguage enum values
 const MarkupLanguage = {
     Markdown: 1,
@@ -34,20 +32,8 @@ joplin.plugins.register({
             label: 'Insert table',
             iconName: 'fas fa-table',
             execute: async () => {
-                // Insert the markdown and leave the cursor on a blank line after the table
-                // so the table renders immediately.
-                try {
-                    // Most reliable on desktop: built-in command.
-                    await joplin.commands.execute('insertText', EMPTY_TABLE_MARKDOWN);
-                    return;
-                } catch (error) {
-                    logger.warn('insertText command failed, falling back to editor.execCommand', error);
-                }
-
-                // Fallback: try editor command APIs.
                 await joplin.commands.execute('editor.execCommand', {
-                    name: 'replaceSelection',
-                    args: [EMPTY_TABLE_MARKDOWN],
+                    name: 'richTables.insertTableAndActivate',
                 });
             },
         });
