@@ -124,4 +124,13 @@ export const tableStyles = EditorView.baseTheme({
         backgroundColor: 'var(--joplin-table-background-color, rgb(247, 247, 247))',
         fontWeight: 'bold',
     },
+    // Hide Joplin's source elements for rendered content (Math, Mermaid, etc.) which cause layout issues
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-source`]: {
+        display: 'none',
+    },
+    // Ensure the container for editable content doesn't break layout
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-editable`]: {
+        display: 'inline-block',
+        maxWidth: '100%',
+    },
 });

@@ -77,7 +77,40 @@ function sanitizeHtml(html: string): string {
         ADD_ATTR: ['data-resource-id', 'data-note-id', 'data-item-id', 'data-from-md'],
     });
 
-    return convertFootnoteRefs(sanitized);
+    return optimizeKatex(convertFootnoteRefs(sanitized));
+}
+
+/**
+ * Post-process rendered HTML to optimize KaTeX display.
+ * - Removes .joplin-source elements (raw text)
+ * - Extracts inner MathML from KaTeX structures to avoid duplicate/glitched rendering
+ * - Removes <annotation> tags which might contain raw TeX
+ */
+function optimizeKatex(html: string): string {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+
+    // Remove Joplin source blocks
+    template.content.querySelectorAll('.joplin-source').forEach((el) => el.remove());
+
+    // Optimize KaTeX: Replace HTML/CSS representation with clean MathML
+    template.content.querySelectorAll('.katex').forEach((katexElement) => {
+        const math = katexElement.querySelector('math');
+        if (math) {
+            // Remove annotations (often contains raw TeX)
+            math.querySelectorAll('annotation').forEach((ann) => ann.remove());
+
+            // Check if wrapped in display mode
+            const displayParent = katexElement.closest('.katex-display');
+            if (displayParent) {
+                displayParent.replaceWith(math);
+            } else {
+                katexElement.replaceWith(math);
+            }
+        }
+    });
+
+    return template.innerHTML;
 }
 
 /**
