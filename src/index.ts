@@ -32,27 +32,9 @@ joplin.plugins.register({
             label: 'Insert table',
             iconName: 'fas fa-table',
             execute: async () => {
-                // Use the new CodeMirror command that inserts the table and activates the first cell
-                try {
-                    await joplin.commands.execute('editor.execCommand', {
-                        name: 'richTables.insertTableAndActivate',
-                    });
-                    return;
-                } catch (error) {
-                    logger.warn('insertTableAndActivate command failed, falling back to insertText', error);
-                }
-
-                // Fallback: Insert markdown and leave cursor after table (old behavior)
-                const EMPTY_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |', '', ''].join('\n');
-                try {
-                    await joplin.commands.execute('insertText', EMPTY_TABLE_MARKDOWN);
-                } catch (insertError) {
-                    logger.warn('insertText failed, trying replaceSelection', insertError);
-                    await joplin.commands.execute('editor.execCommand', {
-                        name: 'replaceSelection',
-                        args: [EMPTY_TABLE_MARKDOWN],
-                    });
-                }
+                await joplin.commands.execute('editor.execCommand', {
+                    name: 'richTables.insertTableAndActivate',
+                });
             },
         });
 
