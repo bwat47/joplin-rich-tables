@@ -63,8 +63,8 @@ class TableToolbarPlugin {
         // Active cell state changed
         if (!!prevActiveCell !== !!this.currentActiveCell) {
             if (this.currentActiveCell) {
-                // Defer to next frame to ensure widget DOM is ready
-                requestAnimationFrame(() => this.updatePosition());
+                // Defer until widget DOM is ready (runs in CM's measure cycle after DOM update)
+                this.schedulePositionUpdate();
             } else {
                 this.cleanupPositioning();
                 // When the toolbar is no longer needed, remove it from layout entirely
@@ -76,8 +76,8 @@ class TableToolbarPlugin {
 
         // Active cell changed to different table
         if (this.currentActiveCell && prevActiveCell && this.currentActiveCell.tableFrom !== prevActiveCell.tableFrom) {
-            // Defer to next frame to ensure new table widget DOM is ready
-            requestAnimationFrame(() => this.updatePosition());
+            // Defer until new table widget DOM is ready
+            this.schedulePositionUpdate();
             return;
         }
 
@@ -86,8 +86,8 @@ class TableToolbarPlugin {
             this.currentActiveCell &&
             update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))
         ) {
-            // Defer to next frame to ensure rebuilt widget DOM is ready
-            requestAnimationFrame(() => this.updatePosition());
+            // Defer until rebuilt widget DOM is ready
+            this.schedulePositionUpdate();
         }
 
         // Note: autoUpdate handles other cases (scroll/resize)
@@ -250,6 +250,19 @@ class TableToolbarPlugin {
             this.cleanupAutoUpdate();
             this.cleanupAutoUpdate = null;
         }
+    }
+
+    /**
+     * Schedules a position update using CodeMirror's measure cycle.
+     * Runs after DOM updates are complete, in the same frame.
+     * Using `key` dedupes multiple requests within the same update cycle.
+     */
+    private schedulePositionUpdate() {
+        this.view.requestMeasure({
+            key: this,
+            read: () => null,
+            write: () => this.updatePosition(),
+        });
     }
 
     private updatePosition() {
