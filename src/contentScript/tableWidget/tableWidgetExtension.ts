@@ -135,13 +135,13 @@ function buildTableDecorations(state: EditorState, options?: BuildDecorationsOpt
             continue;
         }
 
-        const tableHash = hashTableText(table.text);
-        let tableData = tableParseCache.get(tableHash);
+        const parseHash = hashTableText(table.text);
+        let tableData = tableParseCache.get(parseHash);
 
         if (tableData) {
             // Refresh recency: move to end of Map (most recently used)
-            tableParseCache.delete(tableHash);
-            tableParseCache.set(tableHash, tableData);
+            tableParseCache.delete(parseHash);
+            tableParseCache.set(parseHash, tableData);
         } else {
             tableData = parseMarkdownTable(table.text);
             if (!tableData) {
@@ -153,10 +153,21 @@ function buildTableDecorations(state: EditorState, options?: BuildDecorationsOpt
                 const firstKey = tableParseCache.keys().next().value;
                 if (firstKey) tableParseCache.delete(firstKey);
             }
-            tableParseCache.set(tableHash, tableData);
+            tableParseCache.set(parseHash, tableData);
         }
 
-        const widget = new TableWidget(tableData, table.text, table.from, table.to, definitions.definitionBlock);
+        // Content hash includes definition block so widgets rebuild when definitions change.
+        // Pre-compute here and pass to widget to avoid redundant hashing.
+        const contentHash = hashTableText(table.text + definitions.definitionBlock);
+
+        const widget = new TableWidget(
+            tableData,
+            table.text,
+            table.from,
+            table.to,
+            definitions.definitionBlock,
+            contentHash
+        );
         const decoration = Decoration.replace({
             widget,
             block: true,

@@ -20,7 +20,6 @@ import {
     SECTION_HEADER,
     getCellSelector,
 } from './domHelpers';
-import { hashTableText } from './hashUtils';
 import { estimateTableHeight } from './tableHeightEstimation';
 import { buildRenderableContent } from '../shared/cellContentUtils';
 
@@ -41,12 +40,13 @@ export class TableWidget extends WidgetType {
         private tableText: string,
         private tableFrom: number,
         private tableTo: number,
-        private definitionBlock: string
+        private definitionBlock: string,
+        contentHash: string
     ) {
         super();
-        // Include definition block in hash so widgets rebuild when definitions change.
-        // This ensures cells are re-rendered with context when definitions become available.
-        this.contentHash = hashTableText(tableText + definitionBlock);
+        // Content hash includes definition block so widgets rebuild when definitions change.
+        // Hash is pre-computed by the extension to avoid redundant hashing.
+        this.contentHash = contentHash;
         // Pre-compute cell ranges once, as the table text is immutable for this widget instance
         this.cellRanges = computeMarkdownTableCellRanges(tableText);
     }
