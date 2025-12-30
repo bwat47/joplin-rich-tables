@@ -64,6 +64,7 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
  * Capped at 50 entries to prevent memory leaks.
  */
 const tableParseCache = new Map<string, TableData>();
+const MAX_TABLE_PARSE_CACHE_SIZE = 50;
 
 interface BuildDecorationsOptions {
     /** Skip cursor-in-range check (used during undo/redo to let lifecycle plugin handle activation) */
@@ -149,7 +150,7 @@ function buildTableDecorations(state: EditorState, options?: BuildDecorationsOpt
             }
 
             // Simple LRU: Delete oldest if at capacity
-            if (tableParseCache.size >= 50) {
+            if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
                 const firstKey = tableParseCache.keys().next().value;
                 if (firstKey) tableParseCache.delete(firstKey);
             }
