@@ -432,6 +432,20 @@ export default function (context: ContentScriptContext) {
 
             registerTableCommands(editorControl);
 
+            // On content script load, ensure cursor is not inside a table.
+            // This handles:
+            // - Desktop cold launch: content script loads once when first note opens
+            // - Mobile note switch: content script loads fresh when entering edit mode
+            // Without this, raw markdown would be shown if cursor position lands inside a table.
+            const tables = findTableRanges(cm6View.state);
+            const cursor = cm6View.state.selection.main.head;
+            const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
+            if (tableContainingCursor) {
+                const newPos = Math.min(tableContainingCursor.to + 1, cm6View.state.doc.length);
+                cm6View.dispatch({ selection: { anchor: newPos } });
+                logger.info('Moved cursor out of table on content script load');
+            }
+
             logger.info('Table widget extension registered');
         },
     };
