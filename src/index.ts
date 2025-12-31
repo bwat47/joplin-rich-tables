@@ -157,7 +157,9 @@ joplin.plugins.register({
         );
 
         // Close nested editor when switching notes to prevent stale editor state (Desktop only)
-        // Mobile/Web don't support this command style or have different navigation models where this isn't needed.
+        // On mobile, the note is always in "reading" mode when you first switch to it, and the content script
+        // isn't loaded until you switch to "editing" mode.  So we don't need to do anything on mobile,
+        // and attempting to call this command on note switch on mobile results in console errors due to the content script not being loaded.
         const versionInfo = await joplin.versionInfo();
         if (versionInfo.platform === 'desktop') {
             await joplin.workspace.onNoteSelectionChange(async () => {
