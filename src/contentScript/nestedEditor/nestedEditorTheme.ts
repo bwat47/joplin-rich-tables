@@ -41,12 +41,12 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
         '.cm-inline-code': {
             borderRadius: '4px',
             border: `1px solid ${isDarkTheme ? 'rgba(200, 200, 200, 0.5)' : 'rgba(100, 100, 100, 0.5)'}`,
-            padding: '1px 2px',
+            padding: '1px 0',
         },
         '.cm-highlighted': {
             backgroundColor: 'var(--joplin-mark-highlight-background-color, #F7D26E)',
             color: 'var(--joplin-mark-highlight-color, black)',
-            padding: '1px 2px',
+            padding: '1px 0',
             borderRadius: '2px',
         },
         '.cm-inserted': {
