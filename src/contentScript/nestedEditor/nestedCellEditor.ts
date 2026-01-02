@@ -226,7 +226,7 @@ class NestedCellEditorManager {
         // Scroll the cell into view within CodeMirror's scroll container
         scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
 
-        this.subview.focus();
+        this.subview.contentDOM.focus({ preventScroll: true });
     }
 
     applyMainTransactions(transactions: readonly Transaction[], cellFrom: number, cellTo: number): void {
