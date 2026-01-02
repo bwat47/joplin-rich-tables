@@ -57,6 +57,9 @@ class NestedCellEditorManager {
     private mainView: EditorView | null = null;
     private cellFrom: number = 0;
     private cellTo: number = 0;
+    private initialAnchorTop: number | null = null;
+    private scrollContainer: HTMLElement | null = null;
+    private anchoredAndUnlocked: boolean = false;
 
     open(params: {
         mainView: EditorView;
@@ -71,6 +74,9 @@ class NestedCellEditorManager {
         this.cellFrom = params.cellFrom;
         this.cellTo = params.cellTo;
         this.cellElement = params.cellElement;
+        this.scrollContainer = params.mainView.scrollDOM;
+        this.initialAnchorTop = null;
+        this.anchoredAndUnlocked = false;
 
         // Lock cell width before switching to edit mode to prevent horizontal
         // expansion when raw markdown (e.g., long URLs) is shown instead of
@@ -81,6 +87,9 @@ class NestedCellEditorManager {
         // that "just fits" (like inline code) while preventing massive expansion (URLs).
         const cellWidth = this.cellElement.offsetWidth;
         this.cellElement.style.maxWidth = `${cellWidth + 50}px`;
+
+        // Measure initial anchor so we can compensate scroll after first edit.
+        this.initialAnchorTop = this.measureCellAnchor();
 
         const { content, editorHost } = ensureCellWrapper(params.cellElement);
         this.contentEl = content;
@@ -116,6 +125,11 @@ class NestedCellEditorManager {
 
                 // Forward to main editor (source of truth).
                 const nestedSel = update.state.selection.main;
+
+                // On first user edit, stabilize scroll then release the width lock.
+                if (!this.anchoredAndUnlocked) {
+                    this.anchorScrollAndUnlock();
+                }
 
                 this.mainView.dispatch({
                     changes: tr.changes,
@@ -322,6 +336,10 @@ class NestedCellEditorManager {
             this.cellElement = null;
         }
 
+        this.initialAnchorTop = null;
+        this.scrollContainer = null;
+        this.anchoredAndUnlocked = false;
+
         // Update cell content with current document text before showing.
         if (this.contentEl && this.mainView) {
             const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
@@ -350,6 +368,74 @@ class NestedCellEditorManager {
         this.mainView = null;
         this.cellFrom = 0;
         this.cellTo = 0;
+    }
+
+    /** Measures the cell's top relative to the scroll container's content. */
+    private measureCellAnchor(): number | null {
+        if (!this.mainView || !this.cellElement) {
+            return null;
+        }
+
+        const scrollDOM = this.mainView.scrollDOM;
+        if (!scrollDOM.isConnected || !this.cellElement.isConnected) {
+            return null;
+        }
+
+        const cellRect = this.cellElement.getBoundingClientRect();
+        const containerRect = scrollDOM.getBoundingClientRect();
+        return cellRect.top - containerRect.top + scrollDOM.scrollTop;
+    }
+
+    /**
+     * After the first user edit, adjust scroll to keep the cell anchored and
+     * drop the width lock so normal wrapping can occur.
+     */
+    private anchorScrollAndUnlock(): void {
+        if (this.anchoredAndUnlocked) {
+            return;
+        }
+
+        this.anchoredAndUnlocked = true;
+
+        if (!this.mainView || !this.scrollContainer) {
+            this.unlockCellWidth();
+            return;
+        }
+
+        const initialAnchorTop = this.initialAnchorTop;
+        // If we failed to capture an anchor, just unlock.
+        if (initialAnchorTop == null) {
+            this.unlockCellWidth();
+            return;
+        }
+
+        // Measure before unlock, then measure again after unlock to compute delta.
+        this.mainView.requestMeasure({
+            read: () => this.measureCellAnchor(),
+            write: () => {
+                this.unlockCellWidth();
+
+                this.mainView?.requestMeasure({
+                    read: () => this.measureCellAnchor(),
+                    write: (anchorAfterUnlock) => {
+                        if (anchorAfterUnlock == null || !this.scrollContainer) {
+                            return;
+                        }
+
+                        const delta = anchorAfterUnlock - initialAnchorTop;
+                        if (delta !== 0) {
+                            this.scrollContainer.scrollTop += delta;
+                        }
+                    },
+                });
+            },
+        });
+    }
+
+    private unlockCellWidth(): void {
+        if (this.cellElement) {
+            this.cellElement.style.maxWidth = '';
+        }
     }
 
     isOpen(): boolean {
