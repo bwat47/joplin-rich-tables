@@ -1,6 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import {
     CLASS_CELL_ACTIVE,
+    CLASS_CELL_CONTENT,
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
     CLASS_TABLE_WIDGET_TABLE,
@@ -34,6 +35,18 @@ export const tableStyles = EditorView.baseTheme({
         minWidth: '75px',
         position: 'relative',
         scrollMargin: '8px',
+    },
+    // Keep truly empty cells (no content wrapper yet) at a consistent height
+    // with cells that contain a line of text or the caret.
+    [`.${CLASS_TABLE_WIDGET_TABLE} td:empty::before, .${CLASS_TABLE_WIDGET_TABLE} th:empty::before`]: {
+        content: '"\u00a0"',
+        display: 'inline-block',
+        lineHeight: 'inherit',
+    },
+    // Keep empty cells at a consistent height with cells that contain a line of text.
+    [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}:empty::before`]: {
+        content: '"\u00a0"',
+        display: 'inline-block',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
