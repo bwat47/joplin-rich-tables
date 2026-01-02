@@ -146,4 +146,9 @@ export const tableStyles = EditorView.baseTheme({
         display: 'inline-block',
         maxWidth: '100%',
     },
+    // Media constraints - prevent massive videos/images from breaking the table
+    [`.${CLASS_TABLE_WIDGET_TABLE} img, .${CLASS_TABLE_WIDGET_TABLE} video`]: {
+        maxWidth: '100%',
+        height: 'auto',
+    },
 });
