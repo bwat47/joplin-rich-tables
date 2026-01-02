@@ -48,7 +48,6 @@ export const tableStyles = EditorView.baseTheme({
         lineHeight: 'inherit',
         fontFamily: 'inherit',
         fontSize: 'inherit',
-        overflowX: 'hidden',
     },
     [`.${CLASS_CELL_EDITOR} .cm-content`]: {
         margin: '0',
@@ -56,9 +55,6 @@ export const tableStyles = EditorView.baseTheme({
         minHeight: 'unset',
         lineHeight: 'inherit',
         color: 'inherit',
-        // Ensure long text (URLs, etc.) breaks to wrap within the cell
-        overflowWrap: 'break-word',
-        wordBreak: 'break-word',
     },
     [`.${CLASS_CELL_EDITOR} .cm-line`]: {
         padding: '0',
@@ -78,8 +74,6 @@ export const tableStyles = EditorView.baseTheme({
         outline: '2px solid var(--joplin-divider-color, #dddddd)',
         outlineOffset: '-1px', // Draw inside existing border
         zIndex: '5', // Ensure on top of neighbors
-        overflowWrap: 'break-word',
-        wordBreak: 'break-word',
         boxSizing: 'border-box',
     },
     [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
