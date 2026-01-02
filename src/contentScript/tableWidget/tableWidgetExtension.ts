@@ -218,8 +218,9 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         // When active cell is cleared, rebuild to render updated content.
         // But only if edits were made - otherwise just return existing decorations.
+        // Note: If prevActiveCell is null, we still rebuild (shouldn't happen, but be safe).
         if (hasClearEffect) {
-            const wasEdited = prevActiveCell?.editedSinceActivation ?? false;
+            const wasEdited = prevActiveCell?.editedSinceActivation ?? true;
             if (!wasEdited) {
                 return decorations;
             }
@@ -233,13 +234,27 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
         // When active cell is set (e.g., from cellActivation.ts after table insert or
         // search panel close), rebuild to create the widget for the newly active table.
-        // But skip if we're just switching cells within the same table, OR if no edits
-        // were made in the previous table (dirty tracking optimization).
+        // But skip if:
+        // 1. We're switching cells within the same table (stayingInSameTable)
+        // 2. The target table already has a widget AND the previous table wasn't edited
         if (hasSetEffect && !stayingInSameTable) {
-            const wasEdited = prevActiveCell?.editedSinceActivation ?? false;
-            if (!wasEdited) {
-                return decorations;
+            // Check if the target table already has a decoration (widget exists)
+            let targetTableHasDecoration = false;
+            if (nextActiveCell) {
+                decorations.between(nextActiveCell.tableFrom, nextActiveCell.tableTo, () => {
+                    targetTableHasDecoration = true;
+                    return false; // Stop iteration
+                });
             }
+
+            // If target table already has a widget, only rebuild if previous table was edited
+            if (targetTableHasDecoration) {
+                const wasEdited = prevActiveCell?.editedSinceActivation ?? false;
+                if (!wasEdited) {
+                    return decorations;
+                }
+            }
+            // If target table has no widget (new table), always rebuild
             return buildTableDecorations(transaction.state);
         }
 
