@@ -30,7 +30,7 @@ export { syncAnnotation };
  * Uses CodeMirror's requestMeasure to defer scrolling until after layout is stable,
  * ensuring height changes from closing the previous cell have propagated.
  */
-function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement, subview?: EditorView): void {
+function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
     // Defer scrolling until after CodeMirror's next measurement phase.
     // This ensures height changes from closing the previous cell (e.g., when
     // markdown-heavy content switches from raw text to rendered HTML) have
@@ -43,9 +43,6 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
                     block: 'nearest',
                     inline: 'nearest',
                 });
-                if (subview) {
-                    subview.focus();
-                }
             }
         },
     });
@@ -217,7 +214,9 @@ class NestedCellEditorManager {
         });
 
         // Scroll the cell into view within CodeMirror's scroll container
-        scrollCellIntoViewWithinEditor(params.mainView, params.cellElement, this.subview);
+        scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
+
+        this.subview.contentDOM.focus({ preventScroll: true });
     }
 
     applyMainTransactions(transactions: readonly Transaction[], cellFrom: number, cellTo: number): void {
