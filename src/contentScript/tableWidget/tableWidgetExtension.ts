@@ -217,9 +217,17 @@ const tableDecorationField = StateField.define<DecorationSet>({
             return buildTableDecorations(transaction.state);
         }
 
+        // When switching cells within the SAME table, skip rebuilding to preserve DOM
+        // (prevents video/media restart, table flashing, etc.)
+        const prevActiveCell = getActiveCell(transaction.startState);
+        const nextActiveCell = getActiveCell(transaction.state);
+        const stayingInSameTable =
+            prevActiveCell && nextActiveCell && prevActiveCell.tableFrom === nextActiveCell.tableFrom;
+
         // When active cell is set (e.g., from cellActivation.ts after table insert or
         // search panel close), rebuild to create the widget for the newly active table.
-        if (hasSetEffect) {
+        // But skip if we're just switching cells within the same table.
+        if (hasSetEffect && !stayingInSameTable) {
             return buildTableDecorations(transaction.state);
         }
 
@@ -279,10 +287,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
         if (transaction.selection) {
             // Optimization: If the active table hasn't changed, and we are just moving cursor/selection
             // within the active table's widget (or switching cells), we DON'T want to rebuild (which destroys the DOM).
-            const prevActiveCell = getActiveCell(transaction.startState);
-            const nextActiveCell = getActiveCell(transaction.state);
-
-            if (prevActiveCell && nextActiveCell && prevActiveCell.tableFrom === nextActiveCell.tableFrom) {
+            if (stayingInSameTable) {
                 return decorations;
             }
 
