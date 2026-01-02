@@ -62,5 +62,6 @@ export function computeActiveCellForTableText(params: {
         section: clamped.section,
         row: clamped.section === 'header' ? 0 : clamped.row,
         col: clamped.col,
+        editedSinceActivation: false,
     };
 }

@@ -9,6 +9,8 @@ export interface ActiveCell extends CellCoords {
     cellFrom: number;
     cellTo: number;
     // section, row, col inherited from CellCoords
+    /** True if any document changes occurred while this cell was active */
+    editedSinceActivation: boolean;
 }
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();
@@ -28,7 +30,7 @@ export const activeCellField = StateField.define<ActiveCell | null>({
                 return null;
             }
             if (effect.is(setActiveCellEffect)) {
-                return effect.value;
+                return { ...effect.value, editedSinceActivation: false };
             }
         }
 
@@ -61,6 +63,7 @@ export const activeCellField = StateField.define<ActiveCell | null>({
                 tableTo: mappedTableTo,
                 cellFrom: mappedCellFrom,
                 cellTo: mappedCellTo,
+                editedSinceActivation: true,
             };
         }
 

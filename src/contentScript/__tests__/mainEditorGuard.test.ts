@@ -33,6 +33,7 @@ describe('createMainEditorActiveCellGuard', () => {
                 section: 'header',
                 row: 0,
                 col: 0,
+                editedSinceActivation: false,
             }),
         }).state;
 
@@ -70,6 +71,7 @@ describe('createMainEditorActiveCellGuard', () => {
                 section: 'header',
                 row: 0,
                 col: 0,
+                editedSinceActivation: false,
             }),
         }).state;
 
@@ -103,6 +105,7 @@ describe('createMainEditorActiveCellGuard', () => {
                 section: 'header',
                 row: 0,
                 col: 0,
+                editedSinceActivation: false,
             }),
         }).state;
 
@@ -137,6 +140,7 @@ describe('createMainEditorActiveCellGuard', () => {
                 section: 'header',
                 row: 0,
                 col: 0,
+                editedSinceActivation: false,
             }),
         }).state;
 
@@ -170,6 +174,7 @@ describe('createMainEditorActiveCellGuard', () => {
                 section: 'header',
                 row: 0,
                 col: 0,
+                editedSinceActivation: false,
             }),
             selection: { anchor: cellFrom, head: cellFrom },
         }).state;

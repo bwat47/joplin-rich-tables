@@ -123,6 +123,7 @@ export function navigateCell(
             section: target.section, // Use the proper Section type
             row: target.row,
             col: target.col,
+            editedSinceActivation: false,
         }),
     });
 

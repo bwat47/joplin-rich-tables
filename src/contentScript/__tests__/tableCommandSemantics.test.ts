@@ -25,6 +25,7 @@ describe('tableCommandSemantics', () => {
         section,
         row,
         col,
+        editedSinceActivation: false,
     });
 
     describe('insertRowForActiveCell', () => {

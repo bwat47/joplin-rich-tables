@@ -241,6 +241,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
                 section,
                 row: section === SECTION_HEADER ? 0 : row,
                 col,
+                editedSinceActivation: false,
             }),
         });
 

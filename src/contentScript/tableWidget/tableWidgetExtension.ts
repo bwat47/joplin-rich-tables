@@ -212,22 +212,34 @@ const tableDecorationField = StateField.define<DecorationSet>({
         const hasClearEffect = transaction.effects.some((e) => e.is(clearActiveCellEffect));
         const hasSetEffect = transaction.effects.some((e) => e.is(setActiveCellEffect));
 
+        // Get prev/next active cell for dirty tracking and same-table optimization
+        const prevActiveCell = getActiveCell(transaction.startState);
+        const nextActiveCell = getActiveCell(transaction.state);
+
         // When active cell is cleared, rebuild to render updated content.
+        // But only if edits were made - otherwise just return existing decorations.
         if (hasClearEffect) {
+            const wasEdited = prevActiveCell?.editedSinceActivation ?? false;
+            if (!wasEdited) {
+                return decorations;
+            }
             return buildTableDecorations(transaction.state);
         }
 
         // When switching cells within the SAME table, skip rebuilding to preserve DOM
         // (prevents video/media restart, table flashing, etc.)
-        const prevActiveCell = getActiveCell(transaction.startState);
-        const nextActiveCell = getActiveCell(transaction.state);
         const stayingInSameTable =
             prevActiveCell && nextActiveCell && prevActiveCell.tableFrom === nextActiveCell.tableFrom;
 
         // When active cell is set (e.g., from cellActivation.ts after table insert or
         // search panel close), rebuild to create the widget for the newly active table.
-        // But skip if we're just switching cells within the same table.
+        // But skip if we're just switching cells within the same table, OR if no edits
+        // were made in the previous table (dirty tracking optimization).
         if (hasSetEffect && !stayingInSameTable) {
+            const wasEdited = prevActiveCell?.editedSinceActivation ?? false;
+            if (!wasEdited) {
+                return decorations;
+            }
             return buildTableDecorations(transaction.state);
         }
 

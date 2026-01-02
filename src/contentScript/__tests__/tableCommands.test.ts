@@ -60,6 +60,7 @@ describe('tableCommands (computTargetCell)', () => {
         section,
         row,
         col,
+        editedSinceActivation: false,
     });
 
     describe('insertRow', () => {
