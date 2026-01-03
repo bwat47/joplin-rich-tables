@@ -8,6 +8,7 @@ import { StateField, StateEffect, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
+import { isSearchForceSourceModeEnabled } from './searchForceSourceMode';
 
 /**
  * Effect to toggle source mode on/off.
@@ -41,6 +42,14 @@ export const sourceModeField = StateField.define<boolean>({
  */
 export function isSourceModeEnabled(state: EditorState): boolean {
     return state.field(sourceModeField, false) ?? false;
+}
+
+/**
+ * Check if tables are currently in "raw markdown" mode.
+ * This is true when either user source mode or search-forced mode is enabled.
+ */
+export function isEffectiveRawMode(state: EditorState): boolean {
+    return isSourceModeEnabled(state) || isSearchForceSourceModeEnabled(state);
 }
 
 /**

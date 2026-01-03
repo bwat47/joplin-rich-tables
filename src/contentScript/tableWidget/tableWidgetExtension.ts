@@ -25,12 +25,8 @@ import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from './searchPanelWatcher';
-import { sourceModeField, toggleSourceModeEffect, isSourceModeEnabled } from './sourceMode';
-import {
-    isSearchForceSourceModeEnabled,
-    searchForceSourceModeField,
-    setSearchForceSourceModeEffect,
-} from './searchForceSourceMode';
+import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './sourceMode';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 
 /**
  * Content script context provided by Joplin
@@ -207,8 +203,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
         const rawModeToggled = transaction.effects.some(
             (e) => e.is(toggleSourceModeEffect) || e.is(setSearchForceSourceModeEffect)
         );
-        const effectiveRawMode =
-            isSourceModeEnabled(transaction.state) || isSearchForceSourceModeEnabled(transaction.state);
+        const effectiveRawMode = isEffectiveRawMode(transaction.state);
 
         if (rawModeToggled) {
             if (effectiveRawMode) {

@@ -14,12 +14,8 @@ import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { activateCellAtPosition } from './cellActivation';
-import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from './sourceMode';
-import {
-    exitSearchForceSourceModeEffect,
-    isSearchForceSourceModeEnabled,
-    setSearchForceSourceModeEffect,
-} from './searchForceSourceMode';
+import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from './sourceMode';
+import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 import { Transaction } from '@codemirror/state';
 
 /**
@@ -74,7 +70,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         constructor(private view: EditorView) {
             this.hadActiveCell = Boolean(getActiveCell(view.state));
-            this.wasEffectiveRawMode = isSourceModeEnabled(view.state) || isSearchForceSourceModeEnabled(view.state);
+            this.wasEffectiveRawMode = isEffectiveRawMode(view.state);
         }
 
         update(update: ViewUpdate): void {
@@ -88,7 +84,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // Consolidated effect scan (single pass over transactions)
             const rawModeEffects = scanRawModeEffects(update.transactions);
-            const effectiveRawMode = isSourceModeEnabled(update.state) || isSearchForceSourceModeEnabled(update.state);
+            const effectiveRawMode = isEffectiveRawMode(update.state);
 
             // State-based transition detection
             const enteredRawMode = rawModeEffects.hadRawModeToggle && !this.wasEffectiveRawMode && effectiveRawMode;
@@ -100,7 +96,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             if (rawModeEffects.exitedSourceMode || rawModeEffects.exitedSearchForce) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
-                    if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
+                    if (isEffectiveRawMode(this.view.state)) return;
                     const cursorPos = this.view.state.selection.main.head;
                     activateCellAtPosition(this.view, cursorPos);
 
@@ -123,8 +119,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             if (enteredRawMode) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
-                    if (!isSourceModeEnabled(this.view.state) && !isSearchForceSourceModeEnabled(this.view.state))
-                        return;
+                    if (!isEffectiveRawMode(this.view.state)) return;
                     this.ensureCursorVisible(this.view);
                 });
             }
@@ -134,7 +129,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             if (exitedRawMode && !hasActiveCell) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
-                    if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
+                    if (isEffectiveRawMode(this.view.state)) return;
                     this.ensureCursorVisible(this.view);
                 });
             }
