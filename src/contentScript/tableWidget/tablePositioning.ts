@@ -3,7 +3,7 @@ import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import type { EditorView } from '@codemirror/view';
 import { getCellRange, type TableCellRanges, type CellRange } from '../tableModel/markdownTableCellRanges';
-import { ATTR_TABLE_FROM, getWidgetSelector } from './domHelpers';
+import { getWidgetSelector } from './domHelpers';
 import { getActiveCell } from './activeCellState';
 import type { CellCoords } from '../tableModel/types';
 
@@ -77,7 +77,7 @@ export function findTableRanges(
  *
  * Order:
  * 1) DOM -> doc position via `view.posAtDOM`
- * 2) Widget container dataset fallback (tableFrom anchor)
+ * 2) Widget container -> doc position via `view.posAtDOM`
  * 3) Active cell fallback (when nested editor is open)
  */
 export function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
@@ -104,23 +104,7 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
                 return resolved;
             }
         } catch {
-            // Fall through to dataset-based fallback.
-        }
-    }
-
-    // Fallback: if the widget provides its original `tableFrom` on the container, use that
-    // as a stable anchor to re-resolve the current `Table` node from the syntax tree.
-    //
-    // This is important when quickly switching between tables: `activeCell` may still refer
-    // to the previously-active table at the time this handler runs.
-    if (container) {
-        const tableFrom = Number(container.getAttribute(`data-${ATTR_TABLE_FROM}`));
-        if (Number.isFinite(tableFrom) && tableFrom >= 0 && tableFrom <= view.state.doc.length) {
-            const anchorPos = Math.min(tableFrom + 1, view.state.doc.length);
-            const resolved = resolveTableAtPos(view.state, anchorPos);
-            if (resolved) {
-                return resolved;
-            }
+            // Fall through to activeCell fallback.
         }
     }
 
