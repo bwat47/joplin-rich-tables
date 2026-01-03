@@ -6,6 +6,8 @@
  */
 import { StateField, StateEffect, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 
 /**
  * Effect to toggle source mode on/off.
@@ -40,6 +42,20 @@ export function isSourceModeEnabled(state: EditorState): boolean {
  */
 export function toggleSourceMode(view: EditorView): boolean {
     const current = isSourceModeEnabled(view.state);
-    view.dispatch({ effects: toggleSourceModeEffect.of(!current) });
+    const enteringSourceMode = !current;
+
+    // When entering source mode, clean up cell editing state first.
+    // This prevents stale activeCellField state from persisting while
+    // the user edits raw markdown (which would corrupt cell boundaries).
+    if (enteringSourceMode) {
+        if (isNestedCellEditorOpen(view)) {
+            closeNestedCellEditor(view);
+        }
+        if (getActiveCell(view.state)) {
+            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        }
+    }
+
+    view.dispatch({ effects: toggleSourceModeEffect.of(enteringSourceMode) });
     return true;
 }

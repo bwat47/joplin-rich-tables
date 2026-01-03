@@ -10,6 +10,7 @@ import { computeActiveCellForTableText } from '../tableModel/activeCellForTableT
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { getCellSelector, getWidgetSelector, SECTION_HEADER, SECTION_BODY } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
+import { isSourceModeEnabled } from './sourceMode';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -65,14 +66,12 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    // IMPORTANT: Dispatch setActiveCellEffect FIRST to trigger widget creation.
-    // The decorator StateField rebuilds when activeCellField changes, which creates
-    // the widget DOM. We must dispatch before querying for the widget element.
+    // Set the active cell state before opening the nested editor.
     view.dispatch({
         effects: setActiveCellEffect.of(newActiveCell),
     });
 
-    // Now query for the widget DOM (it should exist after the dispatch)
+    // Query for the widget DOM (tables are always rendered as widgets)
     const widgetDOM = view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
     if (!widgetDOM) {
         return false;
@@ -112,6 +111,9 @@ export function activateTableCell(
     requestAnimationFrame(() => {
         if (!view.dom.isConnected) return;
 
+        // Don't activate cells in source mode (no widgets exist)
+        if (isSourceModeEnabled(view.state)) return;
+
         // Compute active cell state from the table
         const tables = findTableRanges(view.state);
         const table = tables.find((t) => t.from === tableFrom);
@@ -125,15 +127,12 @@ export function activateTableCell(
 
         if (!newActiveCell) return;
 
-        // IMPORTANT: Dispatch setActiveCellEffect FIRST to trigger widget creation.
-        // When inserting a new table, the cursor is inside the table range, which normally
-        // prevents widget creation. The setActiveCellEffect marks the table as "active",
-        // which triggers the decorator to create the widget even with cursor in range.
+        // Set the active cell state before opening the nested editor.
         view.dispatch({
             effects: setActiveCellEffect.of(newActiveCell),
         });
 
-        // Now query for the widget and cell element (should exist after dispatch)
+        // Query for the widget and cell element (tables are always rendered as widgets)
         const widgetDOM = view.dom.querySelector(getWidgetSelector(makeTableId(tableFrom)));
         if (!widgetDOM) return;
 
