@@ -61,6 +61,35 @@ const MAX_TABLE_PARSE_CACHE_SIZE = 50;
  * we rebuild all table decorations to ensure accuracy.
  */
 const LARGE_REPLACEMENT_THRESHOLD = 0.5;
+
+/**
+ * Retrieves parsed table data from cache or parses it if missing.
+ * Manages LRU cache eviction.
+ */
+function getCachedOrParseTableData(text: string): { data: TableData; parseHash: string } | null {
+    const parseHash = hashTableText(text);
+    let tableData = tableParseCache.get(parseHash);
+
+    if (tableData) {
+        // Refresh recency: move to end of Map (most recently used)
+        tableParseCache.delete(parseHash);
+        tableParseCache.set(parseHash, tableData);
+    } else {
+        tableData = parseMarkdownTable(text);
+        if (!tableData) {
+            return null;
+        }
+
+        // Simple LRU: Delete oldest if at capacity
+        if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
+            const firstKey = tableParseCache.keys().next().value;
+            if (firstKey) tableParseCache.delete(firstKey);
+        }
+        tableParseCache.set(parseHash, tableData);
+    }
+
+    return { data: tableData, parseHash };
+}
 /**
  * Rebuild only the decoration for a single table, mapping all other decorations.
  * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
@@ -85,26 +114,13 @@ function rebuildSingleTable(
 
     // Build new decoration for the target table
     const definitions = state.field(documentDefinitionsField);
-    const parseHash = hashTableText(targetTable.text);
-    let tableData = tableParseCache.get(parseHash);
+    const parsed = getCachedOrParseTableData(targetTable.text);
 
-    if (tableData) {
-        // Refresh recency: move to end of Map (most recently used)
-        tableParseCache.delete(parseHash);
-        tableParseCache.set(parseHash, tableData);
-    } else {
-        tableData = parseMarkdownTable(targetTable.text);
-        if (!tableData) {
-            return decorations.map(changes);
-        }
-
-        // Simple LRU: Delete oldest if at capacity
-        if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
-            const firstKey = tableParseCache.keys().next().value;
-            if (firstKey) tableParseCache.delete(firstKey);
-        }
-        tableParseCache.set(parseHash, tableData);
+    if (!parsed) {
+        return decorations.map(changes);
     }
+
+    const { data: tableData } = parsed;
 
     const contentHash = hashTableText(targetTable.text + definitions.definitionBlock);
     const widget = new TableWidget(
@@ -156,26 +172,11 @@ function buildTableDecorations(state: EditorState, excludeTableFrom?: number | n
         if (excludeTableFrom !== undefined && table.from === excludeTableFrom) {
             continue;
         }
-        const parseHash = hashTableText(table.text);
-        let tableData = tableParseCache.get(parseHash);
-
-        if (tableData) {
-            // Refresh recency: move to end of Map (most recently used)
-            tableParseCache.delete(parseHash);
-            tableParseCache.set(parseHash, tableData);
-        } else {
-            tableData = parseMarkdownTable(table.text);
-            if (!tableData) {
-                continue;
-            }
-
-            // Simple LRU: Delete oldest if at capacity
-            if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
-                const firstKey = tableParseCache.keys().next().value;
-                if (firstKey) tableParseCache.delete(firstKey);
-            }
-            tableParseCache.set(parseHash, tableData);
+        const result = getCachedOrParseTableData(table.text);
+        if (!result) {
+            continue;
         }
+        const { data: tableData } = result;
 
         // Content hash includes definition block so widgets rebuild when definitions change.
         const contentHash = hashTableText(table.text + definitions.definitionBlock);
