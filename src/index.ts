@@ -164,12 +164,13 @@ joplin.plugins.register({
         if (versionInfo.platform === 'desktop') {
             await joplin.workspace.onNoteSelectionChange(async () => {
                 try {
+                    // Close any open nested editors and clear active cell state
                     await joplin.commands.execute('editor.execCommand', {
                         name: 'richTablesCloseNestedEditor',
                     });
                 } catch (error) {
                     // Command may not be available if editor isn't ready, ignore
-                    logger.debug('Could not close nested editor on note switch:', error);
+                    logger.warn('Could not handle note switch:', error);
                 }
             });
         }

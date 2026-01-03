@@ -194,8 +194,6 @@ const tableDecorationField = StateField.define<DecorationSet>({
             }
             return decorations;
         }
-
-        // Structural edits (row/col insert/delete) require rebuild of the SPECIFIC table.
         // Map all other decorations to preserve their state.
         const rebuildEffect = transaction.effects.find((e) => e.is(rebuildTableWidgetsEffect));
         if (rebuildEffect) {
@@ -233,8 +231,20 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             }
 
-            // No active cell: map decorations. Widget content changes are handled by
-            // WidgetType.eq() - CodeMirror will call toDOM() if the hash differs.
+            // Detect large document replacements (e.g., note switching).
+            // When most of the old document is replaced, we must rebuild fresh.
+            const oldLen = transaction.startState.doc.length;
+            let totalDeleted = 0;
+            transaction.changes.iterChanges((fromA, toA) => {
+                totalDeleted += toA - fromA;
+            });
+            const isLargeReplacement = oldLen > 0 && totalDeleted / oldLen > 0.5;
+            if (isLargeReplacement) {
+                return buildTableDecorations(transaction.state);
+            }
+
+            // Normal edits without active cell: map decorations.
+            // Widget content changes are handled by WidgetType.eq().
             return decorations.map(transaction.changes);
         }
 
