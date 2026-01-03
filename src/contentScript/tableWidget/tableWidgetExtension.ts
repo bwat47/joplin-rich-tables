@@ -243,9 +243,23 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return buildTableDecorations(transaction.state);
             }
 
-            // Normal edits without active cell: map decorations.
-            // Widget content changes are handled by WidgetType.eq().
-            return decorations.map(transaction.changes);
+            // Normal edits without active cell: map decorations first.
+            const mapped = decorations.map(transaction.changes);
+
+            // Check if any new tables were created by comparing syntax tree to decorations.
+            // This catches table insertion (paste, button) without triggering on every pipe keystroke.
+            const currentTables = findTableRanges(transaction.state);
+            let existingDecorationCount = 0;
+            mapped.between(0, transaction.state.doc.length, () => {
+                existingDecorationCount++;
+            });
+
+            if (currentTables.length !== existingDecorationCount) {
+                // Table count changed (new table created or table invalidated) - rebuild all
+                return buildTableDecorations(transaction.state);
+            }
+
+            return mapped;
         }
 
         // Selection-only changes: no rebuild needed.
