@@ -16,7 +16,7 @@ import {
 } from '../tableCommands/tableCommands';
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domHelpers';
+import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 
 import {
     rowInsertTopIcon,
@@ -34,6 +34,8 @@ import {
     moveRowUpIcon,
     moveRowDownIcon,
 } from './icons';
+import { findTableWidgetElement } from '../tableWidget/domHelpers';
+import { makeTableId } from '../tableModel/types';
 
 class TableToolbarPlugin {
     dom: HTMLElement;
@@ -260,26 +262,7 @@ class TableToolbarPlugin {
             return;
         }
 
-        // Find the widget containing the active cell.
-        // We iterate through all widgets and find the one where our cellFrom position
-        // falls within. This avoids the stale data-table-from attribute problem.
-        const allWidgets = this.view.contentDOM.querySelectorAll(getWidgetSelector());
-        let referenceElement: HTMLElement | null = null;
-
-        for (const widget of allWidgets) {
-            // Get the widget's current position in the document using posAtDOM
-            try {
-                const widgetPos = this.view.posAtDOM(widget);
-                // Check if the active cell's table position matches this widget's position
-                // Use a small tolerance since the widget position is at its start
-                if (widgetPos === this.currentActiveCell.tableFrom) {
-                    referenceElement = widget as HTMLElement;
-                    break;
-                }
-            } catch {
-                // posAtDOM can fail for some edge cases, continue to next widget
-            }
-        }
+        const referenceElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
 
         if (!referenceElement) {
             this.cleanupPositioning();

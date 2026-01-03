@@ -34,6 +34,9 @@ describe('navigateCell', () => {
         mockView = {
             state: mockState,
             dispatch: mockDispatch,
+            contentDOM: {
+                querySelectorAll: jest.fn().mockReturnValue([]),
+            },
             dom: {
                 querySelector: jest.fn(),
                 querySelectorAll: jest.fn().mockReturnValue([]),
