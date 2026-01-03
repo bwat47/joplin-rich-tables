@@ -60,13 +60,6 @@ const tableParseCache = new Map<string, TableData>();
 const MAX_TABLE_PARSE_CACHE_SIZE = 50;
 
 /**
- * Threshold for detecting large document replacements (e.g., note switching).
- * If more than this fraction of the document is deleted in a single transaction,
- * we rebuild all table decorations to ensure accuracy.
- */
-const LARGE_REPLACEMENT_THRESHOLD = 0.5;
-
-/**
  * Retrieves parsed table data from cache or parses it if missing.
  * Manages LRU cache eviction.
  */
@@ -275,37 +268,10 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
             // Detect large document replacements (e.g., note switching).
             // When most of the old document is replaced, we must rebuild fresh.
-            const oldLen = transaction.startState.doc.length;
-            let totalDeleted = 0;
-            transaction.changes.iterChanges((fromA, toA) => {
-                totalDeleted += toA - fromA;
-            });
-
-            const isLargeReplacement = oldLen > 0 && totalDeleted / oldLen > LARGE_REPLACEMENT_THRESHOLD;
-            if (isLargeReplacement) {
-                return buildTableDecorations(transaction.state);
-            }
-
-            // Normal edits without active cell: map decorations first.
-            const mapped = decorations.map(transaction.changes);
-
-            // Check if any new tables were created by comparing syntax tree to decorations.
-            // This catches table insertion (paste, button) without triggering on every pipe keystroke.
-            const currentTables = findTableRanges(transaction.state);
-            let existingDecorationCount = 0;
-            mapped.between(0, transaction.state.doc.length, () => {
-                existingDecorationCount++;
-            });
-
-            // If table count changed (new table created or table invalidated), rebuild all.
-            const expectedDecorationCount = currentTables.length;
-
-            if (expectedDecorationCount !== existingDecorationCount) {
-                // Table count changed (new table created or table invalidated) - rebuild all
-                return buildTableDecorations(transaction.state);
-            }
-
-            return mapped;
+            // Also, normal edits outside the active cell should rebuild to ensure
+            // widget positions (data-table-from) are kept in sync with the document.
+            // (TableWidget.updateDOM handles efficient DOM reuse even on rebuild).
+            return buildTableDecorations(transaction.state);
         }
 
         // Selection-only changes: no rebuild needed.

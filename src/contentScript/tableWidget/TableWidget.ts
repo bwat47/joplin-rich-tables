@@ -25,6 +25,9 @@ import { buildRenderableContent } from '../shared/cellContentUtils';
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
 
+/** Associates widget DOM elements with their ResizeObserver for safe DOM reuse. */
+const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
+
 /**
  * Widget that renders a markdown table as an interactive HTML table
  * Supports rendering markdown content inside cells
@@ -32,7 +35,6 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
 export class TableWidget extends WidgetType {
     private readonly contentHash: string;
     private readonly cellRanges: TableCellRanges | null;
-    private resizeObserver: ResizeObserver | null = null;
 
     constructor(
         private tableData: TableData,
@@ -65,16 +67,36 @@ export class TableWidget extends WidgetType {
         }
 
         // Also check if position changed - when positions shift significantly (e.g., undo
-        // removes text above table), CodeMirror might incorrectly match DOMs. Force rebuild
-        // to ensure cell content is correct.
+        // removes text above table), CodeMirror might incorrectly match DOMs.
+        // We update the data attribute to reflect the new position, but we return true (reuse)
+        // because the content is the same. This preserves heavy DOM elements like videos.
         const oldFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`));
         if (oldFrom !== this.tableFrom) {
-            return false;
+            dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
         }
 
         // Content and position are the same - safe to reuse the DOM.
         // Update the view mapping so destroy() can clean up correctly.
         widgetViews.set(dom, view);
+
+        // Ensure a ResizeObserver exists for this DOM, even when it was reused.
+        if (!widgetResizeObservers.has(dom)) {
+            const observer = new ResizeObserver(() => {
+                view.requestMeasure({
+                    read: () => {
+                        if (!dom.isConnected) {
+                            return;
+                        }
+                        const currentFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`)) || this.tableFrom;
+                        const height = dom.getBoundingClientRect().height;
+                        tableHeightCache.set({ tableFrom: currentFrom, tableText: this.tableText, heightPx: height });
+                    },
+                    key: tableHeightCache.getMeasureKey(this.tableFrom, this.tableText),
+                });
+            });
+            observer.observe(dom);
+            widgetResizeObservers.set(dom, observer);
+        }
 
         return true;
     }
@@ -141,20 +163,22 @@ export class TableWidget extends WidgetType {
 
         // Use ResizeObserver to notify CodeMirror whenever the table height changes.
         // This eliminates the race condition between async rendering and CM6's coordinate system.
-        this.resizeObserver = new ResizeObserver(() => {
+        const observer = new ResizeObserver(() => {
             // requestMeasure is debounced internally by CM6, so safe to call frequently.
             view.requestMeasure({
                 read: () => {
                     if (!container.isConnected) {
                         return;
                     }
+                    const currentFrom = Number(container.getAttribute(`data-${ATTR_TABLE_FROM}`)) || this.tableFrom;
                     const height = container.getBoundingClientRect().height;
-                    tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
+                    tableHeightCache.set({ tableFrom: currentFrom, tableText: this.tableText, heightPx: height });
                 },
                 key: tableHeightCache.getMeasureKey(this.tableFrom, this.tableText),
             });
         });
-        this.resizeObserver.observe(container);
+        observer.observe(container);
+        widgetResizeObservers.set(container, observer);
 
         // Store view reference for cleanup when widget is destroyed
         widgetViews.set(container, view);
@@ -265,15 +289,17 @@ export class TableWidget extends WidgetType {
 
     destroy(dom: HTMLElement): void {
         // Disconnect ResizeObserver to prevent memory leaks.
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-            this.resizeObserver = null;
+        const observer = widgetResizeObservers.get(dom);
+        if (observer) {
+            observer.disconnect();
+            widgetResizeObservers.delete(dom);
         }
 
         // Record a last-known height right before teardown. This helps future remounts even if
         // the widget is destroyed before the measurement queue runs.
         const height = dom.getBoundingClientRect().height;
-        tableHeightCache.set({ tableFrom: this.tableFrom, tableText: this.tableText, heightPx: height });
+        const currentFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`)) || this.tableFrom;
+        tableHeightCache.set({ tableFrom: currentFrom, tableText: this.tableText, heightPx: height });
 
         // Ensure any nested editor hosted in this widget is closed when the widget is destroyed.
         // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
