@@ -14,15 +14,34 @@ import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { activateCellAtPosition } from './cellActivation';
-import { exitSourceModeEffect, isSourceModeEnabled } from './sourceMode';
-import { exitSearchForceSourceModeEffect, isSearchForceSourceModeEnabled } from './searchForceSourceMode';
+import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from './sourceMode';
+import {
+    exitSearchForceSourceModeEffect,
+    isSearchForceSourceModeEnabled,
+    setSearchForceSourceModeEffect,
+} from './searchForceSourceMode';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
         private hadActiveCell: boolean;
+        private wasEffectiveRawMode: boolean;
+
+        private ensureCursorVisible(view: EditorView): void {
+            const cursorPos = view.state.selection.main.head;
+            const coords = view.coordsAtPos(cursorPos);
+            if (!coords) return;
+
+            const viewport = view.scrollDOM.getBoundingClientRect();
+            const cursorAbove = coords.top < viewport.top;
+            const cursorBelow = coords.bottom > viewport.bottom;
+            if (!cursorAbove && !cursorBelow) return;
+
+            view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
+        }
 
         constructor(private view: EditorView) {
             this.hadActiveCell = Boolean(getActiveCell(view.state));
+            this.wasEffectiveRawMode = isSourceModeEnabled(view.state) || isSearchForceSourceModeEnabled(view.state);
         }
 
         update(update: ViewUpdate): void {
@@ -43,6 +62,16 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const isSourceMode = isSourceModeEnabled(update.state);
             const effectiveRawMode = isSourceMode || isSearchForceSourceModeEnabled(update.state);
 
+            const rawModeToggled = update.transactions.some((tr) =>
+                tr.effects.some(
+                    (e) =>
+                        e.is(exitSourceModeEffect) ||
+                        e.is(exitSearchForceSourceModeEffect) ||
+                        e.is(toggleSourceModeEffect) ||
+                        e.is(setSearchForceSourceModeEffect)
+                )
+            );
+
             // When leaving source mode, the cursor may now sit inside a replaced table range,
             // which makes the caret appear "missing". Re-activate the cell at the cursor
             // once widgets are mounted.
@@ -52,10 +81,36 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
                     const cursorPos = this.view.state.selection.main.head;
                     activateCellAtPosition(this.view, cursorPos);
+
+                    // If we didn't activate a cell (cursor not in a table), still ensure the
+                    // caret stays visible after widgets rebuild.
+                    this.ensureCursorVisible(this.view);
                 });
 
                 this.hadActiveCell = hasActiveCell;
+                this.wasEffectiveRawMode = effectiveRawMode;
                 return;
+            }
+
+            // When entering raw mode, large decoration changes can make the scroll jump.
+            // After the DOM settles, ensure the caret is still within the visible viewport.
+            if (rawModeToggled && !this.wasEffectiveRawMode && effectiveRawMode) {
+                requestAnimationFrame(() => {
+                    if (!this.view.dom.isConnected) return;
+                    if (!isSourceModeEnabled(this.view.state) && !isSearchForceSourceModeEnabled(this.view.state))
+                        return;
+                    this.ensureCursorVisible(this.view);
+                });
+            }
+
+            // When exiting raw mode outside a table, there is no cell activation to do the
+            // scrolling for us. Ensure the caret stays visible.
+            if (rawModeToggled && this.wasEffectiveRawMode && !effectiveRawMode && !hasActiveCell) {
+                requestAnimationFrame(() => {
+                    if (!this.view.dom.isConnected) return;
+                    if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
+                    this.ensureCursorVisible(this.view);
+                });
             }
 
             // Detect undo/redo that requires cell repositioning:
@@ -204,6 +259,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             }
 
             this.hadActiveCell = hasActiveCell;
+            this.wasEffectiveRawMode = effectiveRawMode;
         }
 
         destroy(): void {
