@@ -26,6 +26,7 @@ import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { createSearchPanelWatcher } from './searchPanelWatcher';
 import { searchRevealedTableField, getRevealedTable, setRevealedTableEffect } from './searchRevealState';
+import { sourceModeField, toggleSourceModeEffect, isSourceModeEnabled } from './sourceMode';
 
 /**
  * Content script context provided by Joplin
@@ -192,6 +193,18 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
+        // Source mode: show all tables as raw markdown.
+        const sourceModeToggled = transaction.effects.some((e) => e.is(toggleSourceModeEffect));
+        if (sourceModeToggled) {
+            if (isSourceModeEnabled(transaction.state)) {
+                return Decoration.none;
+            }
+            return buildTableDecorations(transaction.state);
+        }
+        if (isSourceModeEnabled(transaction.state)) {
+            return Decoration.none;
+        }
+
         // Skip decoration rebuilds for internal sync transactions (nested <-> main editor mirroring).
         const isSync = Boolean(transaction.annotation(syncAnnotation));
         if (isSync) {
@@ -382,6 +395,7 @@ export default function (context: ContentScriptContext) {
             editorControl.addExtension([
                 createSearchPanelWatcher(cm6View),
                 searchRevealedTableField,
+                sourceModeField,
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),

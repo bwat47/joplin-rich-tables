@@ -64,6 +64,19 @@ joplin.plugins.register({
         await registerTableCommand('richTables.moveColumnLeft', 'Move column left');
         await registerTableCommand('richTables.moveColumnRight', 'Move column right');
 
+        // Register source mode toggle (shows all tables as raw markdown)
+        const TOGGLE_SOURCE_MODE_COMMAND = 'richTables.toggleSourceMode';
+        await joplin.commands.register({
+            name: TOGGLE_SOURCE_MODE_COMMAND,
+            label: 'Toggle table source mode',
+            iconName: 'fas fa-code',
+            execute: async () => {
+                await joplin.commands.execute('editor.execCommand', {
+                    name: 'richTables.toggleSourceMode',
+                });
+            },
+        });
+
         // Create menu items with keyboard shortcuts
         await joplin.views.menus.create(
             'richTablesMenu',
@@ -139,6 +152,11 @@ joplin.plugins.register({
                     commandName: 'richTables.moveColumnRight',
                     accelerator: 'Alt+Right',
                 },
+                {
+                    label: 'Toggle source mode',
+                    commandName: TOGGLE_SOURCE_MODE_COMMAND,
+                    accelerator: 'CmdOrCtrl+Shift+/',
+                },
             ],
             MenuItemLocation.Tools
         );
@@ -146,6 +164,12 @@ joplin.plugins.register({
         await joplin.views.toolbarButtons.create(
             'richTablesInsertTable',
             INSERT_TABLE_COMMAND,
+            ToolbarButtonLocation.EditorToolbar
+        );
+
+        await joplin.views.toolbarButtons.create(
+            'richTablesToggleSourceMode',
+            TOGGLE_SOURCE_MODE_COMMAND,
             ToolbarButtonLocation.EditorToolbar
         );
 
