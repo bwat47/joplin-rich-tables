@@ -1,7 +1,11 @@
 /**
  * Watches for Joplin's search panel open/close transitions.
  * - On close: auto-activates cell editor if cursor is inside a table
- * - On open: closes nested editor to allow searching
+ * - On open: closes nested editor to allow searching raw markdown
+ *
+ * Note: Since tables are always rendered as widgets, no rebuild is triggered.
+ * The widget stays visible during search; future enhancement could add
+ * in-widget search highlighting.
  */
 import { StateField, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -20,9 +24,7 @@ export function createSearchPanelWatcher(mainView: EditorView): Extension {
         update(wasOpen, tr) {
             const isOpen = searchPanelOpen(tr.state);
 
-            // Search panel just opened → ensure nested editor is closed.
-            // Primary cleanup is done in domHandlers.ts keydown handler (for Ctrl+F),
-            // but this serves as a fallback for other ways to open search.
+            // Search panel just opened → close nested editor so user can search.
             if (!wasOpen && isOpen) {
                 queueMicrotask(() => {
                     if (isNestedCellEditorOpen(mainView)) {
