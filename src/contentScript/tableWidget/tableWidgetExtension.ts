@@ -281,9 +281,11 @@ const tableDecorationField = StateField.define<DecorationSet>({
             transaction.changes.iterChanges((fromA, toA) => {
                 totalDeleted += toA - fromA;
             });
+            const revealedFrom = getRevealedTable(transaction.state);
+
             const isLargeReplacement = oldLen > 0 && totalDeleted / oldLen > LARGE_REPLACEMENT_THRESHOLD;
             if (isLargeReplacement) {
-                return buildTableDecorations(transaction.state);
+                return buildTableDecorations(transaction.state, revealedFrom);
             }
 
             // Normal edits without active cell: map decorations first.
@@ -297,9 +299,19 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 existingDecorationCount++;
             });
 
-            if (currentTables.length !== existingDecorationCount) {
+            // If a table is revealed, we expect one fewer decoration (since the revealed table has none).
+            // However, we must ensure the revealed table actually exists in the current set.
+            let expectedDecorationCount = currentTables.length;
+            if (revealedFrom !== null) {
+                const isRevealedTablePresent = currentTables.some((t) => t.from === revealedFrom);
+                if (isRevealedTablePresent) {
+                    expectedDecorationCount--;
+                }
+            }
+
+            if (expectedDecorationCount !== existingDecorationCount) {
                 // Table count changed (new table created or table invalidated) - rebuild all
-                return buildTableDecorations(transaction.state);
+                return buildTableDecorations(transaction.state, revealedFrom);
             }
 
             return mapped;
