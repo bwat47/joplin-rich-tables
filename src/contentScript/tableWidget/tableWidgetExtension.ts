@@ -25,8 +25,12 @@ import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from './searchPanelWatcher';
-import { searchRevealedTableField, getRevealedTable, setRevealedTableEffect } from './searchRevealState';
 import { sourceModeField, toggleSourceModeEffect, isSourceModeEnabled } from './sourceMode';
+import {
+    isSearchForceSourceModeEnabled,
+    searchForceSourceModeField,
+    setSearchForceSourceModeEffect,
+} from './searchForceSourceMode';
 
 /**
  * Content script context provided by Joplin
@@ -160,18 +164,13 @@ function rebuildSingleTable(
 /**
  * Build decorations for all tables in the document.
  * Tables are always rendered as widgets - editing happens via nested cell editors.
- * @param excludeTableFrom - Optional table position to exclude (for search reveal)
  */
-function buildTableDecorations(state: EditorState, excludeTableFrom?: number | null): DecorationSet {
+function buildTableDecorations(state: EditorState): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
     const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
-        // Skip the revealed table (shown as raw markdown during search)
-        if (excludeTableFrom !== undefined && table.from === excludeTableFrom) {
-            continue;
-        }
         const result = getCachedOrParseTableData(table.text);
         if (!result) {
             continue;
@@ -211,15 +210,21 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
-        // Source mode: show all tables as raw markdown.
-        const sourceModeToggled = transaction.effects.some((e) => e.is(toggleSourceModeEffect));
-        if (sourceModeToggled) {
-            if (isSourceModeEnabled(transaction.state)) {
+        // Raw markdown mode: either user source mode or search-forced override.
+        const rawModeToggled = transaction.effects.some(
+            (e) => e.is(toggleSourceModeEffect) || e.is(setSearchForceSourceModeEffect)
+        );
+        const effectiveRawMode =
+            isSourceModeEnabled(transaction.state) || isSearchForceSourceModeEnabled(transaction.state);
+
+        if (rawModeToggled) {
+            if (effectiveRawMode) {
                 return Decoration.none;
             }
             return buildTableDecorations(transaction.state);
         }
-        if (isSourceModeEnabled(transaction.state)) {
+
+        if (effectiveRawMode) {
             return Decoration.none;
         }
 
@@ -236,13 +241,6 @@ const tableDecorationField = StateField.define<DecorationSet>({
         if (rebuildEffect) {
             const { tableFrom } = rebuildEffect.value;
             return rebuildSingleTable(transaction.state, decorations, tableFrom, transaction.changes);
-        }
-
-        // Check if search reveal state changed (table revealed or hidden for search).
-        const revealEffect = transaction.effects.find((e) => e.is(setRevealedTableEffect));
-        if (revealEffect) {
-            const revealedFrom = getRevealedTable(transaction.state);
-            return buildTableDecorations(transaction.state, revealedFrom);
         }
 
         // Document changes: rebuild only if they could affect tables.
@@ -282,11 +280,10 @@ const tableDecorationField = StateField.define<DecorationSet>({
             transaction.changes.iterChanges((fromA, toA) => {
                 totalDeleted += toA - fromA;
             });
-            const revealedFrom = getRevealedTable(transaction.state);
 
             const isLargeReplacement = oldLen > 0 && totalDeleted / oldLen > LARGE_REPLACEMENT_THRESHOLD;
             if (isLargeReplacement) {
-                return buildTableDecorations(transaction.state, revealedFrom);
+                return buildTableDecorations(transaction.state);
             }
 
             // Normal edits without active cell: map decorations first.
@@ -300,19 +297,12 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 existingDecorationCount++;
             });
 
-            // If a table is revealed, we expect one fewer decoration (since the revealed table has none).
-            // However, we must ensure the revealed table actually exists in the current set.
-            let expectedDecorationCount = currentTables.length;
-            if (revealedFrom !== null) {
-                const isRevealedTablePresent = currentTables.some((t) => t.from === revealedFrom);
-                if (isRevealedTablePresent) {
-                    expectedDecorationCount--;
-                }
-            }
+            // If table count changed (new table created or table invalidated), rebuild all.
+            const expectedDecorationCount = currentTables.length;
 
             if (expectedDecorationCount !== existingDecorationCount) {
                 // Table count changed (new table created or table invalidated) - rebuild all
-                return buildTableDecorations(transaction.state, revealedFrom);
+                return buildTableDecorations(transaction.state);
             }
 
             return mapped;
@@ -424,7 +414,7 @@ export default function (context: ContentScriptContext) {
             const cm6View = editorControl.cm6;
             editorControl.addExtension([
                 searchPanelWatcherPlugin,
-                searchRevealedTableField,
+                searchForceSourceModeField,
                 sourceModeField,
                 nestedCellEditorPlugin,
                 activeCellField,

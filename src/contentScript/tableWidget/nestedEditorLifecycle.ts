@@ -15,6 +15,7 @@ import { findTableRanges } from './tablePositioning';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { activateCellAtPosition } from './cellActivation';
 import { exitSourceModeEffect, isSourceModeEnabled } from './sourceMode';
+import { exitSearchForceSourceModeEffect, isSearchForceSourceModeEnabled } from './searchForceSourceMode';
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
@@ -36,15 +37,19 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const exitedSourceMode = update.transactions.some((tr) =>
                 tr.effects.some((e) => e.is(exitSourceModeEffect))
             );
+            const exitedSearchForceSourceMode = update.transactions.some((tr) =>
+                tr.effects.some((e) => e.is(exitSearchForceSourceModeEffect))
+            );
             const isSourceMode = isSourceModeEnabled(update.state);
+            const effectiveRawMode = isSourceMode || isSearchForceSourceModeEnabled(update.state);
 
             // When leaving source mode, the cursor may now sit inside a replaced table range,
             // which makes the caret appear "missing". Re-activate the cell at the cursor
             // once widgets are mounted.
-            if (exitedSourceMode) {
+            if (exitedSourceMode || exitedSearchForceSourceMode) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
-                    if (isSourceModeEnabled(this.view.state)) return;
+                    if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
                     const cursorPos = this.view.state.selection.main.head;
                     activateCellAtPosition(this.view, cursorPos);
                 });
@@ -59,7 +64,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             // 3. Undo/redo moves cursor from outside a table into a table
             let needsUndoCellReposition = false;
 
-            if (update.docChanged && !isSync && !isSourceMode && this.hadActiveCell && prevActiveCell) {
+            if (update.docChanged && !isSync && !effectiveRawMode && this.hadActiveCell && prevActiveCell) {
                 for (const tr of update.transactions) {
                     if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) continue;
 
@@ -78,7 +83,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             }
 
             // Also handle undo/redo when we had no active cell - cursor may move into a table
-            if (update.docChanged && !isSync && !isSourceMode && !this.hadActiveCell) {
+            if (update.docChanged && !isSync && !effectiveRawMode && !this.hadActiveCell) {
                 const isUndoRedo = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
                 if (isUndoRedo) {
                     // Check if cursor ends up inside a table
