@@ -40,11 +40,11 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Replaced with `Decoration.replace({ widget, block: true })` via StateField
 - **Always rendered as widgets** - editing happens via nested cell editors (no "raw markdown mode" when cursor inside table)
 - **Optimizations**:
-  - Structural edits (row/col add/delete) rebuild only the affected table via `rebuildSingleTable()`
-  - Large document replacements (>50% deleted) trigger full rebuild (note switching detection)
-  - New table detection via syntax tree/decoration count comparison
-  - In-cell edits: decorations mapped to preserve nested editor DOM
-  - Sync transactions (nested ↔ main mirroring) skip rebuild
+    - Structural edits (row/col add/delete) rebuild only the affected table via `rebuildSingleTable()`
+    - Large document replacements (>50% deleted) trigger full rebuild (note switching detection)
+    - New table detection via syntax tree/decoration count comparison
+    - In-cell edits: decorations mapped to preserve nested editor DOM
+    - Sync transactions (nested ↔ main mirroring) skip rebuild
 - **Source Mode**: Toggle to show all tables as raw markdown (Ctrl+Shift+/)
 - **Search Override**: While the search panel is open, all tables are shown as raw markdown for native search highlighting
 - **Widget Lookup**: Uses `posAtDOM()` instead of `data-table-from` attribute (prevents stale references after edits)
