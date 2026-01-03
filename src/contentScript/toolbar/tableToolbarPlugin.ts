@@ -17,7 +17,6 @@ import {
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domHelpers';
-import { makeTableId } from '../tableModel/types';
 
 import {
     rowInsertTopIcon,
@@ -272,8 +271,26 @@ class TableToolbarPlugin {
             return;
         }
 
-        const selector = getWidgetSelector(makeTableId(this.currentActiveCell.tableFrom));
-        const referenceElement = this.view.contentDOM.querySelector(selector) as HTMLElement;
+        // Find the widget containing the active cell.
+        // We iterate through all widgets and find the one where our cellFrom position
+        // falls within. This avoids the stale data-table-from attribute problem.
+        const allWidgets = this.view.contentDOM.querySelectorAll(getWidgetSelector());
+        let referenceElement: HTMLElement | null = null;
+
+        for (const widget of allWidgets) {
+            // Get the widget's current position in the document using posAtDOM
+            try {
+                const widgetPos = this.view.posAtDOM(widget);
+                // Check if the active cell's table position matches this widget's position
+                // Use a small tolerance since the widget position is at its start
+                if (widgetPos === this.currentActiveCell.tableFrom) {
+                    referenceElement = widget as HTMLElement;
+                    break;
+                }
+            } catch {
+                // posAtDOM can fail for some edge cases, continue to next widget
+            }
+        }
 
         if (!referenceElement) {
             this.cleanupPositioning();
@@ -292,15 +309,15 @@ class TableToolbarPlugin {
                 // before asking Floating UI to compute position.
                 this.prepareToolbarForPositioning();
 
-                const currentRef = this.view.contentDOM.querySelector(selector) as HTMLElement;
-                if (!currentRef) {
+                // Check if reference element is still in the DOM
+                if (!referenceElement.isConnected) {
                     // Don't cleanup here - just hide and let the next update() call handle cleanup
                     this.hideToolbar();
                     return;
                 }
 
                 // First compute with preferred top placement
-                let result = await computePosition(currentRef, this.dom, {
+                let result = await computePosition(referenceElement, this.dom, {
                     placement: 'top-start',
                     middleware: [
                         offset(5),
@@ -314,7 +331,7 @@ class TableToolbarPlugin {
                 const obscurationThreshold = 5; // Pixels from top of viewport
                 if (result.y < obscurationThreshold) {
                     // Recompute with forced bottom placement
-                    result = await computePosition(currentRef, this.dom, {
+                    result = await computePosition(referenceElement, this.dom, {
                         placement: 'bottom-start',
                         middleware: [offset(5), shift({ padding: 5 }), hide()],
                     });
