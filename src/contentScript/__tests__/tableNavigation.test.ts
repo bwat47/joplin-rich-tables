@@ -36,7 +36,9 @@ describe('navigateCell', () => {
             dispatch: mockDispatch,
             dom: {
                 querySelector: jest.fn(),
+                querySelectorAll: jest.fn().mockReturnValue([]),
             },
+            posAtDOM: jest.fn().mockReturnValue(0), // Mock for findCellElement
         } as unknown as EditorView;
 
         // Reset mocks
