@@ -82,9 +82,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     const cursorPos = this.view.state.selection.main.head;
                     activateCellAtPosition(this.view, cursorPos);
 
-                    // If we didn't activate a cell (cursor not in a table), still ensure the
-                    // caret stays visible after widgets rebuild.
-                    this.ensureCursorVisible(this.view);
+                    // Only apply scroll guard when we did NOT activate a cell.
+                    // When the cursor is in a table, activation logic is responsible for
+                    // scrolling to the cell. Also, `coordsAtPos()` inside a large replaced
+                    // table can map to the bottom edge, causing a jump.
+                    if (!getActiveCell(this.view.state)) {
+                        this.ensureCursorVisible(this.view);
+                    }
                 });
 
                 this.hadActiveCell = hasActiveCell;
