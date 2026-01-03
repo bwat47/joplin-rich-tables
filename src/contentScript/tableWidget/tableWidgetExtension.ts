@@ -88,18 +88,21 @@ function rebuildSingleTable(
     const parseHash = hashTableText(targetTable.text);
     let tableData = tableParseCache.get(parseHash);
 
-    if (!tableData) {
+    if (tableData) {
+        // Refresh recency: move to end of Map (most recently used)
+        tableParseCache.delete(parseHash);
+        tableParseCache.set(parseHash, tableData);
+    } else {
         tableData = parseMarkdownTable(targetTable.text);
         if (!tableData) {
             return decorations.map(changes);
         }
+
+        // Simple LRU: Delete oldest if at capacity
         if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
             const firstKey = tableParseCache.keys().next().value;
             if (firstKey) tableParseCache.delete(firstKey);
         }
-        tableParseCache.set(parseHash, tableData);
-    } else {
-        tableParseCache.delete(parseHash);
         tableParseCache.set(parseHash, tableData);
     }
 
@@ -118,9 +121,12 @@ function rebuildSingleTable(
     const mapped = decorations.map(changes);
     const result: Range<Decoration>[] = [];
 
-    // Keep all decorations except the one at the target position
+    // Keep all decorations except those that overlap the new table range
+    // Structural changes (like adding a row above) shift the table's position,
+    // so checking `from !== targetTable.from` is insufficient.
     mapped.between(0, state.doc.length, (from, to, deco) => {
-        if (from !== targetTable.from) {
+        // If decoration overlaps with the new target table, drop it (it's the old version)
+        if (to <= targetTable.from || from >= targetTable.to) {
             result.push(deco.range(from, to));
         }
     });
@@ -128,7 +134,11 @@ function rebuildSingleTable(
     // Add the new decoration for the rebuilt table
     result.push(newDecoration.range(targetTable.from, targetTable.to));
 
-    return Decoration.set(result, true); // true = already sorted
+    // Valid DecorationSets MUST be sorted. Since we are manually constructing the array
+    // (and potentially appending out of order), we must sort it explicitly to be safe.
+    result.sort((a, b) => a.from - b.from);
+
+    return Decoration.set(result, true); // true = we have manually sorted it
 }
 
 /**
