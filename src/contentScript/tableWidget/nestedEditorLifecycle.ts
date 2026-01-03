@@ -20,6 +20,39 @@ import {
     isSearchForceSourceModeEnabled,
     setSearchForceSourceModeEffect,
 } from './searchForceSourceMode';
+import { Transaction } from '@codemirror/state';
+
+/**
+ * Scans transactions for raw-mode-related effects in a single pass.
+ * Returns specific exit flags and a general toggle flag for state-based transition detection.
+ */
+function scanRawModeEffects(transactions: readonly Transaction[]): {
+    exitedSourceMode: boolean;
+    exitedSearchForce: boolean;
+    hadRawModeToggle: boolean;
+} {
+    let exitedSourceMode = false;
+    let exitedSearchForce = false;
+    let hadRawModeToggle = false;
+
+    for (const tr of transactions) {
+        for (const e of tr.effects) {
+            if (e.is(exitSourceModeEffect)) {
+                exitedSourceMode = true;
+                hadRawModeToggle = true;
+            }
+            if (e.is(exitSearchForceSourceModeEffect)) {
+                exitedSearchForce = true;
+                hadRawModeToggle = true;
+            }
+            if (e.is(toggleSourceModeEffect) || e.is(setSearchForceSourceModeEffect)) {
+                hadRawModeToggle = true;
+            }
+        }
+    }
+
+    return { exitedSourceMode, exitedSearchForce, hadRawModeToggle };
+}
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
@@ -53,29 +86,18 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 tr.effects.some((e) => e.is(rebuildTableWidgetsEffect))
             );
 
-            const exitedSourceMode = update.transactions.some((tr) =>
-                tr.effects.some((e) => e.is(exitSourceModeEffect))
-            );
-            const exitedSearchForceSourceMode = update.transactions.some((tr) =>
-                tr.effects.some((e) => e.is(exitSearchForceSourceModeEffect))
-            );
-            const isSourceMode = isSourceModeEnabled(update.state);
-            const effectiveRawMode = isSourceMode || isSearchForceSourceModeEnabled(update.state);
+            // Consolidated effect scan (single pass over transactions)
+            const rawModeEffects = scanRawModeEffects(update.transactions);
+            const effectiveRawMode = isSourceModeEnabled(update.state) || isSearchForceSourceModeEnabled(update.state);
 
-            const rawModeToggled = update.transactions.some((tr) =>
-                tr.effects.some(
-                    (e) =>
-                        e.is(exitSourceModeEffect) ||
-                        e.is(exitSearchForceSourceModeEffect) ||
-                        e.is(toggleSourceModeEffect) ||
-                        e.is(setSearchForceSourceModeEffect)
-                )
-            );
+            // State-based transition detection
+            const enteredRawMode = rawModeEffects.hadRawModeToggle && !this.wasEffectiveRawMode && effectiveRawMode;
+            const exitedRawMode = rawModeEffects.hadRawModeToggle && this.wasEffectiveRawMode && !effectiveRawMode;
 
             // When leaving source mode, the cursor may now sit inside a replaced table range,
             // which makes the caret appear "missing". Re-activate the cell at the cursor
             // once widgets are mounted.
-            if (exitedSourceMode || exitedSearchForceSourceMode) {
+            if (rawModeEffects.exitedSourceMode || rawModeEffects.exitedSearchForce) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
                     if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
@@ -98,7 +120,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // When entering raw mode, large decoration changes can make the scroll jump.
             // After the DOM settles, ensure the caret is still within the visible viewport.
-            if (rawModeToggled && !this.wasEffectiveRawMode && effectiveRawMode) {
+            if (enteredRawMode) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
                     if (!isSourceModeEnabled(this.view.state) && !isSearchForceSourceModeEnabled(this.view.state))
@@ -109,7 +131,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             // When exiting raw mode outside a table, there is no cell activation to do the
             // scrolling for us. Ensure the caret stays visible.
-            if (rawModeToggled && this.wasEffectiveRawMode && !effectiveRawMode && !hasActiveCell) {
+            if (exitedRawMode && !hasActiveCell) {
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
                     if (isSourceModeEnabled(this.view.state) || isSearchForceSourceModeEnabled(this.view.state)) return;
