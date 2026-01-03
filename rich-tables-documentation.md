@@ -13,6 +13,9 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tableWidgetExtension.ts`   | Main wiring: connects plugins, styles, and command registration                    |
 | `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS styles for the table widget                                              |
 | `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Manages nested editor lifecycle (open/close/sync)                                  |
+| `contentScript/tableWidget/sourceMode.ts`             | Source mode toggle (shows all tables as raw markdown)                              |
+| `contentScript/tableWidget/searchRevealState.ts`      | Search reveal state (shows table at cursor as raw markdown during search)          |
+| `contentScript/tableWidget/searchPanelWatcher.ts`     | Watches search panel open/close, manages reveal state                              |
 | `contentScript/tableCommands/`                        | Table manipulation commands and shared execution logic                             |
 | `contentScript/tableModel/tableTransactionHelpers.ts` | Shared transaction logic (`runTableOperation`) for table edits                     |
 | `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                       |
@@ -35,7 +38,16 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 
 - Tables detected via Lezer syntax tree (scan timeout increased to 500ms, resolve to 1500ms for large tables)
 - Replaced with `Decoration.replace({ widget, block: true })` via StateField
-- **Optimization**: Widget rebuilds skipped when changes don't affect tables (no pipes/newlines, no overlap with table ranges)
+- **Always rendered as widgets** - editing happens via nested cell editors (no "raw markdown mode" when cursor inside table)
+- **Optimizations**:
+  - Structural edits (row/col add/delete) rebuild only the affected table via `rebuildSingleTable()`
+  - Large document replacements (>50% deleted) trigger full rebuild (note switching detection)
+  - New table detection via syntax tree/decoration count comparison
+  - In-cell edits: decorations mapped to preserve nested editor DOM
+  - Sync transactions (nested ↔ main mirroring) skip rebuild
+- **Source Mode**: Toggle to show all tables as raw markdown (Ctrl+Shift+/)
+- **Search Reveal**: When search panel opens, table at cursor shown as raw markdown for native search highlighting
+- **Widget Lookup**: Uses `posAtDOM()` instead of `data-table-from` attribute (prevents stale references after edits)
 - Widget uses cached measured heights for accurate `estimatedHeight` (keyed by position + content hash, measured on mount/async-render/destroy)
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached with FIFO eviction at 500 entries)
 - **Security**: Rendered HTML sanitized via DOMPurify with hook to remove resource-icon spans
@@ -101,9 +113,10 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 - Click outside table or widget
 - `clearActiveCellEffect` dispatched
 - `nestedEditorLifecyclePlugin` closes subview
-- Decorations rebuilt to show updated rendered content
+- Widget stays rendered (no rebuild on deactivation)
 - Widget destruction also closes any hosted nested editor to avoid orphaned subviews
-- **Note switch**: `richTablesCloseNestedEditor` command (called via `onNoteSelectionChange`) closes nested editor and moves cursor out of any table to prevent raw markdown display
+- **Note switch**: `richTablesCloseNestedEditor` command (called via `onNoteSelectionChange`) closes nested editor
+- **Source mode entry**: Closes nested editor and clears active cell state (prevents stale state corruption)
 
 ### Commands & Interface
 
@@ -125,6 +138,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 **Toolbars**:
 
 - **Insert Table**: Button in Joplin's editor toolbar inserts a 2x2 empty table.
+- **Toggle Source Mode**: Button in Joplin's editor toolbar (Ctrl+Shift+/) shows all tables as raw markdown.
 - **Floating Toolbar**: Appears when a cell is active; positioned by `@floating-ui/dom`.
 
 ## References
