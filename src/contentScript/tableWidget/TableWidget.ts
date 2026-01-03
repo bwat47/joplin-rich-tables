@@ -10,7 +10,6 @@ import {
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
-    CLASS_CELL_EDITOR,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
@@ -70,13 +69,6 @@ export class TableWidget extends WidgetType {
         // to ensure cell content is correct.
         const oldFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`));
         if (oldFrom !== this.tableFrom) {
-            return false;
-        }
-
-        // Check if any cell has nested editor wrapper structure from a previous editing
-        // session. These wrappers (.cell-content, .cell-editor) must be cleaned up by
-        // rebuilding fresh DOM; otherwise the cell displays stale or incorrect content.
-        if (dom.querySelector(`.${CLASS_CELL_EDITOR}`)) {
             return false;
         }
 
