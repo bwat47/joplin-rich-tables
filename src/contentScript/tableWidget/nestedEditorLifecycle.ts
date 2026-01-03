@@ -178,9 +178,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             }
 
             if (needsUndoCellReposition) {
-                // Close the current nested editor
+                // Close the current nested editor with mapped positions.
+                // The activeCell in update.state has positions mapped through document changes.
                 if (isNestedCellEditorOpen(this.view)) {
-                    closeNestedCellEditor(this.view);
+                    closeNestedCellEditor(
+                        this.view,
+                        activeCell ? { cellFrom: activeCell.cellFrom, cellTo: activeCell.cellTo } : undefined
+                    );
                 }
 
                 // CodeMirror history restores the cursor position as part of undo/redo.

@@ -304,7 +304,12 @@ class NestedCellEditorManager {
         }
     }
 
-    close(): void {
+    /**
+     * Closes the nested editor, optionally using mapped positions.
+     * @param params Optional positions to use for re-rendering cell content.
+     *               Use this when document changes have shifted positions (e.g., undo/redo).
+     */
+    close(params?: { cellFrom?: number; cellTo?: number }): void {
         if (this.subview) {
             this.subview.destroy();
             this.subview = null;
@@ -322,9 +327,13 @@ class NestedCellEditorManager {
             this.cellElement = null;
         }
 
+        // Use provided positions if available (for undo/redo), otherwise fall back to stored
+        const cellFrom = params?.cellFrom ?? this.cellFrom;
+        const cellTo = params?.cellTo ?? this.cellTo;
+
         // Update cell content with current document text before showing.
         if (this.contentEl && this.mainView) {
-            const cellText = this.mainView.state.doc.sliceString(this.cellFrom, this.cellTo).trim();
+            const cellText = this.mainView.state.doc.sliceString(cellFrom, cellTo).trim();
             const definitions = this.mainView.state.field(documentDefinitionsField);
             const { displayText, cacheKey } = buildRenderableContent(cellText, definitions.definitionBlock);
 
@@ -398,9 +407,11 @@ export function openNestedCellEditor(params: {
     getManager(params.mainView)?.open(params);
 }
 
-/** Closes the currently open nested editor, if any. */
-export function closeNestedCellEditor(view: EditorView): void {
-    getManager(view)?.close();
+/** Closes the currently open nested editor, if any.
+ *  @param params Optional positions to use when document changes have shifted positions (e.g., undo/redo).
+ */
+export function closeNestedCellEditor(view: EditorView, params?: { cellFrom?: number; cellTo?: number }): void {
+    getManager(view)?.close(params);
 }
 
 /** Checks if a nested editor is currently open. */
