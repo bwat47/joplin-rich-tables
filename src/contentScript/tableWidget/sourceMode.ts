@@ -15,6 +15,12 @@ import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/n
 export const toggleSourceModeEffect = StateEffect.define<boolean>();
 
 /**
+ * Effect dispatched when source mode is exited (toggled off).
+ * Used by view plugins to perform side effects (e.g., re-activating the cell at the cursor).
+ */
+export const exitSourceModeEffect = StateEffect.define<void>();
+
+/**
  * StateField tracking whether source mode is enabled.
  */
 export const sourceModeField = StateField.define<boolean>({
@@ -56,6 +62,10 @@ export function toggleSourceMode(view: EditorView): boolean {
         }
     }
 
-    view.dispatch({ effects: toggleSourceModeEffect.of(enteringSourceMode) });
+    view.dispatch({
+        effects: enteringSourceMode
+            ? [toggleSourceModeEffect.of(true)]
+            : [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+    });
     return true;
 }

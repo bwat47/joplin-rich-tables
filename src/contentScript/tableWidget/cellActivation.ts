@@ -22,6 +22,11 @@ export interface ActivateCellOptions {
  * @returns true if a cell was activated, false otherwise
  */
 export function activateCellAtPosition(view: EditorView, pos: number, options?: ActivateCellOptions): boolean {
+    // In source mode, tables are not rendered as widgets, so we cannot activate cells.
+    if (isSourceModeEnabled(view.state)) {
+        return false;
+    }
+
     const tables = findTableRanges(view.state);
 
     // Find the table containing the position
