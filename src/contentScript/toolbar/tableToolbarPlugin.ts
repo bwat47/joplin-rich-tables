@@ -1,5 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { activeCellField, ActiveCell } from '../tableWidget/activeCellState';
 import {
     execInsertRowAbove,
     execInsertRowBelow,
@@ -25,7 +25,6 @@ import {
     columnInsertLeftIcon,
     columnInsertRightIcon,
     columnRemoveIcon,
-    editMarkdownIcon,
     alignLeftIcon,
     alignCenterIcon,
     alignRightIcon,
@@ -202,16 +201,6 @@ class TableToolbarPlugin {
         createIconBtn('Format table', 'Format table', formatTableIcon(), () => {
             if (this.currentActiveCell) {
                 execFormatTable(this.view, this.currentActiveCell);
-            }
-        });
-
-        // Edit Mode
-        createIconBtn('Edit table as markdown', 'Edit table as markdown', editMarkdownIcon(), () => {
-            if (this.currentActiveCell) {
-                this.view.dispatch({
-                    selection: { anchor: this.currentActiveCell.tableFrom },
-                    effects: [clearActiveCellEffect.of(undefined)],
-                });
             }
         });
     }
