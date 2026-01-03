@@ -8,7 +8,7 @@ import { findTableRanges } from './tablePositioning';
 import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { findCellElement, SECTION_HEADER, SECTION_BODY } from './domHelpers';
+import { findCellElement } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { isSourceModeEnabled } from './sourceMode';
 
@@ -76,11 +76,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         effects: setActiveCellEffect.of(newActiveCell),
     });
 
-    const cellElement = findCellElement(view, makeTableId(table.from), {
-        section: newActiveCell.section === SECTION_HEADER ? SECTION_HEADER : SECTION_BODY,
-        row: newActiveCell.section === SECTION_HEADER ? 0 : newActiveCell.row,
-        col: newActiveCell.col,
-    });
+    const cellElement = findCellElement(view, makeTableId(table.from), newActiveCell);
     if (!cellElement) {
         return false;
     }
@@ -129,11 +125,7 @@ export function activateTableCell(
             effects: setActiveCellEffect.of(newActiveCell),
         });
 
-        const cellElement = findCellElement(view, makeTableId(tableFrom), {
-            section: coords.section === 'header' ? SECTION_HEADER : SECTION_BODY,
-            row: coords.section === 'header' ? 0 : coords.row,
-            col: coords.col,
-        });
+        const cellElement = findCellElement(view, makeTableId(tableFrom), coords);
         if (!cellElement) return;
 
         openNestedCellEditor({

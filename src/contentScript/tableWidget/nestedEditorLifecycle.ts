@@ -9,7 +9,7 @@ import {
     syncAnnotation,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
-import { findCellElement, SECTION_BODY, SECTION_HEADER } from './domHelpers';
+import { findCellElement } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
@@ -209,11 +209,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                 requestAnimationFrame(() => {
                     if (!this.view.dom.isConnected) return;
-                    const cellElement = findCellElement(this.view, makeTableId(activeCell.tableFrom), {
-                        section: activeCell.section === SECTION_HEADER ? SECTION_HEADER : SECTION_BODY,
-                        row: activeCell.section === SECTION_HEADER ? 0 : activeCell.row,
-                        col: activeCell.col,
-                    });
+                    const cellElement = findCellElement(this.view, makeTableId(activeCell.tableFrom), activeCell);
                     if (!cellElement) {
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         return;
