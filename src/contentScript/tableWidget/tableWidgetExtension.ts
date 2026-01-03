@@ -25,6 +25,7 @@ import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { createSearchPanelWatcher } from './searchPanelWatcher';
+import { searchRevealedTableField, getRevealedTable, setRevealedTableEffect } from './searchRevealState';
 
 /**
  * Content script context provided by Joplin
@@ -125,13 +126,18 @@ function rebuildSingleTable(
 /**
  * Build decorations for all tables in the document.
  * Tables are always rendered as widgets - editing happens via nested cell editors.
+ * @param excludeTableFrom - Optional table position to exclude (for search reveal)
  */
-function buildTableDecorations(state: EditorState): DecorationSet {
+function buildTableDecorations(state: EditorState, excludeTableFrom?: number | null): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
     const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
+        // Skip the revealed table (shown as raw markdown during search)
+        if (excludeTableFrom !== undefined && table.from === excludeTableFrom) {
+            continue;
+        }
         const parseHash = hashTableText(table.text);
         let tableData = tableParseCache.get(parseHash);
 
@@ -199,6 +205,13 @@ const tableDecorationField = StateField.define<DecorationSet>({
         if (rebuildEffect) {
             const { tableFrom } = rebuildEffect.value;
             return rebuildSingleTable(transaction.state, decorations, tableFrom, transaction.changes);
+        }
+
+        // Check if search reveal state changed (table revealed or hidden for search).
+        const revealEffect = transaction.effects.find((e) => e.is(setRevealedTableEffect));
+        if (revealEffect) {
+            const revealedFrom = getRevealedTable(transaction.state);
+            return buildTableDecorations(transaction.state, revealedFrom);
         }
 
         // Document changes: rebuild only if they could affect tables.
@@ -368,6 +381,7 @@ export default function (context: ContentScriptContext) {
             const cm6View = editorControl.cm6;
             editorControl.addExtension([
                 createSearchPanelWatcher(cm6View),
+                searchRevealedTableField,
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
