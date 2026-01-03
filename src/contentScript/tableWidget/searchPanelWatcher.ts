@@ -7,8 +7,7 @@
  * This enables CodeMirror's native search highlighting to work on table content
  * while the search panel is open.
  */
-import { StateField, type Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { searchPanelOpen } from '@codemirror/search';
 import { clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
@@ -40,55 +39,57 @@ function clearRevealedTable(view: EditorView): void {
     }
 }
 
-interface SearchWatcherState {
-    isSearchOpen: boolean;
-    lastCursorPos: number;
-}
-
 /**
- * Creates the search panel watcher extension.
- * Requires the main EditorView reference to dispatch effects and open editors.
+ * ViewPlugin that watches for search panel state transitions.
+ * Uses ViewPlugin instead of StateField because it needs to perform side effects
+ * (dispatching effects, closing nested editors) which belong in ViewPlugin.update().
  */
-export function createSearchPanelWatcher(mainView: EditorView): Extension {
-    return StateField.define<SearchWatcherState>({
-        create: (state) => ({
-            isSearchOpen: searchPanelOpen(state),
-            lastCursorPos: state.selection.main.head,
-        }),
-        update(prev, tr) {
-            const isOpen = searchPanelOpen(tr.state);
-            const cursorPos = tr.state.selection.main.head;
+export const searchPanelWatcherPlugin = ViewPlugin.fromClass(
+    class {
+        private wasSearchOpen: boolean;
+        private lastCursorPos: number;
+
+        constructor(private view: EditorView) {
+            this.wasSearchOpen = searchPanelOpen(view.state);
+            this.lastCursorPos = view.state.selection.main.head;
+        }
+
+        update(update: ViewUpdate): void {
+            const isOpen = searchPanelOpen(update.state);
+            const cursorPos = update.state.selection.main.head;
 
             // Search panel just opened → close nested editor and reveal table at cursor
-            if (!prev.isSearchOpen && isOpen) {
+            // Use queueMicrotask to defer dispatches until after the current update cycle.
+            if (!this.wasSearchOpen && isOpen) {
                 queueMicrotask(() => {
-                    if (isNestedCellEditorOpen(mainView)) {
-                        closeNestedCellEditor(mainView);
+                    if (isNestedCellEditorOpen(this.view)) {
+                        closeNestedCellEditor(this.view);
                     }
-                    if (getActiveCell(mainView.state)) {
-                        mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    if (getActiveCell(this.view.state)) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                     }
                     // Reveal the table at cursor position (if any)
-                    updateRevealedTable(mainView);
+                    updateRevealedTable(this.view);
                 });
             }
 
             // Search panel is open and cursor moved → update revealed table
-            if (prev.isSearchOpen && isOpen && cursorPos !== prev.lastCursorPos) {
+            if (this.wasSearchOpen && isOpen && cursorPos !== this.lastCursorPos) {
                 queueMicrotask(() => {
-                    updateRevealedTable(mainView);
+                    updateRevealedTable(this.view);
                 });
             }
 
             // Search panel just closed → clear reveal and activate cell
-            if (prev.isSearchOpen && !isOpen) {
+            if (this.wasSearchOpen && !isOpen) {
                 queueMicrotask(() => {
-                    clearRevealedTable(mainView);
-                    activateCellAtPosition(mainView, mainView.state.selection.main.head);
+                    clearRevealedTable(this.view);
+                    activateCellAtPosition(this.view, this.view.state.selection.main.head);
                 });
             }
 
-            return { isSearchOpen: isOpen, lastCursorPos: cursorPos };
-        },
-    });
-}
+            this.wasSearchOpen = isOpen;
+            this.lastCursorPos = cursorPos;
+        }
+    }
+);

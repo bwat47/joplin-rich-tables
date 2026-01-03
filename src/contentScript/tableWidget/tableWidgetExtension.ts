@@ -24,7 +24,7 @@ import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './
 import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import { createSearchPanelWatcher } from './searchPanelWatcher';
+import { searchPanelWatcherPlugin } from './searchPanelWatcher';
 import { searchRevealedTableField, getRevealedTable, setRevealedTableEffect } from './searchRevealState';
 import { sourceModeField, toggleSourceModeEffect, isSourceModeEnabled } from './sourceMode';
 
@@ -410,7 +410,7 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             const cm6View = editorControl.cm6;
             editorControl.addExtension([
-                createSearchPanelWatcher(cm6View),
+                searchPanelWatcherPlugin,
                 searchRevealedTableField,
                 sourceModeField,
                 nestedCellEditorPlugin,
