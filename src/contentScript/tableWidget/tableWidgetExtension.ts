@@ -1,5 +1,5 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { EditorState, Range, StateField, Transaction } from '@codemirror/state';
+import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
@@ -52,36 +52,74 @@ interface EditorControl {
  */
 const tableParseCache = new Map<string, TableData>();
 const MAX_TABLE_PARSE_CACHE_SIZE = 50;
-
 /**
- * Check if document changes could affect table structure or content.
- * Returns true if we need to rebuild decorations, false if we can safely map them.
- *
- * Safe to skip rebuild when:
- * - Insertions don't contain pipe or newline characters
- * - Changes don't overlap existing table decorations
+ * Rebuild only the decoration for a single table, mapping all other decorations.
+ * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
  */
-function changesCouldAffectTables(transaction: Transaction, decorations: DecorationSet): boolean {
-    let couldAffect = false;
+function rebuildSingleTable(
+    state: EditorState,
+    decorations: DecorationSet,
+    oldTableFrom: number,
+    changes: ChangeSet
+): DecorationSet {
+    // Map the old tableFrom position through the changes to find where it is now
+    const newTableFrom = changes.mapPos(oldTableFrom);
 
-    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-        if (couldAffect) return; // Already determined
+    // Find the table at the new position
+    const tables = findTableRanges(state);
+    const targetTable = tables.find((t) => t.from === newTableFrom);
 
-        // If inserting text with pipes or newlines, might affect table structure.
-        const insertedText = inserted.toString();
-        if (insertedText.includes('|') || insertedText.includes('\n')) {
-            couldAffect = true;
-            return;
+    if (!targetTable) {
+        // Table no longer exists - just map existing decorations
+        return decorations.map(changes);
+    }
+
+    // Build new decoration for the target table
+    const definitions = state.field(documentDefinitionsField);
+    const parseHash = hashTableText(targetTable.text);
+    let tableData = tableParseCache.get(parseHash);
+
+    if (!tableData) {
+        tableData = parseMarkdownTable(targetTable.text);
+        if (!tableData) {
+            return decorations.map(changes);
         }
+        if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
+            const firstKey = tableParseCache.keys().next().value;
+            if (firstKey) tableParseCache.delete(firstKey);
+        }
+        tableParseCache.set(parseHash, tableData);
+    } else {
+        tableParseCache.delete(parseHash);
+        tableParseCache.set(parseHash, tableData);
+    }
 
-        // Check if change overlaps any existing table decoration.
-        decorations.between(fromA, toA, () => {
-            couldAffect = true;
-            return false; // Stop iteration
-        });
+    const contentHash = hashTableText(targetTable.text + definitions.definitionBlock);
+    const widget = new TableWidget(
+        tableData,
+        targetTable.text,
+        targetTable.from,
+        targetTable.to,
+        definitions.definitionBlock,
+        contentHash
+    );
+    const newDecoration = Decoration.replace({ widget, block: true });
+
+    // Build new decoration set: map all decorations through changes, then replace the target
+    const mapped = decorations.map(changes);
+    const result: Range<Decoration>[] = [];
+
+    // Keep all decorations except the one at the target position
+    mapped.between(0, state.doc.length, (from, to, deco) => {
+        if (from !== targetTable.from) {
+            result.push(deco.range(from, to));
+        }
     });
 
-    return couldAffect;
+    // Add the new decoration for the rebuilt table
+    result.push(newDecoration.range(targetTable.from, targetTable.to));
+
+    return Decoration.set(result, true); // true = already sorted
 }
 
 /**
@@ -157,10 +195,12 @@ const tableDecorationField = StateField.define<DecorationSet>({
             return decorations;
         }
 
-        // Structural edits (row/col insert/delete) require rebuild so rendered HTML matches.
-        const forceRebuild = transaction.effects.some((e) => e.is(rebuildTableWidgetsEffect));
-        if (forceRebuild) {
-            return buildTableDecorations(transaction.state);
+        // Structural edits (row/col insert/delete) require rebuild of the SPECIFIC table.
+        // Map all other decorations to preserve their state.
+        const rebuildEffect = transaction.effects.find((e) => e.is(rebuildTableWidgetsEffect));
+        if (rebuildEffect) {
+            const { tableFrom } = rebuildEffect.value;
+            return rebuildSingleTable(transaction.state, decorations, tableFrom, transaction.changes);
         }
 
         // Document changes: rebuild only if they could affect tables.
@@ -193,12 +233,9 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             }
 
-            // No active cell: check if changes could affect tables.
-            if (!changesCouldAffectTables(transaction, decorations)) {
-                return decorations.map(transaction.changes);
-            }
-
-            return buildTableDecorations(transaction.state);
+            // No active cell: map decorations. Widget content changes are handled by
+            // WidgetType.eq() - CodeMirror will call toDOM() if the hash differs.
+            return decorations.map(transaction.changes);
         }
 
         // Selection-only changes: no rebuild needed.
