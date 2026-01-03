@@ -54,6 +54,13 @@ interface EditorControl {
  */
 const tableParseCache = new Map<string, TableData>();
 const MAX_TABLE_PARSE_CACHE_SIZE = 50;
+
+/**
+ * Threshold for detecting large document replacements (e.g., note switching).
+ * If more than this fraction of the document is deleted in a single transaction,
+ * we rebuild all table decorations to ensure accuracy.
+ */
+const LARGE_REPLACEMENT_THRESHOLD = 0.5;
 /**
  * Rebuild only the decoration for a single table, mapping all other decorations.
  * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
@@ -264,7 +271,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
             transaction.changes.iterChanges((fromA, toA) => {
                 totalDeleted += toA - fromA;
             });
-            const isLargeReplacement = oldLen > 0 && totalDeleted / oldLen > 0.5;
+            const isLargeReplacement = oldLen > 0 && totalDeleted / oldLen > LARGE_REPLACEMENT_THRESHOLD;
             if (isLargeReplacement) {
                 return buildTableDecorations(transaction.state);
             }
