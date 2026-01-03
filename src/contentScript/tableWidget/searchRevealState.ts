@@ -28,15 +28,11 @@ export const searchRevealedTableField = StateField.define<number | null>({
             }
         }
 
-        // Map position through document changes
+        // Map position through document changes.
+        // If the table is deleted, the mapped position will be invalid and
+        // the next updateRevealedTable() call will clear it via resolveTableAtPos.
         if (revealedFrom !== null && transaction.docChanged) {
-            // Use assoc=1 so insertions at the start don't push us away
-            const mapped = transaction.changes.mapPos(revealedFrom, 1);
-            // If the position was deleted, clear the reveal
-            if (mapped === revealedFrom && transaction.changes.touchesRange(revealedFrom, revealedFrom + 1)) {
-                return null;
-            }
-            return mapped;
+            return transaction.changes.mapPos(revealedFrom, 1);
         }
 
         return revealedFrom;
