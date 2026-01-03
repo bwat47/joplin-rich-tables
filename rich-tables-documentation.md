@@ -14,8 +14,8 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
 | `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS styles for the table widget                                              |
 | `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Manages nested editor lifecycle (open/close/sync)                                  |
 | `contentScript/tableWidget/sourceMode.ts`             | Source mode toggle (shows all tables as raw markdown)                              |
-| `contentScript/tableWidget/searchRevealState.ts`      | Search reveal state (shows table at cursor as raw markdown during search)          |
-| `contentScript/tableWidget/searchPanelWatcher.ts`     | Watches search panel open/close, manages reveal state                              |
+| `contentScript/tableWidget/searchForceSourceMode.ts`  | Search override state (forces all tables as raw markdown while search is open)     |
+| `contentScript/tableWidget/searchPanelWatcher.ts`     | Watches search panel open/close, toggles search override                           |
 | `contentScript/tableCommands/`                        | Table manipulation commands and shared execution logic                             |
 | `contentScript/tableModel/tableTransactionHelpers.ts` | Shared transaction logic (`runTableOperation`) for table edits                     |
 | `contentScript/tableWidget/TableWidget.ts`            | Table HTML rendering + click-to-cell mapping                                       |
@@ -46,7 +46,7 @@ Joplin plugin that renders Markdown tables as interactive HTML tables in CodeMir
   - In-cell edits: decorations mapped to preserve nested editor DOM
   - Sync transactions (nested ↔ main mirroring) skip rebuild
 - **Source Mode**: Toggle to show all tables as raw markdown (Ctrl+Shift+/)
-- **Search Reveal**: When search panel opens, table at cursor shown as raw markdown for native search highlighting
+- **Search Override**: While the search panel is open, all tables are shown as raw markdown for native search highlighting
 - **Widget Lookup**: Uses `posAtDOM()` instead of `data-table-from` attribute (prevents stale references after edits)
 - Widget uses cached measured heights for accurate `estimatedHeight` (keyed by position + content hash, measured on mount/async-render/destroy)
 - Cell content rendered as HTML via Joplin's `renderMarkup` (async, cached with FIFO eviction at 500 entries)
