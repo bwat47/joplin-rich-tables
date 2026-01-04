@@ -6,12 +6,23 @@ import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellR
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 import { makeTableId, type CellCoords } from '../tableModel/types';
+import {
+    isNavigationLocked,
+    acquireNavigationLock,
+    releaseNavigationLock,
+    setPendingNavigationCallback,
+} from './navigationLock';
 
 export function navigateCell(
     view: EditorView,
     direction: 'next' | 'previous' | 'up' | 'down',
     options: { cursorPos?: 'start' | 'end'; allowRowCreation?: boolean } = {}
 ): boolean {
+    // Prevent race conditions from rapid key-holding
+    if (isNavigationLocked()) {
+        return true; // Swallow keypress, navigation already in progress
+    }
+
     const state = view.state;
     const activeCell = getActiveCell(state);
 
@@ -73,6 +84,12 @@ export function navigateCell(
 
     if (unifiedRow >= totalRows) {
         if (options.allowRowCreation) {
+            // Acquire lock before row creation (which opens a nested editor)
+            if (!acquireNavigationLock()) {
+                return true; // Already locked
+            }
+            // Set pending callback for row creation path (goes through lifecycle plugin)
+            setPendingNavigationCallback(releaseNavigationLock);
             // Tab ('next') goes to first col, Enter/down stays in same col
             const targetCol = direction === 'next' ? 0 : activeCell.col;
             execInsertRowAtBottom(view, activeCell, targetCol);
@@ -112,6 +129,11 @@ export function navigateCell(
         return false;
     }
 
+    // Acquire lock before dispatching state changes
+    if (!acquireNavigationLock()) {
+        return true; // Already locked
+    }
+
     const { cellFrom, cellTo } = resolvedRange;
 
     view.dispatch({
@@ -137,7 +159,11 @@ export function navigateCell(
             cellFrom,
             cellTo,
             initialCursorPos: options.cursorPos,
+            onFocused: releaseNavigationLock,
         });
+    } else {
+        // No cell element found, release lock immediately
+        releaseNavigationLock();
     }
 
     return true;

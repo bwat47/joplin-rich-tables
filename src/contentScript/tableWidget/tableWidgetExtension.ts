@@ -27,6 +27,7 @@ import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from './searchPanelWatcher';
 import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
+import { navigationLockKeymap } from './navigationLockKeymap';
 
 /**
  * Content script context provided by Joplin
@@ -380,6 +381,7 @@ export default function (context: ContentScriptContext) {
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
+                navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,

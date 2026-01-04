@@ -20,6 +20,7 @@ import { ensureCellWrapper, createHideOutsideRangeExtension } from './mounting';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from './domHandlers';
 import { selectAllInCell } from './markdownCommands';
 import { CLASS_CELL_ACTIVE } from '../tableWidget/domHelpers';
+import { consumePendingNavigationCallback } from '../tableWidget/navigationLock';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -64,6 +65,7 @@ class NestedCellEditorManager {
         cellFrom: number;
         cellTo: number;
         initialCursorPos?: 'start' | 'end';
+        onFocused?: () => void;
     }): void {
         this.close();
 
@@ -227,6 +229,17 @@ class NestedCellEditorManager {
         scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
 
         this.subview.contentDOM.focus({ preventScroll: true });
+
+        // Delay lock release until after browser has processed the focus and pending updates.
+        // Using RAF ensures CodeMirror's layout and scroll operations complete before we
+        // allow the next navigation, preventing race conditions from rapid key-holding.
+        requestAnimationFrame(() => {
+            // Notify caller that focus is complete (used by navigation lock)
+            params.onFocused?.();
+
+            // Also check for pending callback (used by row creation path)
+            consumePendingNavigationCallback()?.();
+        });
     }
 
     applyMainTransactions(transactions: readonly Transaction[], cellFrom: number, cellTo: number): void {
@@ -403,6 +416,7 @@ export function openNestedCellEditor(params: {
     cellFrom: number;
     cellTo: number;
     initialCursorPos?: 'start' | 'end';
+    onFocused?: () => void;
 }): void {
     getManager(params.mainView)?.open(params);
 }

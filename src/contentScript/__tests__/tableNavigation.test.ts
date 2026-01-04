@@ -5,6 +5,7 @@ import { getActiveCell } from '../tableWidget/activeCellState';
 import { resolveTableAtPos, resolveCellDocRange } from '../tableWidget/tablePositioning';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
+import { resetNavigationLock } from '../tableWidget/navigationLock';
 
 import * as activeCellState from '../tableWidget/activeCellState';
 import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
@@ -25,6 +26,9 @@ describe('navigateCell', () => {
     let getActiveCellSpy: jest.SpyInstance;
 
     beforeEach(() => {
+        // Reset navigation lock to ensure clean state between tests
+        resetNavigationLock();
+
         mockDispatch = jest.fn();
         mockState = {
             field: jest.fn(),
