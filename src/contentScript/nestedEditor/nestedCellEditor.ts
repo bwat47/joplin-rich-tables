@@ -320,7 +320,7 @@ class NestedCellEditorManager {
     /**
      * Closes the nested editor, optionally using mapped positions.
      * @param params Optional positions to use for re-rendering cell content.
-     *               Use this when document changes have shifted positions (e.g., undo/redo).
+     * Use this when document changes have shifted positions (e.g., undo/redo).
      */
     close(params?: { cellFrom?: number; cellTo?: number }): void {
         if (this.subview) {
