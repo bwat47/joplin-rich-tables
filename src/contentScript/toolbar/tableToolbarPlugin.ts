@@ -17,6 +17,7 @@ import {
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
+import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 
 import {
     rowInsertTopIcon,
@@ -81,11 +82,17 @@ class TableToolbarPlugin {
             return;
         }
 
-        // Table was modified (rows/columns added/removed) - reposition toolbar
-        if (
-            this.currentActiveCell &&
-            update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))
-        ) {
+        // Check for conditions that usually imply the widget DOM was replaced/rebuilt:
+        // 1. rebuildTableWidgetsEffect (explicit structural edit)
+        // 2. Doc changes that are NOT sync (e.g. Undo/Redo, external edits).
+        //    Non-sync changes cause `tableDecorationField` to rebuild decorations,
+        //    which leads to CodeMirror replacing the widget DOM if content changed.
+        const isNonSyncDocChange = update.transactions.some((tr) => tr.docChanged && !tr.annotation(syncAnnotation));
+        const hasRebuildEffect = update.transactions.some((tr) =>
+            tr.effects.some((e) => e.is(rebuildTableWidgetsEffect))
+        );
+
+        if (this.currentActiveCell && (hasRebuildEffect || isNonSyncDocChange)) {
             // Defer until rebuilt widget DOM is ready
             this.schedulePositionUpdate();
         }
