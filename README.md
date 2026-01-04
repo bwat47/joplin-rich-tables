@@ -55,7 +55,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 | **Move Row Up/Down**         | `Alt + Up` / `Down`                  |
 | **Move Column Left/Right**   | `Alt + Left` / `Right`               |
 | **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
-| **Source Mode**              | `Ctrl + Alt + /`                     |
+| **Source Mode**              | `Ctrl + Shift + /`                   |
 
 - **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
 - **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
