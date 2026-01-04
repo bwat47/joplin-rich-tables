@@ -192,7 +192,7 @@ function buildTableDecorations(state: EditorState): DecorationSet {
 /**
  * StateField that manages table widget decorations.
  * Block decorations MUST be provided via StateField, not ViewPlugin.
- * Tables are always rendered as widgets - no "raw markdown" mode.
+ * Tables are always rendered as widgets (unless source mode is toggled).
  */
 const tableDecorationField = StateField.define<DecorationSet>({
     create(state) {
@@ -235,7 +235,12 @@ const tableDecorationField = StateField.define<DecorationSet>({
             const prevActiveCell = getActiveCell(transaction.startState);
             if (prevActiveCell) {
                 // Rebuild just the table that was being edited
-                return rebuildSingleTable(transaction.state, decorations, prevActiveCell.tableFrom, transaction.changes);
+                return rebuildSingleTable(
+                    transaction.state,
+                    decorations,
+                    prevActiveCell.tableFrom,
+                    transaction.changes
+                );
             }
             // Fallback: rebuild all if we can't determine which table
             return buildTableDecorations(transaction.state);
@@ -278,9 +283,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             }
 
-            // Detect large document replacements (e.g., note switching).
-            // When most of the old document is replaced, we must rebuild fresh.
-            // Also, normal edits outside the active cell should rebuild to ensure
+            // Edits outside the active cell should rebuild to ensure
             // widget positions (data-table-from) are kept in sync with the document.
             // (TableWidget.updateDOM handles efficient DOM reuse even on rebuild).
             return buildTableDecorations(transaction.state);
