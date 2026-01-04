@@ -85,6 +85,8 @@ export function navigateCell(
     if (unifiedRow >= totalRows) {
         if (options.allowRowCreation) {
             // Acquire lock before row creation (which opens a nested editor)
+            // Note: row‑creation re‑open happens after execInsertRowAtBottom returns
+            // via RAF in nestedEditorLifecycle.ts
             if (!acquireNavigationLock()) {
                 return true; // Already locked
             }
