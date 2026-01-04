@@ -1,5 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { activeCellField, ActiveCell } from '../tableWidget/activeCellState';
 import {
     execInsertRowAbove,
     execInsertRowBelow,
@@ -16,8 +16,8 @@ import {
 } from '../tableCommands/tableCommands';
 import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../tableWidget/domHelpers';
-import { makeTableId } from '../tableModel/types';
+import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
+import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 
 import {
     rowInsertTopIcon,
@@ -26,7 +26,6 @@ import {
     columnInsertLeftIcon,
     columnInsertRightIcon,
     columnRemoveIcon,
-    editMarkdownIcon,
     alignLeftIcon,
     alignCenterIcon,
     alignRightIcon,
@@ -36,6 +35,8 @@ import {
     moveRowUpIcon,
     moveRowDownIcon,
 } from './icons';
+import { findTableWidgetElement } from '../tableWidget/domHelpers';
+import { makeTableId } from '../tableModel/types';
 
 class TableToolbarPlugin {
     dom: HTMLElement;
@@ -81,11 +82,17 @@ class TableToolbarPlugin {
             return;
         }
 
-        // Table was modified (rows/columns added/removed) - reposition toolbar
-        if (
-            this.currentActiveCell &&
-            update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)))
-        ) {
+        // Check for conditions that usually imply the widget DOM was replaced/rebuilt:
+        // 1. rebuildTableWidgetsEffect (explicit structural edit)
+        // 2. Doc changes that are NOT sync (e.g. Undo/Redo, external edits).
+        //    Non-sync changes cause `tableDecorationField` to rebuild decorations,
+        //    which leads to CodeMirror replacing the widget DOM if content changed.
+        const isNonSyncDocChange = update.transactions.some((tr) => tr.docChanged && !tr.annotation(syncAnnotation));
+        const hasRebuildEffect = update.transactions.some((tr) =>
+            tr.effects.some((e) => e.is(rebuildTableWidgetsEffect))
+        );
+
+        if (this.currentActiveCell && (hasRebuildEffect || isNonSyncDocChange)) {
             // Defer until rebuilt widget DOM is ready
             this.schedulePositionUpdate();
         }
@@ -205,16 +212,6 @@ class TableToolbarPlugin {
                 execFormatTable(this.view, this.currentActiveCell);
             }
         });
-
-        // Edit Mode
-        createIconBtn('Edit table as markdown', 'Edit table as markdown', editMarkdownIcon(), () => {
-            if (this.currentActiveCell) {
-                this.view.dispatch({
-                    selection: { anchor: this.currentActiveCell.tableFrom },
-                    effects: [clearActiveCellEffect.of(undefined)],
-                });
-            }
-        });
     }
 
     private showToolbar() {
@@ -272,8 +269,7 @@ class TableToolbarPlugin {
             return;
         }
 
-        const selector = getWidgetSelector(makeTableId(this.currentActiveCell.tableFrom));
-        const referenceElement = this.view.contentDOM.querySelector(selector) as HTMLElement;
+        const referenceElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
 
         if (!referenceElement) {
             this.cleanupPositioning();
@@ -292,15 +288,15 @@ class TableToolbarPlugin {
                 // before asking Floating UI to compute position.
                 this.prepareToolbarForPositioning();
 
-                const currentRef = this.view.contentDOM.querySelector(selector) as HTMLElement;
-                if (!currentRef) {
+                // Check if reference element is still in the DOM
+                if (!referenceElement.isConnected) {
                     // Don't cleanup here - just hide and let the next update() call handle cleanup
                     this.hideToolbar();
                     return;
                 }
 
                 // First compute with preferred top placement
-                let result = await computePosition(currentRef, this.dom, {
+                let result = await computePosition(referenceElement, this.dom, {
                     placement: 'top-start',
                     middleware: [
                         offset(5),
@@ -314,7 +310,7 @@ class TableToolbarPlugin {
                 const obscurationThreshold = 5; // Pixels from top of viewport
                 if (result.y < obscurationThreshold) {
                     // Recompute with forced bottom placement
-                    result = await computePosition(currentRef, this.dom, {
+                    result = await computePosition(referenceElement, this.dom, {
                         placement: 'bottom-start',
                         middleware: [offset(5), shift({ padding: 5 }), hide()],
                     });

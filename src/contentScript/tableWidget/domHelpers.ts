@@ -1,4 +1,4 @@
-import type { CellCoords, TableId } from '../tableModel/types';
+import { type CellCoords, type TableId, makeTableId } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
 
 // Main widget structure classes
@@ -58,25 +58,43 @@ export function getCellSelector(coords: CellCoords): string {
 }
 
 /**
+ * Locate a table widget root element by matching its current document position.
+ *
+ * We deliberately avoid relying on `data-table-from` for identity because it may
+ * become stale when decorations are mapped (but not rebuilt) through edits.
+ */
+export function findTableWidgetElement(view: EditorView, tableId: TableId): HTMLElement | null {
+    // Prefer contentDOM so we only scan editor content (not gutters/toolbars).
+    const allWidgets = view.contentDOM.querySelectorAll(getWidgetSelector());
+
+    for (const widget of allWidgets) {
+        try {
+            const widgetPos = view.posAtDOM(widget);
+            if (makeTableId(widgetPos) === tableId) {
+                return widget as HTMLElement;
+            }
+        } catch {
+            // posAtDOM can fail for edge cases, continue
+        }
+    }
+
+    return null;
+}
+
+/**
  * Helper to locate a specific cell element in the DOM for a given table.
  *
  * @param view - The main EditorView
- * @param tableId - The TableId (identifying the table instance)
+ * @param tableId - The TableId (current table position from syntax tree)
  * @param coords - The coordinates of the cell to find
  * @returns The matching HTMLElement for the cell if found, otherwise null.
  */
 
 export function findCellElement(view: EditorView, tableId: TableId, coords: CellCoords): HTMLElement | null {
-    // 1. Find the widget container first.
-    // Use the selector that includes the [data-table-from=...] attribute
-    const widgetSelector = getWidgetSelector(tableId);
-    const widgetDOM = view.dom.querySelector(widgetSelector);
+    const widgetDOM = findTableWidgetElement(view, tableId);
+    if (!widgetDOM) return null;
 
-    if (!widgetDOM) {
-        return null;
-    }
-
-    // 2. Find the cell within that widget
+    // Find the cell within that widget
     const cellSelector = getCellSelector(coords);
     return widgetDOM.querySelector(cellSelector) as HTMLElement | null;
 }

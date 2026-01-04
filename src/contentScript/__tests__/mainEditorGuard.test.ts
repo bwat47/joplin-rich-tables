@@ -112,7 +112,7 @@ describe('createMainEditorActiveCellGuard', () => {
 
         const tr = state.update({
             changes: { from: 0, to: firstLineEnd, insert: '| X | Y |' },
-            effects: rebuildTableWidgetsEffect.of(undefined),
+            effects: rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
         });
 
         expect(tr.state.doc.toString()).toContain('| X | Y |');

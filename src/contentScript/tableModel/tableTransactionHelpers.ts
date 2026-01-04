@@ -37,7 +37,7 @@ export function runTableOperation(params: ModifyTableParams): void {
 
     const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell)];
     if (forceWidgetRebuild) {
-        effects.push(rebuildTableWidgetsEffect.of(undefined));
+        effects.push(rebuildTableWidgetsEffect.of({ tableFrom }));
     }
 
     view.dispatch({

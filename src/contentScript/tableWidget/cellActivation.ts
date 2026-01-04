@@ -8,8 +8,9 @@ import { findTableRanges } from './tablePositioning';
 import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { getCellSelector, getWidgetSelector, SECTION_HEADER, SECTION_BODY } from './domHelpers';
+import { findCellElement } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
+import { isSourceModeEnabled } from './sourceMode';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -21,6 +22,11 @@ export interface ActivateCellOptions {
  * @returns true if a cell was activated, false otherwise
  */
 export function activateCellAtPosition(view: EditorView, pos: number, options?: ActivateCellOptions): boolean {
+    // In source mode, tables are not rendered as widgets, so we cannot activate cells.
+    if (isSourceModeEnabled(view.state)) {
+        return false;
+    }
+
     const tables = findTableRanges(view.state);
 
     // Find the table containing the position
@@ -65,26 +71,12 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    // IMPORTANT: Dispatch setActiveCellEffect FIRST to trigger widget creation.
-    // The decorator StateField rebuilds when activeCellField changes, which creates
-    // the widget DOM. We must dispatch before querying for the widget element.
+    // Set the active cell state before opening the nested editor.
     view.dispatch({
         effects: setActiveCellEffect.of(newActiveCell),
     });
 
-    // Now query for the widget DOM (it should exist after the dispatch)
-    const widgetDOM = view.dom.querySelector(getWidgetSelector(makeTableId(table.from)));
-    if (!widgetDOM) {
-        return false;
-    }
-
-    // Find the cell element
-    const selector =
-        newActiveCell.section === SECTION_HEADER
-            ? getCellSelector({ section: SECTION_HEADER, row: 0, col: newActiveCell.col })
-            : getCellSelector({ section: SECTION_BODY, row: newActiveCell.row, col: newActiveCell.col });
-
-    const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
+    const cellElement = findCellElement(view, makeTableId(table.from), newActiveCell);
     if (!cellElement) {
         return false;
     }
@@ -112,6 +104,9 @@ export function activateTableCell(
     requestAnimationFrame(() => {
         if (!view.dom.isConnected) return;
 
+        // Don't activate cells in source mode (no widgets exist)
+        if (isSourceModeEnabled(view.state)) return;
+
         // Compute active cell state from the table
         const tables = findTableRanges(view.state);
         const table = tables.find((t) => t.from === tableFrom);
@@ -125,24 +120,12 @@ export function activateTableCell(
 
         if (!newActiveCell) return;
 
-        // IMPORTANT: Dispatch setActiveCellEffect FIRST to trigger widget creation.
-        // When inserting a new table, the cursor is inside the table range, which normally
-        // prevents widget creation. The setActiveCellEffect marks the table as "active",
-        // which triggers the decorator to create the widget even with cursor in range.
+        // Set the active cell state before opening the nested editor.
         view.dispatch({
             effects: setActiveCellEffect.of(newActiveCell),
         });
 
-        // Now query for the widget and cell element (should exist after dispatch)
-        const widgetDOM = view.dom.querySelector(getWidgetSelector(makeTableId(tableFrom)));
-        if (!widgetDOM) return;
-
-        const selector =
-            coords.section === 'header'
-                ? getCellSelector({ section: SECTION_HEADER, row: 0, col: coords.col })
-                : getCellSelector({ section: SECTION_BODY, row: coords.row, col: coords.col });
-
-        const cellElement = widgetDOM.querySelector(selector) as HTMLElement | null;
+        const cellElement = findCellElement(view, makeTableId(tableFrom), coords);
         if (!cellElement) return;
 
         openNestedCellEditor({

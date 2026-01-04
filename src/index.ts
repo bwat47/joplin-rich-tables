@@ -64,6 +64,19 @@ joplin.plugins.register({
         await registerTableCommand('richTables.moveColumnLeft', 'Move column left');
         await registerTableCommand('richTables.moveColumnRight', 'Move column right');
 
+        // Register source mode toggle (shows all tables as raw markdown)
+        const TOGGLE_SOURCE_MODE_COMMAND = 'richTables.toggleSourceMode';
+        await joplin.commands.register({
+            name: TOGGLE_SOURCE_MODE_COMMAND,
+            label: 'Toggle table source mode',
+            iconName: 'fas fa-code',
+            execute: async () => {
+                await joplin.commands.execute('editor.execCommand', {
+                    name: 'richTables.toggleSourceMode',
+                });
+            },
+        });
+
         // Create menu items with keyboard shortcuts
         await joplin.views.menus.create(
             'richTablesMenu',
@@ -139,6 +152,11 @@ joplin.plugins.register({
                     commandName: 'richTables.moveColumnRight',
                     accelerator: 'Alt+Right',
                 },
+                {
+                    label: 'Toggle source mode',
+                    commandName: TOGGLE_SOURCE_MODE_COMMAND,
+                    accelerator: 'CmdOrCtrl+Shift+/',
+                },
             ],
             MenuItemLocation.Tools
         );
@@ -146,6 +164,12 @@ joplin.plugins.register({
         await joplin.views.toolbarButtons.create(
             'richTablesInsertTable',
             INSERT_TABLE_COMMAND,
+            ToolbarButtonLocation.EditorToolbar
+        );
+
+        await joplin.views.toolbarButtons.create(
+            'richTablesToggleSourceMode',
+            TOGGLE_SOURCE_MODE_COMMAND,
             ToolbarButtonLocation.EditorToolbar
         );
 
@@ -164,12 +188,13 @@ joplin.plugins.register({
         if (versionInfo.platform === 'desktop') {
             await joplin.workspace.onNoteSelectionChange(async () => {
                 try {
+                    // Close any open nested editors and clear active cell state
                     await joplin.commands.execute('editor.execCommand', {
                         name: 'richTablesCloseNestedEditor',
                     });
                 } catch (error) {
                     // Command may not be available if editor isn't ready, ignore
-                    logger.debug('Could not close nested editor on note switch:', error);
+                    logger.warn('Could not handle note switch:', error);
                 }
             });
         }

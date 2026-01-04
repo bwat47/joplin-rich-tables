@@ -4,16 +4,7 @@ import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import {
-    DATA_COL,
-    DATA_ROW,
-    DATA_SECTION,
-    CLASS_CELL_EDITOR,
-    SECTION_HEADER,
-    getCellSelector,
-    getWidgetSelector,
-} from './domHelpers';
-import { makeTableId } from '../tableModel/types';
+import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -244,22 +235,14 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             }),
         });
 
-        // After dispatch, the decoration rebuild may have destroyed and recreated widget DOM.
-        // Re-query for the fresh cell element using data attributes to avoid stale references.
-        const freshWidget = view.dom.querySelector(getWidgetSelector(makeTableId(table.from))) as HTMLElement | null;
-
-        if (freshWidget) {
-            const freshCell = freshWidget.querySelector(getCellSelector({ section, row, col })) as HTMLElement | null;
-
-            if (freshCell) {
-                openNestedCellEditor({
-                    mainView: view,
-                    cellElement: freshCell,
-                    cellFrom,
-                    cellTo,
-                });
-            }
-        }
+        // Since we no longer rebuild widgets on setActiveCellEffect, the original
+        // cell reference is still valid. Open the nested editor directly.
+        openNestedCellEditor({
+            mainView: view,
+            cellElement: cell,
+            cellFrom,
+            cellTo,
+        });
 
         return true;
     }

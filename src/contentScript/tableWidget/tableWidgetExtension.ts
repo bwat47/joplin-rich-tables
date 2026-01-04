@@ -1,12 +1,12 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { EditorState, Range, StateField, Transaction } from '@codemirror/state';
+import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
-import { activeCellField, clearActiveCellEffect, setActiveCellEffect, getActiveCell } from './activeCellState';
+import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
@@ -24,7 +24,10 @@ import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './
 import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import { createSearchPanelWatcher } from './searchPanelWatcher';
+import { searchPanelWatcherPlugin } from './searchPanelWatcher';
+import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './sourceMode';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
+import { navigationLockKeymap } from './navigationLockKeymap';
 
 /**
  * Content script context provided by Joplin
@@ -46,19 +49,6 @@ interface EditorControl {
 }
 
 /**
- * Check if cursor/selection overlaps a given range.
- */
-function cursorInRange(state: EditorState, from: number, to: number): boolean {
-    const selection = state.selection;
-    for (const range of selection.ranges) {
-        if (range.from <= to && range.to >= from) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
  * Cache for parsed table data to perform expensive parsing only when content changes.
  * Keys are FNV-1a hashes of the table text.
  * Capped at 50 entries to prevent memory leaks.
@@ -66,99 +56,118 @@ function cursorInRange(state: EditorState, from: number, to: number): boolean {
 const tableParseCache = new Map<string, TableData>();
 const MAX_TABLE_PARSE_CACHE_SIZE = 50;
 
-interface BuildDecorationsOptions {
-    /** Skip cursor-in-range check (used during undo/redo to let lifecycle plugin handle activation) */
-    skipCursorCheck?: boolean;
-}
-
 /**
- * Check if document changes could affect table structure or content.
- * Returns true if we need to rebuild decorations, false if we can safely map them.
- *
- * Safe to skip rebuild when:
- * - Insertions don't contain pipe or newline characters
- * - Changes don't overlap existing table decorations
- *
- * We check for newlines because:
- * - Inserting newlines can break table row structure
- * - Inserting newlines at table boundaries can move cursor outside the table,
- *   requiring rebuild to exit raw edit mode and show the widget
+ * Retrieves parsed table data from cache or parses it if missing.
+ * Manages LRU cache eviction.
  */
-function changesCouldAffectTables(transaction: Transaction, decorations: DecorationSet): boolean {
-    let couldAffect = false;
+function getCachedOrParseTableData(text: string): { data: TableData; parseHash: string } | null {
+    const parseHash = hashTableText(text);
+    let tableData = tableParseCache.get(parseHash);
 
-    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-        if (couldAffect) return; // Already determined
-
-        // If inserting text with pipes or newlines, might affect table structure.
-        // - Pipes: create/modify table syntax
-        // - Newlines: can break table rows, or move cursor outside table range
-        //   (important for exiting raw edit mode when pressing Enter at table boundary)
-        const insertedText = inserted.toString();
-        if (insertedText.includes('|') || insertedText.includes('\n')) {
-            couldAffect = true;
-            return;
+    if (tableData) {
+        // Refresh recency: move to end of Map (most recently used)
+        tableParseCache.delete(parseHash);
+        tableParseCache.set(parseHash, tableData);
+    } else {
+        tableData = parseMarkdownTable(text);
+        if (!tableData) {
+            return null;
         }
 
-        // Check if change overlaps any existing table decoration.
-        // This catches both deletions (fromA < toA) AND insertions (fromA === toA)
-        // that land inside a table widget's range.
-        decorations.between(fromA, toA, () => {
-            couldAffect = true;
-            return false; // Stop iteration
-        });
+        // Simple LRU: Delete oldest if at capacity
+        if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
+            const firstKey = tableParseCache.keys().next().value;
+            if (firstKey) tableParseCache.delete(firstKey);
+        }
+        tableParseCache.set(parseHash, tableData);
+    }
+
+    return { data: tableData, parseHash };
+}
+/**
+ * Rebuild only the decoration for a single table, mapping all other decorations.
+ * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
+ */
+function rebuildSingleTable(
+    state: EditorState,
+    decorations: DecorationSet,
+    oldTableFrom: number,
+    changes: ChangeSet
+): DecorationSet {
+    // Map the old tableFrom position through the changes to find where it is now
+    const newTableFrom = changes.mapPos(oldTableFrom);
+
+    // Find the table at the new position
+    const tables = findTableRanges(state);
+    const targetTable = tables.find((t) => t.from === newTableFrom);
+
+    if (!targetTable) {
+        // Table no longer exists - just map existing decorations
+        return decorations.map(changes);
+    }
+
+    // Build new decoration for the target table
+    const definitions = state.field(documentDefinitionsField);
+    const parsed = getCachedOrParseTableData(targetTable.text);
+
+    if (!parsed) {
+        return decorations.map(changes);
+    }
+
+    const { data: tableData } = parsed;
+
+    const contentHash = hashTableText(targetTable.text + definitions.definitionBlock);
+    const widget = new TableWidget(
+        tableData,
+        targetTable.text,
+        targetTable.from,
+        targetTable.to,
+        definitions.definitionBlock,
+        contentHash
+    );
+    const newDecoration = Decoration.replace({ widget, block: true });
+
+    // Build new decoration set: map all decorations through changes, then replace the target
+    const mapped = decorations.map(changes);
+    const result: Range<Decoration>[] = [];
+
+    // Keep all decorations except those that overlap the new table range
+    // Structural changes (like adding a row above) shift the table's position,
+    // so checking `from !== targetTable.from` is insufficient.
+    mapped.between(0, state.doc.length, (from, to, deco) => {
+        // If decoration overlaps with the new target table, drop it (it's the old version)
+        if (to <= targetTable.from || from >= targetTable.to) {
+            result.push(deco.range(from, to));
+        }
     });
 
-    return couldAffect;
+    // Add the new decoration for the rebuilt table
+    result.push(newDecoration.range(targetTable.from, targetTable.to));
+
+    // Valid DecorationSets MUST be sorted. Since we are manually constructing the array
+    // (and potentially appending out of order), we must sort it explicitly to be safe.
+    result.sort((a, b) => a.from - b.from);
+
+    return Decoration.set(result, true); // true = we have manually sorted it
 }
 
 /**
  * Build decorations for all tables in the document.
- * Tables with cursor inside are not decorated (raw markdown is shown for editing).
+ * Tables are always rendered as widgets - editing happens via nested cell editors.
  */
-function buildTableDecorations(state: EditorState, options?: BuildDecorationsOptions): DecorationSet {
+function buildTableDecorations(state: EditorState): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tables = findTableRanges(state);
-    const activeCell = getActiveCell(state);
     const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
-        // Check if this table is currently active (has an open cell editor).
-        const isActiveTable = activeCell && activeCell.tableFrom === table.from;
-
-        // Skip tables where cursor is inside - let user edit raw markdown.
-        // EXCEPTION 1: If the table is active, we MUST render the widget to support the nested editor,
-        // even if the main selection has moved inside the table range (e.g. via Android touch events,
-        // which might update selection despite preventDefault handlers).
-        // EXCEPTION 2: During undo/redo, skip this check - the lifecycle plugin will handle
-        // activating the correct cell, and we need the widget rendered for that to work.
-        if (!isActiveTable && !options?.skipCursorCheck && cursorInRange(state, table.from, table.to)) {
+        const result = getCachedOrParseTableData(table.text);
+        if (!result) {
             continue;
         }
-
-        const parseHash = hashTableText(table.text);
-        let tableData = tableParseCache.get(parseHash);
-
-        if (tableData) {
-            // Refresh recency: move to end of Map (most recently used)
-            tableParseCache.delete(parseHash);
-            tableParseCache.set(parseHash, tableData);
-        } else {
-            tableData = parseMarkdownTable(table.text);
-            if (!tableData) {
-                continue;
-            }
-
-            // Simple LRU: Delete oldest if at capacity
-            if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
-                const firstKey = tableParseCache.keys().next().value;
-                if (firstKey) tableParseCache.delete(firstKey);
-            }
-            tableParseCache.set(parseHash, tableData);
-        }
+        const { data: tableData } = result;
 
         // Content hash includes definition block so widgets rebuild when definitions change.
-        // Pre-compute here and pass to widget to avoid redundant hashing.
         const contentHash = hashTableText(table.text + definitions.definitionBlock);
 
         const widget = new TableWidget(
@@ -183,6 +192,7 @@ function buildTableDecorations(state: EditorState, options?: BuildDecorationsOpt
 /**
  * StateField that manages table widget decorations.
  * Block decorations MUST be provided via StateField, not ViewPlugin.
+ * Tables are always rendered as widgets (unless source mode is toggled).
  */
 const tableDecorationField = StateField.define<DecorationSet>({
     create(state) {
@@ -190,65 +200,72 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
+        // Raw markdown mode: either user source mode or search-forced override.
+        const rawModeToggled = transaction.effects.some(
+            (e) => e.is(toggleSourceModeEffect) || e.is(setSearchForceSourceModeEffect)
+        );
+        const effectiveRawMode = isEffectiveRawMode(transaction.state);
+
+        if (rawModeToggled) {
+            if (effectiveRawMode) {
+                return Decoration.none;
+            }
+            return buildTableDecorations(transaction.state);
+        }
+
+        if (effectiveRawMode) {
+            return Decoration.none;
+        }
+
         // Skip decoration rebuilds for internal sync transactions (nested <-> main editor mirroring).
-        // These are internal bookkeeping and shouldn't trigger widget recreation.
         const isSync = Boolean(transaction.annotation(syncAnnotation));
         if (isSync) {
-            // For sync transactions with doc changes, still map the decorations through.
             if (transaction.docChanged) {
                 return decorations.map(transaction.changes);
             }
             return decorations;
         }
 
-        // If we are actively editing a cell via nested editor, keep the existing
-        // widget DOM stable by mapping decorations through changes instead of
-        // rebuilding (which would recreate widgets and destroy the subview host).
-        const activeCell = getActiveCell(transaction.state);
-
-        // Some edits (row/col insert/delete) intentionally require a rebuild so the
-        // rendered HTML table matches the new structure.
-        const forceRebuild = transaction.effects.some((e) => e.is(rebuildTableWidgetsEffect));
-        const hasClearEffect = transaction.effects.some((e) => e.is(clearActiveCellEffect));
-        const hasSetEffect = transaction.effects.some((e) => e.is(setActiveCellEffect));
-
-        // When active cell is cleared, rebuild to render updated content.
-        if (hasClearEffect) {
+        // When active cell is cleared (nested editor closed), rebuild the affected table.
+        // During in-cell editing, we map decorations to preserve DOM, but this leaves
+        // stale TableWidget instances. Rebuilding on close ensures fresh widget data
+        // so that if the table is scrolled out and back in, toDOM() renders current content.
+        const clearEffect = transaction.effects.find((e) => e.is(clearActiveCellEffect));
+        if (clearEffect) {
+            const prevActiveCell = getActiveCell(transaction.startState);
+            if (prevActiveCell) {
+                // Rebuild just the table that was being edited
+                return rebuildSingleTable(
+                    transaction.state,
+                    decorations,
+                    prevActiveCell.tableFrom,
+                    transaction.changes
+                );
+            }
+            // Fallback: rebuild all if we can't determine which table
             return buildTableDecorations(transaction.state);
         }
 
-        // When switching cells within the SAME table, skip rebuilding to preserve DOM
-        // (prevents video/media restart, table flashing, etc.)
-        const prevActiveCell = getActiveCell(transaction.startState);
-        const nextActiveCell = getActiveCell(transaction.state);
-        const stayingInSameTable =
-            prevActiveCell && nextActiveCell && prevActiveCell.tableFrom === nextActiveCell.tableFrom;
-
-        // When active cell is set (e.g., from cellActivation.ts after table insert or
-        // search panel close), rebuild to create the widget for the newly active table.
-        // But skip if we're just switching cells within the same table.
-        if (hasSetEffect && !stayingInSameTable) {
-            return buildTableDecorations(transaction.state);
+        // Map all other decorations to preserve their state.
+        const rebuildEffect = transaction.effects.find((e) => e.is(rebuildTableWidgetsEffect));
+        if (rebuildEffect) {
+            const { tableFrom } = rebuildEffect.value;
+            return rebuildSingleTable(transaction.state, decorations, tableFrom, transaction.changes);
         }
 
-        if (forceRebuild) {
-            return buildTableDecorations(transaction.state);
-        }
-
+        // Document changes: rebuild only if they could affect tables.
         if (transaction.docChanged) {
+            const activeCell = getActiveCell(transaction.state);
+
             if (activeCell) {
-                // For undo/redo, we need to determine if changes require a full rebuild:
-                // 1. Structural changes (row/col add/delete) - table structure changed
-                // 2. Changes outside active cell - other cells' content changed
-                // In-cell text edits should preserve the nested editor DOM.
+                // For undo/redo with active cell, check if rebuild is needed:
+                // - Structural changes (row/col add/delete)
+                // - Changes outside active cell (other cells' content changed)
                 const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
                 if (isUndoRedo) {
-                    // Structural changes always need rebuild
                     if (isStructuralTableChange(transaction)) {
-                        return buildTableDecorations(transaction.state, { skipCursorCheck: true });
+                        return buildTableDecorations(transaction.state);
                     }
-                    // Changes outside active cell need rebuild (other cells' rendered content changed)
-                    // Use START state's active cell since change positions are in the old document
                     const prevActiveCell = getActiveCell(transaction.startState);
                     if (prevActiveCell) {
                         let hasChangesOutsideCell = false;
@@ -258,7 +275,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
                             }
                         });
                         if (hasChangesOutsideCell) {
-                            return buildTableDecorations(transaction.state, { skipCursorCheck: true });
+                            return buildTableDecorations(transaction.state);
                         }
                     }
                 }
@@ -266,57 +283,20 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             }
 
-            // No active cell - check if this is undo/redo (which may move cursor into a table)
-            const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
-            if (isUndoRedo) {
-                // Skip cursor check - lifecycle plugin will handle cell activation
-                return buildTableDecorations(transaction.state, { skipCursorCheck: true });
-            }
-
-            // Optimization: if changes don't affect any table (no pipes inserted,
-            // no deletions overlapping table decorations), just map positions.
-            // This avoids expensive tree traversal + hashing on every keystroke.
-            if (!changesCouldAffectTables(transaction, decorations)) {
-                return decorations.map(transaction.changes);
-            }
-
+            // Must rebuild (not just map) for two reasons:
+            // 1. Block widgets need rebuilding for CM6 to reposition them in the DOM
+            //    (e.g. inserting newlines before a table - mapping preserves stale visual position)
+            // 2. Note switches replace the entire document - mapping would leave stale widgets
+            // TableWidget.updateDOM handles efficient DOM reuse when content is unchanged.
             return buildTableDecorations(transaction.state);
         }
 
-        // Rebuild decorations when selection changes (enter/exit raw editing mode).
-        if (transaction.selection) {
-            // Optimization: If the active table hasn't changed, and we are just moving cursor/selection
-            // within the active table's widget (or switching cells), we DON'T want to rebuild (which destroys the DOM).
-            if (stayingInSameTable) {
-                return decorations;
-            }
-
-            // Skip rebuilds during pointer drag operations (mouse drag selection).
-            // When users drag-select through a table, we don't want to reveal raw markdown
-            // mid-drag - this causes flickering and scroll jumps, especially when dragging upward
-            // through large tables. The selection extending into a table range should not
-            // trigger widget removal during the drag; only deliberate cursor placement should.
-            // We distinguish drag (non-empty selection range) from click (cursor at a point).
-            if (transaction.isUserEvent('select.pointer')) {
-                const hasNonEmptySelection = transaction.state.selection.ranges.some((r) => r.from !== r.to);
-                if (hasNonEmptySelection) {
-                    return decorations;
-                }
-            }
-
-            return buildTableDecorations(transaction.state);
-        }
-
+        // Selection-only changes: no rebuild needed.
+        // Tables are always widgets; cell activation is handled by lifecycle plugin.
         return decorations;
     },
     provide: (field) => EditorView.decorations.from(field),
 });
-
-// NOTE: clearActiveCellOnUndoRedo TransactionExtender was removed.
-// TransactionExtender effects aren't visible to StateField.update() in the same
-// transaction cycle, so dispatching setActiveCellEffect from here doesn't work.
-// The undo/redo handling is now done in nestedEditorLifecyclePlugin.update()
-// which uses CodeMirror's cursor position (restored by history) to find the correct cell.
 
 // while it might seem better to use pointerdown, it causes scrolling issues on android
 const closeOnOutsideClick = EditorView.domEventHandlers({
@@ -342,19 +322,16 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
             return false;
         }
 
-        // Capture the document position BEFORE we close the nested editor and rebuild
-        // decorations. Layout changes from rebuilding decorations would otherwise cause
-        // CodeMirror to map screen coordinates to the wrong document position.
+        // Capture the document position BEFORE we close the nested editor.
         const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
 
-        // Close the nested editor first to ensure widget DOM is cleaned up before rebuild.
+        // Close the nested editor.
         if (hasNestedEditor) {
             closeNestedCellEditor(view);
         }
 
-        // Combine clearing active cell and setting selection in a single dispatch.
-        // With coordsAt implemented, CodeMirror can now determine precise cell positions,
-        // so we can scroll directly without the RAF workaround.
+        // Clear active cell state and set selection. No rebuild is triggered;
+        // the widget stays as-is since tables are always rendered as widgets.
         if (clickPos !== null) {
             view.dispatch({
                 selection: { anchor: clickPos },
@@ -419,10 +396,13 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             const cm6View = editorControl.cm6;
             editorControl.addExtension([
-                createSearchPanelWatcher(cm6View),
+                searchPanelWatcherPlugin,
+                searchForceSourceModeField,
+                sourceModeField,
                 nestedCellEditorPlugin,
                 activeCellField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
+                navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,
                 closeOnOutsideClick,
@@ -436,20 +416,6 @@ export default function (context: ContentScriptContext) {
             ]);
 
             registerTableCommands(editorControl);
-
-            // On content script load, ensure cursor is not inside a table.
-            // This handles:
-            // - Desktop cold launch: content script loads once when first note opens
-            // - Mobile note switch: content script loads fresh when entering edit mode
-            // Without this, raw markdown would be shown if cursor position lands inside a table.
-            const tables = findTableRanges(cm6View.state);
-            const cursor = cm6View.state.selection.main.head;
-            const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
-            if (tableContainingCursor) {
-                const newPos = Math.min(tableContainingCursor.to + 1, cm6View.state.doc.length);
-                cm6View.dispatch({ selection: { anchor: newPos } });
-                logger.info('Moved cursor out of table on content script load');
-            }
 
             logger.info('Table widget extension registered');
         },

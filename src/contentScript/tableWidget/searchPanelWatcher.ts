@@ -1,48 +1,61 @@
 /**
  * Watches for Joplin's search panel open/close transitions.
- * - On close: auto-activates cell editor if cursor is inside a table
- * - On open: closes nested editor to allow searching
+ * - On open: closes nested editor and forces raw markdown tables globally
+ * - On close: restores widgets and triggers re-activation at the cursor
+ *
+ * This enables CodeMirror's native search highlighting to work on table content
+ * while the search panel is open.
  */
-import { StateField, type Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { searchPanelOpen } from '@codemirror/search';
 import { clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
-import { activateCellAtPosition } from './cellActivation';
+import { setSearchForceSourceModeEffect, exitSearchForceSourceModeEffect } from './searchForceSourceMode';
 
 /**
- * Creates the search panel watcher extension.
- * Requires the main EditorView reference to dispatch effects and open editors.
+ * ViewPlugin that watches for search panel state transitions.
+ * Uses ViewPlugin instead of StateField because it needs to perform side effects
+ * (dispatching effects, closing nested editors) which belong in ViewPlugin.update().
  */
-export function createSearchPanelWatcher(mainView: EditorView): Extension {
-    return StateField.define<boolean>({
-        create: (state) => searchPanelOpen(state),
-        update(wasOpen, tr) {
-            const isOpen = searchPanelOpen(tr.state);
+export const searchPanelWatcherPlugin = ViewPlugin.fromClass(
+    class {
+        private wasSearchOpen: boolean;
 
-            // Search panel just opened → ensure nested editor is closed.
-            // Primary cleanup is done in domHandlers.ts keydown handler (for Ctrl+F),
-            // but this serves as a fallback for other ways to open search.
-            if (!wasOpen && isOpen) {
+        constructor(private view: EditorView) {
+            this.wasSearchOpen = searchPanelOpen(view.state);
+        }
+
+        update(update: ViewUpdate): void {
+            const isOpen = searchPanelOpen(update.state);
+
+            // Search panel just opened → close nested editor and force raw markdown tables
+            // Use queueMicrotask to defer dispatches until after the current update cycle.
+            if (!this.wasSearchOpen && isOpen) {
                 queueMicrotask(() => {
-                    if (isNestedCellEditorOpen(mainView)) {
-                        closeNestedCellEditor(mainView);
+                    if (isNestedCellEditorOpen(this.view)) {
+                        closeNestedCellEditor(this.view);
                     }
-                    if (getActiveCell(mainView.state)) {
-                        mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    if (getActiveCell(this.view.state)) {
+                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                     }
+
+                    this.view.dispatch({ effects: setSearchForceSourceModeEffect.of(true) });
                 });
             }
 
-            // Search panel just closed → activate cell if cursor is in table
-            if (wasOpen && !isOpen) {
+            // Search panel just closed → restore widgets (unless user source mode is enabled)
+            if (this.wasSearchOpen && !isOpen) {
                 queueMicrotask(() => {
-                    const cursorPos = mainView.state.selection.main.head;
-                    activateCellAtPosition(mainView, cursorPos);
+                    this.view.dispatch({
+                        effects: [
+                            setSearchForceSourceModeEffect.of(false),
+                            exitSearchForceSourceModeEffect.of(undefined),
+                        ],
+                    });
                 });
             }
 
-            return isOpen;
-        },
-    });
-}
+            this.wasSearchOpen = isOpen;
+        }
+    }
+);

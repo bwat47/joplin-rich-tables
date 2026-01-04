@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, ActiveCell } from '../tableWidget/activeCellState';
+import { toggleSourceMode } from '../tableWidget/sourceMode';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { findTableRanges } from '../tableWidget/tablePositioning';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
@@ -245,5 +246,10 @@ export function registerTableCommands(editorControl: EditorControl): void {
         activateTableCell(view, cursorPos + 1, { section: 'header', row: 0, col: 0 });
 
         return true;
+    });
+
+    // Register source mode toggle command
+    editorControl.registerCommand('richTables.toggleSourceMode', () => {
+        return toggleSourceMode(editorControl.cm6);
     });
 }
