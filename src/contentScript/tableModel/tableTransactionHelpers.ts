@@ -14,25 +14,25 @@ interface ModifyTableParams {
     forceWidgetRebuild: boolean;
 }
 
-export function runTableOperation(params: ModifyTableParams): void {
+export function runTableOperation(params: ModifyTableParams): boolean {
     const { view, cell, operation, computeTargetCell, forceWidgetRebuild } = params;
     const { tableFrom, tableTo } = cell;
 
     const text = view.state.sliceDoc(tableFrom, tableTo);
     const tableData = parseMarkdownTable(text);
 
-    if (!tableData) return;
+    if (!tableData) return false;
 
     const newTableData = operation(tableData, cell);
     if (newTableData === tableData) {
-        return;
+        return false;
     }
     const newText = serializeTable(newTableData);
 
     const target = computeTargetCell(cell, tableData, newTableData);
     const nextActiveCell = computeActiveCellForTableText({ tableFrom, tableText: newText, target });
     if (!nextActiveCell) {
-        return;
+        return false;
     }
 
     const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell)];
@@ -48,4 +48,6 @@ export function runTableOperation(params: ModifyTableParams): void {
         },
         effects,
     });
+
+    return true;
 }

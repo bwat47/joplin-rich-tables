@@ -162,8 +162,8 @@ export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: C
     });
 }
 
-export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, targetCol: number) {
-    runTableOperation({
+export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, targetCol: number): boolean {
+    return runTableOperation({
         view,
         cell,
         operation: (t, c) => insertRowForActiveCell(t, c, 'after'),

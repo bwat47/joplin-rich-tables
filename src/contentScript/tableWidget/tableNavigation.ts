@@ -88,11 +88,16 @@ export function navigateCell(
             if (!acquireNavigationLock()) {
                 return true; // Already locked
             }
-            // Set pending callback for row creation path (goes through lifecycle plugin)
-            setPendingNavigationCallback(releaseNavigationLock);
             // Tab ('next') goes to first col, Enter/down stays in same col
             const targetCol = direction === 'next' ? 0 : activeCell.col;
-            execInsertRowAtBottom(view, activeCell, targetCol);
+            const success = execInsertRowAtBottom(view, activeCell, targetCol);
+            if (!success) {
+                // Row creation failed (parse error, no-op) - release lock immediately
+                releaseNavigationLock();
+            } else {
+                // Set pending callback for row creation path (goes through lifecycle plugin)
+                setPendingNavigationCallback(releaseNavigationLock);
+            }
             return true;
         }
         // Walked off end of table
