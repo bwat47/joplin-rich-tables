@@ -20,7 +20,7 @@ import {
     getCellSelector,
 } from './domHelpers';
 import { estimateTableHeight } from './tableHeightEstimation';
-import { buildRenderableContent } from '../shared/cellContentUtils';
+import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -204,7 +204,7 @@ export class TableWidget extends WidgetType {
         cell.textContent = displayText;
 
         // Check if content likely contains markdown (optimization)
-        if (this.containsMarkdown(displayText)) {
+        if (containsMarkdown(displayText)) {
             // Request async rendering and update when ready
             renderer.renderAsync(cacheKey, (html) => {
                 // Only update if the cell is still in the DOM and content hasn't changed.
@@ -214,31 +214,6 @@ export class TableWidget extends WidgetType {
                 }
             });
         }
-    }
-
-    /**
-     * Quick check if content likely contains markdown formatting
-     * Avoids unnecessary render requests for plain text
-     */
-    private containsMarkdown(text: string): boolean {
-        // Common markdown patterns
-        return (
-            text.includes('**') || // bold
-            text.includes('__') || // bold
-            text.includes('*') || // italic (single asterisk)
-            text.includes('_') || // italic (single underscore)
-            text.includes('`') || // code
-            text.includes('[') || // links
-            text.includes('~~') || // strikethrough
-            text.includes('![') || // images
-            text.includes('<') || // HTML tags
-            text.includes('==') || // Highlights
-            text.includes('++') || // Insert (++)
-            text.includes('\\') || // Escaped Text
-            text.includes('mailto:') || // Mailto links
-            text.includes('http') || // bare links
-            text.includes('#') // Headings
-        );
     }
 
     /**

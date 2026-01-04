@@ -50,3 +50,28 @@ export function buildRenderableContent(cellText: string, definitionBlock: string
 
     return { displayText, cacheKey };
 }
+
+/**
+ * Quick check if content likely contains markdown formatting
+ * Avoids unnecessary render requests for plain text
+ */
+export function containsMarkdown(text: string): boolean {
+    // Common markdown patterns
+    return (
+        text.includes('**') || // bold
+        text.includes('__') || // bold
+        text.includes('*') || // italic (single asterisk)
+        text.includes('_') || // italic (single underscore)
+        text.includes('`') || // code
+        text.includes('[') || // links
+        text.includes('~~') || // strikethrough
+        text.includes('![') || // images
+        text.includes('<') || // HTML tags
+        text.includes('==') || // Highlights
+        text.includes('++') || // Insert (++)
+        text.includes('\\') || // Escaped Text
+        text.includes('mailto:') || // Mailto links
+        text.includes('http') || // bare links
+        text.includes('#') // Headings
+    );
+}

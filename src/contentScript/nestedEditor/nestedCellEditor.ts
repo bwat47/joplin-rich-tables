@@ -8,7 +8,7 @@ import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorTheme } from './nestedEditorTheme';
 import { renderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
-import { buildRenderableContent } from '../shared/cellContentUtils';
+import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
 import {
     createCellTransactionFilter,
     createHistoryExtender,
@@ -357,12 +357,15 @@ class NestedCellEditorManager {
             } else {
                 // Show raw text immediately, then update when render completes.
                 this.contentEl.textContent = displayText;
-                const contentEl = this.contentEl;
-                renderer.renderAsync(cacheKey, (html) => {
-                    if (contentEl.isConnected) {
-                        contentEl.innerHTML = html;
-                    }
-                });
+
+                if (containsMarkdown(displayText)) {
+                    const contentEl = this.contentEl;
+                    renderer.renderAsync(cacheKey, (html) => {
+                        if (contentEl.isConnected) {
+                            contentEl.innerHTML = html;
+                        }
+                    });
+                }
             }
             this.contentEl.style.display = '';
         }
