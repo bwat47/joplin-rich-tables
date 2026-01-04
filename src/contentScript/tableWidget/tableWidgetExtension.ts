@@ -283,9 +283,11 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             }
 
-            // Edits outside the active cell should rebuild to ensure
-            // widget positions (data-table-from) are kept in sync with the document.
-            // (TableWidget.updateDOM handles efficient DOM reuse even on rebuild).
+            // Must rebuild (not just map) for two reasons:
+            // 1. Block widgets need rebuilding for CM6 to reposition them in the DOM
+            //    (e.g. inserting newlines before a table - mapping preserves stale visual position)
+            // 2. Note switches replace the entire document - mapping would leave stale widgets
+            // TableWidget.updateDOM handles efficient DOM reuse when content is unchanged.
             return buildTableDecorations(transaction.state);
         }
 
