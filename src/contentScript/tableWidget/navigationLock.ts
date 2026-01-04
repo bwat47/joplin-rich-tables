@@ -2,10 +2,18 @@
  * Navigation lock to prevent race conditions during rapid cell navigation.
  * When a navigation is in progress (dispatching state, mounting nested editor, focusing),
  * subsequent navigation calls are rejected until the current one completes.
+ *
+ * Safety: A timeout automatically releases the lock after LOCK_TIMEOUT_MS to prevent
+ * indefinite lock if the release callback never fires (e.g., view disconnects, error thrown).
  */
+
+import { logger } from '../../logger';
+
+const LOCK_TIMEOUT_MS = 1000;
 
 let navigationLocked = false;
 let pendingReleaseCallback: (() => void) | null = null;
+let lockTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 export function isNavigationLocked(): boolean {
     return navigationLocked;
@@ -14,12 +22,26 @@ export function isNavigationLocked(): boolean {
 export function acquireNavigationLock(): boolean {
     if (navigationLocked) return false;
     navigationLocked = true;
+
+    // Safety timeout: auto-release if normal release never happens
+    lockTimeoutId = setTimeout(() => {
+        if (navigationLocked) {
+            logger.warn('Navigation lock timed out - forcing release');
+            releaseNavigationLock();
+        }
+    }, LOCK_TIMEOUT_MS);
+
     return true;
 }
 
 export function releaseNavigationLock(): void {
     navigationLocked = false;
     pendingReleaseCallback = null;
+
+    if (lockTimeoutId !== null) {
+        clearTimeout(lockTimeoutId);
+        lockTimeoutId = null;
+    }
 }
 
 /**
@@ -46,4 +68,9 @@ export function consumePendingNavigationCallback(): (() => void) | null {
 export function resetNavigationLock(): void {
     navigationLocked = false;
     pendingReleaseCallback = null;
+
+    if (lockTimeoutId !== null) {
+        clearTimeout(lockTimeoutId);
+        lockTimeoutId = null;
+    }
 }
