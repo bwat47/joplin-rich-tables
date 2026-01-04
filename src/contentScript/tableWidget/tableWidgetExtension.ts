@@ -225,6 +225,22 @@ const tableDecorationField = StateField.define<DecorationSet>({
             }
             return decorations;
         }
+
+        // When active cell is cleared (nested editor closed), rebuild the affected table.
+        // During in-cell editing, we map decorations to preserve DOM, but this leaves
+        // stale TableWidget instances. Rebuilding on close ensures fresh widget data
+        // so that if the table is scrolled out and back in, toDOM() renders current content.
+        const clearEffect = transaction.effects.find((e) => e.is(clearActiveCellEffect));
+        if (clearEffect) {
+            const prevActiveCell = getActiveCell(transaction.startState);
+            if (prevActiveCell) {
+                // Rebuild just the table that was being edited
+                return rebuildSingleTable(transaction.state, decorations, prevActiveCell.tableFrom, transaction.changes);
+            }
+            // Fallback: rebuild all if we can't determine which table
+            return buildTableDecorations(transaction.state);
+        }
+
         // Map all other decorations to preserve their state.
         const rebuildEffect = transaction.effects.find((e) => e.is(rebuildTableWidgetsEffect));
         if (rebuildEffect) {
