@@ -160,11 +160,7 @@ describe('navigationLock', () => {
     describe('concurrent navigation prevention', () => {
         it('should prevent rapid successive lock acquisitions', () => {
             // Simulate rapid key presses
-            const results = [
-                acquireNavigationLock(),
-                acquireNavigationLock(),
-                acquireNavigationLock(),
-            ];
+            const results = [acquireNavigationLock(), acquireNavigationLock(), acquireNavigationLock()];
 
             expect(results).toEqual([true, false, false]);
         });
