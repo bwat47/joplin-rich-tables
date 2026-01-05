@@ -60,7 +60,6 @@ export const tableStyles = EditorView.baseTheme({
         lineHeight: 'inherit',
         fontFamily: 'inherit',
         fontSize: 'inherit',
-        // Prevent horizontal scroll - text should wrap within the locked cell width
         overflowX: 'hidden',
     },
     [`.${CLASS_CELL_EDITOR} .cm-content`]: {
@@ -90,9 +89,7 @@ export const tableStyles = EditorView.baseTheme({
         outline: '2px solid var(--joplin-divider-color, #dddddd)',
         outlineOffset: '-1px', // Draw inside existing border
         zIndex: '5', // Ensure on top of neighbors
-        // Allow long text (e.g., raw markdown URLs) to break within the locked width
         overflowWrap: 'break-word',
-        // Ensure max-width set via JS matches offsetWidth (which includes padding/border)
         boxSizing: 'border-box',
     },
     [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
