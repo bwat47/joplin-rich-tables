@@ -74,16 +74,6 @@ class NestedCellEditorManager {
         this.cellTo = params.cellTo;
         this.cellElement = params.cellElement;
 
-        // Lock cell width before switching to edit mode to prevent horizontal
-        // expansion when raw markdown (e.g., long URLs) is shown instead of
-        // rendered content. Height will still adjust as text wraps.
-        // Use max-width (not just width) because table cells treat width as a minimum.
-        // Add a buffer (e.g. 50px) to account for minor differences in font/padding
-        // between rendered view and editor, avoiding immediate wrapping of content
-        // that "just fits" (like inline code) while preventing massive expansion (URLs).
-        const cellWidth = this.cellElement.offsetWidth;
-        this.cellElement.style.maxWidth = `${cellWidth + 50}px`;
-
         const { content, editorHost } = ensureCellWrapper(params.cellElement);
         this.contentEl = content;
         this.editorHostEl = editorHost;
@@ -335,8 +325,7 @@ class NestedCellEditorManager {
 
         if (this.cellElement) {
             this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
-            // Remove the width lock set during open()
-            this.cellElement.style.maxWidth = '';
+
             this.cellElement = null;
         }
 
