@@ -30,8 +30,7 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
         border: '1px solid var(--joplin-divider-color, #dddddd)',
         padding: '8px 12px',
-        overflowWrap: 'normal',
-        wordBreak: 'normal',
+        overflowWrap: 'break-word',
         minWidth: '75px',
         position: 'relative',
         scrollMargin: '8px',
@@ -72,7 +71,6 @@ export const tableStyles = EditorView.baseTheme({
         color: 'inherit',
         // Ensure long text (URLs, etc.) breaks to wrap within the cell
         overflowWrap: 'break-word',
-        wordBreak: 'break-word',
     },
     [`.${CLASS_CELL_EDITOR} .cm-line`]: {
         padding: '0',
@@ -94,7 +92,6 @@ export const tableStyles = EditorView.baseTheme({
         zIndex: '5', // Ensure on top of neighbors
         // Allow long text (e.g., raw markdown URLs) to break within the locked width
         overflowWrap: 'break-word',
-        wordBreak: 'break-word',
         // Ensure max-width set via JS matches offsetWidth (which includes padding/border)
         boxSizing: 'border-box',
     },

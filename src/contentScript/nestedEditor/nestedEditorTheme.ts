@@ -35,8 +35,7 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
         },
         '.cm-content': {
             padding: '0',
-            overflowWrap: 'normal',
-            wordBreak: 'normal',
+            overflowWrap: 'break-word',
         },
         '.cm-inline-code': {
             borderRadius: '4px',
