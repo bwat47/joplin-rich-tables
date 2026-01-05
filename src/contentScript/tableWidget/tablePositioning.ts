@@ -24,7 +24,7 @@ export function resolveTableAtPos(
     pos: number,
     timeoutMs: number = TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS
 ): ResolvedTable | null {
-    const tree = ensureSyntaxTree(state, state.doc.length, timeoutMs);
+    const tree = ensureSyntaxTree(state, pos, timeoutMs);
     if (!tree) {
         return null;
     }

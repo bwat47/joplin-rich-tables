@@ -26,38 +26,42 @@ export interface DocumentDefinitions {
  */
 export const documentDefinitionsField = StateField.define<DocumentDefinitions>({
     create(state) {
-        return extractDefinitions(state);
+        return extractDefinitions(state) || { referenceLinks: new Map(), definitionBlock: '' };
     },
     update(current, tr) {
         if (!tr.docChanged) return current;
-        return extractDefinitions(tr.state);
+        const newDefs = extractDefinitions(tr.state);
+        return newDefs || current;
     },
 });
 
 /**
  * Extract all definitions from the document.
+ * Returns null if syntax tree cannot be obtained within timeout.
  */
-function extractDefinitions(state: EditorState): DocumentDefinitions {
+function extractDefinitions(state: EditorState): DocumentDefinitions | null {
     const referenceLinks = new Map<string, string>();
 
     // Use syntax tree for reference link definitions
     // Timeout of 200ms is acceptable for background extraction
     const tree = ensureSyntaxTree(state, state.doc.length, 200);
-    if (tree) {
-        const cursor = tree.cursor();
-        do {
-            if (cursor.name === 'LinkReference') {
-                const result = extractLinkReference(cursor.node, state);
-                if (result) {
-                    // First definition wins (per CommonMark spec)
-                    const key = result.label.toLowerCase();
-                    if (!referenceLinks.has(key)) {
-                        referenceLinks.set(key, result.url);
-                    }
+    if (!tree) {
+        return null;
+    }
+
+    const cursor = tree.cursor();
+    do {
+        if (cursor.name === 'LinkReference') {
+            const result = extractLinkReference(cursor.node, state);
+            if (result) {
+                // First definition wins (per CommonMark spec)
+                const key = result.label.toLowerCase();
+                if (!referenceLinks.has(key)) {
+                    referenceLinks.set(key, result.url);
                 }
             }
-        } while (cursor.next());
-    }
+        }
+    } while (cursor.next());
 
     // Build the injectable definition block (link references only)
     const definitionBlock = buildDefinitionBlock(referenceLinks);
