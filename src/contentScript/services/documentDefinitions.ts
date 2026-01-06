@@ -26,28 +26,33 @@ export interface DocumentDefinitions {
  */
 export const documentDefinitionsField = StateField.define<DocumentDefinitions>({
     create(state) {
-        return extractDefinitions(state);
+        return extractDefinitions(state) || { referenceLinks: new Map(), definitionBlock: '' };
     },
     update(current, tr) {
         if (!tr.docChanged) return current;
-        return extractDefinitions(tr.state);
+        const newDefs = extractDefinitions(tr.state);
+        return newDefs || current;
     },
 });
 
 /**
  * Extract all definitions from the document.
+ * Returns null if syntax tree cannot be obtained within timeout.
  */
-function extractDefinitions(state: EditorState): DocumentDefinitions {
+function extractDefinitions(state: EditorState): DocumentDefinitions | null {
     const referenceLinks = new Map<string, string>();
 
     // Use syntax tree for reference link definitions
     // Timeout of 200ms is acceptable for background extraction
     const tree = ensureSyntaxTree(state, state.doc.length, 200);
-    if (tree) {
-        const cursor = tree.cursor();
-        do {
-            if (cursor.name === 'LinkReference') {
-                const result = extractLinkReference(cursor.node, state);
+    if (!tree) {
+        return null;
+    }
+
+    tree.iterate({
+        enter: (node) => {
+            if (node.name === 'LinkReference') {
+                const result = extractLinkReference(node.node, state);
                 if (result) {
                     // First definition wins (per CommonMark spec)
                     const key = result.label.toLowerCase();
@@ -55,9 +60,11 @@ function extractDefinitions(state: EditorState): DocumentDefinitions {
                         referenceLinks.set(key, result.url);
                     }
                 }
+                // Link definitions don't contain other link definitions
+                return false;
             }
-        } while (cursor.next());
-    }
+        },
+    });
 
     // Build the injectable definition block (link references only)
     const definitionBlock = buildDefinitionBlock(referenceLinks);
