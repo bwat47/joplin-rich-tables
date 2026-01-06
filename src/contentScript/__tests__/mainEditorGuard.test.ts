@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { EditorState } from '@codemirror/state';
-import { activeCellField, setActiveCellEffect } from '../tableWidget/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
@@ -191,5 +191,36 @@ describe('createMainEditorActiveCellGuard', () => {
         // Sanitized insert is length 6 ("a<br>b").
         // We expect cursor to be at cellFrom + 6.
         expect(resultingSelection.head).toBe(cellFrom + expectedContent.length);
+    });
+
+    it('allows full document replacement and clears active cell', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        expect(tableRanges).not.toBeNull();
+
+        const cellFrom = tableRanges!.headers[0].from;
+        const cellTo = tableRanges!.headers[0].to;
+
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                tableTo: doc.length,
+                cellFrom,
+                cellTo,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        const newDoc = '# Updated\n\nNo tables here.';
+
+        const tr = state.update({
+            changes: { from: 0, to: doc.length, insert: newDoc },
+        });
+
+        expect(tr.state.doc.toString()).toBe(newDoc);
+        expect(getActiveCell(tr.state)).toBeNull();
     });
 });

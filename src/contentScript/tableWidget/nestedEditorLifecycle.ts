@@ -1,6 +1,6 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { getActiveCell, clearActiveCellEffect, ActiveCell } from './activeCellState';
-import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     applyMainSelectionToNestedEditor,
     applyMainTransactionsToNestedEditor,
@@ -17,6 +17,7 @@ import { activateCellAtPosition } from './cellActivation';
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from './sourceMode';
 import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 import { Transaction } from '@codemirror/state';
+import { isFullDocumentReplace } from '../shared/transactionUtils';
 
 // ============================================================================
 // Types
@@ -383,14 +384,28 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
         private hadActiveCell: boolean;
         private wasEffectiveRawMode: boolean;
+        private pendingFullReplaceRebuild: boolean;
 
         constructor(private view: EditorView) {
             this.hadActiveCell = Boolean(getActiveCell(view.state));
             this.wasEffectiveRawMode = isEffectiveRawMode(view.state);
+            this.pendingFullReplaceRebuild = false;
         }
 
         update(update: ViewUpdate): void {
             const ctx = buildUpdateContext(update, this.wasEffectiveRawMode);
+
+            const wasActiveCell = Boolean(getActiveCell(update.startState));
+            const hasFullDocReplace = update.transactions.some((tr) => isFullDocumentReplace(tr));
+
+            if (wasActiveCell && hasFullDocReplace && !this.pendingFullReplaceRebuild) {
+                this.pendingFullReplaceRebuild = true;
+                requestAnimationFrame(() => {
+                    this.pendingFullReplaceRebuild = false;
+                    if (!this.view.dom.isConnected) return;
+                    this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
+                });
+            }
 
             // === RAW MODE TRANSITIONS ===
             if (handleRawModeExit(this.view, ctx)) {

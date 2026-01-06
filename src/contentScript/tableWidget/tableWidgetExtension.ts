@@ -7,7 +7,7 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
-import { rebuildTableWidgetsEffect } from './tableWidgetEffects';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
     isNestedCellEditorOpen,
@@ -28,6 +28,7 @@ import { searchPanelWatcherPlugin } from './searchPanelWatcher';
 import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 import { navigationLockKeymap } from './navigationLockKeymap';
+import { isFullDocumentReplace } from '../shared/transactionUtils';
 
 /**
  * Content script context provided by Joplin
@@ -224,6 +225,18 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             }
             return decorations;
+        }
+
+        // External full-document replacements should rebuild all tables.
+        const rebuildAll = transaction.effects.some((e) => e.is(rebuildAllTableWidgetsEffect));
+        if (rebuildAll) {
+            return buildTableDecorations(transaction.state);
+        }
+
+        // Avoid rebuilding immediately on full-document replace while a cell was active.
+        // The syntax tree may still be mapped from the old doc and can mis-detect a giant table.
+        if (transaction.docChanged && getActiveCell(transaction.startState) && isFullDocumentReplace(transaction)) {
+            return Decoration.none;
         }
 
         // When active cell is cleared (nested editor closed), rebuild the affected table.
