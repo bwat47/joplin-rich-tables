@@ -49,19 +49,22 @@ function extractDefinitions(state: EditorState): DocumentDefinitions | null {
         return null;
     }
 
-    const cursor = tree.cursor();
-    do {
-        if (cursor.name === 'LinkReference') {
-            const result = extractLinkReference(cursor.node, state);
-            if (result) {
-                // First definition wins (per CommonMark spec)
-                const key = result.label.toLowerCase();
-                if (!referenceLinks.has(key)) {
-                    referenceLinks.set(key, result.url);
+    tree.iterate({
+        enter: (node) => {
+            if (node.name === 'LinkReference') {
+                const result = extractLinkReference(node.node, state);
+                if (result) {
+                    // First definition wins (per CommonMark spec)
+                    const key = result.label.toLowerCase();
+                    if (!referenceLinks.has(key)) {
+                        referenceLinks.set(key, result.url);
+                    }
                 }
+                // Link definitions don't contain other link definitions
+                return false;
             }
-        }
-    } while (cursor.next());
+        },
+    });
 
     // Build the injectable definition block (link references only)
     const definitionBlock = buildDefinitionBlock(referenceLinks);
