@@ -32,7 +32,7 @@ function changesOverlapTable(tr: Transaction, tableFrom: number, tableTo: number
  * Allowed through without filtering:
  * - sync transactions forwarded from the nested editor (`syncAnnotation`)
  * - structural table operations that force a widget rebuild (`rebuildTableWidgetsEffect`)
- * - full document replacements (e.g., sync updates), handled by extender cleanup
+ * - full document replacements (e.g., sync updates), handled by guard cleanup
  * - changes that don't overlap the active table at all
  *
  * It also *sanitizes* input inside the active cell (converting newlines to <br>)
@@ -49,17 +49,25 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             return tr;
         }
 
+        const activeCell = getActiveCell(tr.startState);
+        if (isFullDocumentReplace(tr)) {
+            if (!activeCell) {
+                return tr;
+            }
+            return {
+                changes: tr.changes,
+                selection: tr.selection,
+                effects: [...tr.effects, clearActiveCellEffect.of(undefined)],
+                scrollIntoView: tr.scrollIntoView,
+            };
+        }
+
         // Only guard when a nested editor is actually open.
         if (!isNestedEditorOpen()) {
             return tr;
         }
 
-        const activeCell = getActiveCell(tr.startState);
         if (!activeCell) {
-            return tr;
-        }
-
-        if (isFullDocumentReplace(tr)) {
             return tr;
         }
 
@@ -101,28 +109,5 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
         };
     });
 
-    const fullReplaceExtender = EditorState.transactionExtender.of((tr) => {
-        if (!tr.docChanged) {
-            return null;
-        }
-
-        if (tr.annotation(syncAnnotation)) {
-            return null;
-        }
-
-        if (!isFullDocumentReplace(tr)) {
-            return null;
-        }
-
-        const activeCell = getActiveCell(tr.startState);
-        if (!activeCell) {
-            return null;
-        }
-
-        return {
-            effects: [clearActiveCellEffect.of(undefined)],
-        };
-    });
-
-    return [guardFilter, fullReplaceExtender];
+    return guardFilter;
 }
