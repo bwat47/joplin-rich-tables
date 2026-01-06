@@ -8,3 +8,9 @@ import { StateEffect } from '@codemirror/state';
  * widget decorations would leave the rendered HTML table stale.
  */
 export const rebuildTableWidgetsEffect = StateEffect.define<{ tableFrom: number }>();
+
+/**
+ * Forces all table widgets to rebuild on the next transaction.
+ * Used when the document is replaced externally (e.g., sync update).
+ */
+export const rebuildAllTableWidgetsEffect = StateEffect.define<void>();

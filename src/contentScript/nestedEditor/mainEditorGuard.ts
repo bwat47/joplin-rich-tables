@@ -1,6 +1,7 @@
 import { ChangeSet, EditorState, Extension, Transaction } from '@codemirror/state';
-import { getActiveCell } from '../tableWidget/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { sanitizeCellChanges, syncAnnotation } from './transactionPolicy';
 
 /**
@@ -31,13 +32,14 @@ function changesOverlapTable(tr: Transaction, tableFrom: number, tableTo: number
  * Allowed through without filtering:
  * - sync transactions forwarded from the nested editor (`syncAnnotation`)
  * - structural table operations that force a widget rebuild (`rebuildTableWidgetsEffect`)
+ * - full document replacements (e.g., sync updates), handled by extender cleanup
  * - changes that don't overlap the active table at all
  *
  * It also *sanitizes* input inside the active cell (converting newlines to <br>)
  * to support context-menu paste operations which bypass the nested editor.
  */
 export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolean): Extension {
-    return EditorState.transactionFilter.of((tr) => {
+    const guardFilter = EditorState.transactionFilter.of((tr) => {
         if (!tr.docChanged) {
             return tr;
         }
@@ -54,6 +56,10 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
 
         const activeCell = getActiveCell(tr.startState);
         if (!activeCell) {
+            return tr;
+        }
+
+        if (isFullDocumentReplace(tr)) {
             return tr;
         }
 
@@ -94,4 +100,33 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             scrollIntoView: tr.scrollIntoView,
         };
     });
+
+    const fullReplaceExtender = EditorState.transactionExtender.of((tr) => {
+        if (!tr.docChanged) {
+            return null;
+        }
+
+        if (tr.annotation(syncAnnotation)) {
+            return null;
+        }
+
+        if (!isNestedEditorOpen()) {
+            return null;
+        }
+
+        if (!isFullDocumentReplace(tr)) {
+            return null;
+        }
+
+        const activeCell = getActiveCell(tr.startState);
+        if (!activeCell) {
+            return null;
+        }
+
+        return {
+            effects: [clearActiveCellEffect.of(undefined)],
+        };
+    });
+
+    return [guardFilter, fullReplaceExtender];
 }
