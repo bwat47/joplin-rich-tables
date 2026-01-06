@@ -110,10 +110,6 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             return null;
         }
 
-        if (!isNestedEditorOpen()) {
-            return null;
-        }
-
         if (!isFullDocumentReplace(tr)) {
             return null;
         }
