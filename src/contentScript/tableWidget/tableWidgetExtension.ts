@@ -29,6 +29,7 @@ import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './s
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 import { navigationLockKeymap } from './navigationLockKeymap';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
+import { createNoteIdWatcher } from './noteIdWatcher';
 
 /**
  * Content script context provided by Joplin
@@ -47,6 +48,10 @@ interface EditorControl {
     cm6: EditorView;
     addExtension: (extension: unknown) => void;
     registerCommand: (name: string, callback: (...args: unknown[]) => unknown) => void;
+    joplinExtensions: {
+        // Facet containing the ID of the currently open note
+        noteIdFacet: import('@codemirror/state').Facet<string, string>;
+    };
 }
 
 /**
@@ -409,6 +414,9 @@ export default function (context: ContentScriptContext) {
             // Register the extension
             const cm6View = editorControl.cm6;
             editorControl.addExtension([
+                // Close nested editor on note switch (detected via noteIdFacet)
+                createNoteIdWatcher(editorControl.joplinExtensions.noteIdFacet, () => cm6View),
+
                 searchPanelWatcherPlugin,
                 searchForceSourceModeField,
                 sourceModeField,
@@ -429,6 +437,21 @@ export default function (context: ContentScriptContext) {
             ]);
 
             registerTableCommands(editorControl);
+
+            // Move cursor out of table on initial load.
+            // On mobile, the content script loads fresh per note, so this handles note switching.
+            // On desktop, this handles cold launch when Joplin restores cursor position inside a table.
+            setTimeout(() => {
+                const tables = findTableRanges(cm6View.state);
+                const cursor = cm6View.state.selection.main.head;
+                const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
+                if (tableContainingCursor) {
+                    // Place cursor two lines after the table
+                    const newPos = Math.min(tableContainingCursor.to + 2, cm6View.state.doc.length);
+                    cm6View.dispatch({ selection: { anchor: newPos } });
+                    logger.debug('Moved cursor out of table on content script init');
+                }
+            }, 0);
 
             logger.info('Table widget extension registered');
         },

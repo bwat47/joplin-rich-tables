@@ -1,8 +1,6 @@
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, ActiveCell } from '../tableWidget/activeCellState';
+import { getActiveCell, ActiveCell } from '../tableWidget/activeCellState';
 import { toggleSourceMode } from '../tableWidget/sourceMode';
-import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
-import { findTableRanges } from '../tableWidget/tablePositioning';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { activateTableCell } from '../tableWidget/cellActivation';
 import {
@@ -179,30 +177,6 @@ export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, target
 }
 
 export function registerTableCommands(editorControl: EditorControl): void {
-    // Register command to close nested editor (called from plugin on note switch)
-    editorControl.registerCommand('richTablesCloseNestedEditor', () => {
-        const view = editorControl.cm6;
-        if (isNestedCellEditorOpen(view)) {
-            closeNestedCellEditor(view);
-        }
-        if (getActiveCell(view.state)) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-
-        // Move cursor out of table if inside one (prevents showing raw markdown
-        // when Joplin restores cursor position on note switch)
-        const tables = findTableRanges(view.state);
-        const cursor = view.state.selection.main.head;
-        const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
-        if (tableContainingCursor) {
-            // Place cursor just after the table
-            const newPos = Math.min(tableContainingCursor.to + 1, view.state.doc.length);
-            view.dispatch({ selection: { anchor: newPos } });
-        }
-
-        return true;
-    });
-
     // Wrapper to reduce boilerplate for commands requiring an active cell
     const registerCellCommand = (name: string, action: (view: EditorView, cell: ActiveCell) => void) => {
         editorControl.registerCommand(name, () => {
