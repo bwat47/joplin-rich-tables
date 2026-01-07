@@ -20,7 +20,7 @@ type NoteIdFacet = Facet<string, string>;
  * 2. Cleaner architecture - table logic stays in the content script
  * 3. Synchronous detection within the transaction system
  *
- * Modified from: https://github.com/personalizedrefrigerator/joplin-plugin-diff-tool (watchForNoteIdChanges.ts
+ * Modified from: https://github.com/personalizedrefrigerator/joplin-plugin-diff-tool (watchForNoteIdChanges.ts)
  */
 export function createNoteIdWatcher(noteIdFacet: NoteIdFacet, getView: () => EditorView): Extension {
     let lastNoteId: string | null = null;
