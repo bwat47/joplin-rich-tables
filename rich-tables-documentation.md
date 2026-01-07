@@ -49,21 +49,6 @@ User action → tableCommands.ts → tableCommandSemantics.ts → tableTransacti
 
 Parse table → mutate TableData → serialize to markdown → dispatch replacement
 
-## Keyboard Shortcuts
-
-| Action                   | Shortcut                 |
-| ------------------------ | ------------------------ |
-| Insert Row Above/Below   | `Alt+Shift+Up/Down`      |
-| Insert Column Left/Right | `Alt+Shift+Left/Right`   |
-| Delete Row               | `Alt+Shift+D`            |
-| Delete Column            | `Ctrl+Alt+Shift+D`       |
-| Move Row                 | `Alt+Up/Down`            |
-| Move Column              | `Alt+Left/Right`         |
-| Align                    | `Ctrl+Alt+Left/Up/Right` |
-| Source Mode              | `Ctrl+Shift+/`           |
-| Next/Prev Cell           | `Tab` / `Shift+Tab`      |
-| Cell Below               | `Enter`                  |
-
 ## Critical Implementation Details
 
 - **Full doc replacement** (sync): Detected via single `[0, doc.length]` change; clears active cell, rebuilds tables on next frame
