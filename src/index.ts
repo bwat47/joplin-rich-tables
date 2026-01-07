@@ -188,6 +188,12 @@ joplin.plugins.register({
         if (versionInfo.platform === 'desktop') {
             await joplin.workspace.onNoteSelectionChange(async () => {
                 try {
+                    // Only run if the markdown editor (CodeMirror) is active.
+                    // This plugin doesn't work with the rich text editor, and calling
+                    // execCommand when it's active causes the cursor to jump into it.
+                    const isCodeView = await joplin.settings.globalValue('editor.codeView');
+                    if (!isCodeView) return;
+
                     // Close any open nested editors and clear active cell state
                     await joplin.commands.execute('editor.execCommand', {
                         name: 'richTablesCloseNestedEditor',
