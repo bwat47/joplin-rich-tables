@@ -1,9 +1,13 @@
-## Project Documentation
+## LLM Context
 
 rich-tables-documentation.md
 
-- Internal documentation about project architecture, intended for LLMs to reference for context
-- Keep up to date with architecture changes when applicable
+- Internal documentation about project architecture, intended for LLMs to reference for quick context.
+- Keep up to date with architecture changes when warranted, but keep file concise, only what's needed for LLMs to understand the project.
+
+## Project Wiki
+
+Full project architecture documentation: https://github.com/bwat47/joplin-rich-tables/wiki, available in joplin-rich-tables.wiki repo in root workspace directory.
 
 ## Build, Test, and Development Commands
 
