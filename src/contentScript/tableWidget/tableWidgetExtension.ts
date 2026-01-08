@@ -30,6 +30,7 @@ import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './se
 import { navigationLockKeymap } from './navigationLockKeymap';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { createNoteIdWatcher } from './noteIdWatcher';
+import { moveCursorOutOfTable } from './cursorUtils';
 
 /**
  * Content script context provided by Joplin
@@ -442,13 +443,8 @@ export default function (context: ContentScriptContext) {
             // On mobile, the content script loads fresh per note, so this handles note switching.
             // On desktop, this handles cold launch when Joplin restores cursor position inside a table.
             setTimeout(() => {
-                const tables = findTableRanges(cm6View.state);
-                const cursor = cm6View.state.selection.main.head;
-                const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
-                if (tableContainingCursor) {
-                    // Place cursor two lines after the table
-                    const newPos = Math.min(tableContainingCursor.to + 2, cm6View.state.doc.length);
-                    cm6View.dispatch({ selection: { anchor: newPos } });
+                const moved = moveCursorOutOfTable(cm6View);
+                if (moved) {
                     logger.debug('Moved cursor out of table on content script init');
                 }
             }, 0);

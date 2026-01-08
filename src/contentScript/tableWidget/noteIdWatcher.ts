@@ -2,7 +2,7 @@ import { EditorState, Extension, Facet, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
-import { findTableRanges } from './tablePositioning';
+import { moveCursorOutOfTable } from './cursorUtils';
 import { logger } from '../../logger';
 
 /**
@@ -58,13 +58,8 @@ export function createNoteIdWatcher(noteIdFacet: NoteIdFacet, getView: () => Edi
             // Schedule for after transaction completes since we can't dispatch during
             // a transaction extender.
             setTimeout(() => {
-                const tables = findTableRanges(view.state);
-                const cursor = view.state.selection.main.head;
-                const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
-                if (tableContainingCursor) {
-                    // Place cursor two lines after the table
-                    const newPos = Math.min(tableContainingCursor.to + 2, view.state.doc.length);
-                    view.dispatch({ selection: { anchor: newPos } });
+                const moved = moveCursorOutOfTable(view);
+                if (moved) {
                     logger.debug('Moved cursor out of table on note switch');
                 }
             }, 0);
