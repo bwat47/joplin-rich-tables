@@ -32,8 +32,9 @@ describe('trimTrailingNonTableLines', () => {
     });
 
     it('does not trim below minimum table structure', () => {
-        // Even if header lacks pipe, we keep 2 lines minimum
-        const text = ['| a |', '| --- |'].join('\n');
+        // Pathological case: only 2 lines, second lacks pipe
+        // We keep both to preserve minimum table structure
+        const text = ['| a |', 'not-a-separator'].join('\n');
         expect(trimTrailingNonTableLines(text)).toBe(text);
     });
 
