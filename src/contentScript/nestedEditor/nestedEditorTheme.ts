@@ -35,7 +35,14 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
         },
         '.cm-content': {
             padding: '0',
-            overflowWrap: 'break-word',
+            // CodeMirror's `lineWrapping` uses break-word; override to match rendered-table behavior
+            // (wrap at whitespace, but don't split short words).
+            wordBreak: 'normal !important',
+            overflowWrap: 'normal !important',
+        },
+        '.cm-line': {
+            wordBreak: 'normal !important',
+            overflowWrap: 'normal !important',
         },
         '.cm-inline-code': {
             borderRadius: '4px',
