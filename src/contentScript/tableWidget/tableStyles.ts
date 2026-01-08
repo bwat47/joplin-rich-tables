@@ -30,8 +30,11 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
         border: '1px solid var(--joplin-divider-color, #dddddd)',
         padding: '8px 12px',
-        overflowWrap: 'break-word',
-        minWidth: '75px',
+        // Joplin/CodeMirror editor styles can apply aggressive breaking (e.g. `overflow-wrap: anywhere`)
+        // which makes even short words wrap. Reset breaking at the cell level so normal text wraps
+        // only at whitespace/hyphenation, and opt-in to break-word only for elements that need it.
+        wordBreak: 'normal',
+        overflowWrap: 'normal',
         position: 'relative',
         scrollMargin: '8px',
     },
@@ -68,11 +71,15 @@ export const tableStyles = EditorView.baseTheme({
         minHeight: 'unset',
         lineHeight: 'inherit',
         color: 'inherit',
-        // Ensure long text (URLs, etc.) breaks to wrap within the cell
-        overflowWrap: 'break-word',
+        // Reset breaking so the nested editor behaves like the rendered table:
+        // wrap at whitespace, but don't aggressively split short words.
+        wordBreak: 'normal',
+        overflowWrap: 'normal',
     },
     [`.${CLASS_CELL_EDITOR} .cm-line`]: {
         padding: '0',
+        wordBreak: 'normal',
+        overflowWrap: 'normal',
     },
     [`.${CLASS_CELL_EDITOR} .cm-cursor`]: {
         borderLeftColor: 'currentColor',
@@ -89,7 +96,8 @@ export const tableStyles = EditorView.baseTheme({
         outline: '2px solid var(--joplin-divider-color, #dddddd)',
         outlineOffset: '-1px', // Draw inside existing border
         zIndex: '5', // Ensure on top of neighbors
-        overflowWrap: 'break-word',
+        wordBreak: 'normal',
+        overflowWrap: 'normal',
         boxSizing: 'border-box',
     },
     [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
@@ -115,6 +123,7 @@ export const tableStyles = EditorView.baseTheme({
         borderRadius: '3px',
         fontFamily: 'monospace',
         fontSize: '0.9em',
+        overflowWrap: 'break-word',
     },
     // Highlight/mark styling (==text==)
     [`.${CLASS_TABLE_WIDGET_TABLE} mark`]: {
@@ -126,6 +135,7 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} a`]: {
         textDecoration: 'underline',
         color: 'var(--joplin-url-color, #155BDA)',
+        overflowWrap: 'break-word',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE} th`]: {
         backgroundColor: 'var(--joplin-table-background-color, rgb(247, 247, 247))',
