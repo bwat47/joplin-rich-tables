@@ -30,6 +30,7 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
         border: '1px solid var(--joplin-divider-color, #dddddd)',
         padding: '8px 12px',
+        minWidth: '75px',
         // Joplin/CodeMirror editor styles can apply aggressive breaking (e.g. `overflow-wrap: anywhere`)
         // which makes even short words wrap. Reset breaking at the cell level so normal text wraps
         // only at whitespace/hyphenation, and opt-in to break-word only for elements that need it.
