@@ -41,7 +41,11 @@ export function createNoteIdWatcher(noteIdFacet: NoteIdFacet, getView: () => Edi
             const view = getView();
             const hasActiveCell = getActiveCell(tr.startState) !== null;
 
-            // Close nested editor if open (schedule for after transaction completes)
+            // Close nested editor if open (schedule for after transaction completes) to prevent potential stale editor state.
+            // This is more of a defensive cleanup - it formally destroys the nested editor instance (if it exists).
+            // But by the time this runs, the stale state is already gone because
+            // The clearActiveCellEffect already cleared the active cell and
+            // The full document replacement from switching notesalready triggered a decoration rebuild in tableWidgetExtension.ts.
             if (isNestedCellEditorOpen(view)) {
                 setTimeout(() => {
                     closeNestedCellEditor(view);
