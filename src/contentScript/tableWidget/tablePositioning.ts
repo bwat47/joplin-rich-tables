@@ -14,6 +14,32 @@ export interface ResolvedTable {
 }
 
 const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
+
+/**
+ * Trims trailing non-table lines from a Lezer-reported table range.
+ *
+ * Lezer's Markdown parser treats any non-blank line after a table as part of
+ * the table until a blank line separator. This function scans backward and
+ * excludes lines that don't contain '|' (i.e., not valid table rows).
+ *
+ * @param text - The raw table text from Lezer's range
+ * @returns The trimmed text containing only valid table rows
+ */
+export function trimTrailingNonTableLines(text: string): string {
+    const lines = text.split('\n');
+
+    // Need at least header + separator (2 lines) for a valid table
+    while (lines.length > 2) {
+        const lastLine = lines[lines.length - 1];
+        // A valid table row must contain '|'
+        if (lastLine.includes('|')) {
+            break;
+        }
+        lines.pop();
+    }
+
+    return lines.join('\n');
+}
 const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
 
 /**
@@ -38,11 +64,11 @@ export function resolveTableAtPos(
         return null;
     }
 
-    return {
-        from: node.from,
-        to: node.to,
-        text: state.doc.sliceString(node.from, node.to),
-    };
+    const rawText = state.doc.sliceString(node.from, node.to);
+    const text = trimTrailingNonTableLines(rawText);
+    const to = node.from + text.length;
+
+    return { from: node.from, to, text };
 }
 
 /**
@@ -63,8 +89,10 @@ export function findTableRanges(
     tree.iterate({
         enter: (node) => {
             if (node.name === 'Table') {
-                const text = doc.sliceString(node.from, node.to);
-                tables.push({ from: node.from, to: node.to, text });
+                const rawText = doc.sliceString(node.from, node.to);
+                const text = trimTrailingNonTableLines(rawText);
+                const to = node.from + text.length;
+                tables.push({ from: node.from, to, text });
             }
         },
     });
