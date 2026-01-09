@@ -9,7 +9,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 - [Interaction-and-Navigation.md](./Interaction-and-Navigation.md) - Keyboard navigation, selection logic.
 - [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md) - Command flow, serialization.
 - [Services-and-Parsing.md](./Services-and-Parsing.md) - Markdown rendering, context injection.
-- [ADR/](./ADR/) - Architecture Decision Records.
+- [ADR/](../ADR/) - Architecture Decision Records.
 
 ---
 
