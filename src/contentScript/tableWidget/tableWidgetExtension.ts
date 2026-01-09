@@ -349,8 +349,8 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
             closeNestedCellEditor(view);
         }
 
-        // Clear active cell state and set selection. No rebuild is triggered;
-        // the widget stays as-is since tables are always rendered as widgets.
+        // Clear active cell state and set selection. This triggers rebuildSingleTable()
+        // via tableDecorationField to ensure the TableWidget has fresh data.
         if (clickPos !== null) {
             view.dispatch({
                 selection: { anchor: clickPos },
