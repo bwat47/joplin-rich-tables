@@ -147,13 +147,32 @@ export const tableStyles = EditorView.baseTheme({
         display: 'none',
     },
     // Ensure the container for editable content doesn't break layout
+    // Reset white-space to normal to prevent newlines/spaces in the HTML from rendering as gaps
+    // (Joplin plugin output often contains formatting whitespace around the elements)
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-editable`]: {
-        display: 'inline-block',
-        maxWidth: '100%',
+        display: 'block !important',
+        width: '100%',
+        minWidth: '100%',
+        whiteSpace: 'normal !important',
+        margin: '0',
     },
     // Media constraints - prevent massive videos/images from breaking the table
     [`.${CLASS_TABLE_WIDGET_TABLE} img, .${CLASS_TABLE_WIDGET_TABLE} video`]: {
         maxWidth: '100%',
         height: 'auto',
+    },
+    // Fix for YouTube/video embeds layout
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered`]: {
+        margin: '0 !important',
+        padding: '0 !important',
+        display: 'block',
+        width: '100%',
+    },
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered iframe`]: {
+        width: '100%',
+        aspectRatio: '16 / 9',
+        height: 'auto', // Override fixed height attribute to let aspect-ratio take over
+        display: 'block', // Removes inline-block vertical alignment gaps
+        margin: '0',
     },
 });
