@@ -170,6 +170,7 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} img, .${CLASS_TABLE_WIDGET_TABLE} video`]: {
         maxWidth: '100%',
         height: 'auto',
+        display: 'block',
     },
     // Fix for YouTube/video embeds layout
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered`]: {
