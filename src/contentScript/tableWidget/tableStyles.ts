@@ -157,7 +157,6 @@ export const tableStyles = EditorView.baseTheme({
         {
             maxWidth: '100%',
             height: 'auto',
-            display: 'block',
         },
     // Fix for YouTube/video embeds layout
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered`]: {
@@ -172,5 +171,18 @@ export const tableStyles = EditorView.baseTheme({
         height: 'auto', // Override fixed height attribute to let aspect-ratio take over
         display: 'block', // Removes inline-block vertical alignment gaps
         margin: '0',
+    },
+    // Constrain Joplin's resource icons and missing resource placeholders
+    [`.${CLASS_TABLE_WIDGET_TABLE} .resource-icon, .${CLASS_TABLE_WIDGET_TABLE} .not-loaded-resource`]: {
+        display: 'inline-block',
+        maxWidth: '24px',
+        maxHeight: '24px',
+        overflow: 'hidden',
+    },
+    [`.${CLASS_TABLE_WIDGET_TABLE} .resource-icon img, .${CLASS_TABLE_WIDGET_TABLE} .not-loaded-resource img`]: {
+        maxWidth: '100%',
+        maxHeight: '100%', // Ensure it respects the container height
+        width: 'auto',
+        height: 'auto',
     },
 });

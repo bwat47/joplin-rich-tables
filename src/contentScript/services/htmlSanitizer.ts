@@ -32,11 +32,10 @@ function isAllowedYouTubeEmbedSrc(src: string): boolean {
  * Configure DOMPurify hooks once globally to avoid re-adding them on every render.
  */
 DOMPurify.addHook('afterSanitizeElements', (node) => {
-    // Remove <span class="resource-icon ..."> used by Joplin for resource icons,
-    // which don't render correctly in this context.
-    if (node instanceof Element && node.tagName === 'SPAN' && node.classList.contains('resource-icon')) {
-        node.remove();
-    }
+    // Remove <span class="resource-icon ..."> and <span class="not-loaded-resource ...">
+    // logic removed in favor of CSS sizing.
+
+    // Only allow trusted YouTube embed iframes; remove everything else.
 
     // Only allow trusted YouTube embed iframes; remove everything else.
     if (node instanceof Element && node.tagName === 'IFRAME') {
