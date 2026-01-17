@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { postProcessHtml } from '../htmlPostProcessor';
+import { postProcessHtml } from '../services/htmlPostProcessor';
 
 function parseHtml(html: string): DocumentFragment {
     const template = document.createElement('template');
