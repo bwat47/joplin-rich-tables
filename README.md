@@ -23,7 +23,7 @@ Table rendering includes rendering of inline markdown and image embeds.
 - Basic formatting: bold/italic/inline code/strikethrough/highlight(==mark==)/underline(++insert++).
 - Links (markdown links, autolinks, reference style links).
 - Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just displays the exact footnote number that's defined in the footnote link (e.g. `[^1]`).
-- Images (markdown and html image embeds).
+- Embeds (markdown and html image embeds, video embeds when you have joplin's video plugin enabled, youtube links will be rendered as video embed in joplin 3.6.1 or newer).
 - Katex (math) - will be rendered, but not syntax highlighted when editing.
 - Line breaks (as html `<br>` tags).
 
