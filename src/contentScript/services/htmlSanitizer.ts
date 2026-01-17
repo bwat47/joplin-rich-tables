@@ -32,11 +32,6 @@ function isAllowedYouTubeEmbedSrc(src: string): boolean {
  * Configure DOMPurify hooks once globally to avoid re-adding them on every render.
  */
 DOMPurify.addHook('afterSanitizeElements', (node) => {
-    // Remove <span class="resource-icon ..."> and <span class="not-loaded-resource ...">
-    // logic removed in favor of CSS sizing.
-
-    // Only allow trusted YouTube embed iframes; remove everything else.
-
     // Only allow trusted YouTube embed iframes; remove everything else.
     if (node instanceof Element && node.tagName === 'IFRAME') {
         const src = node.getAttribute('src');
