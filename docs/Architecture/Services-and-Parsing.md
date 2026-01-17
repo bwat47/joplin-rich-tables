@@ -7,8 +7,10 @@
 - **Integration**: `postMessage` to main plugin → executes Joplin's `renderMarkup`.
 - **Async**: Non-blocking for bulk updates.
 - **Cache**: FIFO (500 entries) stores HTML for Markdown strings.
-- **Sanitization**: DOMPurify.
-- **Footnotes**: `markdown-it-footnote` auto-numbering breaks in isolation. Regex post-processing replaces `[^label]` with styled superscript links.
+- **Sanitization**: DOMPurify (`contentScript/services/htmlSanitizer.ts`). Adds a controlled `iframe` allowlist for YouTube embeds and allows Joplin-specific data attributes and protocols.
+- **Post-processing**: HTML fixes (`contentScript/services/htmlPostProcessor.ts`) run after sanitization.
+    - **KaTeX**: Removes `.joplin-source` and replaces KaTeX HTML with MathML to avoid duplicate/glitched rendering.
+    - **Footnotes**: `markdown-it-footnote` auto-numbering breaks in isolation. Post-processing replaces remaining `[^label]` text with styled superscript links.
 
 ## Table Parsing
 
