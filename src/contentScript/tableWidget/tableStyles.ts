@@ -51,6 +51,11 @@ export const tableStyles = EditorView.baseTheme({
         content: '"\u00a0"',
         display: 'inline-block',
     },
+    // Reset white-space to prevent newlines in serialized HTML from rendering as gaps
+    // (Joplin's editor uses white-space: break-spaces which makes all whitespace visible)
+    [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}`]: {
+        whiteSpace: 'normal',
+    },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
     },
@@ -154,6 +159,11 @@ export const tableStyles = EditorView.baseTheme({
         width: '100%',
         minWidth: '100%',
         whiteSpace: 'normal !important',
+        margin: '0',
+    },
+    // Block-level math elements (display="block") have browser-default margins; reset them
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-editable math[display="block"]`]: {
+        display: 'block',
         margin: '0',
     },
     // Media constraints - prevent massive videos/images from breaking the table

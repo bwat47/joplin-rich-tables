@@ -26,6 +26,14 @@ function optimizeKatex(html: string): string {
             // Remove annotations (often contains raw TeX)
             math.querySelectorAll('annotation').forEach((ann) => ann.remove());
 
+            // Remove direct text node children of <math> - these are accessibility fallback
+            // text that becomes visible when extracted from the hidden .katex-mathml span
+            for (const child of Array.from(math.childNodes)) {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    child.remove();
+                }
+            }
+
             // Check if wrapped in display mode
             const displayParent = katexElement.closest('.katex-display');
             if (displayParent) {
