@@ -1,5 +1,6 @@
 import { logger } from '../../logger';
-import DOMPurify from 'dompurify';
+import { sanitizeHtml } from './htmlSanitizer';
+import { postProcessHtml } from './htmlPostProcessor';
 
 /**
  * Markdown rendering service that communicates with the main plugin
@@ -12,34 +13,6 @@ interface RenderResult {
     id: string;
     html: string;
     error?: boolean;
-}
-
-const IFRAME_TAG = 'iframe';
-
-const YOUTUBE_EMBED_ALLOWED_HOSTS = new Set<string>([
-    'www.youtube-nocookie.com',
-    'youtube-nocookie.com',
-    'www.youtube.com',
-    'youtube.com',
-]);
-
-const YOUTUBE_EMBED_PATH_REGEX = /^\/embed\/[A-Za-z0-9_-]{11}$/;
-
-function isAllowedYouTubeEmbedSrc(src: string): boolean {
-    try {
-        const url = new URL(src, 'https://invalid.example');
-        if (url.protocol !== 'https:') {
-            return false;
-        }
-
-        if (!YOUTUBE_EMBED_ALLOWED_HOSTS.has(url.hostname)) {
-            return false;
-        }
-
-        return YOUTUBE_EMBED_PATH_REGEX.test(url.pathname);
-    } catch {
-        return false;
-    }
 }
 
 /**
@@ -82,151 +55,6 @@ export function initRenderer(postMessage: PostMessageFn): void {
 }
 
 /**
- * Configure DOMPurify hooks once globally to avoid re-adding them on every render.
- */
-DOMPurify.addHook('afterSanitizeElements', (node) => {
-    // Remove <span class="resource-icon ..."> used by Joplin for resource icons,
-    // which don't render correctly in this context.
-    if (node instanceof Element && node.tagName === 'SPAN' && node.classList.contains('resource-icon')) {
-        node.remove();
-    }
-
-    // Only allow trusted YouTube embed iframes; remove everything else.
-    if (node instanceof Element && node.tagName === 'IFRAME') {
-        const src = node.getAttribute('src');
-        if (!src || !isAllowedYouTubeEmbedSrc(src)) {
-            node.remove();
-        }
-    }
-});
-
-/**
- * Sanitize HTML rendered by Joplin to ensure security and fix display issues.
- * - Allows specific attributes needed for internal links/images
- * - Allows unknown protocols for joplin-content://
- * - Removes "resource-icon" spans via hook
- * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
- */
-function sanitizeHtml(html: string): string {
-    const sanitized = DOMPurify.sanitize(html, {
-        ALLOW_UNKNOWN_PROTOCOLS: true,
-        ADD_TAGS: [IFRAME_TAG],
-        ADD_ATTR: [
-            'data-resource-id',
-            'data-note-id',
-            'data-item-id',
-            'data-from-md',
-            'src',
-            'title',
-            'frameborder',
-            'allowfullscreen',
-            'allow',
-            'loading',
-            'referrerpolicy',
-        ],
-        FORBID_ATTR: ['srcdoc'],
-    });
-
-    return optimizeKatex(convertFootnoteRefs(sanitized));
-}
-
-/**
- * Post-process rendered HTML to optimize KaTeX display.
- * - Removes .joplin-source elements (raw text)
- * - Extracts inner MathML from KaTeX structures to avoid duplicate/glitched rendering
- * - Removes <annotation> tags which might contain raw TeX
- */
-function optimizeKatex(html: string): string {
-    const template = document.createElement('template');
-    template.innerHTML = html;
-
-    // Remove Joplin source blocks
-    template.content.querySelectorAll('.joplin-source').forEach((el) => el.remove());
-
-    // Optimize KaTeX: Replace HTML/CSS representation with clean MathML
-    template.content.querySelectorAll('.katex').forEach((katexElement) => {
-        const math = katexElement.querySelector('math');
-        if (math) {
-            // Remove annotations (often contains raw TeX)
-            math.querySelectorAll('annotation').forEach((ann) => ann.remove());
-
-            // Check if wrapped in display mode
-            const displayParent = katexElement.closest('.katex-display');
-            if (displayParent) {
-                displayParent.replaceWith(math);
-            } else {
-                katexElement.replaceWith(math);
-            }
-        }
-    });
-
-    return template.innerHTML;
-}
-
-/**
- * Convert [^label] patterns to footnote links, but only in text nodes
- * outside of <code> and <pre> elements.
- *
- * Markdown-it-footnote auto-numbers by first appearance, which breaks when
- * rendering cells independently. Instead, we convert any remaining [^label]
- * text into styled superscript links that preserve the original label.
- */
-function convertFootnoteRefs(html: string): string {
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    processFootnotesInNode(template.content);
-    return template.innerHTML;
-}
-
-/** Recursively process text nodes, skipping code/pre elements */
-function processFootnotesInNode(node: Node): void {
-    for (const child of Array.from(node.childNodes)) {
-        if (child.nodeType === Node.TEXT_NODE) {
-            const text = child.textContent || '';
-            if (/\[\^[^\]]+\]/.test(text)) {
-                const fragment = document.createDocumentFragment();
-                let lastIndex = 0;
-                const regex = /\[\^([^\]]+)\]/g;
-                let match;
-
-                while ((match = regex.exec(text)) !== null) {
-                    // Add text before the footnote
-                    if (match.index > lastIndex) {
-                        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-                    }
-
-                    const label = match[1];
-                    const sup = document.createElement('sup');
-                    sup.className = 'footnote-ref';
-
-                    const a = document.createElement('a');
-                    // Encode any unsafe characters in the label for the ID
-                    a.href = `#fn-${encodeURIComponent(label)}`;
-                    a.textContent = label;
-
-                    sup.appendChild(a);
-                    fragment.appendChild(sup);
-
-                    lastIndex = regex.lastIndex;
-                }
-
-                // Add remaining text
-                if (lastIndex < text.length) {
-                    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-                }
-
-                child.replaceWith(fragment);
-            }
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-            const el = child as Element;
-            if (el.tagName !== 'CODE' && el.tagName !== 'PRE') {
-                processFootnotesInNode(el);
-            }
-        }
-    }
-}
-
-/**
  * Generate a unique request ID
  */
 function generateRequestId(): string {
@@ -265,8 +93,9 @@ async function renderMarkdown(markdown: string): Promise<string> {
                 id,
             })) as RenderResult | null;
 
-            if (result && result.html) {
-                const html = sanitizeHtml(result.html);
+            if (result?.html) {
+                // Clean pipeline: sanitize → post-process
+                const html = postProcessHtml(sanitizeHtml(result.html));
                 setCacheEntry(markdown, html);
                 return html;
             }
