@@ -10,6 +10,14 @@ Lezer syntax tree scanner detects Markdown tables → replaced with `Decoration.
 
 - `posAtDOM()` locates table widgets.
 - Wide tables scroll horizontally within container.
+- Each cell renders into a dedicated content wrapper (`CLASS_CELL_CONTENT`) so styling can be applied consistently between initial render and nested-editor activation.
+
+### Media and Embed Constraints
+
+Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embeds.
+
+- Media elements are constrained in `tableStyles.ts` to prevent them from expanding the table beyond the available width.
+- Joplin resource icons / missing-resource placeholders have their size constrained via CSS.
 
 ## Optimizations
 

@@ -10,6 +10,7 @@ import {
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
+    CLASS_CELL_CONTENT,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
@@ -193,24 +194,30 @@ export class TableWidget extends WidgetType {
     private renderCellContent(cell: HTMLElement, markdown: string): void {
         const { displayText, cacheKey } = buildRenderableContent(markdown, this.definitionBlock);
 
+        // Create a wrapper div for the content. This matches the structure ensureCellWrapper()
+        // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = CLASS_CELL_CONTENT;
+        cell.appendChild(contentWrapper);
+
         // Check if we have cached rendered HTML (keyed by content WITH context)
         const cached = renderer.getCached(cacheKey);
         if (cached !== undefined) {
-            cell.innerHTML = cached;
+            contentWrapper.innerHTML = cached;
             return;
         }
 
         // Show raw text initially
-        cell.textContent = displayText;
+        contentWrapper.textContent = displayText;
 
         // Check if content likely contains markdown (optimization)
         if (containsMarkdown(displayText)) {
             // Request async rendering and update when ready
             renderer.renderAsync(cacheKey, (html) => {
-                // Only update if the cell is still in the DOM and content hasn't changed.
+                // Only update if the wrapper is still in the DOM and content hasn't changed.
                 // Note: Height re-measurement is handled automatically by ResizeObserver.
-                if (cell.isConnected && cell.textContent === displayText) {
-                    cell.innerHTML = html;
+                if (contentWrapper.isConnected && contentWrapper.textContent === displayText) {
+                    contentWrapper.innerHTML = html;
                 }
             });
         }

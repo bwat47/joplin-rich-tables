@@ -51,6 +51,11 @@ export const tableStyles = EditorView.baseTheme({
         content: '"\u00a0"',
         display: 'inline-block',
     },
+    // Reset white-space to prevent newlines in serialized HTML from rendering as gaps
+    // (Joplin's editor uses white-space: break-spaces which makes all whitespace visible)
+    [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}`]: {
+        whiteSpace: 'normal',
+    },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
     },
@@ -146,14 +151,38 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-source`]: {
         display: 'none',
     },
-    // Ensure the container for editable content doesn't break layout
-    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-editable`]: {
-        display: 'inline-block',
-        maxWidth: '100%',
-    },
     // Media constraints - prevent massive videos/images from breaking the table
-    [`.${CLASS_TABLE_WIDGET_TABLE} img, .${CLASS_TABLE_WIDGET_TABLE} video`]: {
+    // Scoped to CLASS_CELL_CONTENT to avoid affecting CodeMirror's internal <img class="cm-widgetBuffer"> elements
+    [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} img, .${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} video`]:
+        {
+            maxWidth: '100%',
+            height: 'auto',
+        },
+    // Fix for YouTube/video embeds layout
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered`]: {
+        margin: '0 !important',
+        padding: '0 !important',
+        display: 'block',
+        width: '100%',
+    },
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered iframe`]: {
+        width: '100%',
+        aspectRatio: '16 / 9',
+        height: 'auto', // Override fixed height attribute to let aspect-ratio take over
+        display: 'block', // Removes inline-block vertical alignment gaps
+        margin: '0',
+    },
+    // Constrain Joplin's resource icons and missing resource placeholders
+    [`.${CLASS_TABLE_WIDGET_TABLE} .resource-icon, .${CLASS_TABLE_WIDGET_TABLE} .not-loaded-resource`]: {
+        display: 'inline-block',
+        maxWidth: '24px',
+        maxHeight: '24px',
+        overflow: 'hidden',
+    },
+    [`.${CLASS_TABLE_WIDGET_TABLE} .resource-icon img, .${CLASS_TABLE_WIDGET_TABLE} .not-loaded-resource img`]: {
         maxWidth: '100%',
+        maxHeight: '100%', // Ensure it respects the container height
+        width: 'auto',
         height: 'auto',
     },
 });
