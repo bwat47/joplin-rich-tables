@@ -3,21 +3,28 @@
  * Includes KaTeX optimization and footnote reference conversion.
  */
 export function postProcessHtml(html: string): string {
-    return optimizeKatex(convertFootnoteRefs(html));
+    return cleanupAndOptimizeHtml(convertFootnoteRefs(html));
 }
 
 /**
- * Post-process rendered HTML to optimize KaTeX display.
+ * Post-process rendered HTML to fix Joplin-specific display issues.
  * - Removes .joplin-source elements (raw text)
+ * - Removes broken resource icon spans
  * - Extracts inner MathML from KaTeX structures to avoid duplicate/glitched rendering
  * - Removes <annotation> tags which might contain raw TeX
  */
-function optimizeKatex(html: string): string {
+function cleanupAndOptimizeHtml(html: string): string {
     const template = document.createElement('template');
     template.innerHTML = html;
 
     // Remove Joplin source blocks
     template.content.querySelectorAll('.joplin-source').forEach((el) => el.remove());
+
+    // Joplin resource links sometimes render an icon span that depends on editor-global
+    // font/icon CSS (e.g. Font Awesome). Inside table cells this can degrade into a
+    // broken glyph (often a question mark). Remove the icon element but keep the
+    // resource link text and any placeholders.
+    template.content.querySelectorAll('.resource-icon').forEach((el) => el.remove());
 
     // Optimize KaTeX: Replace HTML/CSS representation with clean MathML
     template.content.querySelectorAll('.katex').forEach((katexElement) => {
