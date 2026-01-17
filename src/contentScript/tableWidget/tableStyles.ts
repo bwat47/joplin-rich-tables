@@ -152,11 +152,13 @@ export const tableStyles = EditorView.baseTheme({
         display: 'none',
     },
     // Media constraints - prevent massive videos/images from breaking the table
-    [`.${CLASS_TABLE_WIDGET_TABLE} img, .${CLASS_TABLE_WIDGET_TABLE} video`]: {
-        maxWidth: '100%',
-        height: 'auto',
-        display: 'block',
-    },
+    // Scoped to CLASS_CELL_CONTENT to avoid affecting CodeMirror's internal <img class="cm-widgetBuffer"> elements
+    [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} img, .${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} video`]:
+        {
+            maxWidth: '100%',
+            height: 'auto',
+            display: 'block',
+        },
     // Fix for YouTube/video embeds layout
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered`]: {
         margin: '0 !important',
