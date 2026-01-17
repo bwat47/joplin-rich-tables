@@ -151,21 +151,6 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-source`]: {
         display: 'none',
     },
-    // Ensure the container for editable content doesn't break layout
-    // Reset white-space to normal to prevent newlines/spaces in the HTML from rendering as gaps
-    // (Joplin plugin output often contains formatting whitespace around the elements)
-    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-editable`]: {
-        display: 'block !important',
-        width: '100%',
-        minWidth: '100%',
-        whiteSpace: 'normal !important',
-        margin: '0',
-    },
-    // Block-level math elements (display="block") have browser-default margins; reset them
-    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-editable math[display="block"]`]: {
-        display: 'block',
-        margin: '0',
-    },
     // Media constraints - prevent massive videos/images from breaking the table
     [`.${CLASS_TABLE_WIDGET_TABLE} img, .${CLASS_TABLE_WIDGET_TABLE} video`]: {
         maxWidth: '100%',
