@@ -43,9 +43,8 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
 
 /**
  * Sanitize HTML rendered by Joplin to ensure security and fix display issues.
- * - Allows specific attributes needed for internal links/images
+ * - Allows specific attributes needed for internal links/images/videos
  * - Allows unknown protocols for joplin-content://
- * - Removes "resource-icon" spans via hook
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
  */
 export function sanitizeHtml(html: string): string {
