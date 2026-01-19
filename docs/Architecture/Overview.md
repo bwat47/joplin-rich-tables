@@ -44,3 +44,35 @@ Cell click → `TableWidget` calculates row/column → dispatches `setActiveCell
 ### 3. Synchronization
 
 Typing in nested editor → `forwardChangesToMain` creates transaction with `syncAnnotation` → main editor applies → annotation prevents re-render loop.
+
+**Sync Flow Diagram**:
+
+```mermaid
+flowchart TB
+    subgraph User["User Input"]
+        K["Keyboard/Mouse"]
+    end
+
+    subgraph Nested["Nested Editor (subview)"]
+        NE["nestedCellEditor.ts"]
+        DH["domHandlers.ts"]
+    end
+
+    subgraph Main["Main Editor"]
+        ME["Main EditorView"]
+        LC["nestedEditorLifecycle.ts"]
+    end
+
+    K --> DH
+    DH -->|"keymap: Tab/Enter/Arrows"| NE
+    DH -->|"undo/redo passthrough"| ME
+    DH -->|"event bubbling prevention"| NE
+
+    NE -->|"forwardChangesToMain + syncAnnotation"| ME
+    NE -->|"selection mirror"| ME
+
+    ME -->|"external changes (undo/redo, Joplin commands)"| LC
+    LC -->|"applyMainTransactionsToNestedEditor"| NE
+    LC -->|"applyMainSelectionToNestedEditor"| NE
+    LC -->|"detect structural changes → reopen cell"| NE
+```
