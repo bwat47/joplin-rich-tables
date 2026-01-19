@@ -13,6 +13,7 @@ export interface ResolvedTable {
     text: string;
 }
 
+const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
 const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
 
 /**
@@ -40,7 +41,6 @@ export function trimTrailingNonTableLines(text: string): string {
 
     return lines.join('\n');
 }
-const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
 
 /**
  * Resolve the Lezer `Table` node that contains `pos`.
