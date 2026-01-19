@@ -12,6 +12,8 @@ import { StateField, EditorState } from '@codemirror/state';
 import { ensureSyntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
 
+const SYNTAX_TREE_TIMEOUT_MS = 200;
+
 /** Parsed document definitions */
 export interface DocumentDefinitions {
     /** Reference link definitions: lowercase label → url */
@@ -44,7 +46,7 @@ function extractDefinitions(state: EditorState): DocumentDefinitions | null {
 
     // Use syntax tree for reference link definitions
     // Timeout of 200ms is acceptable for background extraction
-    const tree = ensureSyntaxTree(state, state.doc.length, 200);
+    const tree = ensureSyntaxTree(state, state.doc.length, SYNTAX_TREE_TIMEOUT_MS);
     if (!tree) {
         return null;
     }
