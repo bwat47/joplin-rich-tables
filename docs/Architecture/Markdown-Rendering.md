@@ -20,7 +20,7 @@ To avoid exessive rendering requests to the main plugin, the following optimizat
 
 ## Cell Payload Construction
 
-Cells are stored inside a GFM table row, so `|` must be escaped (`\|`) to avoid being treated as a delimiter. When rendering a cell as standalone Markdown, that escaping is no longer needed.
+Cells are stored inside a GFM table row, so `|` must be escaped (`\|`) to avoid being treated as a delimiter (even inside inline code, where `renderMarkup` will render the literal backslash). When rendering a cell as standalone Markdown, that escaping is no longer needed.
 
 `buildRenderableContent()` (`src/contentScript/shared/cellContentUtils.ts`):
 
