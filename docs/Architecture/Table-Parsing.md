@@ -1,0 +1,42 @@
+# Table Parsing
+
+The plugin needs precise, stable character ranges for each cell to support click mapping, nested editing, and structural edits. Lezer is used to locate table blocks, but the plugin does its own per-cell parsing.
+
+## Why Not Just Lezer?
+
+Lezer’s Markdown table support identifies table blocks/rows, but it doesn’t provide reliable per-cell nodes/ranges in all cases (notably for empty cells). The plugin therefore treats Lezer as a “table block detector” and performs its own cell-boundary scanning.
+
+## Single Source of Truth: Row Scanning
+
+`scanMarkdownTableRow()` (`src/contentScript/tableModel/markdownTableRowScanner.ts`) is the only place that determines where cell boundaries are:
+
+- Iterates a row string and returns indices of unescaped `|` delimiters.
+- Treats `\|` as literal content inside a cell.
+
+Everything else in the table model layer builds on this scanner (don’t split on `|` manually).
+
+## Computing Cell Ranges (Editing Coordinates)
+
+`computeMarkdownTableCellRanges()` (`src/contentScript/tableModel/markdownTableCellRanges.ts`) converts table text into source ranges:
+
+- Filters to non-empty lines (matching the parser’s behavior).
+- Validates the separator row with `isSeparatorRow()`, but intentionally does not return ranges for the separator row.
+- Trims outer whitespace and ignores leading/trailing pipes.
+- Trims per-cell whitespace; for whitespace-only cells it chooses a stable insertion point so edits don’t “stick” directly to a pipe in pretty-padded tables.
+
+These ranges are used for:
+
+- Mapping positions back to cell coordinates (`findCellForPos()`).
+- Resolving a cell’s `from/to` range (`getCellRange()`).
+
+## Parsing to a Structured Table Model
+
+`parseMarkdownTable()` (`src/contentScript/tableModel/markdownTableParsing.ts`) produces `TableData`:
+
+- Validates basic shape (header row contains `|`, second row is a separator row).
+- Parses column alignments from the separator row (`:---`, `:---:`, `---:`, `---`) using a dedicated separator-row parser.
+- Extracts header/body cell content by slicing the original text with `computeMarkdownTableCellRanges()` so displayed content and edit ranges stay consistent.
+
+## Structural Operations (Rows/Columns/Alignment)
+
+Structural edits operate on the parsed `TableData` and then serialize back to Markdown, see: [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md)
