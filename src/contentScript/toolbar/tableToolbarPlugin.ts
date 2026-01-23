@@ -353,7 +353,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         gap: '4px',
         alignItems: 'center',
         maxWidth: 'calc(100vw - 16px)',
-        zIndex: '1000',
+        zIndex: '100',
         fontSize: '13px',
     },
     '.cm-table-toolbar-btn': {
