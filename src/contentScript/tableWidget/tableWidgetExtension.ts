@@ -1,5 +1,6 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
 import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
+import { ContentScriptContext } from 'api/types';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
@@ -31,15 +32,6 @@ import { navigationLockKeymap } from './navigationLockKeymap';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { createNoteIdWatcher } from './noteIdWatcher';
 import { moveCursorOutOfTable } from './cursorUtils';
-
-/**
- * Content script context provided by Joplin
- */
-interface ContentScriptContext {
-    pluginId: string;
-    contentScriptId: string;
-    postMessage: (message: unknown) => Promise<unknown>;
-}
 
 /**
  * Editor control interface provided by Joplin
