@@ -1,6 +1,7 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { EditorState, Range, StateField, ChangeSet, Facet } from '@codemirror/state';
-import { ContentScriptContext, CodeMirrorControl } from 'api/types';
+import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
+import type { Facet } from '@codemirror/state';
+import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
