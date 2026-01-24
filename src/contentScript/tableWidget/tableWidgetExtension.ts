@@ -1,6 +1,6 @@
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
-import { ContentScriptContext } from 'api/types';
+import { EditorState, Range, StateField, ChangeSet, Facet } from '@codemirror/state';
+import { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
 import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
 import { initRenderer } from '../services/markdownRenderer';
@@ -32,20 +32,6 @@ import { navigationLockKeymap } from './navigationLockKeymap';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { createNoteIdWatcher } from './noteIdWatcher';
 import { moveCursorOutOfTable } from './cursorUtils';
-
-/**
- * Editor control interface provided by Joplin
- */
-interface EditorControl {
-    editor: EditorView;
-    cm6: EditorView;
-    addExtension: (extension: unknown) => void;
-    registerCommand: (name: string, callback: (...args: unknown[]) => unknown) => void;
-    joplinExtensions: {
-        // Facet containing the ID of the currently open note
-        noteIdFacet: import('@codemirror/state').Facet<string, string>;
-    };
-}
 
 /**
  * Cache for parsed table data to perform expensive parsing only when content changes.
@@ -395,7 +381,7 @@ export default function (context: ContentScriptContext) {
     initRenderer(context.postMessage);
 
     return {
-        plugin: (editorControl: EditorControl) => {
+        plugin: (editorControl: CodeMirrorControl) => {
             logger.info('Registering table widget extension');
 
             // Check for CM6
@@ -404,11 +390,13 @@ export default function (context: ContentScriptContext) {
                 return;
             }
 
-            // Register the extension
-            const cm6View = editorControl.cm6;
+            // Cast for type safety - official types use `any`
+            const cm6View = editorControl.cm6 as EditorView;
+            const noteIdFacet = editorControl.joplinExtensions.noteIdFacet as Facet<string, string>;
+
             editorControl.addExtension([
                 // Close nested editor on note switch (detected via noteIdFacet)
-                createNoteIdWatcher(editorControl.joplinExtensions.noteIdFacet, () => cm6View),
+                createNoteIdWatcher(noteIdFacet, () => cm6View),
 
                 searchPanelWatcherPlugin,
                 searchForceSourceModeField,
