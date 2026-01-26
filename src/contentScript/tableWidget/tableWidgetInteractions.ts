@@ -172,16 +172,16 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    // Handle Mousedown events: cell activation
-    if (event.type === 'mousedown') {
+    // Handle Pointerdown events: cell activation (mouse/pen only - touch uses tap guard)
+    if (event.type === 'pointerdown') {
+        const pointerEvent = event as PointerEvent;
         // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
         // and open the link.
         // If we processed cell activation here, it might swallow the event or change focus
         // in a way that prevents the click.
         // However, allow RIGHT click (button 2) to fall through to cell activation so we can open the editor
         // and see the context menu.
-        const mouseEvent = event as MouseEvent;
-        if (isLink && mouseEvent.button === 0) {
+        if (isLink && pointerEvent.button === 0) {
             return true; // Claim the event to prevent CodeMirror default selection, but don't activate cell
         }
 

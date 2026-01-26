@@ -9,7 +9,8 @@
  * by tracking movement between pointerdown and pointerup. If movement is
  * within a threshold (12px), treat it as a tap.
  *
- * Mouse input continues to use `mousedown` for immediate response.
+ * Each handler (table interactions, close on outside) uses a separate context
+ * to prevent them from consuming each other's tracking state.
  */
 
 import { logger } from '../../logger';
@@ -17,7 +18,12 @@ import { logger } from '../../logger';
 /** Maximum distance (px) between pointerdown and pointerup to qualify as a tap */
 const TAP_DISTANCE_THRESHOLD = 12;
 
+/** Context identifiers for different touch handlers */
+export type TouchContext = 'table' | 'closeOutside';
+
 interface TouchState {
+    /** Which handler started this tracking */
+    context: TouchContext;
     /** Pointer ID being tracked */
     pointerId: number;
     /** Starting X coordinate */
@@ -42,9 +48,10 @@ export function isTouchPointer(event: PointerEvent): boolean {
 
 /**
  * Handle pointerdown - start tracking touch gestures.
+ * @param context Which handler is starting the tracking
  * Returns true if this is a touch event that should be tracked.
  */
-export function handlePointerDown(event: PointerEvent): boolean {
+export function handlePointerDown(event: PointerEvent, context: TouchContext): boolean {
     if (!isTouchPointer(event)) {
         return false;
     }
@@ -55,6 +62,7 @@ export function handlePointerDown(event: PointerEvent): boolean {
     }
 
     activeTouch = {
+        context,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
@@ -62,7 +70,7 @@ export function handlePointerDown(event: PointerEvent): boolean {
         target,
     };
 
-    logger.debug('Touch started', { pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+    logger.debug('Touch started', { context, pointerId: event.pointerId, x: event.clientX, y: event.clientY });
     return true;
 }
 
@@ -84,23 +92,28 @@ export function handlePointerMove(event: PointerEvent): void {
 
     if (distance > TAP_DISTANCE_THRESHOLD) {
         activeTouch.moved = true;
-        logger.debug('Touch became scroll', { pointerId: event.pointerId, distance });
+        logger.debug('Touch became scroll', { context: activeTouch.context, pointerId: event.pointerId, distance });
     }
 }
 
 /**
  * Handle pointerup - determine if gesture qualifies as a tap.
- * Returns { isTap: true, target } if valid tap, { isTap: false } otherwise.
+ * @param context Which handler is trying to consume this pointerup
+ * Returns { isTap: true, target } if valid tap for this context, { isTap: false } otherwise.
  */
-export function handlePointerUp(event: PointerEvent): { isTap: boolean; target: HTMLElement | null } {
-    if (!activeTouch || event.pointerId !== activeTouch.pointerId) {
+export function handlePointerUp(
+    event: PointerEvent,
+    context: TouchContext
+): { isTap: boolean; target: HTMLElement | null } {
+    // Only consume if this context started the tracking
+    if (!activeTouch || event.pointerId !== activeTouch.pointerId || activeTouch.context !== context) {
         return { isTap: false, target: null };
     }
 
     const wasTap = !activeTouch.moved;
     const target = activeTouch.target;
 
-    logger.debug('Touch ended', { pointerId: event.pointerId, wasTap });
+    logger.debug('Touch ended', { context, pointerId: event.pointerId, wasTap });
 
     // Clear active touch
     activeTouch = null;
@@ -113,7 +126,7 @@ export function handlePointerUp(event: PointerEvent): { isTap: boolean; target: 
  */
 export function handlePointerCancel(event: PointerEvent): void {
     if (activeTouch && event.pointerId === activeTouch.pointerId) {
-        logger.debug('Touch cancelled', { pointerId: event.pointerId });
+        logger.debug('Touch cancelled', { context: activeTouch.context, pointerId: event.pointerId });
         activeTouch = null;
     }
 }
