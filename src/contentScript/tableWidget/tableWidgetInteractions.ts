@@ -5,6 +5,7 @@ import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
+import { logger } from '../../logger';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -248,4 +249,89 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
     }
 
     return false;
+}
+
+/**
+ * Handle touch tap on table for cell activation.
+ * Called from pointerup when a deliberate tap (not scroll) is detected.
+ * Separated from handleTableInteraction because touch doesn't have event.type/button info.
+ */
+export function handleTableInteractionTouchTap(view: EditorView, target: HTMLElement): boolean {
+    // Only handle events inside table widgets.
+    const widget = target.closest(getWidgetSelector());
+    if (!widget) {
+        return false;
+    }
+
+    // Let the nested editor handle its own events.
+    if (target.closest(`.${CLASS_CELL_EDITOR}`)) {
+        return false;
+    }
+
+    // For touch taps on links, let the click event handle it
+    const isLink = Boolean(target.closest('a'));
+    if (isLink) {
+        logger.debug('Touch tap on link - deferring to click handler');
+        return false;
+    }
+
+    // Cell activation logic
+    const cell = target.closest('td, th') as HTMLElement | null;
+    if (!cell) {
+        return false;
+    }
+
+    const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
+    const row = Number(cell.dataset[DATA_ROW]);
+    const col = Number(cell.dataset[DATA_COL]);
+
+    if (!section || Number.isNaN(row) || Number.isNaN(col)) {
+        return false;
+    }
+
+    const table = resolveTableFromEventTarget(view, cell);
+    if (!table) {
+        return false;
+    }
+
+    const cellRanges = computeMarkdownTableCellRanges(table.text);
+    if (!cellRanges) {
+        return false;
+    }
+
+    const resolvedRange = resolveCellDocRange({
+        tableFrom: table.from,
+        ranges: cellRanges,
+        coords: { section, row, col },
+    });
+    if (!resolvedRange) {
+        return false;
+    }
+
+    const { cellFrom, cellTo } = resolvedRange;
+
+    logger.debug('Touch tap activating cell', { section, row, col });
+
+    view.dispatch({
+        selection: { anchor: cellFrom },
+        effects: setActiveCellEffect.of({
+            tableFrom: table.from,
+            tableTo: table.to,
+            cellFrom,
+            cellTo,
+            section,
+            row: section === SECTION_HEADER ? 0 : row,
+            col,
+        }),
+    });
+
+    // Open the nested editor directly for touch tap
+    openNestedCellEditor({
+        mainView: view,
+        cellElement: cell,
+        cellFrom,
+        cellTo,
+    });
+
+    return true;
 }

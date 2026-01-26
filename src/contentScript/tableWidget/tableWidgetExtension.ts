@@ -18,7 +18,14 @@ import {
     syncAnnotation,
 } from '../nestedEditor/nestedCellEditor';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
-import { handleTableInteraction } from './tableWidgetInteractions';
+import { handleTableInteraction, handleTableInteractionTouchTap } from './tableWidgetInteractions';
+import {
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
+    isTouchPointer,
+} from './touchTapGuard';
 import { findTableRanges } from './tablePositioning';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
@@ -296,15 +303,72 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
-// while it might seem better to use pointerdown, it causes scrolling issues on android
+/**
+ * Handle closing editor when clicking/tapping outside table widget.
+ * Uses mousedown for mouse (immediate) and pointer events for touch (tap detection).
+ */
+function handleCloseOnOutside(view: EditorView, target: HTMLElement, clientX: number, clientY: number): boolean {
+    // Keep editor open if clicking inside the widget or nested editor.
+    if (
+        target.closest(getWidgetSelector()) ||
+        target.closest(`.${CLASS_CELL_EDITOR}`) ||
+        target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
+    ) {
+        return false;
+    }
+
+    const hasActiveCell = Boolean(getActiveCell(view.state));
+    const hasNestedEditor = isNestedCellEditorOpen(view);
+
+    if (!hasActiveCell && !hasNestedEditor) {
+        return false;
+    }
+
+    logger.debug('Closing cell editor on outside click/tap');
+
+    // Capture the document position BEFORE we close the nested editor.
+    const clickPos = view.posAtCoords({ x: clientX, y: clientY });
+
+    // Close the nested editor.
+    if (hasNestedEditor) {
+        closeNestedCellEditor(view);
+    }
+
+    // Clear active cell state and set selection. This triggers rebuildSingleTable()
+    // via tableDecorationField to ensure the TableWidget has fresh data.
+    if (clickPos !== null) {
+        view.dispatch({
+            selection: { anchor: clickPos },
+            effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+            scrollIntoView: true,
+        });
+        view.focus();
+    } else if (hasActiveCell) {
+        view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+    }
+
+    return clickPos !== null; // Consume the event only if we handled cursor positioning
+}
+
 const closeOnOutsideClick = EditorView.domEventHandlers({
+    // Mouse: immediate response on mousedown
     mousedown: (event, view) => {
         const target = event.target as HTMLElement | null;
         if (!target) {
             return false;
         }
-
-        // Keep editor open if clicking inside the widget or nested editor.
+        return handleCloseOnOutside(view, target, event.clientX, event.clientY);
+    },
+    // Touch: track gesture, activate on tap (pointerup with minimal movement)
+    pointerdown: (event, view) => {
+        if (!isTouchPointer(event)) {
+            return false;
+        }
+        const target = event.target as HTMLElement | null;
+        if (!target) {
+            return false;
+        }
+        // Don't start tracking if inside widget area
         if (
             target.closest(getWidgetSelector()) ||
             target.closest(`.${CLASS_CELL_EDITOR}`) ||
@@ -312,45 +376,61 @@ const closeOnOutsideClick = EditorView.domEventHandlers({
         ) {
             return false;
         }
-
-        const hasActiveCell = Boolean(getActiveCell(view.state));
-        const hasNestedEditor = isNestedCellEditorOpen(view);
-
-        if (!hasActiveCell && !hasNestedEditor) {
+        // Only track if there's an active cell to potentially close
+        if (!getActiveCell(view.state) && !isNestedCellEditorOpen(view)) {
             return false;
         }
-
-        // Capture the document position BEFORE we close the nested editor.
-        const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-
-        // Close the nested editor.
-        if (hasNestedEditor) {
-            closeNestedCellEditor(view);
+        handlePointerDown(event);
+        return false; // Don't consume - let scroll work
+    },
+    pointermove: (event) => {
+        handlePointerMove(event);
+        return false;
+    },
+    pointerup: (event, view) => {
+        const { isTap, target } = handlePointerUp(event);
+        if (isTap && target) {
+            return handleCloseOnOutside(view, target, event.clientX, event.clientY);
         }
-
-        // Clear active cell state and set selection. This triggers rebuildSingleTable()
-        // via tableDecorationField to ensure the TableWidget has fresh data.
-        if (clickPos !== null) {
-            view.dispatch({
-                selection: { anchor: clickPos },
-                effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
-                scrollIntoView: true,
-            });
-            view.focus();
-        } else if (hasActiveCell) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-
-        return clickPos !== null; // Consume the event only if we handled cursor positioning
+        return false;
+    },
+    pointercancel: (event) => {
+        handlePointerCancel(event);
+        return false;
     },
 });
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
+    // Mouse: immediate cell activation on mousedown
     mousedown: (event, view) => {
         return handleTableInteraction(view, event);
     },
+    // Click: link handling (both mouse and touch)
     click: (event, view) => {
         return handleTableInteraction(view, event);
+    },
+    // Touch: track gesture for tap detection
+    pointerdown: (event, _view) => {
+        if (!isTouchPointer(event)) {
+            return false;
+        }
+        handlePointerDown(event);
+        return false; // Don't consume - allow scrolling
+    },
+    pointermove: (event) => {
+        handlePointerMove(event);
+        return false;
+    },
+    pointerup: (event, view) => {
+        const { isTap, target } = handlePointerUp(event);
+        if (isTap && target) {
+            return handleTableInteractionTouchTap(view, target);
+        }
+        return false;
+    },
+    pointercancel: (event) => {
+        handlePointerCancel(event);
+        return false;
     },
 });
 
