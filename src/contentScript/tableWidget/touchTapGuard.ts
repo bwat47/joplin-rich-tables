@@ -42,7 +42,7 @@ let activeTouch: TouchState | null = null;
 /**
  * Check if pointer event is from a touch input (not mouse/pen).
  */
-export function isTouchPointer(event: PointerEvent): boolean {
+function isTouchPointer(event: PointerEvent): boolean {
     return event.pointerType === 'touch';
 }
 

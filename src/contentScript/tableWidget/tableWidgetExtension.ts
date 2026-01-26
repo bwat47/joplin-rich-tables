@@ -299,7 +299,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
 /**
  * Handle closing editor when clicking/tapping outside table widget.
- * Uses mousedown for mouse (immediate) and pointer events for touch (tap detection).
+ * Uses pointer events; mouse/pen close immediately, touch uses tap detection.
  */
 function handleCloseOnOutside(view: EditorView, target: HTMLElement, clientX: number, clientY: number): boolean {
     // Keep editor open if clicking inside the widget or nested editor.
