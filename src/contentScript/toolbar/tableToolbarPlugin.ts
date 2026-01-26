@@ -119,6 +119,7 @@ class TableToolbarPlugin {
                 this.view.focus();
             };
             btn.appendChild(svg);
+            btn.classList.add('cm-table-toolbar-icon-btn');
             this.dom.appendChild(btn);
             return btn;
         };
@@ -372,7 +373,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         height: '18px',
         display: 'block',
     },
-    '.cm-table-toolbar-btn:has(.cm-table-toolbar-icon)': {
+    '.cm-table-toolbar-icon-btn': {
         padding: '4px 6px',
         lineHeight: '0',
     },
