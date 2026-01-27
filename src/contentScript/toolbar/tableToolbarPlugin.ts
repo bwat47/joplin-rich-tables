@@ -308,6 +308,9 @@ class TableToolbarPlugin {
                 const scrollDOM = this.view.scrollDOM;
                 const scrollDOMRect = scrollDOM.getBoundingClientRect();
                 const isInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + 1;
+                // Desktop uses internal CM scrolling; mobile uses external WebView scrolling.
+                // For internal scroll, the visible viewport is the scrollDOM rect.
+                // For external scroll, use visualViewport/window dimensions anchored to the page.
                 const visualViewport = window.visualViewport;
                 const viewportHeight = isInternalScroll
                     ? scrollDOMRect.height
