@@ -82,6 +82,22 @@ class TableToolbarPlugin {
             return;
         }
 
+        // Active cell changed within the same table
+        if (
+            this.currentActiveCell &&
+            prevActiveCell &&
+            this.currentActiveCell.tableFrom === prevActiveCell.tableFrom &&
+            (this.currentActiveCell.cellFrom !== prevActiveCell.cellFrom ||
+                this.currentActiveCell.cellTo !== prevActiveCell.cellTo ||
+                this.currentActiveCell.row !== prevActiveCell.row ||
+                this.currentActiveCell.col !== prevActiveCell.col ||
+                this.currentActiveCell.section !== prevActiveCell.section)
+        ) {
+            // Re-anchor to the newly active cell
+            this.schedulePositionUpdate();
+            return;
+        }
+
         // Check for conditions that usually imply the widget DOM was replaced/rebuilt:
         // 1. rebuildTableWidgetsEffect (explicit structural edit)
         // 2. Doc changes that are NOT sync (e.g. Undo/Redo, external edits).
