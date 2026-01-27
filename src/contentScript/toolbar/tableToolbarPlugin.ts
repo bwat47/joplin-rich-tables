@@ -314,7 +314,7 @@ class TableToolbarPlugin {
                 const visualViewport = window.visualViewport;
                 const viewportHeight = isInternalScroll
                     ? scrollDOMRect.height
-                    : visualViewport?.height ?? window.innerHeight;
+                    : (visualViewport?.height ?? window.innerHeight);
                 const viewportTop = isInternalScroll ? scrollDOMRect.top : 0;
                 const viewportBottom = isInternalScroll ? scrollDOMRect.bottom : viewportHeight;
 
@@ -335,7 +335,7 @@ class TableToolbarPlugin {
                     TOOLBAR_VIEWPORT_PADDING_PX;
 
                 let result = null as Awaited<ReturnType<typeof computePosition>> | null;
-                let manualPosition = null as { x: number; y: number } | null;
+                let manualPosition = null as { x: number; y: number; fixed?: boolean } | null;
 
                 if (topVisible && hasRoomAbove) {
                     result = await computePosition(referenceElement, this.dom, {
@@ -356,25 +356,44 @@ class TableToolbarPlugin {
                         ],
                     });
                 } else {
-                    const placeAbove =
-                        (tableRect.top + tableRect.bottom) / 2 > viewportTop + viewportHeight / 2;
+                    // Pinned mode: toolbar sticks to viewport edge when table top/bottom is out of view.
+                    const placeAbove = (tableRect.top + tableRect.bottom) / 2 > viewportTop + viewportHeight / 2;
 
-                    const viewRect = this.view.dom.getBoundingClientRect();
-                    const offsetParent = (this.dom.offsetParent ?? document.body) as HTMLElement;
-                    const offsetParentRect = offsetParent.getBoundingClientRect();
+                    if (isInternalScroll) {
+                        // Desktop (internal scroll): use position: absolute with offset parent calculations
+                        // to keep the toolbar within the editor panel bounds.
+                        const viewRect = this.view.dom.getBoundingClientRect();
+                        const offsetParent = (this.dom.offsetParent ?? document.body) as HTMLElement;
+                        const offsetParentRect = offsetParent.getBoundingClientRect();
 
-                    const minX = TOOLBAR_VIEWPORT_PADDING_PX;
-                    const maxX = Math.max(
-                        TOOLBAR_VIEWPORT_PADDING_PX,
-                        viewRect.width - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
-                    );
-                    const x = Math.min(Math.max(tableRect.left - viewRect.left, minX), maxX);
+                        const minX = TOOLBAR_VIEWPORT_PADDING_PX;
+                        const maxX = Math.max(
+                            TOOLBAR_VIEWPORT_PADDING_PX,
+                            viewRect.width - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
+                        );
+                        const x = Math.min(Math.max(tableRect.left - viewRect.left, minX), maxX);
 
-                    const topInParent = viewportTop - offsetParentRect.top + TOOLBAR_VIEWPORT_PADDING_PX;
-                    const bottomInParent =
-                        viewportBottom - offsetParentRect.top - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX;
-                    const y = placeAbove ? topInParent : Math.max(topInParent, bottomInParent);
-                    manualPosition = { x, y };
+                        const topInParent = viewportTop - offsetParentRect.top + TOOLBAR_VIEWPORT_PADDING_PX;
+                        const bottomInParent =
+                            viewportBottom - offsetParentRect.top - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX;
+                        const y = placeAbove ? topInParent : Math.max(topInParent, bottomInParent);
+                        manualPosition = { x, y, fixed: false };
+                    } else {
+                        // Mobile (external scroll): use position: fixed with viewport-relative coordinates
+                        // to avoid jitter caused by offset parent recalculations during scroll.
+                        const minX = TOOLBAR_VIEWPORT_PADDING_PX;
+                        const maxX = Math.max(
+                            TOOLBAR_VIEWPORT_PADDING_PX,
+                            window.innerWidth - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
+                        );
+                        const x = Math.min(Math.max(tableRect.left, minX), maxX);
+
+                        const y = placeAbove
+                            ? viewportTop + TOOLBAR_VIEWPORT_PADDING_PX
+                            : viewportBottom - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX;
+
+                        manualPosition = { x, y, fixed: true };
+                    }
                 }
 
                 if (result?.middlewareData.hide?.referenceHidden) {
@@ -385,8 +404,7 @@ class TableToolbarPlugin {
                 // Avoid rendering if we somehow produced a non-finite position.
                 if (
                     (result && (!Number.isFinite(result.x) || !Number.isFinite(result.y))) ||
-                    (manualPosition &&
-                        (!Number.isFinite(manualPosition.x) || !Number.isFinite(manualPosition.y)))
+                    (manualPosition && (!Number.isFinite(manualPosition.x) || !Number.isFinite(manualPosition.y)))
                 ) {
                     this.hideToolbar();
                     return;
@@ -410,11 +428,14 @@ class TableToolbarPlugin {
                 this.showToolbar();
                 if (manualPosition) {
                     Object.assign(this.dom.style, {
+                        position: manualPosition.fixed ? 'fixed' : 'absolute',
                         left: `${manualPosition.x}px`,
                         top: `${manualPosition.y}px`,
                     });
                     return;
                 }
+                // Reset to absolute positioning for Floating UI results
+                this.dom.style.position = 'absolute';
                 Object.assign(this.dom.style, {
                     left: `${result.x}px`,
                     top: `${result.y}px`,
