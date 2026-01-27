@@ -42,6 +42,7 @@ class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
     private cleanupAutoUpdate: (() => void) | null = null;
+    private cleanupViewportListeners: (() => void) | null = null;
 
     constructor(private view: EditorView) {
         this.dom = document.createElement('div');
@@ -248,6 +249,10 @@ class TableToolbarPlugin {
             this.cleanupAutoUpdate();
             this.cleanupAutoUpdate = null;
         }
+        if (this.cleanupViewportListeners) {
+            this.cleanupViewportListeners();
+            this.cleanupViewportListeners = null;
+        }
     }
 
     /**
@@ -281,6 +286,8 @@ class TableToolbarPlugin {
         this.cleanupPositioning();
         this.prepareToolbarForPositioning();
 
+        this.cleanupViewportListeners = this.attachViewportListeners();
+
         this.cleanupAutoUpdate = autoUpdate(
             referenceElement,
             this.dom,
@@ -298,19 +305,30 @@ class TableToolbarPlugin {
 
                 const toolbarRect = this.dom.getBoundingClientRect();
                 const tableRect = referenceElement.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
+                const scrollDOM = this.view.scrollDOM;
+                const scrollDOMRect = scrollDOM.getBoundingClientRect();
+                const isInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + 1;
+                const visualViewport = window.visualViewport;
+                const viewportHeight = isInternalScroll
+                    ? scrollDOMRect.height
+                    : visualViewport?.height ?? window.innerHeight;
+                const viewportTop = isInternalScroll ? scrollDOMRect.top : 0;
+                const viewportBottom = isInternalScroll ? scrollDOMRect.bottom : viewportHeight;
 
-                if (tableRect.bottom <= 0 || tableRect.top >= viewportHeight) {
+                const tableAboveViewport = tableRect.bottom <= viewportTop;
+                const tableBelowViewport = tableRect.top >= viewportBottom;
+
+                if (tableAboveViewport || tableBelowViewport) {
                     this.hideToolbar();
                     return;
                 }
 
-                const topVisible = tableRect.top >= 0 && tableRect.top <= viewportHeight;
-                const bottomVisible = tableRect.bottom >= 0 && tableRect.bottom <= viewportHeight;
+                const topVisible = tableRect.top >= viewportTop && tableRect.top <= viewportBottom;
+                const bottomVisible = tableRect.bottom >= viewportTop && tableRect.bottom <= viewportBottom;
                 const hasRoomAbove =
-                    tableRect.top - toolbarRect.height - TOOLBAR_OFFSET_PX >= TOOLBAR_VIEWPORT_PADDING_PX;
+                    tableRect.top - toolbarRect.height - TOOLBAR_OFFSET_PX >= viewportTop + TOOLBAR_VIEWPORT_PADDING_PX;
                 const hasRoomBelow =
-                    viewportHeight - tableRect.bottom - toolbarRect.height - TOOLBAR_OFFSET_PX >=
+                    viewportBottom - tableRect.bottom - toolbarRect.height - TOOLBAR_OFFSET_PX >=
                     TOOLBAR_VIEWPORT_PADDING_PX;
 
                 let result = null as Awaited<ReturnType<typeof computePosition>> | null;
@@ -335,23 +353,24 @@ class TableToolbarPlugin {
                         ],
                     });
                 } else {
-                    const activeCellCoords = this.view.coordsAtPos(this.currentActiveCell.cellFrom);
                     const placeAbove =
-                        activeCellCoords && (activeCellCoords.top + activeCellCoords.bottom) / 2 > viewportHeight / 2;
+                        (tableRect.top + tableRect.bottom) / 2 > viewportTop + viewportHeight / 2;
 
                     const viewRect = this.view.dom.getBoundingClientRect();
+                    const offsetParent = (this.dom.offsetParent ?? document.body) as HTMLElement;
+                    const offsetParentRect = offsetParent.getBoundingClientRect();
+
                     const minX = TOOLBAR_VIEWPORT_PADDING_PX;
                     const maxX = Math.max(
                         TOOLBAR_VIEWPORT_PADDING_PX,
                         viewRect.width - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
                     );
                     const x = Math.min(Math.max(tableRect.left - viewRect.left, minX), maxX);
-                    const y = placeAbove
-                        ? TOOLBAR_VIEWPORT_PADDING_PX
-                        : Math.max(
-                              TOOLBAR_VIEWPORT_PADDING_PX,
-                              viewRect.height - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX
-                          );
+
+                    const topInParent = viewportTop - offsetParentRect.top + TOOLBAR_VIEWPORT_PADDING_PX;
+                    const bottomInParent =
+                        viewportBottom - offsetParentRect.top - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX;
+                    const y = placeAbove ? topInParent : Math.max(topInParent, bottomInParent);
                     manualPosition = { x, y };
                 }
 
@@ -406,6 +425,24 @@ class TableToolbarPlugin {
                 animationFrame: false,
             }
         );
+    }
+
+    private attachViewportListeners() {
+        const handler = () => {
+            this.schedulePositionUpdate();
+        };
+
+        document.addEventListener('scroll', handler, { passive: true });
+        window.addEventListener('resize', handler);
+        window.visualViewport?.addEventListener('scroll', handler);
+        window.visualViewport?.addEventListener('resize', handler);
+
+        return () => {
+            document.removeEventListener('scroll', handler);
+            window.removeEventListener('resize', handler);
+            window.visualViewport?.removeEventListener('scroll', handler);
+            window.visualViewport?.removeEventListener('resize', handler);
+        };
     }
 }
 
