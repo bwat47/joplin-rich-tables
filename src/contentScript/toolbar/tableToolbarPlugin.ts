@@ -14,7 +14,7 @@ import {
     execMoveColumnLeft,
     execMoveColumnRight,
 } from '../tableCommands/tableCommands';
-import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
+import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
@@ -296,33 +296,103 @@ class TableToolbarPlugin {
                     return;
                 }
 
-                // First compute with preferred top placement
-                let result = await computePosition(referenceElement, this.dom, {
-                    placement: 'top-start',
-                    middleware: [
-                        offset(5),
-                        flip({ fallbackPlacements: ['bottom-start', 'top-start'] }),
-                        shift({ padding: 5 }),
-                        hide(),
-                    ],
-                });
+                const toolbarRect = this.dom.getBoundingClientRect();
+                const tableRect = referenceElement.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
 
-                // Check if toolbar would be obscured near top of viewport (where Joplin's toolbar lives)
-                const obscurationThreshold = 5; // Pixels from top of viewport
-                if (result.y < obscurationThreshold) {
-                    // Recompute with forced bottom placement
-                    result = await computePosition(referenceElement, this.dom, {
-                        placement: 'bottom-start',
-                        middleware: [offset(5), shift({ padding: 5 }), hide()],
-                    });
-                }
-
-                if (result.middlewareData.hide?.referenceHidden) {
+                if (tableRect.bottom <= 0 || tableRect.top >= viewportHeight) {
                     this.hideToolbar();
                     return;
                 }
 
+                const topVisible = tableRect.top >= 0 && tableRect.top <= viewportHeight;
+                const bottomVisible = tableRect.bottom >= 0 && tableRect.bottom <= viewportHeight;
+                const hasRoomAbove =
+                    tableRect.top - toolbarRect.height - TOOLBAR_OFFSET_PX >= TOOLBAR_VIEWPORT_PADDING_PX;
+                const hasRoomBelow =
+                    viewportHeight - tableRect.bottom - toolbarRect.height - TOOLBAR_OFFSET_PX >=
+                    TOOLBAR_VIEWPORT_PADDING_PX;
+
+                let result = null as Awaited<ReturnType<typeof computePosition>> | null;
+                let manualPosition = null as { x: number; y: number } | null;
+
+                if (topVisible && hasRoomAbove) {
+                    result = await computePosition(referenceElement, this.dom, {
+                        placement: 'top-start',
+                        middleware: [
+                            offset(TOOLBAR_OFFSET_PX),
+                            shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }),
+                            hide(),
+                        ],
+                    });
+                } else if (bottomVisible && hasRoomBelow) {
+                    result = await computePosition(referenceElement, this.dom, {
+                        placement: 'bottom-start',
+                        middleware: [
+                            offset(TOOLBAR_OFFSET_PX),
+                            shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }),
+                            hide(),
+                        ],
+                    });
+                } else {
+                    const activeCellCoords = this.view.coordsAtPos(this.currentActiveCell.cellFrom);
+                    const placeAbove =
+                        activeCellCoords && (activeCellCoords.top + activeCellCoords.bottom) / 2 > viewportHeight / 2;
+
+                    const viewRect = this.view.dom.getBoundingClientRect();
+                    const minX = TOOLBAR_VIEWPORT_PADDING_PX;
+                    const maxX = Math.max(
+                        TOOLBAR_VIEWPORT_PADDING_PX,
+                        viewRect.width - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
+                    );
+                    const x = Math.min(Math.max(tableRect.left - viewRect.left, minX), maxX);
+                    const y = placeAbove
+                        ? TOOLBAR_VIEWPORT_PADDING_PX
+                        : Math.max(
+                              TOOLBAR_VIEWPORT_PADDING_PX,
+                              viewRect.height - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX
+                          );
+                    manualPosition = { x, y };
+                }
+
+                if (result?.middlewareData.hide?.referenceHidden) {
+                    this.hideToolbar();
+                    return;
+                }
+
+                // Avoid rendering if we somehow produced a non-finite position.
+                if (
+                    (result && (!Number.isFinite(result.x) || !Number.isFinite(result.y))) ||
+                    (manualPosition &&
+                        (!Number.isFinite(manualPosition.x) || !Number.isFinite(manualPosition.y)))
+                ) {
+                    this.hideToolbar();
+                    return;
+                }
+
+                // If we positioned relative to the table, keep the existing obscuration guard.
+                if (result && result.placement.startsWith('top') && result.y < TOOLBAR_OBSCURATION_THRESHOLD_PX) {
+                    const fallback = await computePosition(referenceElement, this.dom, {
+                        placement: 'bottom-start',
+                        middleware: [
+                            offset(TOOLBAR_OFFSET_PX),
+                            shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }),
+                            hide(),
+                        ],
+                    });
+                    if (!fallback.middlewareData.hide?.referenceHidden) {
+                        result = fallback;
+                    }
+                }
+
                 this.showToolbar();
+                if (manualPosition) {
+                    Object.assign(this.dom.style, {
+                        left: `${manualPosition.x}px`,
+                        top: `${manualPosition.y}px`,
+                    });
+                    return;
+                }
                 Object.assign(this.dom.style, {
                     left: `${result.x}px`,
                     top: `${result.y}px`,
@@ -338,6 +408,10 @@ class TableToolbarPlugin {
         );
     }
 }
+
+const TOOLBAR_OFFSET_PX = 5;
+const TOOLBAR_VIEWPORT_PADDING_PX = 5;
+const TOOLBAR_OBSCURATION_THRESHOLD_PX = 5;
 
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);
 
