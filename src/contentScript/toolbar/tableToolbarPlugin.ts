@@ -35,7 +35,7 @@ import {
     moveRowUpIcon,
     moveRowDownIcon,
 } from './icons';
-import { findTableWidgetElement } from '../tableWidget/domHelpers';
+import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 
 class TableToolbarPlugin {
@@ -270,7 +270,9 @@ class TableToolbarPlugin {
             return;
         }
 
-        const referenceElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
+        const tableId = makeTableId(this.currentActiveCell.tableFrom);
+        const cellElement = findCellElement(this.view, tableId, this.currentActiveCell);
+        const referenceElement = cellElement ?? findTableWidgetElement(this.view, tableId);
 
         if (!referenceElement) {
             this.cleanupPositioning();
