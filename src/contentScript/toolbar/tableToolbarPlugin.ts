@@ -368,14 +368,14 @@ class TableToolbarPlugin {
                     } else {
                         // Mobile (external scroll): use position: fixed with viewport-relative coordinates
                         // to avoid jitter caused by offset parent recalculations during scroll.
-                        const viewportLeft = visualViewport?.pageLeft ?? 0;
+                        // Mobile editor disables pinch-zoom (maximum-scale=1), so pageLeft should be 0.
                         const viewportWidth = visualViewport?.width ?? window.innerWidth;
                         const minX = TOOLBAR_VIEWPORT_PADDING_PX;
                         const maxX = Math.max(
                             TOOLBAR_VIEWPORT_PADDING_PX,
-                            viewportLeft + viewportWidth - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
+                            viewportWidth - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
                         );
-                        const x = Math.min(Math.max(tableRect.left + viewportLeft, minX), maxX);
+                        const x = Math.min(Math.max(tableRect.left, minX), maxX);
 
                         const y = placeAbove
                             ? viewportTop + TOOLBAR_VIEWPORT_PADDING_PX
