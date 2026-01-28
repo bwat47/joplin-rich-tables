@@ -14,7 +14,7 @@ import {
     execMoveColumnLeft,
     execMoveColumnRight,
 } from '../tableCommands/tableCommands';
-import { computePosition, autoUpdate, offset, flip, shift, hide } from '@floating-ui/dom';
+import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
@@ -42,6 +42,7 @@ class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
     private cleanupAutoUpdate: (() => void) | null = null;
+    private cleanupViewportListeners: (() => void) | null = null;
 
     constructor(private view: EditorView) {
         this.dom = document.createElement('div');
@@ -53,8 +54,6 @@ class TableToolbarPlugin {
         this.createButtons();
 
         view.dom.appendChild(this.dom);
-
-        // Note: No scroll/resize event listeners - autoUpdate handles it
     }
 
     update(update: ViewUpdate) {
@@ -68,9 +67,7 @@ class TableToolbarPlugin {
                 this.schedulePositionUpdate();
             } else {
                 this.cleanupPositioning();
-                // When the toolbar is no longer needed, remove it from layout entirely
-                // to avoid any one-frame paint artifacts.
-                this.hideToolbarCompletely();
+                this.hideToolbar();
             }
             return;
         }
@@ -216,7 +213,6 @@ class TableToolbarPlugin {
     }
 
     private showToolbar() {
-        // Keep the element measurable for Floating UI.
         this.dom.style.display = 'flex';
         this.dom.style.visibility = 'visible';
     }
@@ -226,11 +222,6 @@ class TableToolbarPlugin {
         // This prevents "ghosting" or lingering 1-frame artifacts.
         this.dom.style.display = 'none';
         this.dom.style.visibility = 'hidden';
-    }
-
-    private hideToolbarCompletely() {
-        this.dom.style.visibility = 'hidden';
-        this.dom.style.display = 'none';
     }
 
     private prepareToolbarForPositioning() {
@@ -247,6 +238,10 @@ class TableToolbarPlugin {
         if (this.cleanupAutoUpdate) {
             this.cleanupAutoUpdate();
             this.cleanupAutoUpdate = null;
+        }
+        if (this.cleanupViewportListeners) {
+            this.cleanupViewportListeners();
+            this.cleanupViewportListeners = null;
         }
     }
 
@@ -266,7 +261,7 @@ class TableToolbarPlugin {
     private updatePosition() {
         if (!this.currentActiveCell) {
             this.cleanupPositioning();
-            this.hideToolbarCompletely();
+            this.hideToolbar();
             return;
         }
 
@@ -274,12 +269,19 @@ class TableToolbarPlugin {
 
         if (!referenceElement) {
             this.cleanupPositioning();
-            this.hideToolbarCompletely();
+            this.hideToolbar();
             return;
         }
 
         this.cleanupPositioning();
         this.prepareToolbarForPositioning();
+
+        const scrollDOM = this.view.scrollDOM;
+        const isInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + 1;
+        if (!isInternalScroll) {
+            // External scroll (mobile) doesn't reliably trigger autoUpdate's ancestor scroll handlers.
+            this.cleanupViewportListeners = this.attachViewportListeners();
+        }
 
         this.cleanupAutoUpdate = autoUpdate(
             referenceElement,
@@ -296,33 +298,129 @@ class TableToolbarPlugin {
                     return;
                 }
 
-                // First compute with preferred top placement
-                let result = await computePosition(referenceElement, this.dom, {
-                    placement: 'top-start',
-                    middleware: [
-                        offset(5),
-                        flip({ fallbackPlacements: ['bottom-start', 'top-start'] }),
-                        shift({ padding: 5 }),
-                        hide(),
-                    ],
-                });
+                const toolbarRect = this.dom.getBoundingClientRect();
+                const tableRect = referenceElement.getBoundingClientRect();
+                const scrollDOMRect = scrollDOM.getBoundingClientRect();
+                // Desktop uses internal CM scrolling; mobile uses external WebView scrolling.
+                // For internal scroll, the visible viewport is the scrollDOM rect.
+                // For external scroll, use visualViewport/window dimensions anchored to the page.
+                const visualViewport = window.visualViewport;
+                const viewportHeight = isInternalScroll
+                    ? scrollDOMRect.height
+                    : (visualViewport?.height ?? window.innerHeight);
+                const viewportTop = isInternalScroll ? scrollDOMRect.top : 0;
+                const viewportBottom = isInternalScroll ? scrollDOMRect.bottom : viewportHeight;
 
-                // Check if toolbar would be obscured near top of viewport (where Joplin's toolbar lives)
-                const obscurationThreshold = 5; // Pixels from top of viewport
-                if (result.y < obscurationThreshold) {
-                    // Recompute with forced bottom placement
-                    result = await computePosition(referenceElement, this.dom, {
-                        placement: 'bottom-start',
-                        middleware: [offset(5), shift({ padding: 5 }), hide()],
-                    });
-                }
+                const tableAboveViewport = tableRect.bottom <= viewportTop;
+                const tableBelowViewport = tableRect.top >= viewportBottom;
 
-                if (result.middlewareData.hide?.referenceHidden) {
+                if (tableAboveViewport || tableBelowViewport) {
                     this.hideToolbar();
                     return;
                 }
 
+                const topVisible = tableRect.top >= viewportTop && tableRect.top <= viewportBottom;
+                const bottomVisible = tableRect.bottom >= viewportTop && tableRect.bottom <= viewportBottom;
+                const hasRoomAbove =
+                    tableRect.top - toolbarRect.height - TOOLBAR_OFFSET_PX >= viewportTop + TOOLBAR_VIEWPORT_PADDING_PX;
+                const hasRoomBelow =
+                    viewportBottom - tableRect.bottom - toolbarRect.height - TOOLBAR_OFFSET_PX >=
+                    TOOLBAR_VIEWPORT_PADDING_PX;
+
+                let result = null as Awaited<ReturnType<typeof computePosition>> | null;
+                let manualPosition = null as { x: number; y: number; fixed?: boolean } | null;
+
+                const middleware = [offset(TOOLBAR_OFFSET_PX), shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }), hide()];
+
+                if (topVisible && hasRoomAbove) {
+                    result = await computePosition(referenceElement, this.dom, {
+                        placement: 'top-start',
+                        middleware,
+                    });
+                } else if (bottomVisible && hasRoomBelow) {
+                    result = await computePosition(referenceElement, this.dom, {
+                        placement: 'bottom-start',
+                        middleware,
+                    });
+                } else {
+                    // Pinned mode: toolbar sticks to viewport edge when table top/bottom is out of view.
+                    const placeAbove = (tableRect.top + tableRect.bottom) / 2 > viewportTop + viewportHeight / 2;
+
+                    if (isInternalScroll) {
+                        // Desktop (internal scroll): use position: absolute with offset parent calculations
+                        // to keep the toolbar within the editor panel bounds.
+                        const viewRect = this.view.dom.getBoundingClientRect();
+                        const offsetParent = (this.dom.offsetParent ?? document.body) as HTMLElement;
+                        const offsetParentRect = offsetParent.getBoundingClientRect();
+
+                        const minX = TOOLBAR_VIEWPORT_PADDING_PX;
+                        const maxX = Math.max(
+                            TOOLBAR_VIEWPORT_PADDING_PX,
+                            viewRect.width - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
+                        );
+                        const x = Math.min(Math.max(tableRect.left - viewRect.left, minX), maxX);
+
+                        const topInParent = viewportTop - offsetParentRect.top + TOOLBAR_VIEWPORT_PADDING_PX;
+                        const bottomInParent =
+                            viewportBottom - offsetParentRect.top - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX;
+                        const y = placeAbove ? topInParent : Math.max(topInParent, bottomInParent);
+                        manualPosition = { x, y, fixed: false };
+                    } else {
+                        // Mobile (external scroll): use position: fixed with viewport-relative coordinates
+                        // to avoid jitter caused by offset parent recalculations during scroll.
+                        // Mobile editor disables pinch-zoom (maximum-scale=1), so pageLeft should be 0.
+                        const viewportWidth = visualViewport?.width ?? window.innerWidth;
+                        const minX = TOOLBAR_VIEWPORT_PADDING_PX;
+                        const maxX = Math.max(
+                            TOOLBAR_VIEWPORT_PADDING_PX,
+                            viewportWidth - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
+                        );
+                        const x = Math.min(Math.max(tableRect.left, minX), maxX);
+
+                        const y = placeAbove
+                            ? viewportTop + TOOLBAR_VIEWPORT_PADDING_PX
+                            : viewportBottom - toolbarRect.height - TOOLBAR_VIEWPORT_PADDING_PX;
+
+                        manualPosition = { x, y, fixed: true };
+                    }
+                }
+
+                if (result?.middlewareData.hide?.referenceHidden) {
+                    this.hideToolbar();
+                    return;
+                }
+
+                // Avoid rendering if we somehow produced a non-finite position.
+                if (
+                    (result && (!Number.isFinite(result.x) || !Number.isFinite(result.y))) ||
+                    (manualPosition && (!Number.isFinite(manualPosition.x) || !Number.isFinite(manualPosition.y)))
+                ) {
+                    this.hideToolbar();
+                    return;
+                }
+
+                // If we positioned relative to the table, keep the existing obscuration guard.
+                if (result && result.placement.startsWith('top') && result.y < TOOLBAR_OBSCURATION_THRESHOLD_PX) {
+                    const fallback = await computePosition(referenceElement, this.dom, {
+                        placement: 'bottom-start',
+                        middleware,
+                    });
+                    if (!fallback.middlewareData.hide?.referenceHidden) {
+                        result = fallback;
+                    }
+                }
+
                 this.showToolbar();
+                if (manualPosition) {
+                    Object.assign(this.dom.style, {
+                        position: manualPosition.fixed ? 'fixed' : 'absolute',
+                        left: `${manualPosition.x}px`,
+                        top: `${manualPosition.y}px`,
+                    });
+                    return;
+                }
+                // Reset to absolute positioning for Floating UI results
+                this.dom.style.position = 'absolute';
                 Object.assign(this.dom.style, {
                     left: `${result.x}px`,
                     top: `${result.y}px`,
@@ -337,7 +435,29 @@ class TableToolbarPlugin {
             }
         );
     }
+
+    private attachViewportListeners() {
+        const handler = () => {
+            this.schedulePositionUpdate();
+        };
+
+        document.addEventListener('scroll', handler, { passive: true });
+        window.addEventListener('resize', handler);
+        window.visualViewport?.addEventListener('scroll', handler);
+        window.visualViewport?.addEventListener('resize', handler);
+
+        return () => {
+            document.removeEventListener('scroll', handler);
+            window.removeEventListener('resize', handler);
+            window.visualViewport?.removeEventListener('scroll', handler);
+            window.visualViewport?.removeEventListener('resize', handler);
+        };
+    }
 }
+
+const TOOLBAR_OFFSET_PX = 5;
+const TOOLBAR_VIEWPORT_PADDING_PX = 5;
+const TOOLBAR_OBSCURATION_THRESHOLD_PX = 5;
 
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);
 
