@@ -54,8 +54,6 @@ class TableToolbarPlugin {
         this.createButtons();
 
         view.dom.appendChild(this.dom);
-
-        // Note: No scroll/resize event listeners - autoUpdate handles it
     }
 
     update(update: ViewUpdate) {
@@ -69,9 +67,7 @@ class TableToolbarPlugin {
                 this.schedulePositionUpdate();
             } else {
                 this.cleanupPositioning();
-                // When the toolbar is no longer needed, remove it from layout entirely
-                // to avoid any one-frame paint artifacts.
-                this.hideToolbarCompletely();
+                this.hideToolbar();
             }
             return;
         }
@@ -217,7 +213,6 @@ class TableToolbarPlugin {
     }
 
     private showToolbar() {
-        // Keep the element measurable for Floating UI.
         this.dom.style.display = 'flex';
         this.dom.style.visibility = 'visible';
     }
@@ -227,11 +222,6 @@ class TableToolbarPlugin {
         // This prevents "ghosting" or lingering 1-frame artifacts.
         this.dom.style.display = 'none';
         this.dom.style.visibility = 'hidden';
-    }
-
-    private hideToolbarCompletely() {
-        this.dom.style.visibility = 'hidden';
-        this.dom.style.display = 'none';
     }
 
     private prepareToolbarForPositioning() {
@@ -271,7 +261,7 @@ class TableToolbarPlugin {
     private updatePosition() {
         if (!this.currentActiveCell) {
             this.cleanupPositioning();
-            this.hideToolbarCompletely();
+            this.hideToolbar();
             return;
         }
 
@@ -279,7 +269,7 @@ class TableToolbarPlugin {
 
         if (!referenceElement) {
             this.cleanupPositioning();
-            this.hideToolbarCompletely();
+            this.hideToolbar();
             return;
         }
 
@@ -340,23 +330,17 @@ class TableToolbarPlugin {
                 let result = null as Awaited<ReturnType<typeof computePosition>> | null;
                 let manualPosition = null as { x: number; y: number; fixed?: boolean } | null;
 
+                const middleware = [offset(TOOLBAR_OFFSET_PX), shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }), hide()];
+
                 if (topVisible && hasRoomAbove) {
                     result = await computePosition(referenceElement, this.dom, {
                         placement: 'top-start',
-                        middleware: [
-                            offset(TOOLBAR_OFFSET_PX),
-                            shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }),
-                            hide(),
-                        ],
+                        middleware,
                     });
                 } else if (bottomVisible && hasRoomBelow) {
                     result = await computePosition(referenceElement, this.dom, {
                         placement: 'bottom-start',
-                        middleware: [
-                            offset(TOOLBAR_OFFSET_PX),
-                            shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }),
-                            hide(),
-                        ],
+                        middleware,
                     });
                 } else {
                     // Pinned mode: toolbar sticks to viewport edge when table top/bottom is out of view.
@@ -419,11 +403,7 @@ class TableToolbarPlugin {
                 if (result && result.placement.startsWith('top') && result.y < TOOLBAR_OBSCURATION_THRESHOLD_PX) {
                     const fallback = await computePosition(referenceElement, this.dom, {
                         placement: 'bottom-start',
-                        middleware: [
-                            offset(TOOLBAR_OFFSET_PX),
-                            shift({ padding: TOOLBAR_VIEWPORT_PADDING_PX }),
-                            hide(),
-                        ],
+                        middleware,
                     });
                     if (!fallback.middlewareData.hide?.referenceHidden) {
                         result = fallback;
