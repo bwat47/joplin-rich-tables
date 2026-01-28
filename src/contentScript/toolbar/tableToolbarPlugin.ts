@@ -286,7 +286,12 @@ class TableToolbarPlugin {
         this.cleanupPositioning();
         this.prepareToolbarForPositioning();
 
-        this.cleanupViewportListeners = this.attachViewportListeners();
+        const scrollDOM = this.view.scrollDOM;
+        const isInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + 1;
+        if (!isInternalScroll) {
+            // External scroll (mobile) doesn't reliably trigger autoUpdate's ancestor scroll handlers.
+            this.cleanupViewportListeners = this.attachViewportListeners();
+        }
 
         this.cleanupAutoUpdate = autoUpdate(
             referenceElement,
@@ -305,9 +310,7 @@ class TableToolbarPlugin {
 
                 const toolbarRect = this.dom.getBoundingClientRect();
                 const tableRect = referenceElement.getBoundingClientRect();
-                const scrollDOM = this.view.scrollDOM;
                 const scrollDOMRect = scrollDOM.getBoundingClientRect();
-                const isInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + 1;
                 // Desktop uses internal CM scrolling; mobile uses external WebView scrolling.
                 // For internal scroll, the visible viewport is the scrollDOM rect.
                 // For external scroll, use visualViewport/window dimensions anchored to the page.
