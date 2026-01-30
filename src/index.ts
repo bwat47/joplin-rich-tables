@@ -29,7 +29,7 @@ joplin.plugins.register({
 
         await joplin.commands.register({
             name: INSERT_TABLE_COMMAND,
-            label: 'Insert table',
+            label: 'Rich Tables - Insert table',
             iconName: 'fas fa-table',
             execute: async () => {
                 await joplin.commands.execute('editor.execCommand', {
