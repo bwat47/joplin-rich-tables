@@ -17,6 +17,50 @@ export function unescapePipesForRendering(text: string): string {
     return text.replace(/\\(\|)/g, '$1');
 }
 
+/**
+ * Escape leading block markers so cells render inline-only markdown.
+ * Assumes cell content has no newlines.
+ */
+export function escapeLeadingBlockMarkers(text: string): string {
+    if (!text) return text;
+
+    const match = text.match(/^(\s{0,3})(.*)$/);
+    if (!match) return text;
+
+    const leading = match[1];
+    const rest = match[2];
+    if (!rest) return text;
+
+    // Avoid touching inline code that starts the cell.
+    if (rest.startsWith('`')) {
+        return text;
+    }
+
+    // Headings: "# " / "## " ...
+    if (/^#{1,6}(\s|$)/.test(rest)) {
+        return `${leading}\\${rest}`;
+    }
+
+    // Blockquote: "> " (space optional)
+    if (/^>/.test(rest)) {
+        return `${leading}\\${rest}`;
+    }
+
+    // Unordered list: "- " / "* " / "+ "
+    if (/^[-*+](\s|$)/.test(rest)) {
+        return `${leading}\\${rest}`;
+    }
+
+    // Ordered list: "1. " / "1) "
+    const orderedMatch = rest.match(/^(\d+)([.)])(\s|$)/);
+    if (orderedMatch) {
+        const [, number, marker] = orderedMatch;
+        return `${leading}${number}\\${marker}${rest.slice(number.length + 1)}`;
+    }
+
+    return text;
+}
+
 export interface RenderableContent {
     /** Unescaped cell text for raw display (fallback while rendering) */
     displayText: string;
@@ -42,7 +86,7 @@ function looksLikeDefinition(text: string): boolean {
  * - The cell content has no brackets (can't contain reference links, improves cache stability)
  */
 export function buildRenderableContent(cellText: string, definitionBlock: string): RenderableContent {
-    const displayText = unescapePipesForRendering(cellText);
+    const displayText = escapeLeadingBlockMarkers(unescapePipesForRendering(cellText));
     const hasLinkSyntax = displayText.includes('[');
     const shouldAppendDefinitions =
         hasLinkSyntax && displayText && definitionBlock && !looksLikeDefinition(displayText);
