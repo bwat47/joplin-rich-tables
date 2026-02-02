@@ -45,17 +45,17 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 
 ### Keyboard Shortcuts
 
-| Action                       | Shortcut                             |
-| :--------------------------- | :----------------------------------- |
-| **Insert Table**             | `Alt + Shift + T`                    |
-| **Insert Row Above/Below**   | `Alt + Shift + Up` / `Down`          |
-| **Insert Column Left/Right** | `Alt + Shift + Left` / `Right`       |
-| **Delete Row**               | `Alt + Shift + D`                    |
-| **Delete Column**            | `Ctrl + Alt + Shift + D`             |
-| **Move Row Up/Down**         | `Alt + Up` / `Down`                  |
-| **Move Column Left/Right**   | `Alt + Left` / `Right`               |
-| **Align Left/Center/Right**  | `Ctrl + Alt + Left` / `Up` / `Right` |
-| **Source Mode**              | `Ctrl + Shift + /`                   |
+| Action                       | Shortcut                       |
+| :--------------------------- | :----------------------------- |
+| **Insert Table**             | `Alt + Shift + T`              |
+| **Insert Row Above/Below**   | `Alt + Shift + Up` / `Down`    |
+| **Insert Column Left/Right** | `Alt + Shift + Left` / `Right` |
+| **Delete Row**               | `Alt + Shift + D`              |
+| **Delete Column**            | `Ctrl + Alt + Shift + D`       |
+| **Move Row Up/Down**         | `Ctrl + Alt + Up` / `Down`     |
+| **Move Column Left/Right**   | `Ctrl + Alt + Left` / `Right`  |
+| **Align Left/Center/Right**  | `Alt + Shift + Q` / `W` / `E`  |
+| **Source Mode**              | `Ctrl + Shift + /`             |
 
 - **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
 - **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.

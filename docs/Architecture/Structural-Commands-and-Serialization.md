@@ -73,20 +73,3 @@ Active-cell-aware wrappers with header-row constraints:
 Structural edits dispatch `rebuildTableWidgetsEffect` → `rebuildSingleTable()` → widget destroyed/recreated → new nested editor at target cell.
 
 Full table rebuild; no row/column DOM diffing.
-
-## Keyboard Shortcuts
-
-| Action              | Shortcut              |
-| ------------------- | --------------------- |
-| Insert Row Above    | `Alt+Shift+Up`        |
-| Insert Row Below    | `Alt+Shift+Down`      |
-| Insert Column Left  | `Alt+Shift+Left`      |
-| Insert Column Right | `Alt+Shift+Right`     |
-| Delete Row          | `Alt+Shift+D`         |
-| Delete Column       | `Ctrl+Alt+Shift+D`    |
-| Move Row Up         | `Alt+Up`              |
-| Move Row Down       | `Alt+Down`            |
-| Move Column Left    | `Alt+Left`            |
-| Move Column Right   | `Alt+Right`           |
-| Align Left/Right    | `Ctrl+Alt+Left/Right` |
-| Align Center        | `Ctrl+Alt+Up`         |

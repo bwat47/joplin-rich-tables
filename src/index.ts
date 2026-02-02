@@ -115,42 +115,42 @@ joplin.plugins.register({
                 {
                     label: 'Delete column',
                     commandName: 'richTables.deleteColumn',
-                    accelerator: 'Ctrl+Alt+Shift+D',
+                    accelerator: 'CmdOrCtrl+Alt+Shift+D',
                 },
                 {
                     label: 'Align left',
                     commandName: 'richTables.alignLeft',
-                    accelerator: 'Ctrl+Alt+Left',
+                    accelerator: 'Alt+Shift+Q',
                 },
                 {
                     label: 'Align center',
                     commandName: 'richTables.alignCenter',
-                    accelerator: 'Ctrl+Alt+Up',
+                    accelerator: 'Alt+Shift+W',
                 },
                 {
                     label: 'Align right',
                     commandName: 'richTables.alignRight',
-                    accelerator: 'Ctrl+Alt+Right',
+                    accelerator: 'Alt+Shift+E',
                 },
                 {
                     label: 'Move row up',
                     commandName: 'richTables.moveRowUp',
-                    accelerator: 'Alt+Up',
+                    accelerator: 'CmdOrCtrl+Alt+Up',
                 },
                 {
                     label: 'Move row down',
                     commandName: 'richTables.moveRowDown',
-                    accelerator: 'Alt+Down',
+                    accelerator: 'CmdOrCtrl+Alt+Down',
                 },
                 {
                     label: 'Move column left',
                     commandName: 'richTables.moveColumnLeft',
-                    accelerator: 'Alt+Left',
+                    accelerator: 'CmdOrCtrl+Alt+Left',
                 },
                 {
                     label: 'Move column right',
                     commandName: 'richTables.moveColumnRight',
-                    accelerator: 'Alt+Right',
+                    accelerator: 'CmdOrCtrl+Alt+Right',
                 },
                 {
                     label: 'Toggle source mode',
