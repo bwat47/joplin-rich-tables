@@ -56,6 +56,8 @@ joplin.plugins.register({
         await registerTableCommand('richTables.addColumnRight', 'Insert column right');
         await registerTableCommand('richTables.deleteRow', 'Delete row');
         await registerTableCommand('richTables.deleteColumn', 'Delete column');
+        await registerTableCommand('richTables.clearRow', 'Clear row');
+        await registerTableCommand('richTables.clearColumn', 'Clear column');
         await registerTableCommand('richTables.alignLeft', 'Align column left');
         await registerTableCommand('richTables.alignCenter', 'Align column center');
         await registerTableCommand('richTables.alignRight', 'Align column right');
@@ -116,9 +118,19 @@ joplin.plugins.register({
                     accelerator: 'Alt+Shift+D',
                 },
                 {
+                    label: 'Clear row',
+                    commandName: 'richTables.clearRow',
+                    accelerator: 'Alt+Shift+C',
+                },
+                {
                     label: 'Delete column',
                     commandName: 'richTables.deleteColumn',
                     accelerator: 'CmdOrCtrl+Alt+Shift+D',
+                },
+                {
+                    label: 'Clear column',
+                    commandName: 'richTables.clearColumn',
+                    accelerator: 'CmdOrCtrl+Alt+Shift+C',
                 },
                 {
                     label: 'Align left',

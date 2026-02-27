@@ -257,3 +257,55 @@ export function clearAllCells(table: TableData): TableData {
         rows: table.rows.map((row) => row.map(() => '')),
     };
 }
+
+/**
+ * Clears all cells in the target row while preserving table shape and alignments.
+ */
+export function clearRow(table: TableData, section: 'header' | 'body', rowIndex: number): TableData {
+    if (section === 'header') {
+        return {
+            headers: table.headers.map(() => ''),
+            alignments: [...table.alignments],
+            rows: [...table.rows],
+        };
+    }
+
+    if (rowIndex < 0 || rowIndex >= table.rows.length) {
+        return table;
+    }
+
+    return {
+        headers: [...table.headers],
+        alignments: [...table.alignments],
+        rows: table.rows.map((row, index) => (index === rowIndex ? row.map(() => '') : [...row])),
+    };
+}
+
+/**
+ * Clears all cells in the target column while preserving table shape and alignments.
+ */
+export function clearColumn(table: TableData, colIndex: number): TableData {
+    const columnCount = getColumnCount(table);
+    if (colIndex < 0 || colIndex >= columnCount) {
+        return table;
+    }
+
+    const headers = [...table.headers];
+    if (colIndex < headers.length) {
+        headers[colIndex] = '';
+    }
+
+    const rows = table.rows.map((row) => {
+        const newRow = [...row];
+        if (colIndex < newRow.length) {
+            newRow[colIndex] = '';
+        }
+        return newRow;
+    });
+
+    return {
+        headers,
+        alignments: [...table.alignments],
+        rows,
+    };
+}

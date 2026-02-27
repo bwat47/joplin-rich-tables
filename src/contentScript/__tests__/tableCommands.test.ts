@@ -14,6 +14,8 @@ import {
     execMoveRowDown,
     execMoveColumnLeft,
     execMoveColumnRight,
+    execClearRow,
+    execClearColumn,
     execClearTable,
     execDeleteTable,
 } from '../tableCommands/tableCommands';
@@ -149,6 +151,14 @@ describe('tableCommands (computTargetCell)', () => {
     });
 
     describe('clearTable', () => {
+        it('execClearRow -> stay in same cell', () => {
+            testCommand(execClearRow, createCell('body', 2, 1), { section: 'body', row: 2, col: 1 });
+        });
+
+        it('execClearColumn -> stay in same cell', () => {
+            testCommand(execClearColumn, createCell('body', 2, 1), { section: 'body', row: 2, col: 1 });
+        });
+
         it('execClearTable -> stay in same cell', () => {
             testCommand(execClearTable, createCell('body', 2, 1), { section: 'body', row: 2, col: 1 });
         });

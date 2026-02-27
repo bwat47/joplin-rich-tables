@@ -15,6 +15,8 @@ import {
     deleteColumn,
     updateColumnAlignment,
     clearAllCells,
+    clearRow,
+    clearColumn,
 } from '../tableModel/markdownTableManipulation';
 import { TableData } from '../tableModel/markdownTableParsing';
 import { TargetCell } from '../tableModel/activeCellForTableText';
@@ -161,6 +163,16 @@ export const execClearTable = createTableCommand(
     (c) => c
 );
 
+export const execClearRow = createTableCommand(
+    (t, c) => clearRow(t, c.section, c.row),
+    (c) => c
+);
+
+export const execClearColumn = createTableCommand(
+    (t, c) => clearColumn(t, c.col),
+    (c) => c
+);
+
 export function execDeleteTable(view: EditorView, cell: ActiveCell): void {
     view.dispatch({
         changes: { from: cell.tableFrom, to: cell.tableTo, insert: '' },
@@ -223,6 +235,8 @@ export function registerTableCommands(editorControl: EditorControl): void {
     registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
 
     registerCellCommand('richTables.formatTable', execFormatTable);
+    registerCellCommand('richTables.clearRow', execClearRow);
+    registerCellCommand('richTables.clearColumn', execClearColumn);
     registerCellCommand('richTables.clearTable', execClearTable);
     registerCellCommand('richTables.deleteTable', execDeleteTable);
 

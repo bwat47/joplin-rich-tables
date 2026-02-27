@@ -8,6 +8,8 @@ import {
     swapRows,
     swapColumns,
     clearAllCells,
+    clearRow,
+    clearColumn,
 } from '../tableModel/markdownTableManipulation';
 
 describe('markdownTableManipulation', () => {
@@ -338,6 +340,69 @@ describe('markdownTableManipulation', () => {
 
             expect(newData.headers).toEqual(['', '']);
             expect(newData.rows).toEqual([['', '']]);
+        });
+    });
+
+    describe('clearRow', () => {
+        it('should clear the header row when section is header', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearRow(data, 'header', 0);
+
+            expect(newData.headers).toEqual(['', '']);
+            expect(newData.rows).toEqual(data.rows);
+            expect(newData.alignments).toEqual(data.alignments);
+        });
+
+        it('should clear a body row by index', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearRow(data, 'body', 1);
+
+            expect(newData.rows[0]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+            expect(newData.rows[1]).toEqual(['', '']);
+            expect(newData.headers).toEqual(data.headers);
+            expect(newData.alignments).toEqual(data.alignments);
+        });
+
+        it('should no-op for out of bounds body row', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearRow(data, 'body', 10);
+
+            expect(newData).toBe(data);
+        });
+    });
+
+    describe('clearColumn', () => {
+        it('should clear the selected column in headers and body rows', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearColumn(data, 1);
+
+            expect(newData.headers).toEqual(['Header 1', '']);
+            expect(newData.rows).toEqual([
+                ['Row 1 Col 1', ''],
+                ['Row 2 Col 1', ''],
+            ]);
+            expect(newData.alignments).toEqual(data.alignments);
+        });
+
+        it('should no-op for out of bounds column', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearColumn(data, 10);
+
+            expect(newData).toBe(data);
+        });
+
+        it('should clear existing cells only for uneven rows', () => {
+            const unevenTable = `
+| H1 |
+| --- |
+| A | B |
+`.trim();
+
+            const data = parseMarkdownTable(unevenTable)!;
+            const newData = clearColumn(data, 1);
+
+            expect(newData.headers).toEqual(['H1']);
+            expect(newData.rows[0]).toEqual(['A', '']);
         });
     });
 });
