@@ -9,6 +9,8 @@ import {
     execDeleteColumn,
     execUpdateAlignment,
     execFormatTable,
+    execClearTable,
+    execDeleteTable,
     execMoveRowUp,
     execMoveRowDown,
     execMoveColumnLeft,
@@ -30,6 +32,8 @@ import {
     alignCenterIcon,
     alignRightIcon,
     formatTableIcon,
+    clearTableIcon,
+    deleteTableIcon,
     moveColumnLeftIcon,
     moveColumnRightIcon,
     moveRowUpIcon,
@@ -208,6 +212,19 @@ class TableToolbarPlugin {
         createIconBtn('Format table', 'Format table', formatTableIcon(), () => {
             if (this.currentActiveCell) {
                 execFormatTable(this.view, this.currentActiveCell);
+            }
+        });
+        createIconBtn('Clear table', 'Clear table', clearTableIcon(), () => {
+            if (this.currentActiveCell) {
+                execClearTable(this.view, this.currentActiveCell);
+            }
+        });
+
+        createSeparator();
+
+        createIconBtn('Delete table', 'Delete table', deleteTableIcon(), () => {
+            if (this.currentActiveCell) {
+                execDeleteTable(this.view, this.currentActiveCell);
             }
         });
     }

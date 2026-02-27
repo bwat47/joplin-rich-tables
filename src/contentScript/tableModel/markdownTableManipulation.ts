@@ -245,3 +245,15 @@ export function serializeTable(table: TableData): string {
 
     return [headerLine, separatorLine, ...bodyLines].join('\n');
 }
+
+/**
+ * Clears all cell contents (headers and body) while preserving
+ * table structure (row/column count and column alignments).
+ */
+export function clearAllCells(table: TableData): TableData {
+    return {
+        headers: table.headers.map(() => ''),
+        alignments: [...table.alignments],
+        rows: table.rows.map((row) => row.map(() => '')),
+    };
+}

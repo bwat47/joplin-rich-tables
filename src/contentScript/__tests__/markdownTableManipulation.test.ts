@@ -7,6 +7,7 @@ import {
     serializeTable,
     swapRows,
     swapColumns,
+    clearAllCells,
 } from '../tableModel/markdownTableManipulation';
 
 describe('markdownTableManipulation', () => {
@@ -288,6 +289,55 @@ describe('markdownTableManipulation', () => {
             expect(newData.headers).toEqual(['Right', 'Center', 'Left']);
             expect(newData.alignments).toEqual(['right', 'center', 'left']);
             expect(newData.rows[0]).toEqual(['C', 'B', 'A']);
+        });
+    });
+
+    describe('clearAllCells', () => {
+        it('should clear all header and body cell contents', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.headers).toEqual(['', '']);
+            expect(newData.rows).toEqual([
+                ['', ''],
+                ['', ''],
+            ]);
+        });
+
+        it('should preserve alignments', () => {
+            const alignedTable = `
+| Left | Right |
+| :--- | ---: |
+| A | B |
+`.trim();
+
+            const data = parseMarkdownTable(alignedTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.alignments).toEqual(['left', 'right']);
+        });
+
+        it('should preserve row and column count', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.headers.length).toBe(data.headers.length);
+            expect(newData.rows.length).toBe(data.rows.length);
+            expect(newData.rows[0].length).toBe(data.rows[0].length);
+        });
+
+        it('should be idempotent on an already-empty table', () => {
+            const emptyTable = `
+|  |  |
+| --- | --- |
+|  |  |
+`.trim();
+
+            const data = parseMarkdownTable(emptyTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.headers).toEqual(['', '']);
+            expect(newData.rows).toEqual([['', '']]);
         });
     });
 });
