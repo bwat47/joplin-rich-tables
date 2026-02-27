@@ -1,6 +1,6 @@
 {
     "name": "joplin-plugin-rich-tables",
-    "version": "1.6.2",
+    "version": "1.6.3",
     "scripts": {
         "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
         "prepare": "npm run dist",
@@ -49,7 +49,7 @@
         "jest": "^30.2.0",
         "jest-environment-jsdom": "^30.2.0",
         "prettier": "^3.7.4",
-        "tar": "^7.5.7",
+        "tar": "^7.5.9",
         "ts-jest": "^29.4.6",
         "ts-loader": "^9.3.1",
         "typescript": "^5.9.3",
