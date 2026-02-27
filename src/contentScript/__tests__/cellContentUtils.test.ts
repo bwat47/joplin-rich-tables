@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { buildRenderableContent, escapeLeadingBlockMarkers } from '../shared/cellContentUtils';
+import { buildRenderableContent, containsMarkdown, escapeLeadingBlockMarkers } from '../shared/cellContentUtils';
 
 describe('escapeLeadingBlockMarkers', () => {
     it('escapes leading heading markers', () => {
@@ -43,5 +43,16 @@ describe('buildRenderableContent', () => {
     it('escapes leading block markers in displayText', () => {
         const result = buildRenderableContent('# Heading', '');
         expect(result.displayText).toBe('\\# Heading');
+    });
+});
+
+describe('containsMarkdown', () => {
+    it('detects KaTeX inline math', () => {
+        expect(containsMarkdown('$00$')).toBe(true);
+        expect(containsMarkdown('$ZX = Y$')).toBe(true);
+    });
+
+    it('does not treat a single dollar sign as markdown math', () => {
+        expect(containsMarkdown('Price is $5')).toBe(false);
     });
 });

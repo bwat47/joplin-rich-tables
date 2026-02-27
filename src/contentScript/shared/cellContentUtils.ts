@@ -100,6 +100,8 @@ export function buildRenderableContent(cellText: string, definitionBlock: string
  * Avoids unnecessary render requests for plain text
  */
 export function containsMarkdown(text: string): boolean {
+    const hasMathDelimiterPair = text.includes('$') && text.indexOf('$') !== text.lastIndexOf('$');
+
     // Common markdown patterns
     return (
         text.includes('**') || // bold
@@ -116,6 +118,7 @@ export function containsMarkdown(text: string): boolean {
         text.includes('\\') || // Escaped Text
         text.includes('mailto:') || // Mailto links
         text.includes('http') || // bare links
-        text.includes('#') // Headings
+        text.includes('#') || // Headings
+        hasMathDelimiterPair // KaTeX inline/display math delimiters ($...$ / $$...$$)
     );
 }
