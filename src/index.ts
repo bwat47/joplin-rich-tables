@@ -63,6 +63,9 @@ joplin.plugins.register({
         await registerTableCommand('richTables.moveRowDown', 'Move row down');
         await registerTableCommand('richTables.moveColumnLeft', 'Move column left');
         await registerTableCommand('richTables.moveColumnRight', 'Move column right');
+        await registerTableCommand('richTables.formatTable', 'Format table');
+        await registerTableCommand('richTables.clearTable', 'Clear table');
+        await registerTableCommand('richTables.deleteTable', 'Delete table');
 
         // Register source mode toggle (shows all tables as raw markdown)
         const TOGGLE_SOURCE_MODE_COMMAND = 'richTables.toggleSourceMode';
@@ -151,6 +154,18 @@ joplin.plugins.register({
                     label: 'Move column right',
                     commandName: 'richTables.moveColumnRight',
                     accelerator: 'CmdOrCtrl+Alt+Right',
+                },
+                {
+                    label: 'Format table',
+                    commandName: 'richTables.formatTable',
+                },
+                {
+                    label: 'Clear table',
+                    commandName: 'richTables.clearTable',
+                },
+                {
+                    label: 'Delete table',
+                    commandName: 'richTables.deleteTable',
                 },
                 {
                     label: 'Toggle source mode',

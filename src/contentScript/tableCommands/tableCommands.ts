@@ -222,6 +222,7 @@ export function registerTableCommands(editorControl: EditorControl): void {
     registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
     registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
 
+    registerCellCommand('richTables.formatTable', execFormatTable);
     registerCellCommand('richTables.clearTable', execClearTable);
     registerCellCommand('richTables.deleteTable', execDeleteTable);
 
