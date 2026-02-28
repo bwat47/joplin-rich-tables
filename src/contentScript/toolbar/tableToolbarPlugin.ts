@@ -9,6 +9,10 @@ import {
     execDeleteColumn,
     execUpdateAlignment,
     execFormatTable,
+    execClearRow,
+    execClearColumn,
+    execClearTable,
+    execDeleteTable,
     execMoveRowUp,
     execMoveRowDown,
     execMoveColumnLeft,
@@ -30,6 +34,8 @@ import {
     alignCenterIcon,
     alignRightIcon,
     formatTableIcon,
+    clearTableIcon,
+    deleteTableIcon,
     moveColumnLeftIcon,
     moveColumnRightIcon,
     moveRowUpIcon,
@@ -137,6 +143,11 @@ class TableToolbarPlugin {
                 execDeleteRow(this.view, this.currentActiveCell);
             }
         });
+        createIconBtn('Clear row', 'Clear row', clearTableIcon(), () => {
+            if (this.currentActiveCell) {
+                execClearRow(this.view, this.currentActiveCell);
+            }
+        });
         createIconBtn('Move row up', 'Move row up', moveRowUpIcon(), () => {
             if (this.currentActiveCell) {
                 execMoveRowUp(this.view, this.currentActiveCell);
@@ -170,6 +181,11 @@ class TableToolbarPlugin {
         createIconBtn('Delete column', 'Delete column', columnRemoveIcon(), () => {
             if (this.currentActiveCell) {
                 execDeleteColumn(this.view, this.currentActiveCell);
+            }
+        });
+        createIconBtn('Clear column', 'Clear column', clearTableIcon(), () => {
+            if (this.currentActiveCell) {
+                execClearColumn(this.view, this.currentActiveCell);
             }
         });
         createIconBtn('Move column left', 'Move column left', moveColumnLeftIcon(), () => {
@@ -208,6 +224,19 @@ class TableToolbarPlugin {
         createIconBtn('Format table', 'Format table', formatTableIcon(), () => {
             if (this.currentActiveCell) {
                 execFormatTable(this.view, this.currentActiveCell);
+            }
+        });
+        createIconBtn('Clear table', 'Clear table', clearTableIcon(), () => {
+            if (this.currentActiveCell) {
+                execClearTable(this.view, this.currentActiveCell);
+            }
+        });
+
+        createSeparator();
+
+        createIconBtn('Delete table', 'Delete table', deleteTableIcon(), () => {
+            if (this.currentActiveCell) {
+                execDeleteTable(this.view, this.currentActiveCell);
             }
         });
     }

@@ -14,6 +14,10 @@ import {
     execMoveRowDown,
     execMoveColumnLeft,
     execMoveColumnRight,
+    execClearRow,
+    execClearColumn,
+    execClearTable,
+    execDeleteTable,
 } from '../tableCommands/tableCommands';
 
 // Mock dependencies
@@ -143,6 +147,41 @@ describe('tableCommands (computTargetCell)', () => {
 
         it('execMoveColumnRight -> move right', () => {
             testCommand(execMoveColumnRight, createCell('body', 2, 3), { section: 'body', row: 2, col: 4 });
+        });
+    });
+
+    describe('clearTable', () => {
+        it('execClearRow -> stay in same cell', () => {
+            testCommand(execClearRow, createCell('body', 2, 1), { section: 'body', row: 2, col: 1 });
+        });
+
+        it('execClearColumn -> stay in same cell', () => {
+            testCommand(execClearColumn, createCell('body', 2, 1), { section: 'body', row: 2, col: 1 });
+        });
+
+        it('execClearTable -> stay in same cell', () => {
+            testCommand(execClearTable, createCell('body', 2, 1), { section: 'body', row: 2, col: 1 });
+        });
+
+        it('execClearTable (header) -> stay in header', () => {
+            testCommand(execClearTable, createCell('header', 0, 0), { section: 'header', row: 0, col: 0 });
+        });
+    });
+
+    describe('deleteTable', () => {
+        it('execDeleteTable dispatches deletion with clearActiveCellEffect', () => {
+            const dispatchMock = jest.fn();
+            const mockEditorView = { dispatch: dispatchMock } as unknown as EditorView;
+            const cell = createCell('body', 1, 0);
+            cell.tableFrom = 10;
+            cell.tableTo = 100;
+
+            execDeleteTable(mockEditorView, cell);
+
+            expect(dispatchMock).toHaveBeenCalledTimes(1);
+            const arg = dispatchMock.mock.calls[0][0];
+            expect(arg.changes).toEqual({ from: 10, to: 100, insert: '' });
+            expect(arg.effects).toHaveLength(2);
         });
     });
 });

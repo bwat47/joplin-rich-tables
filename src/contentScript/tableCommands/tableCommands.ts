@@ -1,15 +1,23 @@
 import { EditorView } from '@codemirror/view';
-import { getActiveCell, ActiveCell } from '../tableWidget/activeCellState';
+import { getActiveCell, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
 import { toggleSourceMode } from '../tableWidget/sourceMode';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { activateTableCell } from '../tableWidget/cellActivation';
+import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import {
     insertRowForActiveCell,
     deleteRowForActiveCell,
     moveRowForActiveCell,
     moveColumnForActiveCell,
 } from './tableCommandSemantics';
-import { insertColumn, deleteColumn, updateColumnAlignment } from '../tableModel/markdownTableManipulation';
+import {
+    insertColumn,
+    deleteColumn,
+    updateColumnAlignment,
+    clearAllCells,
+    clearRow,
+    clearColumn,
+} from '../tableModel/markdownTableManipulation';
 import { TableData } from '../tableModel/markdownTableParsing';
 import { TargetCell } from '../tableModel/activeCellForTableText';
 
@@ -150,6 +158,28 @@ export const execFormatTable = createTableCommand(
     (c) => c
 );
 
+export const execClearTable = createTableCommand(
+    (t) => clearAllCells(t),
+    (c) => c
+);
+
+export const execClearRow = createTableCommand(
+    (t, c) => clearRow(t, c.section, c.row),
+    (c) => c
+);
+
+export const execClearColumn = createTableCommand(
+    (t, c) => clearColumn(t, c.col),
+    (c) => c
+);
+
+export function execDeleteTable(view: EditorView, cell: ActiveCell): void {
+    view.dispatch({
+        changes: { from: cell.tableFrom, to: cell.tableTo, insert: '' },
+        effects: [clearActiveCellEffect.of(undefined), rebuildTableWidgetsEffect.of({ tableFrom: cell.tableFrom })],
+    });
+}
+
 export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: CommandColumnAlignment) {
     runTableOperation({
         view,
@@ -203,6 +233,12 @@ export function registerTableCommands(editorControl: EditorControl): void {
     registerCellCommand('richTables.moveRowDown', execMoveRowDown);
     registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
     registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
+
+    registerCellCommand('richTables.formatTable', execFormatTable);
+    registerCellCommand('richTables.clearRow', execClearRow);
+    registerCellCommand('richTables.clearColumn', execClearColumn);
+    registerCellCommand('richTables.clearTable', execClearTable);
+    registerCellCommand('richTables.deleteTable', execDeleteTable);
 
     // Register insert table command that activates the first cell
     editorControl.registerCommand('richTables.insertTableAndActivate', () => {

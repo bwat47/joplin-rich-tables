@@ -7,6 +7,9 @@ import {
     serializeTable,
     swapRows,
     swapColumns,
+    clearAllCells,
+    clearRow,
+    clearColumn,
 } from '../tableModel/markdownTableManipulation';
 
 describe('markdownTableManipulation', () => {
@@ -288,6 +291,118 @@ describe('markdownTableManipulation', () => {
             expect(newData.headers).toEqual(['Right', 'Center', 'Left']);
             expect(newData.alignments).toEqual(['right', 'center', 'left']);
             expect(newData.rows[0]).toEqual(['C', 'B', 'A']);
+        });
+    });
+
+    describe('clearAllCells', () => {
+        it('should clear all header and body cell contents', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.headers).toEqual(['', '']);
+            expect(newData.rows).toEqual([
+                ['', ''],
+                ['', ''],
+            ]);
+        });
+
+        it('should preserve alignments', () => {
+            const alignedTable = `
+| Left | Right |
+| :--- | ---: |
+| A | B |
+`.trim();
+
+            const data = parseMarkdownTable(alignedTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.alignments).toEqual(['left', 'right']);
+        });
+
+        it('should preserve row and column count', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.headers.length).toBe(data.headers.length);
+            expect(newData.rows.length).toBe(data.rows.length);
+            expect(newData.rows[0].length).toBe(data.rows[0].length);
+        });
+
+        it('should be idempotent on an already-empty table', () => {
+            const emptyTable = `
+|  |  |
+| --- | --- |
+|  |  |
+`.trim();
+
+            const data = parseMarkdownTable(emptyTable)!;
+            const newData = clearAllCells(data);
+
+            expect(newData.headers).toEqual(['', '']);
+            expect(newData.rows).toEqual([['', '']]);
+        });
+    });
+
+    describe('clearRow', () => {
+        it('should clear the header row when section is header', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearRow(data, 'header', 0);
+
+            expect(newData.headers).toEqual(['', '']);
+            expect(newData.rows).toEqual(data.rows);
+            expect(newData.alignments).toEqual(data.alignments);
+        });
+
+        it('should clear a body row by index', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearRow(data, 'body', 1);
+
+            expect(newData.rows[0]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+            expect(newData.rows[1]).toEqual(['', '']);
+            expect(newData.headers).toEqual(data.headers);
+            expect(newData.alignments).toEqual(data.alignments);
+        });
+
+        it('should no-op for out of bounds body row', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearRow(data, 'body', 10);
+
+            expect(newData).toBe(data);
+        });
+    });
+
+    describe('clearColumn', () => {
+        it('should clear the selected column in headers and body rows', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearColumn(data, 1);
+
+            expect(newData.headers).toEqual(['Header 1', '']);
+            expect(newData.rows).toEqual([
+                ['Row 1 Col 1', ''],
+                ['Row 2 Col 1', ''],
+            ]);
+            expect(newData.alignments).toEqual(data.alignments);
+        });
+
+        it('should no-op for out of bounds column', () => {
+            const data = parseMarkdownTable(basicTable)!;
+            const newData = clearColumn(data, 10);
+
+            expect(newData).toBe(data);
+        });
+
+        it('should clear existing cells only for uneven rows', () => {
+            const unevenTable = `
+| H1 |
+| --- |
+| A | B |
+`.trim();
+
+            const data = parseMarkdownTable(unevenTable)!;
+            const newData = clearColumn(data, 1);
+
+            expect(newData.headers).toEqual(['H1']);
+            expect(newData.rows[0]).toEqual(['A', '']);
         });
     });
 });

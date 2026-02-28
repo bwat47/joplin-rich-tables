@@ -88,8 +88,9 @@ function rebuildSingleTable(
     const targetTable = tables.find((t) => t.from === newTableFrom);
 
     if (!targetTable) {
-        // Table no longer exists - just map existing decorations
-        return decorations.map(changes);
+        // Table no longer exists (e.g. deleted) — rebuild all decorations from scratch.
+        // Mapping stale decorations can leave collapsed zero-width replace widgets in the DOM.
+        return buildTableDecorations(state);
     }
 
     // Build new decoration for the target table

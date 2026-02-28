@@ -56,6 +56,8 @@ joplin.plugins.register({
         await registerTableCommand('richTables.addColumnRight', 'Insert column right');
         await registerTableCommand('richTables.deleteRow', 'Delete row');
         await registerTableCommand('richTables.deleteColumn', 'Delete column');
+        await registerTableCommand('richTables.clearRow', 'Clear row');
+        await registerTableCommand('richTables.clearColumn', 'Clear column');
         await registerTableCommand('richTables.alignLeft', 'Align column left');
         await registerTableCommand('richTables.alignCenter', 'Align column center');
         await registerTableCommand('richTables.alignRight', 'Align column right');
@@ -63,6 +65,9 @@ joplin.plugins.register({
         await registerTableCommand('richTables.moveRowDown', 'Move row down');
         await registerTableCommand('richTables.moveColumnLeft', 'Move column left');
         await registerTableCommand('richTables.moveColumnRight', 'Move column right');
+        await registerTableCommand('richTables.formatTable', 'Format table');
+        await registerTableCommand('richTables.clearTable', 'Clear table');
+        await registerTableCommand('richTables.deleteTable', 'Delete table');
 
         // Register source mode toggle (shows all tables as raw markdown)
         const TOGGLE_SOURCE_MODE_COMMAND = 'richTables.toggleSourceMode';
@@ -113,9 +118,19 @@ joplin.plugins.register({
                     accelerator: 'Alt+Shift+D',
                 },
                 {
+                    label: 'Clear row',
+                    commandName: 'richTables.clearRow',
+                    accelerator: 'Alt+Shift+C',
+                },
+                {
                     label: 'Delete column',
                     commandName: 'richTables.deleteColumn',
                     accelerator: 'CmdOrCtrl+Alt+Shift+D',
+                },
+                {
+                    label: 'Clear column',
+                    commandName: 'richTables.clearColumn',
+                    accelerator: 'CmdOrCtrl+Alt+Shift+C',
                 },
                 {
                     label: 'Align left',
@@ -151,6 +166,18 @@ joplin.plugins.register({
                     label: 'Move column right',
                     commandName: 'richTables.moveColumnRight',
                     accelerator: 'CmdOrCtrl+Alt+Right',
+                },
+                {
+                    label: 'Format table',
+                    commandName: 'richTables.formatTable',
+                },
+                {
+                    label: 'Clear table',
+                    commandName: 'richTables.clearTable',
+                },
+                {
+                    label: 'Delete table',
+                    commandName: 'richTables.deleteTable',
                 },
                 {
                     label: 'Toggle source mode',
