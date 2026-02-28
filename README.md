@@ -32,12 +32,13 @@ Table rendering includes rendering of inline markdown and image embeds.
 Provides table editing from the rendered HTML table similar to the Rich text editor. The following operations are supported:
 
 - Editing table cells (with syntax highlighting for markdown)
-- Adding/Deleting rows
-- Adding/Deleting columns
+- Adding/Deleting/Clearing rows
+- Adding/Deleting/Clearing columns
 - Moving rows (up/down)
 - Moving columns (left/right)
 - Changing column alignment (left/center/right)
-- Format table (currently just normalizes whitespace to one space around cell content, no full-on pretty formatting currently).
+- Clear table
+- Format table (normalizes whitespace to one space around cell content).
 
 > [!note]
 >
