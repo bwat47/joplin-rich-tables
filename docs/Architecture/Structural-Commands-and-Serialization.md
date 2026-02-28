@@ -1,6 +1,6 @@
-# Structural Commands
+# Structural Commands and Serialization
 
-Command flow from user action to Markdown serialization.
+Command flow from user action to Markdown serialization, including non-structural clear/format commands that still re-serialize table text.
 
 ## Command Flow
 
@@ -57,6 +57,9 @@ Active-cell-aware wrappers with header-row constraints:
 | `swapRows(table, row1, row2)`                   | Swap rows (move up/down)               |
 | `swapColumns(table, col1, col2)`                | Swap columns (move left/right)         |
 | `updateColumnAlignment(table, colIndex, align)` | Set column alignment                   |
+| `clearRow(table, section, rowIndex)`            | Clear all cells in one row             |
+| `clearColumn(table, colIndex)`                  | Clear all cells in one column          |
+| `clearAllCells(table)`                          | Clear every cell in table              |
 | `serializeTable(table)`                         | Convert to Markdown                    |
 
 ## Serialization
