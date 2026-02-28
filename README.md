@@ -51,7 +51,9 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 | **Insert Row Above/Below**   | `Alt + Shift + Up` / `Down`    |
 | **Insert Column Left/Right** | `Alt + Shift + Left` / `Right` |
 | **Delete Row**               | `Alt + Shift + D`              |
+| **Clear Row**                | `Alt + Shift + C`              |
 | **Delete Column**            | `Ctrl + Alt + Shift + D`       |
+| **Clear Column**             | `Ctrl + Alt + Shift + C`       |
 | **Move Row Up/Down**         | `Ctrl + Alt + Up` / `Down`     |
 | **Move Column Left/Right**   | `Ctrl + Alt + Left` / `Right`  |
 | **Align Left/Center/Right**  | `Alt + Shift + Q` / `W` / `E`  |
