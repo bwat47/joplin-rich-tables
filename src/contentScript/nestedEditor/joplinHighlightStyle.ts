@@ -30,7 +30,6 @@ const commonHighlightRules = [
     },
     {
         tag: tags.comment,
-        opacity: '0.9',
         fontStyle: 'italic',
     },
     {
@@ -49,20 +48,24 @@ const commonHighlightRules = [
 const lightHighlightStyle = HighlightStyle.define([
     ...commonHighlightRules,
     {
-        tag: tags.keyword,
-        color: '#740',
+        tag: tags.comment,
+        color: '#6d7086',
     },
     {
-        tag: tags.operator,
-        color: '#490',
+        tag: tags.keyword,
+        color: '#a626a4',
     },
     {
         tag: tags.literal,
         color: '#037',
     },
     {
+        tag: tags.number,
+        color: '#986801',
+    },
+    {
         tag: tags.typeName,
-        color: '#a00',
+        color: '#986801',
     },
     {
         tag: tags.inserted,
@@ -74,11 +77,19 @@ const lightHighlightStyle = HighlightStyle.define([
     },
     {
         tag: tags.propertyName,
-        color: '#940',
+        color: '#406be5',
+    },
+    {
+        tag: tags.string,
+        color: '#50a14f',
     },
     {
         tag: tags.className,
         color: '#904',
+    },
+    {
+        tag: tags.macroName,
+        color: '#986801',
     },
 ]);
 
@@ -88,20 +99,24 @@ const lightHighlightStyle = HighlightStyle.define([
 const darkHighlightStyle = HighlightStyle.define([
     ...commonHighlightRules,
     {
-        tag: tags.keyword,
-        color: '#ff7',
+        tag: tags.comment,
+        color: '#b18eb1',
     },
     {
-        tag: tags.operator,
-        color: '#fa9',
+        tag: tags.keyword,
+        color: '#F92672',
     },
     {
         tag: tags.literal,
         color: '#aaf',
     },
     {
+        tag: tags.number,
+        color: '#d19a66',
+    },
+    {
         tag: tags.typeName,
-        color: '#7ff',
+        color: '#d19a66',
     },
     {
         tag: tags.inserted,
@@ -113,11 +128,19 @@ const darkHighlightStyle = HighlightStyle.define([
     },
     {
         tag: tags.propertyName,
-        color: '#d96',
+        color: '#61aeee',
+    },
+    {
+        tag: tags.string,
+        color: '#98c379',
     },
     {
         tag: tags.className,
         color: '#d8a',
+    },
+    {
+        tag: tags.macroName,
+        color: '#e6c07b',
     },
 ]);
 
