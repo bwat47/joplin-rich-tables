@@ -1,4 +1,4 @@
-import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
+import { EditorView, Decoration, DecorationSet, ViewPlugin } from '@codemirror/view';
 import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
@@ -297,54 +297,94 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
-// while it might seem better to use pointerdown, it causes scrolling issues on android
-const closeOnOutsideClick = EditorView.domEventHandlers({
-    mousedown: (event, view) => {
-        const target = event.target as HTMLElement | null;
-        if (!target) {
-            return false;
-        }
+function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null {
+    const target = event.target;
+    if (!target) return null;
+    if (target instanceof Element) return target;
+    if (target instanceof Node) return target.parentElement;
+    return null;
+}
 
-        // Keep editor open if clicking inside the widget or nested editor.
-        if (
-            target.closest(getWidgetSelector()) ||
-            target.closest(`.${CLASS_CELL_EDITOR}`) ||
-            target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
-        ) {
-            return false;
-        }
+function handleOutsideTableInteraction(
+    view: EditorView,
+    event: MouseEvent | PointerEvent,
+    options: { preserveContextMenu: boolean }
+): boolean {
+    const target = getEventTargetElement(event);
+    if (!target) {
+        return false;
+    }
 
-        const hasActiveCell = Boolean(getActiveCell(view.state));
-        const hasNestedEditor = isNestedCellEditorOpen(view);
+    // Keep editor open if interaction is inside the widget or nested editor.
+    if (
+        target.closest(getWidgetSelector()) ||
+        target.closest(`.${CLASS_CELL_EDITOR}`) ||
+        target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
+    ) {
+        return false;
+    }
 
-        if (!hasActiveCell && !hasNestedEditor) {
-            return false;
-        }
+    const hasActiveCell = Boolean(getActiveCell(view.state));
+    const hasNestedEditor = isNestedCellEditorOpen(view);
+    if (!hasActiveCell && !hasNestedEditor) {
+        return false;
+    }
 
-        // Capture the document position BEFORE we close the nested editor.
-        const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
 
-        // Close the nested editor.
-        if (hasNestedEditor) {
-            closeNestedCellEditor(view);
-        }
+    if (hasNestedEditor) {
+        closeNestedCellEditor(view);
+    }
 
-        // Clear active cell state and set selection. This triggers rebuildSingleTable()
-        // via tableDecorationField to ensure the TableWidget has fresh data.
-        if (clickPos !== null) {
-            view.dispatch({
-                selection: { anchor: clickPos },
-                effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
-                scrollIntoView: true,
-            });
+    if (clickPos !== null) {
+        // On right-click context menus, avoid forcing focus/scroll so the native/Joplin
+        // menu opens against the expected pointer target without viewport jumps.
+        view.dispatch({
+            selection: { anchor: clickPos },
+            effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+            scrollIntoView: !options.preserveContextMenu,
+        });
+        if (!options.preserveContextMenu) {
             view.focus();
-        } else if (hasActiveCell) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
+    } else if (hasActiveCell) {
+        view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+    }
 
-        return clickPos !== null; // Consume the event only if we handled cursor positioning
+    // For mousedown, consume only if we positioned the cursor.
+    // For contextmenu, never consume so native/Joplin menus can open.
+    return !options.preserveContextMenu && clickPos !== null;
+}
+
+const closeOnOutsideMouseDown = EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+        return handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
     },
 });
+
+const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
+    class {
+        private readonly onContextMenu: (event: MouseEvent) => void;
+
+        constructor(private readonly view: EditorView) {
+            this.onContextMenu = (event) => {
+                // Return value is intentionally ignored for document-level contextmenu.
+                // We only need side effects (close/clear), not event consumption control.
+                handleOutsideTableInteraction(this.view, event, { preserveContextMenu: true });
+            };
+
+            const doc = this.view.dom.ownerDocument;
+            // Register on the document in capture phase so outside right-click interactions
+            // are seen even when Joplin/Electron context menu handlers intercept later in bubbling.
+            doc.addEventListener('contextmenu', this.onContextMenu, true);
+        }
+
+        destroy(): void {
+            const doc = this.view.dom.ownerDocument;
+            doc.removeEventListener('contextmenu', this.onContextMenu, true);
+        }
+    }
+);
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
@@ -409,7 +449,8 @@ export default function (context: ContentScriptContext) {
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,
-                closeOnOutsideClick,
+                closeOnOutsideMouseDown,
+                outsideInteractionCapturePlugin,
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
