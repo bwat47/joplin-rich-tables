@@ -297,11 +297,10 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
-function getEventTargetElement(event: MouseEvent | PointerEvent): HTMLElement | null {
+function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null {
     const target = event.target;
     if (!target) return null;
-    if (target instanceof HTMLElement) return target;
-    if (target instanceof Element) return target as HTMLElement;
+    if (target instanceof Element) return target;
     if (target instanceof Node) return target.parentElement;
     return null;
 }
@@ -369,6 +368,8 @@ const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
 
         constructor(private readonly view: EditorView) {
             this.onContextMenu = (event) => {
+                // Return value is intentionally ignored for document-level contextmenu.
+                // We only need side effects (close/clear), not event consumption control.
                 handleOutsideTableInteraction(this.view, event, { preserveContextMenu: true });
             };
 
