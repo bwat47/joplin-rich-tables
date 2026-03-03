@@ -310,10 +310,10 @@ function handleOutsideTableInteraction(
     view: EditorView,
     event: MouseEvent | PointerEvent,
     options: { preserveContextMenu: boolean }
-): void {
+): boolean {
     const target = getEventTargetElement(event);
     if (!target) {
-        return;
+        return false;
     }
 
     // Keep editor open if interaction is inside the widget or nested editor.
@@ -322,13 +322,13 @@ function handleOutsideTableInteraction(
         target.closest(`.${CLASS_CELL_EDITOR}`) ||
         target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
     ) {
-        return;
+        return false;
     }
 
     const hasActiveCell = Boolean(getActiveCell(view.state));
     const hasNestedEditor = isNestedCellEditorOpen(view);
     if (!hasActiveCell && !hasNestedEditor) {
-        return;
+        return false;
     }
 
     const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
@@ -338,6 +338,8 @@ function handleOutsideTableInteraction(
     }
 
     if (clickPos !== null) {
+        // On right-click context menus, avoid forcing focus/scroll so the native/Joplin
+        // menu opens against the expected pointer target without viewport jumps.
         view.dispatch({
             selection: { anchor: clickPos },
             effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
@@ -349,29 +351,35 @@ function handleOutsideTableInteraction(
     } else if (hasActiveCell) {
         view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
     }
+
+    // For mousedown, consume only if we positioned the cursor.
+    // For contextmenu, never consume so native/Joplin menus can open.
+    return !options.preserveContextMenu && clickPos !== null;
 }
+
+const closeOnOutsideMouseDown = EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+        return handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
+    },
+});
 
 const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
     class {
-        private readonly onPointerDown: (event: PointerEvent) => void;
         private readonly onContextMenu: (event: MouseEvent) => void;
 
         constructor(private readonly view: EditorView) {
-            this.onPointerDown = (event) => {
-                handleOutsideTableInteraction(this.view, event, { preserveContextMenu: false });
-            };
             this.onContextMenu = (event) => {
                 handleOutsideTableInteraction(this.view, event, { preserveContextMenu: true });
             };
 
             const doc = this.view.dom.ownerDocument;
-            doc.addEventListener('pointerdown', this.onPointerDown, true);
+            // Register on the document in capture phase so outside right-click interactions
+            // are seen even when Joplin/Electron context menu handlers intercept later in bubbling.
             doc.addEventListener('contextmenu', this.onContextMenu, true);
         }
 
         destroy(): void {
             const doc = this.view.dom.ownerDocument;
-            doc.removeEventListener('pointerdown', this.onPointerDown, true);
             doc.removeEventListener('contextmenu', this.onContextMenu, true);
         }
     }
@@ -440,6 +448,7 @@ export default function (context: ContentScriptContext) {
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,
+                closeOnOutsideMouseDown,
                 outsideInteractionCapturePlugin,
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
