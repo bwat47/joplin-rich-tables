@@ -1,4 +1,4 @@
-import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
+import { EditorView, Decoration, DecorationSet, ViewPlugin } from '@codemirror/view';
 import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
@@ -297,54 +297,85 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
-// while it might seem better to use pointerdown, it causes scrolling issues on android
-const closeOnOutsideClick = EditorView.domEventHandlers({
-    mousedown: (event, view) => {
-        const target = event.target as HTMLElement | null;
-        if (!target) {
-            return false;
-        }
+function getEventTargetElement(event: MouseEvent | PointerEvent): HTMLElement | null {
+    const target = event.target;
+    if (!target) return null;
+    if (target instanceof HTMLElement) return target;
+    if (target instanceof Element) return target as HTMLElement;
+    if (target instanceof Node) return target.parentElement;
+    return null;
+}
 
-        // Keep editor open if clicking inside the widget or nested editor.
-        if (
-            target.closest(getWidgetSelector()) ||
-            target.closest(`.${CLASS_CELL_EDITOR}`) ||
-            target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
-        ) {
-            return false;
-        }
+function handleOutsideTableInteraction(
+    view: EditorView,
+    event: MouseEvent | PointerEvent,
+    options: { preserveContextMenu: boolean }
+): void {
+    const target = getEventTargetElement(event);
+    if (!target) {
+        return;
+    }
 
-        const hasActiveCell = Boolean(getActiveCell(view.state));
-        const hasNestedEditor = isNestedCellEditorOpen(view);
+    // Keep editor open if interaction is inside the widget or nested editor.
+    if (
+        target.closest(getWidgetSelector()) ||
+        target.closest(`.${CLASS_CELL_EDITOR}`) ||
+        target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
+    ) {
+        return;
+    }
 
-        if (!hasActiveCell && !hasNestedEditor) {
-            return false;
-        }
+    const hasActiveCell = Boolean(getActiveCell(view.state));
+    const hasNestedEditor = isNestedCellEditorOpen(view);
+    if (!hasActiveCell && !hasNestedEditor) {
+        return;
+    }
 
-        // Capture the document position BEFORE we close the nested editor.
-        const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
 
-        // Close the nested editor.
-        if (hasNestedEditor) {
-            closeNestedCellEditor(view);
-        }
+    if (hasNestedEditor) {
+        closeNestedCellEditor(view);
+    }
 
-        // Clear active cell state and set selection. This triggers rebuildSingleTable()
-        // via tableDecorationField to ensure the TableWidget has fresh data.
-        if (clickPos !== null) {
-            view.dispatch({
-                selection: { anchor: clickPos },
-                effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
-                scrollIntoView: true,
-            });
+    if (clickPos !== null) {
+        view.dispatch({
+            selection: { anchor: clickPos },
+            effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+            scrollIntoView: !options.preserveContextMenu,
+        });
+        if (!options.preserveContextMenu) {
             view.focus();
-        } else if (hasActiveCell) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        }
+    } else if (hasActiveCell) {
+        view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+    }
+}
+
+const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
+    class {
+        private readonly onPointerDown: (event: PointerEvent) => void;
+        private readonly onContextMenu: (event: MouseEvent) => void;
+
+        constructor(private readonly view: EditorView) {
+            this.onPointerDown = (event) => {
+                handleOutsideTableInteraction(this.view, event, { preserveContextMenu: false });
+            };
+            this.onContextMenu = (event) => {
+                handleOutsideTableInteraction(this.view, event, { preserveContextMenu: true });
+            };
+
+            const doc = this.view.dom.ownerDocument;
+            doc.addEventListener('pointerdown', this.onPointerDown, true);
+            doc.addEventListener('contextmenu', this.onContextMenu, true);
         }
 
-        return clickPos !== null; // Consume the event only if we handled cursor positioning
-    },
-});
+        destroy(): void {
+            const doc = this.view.dom.ownerDocument;
+            doc.removeEventListener('pointerdown', this.onPointerDown, true);
+            doc.removeEventListener('contextmenu', this.onContextMenu, true);
+        }
+    }
+);
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
@@ -409,7 +440,7 @@ export default function (context: ContentScriptContext) {
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,
-                closeOnOutsideClick,
+                outsideInteractionCapturePlugin,
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
