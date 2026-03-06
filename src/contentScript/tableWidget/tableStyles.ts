@@ -72,8 +72,9 @@ export const tableStyles = EditorView.baseTheme({
         overflowX: 'hidden',
     },
     [`.${CLASS_CELL_EDITOR} .cm-content`]: {
-        margin: '0',
+        margin: '0 !important',
         padding: '0 !important',
+        maxWidth: 'none !important',
         minHeight: 'unset',
         lineHeight: 'inherit',
         color: 'inherit',
