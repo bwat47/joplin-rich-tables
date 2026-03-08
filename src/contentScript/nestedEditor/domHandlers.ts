@@ -188,8 +188,8 @@ export function createNestedEditorKeymap(
                 const toRect = nestedView.coordsAtPos(to);
 
                 if (headRect && toRect) {
-                    // Compare bottoms? Or tops?
-                    // If we are on the last line, our top should be the same as the last character's top.
+                    // Match ArrowUp's visual-line check: if the caret is on the last
+                    // wrapped line, its top coordinate matches the cell end position's top.
                     const isSameLine = Math.abs(headRect.top - toRect.top) < 2;
 
                     if (isSameLine) {
