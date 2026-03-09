@@ -182,7 +182,9 @@ describe('markdownTableManipulation', () => {
         });
 
         it('should swap first and last column in a 3-column table', () => {
-            const table = parseTable(['| H1 | H2 | H3 |', '| :--- | :---: | ---: |', '| A | B | C |', '| D | E | F |'].join('\n'));
+            const table = parseTable(
+                ['| H1 | H2 | H3 |', '| :--- | :---: | ---: |', '| A | B | C |', '| D | E | F |'].join('\n')
+            );
             const next = table.swapColumns(0, 2);
 
             expect(next.headerCells).toEqual(['H3', 'H2', 'H1']);
@@ -216,7 +218,9 @@ describe('markdownTableManipulation', () => {
         });
 
         it('should preserve alignment when swapping columns', () => {
-            const table = parseTable(['| Left | Center | Right |', '| :--- | :---: | ---: |', '| A | B | C |'].join('\n'));
+            const table = parseTable(
+                ['| Left | Center | Right |', '| :--- | :---: | ---: |', '| A | B | C |'].join('\n')
+            );
             const next = table.swapColumns(0, 2);
 
             expect(next.headerCells).toEqual(['Right', 'Center', 'Left']);

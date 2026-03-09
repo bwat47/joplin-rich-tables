@@ -19,11 +19,7 @@ export function deleteRowForActiveCell(table: MarkdownTable, cell: ActiveCell): 
     return table.deleteRowAt(cell.section, cell.row);
 }
 
-export function moveRowForActiveCell(
-    table: MarkdownTable,
-    cell: ActiveCell,
-    direction: 'up' | 'down'
-): MarkdownTable {
+export function moveRowForActiveCell(table: MarkdownTable, cell: ActiveCell, direction: 'up' | 'down'): MarkdownTable {
     return table.moveRow(cell.section, cell.row, direction);
 }
 

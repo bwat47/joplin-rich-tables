@@ -59,7 +59,11 @@ function padArrayToLength<T>(arr: readonly T[], length: number, filler: T): T[] 
     return [...arr, ...new Array(length - arr.length).fill(filler)];
 }
 
-function getColumnCount(headers: readonly string[], alignments: readonly TableAlignment[], rows: readonly (readonly string[])[]): number {
+function getColumnCount(
+    headers: readonly string[],
+    alignments: readonly TableAlignment[],
+    rows: readonly (readonly string[])[]
+): number {
     let maxCols = Math.max(headers.length, alignments.length);
     for (const row of rows) {
         maxCols = Math.max(maxCols, row.length);
@@ -237,7 +241,8 @@ export class MarkdownTable {
 
     clearAllCells(): MarkdownTable {
         const alreadyClear =
-            this.headersData.every((cell) => cell === '') && this.rowsData.every((row) => row.every((cell) => cell === ''));
+            this.headersData.every((cell) => cell === '') &&
+            this.rowsData.every((row) => row.every((cell) => cell === ''));
         if (alreadyClear) {
             return this;
         }
@@ -282,8 +287,7 @@ export class MarkdownTable {
             return this;
         }
 
-        const alreadyClear =
-            this.headersData[colIndex] === '' && this.rowsData.every((row) => row[colIndex] === '');
+        const alreadyClear = this.headersData[colIndex] === '' && this.rowsData.every((row) => row[colIndex] === '');
         if (alreadyClear) {
             return this;
         }
