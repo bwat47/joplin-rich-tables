@@ -128,13 +128,12 @@ describe('markdownTableManipulation', () => {
 `.trim();
 
         const data = parseMarkdownTable(inconsistentTable)!;
-        expect(data.headers).toEqual(['H']);
+        expect(data.headers).toEqual(['H', '']);
         expect(data.rows[0]).toEqual(['A', 'B']);
 
         const serialized = serializeTable(data);
         const reparsed = parseMarkdownTable(serialized)!;
 
-        // Missing header/alignments are created as empty/null so we don't drop data.
         expect(reparsed.headers.length).toBe(2);
         expect(reparsed.rows[0]).toEqual(['A', 'B']);
     });
@@ -398,11 +397,11 @@ describe('markdownTableManipulation', () => {
 | A | B |
 `.trim();
 
-            const data = parseMarkdownTable(unevenTable)!;
-            const newData = clearColumn(data, 1);
+        const data = parseMarkdownTable(unevenTable)!;
+        const newData = clearColumn(data, 1);
 
-            expect(newData.headers).toEqual(['H1']);
-            expect(newData.rows[0]).toEqual(['A', '']);
-        });
+        expect(newData.headers).toEqual(['H1', '']);
+        expect(newData.rows[0]).toEqual(['A', '']);
+    });
     });
 });

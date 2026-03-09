@@ -29,7 +29,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 | **Lifecycle** | `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Nested editor open/close state, synchronization triggers. |
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS for theme consistency.                          |
 | **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`      | ViewPlugin actualizing nested editor lifecycle.           |
-| **Parsing**   | `contentScript/tableModel/markdownTableRowScanner.ts` | Pipe delimiter detection, escaped character handling.     |
+| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`           | Normalized table model, parsing, serialization, mutations. |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating UI for row/column/alignment actions.             |
 
 ## Data Flow
@@ -45,6 +45,15 @@ Cell click → `TableWidget` calculates row/column → dispatches `setActiveCell
 ### 3. Synchronization
 
 Typing in nested editor → `forwardChangesToMain` creates transaction with `syncAnnotation` → main editor applies → annotation prevents re-render loop.
+
+### 4. Table Runtime Model
+
+`MarkdownTable` is the canonical runtime representation for parsed tables:
+
+- Parses Markdown into normalized header/alignment/body state.
+- Owns serialization and structural row/column/alignment operations.
+- Feeds command execution and widget rendering directly.
+- Leaves source-coordinate computation to `markdownTableCellRanges.ts`.
 
 **Sync Flow Diagram**:
 

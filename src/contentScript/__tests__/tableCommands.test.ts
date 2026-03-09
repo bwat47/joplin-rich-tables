@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { ActiveCell } from '../tableWidget/activeCellState';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { TargetCell } from '../tableModel/activeCellForTableText';
-import { TableData } from '../tableModel/markdownTableParsing';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import {
     execInsertRowAbove,
     execInsertRowBelow,
@@ -18,6 +18,7 @@ import {
     execClearColumn,
     execClearTable,
     execDeleteTable,
+    execFormatTable,
 } from '../tableCommands/tableCommands';
 
 // Mock dependencies
@@ -41,8 +42,8 @@ describe('tableCommands (computTargetCell)', () => {
         startCell: ActiveCell,
         expectedTarget: TargetCell,
         // Optional mocks for old/new table data if logic depends on it (usually doesn't for simple moves)
-        mockOldTable: TableData = {} as TableData,
-        mockNewTable: TableData = {} as TableData
+        mockOldTable: MarkdownTable = {} as MarkdownTable,
+        mockNewTable: MarkdownTable = {} as MarkdownTable
     ) => {
         command(mockView, startCell);
 
@@ -165,6 +166,16 @@ describe('tableCommands (computTargetCell)', () => {
 
         it('execClearTable (header) -> stay in header', () => {
             testCommand(execClearTable, createCell('header', 0, 0), { section: 'header', row: 0, col: 0 });
+        });
+    });
+
+    describe('formatTable', () => {
+        it('execFormatTable enables serializeIfIdentity', () => {
+            execFormatTable(mockView, createCell('body', 1, 1));
+
+            expect(mockRunTableOperation).toHaveBeenCalledTimes(1);
+            const params = mockRunTableOperation.mock.calls[0][0];
+            expect(params.serializeIfIdentity).toBe(true);
         });
     });
 

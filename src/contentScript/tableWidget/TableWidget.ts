@@ -1,7 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
-import type { TableData } from '../tableModel/markdownTableParsing';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import {
     computeMarkdownTableCellRanges,
     findCellForPos,
@@ -38,7 +38,7 @@ export class TableWidget extends WidgetType {
     private readonly cellRanges: TableCellRanges | null;
 
     constructor(
-        private tableData: TableData,
+        private tableData: MarkdownTable,
         private tableText: string,
         private tableFrom: number,
         private tableTo: number,
@@ -114,20 +114,23 @@ export class TableWidget extends WidgetType {
 
         const table = document.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
+        const headerCells = this.tableData.headerCells;
+        const bodyRows = this.tableData.bodyRows;
+        const alignments = this.tableData.alignments;
 
         // Render header
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        for (let i = 0; i < this.tableData.headers.length; i++) {
+        for (let i = 0; i < headerCells.length; i++) {
             const th = document.createElement('th');
             th.dataset[DATA_SECTION] = SECTION_HEADER;
             th.dataset[DATA_ROW] = '0';
             th.dataset[DATA_COL] = String(i);
 
-            const content = this.tableData.headers[i].trim();
+            const content = headerCells[i].trim();
             this.renderCellContent(th, content);
 
-            const align = this.tableData.alignments[i];
+            const align = alignments[i];
             if (align) {
                 th.style.textAlign = align;
             }
@@ -138,8 +141,8 @@ export class TableWidget extends WidgetType {
 
         // Render body
         const tbody = document.createElement('tbody');
-        for (let r = 0; r < this.tableData.rows.length; r++) {
-            const row = this.tableData.rows[r];
+        for (let r = 0; r < bodyRows.length; r++) {
+            const row = bodyRows[r];
             const tr = document.createElement('tr');
             for (let c = 0; c < row.length; c++) {
                 const td = document.createElement('td');
@@ -150,7 +153,7 @@ export class TableWidget extends WidgetType {
                 const content = row[c].trim();
                 this.renderCellContent(td, content);
 
-                const align = this.tableData.alignments[c];
+                const align = alignments[c];
                 if (align) {
                     td.style.textAlign = align;
                 }

@@ -4,24 +4,10 @@ import { toggleSourceMode } from '../tableWidget/sourceMode';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { activateTableCell } from '../tableWidget/cellActivation';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import {
-    insertRowForActiveCell,
-    deleteRowForActiveCell,
-    moveRowForActiveCell,
-    moveColumnForActiveCell,
-} from './tableCommandSemantics';
-import {
-    insertColumn,
-    deleteColumn,
-    updateColumnAlignment,
-    clearAllCells,
-    clearRow,
-    clearColumn,
-} from '../tableModel/markdownTableManipulation';
-import { TableData } from '../tableModel/markdownTableParsing';
+import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import { TargetCell } from '../tableModel/activeCellForTableText';
 
-export type CommandColumnAlignment = 'left' | 'center' | 'right' | null;
+export type CommandColumnAlignment = TableAlignment;
 
 /**
  * Editor control interface provided by Joplin
@@ -37,9 +23,10 @@ interface EditorControl {
 
 // Helper to reduce boilerplate for standard table operations
 function createTableCommand(
-    operation: (table: TableData, cell: ActiveCell) => TableData,
-    computeTargetCell: (cell: ActiveCell, oldTable: TableData, newTable: TableData) => TargetCell,
-    forceWidgetRebuild: boolean = true
+    operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
+    computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell,
+    forceWidgetRebuild: boolean = true,
+    serializeIfIdentity: boolean = false
 ) {
     return (view: EditorView, cell: ActiveCell) => {
         runTableOperation({
@@ -48,12 +35,13 @@ function createTableCommand(
             operation,
             computeTargetCell,
             forceWidgetRebuild,
+            serializeIfIdentity,
         });
     };
 }
 
 export const execInsertRowAbove = createTableCommand(
-    (t, c) => insertRowForActiveCell(t, c, 'before'),
+    (t, c) => t.insertRowRelativeTo(c.section, c.row, 'before'),
     (c) => {
         if (c.section === 'header') {
             return { section: 'header', row: 0, col: c.col };
@@ -63,7 +51,7 @@ export const execInsertRowAbove = createTableCommand(
 );
 
 export const execInsertRowBelow = createTableCommand(
-    (t, c) => insertRowForActiveCell(t, c, 'after'),
+    (t, c) => t.insertRowRelativeTo(c.section, c.row, 'after'),
     (c) => {
         if (c.section === 'header') {
             return { section: 'body', row: 0, col: c.col };
@@ -73,7 +61,7 @@ export const execInsertRowBelow = createTableCommand(
 );
 
 export const execInsertColumnLeft = createTableCommand(
-    (t, c) => insertColumn(t, c.col, 'before'),
+    (t, c) => t.insertColumn(c.col, 'before'),
     (c) => ({
         section: c.section,
         row: c.row,
@@ -82,7 +70,7 @@ export const execInsertColumnLeft = createTableCommand(
 );
 
 export const execInsertColumnRight = createTableCommand(
-    (t, c) => insertColumn(t, c.col, 'after'),
+    (t, c) => t.insertColumn(c.col, 'after'),
     (c) => ({
         section: c.section,
         row: c.row,
@@ -91,7 +79,7 @@ export const execInsertColumnRight = createTableCommand(
 );
 
 export const execDeleteRow = createTableCommand(
-    (t, c) => deleteRowForActiveCell(t, c),
+    (t, c) => t.deleteRowAt(c.section, c.row),
     (c) => {
         if (c.section === 'header') {
             // Header row deleted, first body row promoted
@@ -103,7 +91,7 @@ export const execDeleteRow = createTableCommand(
 );
 
 export const execDeleteColumn = createTableCommand(
-    (t, c) => deleteColumn(t, c.col),
+    (t, c) => t.deleteColumn(c.col),
     (c) => {
         const newCol = Math.max(0, c.col - 1);
         return { section: c.section, row: c.row, col: newCol };
@@ -111,7 +99,7 @@ export const execDeleteColumn = createTableCommand(
 );
 
 export const execMoveRowUp = createTableCommand(
-    (t, c) => moveRowForActiveCell(t, c, 'up'),
+    (t, c) => t.moveRow(c.section, c.row, 'up'),
     (c) => {
         // If we are at the first body row (row 0) and move "up", we swap with header.
         // Our new position becomes the header.
@@ -125,7 +113,7 @@ export const execMoveRowUp = createTableCommand(
 );
 
 export const execMoveRowDown = createTableCommand(
-    (t, c) => moveRowForActiveCell(t, c, 'down'),
+    (t, c) => t.moveRow(c.section, c.row, 'down'),
     (c) => {
         // Follow the row to its new position.
         // Note: If the move is invalid (e.g. at bottom), the operation returns early
@@ -139,37 +127,38 @@ export const execMoveRowDown = createTableCommand(
 );
 
 export const execMoveColumnLeft = createTableCommand(
-    (t, c) => moveColumnForActiveCell(t, c, 'left'),
+    (t, c) => t.swapColumns(c.col, c.col - 1),
     (c) => {
         return { ...c, col: c.col - 1 };
     }
 );
 
 export const execMoveColumnRight = createTableCommand(
-    (t, c) => moveColumnForActiveCell(t, c, 'right'),
+    (t, c) => t.swapColumns(c.col, c.col + 1),
     (c) => {
         return { ...c, col: c.col + 1 };
     }
 );
 
 export const execFormatTable = createTableCommand(
-    // Return a shallow copy to bypass identity check and trigger re-serialization
-    (t) => ({ ...t }),
-    (c) => c
+    (t) => t,
+    (c) => c,
+    true,
+    true
 );
 
 export const execClearTable = createTableCommand(
-    (t) => clearAllCells(t),
+    (t) => t.clearAllCells(),
     (c) => c
 );
 
 export const execClearRow = createTableCommand(
-    (t, c) => clearRow(t, c.section, c.row),
+    (t, c) => t.clearRow(c.section, c.row),
     (c) => c
 );
 
 export const execClearColumn = createTableCommand(
-    (t, c) => clearColumn(t, c.col),
+    (t, c) => t.clearColumn(c.col),
     (c) => c
 );
 
@@ -184,7 +173,7 @@ export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: C
     runTableOperation({
         view,
         cell,
-        operation: (t, c) => updateColumnAlignment(t, c.col, align),
+        operation: (t, c) => t.updateColumnAlignment(c.col, align),
         computeTargetCell: (c) => c,
         forceWidgetRebuild: true,
     });
@@ -194,7 +183,7 @@ export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, target
     return runTableOperation({
         view,
         cell,
-        operation: (t, c) => insertRowForActiveCell(t, c, 'after'),
+        operation: (t, c) => t.insertRowRelativeTo(c.section, c.row, 'after'),
         computeTargetCell: (c) => {
             // New row is always body
             if (c.section === 'header') {
