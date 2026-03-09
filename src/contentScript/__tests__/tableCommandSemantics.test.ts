@@ -8,10 +8,10 @@ import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { ActiveCell } from '../tableWidget/activeCellState';
 
 describe('tableCommandSemantics', () => {
-    const basicTable = MarkdownTable.fromData({
-        headers: ['H1', 'H2'],
+    const basicTable = MarkdownTable.fromParts({
+        headerCells: ['H1', 'H2'],
         alignments: ['left', 'left'],
-        rows: [
+        bodyRows: [
             ['R1C1', 'R1C2'],
             ['R2C1', 'R2C2'],
         ],
@@ -69,10 +69,10 @@ describe('tableCommandSemantics', () => {
         });
 
         it('should NO-OP if deleting header would leave no body rows', () => {
-            const littleTable = MarkdownTable.fromData({
-                headers: ['H'],
+            const littleTable = MarkdownTable.fromParts({
+                headerCells: ['H'],
                 alignments: [null],
-                rows: [['OnlyRow']],
+                bodyRows: [['OnlyRow']],
             });
             const result = deleteRowForActiveCell(littleTable, createCell('header', 0, 0));
             expect(result).toBe(littleTable);

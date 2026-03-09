@@ -38,8 +38,6 @@ These ranges are used for:
 - Extracts header/body cell content by slicing the original text with `computeMarkdownTableCellRanges()` so displayed content and edit ranges stay consistent.
 - Normalizes ragged input immediately so headers, alignments, and body rows always share the same effective column count.
 
-`parseMarkdownTable()` remains as a transitional compatibility wrapper that returns `MarkdownTable.parse(text)?.toData()`.
-
 ## Structural Operations (Rows/Columns/Alignment)
 
 Structural edits operate on `MarkdownTable` and then serialize back to Markdown, see: [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md)

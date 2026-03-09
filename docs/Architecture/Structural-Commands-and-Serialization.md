@@ -45,11 +45,9 @@ User Action (keyboard/toolbar)
 - Column insert/delete/swap/alignment updates.
 - Clear row/column/table operations.
 
-`markdownTableManipulation.ts` remains only as a transitional DTO wrapper layer for older tests/callers.
-
 ## Serialization
 
-`serializeTable()` output:
+`MarkdownTable.serialize()` output:
 
 - **Padding**: `| cell |` (one space each side).
 - **No pretty-printing**: No column width alignment.

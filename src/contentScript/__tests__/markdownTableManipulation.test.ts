@@ -1,16 +1,10 @@
-import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
-import {
-    insertRow,
-    deleteRow,
-    insertColumn,
-    deleteColumn,
-    serializeTable,
-    swapRows,
-    swapColumns,
-    clearAllCells,
-    clearRow,
-    clearColumn,
-} from '../tableModel/markdownTableManipulation';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
+
+function parseTable(text: string): MarkdownTable {
+    const table = MarkdownTable.parse(text);
+    expect(table).not.toBeNull();
+    return table!;
+}
 
 describe('markdownTableManipulation', () => {
     const basicTable = `
@@ -21,134 +15,111 @@ describe('markdownTableManipulation', () => {
 `.trim();
 
     it('should serialize table correctly (roundtrip)', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const serialized = serializeTable(data);
+        const table = parseTable(basicTable);
+        const serialized = table.serialize();
+        const reparsed = parseTable(serialized);
 
-        // Serialization might change whitespace/padding, so we check structure primarily.
-        // Or we can check if it parses back to same data.
+        expect(reparsed.headerCells).toEqual(table.headerCells);
+        expect(reparsed.alignments).toEqual(table.alignments);
+        expect(reparsed.bodyRows).toEqual(table.bodyRows);
+    });
 
-        const data2 = parseMarkdownTable(serialized)!;
-        expect(data2.headers).toEqual(data.headers);
-        expect(data2.alignments).toEqual(data.alignments);
-        expect(data2.rows).toEqual(data.rows);
+    it('should serialize from model-native parts', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', null],
+            bodyRows: [['A', 'B']],
+        });
+
+        expect(table.serialize()).toBe(['| H1 | H2 |', '| :--- | --- |', '| A | B |'].join('\n'));
     });
 
     it('should insert row before', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const newData = insertRow(data, 0, 'before');
+        const table = parseTable(basicTable);
+        const next = table.insertRowRelativeTo('body', 0, 'before');
 
-        expect(newData.rows.length).toBe(3);
-        expect(newData.rows[0]).toEqual(['', '']);
-        expect(newData.rows[1]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+        expect(next.bodyRows.length).toBe(3);
+        expect(next.bodyRows[0]).toEqual(['', '']);
+        expect(next.bodyRows[1]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
     });
 
     it('should insert row after', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const newData = insertRow(data, 0, 'after'); // Insert after first row
+        const table = parseTable(basicTable);
+        const next = table.insertRowRelativeTo('body', 0, 'after');
 
-        expect(newData.rows.length).toBe(3);
-        expect(newData.rows[0]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
-        expect(newData.rows[1]).toEqual(['', '']);
-        expect(newData.rows[2]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
+        expect(next.bodyRows.length).toBe(3);
+        expect(next.bodyRows[0]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+        expect(next.bodyRows[1]).toEqual(['', '']);
+        expect(next.bodyRows[2]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
     });
 
     it('should delete row', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const newData = deleteRow(data, 0);
+        const table = parseTable(basicTable);
+        const next = table.deleteRowAt('body', 0);
 
-        expect(newData.rows.length).toBe(1);
-        expect(newData.rows[0]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
+        expect(next.bodyRows.length).toBe(1);
+        expect(next.bodyRows[0]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
     });
 
     it('should insert column before', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const newData = insertColumn(data, 1, 'before'); // Insert before 2nd col
+        const table = parseTable(basicTable);
+        const next = table.insertColumn(1, 'before');
 
-        expect(newData.headers.length).toBe(3);
-        expect(newData.headers).toEqual(['Header 1', '', 'Header 2']);
-        expect(newData.alignments[1]).toBeNull();
-        expect(newData.rows[0]).toEqual(['Row 1 Col 1', '', 'Row 1 Col 2']);
+        expect(next.headerCells.length).toBe(3);
+        expect(next.headerCells).toEqual(['Header 1', '', 'Header 2']);
+        expect(next.alignments[1]).toBeNull();
+        expect(next.bodyRows[0]).toEqual(['Row 1 Col 1', '', 'Row 1 Col 2']);
     });
 
     it('should insert column after', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const newData = insertColumn(data, 0, 'after'); // Insert after 1st col
+        const table = parseTable(basicTable);
+        const next = table.insertColumn(0, 'after');
 
-        expect(newData.headers).toEqual(['Header 1', '', 'Header 2']);
-        expect(newData.rows[0]).toEqual(['Row 1 Col 1', '', 'Row 1 Col 2']);
+        expect(next.headerCells).toEqual(['Header 1', '', 'Header 2']);
+        expect(next.bodyRows[0]).toEqual(['Row 1 Col 1', '', 'Row 1 Col 2']);
     });
 
     it('should delete column', () => {
-        const data = parseMarkdownTable(basicTable)!;
-        const newData = deleteColumn(data, 0);
+        const table = parseTable(basicTable);
+        const next = table.deleteColumn(0);
 
-        expect(newData.headers.length).toBe(1);
-        expect(newData.headers[0]).toBe('Header 2');
-        expect(newData.rows[0].length).toBe(1);
-        expect(newData.rows[0][0]).toBe('Row 1 Col 2');
+        expect(next.headerCells.length).toBe(1);
+        expect(next.headerCells[0]).toBe('Header 2');
+        expect(next.bodyRows[0].length).toBe(1);
+        expect(next.bodyRows[0][0]).toBe('Row 1 Col 2');
     });
 
     it('should not delete last remaining column', () => {
-        const oneColTable = `
-| H |
-| --- |
-| A |
-| B |
-`.trim();
+        const table = parseTable(['| H |', '| --- |', '| A |', '| B |'].join('\n'));
+        const next = table.deleteColumn(0);
 
-        const data = parseMarkdownTable(oneColTable)!;
-        const newData = deleteColumn(data, 0);
-
-        // No-op
-        expect(newData).toBe(data);
-        expect(newData.headers).toEqual(['H']);
-        expect(newData.rows.length).toBe(2);
+        expect(next).toBe(table);
+        expect(next.headerCells).toEqual(['H']);
+        expect(next.bodyRows.length).toBe(2);
     });
 
     it('should not delete last remaining body row', () => {
-        const oneBodyRowTable = `
-| H1 | H2 |
-| --- | --- |
-| A | B |
-`.trim();
+        const table = parseTable(['| H1 | H2 |', '| --- | --- |', '| A | B |'].join('\n'));
+        const next = table.deleteRowAt('body', 0);
 
-        const data = parseMarkdownTable(oneBodyRowTable)!;
-        const newData = deleteRow(data, 0);
-
-        // No-op
-        expect(newData).toBe(data);
-        expect(newData.rows.length).toBe(1);
+        expect(next).toBe(table);
+        expect(next.bodyRows.length).toBe(1);
     });
 
     it('should preserve extra row cells by expanding headers on serialize', () => {
-        const inconsistentTable = `
-| H |
-| --- |
-| A | B |
-`.trim();
+        const table = parseTable(['| H |', '| --- |', '| A | B |'].join('\n'));
+        expect(table.headerCells).toEqual(['H', '']);
+        expect(table.bodyRows[0]).toEqual(['A', 'B']);
 
-        const data = parseMarkdownTable(inconsistentTable)!;
-        expect(data.headers).toEqual(['H', '']);
-        expect(data.rows[0]).toEqual(['A', 'B']);
-
-        const serialized = serializeTable(data);
-        const reparsed = parseMarkdownTable(serialized)!;
-
-        expect(reparsed.headers.length).toBe(2);
-        expect(reparsed.rows[0]).toEqual(['A', 'B']);
+        const reparsed = parseTable(table.serialize());
+        expect(reparsed.headerCells.length).toBe(2);
+        expect(reparsed.bodyRows[0]).toEqual(['A', 'B']);
     });
 
     it('should serialize with minimal single-space padding around pipes', () => {
-        const text = `
-| H1 | H2 |
-| --- | --- |
-| abc | def |
-`.trim();
+        const table = parseTable(['| H1 | H2 |', '| --- | --- |', '| abc | def |'].join('\n'));
+        const serialized = table.serialize();
 
-        const data = parseMarkdownTable(text)!;
-        const serialized = serializeTable(data);
-
-        // No extra spacing beyond the single spaces around delimiters.
         expect(serialized).toContain('| abc | def |');
         expect(serialized).not.toContain('| abc  |');
         expect(serialized).not.toContain('|  abc |');
@@ -156,252 +127,195 @@ describe('markdownTableManipulation', () => {
 
     describe('swapRows', () => {
         it('should swap two adjacent body rows', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapRows(data, 0, 1);
+            const table = parseTable(basicTable);
+            const next = table.swapRows(0, 1);
 
-            expect(newData.headers).toEqual(['Header 1', 'Header 2']);
-            expect(newData.rows.length).toBe(2);
-            expect(newData.rows[0]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
-            expect(newData.rows[1]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+            expect(next.headerCells).toEqual(['Header 1', 'Header 2']);
+            expect(next.bodyRows.length).toBe(2);
+            expect(next.bodyRows[0]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
+            expect(next.bodyRows[1]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
         });
 
         it('should swap header with first body row (row index -1 with 0)', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapRows(data, -1, 0);
+            const table = parseTable(basicTable);
+            const next = table.swapRows(-1, 0);
 
-            expect(newData.headers).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
-            expect(newData.alignments).toEqual(['left', 'right']);
-            expect(newData.rows.length).toBe(2);
-            expect(newData.rows[0]).toEqual(['Header 1', 'Header 2']);
-            expect(newData.rows[1]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
-        });
-
-        it('should swap first body row with header (row index 0 with -1)', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapRows(data, 0, -1);
-
-            expect(newData.headers).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
-            expect(newData.alignments).toEqual(['left', 'right']);
-            expect(newData.rows.length).toBe(2);
-            expect(newData.rows[0]).toEqual(['Header 1', 'Header 2']);
-            expect(newData.rows[1]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
+            expect(next.headerCells).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+            expect(next.alignments).toEqual(['left', 'right']);
+            expect(next.bodyRows.length).toBe(2);
+            expect(next.bodyRows[0]).toEqual(['Header 1', 'Header 2']);
+            expect(next.bodyRows[1]).toEqual(['Row 2 Col 1', 'Row 2 Col 2']);
         });
 
         it('should return same table for out of bounds indices', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapRows(data, 0, 10);
+            const table = parseTable(basicTable);
+            const next = table.swapRows(0, 10);
 
-            expect(newData).toBe(data);
+            expect(next).toBe(table);
         });
 
         it('should return same table for invalid negative index (not -1)', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapRows(data, -2, 0);
+            const table = parseTable(basicTable);
+            const next = table.swapRows(-2, 0);
 
-            expect(newData).toBe(data);
+            expect(next).toBe(table);
         });
 
         it('should handle swapping in a table with different column counts', () => {
-            const inconsistentTable = `
-| H1 | H2 |
-| --- | --- |
-| A | B | C |
-| D | E |
-`.trim();
+            const table = parseTable(['| H1 | H2 |', '| --- | --- |', '| A | B | C |', '| D | E |'].join('\n'));
+            const next = table.swapRows(0, 1);
 
-            const data = parseMarkdownTable(inconsistentTable)!;
-            const newData = swapRows(data, 0, 1);
-
-            // After normalization and swap, both rows should be padded
-            expect(newData.rows[0]).toEqual(['D', 'E', '']);
-            expect(newData.rows[1]).toEqual(['A', 'B', 'C']);
+            expect(next.bodyRows[0]).toEqual(['D', 'E', '']);
+            expect(next.bodyRows[1]).toEqual(['A', 'B', 'C']);
         });
     });
 
     describe('swapColumns', () => {
         it('should swap two adjacent columns', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapColumns(data, 0, 1);
+            const table = parseTable(basicTable);
+            const next = table.swapColumns(0, 1);
 
-            expect(newData.headers).toEqual(['Header 2', 'Header 1']);
-            expect(newData.alignments).toEqual(['right', 'left']);
-            expect(newData.rows[0]).toEqual(['Row 1 Col 2', 'Row 1 Col 1']);
-            expect(newData.rows[1]).toEqual(['Row 2 Col 2', 'Row 2 Col 1']);
+            expect(next.headerCells).toEqual(['Header 2', 'Header 1']);
+            expect(next.alignments).toEqual(['right', 'left']);
+            expect(next.bodyRows[0]).toEqual(['Row 1 Col 2', 'Row 1 Col 1']);
+            expect(next.bodyRows[1]).toEqual(['Row 2 Col 2', 'Row 2 Col 1']);
         });
 
         it('should swap first and last column in a 3-column table', () => {
-            const threeColTable = `
-| H1 | H2 | H3 |
-| :--- | :---: | ---: |
-| A | B | C |
-| D | E | F |
-`.trim();
+            const table = parseTable(['| H1 | H2 | H3 |', '| :--- | :---: | ---: |', '| A | B | C |', '| D | E | F |'].join('\n'));
+            const next = table.swapColumns(0, 2);
 
-            const data = parseMarkdownTable(threeColTable)!;
-            const newData = swapColumns(data, 0, 2);
-
-            expect(newData.headers).toEqual(['H3', 'H2', 'H1']);
-            expect(newData.alignments).toEqual(['right', 'center', 'left']);
-            expect(newData.rows[0]).toEqual(['C', 'B', 'A']);
-            expect(newData.rows[1]).toEqual(['F', 'E', 'D']);
+            expect(next.headerCells).toEqual(['H3', 'H2', 'H1']);
+            expect(next.alignments).toEqual(['right', 'center', 'left']);
+            expect(next.bodyRows[0]).toEqual(['C', 'B', 'A']);
+            expect(next.bodyRows[1]).toEqual(['F', 'E', 'D']);
         });
 
         it('should return same table for out of bounds column index', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapColumns(data, 0, 5);
+            const table = parseTable(basicTable);
+            const next = table.swapColumns(0, 5);
 
-            expect(newData).toBe(data);
+            expect(next).toBe(table);
         });
 
         it('should return same table for negative column index', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = swapColumns(data, -1, 0);
+            const table = parseTable(basicTable);
+            const next = table.swapColumns(-1, 0);
 
-            expect(newData).toBe(data);
+            expect(next).toBe(table);
         });
 
         it('should handle swapping in a single column table (no-op)', () => {
-            const oneColTable = `
-| H |
-| --- |
-| A |
-| B |
-`.trim();
+            const table = parseTable(['| H |', '| --- |', '| A |', '| B |'].join('\n'));
+            const next = table.swapColumns(0, 0);
 
-            const data = parseMarkdownTable(oneColTable)!;
-            const newData = swapColumns(data, 0, 0);
-
-            // Swapping a column with itself should return a new table but with same content
-            expect(newData.headers).toEqual(['H']);
-            expect(newData.rows[0]).toEqual(['A']);
-            expect(newData.rows[1]).toEqual(['B']);
+            expect(next).toBe(table);
+            expect(next.headerCells).toEqual(['H']);
+            expect(next.bodyRows[0]).toEqual(['A']);
+            expect(next.bodyRows[1]).toEqual(['B']);
         });
 
         it('should preserve alignment when swapping columns', () => {
-            const alignedTable = `
-| Left | Center | Right |
-| :--- | :---: | ---: |
-| A | B | C |
-`.trim();
+            const table = parseTable(['| Left | Center | Right |', '| :--- | :---: | ---: |', '| A | B | C |'].join('\n'));
+            const next = table.swapColumns(0, 2);
 
-            const data = parseMarkdownTable(alignedTable)!;
-            const newData = swapColumns(data, 0, 2);
-
-            expect(newData.headers).toEqual(['Right', 'Center', 'Left']);
-            expect(newData.alignments).toEqual(['right', 'center', 'left']);
-            expect(newData.rows[0]).toEqual(['C', 'B', 'A']);
+            expect(next.headerCells).toEqual(['Right', 'Center', 'Left']);
+            expect(next.alignments).toEqual(['right', 'center', 'left']);
+            expect(next.bodyRows[0]).toEqual(['C', 'B', 'A']);
         });
     });
 
     describe('clearAllCells', () => {
         it('should clear all header and body cell contents', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearAllCells(data);
+            const table = parseTable(basicTable);
+            const next = table.clearAllCells();
 
-            expect(newData.headers).toEqual(['', '']);
-            expect(newData.rows).toEqual([
+            expect(next.headerCells).toEqual(['', '']);
+            expect(next.bodyRows).toEqual([
                 ['', ''],
                 ['', ''],
             ]);
         });
 
         it('should preserve alignments', () => {
-            const alignedTable = `
-| Left | Right |
-| :--- | ---: |
-| A | B |
-`.trim();
+            const table = parseTable(['| Left | Right |', '| :--- | ---: |', '| A | B |'].join('\n'));
+            const next = table.clearAllCells();
 
-            const data = parseMarkdownTable(alignedTable)!;
-            const newData = clearAllCells(data);
-
-            expect(newData.alignments).toEqual(['left', 'right']);
+            expect(next.alignments).toEqual(['left', 'right']);
         });
 
         it('should preserve row and column count', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearAllCells(data);
+            const table = parseTable(basicTable);
+            const next = table.clearAllCells();
 
-            expect(newData.headers.length).toBe(data.headers.length);
-            expect(newData.rows.length).toBe(data.rows.length);
-            expect(newData.rows[0].length).toBe(data.rows[0].length);
+            expect(next.headerCells.length).toBe(table.headerCells.length);
+            expect(next.bodyRows.length).toBe(table.bodyRows.length);
+            expect(next.bodyRows[0].length).toBe(table.bodyRows[0].length);
         });
 
         it('should be idempotent on an already-empty table', () => {
-            const emptyTable = `
-|  |  |
-| --- | --- |
-|  |  |
-`.trim();
+            const table = parseTable(['|  |  |', '| --- | --- |', '|  |  |'].join('\n'));
+            const next = table.clearAllCells();
 
-            const data = parseMarkdownTable(emptyTable)!;
-            const newData = clearAllCells(data);
-
-            expect(newData.headers).toEqual(['', '']);
-            expect(newData.rows).toEqual([['', '']]);
+            expect(next.headerCells).toEqual(['', '']);
+            expect(next.bodyRows).toEqual([['', '']]);
         });
     });
 
     describe('clearRow', () => {
         it('should clear the header row when section is header', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearRow(data, 'header', 0);
+            const table = parseTable(basicTable);
+            const next = table.clearRow('header', 0);
 
-            expect(newData.headers).toEqual(['', '']);
-            expect(newData.rows).toEqual(data.rows);
-            expect(newData.alignments).toEqual(data.alignments);
+            expect(next.headerCells).toEqual(['', '']);
+            expect(next.bodyRows).toEqual(table.bodyRows);
+            expect(next.alignments).toEqual(table.alignments);
         });
 
         it('should clear a body row by index', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearRow(data, 'body', 1);
+            const table = parseTable(basicTable);
+            const next = table.clearRow('body', 1);
 
-            expect(newData.rows[0]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
-            expect(newData.rows[1]).toEqual(['', '']);
-            expect(newData.headers).toEqual(data.headers);
-            expect(newData.alignments).toEqual(data.alignments);
+            expect(next.bodyRows[0]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
+            expect(next.bodyRows[1]).toEqual(['', '']);
+            expect(next.headerCells).toEqual(table.headerCells);
+            expect(next.alignments).toEqual(table.alignments);
         });
 
         it('should no-op for out of bounds body row', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearRow(data, 'body', 10);
+            const table = parseTable(basicTable);
+            const next = table.clearRow('body', 10);
 
-            expect(newData).toBe(data);
+            expect(next).toBe(table);
         });
     });
 
     describe('clearColumn', () => {
         it('should clear the selected column in headers and body rows', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearColumn(data, 1);
+            const table = parseTable(basicTable);
+            const next = table.clearColumn(1);
 
-            expect(newData.headers).toEqual(['Header 1', '']);
-            expect(newData.rows).toEqual([
+            expect(next.headerCells).toEqual(['Header 1', '']);
+            expect(next.bodyRows).toEqual([
                 ['Row 1 Col 1', ''],
                 ['Row 2 Col 1', ''],
             ]);
-            expect(newData.alignments).toEqual(data.alignments);
+            expect(next.alignments).toEqual(table.alignments);
         });
 
         it('should no-op for out of bounds column', () => {
-            const data = parseMarkdownTable(basicTable)!;
-            const newData = clearColumn(data, 10);
+            const table = parseTable(basicTable);
+            const next = table.clearColumn(10);
 
-            expect(newData).toBe(data);
+            expect(next).toBe(table);
         });
 
         it('should clear existing cells only for uneven rows', () => {
-            const unevenTable = `
-| H1 |
-| --- |
-| A | B |
-`.trim();
+            const table = parseTable(['| H1 |', '| --- |', '| A | B |'].join('\n'));
+            const next = table.clearColumn(1);
 
-        const data = parseMarkdownTable(unevenTable)!;
-        const newData = clearColumn(data, 1);
-
-        expect(newData.headers).toEqual(['H1', '']);
-        expect(newData.rows[0]).toEqual(['A', '']);
-    });
+            expect(next.headerCells).toEqual(['H1', '']);
+            expect(next.bodyRows[0]).toEqual(['A', '']);
+        });
     });
 });

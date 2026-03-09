@@ -10,11 +10,11 @@ describe('MarkdownTable', () => {
         expect(table!.bodyRows).toEqual([['A', 'B']]);
     });
 
-    it('fromData normalizes ragged dto input', () => {
-        const table = MarkdownTable.fromData({
-            headers: ['H1'],
+    it('fromParts normalizes ragged input', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1'],
             alignments: [null, 'right'],
-            rows: [['A', 'B', 'C']],
+            bodyRows: [['A', 'B', 'C']],
         });
 
         expect(table.headerCells).toEqual(['H1', '', '']);
@@ -23,10 +23,10 @@ describe('MarkdownTable', () => {
     });
 
     it('serializes using minimal spacing and current alignment tokens', () => {
-        const table = MarkdownTable.fromData({
-            headers: ['H1', 'H2', 'H3', 'H4'],
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2', 'H3', 'H4'],
             alignments: ['left', 'right', 'center', null],
-            rows: [['a', 'b', 'c', 'd']],
+            bodyRows: [['a', 'b', 'c', 'd']],
         });
 
         expect(table.serialize()).toBe(
@@ -35,10 +35,10 @@ describe('MarkdownTable', () => {
     });
 
     it('returns same instance for no-op methods', () => {
-        const table = MarkdownTable.fromData({
-            headers: ['H1', 'H2'],
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
             alignments: [null, null],
-            rows: [['A', 'B']],
+            bodyRows: [['A', 'B']],
         });
 
         expect(table.deleteColumn(5)).toBe(table);
@@ -50,10 +50,10 @@ describe('MarkdownTable', () => {
     });
 
     it('keeps header semantics for row operations', () => {
-        const table = MarkdownTable.fromData({
-            headers: ['H1', 'H2'],
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
             alignments: ['left', 'right'],
-            rows: [
+            bodyRows: [
                 ['A1', 'A2'],
                 ['B1', 'B2'],
             ],
@@ -73,10 +73,10 @@ describe('MarkdownTable', () => {
     });
 
     it('swapColumns preserves alignments', () => {
-        const table = MarkdownTable.fromData({
-            headers: ['Left', 'Center', 'Right'],
+        const table = MarkdownTable.fromParts({
+            headerCells: ['Left', 'Center', 'Right'],
             alignments: ['left', 'center', 'right'],
-            rows: [['A', 'B', 'C']],
+            bodyRows: [['A', 'B', 'C']],
         });
 
         const next = table.swapColumns(0, 2);
@@ -86,10 +86,10 @@ describe('MarkdownTable', () => {
     });
 
     it('clear operations preserve structure and alignments', () => {
-        const table = MarkdownTable.fromData({
-            headers: ['H1', 'H2'],
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
             alignments: ['left', 'right'],
-            rows: [
+            bodyRows: [
                 ['A1', 'A2'],
                 ['B1', 'B2'],
             ],

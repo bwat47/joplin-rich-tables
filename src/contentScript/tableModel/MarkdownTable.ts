@@ -1,9 +1,13 @@
 import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
-import type { TableData } from './markdownTableParsing';
 import type { TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
+export interface MarkdownTableParts {
+    headerCells: readonly string[];
+    alignments: readonly TableAlignment[];
+    bodyRows: readonly (readonly string[])[];
+}
 
 function parseAlignment(cell: string): TableAlignment {
     const trimmed = cell.trim();
@@ -64,16 +68,16 @@ function getColumnCount(headers: readonly string[], alignments: readonly TableAl
 }
 
 function normalizeState(input: {
-    headers: readonly string[];
+    headerCells: readonly string[];
     alignments: readonly TableAlignment[];
-    rows: readonly (readonly string[])[];
+    bodyRows: readonly (readonly string[])[];
 }): { headers: string[]; alignments: TableAlignment[]; rows: string[][] } {
-    const columnCount = getColumnCount(input.headers, input.alignments, input.rows);
+    const columnCount = getColumnCount(input.headerCells, input.alignments, input.bodyRows);
 
     return {
-        headers: padArrayToLength(input.headers, columnCount, ''),
+        headers: padArrayToLength(input.headerCells, columnCount, ''),
         alignments: padArrayToLength(input.alignments, columnCount, null),
-        rows: input.rows.map((row) => padArrayToLength(row, columnCount, '')),
+        rows: input.bodyRows.map((row) => padArrayToLength(row, columnCount, '')),
     };
 }
 
@@ -104,18 +108,14 @@ export class MarkdownTable {
         const headers = ranges.headers.map((range) => text.slice(range.from, range.to));
         const rows = ranges.rows.map((rowRanges) => rowRanges.map((range) => text.slice(range.from, range.to)));
 
-        return MarkdownTable.create({ headers, alignments, rows });
+        return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 
-    static fromData(data: TableData): MarkdownTable {
-        return MarkdownTable.create(data);
+    static fromParts(parts: MarkdownTableParts): MarkdownTable {
+        return MarkdownTable.create(parts);
     }
 
-    private static create(input: {
-        headers: readonly string[];
-        alignments: readonly TableAlignment[];
-        rows: readonly (readonly string[])[];
-    }): MarkdownTable {
+    private static create(input: MarkdownTableParts): MarkdownTable {
         const normalized = normalizeState(input);
         return new MarkdownTable(normalized.headers, normalized.alignments, normalized.rows);
     }
@@ -134,14 +134,6 @@ export class MarkdownTable {
 
     get columnCount(): number {
         return this.headersData.length;
-    }
-
-    toData(): TableData {
-        return {
-            headers: [...this.headersData],
-            alignments: [...this.alignmentsData],
-            rows: cloneRows(this.rowsData),
-        };
     }
 
     serialize(): string {
@@ -179,7 +171,7 @@ export class MarkdownTable {
             return nextRow;
         });
 
-        return MarkdownTable.create({ headers, alignments, rows });
+        return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 
     deleteColumn(colIndex: number): MarkdownTable {
@@ -203,7 +195,7 @@ export class MarkdownTable {
             return nextRow;
         });
 
-        return MarkdownTable.create({ headers, alignments, rows });
+        return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 
     swapColumns(col1: number, col2: number): MarkdownTable {
@@ -218,9 +210,9 @@ export class MarkdownTable {
         };
 
         return MarkdownTable.create({
-            headers: swapInArray(this.headersData),
+            headerCells: swapInArray(this.headersData),
             alignments: swapInArray(this.alignmentsData),
-            rows: this.rowsData.map(swapInArray),
+            bodyRows: this.rowsData.map(swapInArray),
         });
     }
 
@@ -237,9 +229,9 @@ export class MarkdownTable {
         alignments[colIndex] = alignment;
 
         return MarkdownTable.create({
-            headers: this.headersData,
+            headerCells: this.headersData,
             alignments,
-            rows: this.rowsData,
+            bodyRows: this.rowsData,
         });
     }
 
@@ -251,9 +243,9 @@ export class MarkdownTable {
         }
 
         return MarkdownTable.create({
-            headers: this.headersData.map(() => ''),
+            headerCells: this.headersData.map(() => ''),
             alignments: this.alignmentsData,
-            rows: this.rowsData.map((row) => row.map(() => '')),
+            bodyRows: this.rowsData.map((row) => row.map(() => '')),
         });
     }
 
@@ -264,9 +256,9 @@ export class MarkdownTable {
             }
 
             return MarkdownTable.create({
-                headers: this.headersData.map(() => ''),
+                headerCells: this.headersData.map(() => ''),
                 alignments: this.alignmentsData,
-                rows: this.rowsData,
+                bodyRows: this.rowsData,
             });
         }
 
@@ -279,9 +271,9 @@ export class MarkdownTable {
         }
 
         return MarkdownTable.create({
-            headers: this.headersData,
+            headerCells: this.headersData,
             alignments: this.alignmentsData,
-            rows: this.rowsData.map((row, index) => (index === rowIndex ? row.map(() => '') : [...row])),
+            bodyRows: this.rowsData.map((row, index) => (index === rowIndex ? row.map(() => '') : [...row])),
         });
     }
 
@@ -306,9 +298,9 @@ export class MarkdownTable {
         });
 
         return MarkdownTable.create({
-            headers,
+            headerCells: headers,
             alignments: this.alignmentsData,
-            rows,
+            bodyRows: rows,
         });
     }
 
@@ -316,16 +308,16 @@ export class MarkdownTable {
         if (section === 'header') {
             if (where === 'after') {
                 return MarkdownTable.create({
-                    headers: this.headersData,
+                    headerCells: this.headersData,
                     alignments: this.alignmentsData,
-                    rows: [createEmptyRow(this.columnCount), ...cloneRows(this.rowsData)],
+                    bodyRows: [createEmptyRow(this.columnCount), ...cloneRows(this.rowsData)],
                 });
             }
 
             return MarkdownTable.create({
-                headers: createEmptyRow(this.columnCount),
+                headerCells: createEmptyRow(this.columnCount),
                 alignments: this.alignmentsData,
-                rows: [[...this.headersData], ...cloneRows(this.rowsData)],
+                bodyRows: [[...this.headersData], ...cloneRows(this.rowsData)],
             });
         }
 
@@ -335,9 +327,9 @@ export class MarkdownTable {
         rows.splice(actualIndex, 0, createEmptyRow(this.columnCount));
 
         return MarkdownTable.create({
-            headers: this.headersData,
+            headerCells: this.headersData,
             alignments: this.alignmentsData,
-            rows,
+            bodyRows: rows,
         });
     }
 
@@ -349,9 +341,9 @@ export class MarkdownTable {
 
             const [newHeader, ...remainingRows] = cloneRows(this.rowsData);
             return MarkdownTable.create({
-                headers: newHeader,
+                headerCells: newHeader,
                 alignments: this.alignmentsData,
-                rows: remainingRows,
+                bodyRows: remainingRows,
             });
         }
 
@@ -363,9 +355,9 @@ export class MarkdownTable {
         rows.splice(rowIndex, 1);
 
         return MarkdownTable.create({
-            headers: this.headersData,
+            headerCells: this.headersData,
             alignments: this.alignmentsData,
-            rows,
+            bodyRows: rows,
         });
     }
 
@@ -404,9 +396,9 @@ export class MarkdownTable {
         [allRows[idx1], allRows[idx2]] = [allRows[idx2], allRows[idx1]];
 
         return MarkdownTable.create({
-            headers: allRows[0],
+            headerCells: allRows[0],
             alignments: this.alignmentsData,
-            rows: allRows.slice(1),
+            bodyRows: allRows.slice(1),
         });
     }
 }
