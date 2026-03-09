@@ -118,10 +118,11 @@ export class TableWidget extends WidgetType {
         const bodyRows = this.tableData.bodyRows;
         const alignments = this.tableData.alignments;
 
-        // Render header
+        // Render header — skip synthetic cells that have no source range
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        for (let i = 0; i < headerCells.length; i++) {
+        const headerCount = this.cellRanges ? this.cellRanges.headers.length : headerCells.length;
+        for (let i = 0; i < headerCount; i++) {
             const th = document.createElement('th');
             th.dataset[DATA_SECTION] = SECTION_HEADER;
             th.dataset[DATA_ROW] = '0';
@@ -139,12 +140,13 @@ export class TableWidget extends WidgetType {
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Render body
+        // Render body — skip synthetic cells that have no source range
         const tbody = document.createElement('tbody');
         for (let r = 0; r < bodyRows.length; r++) {
             const row = bodyRows[r];
             const tr = document.createElement('tr');
-            for (let c = 0; c < row.length; c++) {
+            const colCount = this.cellRanges?.rows[r]?.length ?? row.length;
+            for (let c = 0; c < colCount; c++) {
                 const td = document.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
                 td.dataset[DATA_ROW] = String(r);
