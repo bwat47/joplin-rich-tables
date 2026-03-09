@@ -1,5 +1,4 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { deleteRowForActiveCell, insertRowForActiveCell } from '../tableCommands/tableCommandSemantics';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 
 function sliceCellText(tableText: string, cellFrom: number, cellTo: number): string {
@@ -21,7 +20,7 @@ describe('cursorTrackingIntegration', () => {
         const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = insertRowForActiveCell(table!, active!, 'after');
+        const newTable = table!.insertRowRelativeTo(active!.section, active!.row, 'after');
         const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({
@@ -49,7 +48,7 @@ describe('cursorTrackingIntegration', () => {
         const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = deleteRowForActiveCell(table!, active!);
+        const newTable = table!.deleteRowAt(active!.section, active!.row);
         const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({

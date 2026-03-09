@@ -1,9 +1,3 @@
-import {
-    insertRowForActiveCell,
-    deleteRowForActiveCell,
-    moveRowForActiveCell,
-    moveColumnForActiveCell,
-} from '../tableCommands/tableCommandSemantics';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { ActiveCell } from '../tableWidget/activeCellState';
 
@@ -26,6 +20,32 @@ describe('tableCommandSemantics', () => {
         row,
         col,
     });
+
+    const insertRowForActiveCell = (table: MarkdownTable, cell: ActiveCell, where: 'before' | 'after') => {
+        return table.insertRowRelativeTo(cell.section, cell.row, where);
+    };
+
+    const deleteRowForActiveCell = (table: MarkdownTable, cell: ActiveCell) => {
+        return table.deleteRowAt(cell.section, cell.row);
+    };
+
+    const moveRowForActiveCell = (table: MarkdownTable, cell: ActiveCell, direction: 'up' | 'down') => {
+        return table.moveRow(cell.section, cell.row, direction);
+    };
+
+    const moveColumnForActiveCell = (table: MarkdownTable, cell: ActiveCell, direction: 'left' | 'right') => {
+        if (direction === 'left') {
+            if (cell.col === 0) {
+                return table;
+            }
+            return table.swapColumns(cell.col, cell.col - 1);
+        }
+
+        if (cell.col === table.columnCount - 1) {
+            return table;
+        }
+        return table.swapColumns(cell.col, cell.col + 1);
+    };
 
     describe('insertRowForActiveCell', () => {
         it('should insert row BEFORE header (new header created)', () => {
