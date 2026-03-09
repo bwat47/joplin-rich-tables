@@ -11,15 +11,15 @@ describe('tableTransactionHelpers', () => {
         };
     }
 
-    function createCell(tableText: string) {
+    function createCell(tableText: string, row: number = 0, col: number = 0) {
         return {
             tableFrom: 0,
             tableTo: tableText.length,
             cellFrom: 0,
             cellTo: 0,
             section: 'body' as const,
-            row: 0,
-            col: 0,
+            row,
+            col,
         };
     }
 
@@ -59,5 +59,31 @@ describe('tableTransactionHelpers', () => {
 
         expect(result).toBe(false);
         expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('dispatches an effect-only transaction when markdown is unchanged but target cell moves', () => {
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | a |', '| a | a |'].join('\n');
+        const view = createView(tableText);
+        const cell = createCell(tableText, 1, 0);
+
+        const result = runTableOperation({
+            view: view as never,
+            cell,
+            operation: (table) => table.moveRow('body', 1, 'up'),
+            computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
+            forceWidgetRebuild: true,
+        });
+
+        expect(result).toBe(true);
+        expect(view.dispatch).toHaveBeenCalledTimes(1);
+
+        const dispatched = view.dispatch.mock.calls[0][0];
+        expect(dispatched.changes).toBeUndefined();
+        expect(dispatched.effects).toHaveLength(2);
+        expect(dispatched.effects).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ value: expect.objectContaining({ section: 'body', row: 0, col: 0 }) }),
+            ])
+        );
     });
 });

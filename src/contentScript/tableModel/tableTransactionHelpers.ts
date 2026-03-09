@@ -5,6 +5,10 @@ import { MarkdownTable } from './MarkdownTable';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './activeCellForTableText';
 
+function isSameActiveCell(a: ActiveCell, b: ActiveCell): boolean {
+    return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
+}
+
 interface ModifyTableParams {
     view: EditorView;
     cell: ActiveCell;
@@ -28,13 +32,14 @@ export function runTableOperation(params: ModifyTableParams): boolean {
         return false;
     }
     const newText = newTableData.serialize();
-    if (newText === text) {
-        return false;
-    }
 
     const target = computeTargetCell(cell, tableData, newTableData);
     const nextActiveCell = computeActiveCellForTableText({ tableFrom, tableText: newText, target });
     if (!nextActiveCell) {
+        return false;
+    }
+    const hasDocumentChange = newText !== text;
+    if (!hasDocumentChange && isSameActiveCell(nextActiveCell, cell)) {
         return false;
     }
 
@@ -43,14 +48,18 @@ export function runTableOperation(params: ModifyTableParams): boolean {
         effects.push(rebuildTableWidgetsEffect.of({ tableFrom }));
     }
 
-    view.dispatch({
-        changes: {
-            from: tableFrom,
-            to: tableTo,
-            insert: newText,
-        },
-        effects,
-    });
+    if (hasDocumentChange) {
+        view.dispatch({
+            changes: {
+                from: tableFrom,
+                to: tableTo,
+                insert: newText,
+            },
+            effects,
+        });
+    } else {
+        view.dispatch({ effects });
+    }
 
     return true;
 }
