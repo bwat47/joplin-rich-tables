@@ -96,6 +96,11 @@ export class MarkdownTable {
         private readonly rowsData: readonly (readonly string[])[]
     ) {}
 
+    /**
+     * Parses Markdown table text into the canonical normalized model.
+     * Cell content extraction is delegated to `computeMarkdownTableCellRanges()`
+     * so parsing stays aligned with the source ranges used for editing.
+     */
     static parse(text: string): MarkdownTable | null {
         const lines = text.split('\n').filter((line) => line.trim().length > 0);
         if (lines.length < 2) return null;
@@ -115,6 +120,10 @@ export class MarkdownTable {
         return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 
+    /**
+     * Constructs a table directly from parts and normalizes ragged input immediately.
+     * Intended for tests, fixtures, and internal callers that already have cell arrays.
+     */
     static fromParts(parts: MarkdownTableParts): MarkdownTable {
         return MarkdownTable.create(parts);
     }
@@ -308,6 +317,12 @@ export class MarkdownTable {
         });
     }
 
+    /**
+     * Inserts a row relative to the addressed row within the given section.
+     * Header-row semantics:
+     * - insert before header: create a new empty header and demote the old header to body row 0
+     * - insert after header: insert a new empty body row at body row 0
+     */
     insertRowRelativeTo(section: TableSection, rowIndex: number, where: 'before' | 'after'): MarkdownTable {
         if (section === 'header') {
             if (where === 'after') {
@@ -337,6 +352,11 @@ export class MarkdownTable {
         });
     }
 
+    /**
+     * Deletes the addressed row within the given section.
+     * Deleting the header promotes body row 0 to header, but the operation is blocked
+     * when that would leave the table without any body rows.
+     */
     deleteRowAt(section: TableSection, rowIndex: number): MarkdownTable {
         if (section === 'header') {
             if (this.rowsData.length <= 1) {
@@ -365,6 +385,10 @@ export class MarkdownTable {
         });
     }
 
+    /**
+     * Moves a row up or down while preserving the current header/body command semantics.
+     * Moving the header down swaps it with body row 0; moving the header up is a no-op.
+     */
     moveRow(section: TableSection, rowIndex: number, direction: 'up' | 'down'): MarkdownTable {
         if (this.rowsData.length === 0) {
             return this;
@@ -388,6 +412,10 @@ export class MarkdownTable {
         return this.swapRows(currentRowIndex, targetRowIndex);
     }
 
+    /**
+     * Swaps rows using the legacy row indexing convention: `-1` addresses the header
+     * and `0..n-1` address body rows.
+     */
     swapRows(row1: number, row2: number): MarkdownTable {
         const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
         const idx1 = row1 + 1;
