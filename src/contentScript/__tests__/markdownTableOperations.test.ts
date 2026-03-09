@@ -6,7 +6,7 @@ function parseTable(text: string): MarkdownTable {
     return table!;
 }
 
-describe('markdownTableManipulation', () => {
+describe('markdownTableOperations', () => {
     const basicTable = `
 | Header 1 | Header 2 |
 | :--- | ---: |
