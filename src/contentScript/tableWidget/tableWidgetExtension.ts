@@ -3,7 +3,7 @@ import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
-import { parseMarkdownTable, TableData } from '../tableModel/markdownTableParsing';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { initRenderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
@@ -39,14 +39,14 @@ import { moveCursorOutOfTable } from './cursorUtils';
  * Keys are FNV-1a hashes of the table text.
  * Capped at 50 entries to prevent memory leaks.
  */
-const tableParseCache = new Map<string, TableData>();
+const tableParseCache = new Map<string, MarkdownTable>();
 const MAX_TABLE_PARSE_CACHE_SIZE = 50;
 
 /**
  * Retrieves parsed table data from cache or parses it if missing.
  * Manages LRU cache eviction.
  */
-function getCachedOrParseTableData(text: string): { data: TableData; parseHash: string } | null {
+function getCachedOrParseTableData(text: string): { data: MarkdownTable; parseHash: string } | null {
     const parseHash = hashTableText(text);
     let tableData = tableParseCache.get(parseHash);
 
@@ -55,7 +55,7 @@ function getCachedOrParseTableData(text: string): { data: TableData; parseHash: 
         tableParseCache.delete(parseHash);
         tableParseCache.set(parseHash, tableData);
     } else {
-        tableData = parseMarkdownTable(text);
+        tableData = MarkdownTable.parse(text);
         if (!tableData) {
             return null;
         }

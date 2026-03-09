@@ -1,4 +1,4 @@
-import type { TableData } from '../tableModel/markdownTableParsing';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 // Height estimation constants
 const ROW_HEIGHT_BASE = 35; // Approx px per row (including padding/border)
@@ -12,14 +12,15 @@ const CONTAINER_PADDING = 20; // Buffer for container padding
  * This helps CodeMirror's scroll position calculations by providing
  * a reasonable height before the table is actually rendered.
  */
-export function estimateTableHeight(tableData: TableData): number {
+export function estimateTableHeight(tableData: MarkdownTable): number {
     let totalHeight = 0;
+    const bodyRows = tableData.bodyRows;
 
     // Header height
     totalHeight += ROW_HEIGHT_BASE;
 
     // Body rows
-    for (const row of tableData.rows) {
+    for (const row of bodyRows) {
         let maxRowHeight = ROW_HEIGHT_BASE;
 
         for (const cell of row) {

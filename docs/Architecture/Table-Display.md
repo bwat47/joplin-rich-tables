@@ -40,7 +40,7 @@ Prevents flicker when rebuilding decorations for position sync.
 
 ### 3. Table Parsing Cache
 
-**FIFO cache** (50 entries) of parsed TableData, keyed by content hash.
+**FIFO cache** (50 entries) of parsed `MarkdownTable` instances, keyed by content hash.
 
 ### 4. Height Estimation
 

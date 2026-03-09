@@ -31,12 +31,13 @@ These ranges are used for:
 
 ## Parsing to a Structured Table Model
 
-`parseMarkdownTable()` (`src/contentScript/tableModel/markdownTableParsing.ts`) produces `TableData`:
+`MarkdownTable.parse()` (`src/contentScript/tableModel/MarkdownTable.ts`) produces the canonical runtime table model:
 
 - Validates basic shape (header row contains `|`, second row is a separator row).
 - Parses column alignments from the separator row (`:---`, `:---:`, `---:`, `---`) using a dedicated separator-row parser.
 - Extracts header/body cell content by slicing the original text with `computeMarkdownTableCellRanges()` so displayed content and edit ranges stay consistent.
+- Normalizes ragged input immediately so headers, alignments, and body rows always share the same effective column count.
 
 ## Structural Operations (Rows/Columns/Alignment)
 
-Structural edits operate on the parsed `TableData` and then serialize back to Markdown, see: [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md)
+Structural edits operate on `MarkdownTable` and then serialize back to Markdown, see: [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md)

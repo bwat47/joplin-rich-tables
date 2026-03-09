@@ -1,11 +1,4 @@
-import { parseMarkdownTable } from '../tableModel/markdownTableParsing';
-import {
-    deleteColumn,
-    insertColumn,
-    serializeTable,
-    updateColumnAlignment,
-} from '../tableModel/markdownTableManipulation';
-import { deleteRowForActiveCell, insertRowForActiveCell } from '../tableCommands/tableCommandSemantics';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 
 function sliceCellText(tableText: string, cellFrom: number, cellTo: number): string {
@@ -24,11 +17,11 @@ describe('cursorTrackingIntegration', () => {
         });
         expect(active).not.toBeNull();
 
-        const table = parseMarkdownTable(baseMarkdown);
+        const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = insertRowForActiveCell(table!, active!, 'after');
-        const newText = serializeTable(newTable);
+        const newTable = table!.insertRowRelativeTo(active!.section, active!.row, 'after');
+        const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({
             tableFrom,
@@ -52,11 +45,11 @@ describe('cursorTrackingIntegration', () => {
         });
         expect(active).not.toBeNull();
 
-        const table = parseMarkdownTable(baseMarkdown);
+        const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = deleteRowForActiveCell(table!, active!);
-        const newText = serializeTable(newTable);
+        const newTable = table!.deleteRowAt(active!.section, active!.row);
+        const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({
             tableFrom,
@@ -77,11 +70,11 @@ describe('cursorTrackingIntegration', () => {
         });
         expect(active).not.toBeNull();
 
-        const table = parseMarkdownTable(baseMarkdown);
+        const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = insertColumn(table!, active!.col, 'before');
-        const newText = serializeTable(newTable);
+        const newTable = table!.insertColumn(active!.col, 'before');
+        const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({
             tableFrom,
@@ -103,11 +96,11 @@ describe('cursorTrackingIntegration', () => {
         });
         expect(active).not.toBeNull();
 
-        const table = parseMarkdownTable(baseMarkdown);
+        const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = deleteColumn(table!, active!.col);
-        const newText = serializeTable(newTable);
+        const newTable = table!.deleteColumn(active!.col);
+        const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({
             tableFrom,
@@ -128,11 +121,11 @@ describe('cursorTrackingIntegration', () => {
         });
         expect(active).not.toBeNull();
 
-        const table = parseMarkdownTable(baseMarkdown);
+        const table = MarkdownTable.parse(baseMarkdown);
         expect(table).not.toBeNull();
 
-        const newTable = updateColumnAlignment(table!, active!.col, 'right');
-        const newText = serializeTable(newTable);
+        const newTable = table!.updateColumnAlignment(active!.col, 'right');
+        const newText = newTable.serialize();
 
         const next = computeActiveCellForTableText({
             tableFrom,
