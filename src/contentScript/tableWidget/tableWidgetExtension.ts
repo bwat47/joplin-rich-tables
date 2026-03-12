@@ -346,6 +346,10 @@ function handleOutsideTableInteraction(
         });
         if (!options.preserveContextMenu) {
             view.focus();
+        } else if (hasNestedEditor) {
+            // The nested editor we just destroyed held focus; restore it to the
+            // main editor without scrolling so the caret is painted.
+            view.contentDOM.focus({ preventScroll: true });
         }
     } else if (hasActiveCell) {
         view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
