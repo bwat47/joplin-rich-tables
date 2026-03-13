@@ -1,4 +1,4 @@
-import { Annotation, EditorSelection, Transaction } from '@codemirror/state';
+import { Annotation, Transaction } from '@codemirror/state';
 
 /** Annotation used to mark synchronization transactions to prevent loops. */
 export const syncAnnotation = Annotation.define<boolean>();
