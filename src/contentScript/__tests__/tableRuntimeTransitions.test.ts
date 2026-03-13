@@ -19,14 +19,12 @@ import {
     type TableRuntimeSnapshot,
 } from '../tableWidget/tableRuntimeTransitions';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
+import { createMarkdownState } from './testMarkdownState';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 function createState(params?: { activeCell?: ActiveCell | null }) {
-    let state = EditorState.create({
-        doc,
-        extensions: [activeCellField, sourceModeField, searchForceSourceModeField],
-    });
+    let state = createMarkdownState(doc, [activeCellField, sourceModeField, searchForceSourceModeField]);
 
     if (params?.activeCell) {
         state = state.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;

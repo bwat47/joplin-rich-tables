@@ -1,13 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState } from '@codemirror/state';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableWidget/activeCellState';
 import { resolveActiveCell, resolveCurrentActiveCell } from '../tableWidget/activeCellResolver';
+import { createMarkdownState } from './testMarkdownState';
 
 function createState(doc: string, activeCell?: ActiveCell) {
-    let state = EditorState.create({
-        doc,
-        extensions: [activeCellField],
-    });
+    let state = createMarkdownState(doc, [activeCellField]);
 
     if (activeCell) {
         state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;

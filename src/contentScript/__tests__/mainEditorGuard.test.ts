@@ -1,15 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState } from '@codemirror/state';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { createMarkdownState } from './testMarkdownState';
 
 function createState(params: { doc: string; nestedOpen: boolean }) {
-    return EditorState.create({
-        doc: params.doc,
-        extensions: [activeCellField, createMainEditorActiveCellGuard(() => params.nestedOpen)],
-    });
+    return createMarkdownState(params.doc, [activeCellField, createMainEditorActiveCellGuard(() => params.nestedOpen)]);
 }
 
 describe('createMainEditorActiveCellGuard', () => {
