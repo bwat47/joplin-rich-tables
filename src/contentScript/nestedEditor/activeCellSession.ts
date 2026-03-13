@@ -246,9 +246,10 @@ class ActiveCellSessionController {
             createActiveCellFromIdentity(this.session.identity, this.session.range.tableFrom)
         );
         if (!resolved) {
+            const mainView = this.mainView;
             this.close();
-            if (getActiveCell(update.state)) {
-                this.mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+            if (mainView && getActiveCell(update.state)) {
+                mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
             }
             return;
         }
