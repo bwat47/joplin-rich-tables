@@ -2,11 +2,7 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import {
-    computeMarkdownTableCellRanges,
-    findCellForPos,
-    type TableCellRanges,
-} from '../tableModel/markdownTableCellRanges';
+import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
@@ -39,6 +35,7 @@ export class TableWidget extends WidgetType {
 
     constructor(
         private tableData: MarkdownTable,
+        cellRanges: TableCellRanges | null,
         private tableText: string,
         private tableFrom: number,
         private tableTo: number,
@@ -49,8 +46,7 @@ export class TableWidget extends WidgetType {
         // Content hash includes definition block so widgets rebuild when definitions change.
         // Hash is pre-computed by the extension to avoid redundant hashing.
         this.contentHash = contentHash;
-        // Pre-compute cell ranges once, as the table text is immutable for this widget instance
-        this.cellRanges = computeMarkdownTableCellRanges(tableText);
+        this.cellRanges = cellRanges;
     }
 
     eq(_other: TableWidget): boolean {

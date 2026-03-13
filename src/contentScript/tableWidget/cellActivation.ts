@@ -5,8 +5,9 @@
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, setActiveCellEffect } from './activeCellState';
 import { findTableRanges } from './tablePositioning';
-import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { buildTableContext } from '../tableModel/tableContext';
+import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { findCellElement } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
@@ -47,8 +48,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
     // Find which cell contains the position
     const relativePos = pos - table.from;
-    const ranges = computeMarkdownTableCellRanges(table.text);
-    if (!ranges) {
+    const ctx = buildTableContext(table);
+    if (!ctx) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
@@ -56,11 +57,12 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     // Find the cell containing the position, fallback to first body cell
-    const targetCell = findCellForPos(ranges, relativePos) ?? { section: 'body' as const, row: 0, col: 0 };
+    const targetCell = findCellForPos(ctx.cellRanges, relativePos) ?? { section: 'body' as const, row: 0, col: 0 };
 
-    const newActiveCell = computeActiveCellForTableText({
-        tableFrom: table.from,
-        tableText: table.text,
+    const newActiveCell = computeActiveCellFromRanges({
+        tableFrom: ctx.from,
+        tableTo: ctx.to,
+        ranges: ctx.cellRanges,
         target: targetCell,
     });
 
@@ -112,9 +114,13 @@ export function activateTableCell(
         const table = tables.find((t) => t.from === tableFrom);
         if (!table) return;
 
-        const newActiveCell = computeActiveCellForTableText({
-            tableFrom: table.from,
-            tableText: table.text,
+        const ctx = buildTableContext(table);
+        if (!ctx) return;
+
+        const newActiveCell = computeActiveCellFromRanges({
+            tableFrom: ctx.from,
+            tableTo: ctx.to,
+            ranges: ctx.cellRanges,
             target: coords,
         });
 

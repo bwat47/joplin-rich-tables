@@ -2,8 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
-import { resolveTableAtPos, resolveCellDocRange } from '../tableWidget/tablePositioning';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { resolveTableContextAtPos, resolveCellDocRange } from '../tableWidget/tablePositioning';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { resetNavigationLock } from '../tableWidget/navigationLock';
 
@@ -12,7 +11,6 @@ import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
 jest.mock('../tableWidget/tablePositioning');
-jest.mock('../tableModel/markdownTableCellRanges');
 jest.mock('../nestedEditor/nestedCellEditor');
 jest.mock('../tableCommands/tableCommands', () => ({
     __esModule: true,
@@ -51,26 +49,25 @@ describe('navigateCell', () => {
         // Reset mocks
         getActiveCellSpy = jest.spyOn(activeCellState, 'getActiveCell');
         getActiveCellSpy.mockReset();
-        (resolveTableAtPos as jest.Mock).mockReset();
-        (computeMarkdownTableCellRanges as jest.Mock).mockReset();
+        (resolveTableContextAtPos as jest.Mock).mockReset();
         (resolveCellDocRange as jest.Mock).mockReset();
         (execInsertRowAtBottom as jest.Mock).mockReset();
     });
 
     const setupTable = (rows: number, cols: number) => {
-        // Mock table structure
-        (resolveTableAtPos as jest.Mock).mockReturnValue({
-            from: 0,
-            to: 100,
-            text: '| header |\n| --- |\n| body |',
-        });
-
         const headers = Array(cols).fill({});
         const bodyRows = Array(rows).fill(Array(cols).fill({}));
 
-        (computeMarkdownTableCellRanges as jest.Mock).mockReturnValue({
-            headers,
-            rows: bodyRows,
+        // Mock resolveTableContextAtPos to return a full TableContext
+        (resolveTableContextAtPos as jest.Mock).mockReturnValue({
+            from: 0,
+            to: 100,
+            text: '| header |\n| --- |\n| body |',
+            table: {}, // MarkdownTable (not used by navigation logic)
+            cellRanges: {
+                headers,
+                rows: bodyRows,
+            },
         });
 
         // Mock range resolution (always succeeds)

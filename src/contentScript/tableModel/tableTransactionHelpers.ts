@@ -4,6 +4,7 @@ import { ActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState'
 import { MarkdownTable } from './MarkdownTable';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './activeCellForTableText';
+import { buildTableContext } from './tableContext';
 
 function isSameActiveCell(a: ActiveCell, b: ActiveCell): boolean {
     return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
@@ -23,17 +24,17 @@ export function runTableOperation(params: ModifyTableParams): boolean {
     const { tableFrom, tableTo } = cell;
 
     const text = view.state.sliceDoc(tableFrom, tableTo);
-    const tableData = MarkdownTable.parse(text);
+    const ctx = buildTableContext({ from: tableFrom, to: tableTo, text });
 
-    if (!tableData) return false;
+    if (!ctx) return false;
 
-    const newTableData = operation(tableData, cell);
-    if (newTableData === tableData && !serializeIfIdentity) {
+    const newTableData = operation(ctx.table, cell);
+    if (newTableData === ctx.table && !serializeIfIdentity) {
         return false;
     }
     const newText = newTableData.serialize();
 
-    const target = computeTargetCell(cell, tableData, newTableData);
+    const target = computeTargetCell(cell, ctx.table, newTableData);
     const nextActiveCell = computeActiveCellForTableText({ tableFrom, tableText: newText, target });
     if (!nextActiveCell) {
         return false;

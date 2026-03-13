@@ -5,6 +5,16 @@
 export type TableSection = 'header' | 'body';
 
 /**
+ * A table's document-level position and raw text.
+ * Produced by Lezer syntax-tree resolution in tablePositioning.
+ */
+export interface ResolvedTable {
+    from: number;
+    to: number;
+    text: string;
+}
+
+/**
  * Coordinates identifying a cell within a table.
  * Used to group (section, row, col) into a single type-safe object.
  */

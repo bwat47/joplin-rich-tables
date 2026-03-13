@@ -3,7 +3,7 @@ import { setActiveCellEffect, clearActiveCellEffect, getActiveCell, type ActiveC
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { buildTableContext } from '../tableModel/tableContext';
 import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
@@ -203,14 +203,14 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return false;
         }
 
-        const cellRanges = computeMarkdownTableCellRanges(table.text);
-        if (!cellRanges) {
+        const ctx = buildTableContext(table);
+        if (!ctx) {
             return false;
         }
 
         const resolvedRange = resolveCellDocRange({
             tableFrom: table.from,
-            ranges: cellRanges,
+            ranges: ctx.cellRanges,
             coords: { section, row, col },
         });
         if (!resolvedRange) {

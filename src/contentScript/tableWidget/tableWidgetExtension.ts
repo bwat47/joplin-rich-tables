@@ -3,7 +3,7 @@ import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { buildTableContext } from '../tableModel/tableContext';
 import { initRenderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
@@ -35,42 +35,6 @@ import { createNoteIdWatcher } from './noteIdWatcher';
 import { moveCursorOutOfTable } from './cursorUtils';
 
 /**
- * Cache for parsed table data to perform expensive parsing only when content changes.
- * Keys are FNV-1a hashes of the table text.
- * Capped at 50 entries to prevent memory leaks.
- */
-const tableParseCache = new Map<string, MarkdownTable>();
-const MAX_TABLE_PARSE_CACHE_SIZE = 50;
-
-/**
- * Retrieves parsed table data from cache or parses it if missing.
- * Manages LRU cache eviction.
- */
-function getCachedOrParseTableData(text: string): { data: MarkdownTable; parseHash: string } | null {
-    const parseHash = hashTableText(text);
-    let tableData = tableParseCache.get(parseHash);
-
-    if (tableData) {
-        // Refresh recency: move to end of Map (most recently used)
-        tableParseCache.delete(parseHash);
-        tableParseCache.set(parseHash, tableData);
-    } else {
-        tableData = MarkdownTable.parse(text);
-        if (!tableData) {
-            return null;
-        }
-
-        // Simple LRU: Delete oldest if at capacity
-        if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
-            const firstKey = tableParseCache.keys().next().value;
-            if (firstKey) tableParseCache.delete(firstKey);
-        }
-        tableParseCache.set(parseHash, tableData);
-    }
-
-    return { data: tableData, parseHash };
-}
-/**
  * Rebuild only the decoration for a single table, mapping all other decorations.
  * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
  */
@@ -95,17 +59,16 @@ function rebuildSingleTable(
 
     // Build new decoration for the target table
     const definitions = state.field(documentDefinitionsField);
-    const parsed = getCachedOrParseTableData(targetTable.text);
+    const ctx = buildTableContext(targetTable);
 
-    if (!parsed) {
+    if (!ctx) {
         return decorations.map(changes);
     }
 
-    const { data: tableData } = parsed;
-
     const contentHash = hashTableText(targetTable.text + definitions.definitionBlock);
     const widget = new TableWidget(
-        tableData,
+        ctx.table,
+        ctx.cellRanges,
         targetTable.text,
         targetTable.from,
         targetTable.to,
@@ -148,17 +111,17 @@ function buildTableDecorations(state: EditorState): DecorationSet {
     const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
-        const result = getCachedOrParseTableData(table.text);
-        if (!result) {
+        const ctx = buildTableContext(table);
+        if (!ctx) {
             continue;
         }
-        const { data: tableData } = result;
 
         // Content hash includes definition block so widgets rebuild when definitions change.
         const contentHash = hashTableText(table.text + definitions.definitionBlock);
 
         const widget = new TableWidget(
-            tableData,
+            ctx.table,
+            ctx.cellRanges,
             table.text,
             table.from,
             table.to,

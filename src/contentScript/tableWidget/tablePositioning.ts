@@ -3,15 +3,13 @@ import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import type { EditorView } from '@codemirror/view';
 import { getCellRange, type TableCellRanges, type CellRange } from '../tableModel/markdownTableCellRanges';
+import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 import { getWidgetSelector } from './domHelpers';
 import { getActiveCell } from './activeCellState';
-import type { CellCoords } from '../tableModel/types';
+import type { CellCoords, ResolvedTable } from '../tableModel/types';
 
-export interface ResolvedTable {
-    from: number;
-    to: number;
-    text: string;
-}
+export type { ResolvedTable } from '../tableModel/types';
+export type { TableContext } from '../tableModel/tableContext';
 
 const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
 const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
@@ -166,4 +164,14 @@ export function resolveCellDocRange(params: {
         cellTo: tableFrom + relRange.to,
         relRange,
     };
+}
+
+/**
+ * Resolve a table at `pos` and build a full TableContext (parsed table + cell ranges).
+ * Convenience wrapper combining resolveTableAtPos + buildTableContext.
+ */
+export function resolveTableContextAtPos(state: EditorState, pos: number, timeoutMs?: number): TableContext | null {
+    const resolved = resolveTableAtPos(state, pos, timeoutMs);
+    if (!resolved) return null;
+    return buildTableContext(resolved);
 }
