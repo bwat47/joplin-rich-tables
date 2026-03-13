@@ -1,5 +1,6 @@
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
 import { getActiveCell, clearActiveCellEffect } from './activeCellState';
+import { resolveActiveCell } from './activeCellResolver';
 import { rebuildAllTableWidgetsEffect } from './tableWidgetEffects';
 import {
     applyMainSelectionToNestedEditor,
@@ -113,16 +114,16 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'closeNestedEditor':
-                        closeNestedCellEditor(
-                            this.view,
-                            action.cellFrom !== undefined && action.cellTo !== undefined
-                                ? { cellFrom: action.cellFrom, cellTo: action.cellTo }
-                                : undefined
-                        );
+                        closeNestedCellEditor(this.view);
                         break;
                     case 'openNestedEditor':
                         requestAnimationFrame(() => {
                             if (!this.view.dom.isConnected) return;
+                            const resolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
+                            if (!resolvedActiveCell) {
+                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                                return;
+                            }
                             const cellElement = findCellElement(
                                 this.view,
                                 makeTableId(action.activeCell.tableFrom),
@@ -136,25 +137,41 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             openNestedCellEditor({
                                 mainView: this.view,
                                 cellElement,
-                                cellFrom: action.activeCell.cellFrom,
-                                cellTo: action.activeCell.cellTo,
+                                cellFrom: resolvedActiveCell.cellFrom,
+                                cellTo: resolvedActiveCell.cellTo,
                             });
                         });
                         break;
                     case 'syncMainDocToNested':
-                        applyMainTransactionsToNestedEditor(this.view, {
-                            transactions: update.transactions,
-                            cellFrom: action.activeCell.cellFrom,
-                            cellTo: action.activeCell.cellTo,
-                        });
+                        {
+                            const resolvedActiveCell = resolveActiveCell(update.state, action.activeCell);
+                            if (!resolvedActiveCell) {
+                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                                break;
+                            }
+
+                            applyMainTransactionsToNestedEditor(this.view, {
+                                transactions: update.transactions,
+                                cellFrom: resolvedActiveCell.cellFrom,
+                                cellTo: resolvedActiveCell.cellTo,
+                            });
+                        }
                         break;
                     case 'syncMainSelectionToNested':
-                        applyMainSelectionToNestedEditor(this.view, {
-                            selection: update.state.selection,
-                            cellFrom: action.activeCell.cellFrom,
-                            cellTo: action.activeCell.cellTo,
-                            focus: action.focus,
-                        });
+                        {
+                            const resolvedActiveCell = resolveActiveCell(update.state, action.activeCell);
+                            if (!resolvedActiveCell) {
+                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                                break;
+                            }
+
+                            applyMainSelectionToNestedEditor(this.view, {
+                                selection: update.state.selection,
+                                cellFrom: resolvedActiveCell.cellFrom,
+                                cellTo: resolvedActiveCell.cellTo,
+                                focus: action.focus,
+                            });
+                        }
                         break;
                     case 'clearActiveCell':
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });

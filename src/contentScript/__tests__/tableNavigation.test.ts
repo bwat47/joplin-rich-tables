@@ -2,7 +2,8 @@ import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { getActiveCell } from '../tableWidget/activeCellState';
-import { resolveTableContextAtPos, resolveCellDocRange } from '../tableWidget/tablePositioning';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
+import { resolveCellDocRange } from '../tableWidget/tablePositioning';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { resetNavigationLock } from '../tableWidget/navigationLock';
 
@@ -11,6 +12,9 @@ import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
 jest.mock('../tableWidget/tablePositioning');
+jest.mock('../tableWidget/activeCellResolver', () => ({
+    resolveActiveCell: jest.fn(),
+}));
 jest.mock('../nestedEditor/nestedCellEditor');
 jest.mock('../tableCommands/tableCommands', () => ({
     __esModule: true,
@@ -49,7 +53,7 @@ describe('navigateCell', () => {
         // Reset mocks
         getActiveCellSpy = jest.spyOn(activeCellState, 'getActiveCell');
         getActiveCellSpy.mockReset();
-        (resolveTableContextAtPos as jest.Mock).mockReset();
+        (resolveActiveCell as jest.Mock).mockReset();
         (resolveCellDocRange as jest.Mock).mockReset();
         (execInsertRowAtBottom as jest.Mock).mockReset();
     });
@@ -57,29 +61,29 @@ describe('navigateCell', () => {
     const setupTable = (rows: number, cols: number) => {
         const headers = Array(cols).fill({});
         const bodyRows = Array(rows).fill(Array(cols).fill({}));
-
-        // Mock resolveTableContextAtPos to return a full TableContext
-        (resolveTableContextAtPos as jest.Mock).mockReturnValue({
+        const ctx = {
             from: 0,
             to: 100,
             text: '| header |\n| --- |\n| body |',
-            table: {}, // MarkdownTable (not used by navigation logic)
+            table: {},
             cellRanges: {
                 headers,
                 rows: bodyRows,
             },
-        });
+        };
 
-        // Mock range resolution (always succeeds)
         (resolveCellDocRange as jest.Mock).mockReturnValue({
             cellFrom: 10,
             cellTo: 20,
+        });
+        (resolveActiveCell as jest.Mock).mockReturnValue({
+            ctx,
         });
     };
 
     const setupActiveCell = (section: 'header' | 'body', row: number, col: number) => {
         getActiveCellSpy.mockReturnValue({
-            cellFrom: 10,
+            tableFrom: 0,
             section,
             row,
             col,

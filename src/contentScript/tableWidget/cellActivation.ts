@@ -4,7 +4,7 @@
  */
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, setActiveCellEffect } from './activeCellState';
-import { findTableRanges } from './tablePositioning';
+import { findTableRanges, resolveCellDocRange } from './tablePositioning';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../tableModel/tableContext';
 import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
@@ -61,12 +61,23 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
     const newActiveCell = computeActiveCellFromRanges({
         tableFrom: ctx.from,
-        tableTo: ctx.to,
         ranges: ctx.cellRanges,
         target: targetCell,
     });
 
     if (!newActiveCell) {
+        if (options?.clearIfOutside) {
+            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        }
+        return false;
+    }
+
+    const resolvedRange = resolveCellDocRange({
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
+        coords: targetCell,
+    });
+    if (!resolvedRange) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
@@ -86,8 +97,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     openNestedCellEditor({
         mainView: view,
         cellElement,
-        cellFrom: newActiveCell.cellFrom,
-        cellTo: newActiveCell.cellTo,
+        cellFrom: resolvedRange.cellFrom,
+        cellTo: resolvedRange.cellTo,
     });
 
     return true;
@@ -119,12 +130,18 @@ export function activateTableCell(
 
         const newActiveCell = computeActiveCellFromRanges({
             tableFrom: ctx.from,
-            tableTo: ctx.to,
             ranges: ctx.cellRanges,
             target: coords,
         });
 
         if (!newActiveCell) return;
+
+        const resolvedRange = resolveCellDocRange({
+            tableFrom: ctx.from,
+            ranges: ctx.cellRanges,
+            coords,
+        });
+        if (!resolvedRange) return;
 
         // Set the active cell state before opening the nested editor.
         view.dispatch({
@@ -137,8 +154,8 @@ export function activateTableCell(
         openNestedCellEditor({
             mainView: view,
             cellElement,
-            cellFrom: newActiveCell.cellFrom,
-            cellTo: newActiveCell.cellTo,
+            cellFrom: resolvedRange.cellFrom,
+            cellTo: resolvedRange.cellTo,
         });
     });
 }

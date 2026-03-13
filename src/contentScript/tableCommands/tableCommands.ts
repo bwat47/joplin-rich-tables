@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
 import { toggleSourceMode } from '../tableWidget/sourceMode';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { activateTableCell } from '../tableWidget/cellActivation';
@@ -163,9 +164,17 @@ export const execClearColumn = createTableCommand(
 );
 
 export function execDeleteTable(view: EditorView, cell: ActiveCell): void {
+    const resolvedCell = resolveActiveCell(view.state, cell);
+    if (!resolvedCell) {
+        return;
+    }
+
     view.dispatch({
-        changes: { from: cell.tableFrom, to: cell.tableTo, insert: '' },
-        effects: [clearActiveCellEffect.of(undefined), rebuildTableWidgetsEffect.of({ tableFrom: cell.tableFrom })],
+        changes: { from: resolvedCell.tableFrom, to: resolvedCell.tableTo, insert: '' },
+        effects: [
+            clearActiveCellEffect.of(undefined),
+            rebuildTableWidgetsEffect.of({ tableFrom: resolvedCell.tableFrom }),
+        ],
     });
 }
 

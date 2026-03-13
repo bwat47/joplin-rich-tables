@@ -43,6 +43,9 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 
 Cell click → `TableWidget` calculates row/column → dispatches `setActiveCellEffect` → `nestedEditorLifecycle` mounts nested editor.
 
+`ActiveCell` is logical-first state: it persists `tableFrom` plus `section/row/col`. Raw offsets such as
+`tableTo` and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
+
 ### 3. Synchronization
 
 Typing in nested editor → `forwardChangesToMain` creates transaction with `syncAnnotation` → main editor applies → annotation prevents re-render loop.
@@ -67,6 +70,9 @@ Typing in nested editor → `forwardChangesToMain` creates transaction with `syn
 This is the shared derived object used across widget rendering, table interactions,
 navigation, and command helpers so the plugin does not repeatedly run separate
 resolve -> parse -> compute-ranges chains for the same table content.
+
+The active-cell resolver builds on `TableContext` and is the only supported way to
+derive current table/cell offsets for the persisted logical active-cell state.
 
 ### 6. Shared Transition Policy
 

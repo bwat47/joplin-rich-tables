@@ -1,27 +1,52 @@
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 
+jest.mock('../tableWidget/activeCellResolver', () => ({
+    resolveActiveCell: jest.fn(),
+}));
+
 describe('tableTransactionHelpers', () => {
+    let currentTableText = '';
+
     function createView(tableText: string) {
+        currentTableText = tableText;
         const dispatch = jest.fn();
         return {
             state: {
-                sliceDoc: jest.fn((_from: number, _to: number) => tableText),
+                doc: { length: tableText.length },
             },
             dispatch,
         };
     }
 
     function createCell(tableText: string, row: number = 0, col: number = 0) {
+        void tableText;
         return {
             tableFrom: 0,
-            tableTo: tableText.length,
-            cellFrom: 0,
-            cellTo: 0,
             section: 'body' as const,
             row,
             col,
         };
     }
+
+    beforeEach(() => {
+        (resolveActiveCell as jest.Mock).mockImplementation((_state, cell) => ({
+            activeCell: cell,
+            tableFrom: 0,
+            tableTo: currentTableText.length,
+            cellFrom: 0,
+            cellTo: 0,
+            ctx: {
+                from: 0,
+                to: currentTableText.length,
+                text: currentTableText,
+                table: MarkdownTable.parse(currentTableText),
+                cellRanges: computeMarkdownTableCellRanges(currentTableText),
+            },
+        }));
+    });
 
     it('re-serializes when serializeIfIdentity is enabled and markdown formatting changes', () => {
         const tableText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');

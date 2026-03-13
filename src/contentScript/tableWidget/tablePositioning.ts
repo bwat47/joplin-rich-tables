@@ -5,7 +5,7 @@ import type { EditorView } from '@codemirror/view';
 import { getCellRange, type TableCellRanges, type CellRange } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 import { getWidgetSelector } from './domHelpers';
-import { getActiveCell } from './activeCellState';
+import { resolveCurrentActiveCell } from './activeCellResolver';
 import type { CellCoords, ResolvedTable } from '../tableModel/types';
 
 const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
@@ -139,9 +139,10 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
         }
     }
 
-    // Fallback: when a nested cell editor is open, activeCell is mapped through changes and
-    // provides a stable in-doc position.
-    const activeCell = getActiveCell(view.state);
+    // Fallback: resolve the current cell position from logical active-cell state.
+    // This derives a fresh in-doc `cellFrom` from the mapped table anchor plus
+    // section/row/col, rather than relying on persisted cell offsets.
+    const activeCell = resolveCurrentActiveCell(view.state);
     if (activeCell) {
         const context = resolveTableContextFromResolved(resolveTableAtPos(view.state, activeCell.cellFrom));
         if (context) {

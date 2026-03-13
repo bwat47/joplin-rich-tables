@@ -6,7 +6,7 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableWidget/activeCellState';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { resolveCurrentActiveCell } from '../tableWidget/activeCellResolver';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableWidget/sourceMode';
 import { searchForceSourceModeField } from '../tableWidget/searchForceSourceMode';
@@ -36,20 +36,20 @@ function createState(params?: { activeCell?: ActiveCell | null }) {
 }
 
 function getHeaderCell(): ActiveCell {
-    const tableRanges = computeMarkdownTableCellRanges(doc);
-    if (!tableRanges) {
-        throw new Error('Expected table ranges');
-    }
-
     return {
         tableFrom: 0,
-        tableTo: doc.length,
-        cellFrom: tableRanges.headers[0].from,
-        cellTo: tableRanges.headers[0].to,
         section: 'header',
         row: 0,
         col: 0,
     };
+}
+
+function requireResolvedActiveCell(state: EditorState) {
+    const resolved = resolveCurrentActiveCell(state);
+    if (!resolved) {
+        throw new Error('Expected resolved active cell');
+    }
+    return resolved;
 }
 
 function createViewUpdate(
@@ -76,8 +76,9 @@ describe('tableRuntimeTransitions', () => {
     it('maps decorations for in-cell edits while active', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });
+        const resolved = requireResolvedActiveCell(state);
         const tr = state.update({
-            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'x' },
+            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'x' },
         });
 
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'mapDecorations' });
@@ -125,8 +126,9 @@ describe('tableRuntimeTransitions', () => {
     it('allows sync transactions through the guard untouched', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });
+        const resolved = requireResolvedActiveCell(state);
         const tr = state.update({
-            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'x' },
+            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'x' },
             annotations: syncAnnotation.of(true),
         });
 
@@ -150,11 +152,12 @@ describe('tableRuntimeTransitions', () => {
     it('sanitizes guard changes inside the active cell', () => {
         const activeCell = getHeaderCell();
         let state = createState({ activeCell });
+        const resolved = requireResolvedActiveCell(state);
         state = state.update({
-            selection: { anchor: activeCell.cellFrom, head: activeCell.cellFrom },
+            selection: { anchor: resolved.cellFrom, head: resolved.cellFrom },
         }).state;
         const tr = state.update({
-            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'a\nb|c' },
+            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'a\nb|c' },
         });
 
         const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true });
@@ -163,7 +166,7 @@ describe('tableRuntimeTransitions', () => {
             throw new Error('Expected sanitize decision');
         }
 
-        expect(decision.selection.main.head).toBe(activeCell.cellFrom + 'a<br>b\\|c'.length);
+        expect(decision.selection.main.head).toBe(resolved.cellFrom + 'a<br>b\\|c'.length);
     });
 
     it('plans raw mode exit as cursor reactivation', () => {
@@ -171,6 +174,8 @@ describe('tableRuntimeTransitions', () => {
         const snapshot: TableRuntimeSnapshot = {
             activeCell,
             prevActiveCell: activeCell,
+            resolvedActiveCell: null,
+            resolvedPrevActiveCell: null,
             effectiveRawMode: false,
             nestedEditorOpen: false,
             hadActiveCell: true,
@@ -208,6 +213,8 @@ describe('tableRuntimeTransitions', () => {
         const snapshot: TableRuntimeSnapshot = {
             activeCell,
             prevActiveCell: activeCell,
+            resolvedActiveCell: requireResolvedActiveCell(createState({ activeCell })),
+            resolvedPrevActiveCell: requireResolvedActiveCell(createState({ activeCell })),
             effectiveRawMode: false,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -223,12 +230,15 @@ describe('tableRuntimeTransitions', () => {
     it('plans stale active cell cleanup when the nested editor is gone', () => {
         const activeCell = getHeaderCell();
         const startState = createState({ activeCell });
+        const resolved = requireResolvedActiveCell(startState);
         const { event } = createViewUpdate(startState, {
-            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'x' },
+            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'x' },
         });
         const snapshot: TableRuntimeSnapshot = {
             activeCell,
             prevActiveCell: activeCell,
+            resolvedActiveCell: requireResolvedActiveCell(event.update.state),
+            resolvedPrevActiveCell: resolved,
             effectiveRawMode: false,
             nestedEditorOpen: false,
             hadActiveCell: true,
@@ -236,6 +246,40 @@ describe('tableRuntimeTransitions', () => {
         };
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toContainEqual({
+            type: 'clearActiveCell',
+        });
+    });
+
+    it('clears stale active cell when the resolver cannot find the table', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: 0, to: doc.length, insert: '# replaced' },
+            annotations: Transaction.userEvent.of('input'),
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell: getHeaderCell(),
+            prevActiveCell: getHeaderCell(),
+            resolvedActiveCell: null,
+            resolvedPrevActiveCell: requireResolvedActiveCell(state),
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+        const update = {
+            startState: state,
+            state: tr.state,
+            transactions: [tr],
+            docChanged: tr.docChanged,
+            selectionSet: tr.selection !== state.selection,
+        } as unknown as TableRuntimeEvent['update'];
+
+        expect(
+            planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
+                cursorInsideTableAfterUndoRedo: false,
+            })
+        ).toContainEqual({
             type: 'clearActiveCell',
         });
     });

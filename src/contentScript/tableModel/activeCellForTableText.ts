@@ -37,11 +37,10 @@ function clampTargetToRanges(target: TargetCell, ranges: TableCellRanges): Targe
  */
 export function computeActiveCellFromRanges(params: {
     tableFrom: number;
-    tableTo: number;
     ranges: TableCellRanges;
     target: TargetCell;
 }): ActiveCell | null {
-    const { tableFrom, tableTo, ranges, target } = params;
+    const { tableFrom, ranges, target } = params;
     const clamped = clampTargetToRanges(target, ranges);
 
     const relRange = getCellRange(ranges, clamped);
@@ -51,9 +50,6 @@ export function computeActiveCellFromRanges(params: {
 
     return {
         tableFrom,
-        tableTo,
-        cellFrom: tableFrom + relRange.from,
-        cellTo: tableFrom + relRange.to,
         section: clamped.section,
         row: clamped.section === 'header' ? 0 : clamped.row,
         col: clamped.col,
@@ -78,7 +74,6 @@ export function computeActiveCellForTableText(params: {
 
     return computeActiveCellFromRanges({
         tableFrom,
-        tableTo: tableFrom + tableText.length,
         ranges,
         target,
     });

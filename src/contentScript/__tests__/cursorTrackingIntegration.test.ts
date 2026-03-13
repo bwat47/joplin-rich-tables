@@ -1,8 +1,20 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/markdownTableCellRanges';
+import type { ActiveCell } from '../tableWidget/activeCellState';
 
-function sliceCellText(tableText: string, cellFrom: number, cellTo: number): string {
-    return tableText.slice(cellFrom, cellTo);
+function sliceCellText(tableText: string, activeCell: ActiveCell): string {
+    const ranges = computeMarkdownTableCellRanges(tableText);
+    if (!ranges) {
+        throw new Error('Expected table ranges');
+    }
+
+    const range = getCellRange(ranges, activeCell);
+    if (!range) {
+        throw new Error('Expected cell range');
+    }
+
+    return tableText.slice(range.from, range.to);
 }
 
 describe('cursorTrackingIntegration', () => {
@@ -33,7 +45,7 @@ describe('cursorTrackingIntegration', () => {
         expect(next!.section).toBe('body');
         expect(next!.row).toBe(1);
         expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!.cellFrom, next!.cellTo)).toBe('');
+        expect(sliceCellText(newText, next!)).toBe('');
     });
 
     test('delete row moves to next row (same index)', () => {
@@ -58,7 +70,7 @@ describe('cursorTrackingIntegration', () => {
         });
 
         expect(next).not.toBeNull();
-        expect(sliceCellText(newText, next!.cellFrom, next!.cellTo)).toBe('b2');
+        expect(sliceCellText(newText, next!)).toBe('b2');
     });
 
     test('insert column before moves to new column cell', () => {
@@ -84,7 +96,7 @@ describe('cursorTrackingIntegration', () => {
 
         expect(next).not.toBeNull();
         expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!.cellFrom, next!.cellTo)).toBe('');
+        expect(sliceCellText(newText, next!)).toBe('');
     });
 
     test('delete column moves to next column (same index)', () => {
@@ -109,7 +121,7 @@ describe('cursorTrackingIntegration', () => {
         });
 
         expect(next).not.toBeNull();
-        expect(sliceCellText(newText, next!.cellFrom, next!.cellTo)).toBe('a2');
+        expect(sliceCellText(newText, next!)).toBe('a2');
     });
 
     test('alignment change keeps current cell', () => {
@@ -137,6 +149,6 @@ describe('cursorTrackingIntegration', () => {
         expect(next!.section).toBe('body');
         expect(next!.row).toBe(1);
         expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!.cellFrom, next!.cellTo)).toBe('b2');
+        expect(sliceCellText(newText, next!)).toBe('b2');
     });
 });

@@ -15,6 +15,9 @@ Managed by `contentScript/tableWidget/nestedEditorLifecycle.ts`.
 
 **Activation**: Cell click → `TableWidget` calculates range → `setActiveCellEffect` dispatched → lifecycle plugin mounts `NestedEditor`.
 
+`setActiveCellEffect` stores only logical cell identity. The lifecycle plugin resolves raw
+table/cell offsets from current editor state immediately before opening or syncing the nested editor.
+
 **Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
 **Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → view plugin destroys instance.
@@ -79,6 +82,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 - Whitelists `syncAnnotation` transactions.
 - Whitelists structural operations with `rebuildTableWidgetsEffect`.
 - Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
+- Clears stale active-cell state if logical resolution can no longer find the anchored table/cell.
 
 ## Styling
 

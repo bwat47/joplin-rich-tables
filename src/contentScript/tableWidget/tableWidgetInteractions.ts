@@ -220,9 +220,6 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             selection: { anchor: cellFrom },
             effects: setActiveCellEffect.of({
                 tableFrom: ctx.from,
-                tableTo: ctx.to,
-                cellFrom,
-                cellTo,
                 section,
                 row: section === SECTION_HEADER ? 0 : row,
                 col,

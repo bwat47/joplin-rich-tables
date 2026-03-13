@@ -1,7 +1,8 @@
 import { EditorView } from '@codemirror/view';
 import { SECTION_BODY, SECTION_HEADER, findCellElement } from './domHelpers';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
-import { resolveTableContextAtPos, resolveCellDocRange } from './tablePositioning';
+import { resolveActiveCell } from './activeCellResolver';
+import { resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 import { makeTableId, type CellCoords } from '../tableModel/types';
@@ -30,10 +31,11 @@ export function navigateCell(
     }
 
     // Resolve the table structure to know valid rows/cols
-    const ctx = resolveTableContextAtPos(state, activeCell.cellFrom);
-    if (!ctx) {
+    const resolvedActiveCell = resolveActiveCell(state, activeCell);
+    if (!resolvedActiveCell) {
         return false;
     }
+    const ctx = resolvedActiveCell.ctx;
 
     const numBodyRows = ctx.cellRanges.rows.length;
     // Assuming uniform column count for now, based on header
@@ -140,9 +142,6 @@ export function navigateCell(
     view.dispatch({
         effects: setActiveCellEffect.of({
             tableFrom: ctx.from,
-            tableTo: ctx.to,
-            cellFrom,
-            cellTo,
             section: target.section, // Use the proper Section type
             row: target.row,
             col: target.col,

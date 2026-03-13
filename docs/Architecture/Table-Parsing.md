@@ -28,6 +28,7 @@ These ranges are used for:
 
 - Mapping positions back to cell coordinates (`findCellForPos()`).
 - Resolving a cell’s `from/to` range (`getCellRange()`).
+- Deriving live `cellFrom/cellTo` values for logical active-cell state.
 
 ## Parsing to a Structured Table Model
 
@@ -56,6 +57,19 @@ This avoids duplicated resolve/parse/range work across:
 - Structural command helpers.
 
 The cache is an LRU map keyed by table text hash and stores both `MarkdownTable` and `cellRanges` together.
+
+## Active Cell Resolution
+
+`ActiveCell` itself is intentionally logical-first: `tableFrom` plus `section/row/col`.
+
+When code needs current document offsets for the active table/cell, it must resolve them from
+the current editor state through the shared active-cell resolver. That resolver:
+
+- Re-resolves the anchored table from `tableFrom`.
+- Rebuilds `TableContext`.
+- Derives `tableTo` and `cellFrom/cellTo` from current `cellRanges`.
+
+If resolution fails, the active cell is treated as stale and cleared rather than clamped to a nearby cell.
 
 ## Structural Operations (Rows/Columns/Alignment)
 

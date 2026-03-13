@@ -1,6 +1,7 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
 import { ActiveCell, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from './sourceMode';
@@ -12,6 +13,8 @@ import { sanitizeCellChanges } from '../nestedEditor/transactionPolicy';
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;
     prevActiveCell: ActiveCell | null;
+    resolvedActiveCell: ResolvedActiveCell | null;
+    resolvedPrevActiveCell: ResolvedActiveCell | null;
     effectiveRawMode: boolean;
     nestedEditorOpen: boolean;
     hadActiveCell: boolean;
@@ -36,7 +39,7 @@ export interface RawModeEffects {
 
 export type TableRuntimeAction =
     | { type: 'openNestedEditor'; activeCell: ActiveCell }
-    | { type: 'closeNestedEditor'; cellFrom?: number; cellTo?: number }
+    | { type: 'closeNestedEditor' }
     | { type: 'syncMainDocToNested'; activeCell: ActiveCell }
     | { type: 'syncMainSelectionToNested'; activeCell: ActiveCell; focus: boolean }
     | { type: 'clearActiveCell' }
@@ -91,9 +94,14 @@ export function buildTableRuntimeSnapshot(params: {
     hadActiveCell: boolean;
     pendingFullReplaceRebuild: boolean;
 }): TableRuntimeSnapshot {
+    const activeCell = getActiveCell(params.update.state);
+    const prevActiveCell = getActiveCell(params.update.startState);
+
     return {
-        activeCell: getActiveCell(params.update.state),
-        prevActiveCell: getActiveCell(params.update.startState),
+        activeCell,
+        prevActiveCell,
+        resolvedActiveCell: resolveActiveCell(params.update.state, activeCell),
+        resolvedPrevActiveCell: resolveActiveCell(params.update.startState, prevActiveCell),
         effectiveRawMode: isEffectiveRawMode(params.update.state),
         nestedEditorOpen: params.nestedEditorOpen,
         hadActiveCell: params.hadActiveCell,
@@ -139,7 +147,7 @@ export function changesOverlapRange(tr: Transaction, from: number, to: number): 
     return overlaps;
 }
 
-export function transactionChangesOutsideCell(tr: Transaction, activeCell: ActiveCell): boolean {
+export function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
     let outsideCell = false;
     tr.changes.iterChanges((fromA, toA) => {
         if (outsideCell) {
@@ -152,7 +160,7 @@ export function transactionChangesOutsideCell(tr: Transaction, activeCell: Activ
     return outsideCell;
 }
 
-export function transactionRequiresTableRebuild(tr: Transaction, activeCell: ActiveCell | null): boolean {
+export function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {
     if (!activeCell) {
         return false;
     }
@@ -199,11 +207,7 @@ export function planTableLifecycleActions(
 
     if (shouldRepositionCellAfterUndoRedo(snapshot, event, options.cursorInsideTableAfterUndoRedo)) {
         if (snapshot.nestedEditorOpen) {
-            actions.push({
-                type: 'closeNestedEditor',
-                cellFrom: snapshot.activeCell?.cellFrom,
-                cellTo: snapshot.activeCell?.cellTo,
-            });
+            actions.push({ type: 'closeNestedEditor' });
         }
         actions.push({
             type: 'scheduleActivateCellAtCursor',
@@ -225,17 +229,27 @@ export function planTableLifecycleActions(
         actions.push({ type: 'closeNestedEditor' });
     }
 
-    if (update.docChanged && snapshot.activeCell && snapshot.nestedEditorOpen && !event.isSync) {
+    if (update.docChanged && snapshot.resolvedActiveCell && snapshot.nestedEditorOpen && !event.isSync) {
         actions.push({ type: 'syncMainDocToNested', activeCell: snapshot.activeCell });
     }
 
     const sameActiveCell =
         getStableActiveCellIdentity(snapshot.prevActiveCell) === getStableActiveCellIdentity(snapshot.activeCell);
-    if (update.selectionSet && sameActiveCell && snapshot.activeCell && snapshot.nestedEditorOpen && !event.isSync) {
+    if (
+        update.selectionSet &&
+        sameActiveCell &&
+        snapshot.resolvedActiveCell &&
+        snapshot.nestedEditorOpen &&
+        !event.isSync
+    ) {
         actions.push({ type: 'syncMainSelectionToNested', activeCell: snapshot.activeCell, focus: true });
     }
 
-    if (update.docChanged && snapshot.activeCell && !snapshot.nestedEditorOpen && !event.isSync) {
+    if (update.docChanged && snapshot.activeCell && !snapshot.resolvedActiveCell && !event.isSync) {
+        actions.push({ type: 'clearActiveCell' });
+    }
+
+    if (update.docChanged && snapshot.resolvedActiveCell && !snapshot.nestedEditorOpen && !event.isSync) {
         actions.push({ type: 'clearActiveCell' });
     }
 
@@ -253,8 +267,8 @@ function shouldRepositionCellAfterUndoRedo(
         return false;
     }
 
-    if (snapshot.hadActiveCell && snapshot.prevActiveCell) {
-        return update.transactions.some((tr) => transactionRequiresTableRebuild(tr, snapshot.prevActiveCell));
+    if (snapshot.hadActiveCell && snapshot.resolvedPrevActiveCell) {
+        return update.transactions.some((tr) => transactionRequiresTableRebuild(tr, snapshot.resolvedPrevActiveCell));
     }
 
     const isUndoRedo = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
@@ -284,6 +298,7 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
     }
 
     const prevActiveCell = getActiveCell(tr.startState);
+    const resolvedPrevActiveCell = resolveActiveCell(tr.startState, prevActiveCell);
     if (tr.docChanged && prevActiveCell && isFullDocumentReplace(tr)) {
         return { type: 'noneDecorations' };
     }
@@ -308,7 +323,7 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
         return { type: 'rebuildAllDecorations' };
     }
 
-    return transactionRequiresTableRebuild(tr, prevActiveCell)
+    return transactionRequiresTableRebuild(tr, resolvedPrevActiveCell)
         ? { type: 'rebuildAllDecorations' }
         : { type: 'mapDecorations' };
 }
@@ -326,6 +341,7 @@ export function decideMainEditorGuardTransaction(
     }
 
     const activeCell = getActiveCell(tr.startState);
+    const resolvedActiveCell = resolveActiveCell(tr.startState, activeCell);
     if (isFullDocumentReplace(tr)) {
         return activeCell
             ? { type: 'clearActiveCell', selection: tr.selection ?? undefined }
@@ -336,15 +352,19 @@ export function decideMainEditorGuardTransaction(
         return { type: 'allowTransaction' };
     }
 
+    if (!resolvedActiveCell) {
+        return { type: 'clearActiveCell', selection: tr.selection ?? undefined };
+    }
+
     if (tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))) {
         return { type: 'allowTransaction' };
     }
 
-    if (!changesOverlapRange(tr, activeCell.tableFrom, activeCell.tableTo)) {
+    if (!changesOverlapRange(tr, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)) {
         return { type: 'allowTransaction' };
     }
 
-    const sanitized = sanitizeCellChanges(tr, activeCell.cellFrom, activeCell.cellTo);
+    const sanitized = sanitizeCellChanges(tr, resolvedActiveCell.cellFrom, resolvedActiveCell.cellTo);
     if (sanitized.rejected) {
         return { type: 'rejectTransaction' };
     }

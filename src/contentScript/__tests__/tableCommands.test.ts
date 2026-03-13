@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { ActiveCell } from '../tableWidget/activeCellState';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { TargetCell } from '../tableModel/activeCellForTableText';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
@@ -25,15 +26,21 @@ import {
 jest.mock('../tableModel/tableTransactionHelpers', () => ({
     runTableOperation: jest.fn(),
 }));
+jest.mock('../tableWidget/activeCellResolver', () => ({
+    resolveActiveCell: jest.fn(),
+}));
 
 describe('tableCommands (computTargetCell)', () => {
     let mockView: EditorView;
     let mockRunTableOperation: jest.Mock;
+    let mockResolveActiveCell: jest.Mock;
 
     beforeEach(() => {
         mockView = {} as EditorView;
         mockRunTableOperation = runTableOperation as jest.Mock;
         mockRunTableOperation.mockClear();
+        mockResolveActiveCell = resolveActiveCell as jest.Mock;
+        mockResolveActiveCell.mockReset();
     });
 
     // Helper to invoke a command and check the computeTargetCell logic
@@ -59,9 +66,6 @@ describe('tableCommands (computTargetCell)', () => {
 
     const createCell = (section: 'header' | 'body', row: number, col: number): ActiveCell => ({
         tableFrom: 0,
-        tableTo: 0,
-        cellFrom: 0,
-        cellTo: 0,
         section,
         row,
         col,
@@ -182,10 +186,13 @@ describe('tableCommands (computTargetCell)', () => {
     describe('deleteTable', () => {
         it('execDeleteTable dispatches deletion with clearActiveCellEffect', () => {
             const dispatchMock = jest.fn();
-            const mockEditorView = { dispatch: dispatchMock } as unknown as EditorView;
+            const mockEditorView = { dispatch: dispatchMock, state: {} } as unknown as EditorView;
             const cell = createCell('body', 1, 0);
             cell.tableFrom = 10;
-            cell.tableTo = 100;
+            mockResolveActiveCell.mockReturnValue({
+                tableFrom: 10,
+                tableTo: 100,
+            });
 
             execDeleteTable(mockEditorView, cell);
 

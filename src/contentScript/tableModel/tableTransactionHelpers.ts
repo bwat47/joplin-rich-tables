@@ -1,10 +1,10 @@
 import { EditorView } from '@codemirror/view';
 import type { StateEffect } from '@codemirror/state';
 import { ActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
 import { MarkdownTable } from './MarkdownTable';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './activeCellForTableText';
-import { buildTableContext } from './tableContext';
 
 function isSameActiveCell(a: ActiveCell, b: ActiveCell): boolean {
     return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
@@ -21,12 +21,11 @@ interface ModifyTableParams {
 
 export function runTableOperation(params: ModifyTableParams): boolean {
     const { view, cell, operation, computeTargetCell, forceWidgetRebuild, serializeIfIdentity = false } = params;
-    const { tableFrom, tableTo } = cell;
+    const resolvedCell = resolveActiveCell(view.state, cell);
+    if (!resolvedCell) return false;
 
-    const text = view.state.sliceDoc(tableFrom, tableTo);
-    const ctx = buildTableContext({ from: tableFrom, to: tableTo, text });
-
-    if (!ctx) return false;
+    const { tableFrom, tableTo, ctx } = resolvedCell;
+    const text = ctx.text;
 
     const newTableData = operation(ctx.table, cell);
     if (newTableData === ctx.table && !serializeIfIdentity) {
