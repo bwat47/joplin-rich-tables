@@ -40,8 +40,13 @@ export interface RawModeEffects {
 export type TableRuntimeAction =
     | { type: 'openNestedEditor'; activeCell: ActiveCell }
     | { type: 'closeNestedEditor' }
-    | { type: 'syncMainDocToNested'; activeCell: ActiveCell }
-    | { type: 'syncMainSelectionToNested'; activeCell: ActiveCell; focus: boolean }
+    | { type: 'syncMainDocToNested'; activeCell: ActiveCell; resolvedActiveCell: ResolvedActiveCell }
+    | {
+          type: 'syncMainSelectionToNested';
+          activeCell: ActiveCell;
+          resolvedActiveCell: ResolvedActiveCell;
+          focus: boolean;
+      }
     | { type: 'clearActiveCell' }
     | { type: 'scheduleActivateCellAtCursor'; clearIfOutside: boolean; ensureCursorVisibleIfNotActivated: boolean }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
@@ -230,7 +235,11 @@ export function planTableLifecycleActions(
     }
 
     if (update.docChanged && snapshot.resolvedActiveCell && snapshot.nestedEditorOpen && !event.isSync) {
-        actions.push({ type: 'syncMainDocToNested', activeCell: snapshot.activeCell });
+        actions.push({
+            type: 'syncMainDocToNested',
+            activeCell: snapshot.activeCell,
+            resolvedActiveCell: snapshot.resolvedActiveCell,
+        });
     }
 
     const sameActiveCell =
@@ -242,7 +251,12 @@ export function planTableLifecycleActions(
         snapshot.nestedEditorOpen &&
         !event.isSync
     ) {
-        actions.push({ type: 'syncMainSelectionToNested', activeCell: snapshot.activeCell, focus: true });
+        actions.push({
+            type: 'syncMainSelectionToNested',
+            activeCell: snapshot.activeCell,
+            resolvedActiveCell: snapshot.resolvedActiveCell,
+            focus: true,
+        });
     }
 
     if (update.docChanged && snapshot.activeCell && !snapshot.resolvedActiveCell && !event.isSync) {
