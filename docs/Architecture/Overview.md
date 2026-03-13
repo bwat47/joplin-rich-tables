@@ -68,6 +68,15 @@ This is the shared derived object used across widget rendering, table interactio
 navigation, and command helpers so the plugin does not repeatedly run separate
 resolve -> parse -> compute-ranges chains for the same table content.
 
+### 6. Shared Transition Policy
+
+Table editing transition logic is centralized in `contentScript/tableWidget/tableRuntimeTransitions.ts`.
+
+- The module is pure policy: it inspects `Transaction`/`ViewUpdate` state and returns declarative decisions/actions.
+- `nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close, selection sync, and RAF scheduling.
+- `tableWidgetExtension.ts` still owns block decoration materialization through `StateField`.
+- `mainEditorGuard.ts` still owns transaction filtering, but delegates allow/reject/sanitize decisions to the shared policy.
+
 **Sync Flow Diagram**:
 
 ```mermaid

@@ -9,30 +9,27 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
     isNestedCellEditorOpen,
     nestedCellEditorPlugin,
     refocusNestedEditor,
-    syncAnnotation,
 } from '../nestedEditor/nestedCellEditor';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
-import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from './searchPanelWatcher';
-import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './sourceMode';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
+import { sourceModeField } from './sourceMode';
+import { searchForceSourceModeField } from './searchForceSourceMode';
 import { navigationLockKeymap } from './navigationLockKeymap';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { createNoteIdWatcher } from './noteIdWatcher';
 import { moveCursorOutOfTable } from './cursorUtils';
+import { decideTableDecorationUpdate } from './tableRuntimeTransitions';
 
 /**
  * Rebuild only the decoration for a single table, mapping all other decorations.
@@ -150,112 +147,20 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
-        // Raw markdown mode: either user source mode or search-forced override.
-        const rawModeToggled = transaction.effects.some(
-            (e) => e.is(toggleSourceModeEffect) || e.is(setSearchForceSourceModeEffect)
-        );
-        const effectiveRawMode = isEffectiveRawMode(transaction.state);
+        const decision = decideTableDecorationUpdate(transaction);
 
-        if (rawModeToggled) {
-            if (effectiveRawMode) {
+        switch (decision.type) {
+            case 'noneDecorations':
                 return Decoration.none;
-            }
-            return buildTableDecorations(transaction.state);
-        }
-
-        if (effectiveRawMode) {
-            return Decoration.none;
-        }
-
-        // Skip decoration rebuilds for internal sync transactions (nested <-> main editor mirroring).
-        const isSync = Boolean(transaction.annotation(syncAnnotation));
-        if (isSync) {
-            if (transaction.docChanged) {
+            case 'keepDecorations':
+                return decorations;
+            case 'mapDecorations':
                 return decorations.map(transaction.changes);
-            }
-            return decorations;
+            case 'rebuildAllDecorations':
+                return buildTableDecorations(transaction.state);
+            case 'rebuildSingleTable':
+                return rebuildSingleTable(transaction.state, decorations, decision.tableFrom, transaction.changes);
         }
-
-        // External full-document replacements should rebuild all tables.
-        const rebuildAll = transaction.effects.some((e) => e.is(rebuildAllTableWidgetsEffect));
-        if (rebuildAll) {
-            return buildTableDecorations(transaction.state);
-        }
-
-        // Avoid rebuilding immediately on full-document replace while a cell was active.
-        // The syntax tree may still be mapped from the old doc and can mis-detect a giant table.
-        if (transaction.docChanged && getActiveCell(transaction.startState) && isFullDocumentReplace(transaction)) {
-            return Decoration.none;
-        }
-
-        // When active cell is cleared (nested editor closed), rebuild the affected table.
-        // During in-cell editing, we map decorations to preserve DOM, but this leaves
-        // stale TableWidget instances. Rebuilding on close ensures fresh widget data
-        // so that if the table is scrolled out and back in, toDOM() renders current content.
-        const clearEffect = transaction.effects.find((e) => e.is(clearActiveCellEffect));
-        if (clearEffect) {
-            const prevActiveCell = getActiveCell(transaction.startState);
-            if (prevActiveCell) {
-                // Rebuild just the table that was being edited
-                return rebuildSingleTable(
-                    transaction.state,
-                    decorations,
-                    prevActiveCell.tableFrom,
-                    transaction.changes
-                );
-            }
-            // Fallback: rebuild all if we can't determine which table
-            return buildTableDecorations(transaction.state);
-        }
-
-        // Map all other decorations to preserve their state.
-        const rebuildEffect = transaction.effects.find((e) => e.is(rebuildTableWidgetsEffect));
-        if (rebuildEffect) {
-            const { tableFrom } = rebuildEffect.value;
-            return rebuildSingleTable(transaction.state, decorations, tableFrom, transaction.changes);
-        }
-
-        // Document changes: rebuild only if they could affect tables.
-        if (transaction.docChanged) {
-            const activeCell = getActiveCell(transaction.state);
-
-            if (activeCell) {
-                // For undo/redo with active cell, check if rebuild is needed:
-                // - Structural changes (row/col add/delete)
-                // - Changes outside active cell (other cells' content changed)
-                const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
-                if (isUndoRedo) {
-                    if (isStructuralTableChange(transaction)) {
-                        return buildTableDecorations(transaction.state);
-                    }
-                    const prevActiveCell = getActiveCell(transaction.startState);
-                    if (prevActiveCell) {
-                        let hasChangesOutsideCell = false;
-                        transaction.changes.iterChanges((fromA, toA) => {
-                            if (fromA < prevActiveCell.cellFrom || toA > prevActiveCell.cellTo) {
-                                hasChangesOutsideCell = true;
-                            }
-                        });
-                        if (hasChangesOutsideCell) {
-                            return buildTableDecorations(transaction.state);
-                        }
-                    }
-                }
-                // In-cell edits: map decorations to preserve nested editor DOM
-                return decorations.map(transaction.changes);
-            }
-
-            // Must rebuild (not just map) for two reasons:
-            // 1. Block widgets need rebuilding for CM6 to reposition them in the DOM
-            //    (e.g. inserting newlines before a table - mapping preserves stale visual position)
-            // 2. Note switches replace the entire document - mapping would leave stale widgets
-            // TableWidget.updateDOM handles efficient DOM reuse when content is unchanged.
-            return buildTableDecorations(transaction.state);
-        }
-
-        // Selection-only changes: no rebuild needed.
-        // Tables are always widgets; cell activation is handled by lifecycle plugin.
-        return decorations;
     },
     provide: (field) => EditorView.decorations.from(field),
 });

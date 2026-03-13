@@ -1,0 +1,242 @@
+import { describe, expect, it } from '@jest/globals';
+import { EditorState, Transaction } from '@codemirror/state';
+import {
+    activeCellField,
+    clearActiveCellEffect,
+    setActiveCellEffect,
+    type ActiveCell,
+} from '../tableWidget/activeCellState';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { sourceModeField, toggleSourceModeEffect } from '../tableWidget/sourceMode';
+import { searchForceSourceModeField } from '../tableWidget/searchForceSourceMode';
+import {
+    buildTableRuntimeEvent,
+    decideMainEditorGuardTransaction,
+    decideTableDecorationUpdate,
+    planTableLifecycleActions,
+    type TableRuntimeEvent,
+    type TableRuntimeSnapshot,
+} from '../tableWidget/tableRuntimeTransitions';
+import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
+
+const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+
+function createState(params?: { activeCell?: ActiveCell | null }) {
+    let state = EditorState.create({
+        doc,
+        extensions: [activeCellField, sourceModeField, searchForceSourceModeField],
+    });
+
+    if (params?.activeCell) {
+        state = state.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
+    }
+
+    return state;
+}
+
+function getHeaderCell(): ActiveCell {
+    const tableRanges = computeMarkdownTableCellRanges(doc);
+    if (!tableRanges) {
+        throw new Error('Expected table ranges');
+    }
+
+    return {
+        tableFrom: 0,
+        tableTo: doc.length,
+        cellFrom: tableRanges.headers[0].from,
+        cellTo: tableRanges.headers[0].to,
+        section: 'header',
+        row: 0,
+        col: 0,
+    };
+}
+
+function createViewUpdate(
+    startState: EditorState,
+    spec: Parameters<EditorState['update']>[0]
+): { state: EditorState; event: TableRuntimeEvent; update: TableRuntimeEvent['update'] } {
+    const tr = startState.update(spec);
+    const update = {
+        startState,
+        state: tr.state,
+        transactions: [tr],
+        docChanged: tr.docChanged,
+        selectionSet: tr.selection !== startState.selection,
+    } as unknown as TableRuntimeEvent['update'];
+
+    return {
+        state: tr.state,
+        update,
+        event: buildTableRuntimeEvent(update, false),
+    };
+}
+
+describe('tableRuntimeTransitions', () => {
+    it('maps decorations for in-cell edits while active', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'x' },
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'mapDecorations' });
+    });
+
+    it('rebuilds decorations for undo structural edits while active', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: doc.length, to: doc.length, insert: '\n| b1 | b2 |' },
+            annotations: Transaction.userEvent.of('undo'),
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+    });
+
+    it('rebuilds the edited table when active cell is cleared', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({ effects: clearActiveCellEffect.of(undefined) });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({
+            type: 'rebuildSingleTable',
+            tableFrom: activeCell.tableFrom,
+        });
+    });
+
+    it('returns none decorations in raw mode', () => {
+        const state = createState();
+        const tr = state.update({ effects: toggleSourceModeEffect.of(true) });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
+    });
+
+    it('suppresses immediate rebuild on full document replace with active cell', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: 0, to: doc.length, insert: '# replaced' },
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
+    });
+
+    it('allows sync transactions through the guard untouched', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'x' },
+            annotations: syncAnnotation.of(true),
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'allowTransaction',
+        });
+    });
+
+    it('rejects guard changes touching the active table outside the cell', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: 0, to: 1, insert: '' },
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'rejectTransaction',
+        });
+    });
+
+    it('sanitizes guard changes inside the active cell', () => {
+        const activeCell = getHeaderCell();
+        let state = createState({ activeCell });
+        state = state.update({
+            selection: { anchor: activeCell.cellFrom, head: activeCell.cellFrom },
+        }).state;
+        const tr = state.update({
+            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'a\nb|c' },
+        });
+
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true });
+        expect(decision.type).toBe('sanitizeTransactionChanges');
+        if (decision.type !== 'sanitizeTransactionChanges') {
+            throw new Error('Expected sanitize decision');
+        }
+
+        expect(decision.selection.main.head).toBe(activeCell.cellFrom + 'a<br>b\\|c'.length);
+    });
+
+    it('plans raw mode exit as cursor reactivation', () => {
+        const activeCell = getHeaderCell();
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell,
+            prevActiveCell: activeCell,
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+        const event = {
+            update: {} as TableRuntimeEvent['update'],
+            isSync: false,
+            forceRebuild: false,
+            rawModeEffects: {
+                exitedSourceMode: true,
+                exitedSearchForce: false,
+                hadRawModeToggle: true,
+            },
+            enteredRawMode: false,
+            exitedRawMode: true,
+            hasFullDocumentReplace: false,
+        } satisfies TableRuntimeEvent;
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+            {
+                type: 'scheduleActivateCellAtCursor',
+                clearIfOutside: false,
+                ensureCursorVisibleIfNotActivated: true,
+            },
+        ]);
+    });
+
+    it('plans force rebuild as close and reopen of the nested editor', () => {
+        const activeCell = getHeaderCell();
+        const startState = createState({ activeCell });
+        const { event } = createViewUpdate(startState, {
+            effects: rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell,
+            prevActiveCell: activeCell,
+            effectiveRawMode: false,
+            nestedEditorOpen: true,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+            { type: 'closeNestedEditor' },
+            { type: 'openNestedEditor', activeCell },
+        ]);
+    });
+
+    it('plans stale active cell cleanup when the nested editor is gone', () => {
+        const activeCell = getHeaderCell();
+        const startState = createState({ activeCell });
+        const { event } = createViewUpdate(startState, {
+            changes: { from: activeCell.cellFrom, to: activeCell.cellFrom, insert: 'x' },
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell,
+            prevActiveCell: activeCell,
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toContainEqual({
+            type: 'clearActiveCell',
+        });
+    });
+});

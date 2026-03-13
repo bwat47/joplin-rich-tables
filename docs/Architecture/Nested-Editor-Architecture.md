@@ -19,6 +19,11 @@ Managed by `contentScript/tableWidget/nestedEditorLifecycle.ts`.
 
 **Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → view plugin destroys instance.
 
+Lifecycle, decoration, and main-editor guard reactions share one transition-policy module
+(`contentScript/tableWidget/tableRuntimeTransitions.ts`). That module decides when to reopen,
+remap, rebuild, sanitize, or clear state; the lifecycle plugin remains responsible only for
+executing nested-editor side effects.
+
 ## Synchronization
 
 ### Edit Sync Cycle
@@ -68,6 +73,7 @@ Response (to prevent stale document state):
 
 Blocks unintended main editor edits during cell editing (Android IME focus issues where focus can jump to main editor).
 
+- Uses the shared transition policy to allow, reject, or sanitize main-editor transactions.
 - Rejects changes touching active table but outside cell range.
 - Allows external updates not overlapping table.
 - Whitelists `syncAnnotation` transactions.
