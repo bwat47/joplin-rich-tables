@@ -56,6 +56,6 @@ User Action (keyboard/toolbar)
 
 ## Rebuild Trigger
 
-Structural edits dispatch `rebuildTableWidgetsEffect` → `rebuildSingleTable()` → widget destroyed/recreated → new nested editor at target cell.
+Structural edits dispatch `rebuildTableWidgetsEffect` → full table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.
 
 Full table rebuild; no row/column DOM diffing.

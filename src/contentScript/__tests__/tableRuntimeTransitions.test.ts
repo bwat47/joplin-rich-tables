@@ -94,15 +94,12 @@ describe('tableRuntimeTransitions', () => {
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
     });
 
-    it('rebuilds the edited table when active cell is cleared', () => {
+    it('rebuilds all decorations when active cell is cleared', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });
         const tr = state.update({ effects: clearActiveCellEffect.of(undefined) });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({
-            type: 'rebuildSingleTable',
-            tableFrom: activeCell.tableFrom,
-        });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
     });
 
     it('returns none decorations in raw mode', () => {

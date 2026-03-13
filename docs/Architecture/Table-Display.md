@@ -21,9 +21,9 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 ## Optimizations
 
-### 1. Selective Rebuilding
+### 1. Decoration Update Strategy
 
-- **Structural Edits**: `rebuildSingleTable()` re-renders affected widget.
+- **Structural Edits**: Rebuild all table decorations for simpler, more reliable widget lifecycle handling.
 - **In-Cell Edits**: No rebuild; decorations mapped to preserve existing DOM.
 - **Sync Transactions**: From nested editor explicitly skip rebuilds.
 

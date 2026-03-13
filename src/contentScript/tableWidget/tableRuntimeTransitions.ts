@@ -51,8 +51,7 @@ export type DecorationDecision =
     | { type: 'keepDecorations' }
     | { type: 'noneDecorations' }
     | { type: 'mapDecorations' }
-    | { type: 'rebuildAllDecorations' }
-    | { type: 'rebuildSingleTable'; tableFrom: number };
+    | { type: 'rebuildAllDecorations' };
 
 export type GuardDecision =
     | { type: 'allowTransaction' }
@@ -306,14 +305,11 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
     }
 
     if (tr.effects.some((effect) => effect.is(clearActiveCellEffect))) {
-        return prevActiveCell
-            ? { type: 'rebuildSingleTable', tableFrom: prevActiveCell.tableFrom }
-            : { type: 'rebuildAllDecorations' };
+        return { type: 'rebuildAllDecorations' };
     }
 
-    const rebuildEffect = tr.effects.find((effect) => effect.is(rebuildTableWidgetsEffect));
-    if (rebuildEffect) {
-        return { type: 'rebuildSingleTable', tableFrom: rebuildEffect.value.tableFrom };
+    if (tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))) {
+        return { type: 'rebuildAllDecorations' };
     }
 
     if (!tr.docChanged) {

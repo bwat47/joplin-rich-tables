@@ -1,5 +1,5 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin } from '@codemirror/view';
-import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
+import { EditorState, Range, StateField } from '@codemirror/state';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
@@ -30,73 +30,6 @@ import { navigationLockKeymap } from './navigationLockKeymap';
 import { createNoteIdWatcher } from './noteIdWatcher';
 import { moveCursorOutOfTable } from './cursorUtils';
 import { decideTableDecorationUpdate } from './tableRuntimeTransitions';
-
-/**
- * Rebuild only the decoration for a single table, mapping all other decorations.
- * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
- */
-function rebuildSingleTable(
-    state: EditorState,
-    decorations: DecorationSet,
-    oldTableFrom: number,
-    changes: ChangeSet
-): DecorationSet {
-    // Map the old tableFrom position through the changes to find where it is now
-    const newTableFrom = changes.mapPos(oldTableFrom);
-
-    // Find the table at the new position
-    const tables = findTableRanges(state);
-    const targetTable = tables.find((t) => t.from === newTableFrom);
-
-    if (!targetTable) {
-        // Table no longer exists (e.g. deleted) — rebuild all decorations from scratch.
-        // Mapping stale decorations can leave collapsed zero-width replace widgets in the DOM.
-        return buildTableDecorations(state);
-    }
-
-    // Build new decoration for the target table
-    const definitions = state.field(documentDefinitionsField);
-    const ctx = buildTableContext(targetTable);
-
-    if (!ctx) {
-        return decorations.map(changes);
-    }
-
-    const contentHash = hashTableText(targetTable.text + definitions.definitionBlock);
-    const widget = new TableWidget(
-        ctx.table,
-        ctx.cellRanges,
-        targetTable.text,
-        targetTable.from,
-        targetTable.to,
-        definitions.definitionBlock,
-        contentHash
-    );
-    const newDecoration = Decoration.replace({ widget, block: true });
-
-    // Build new decoration set: map all decorations through changes, then replace the target
-    const mapped = decorations.map(changes);
-    const result: Range<Decoration>[] = [];
-
-    // Keep all decorations except those that overlap the new table range
-    // Structural changes (like adding a row above) shift the table's position,
-    // so checking `from !== targetTable.from` is insufficient.
-    mapped.between(0, state.doc.length, (from, to, deco) => {
-        // If decoration overlaps with the new target table, drop it (it's the old version)
-        if (to <= targetTable.from || from >= targetTable.to) {
-            result.push(deco.range(from, to));
-        }
-    });
-
-    // Add the new decoration for the rebuilt table
-    result.push(newDecoration.range(targetTable.from, targetTable.to));
-
-    // Valid DecorationSets MUST be sorted. Since we are manually constructing the array
-    // (and potentially appending out of order), we must sort it explicitly to be safe.
-    result.sort((a, b) => a.from - b.from);
-
-    return Decoration.set(result, true); // true = we have manually sorted it
-}
 
 /**
  * Build decorations for all tables in the document.
@@ -158,8 +91,6 @@ const tableDecorationField = StateField.define<DecorationSet>({
                 return decorations.map(transaction.changes);
             case 'rebuildAllDecorations':
                 return buildTableDecorations(transaction.state);
-            case 'rebuildSingleTable':
-                return rebuildSingleTable(transaction.state, decorations, decision.tableFrom, transaction.changes);
         }
     },
     provide: (field) => EditorView.decorations.from(field),
