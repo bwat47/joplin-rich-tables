@@ -175,6 +175,9 @@ class ActiveCellSessionController {
             extensions: [
                 drawSelection(),
                 EditorView.lineWrapping,
+                EditorView.contentAttributes.of({
+                    autocapitalize: 'sentences',
+                }),
                 EditorState.transactionExtender.of((tr) => {
                     if (tr.annotation(syncAnnotation)) {
                         return null;
@@ -371,7 +374,8 @@ class ActiveCellSessionController {
 
         const textChanged = rootText !== this.session.root.text;
         const selectionChanged =
-            currentMainSelection.anchor !== absoluteSelection.anchor || currentMainSelection.head !== absoluteSelection.head;
+            currentMainSelection.anchor !== absoluteSelection.anchor ||
+            currentMainSelection.head !== absoluteSelection.head;
 
         if ((!includeChanges || !textChanged) && !selectionChanged) {
             return;
