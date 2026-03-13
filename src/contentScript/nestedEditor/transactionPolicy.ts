@@ -20,20 +20,6 @@ export interface SanitizeChangesResult {
 
 const SELECTION_MARK = '\u0000';
 const UNESCAPED_PIPE_PATTERN = /(?<!\\)(\\\\)*\|/g;
-const STARTING_WHITESPACE_PATTERNS = [
-    /^(\s|<br>)+/g,
-    // eslint-disable-next-line no-control-regex -- Uses null control characters as markers
-    /(?<=^\u0000)(\s|<br>)+/g,
-    // eslint-disable-next-line no-control-regex -- Uses null control characters as markers
-    /(?<=^\u0000\u0000)(\s|<br>)+/g,
-];
-const ENDING_WHITESPACE_PATTERNS = [
-    /(\s|<br>)+$/g,
-    // eslint-disable-next-line no-control-regex -- Uses null control characters as markers
-    /(\s|<br>)+(?=\u0000$)/g,
-    // eslint-disable-next-line no-control-regex -- Uses null control characters as markers
-    /(\s|<br>)+(?=\u0000\u0000$)/g,
-];
 const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
 
 export function escapeUnescapedPipes(text: string): string {
@@ -74,19 +60,8 @@ export function unsanitizeRootText(rootText: string): string {
     return rootText.split('<br>').join('\n').split('\\|').join('|');
 }
 
-function trimSanitizedWhitespace(text: string): string {
-    let trimmed = text;
-    for (const pattern of STARTING_WHITESPACE_PATTERNS) {
-        trimmed = trimmed.replace(pattern, '');
-    }
-    for (const pattern of ENDING_WHITESPACE_PATTERNS) {
-        trimmed = trimmed.replace(pattern, '');
-    }
-    return trimmed;
-}
-
 export function sanitizeLocalText(localText: string): string {
-    return trimSanitizedWhitespace(localText).replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
+    return localText.replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
 }
 
 function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {

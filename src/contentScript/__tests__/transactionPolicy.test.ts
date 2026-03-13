@@ -34,6 +34,10 @@ describe('sanitizeLocalText / unsanitizeRootText', () => {
         expect(sanitizeLocalText('a\nb|c')).toBe('a<br>b\\|c');
     });
 
+    it('preserves trailing spaces during live editing sync', () => {
+        expect(sanitizeLocalText('sometext ')).toBe('sometext ');
+    });
+
     it('converts root markdown-safe cell text back to local display text', () => {
         expect(unsanitizeRootText('a<br>b\\|c')).toBe('a\nb|c');
     });
@@ -52,6 +56,13 @@ describe('selection mapping', () => {
         const localSelection = toLocalSelection({ anchor: 0, head: rootText.length }, rootText);
 
         expect(localSelection).toEqual({ anchor: 0, head: 'a\nb|c'.length });
+    });
+
+    it('keeps trailing-space cursor positions stable for root-owned commands', () => {
+        const localText = 'sometext ';
+        const rootSelection = toRootSelection({ anchor: localText.length, head: localText.length }, localText);
+
+        expect(rootSelection).toEqual({ anchor: localText.length, head: localText.length });
     });
 });
 
