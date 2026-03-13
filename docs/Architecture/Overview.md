@@ -30,6 +30,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS for theme consistency.                          |
 | **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`      | ViewPlugin actualizing nested editor lifecycle.           |
 | **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`           | Normalized table model, parsing, serialization, mutations. |
+| **Context**   | `contentScript/tableModel/tableContext.ts`            | Shared parsed table + cell ranges + table span.           |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating UI for row/column/alignment actions.             |
 
 ## Data Flow
@@ -52,8 +53,20 @@ Typing in nested editor → `forwardChangesToMain` creates transaction with `syn
 
 - Parses Markdown into normalized header/alignment/body state.
 - Owns serialization and structural row/column/alignment operations.
-- Feeds command execution and widget rendering directly.
+- Feeds command execution and widget rendering through `TableContext`.
 - Leaves source-coordinate computation to `markdownTableCellRanges.ts`.
+
+### 5. Shared Derived Table Context
+
+`TableContext` bundles:
+
+- The resolved table span in the document (`from`, `to`, `text`).
+- The parsed `MarkdownTable`.
+- The computed `cellRanges` used for activation and navigation.
+
+This is the shared derived object used across widget rendering, table interactions,
+navigation, and command helpers so the plugin does not repeatedly run separate
+resolve -> parse -> compute-ranges chains for the same table content.
 
 **Sync Flow Diagram**:
 

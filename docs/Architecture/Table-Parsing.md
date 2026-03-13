@@ -38,6 +38,25 @@ These ranges are used for:
 - Extracts header/body cell content by slicing the original text with `computeMarkdownTableCellRanges()` so displayed content and edit ranges stay consistent.
 - Normalizes ragged input immediately so headers, alignments, and body rows always share the same effective column count.
 
+## Shared `TableContext`
+
+`buildTableContext()` (`src/contentScript/tableModel/tableContext.ts`) is the shared entry point for consumers that need both the parsed table model and editing coordinates.
+
+It returns:
+
+- The resolved table span (`from`, `to`, `text`).
+- The parsed `MarkdownTable`.
+- The computed `cellRanges`.
+
+This avoids duplicated resolve/parse/range work across:
+
+- Table widget decoration building.
+- Mouse interaction and cell activation.
+- Keyboard navigation.
+- Structural command helpers.
+
+The cache is an LRU map keyed by table text hash and stores both `MarkdownTable` and `cellRanges` together.
+
 ## Structural Operations (Rows/Columns/Alignment)
 
 Structural edits operate on `MarkdownTable` and then serialize back to Markdown, see: [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md)

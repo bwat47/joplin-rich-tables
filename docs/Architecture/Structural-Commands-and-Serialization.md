@@ -26,7 +26,7 @@ User Action (keyboard/toolbar)
 
 `runTableOperation()` orchestrates:
 
-1. **Parse**: Slice table text → `MarkdownTable`.
+1. **Build Context**: Slice table text → `TableContext` (`MarkdownTable` + `cellRanges`).
 2. **Mutate**: Call operation function.
 3. **Short-circuit**: Exit on no-op unless the caller requested a format-only re-serialize.
 4. **Serialize**: `table.serialize()` → Markdown.

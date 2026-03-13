@@ -38,9 +38,16 @@ On `updateDOM()`:
 
 Prevents flicker when rebuilding decorations for position sync.
 
-### 3. Table Parsing Cache
+### 3. Table Context Cache
 
-**FIFO cache** (50 entries) of parsed `MarkdownTable` instances, keyed by content hash.
+`buildTableContext()` maintains an **LRU cache** (50 entries) keyed by table-text hash.
+
+Each cache entry stores:
+
+- Parsed `MarkdownTable`.
+- Computed `cellRanges`.
+
+`tableWidgetExtension.ts` reuses this shared context when building or rebuilding widgets, instead of parsing table structure and cell ranges independently.
 
 ### 4. Height Estimation
 
