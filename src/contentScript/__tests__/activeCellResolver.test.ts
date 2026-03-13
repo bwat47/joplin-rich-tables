@@ -82,4 +82,24 @@ describe('activeCellResolver', () => {
 
         expect(resolveActiveCell(tr.state, tr.state.field(activeCellField))).toBeNull();
     });
+
+    it('extends the resolved cell range across trailing whitespace that contains the selection', () => {
+        const doc = ['| foo  |', '| --- |'].join('\n');
+        const trailingSpaceCursor = doc.indexOf('foo') + 'foo '.length;
+        const state = createState(doc, {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        }).update({
+            selection: { anchor: trailingSpaceCursor },
+        }).state;
+
+        const resolved = resolveCurrentActiveCell(state);
+
+        expect(resolved).not.toBeNull();
+        expect(resolved?.cellFrom).toBe(doc.indexOf('foo'));
+        expect(resolved?.cellTo).toBe(doc.indexOf('|', doc.indexOf('foo')));
+        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
+    });
 });
