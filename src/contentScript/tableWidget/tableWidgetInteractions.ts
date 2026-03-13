@@ -2,8 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, clearActiveCellEffect, getActiveCell, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
-import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
-import { buildTableContext } from '../tableModel/tableContext';
+import { resolveCellDocRange, resolveTableContextFromEventTarget } from './tablePositioning';
 import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
@@ -198,18 +197,13 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return false;
         }
 
-        const table = resolveTableFromEventTarget(view, cell);
-        if (!table) {
-            return false;
-        }
-
-        const ctx = buildTableContext(table);
+        const ctx = resolveTableContextFromEventTarget(view, cell);
         if (!ctx) {
             return false;
         }
 
         const resolvedRange = resolveCellDocRange({
-            tableFrom: table.from,
+            tableFrom: ctx.from,
             ranges: ctx.cellRanges,
             coords: { section, row, col },
         });
@@ -225,8 +219,8 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         view.dispatch({
             selection: { anchor: cellFrom },
             effects: setActiveCellEffect.of({
-                tableFrom: table.from,
-                tableTo: table.to,
+                tableFrom: ctx.from,
+                tableTo: ctx.to,
                 cellFrom,
                 cellTo,
                 section,

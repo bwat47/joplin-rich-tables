@@ -31,11 +31,11 @@ const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
  */
 export class TableWidget extends WidgetType {
     private readonly contentHash: string;
-    private readonly cellRanges: TableCellRanges | null;
+    private readonly cellRanges: TableCellRanges;
 
     constructor(
         private tableData: MarkdownTable,
-        cellRanges: TableCellRanges | null,
+        cellRanges: TableCellRanges,
         private tableText: string,
         private tableFrom: number,
         private tableTo: number,
@@ -117,7 +117,7 @@ export class TableWidget extends WidgetType {
         // Render header — skip synthetic cells that have no source range
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        const headerCount = this.cellRanges ? this.cellRanges.headers.length : headerCells.length;
+        const headerCount = this.cellRanges.headers.length;
         for (let i = 0; i < headerCount; i++) {
             const th = document.createElement('th');
             th.dataset[DATA_SECTION] = SECTION_HEADER;
@@ -141,7 +141,7 @@ export class TableWidget extends WidgetType {
         for (let r = 0; r < bodyRows.length; r++) {
             const row = bodyRows[r];
             const tr = document.createElement('tr');
-            const colCount = this.cellRanges?.rows[r]?.length ?? row.length;
+            const colCount = this.cellRanges.rows[r]?.length ?? row.length;
             for (let c = 0; c < colCount; c++) {
                 const td = document.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
@@ -247,10 +247,6 @@ export class TableWidget extends WidgetType {
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        if (!this.cellRanges) {
-            return null;
-        }
-
         const relativePos = pos - this.tableFrom;
         const coords = findCellForPos(this.cellRanges, relativePos);
         if (!coords) {

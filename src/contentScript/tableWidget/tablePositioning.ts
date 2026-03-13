@@ -8,9 +8,6 @@ import { getWidgetSelector } from './domHelpers';
 import { getActiveCell } from './activeCellState';
 import type { CellCoords, ResolvedTable } from '../tableModel/types';
 
-export type { ResolvedTable } from '../tableModel/types';
-export type { TableContext } from '../tableModel/tableContext';
-
 const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
 const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
 
@@ -98,21 +95,29 @@ export function findTableRanges(
     return tables;
 }
 
+function resolveTableContextFromResolved(resolved: ResolvedTable | null): TableContext | null {
+    if (!resolved) {
+        return null;
+    }
+
+    return buildTableContext(resolved);
+}
+
 /**
- * Resolve a table from an event target, using a best-effort set of fallbacks.
+ * Resolve a table context from an event target, using a best-effort set of fallbacks.
  *
  * Order:
  * 1) DOM -> doc position via `view.posAtDOM`
  * 2) Widget container -> doc position via `view.posAtDOM`
  * 3) Active cell fallback (when nested editor is open)
  */
-export function resolveTableFromEventTarget(view: EditorView, target: HTMLElement): ResolvedTable | null {
+export function resolveTableContextFromEventTarget(view: EditorView, target: HTMLElement): TableContext | null {
     // Best case: map DOM->doc position.
     try {
         const pos = view.posAtDOM(target, 0);
-        const resolved = resolveTableAtPos(view.state, pos);
-        if (resolved) {
-            return resolved;
+        const context = resolveTableContextFromResolved(resolveTableAtPos(view.state, pos));
+        if (context) {
+            return context;
         }
     } catch {
         // Some DOM nodes inside replacement widgets can fail `posAtDOM`.
@@ -125,9 +130,9 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
     if (container) {
         try {
             const pos = view.posAtDOM(container, 0);
-            const resolved = resolveTableAtPos(view.state, pos);
-            if (resolved) {
-                return resolved;
+            const context = resolveTableContextFromResolved(resolveTableAtPos(view.state, pos));
+            if (context) {
+                return context;
             }
         } catch {
             // Fall through to activeCell fallback.
@@ -138,9 +143,9 @@ export function resolveTableFromEventTarget(view: EditorView, target: HTMLElemen
     // provides a stable in-doc position.
     const activeCell = getActiveCell(view.state);
     if (activeCell) {
-        const resolved = resolveTableAtPos(view.state, activeCell.cellFrom);
-        if (resolved) {
-            return resolved;
+        const context = resolveTableContextFromResolved(resolveTableAtPos(view.state, activeCell.cellFrom));
+        if (context) {
+            return context;
         }
     }
 
@@ -171,7 +176,5 @@ export function resolveCellDocRange(params: {
  * Convenience wrapper combining resolveTableAtPos + buildTableContext.
  */
 export function resolveTableContextAtPos(state: EditorState, pos: number, timeoutMs?: number): TableContext | null {
-    const resolved = resolveTableAtPos(state, pos, timeoutMs);
-    if (!resolved) return null;
-    return buildTableContext(resolved);
+    return resolveTableContextFromResolved(resolveTableAtPos(state, pos, timeoutMs));
 }
