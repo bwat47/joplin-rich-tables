@@ -232,10 +232,13 @@ class ActiveCellSessionController {
             return;
         }
 
-        for (const tr of update.transactions) {
-            if (tr.docChanged) {
-                this.session.identity.anchorPos = tr.changes.mapPos(this.session.identity.anchorPos, 1);
-            }
+        // Read the mapped anchorPos from the state field rather than manually mapping
+        // through transaction changes. The state field already handles position mapping
+        // correctly, and manual mapping here would corrupt the position if this method
+        // is called multiple times for the same update.
+        const stateActiveCell = getActiveCell(update.state);
+        if (stateActiveCell) {
+            this.session.identity.anchorPos = stateActiveCell.anchorPos;
         }
 
         const resolved = resolveActiveCell(

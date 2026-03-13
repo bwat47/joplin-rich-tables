@@ -230,19 +230,21 @@ export function planTableLifecycleActions(
     }
 
     if (update.docChanged && snapshot.resolvedActiveCell && snapshot.nestedEditorOpen && !event.isSync) {
+        // Doc sync includes selection rebase via rebaseLocalEditorFromRoot,
+        // so syncMainSelectionToNested is not needed when doc changed.
         actions.push({ type: 'syncMainDocToNested' });
-    }
-
-    const sameActiveCell =
-        getStableActiveCellIdentity(snapshot.prevActiveCell) === getStableActiveCellIdentity(snapshot.activeCell);
-    if (
-        update.selectionSet &&
-        sameActiveCell &&
-        snapshot.resolvedActiveCell &&
-        snapshot.nestedEditorOpen &&
-        !event.isSync
-    ) {
-        actions.push({ type: 'syncMainSelectionToNested' });
+    } else {
+        const sameActiveCell =
+            getStableActiveCellIdentity(snapshot.prevActiveCell) === getStableActiveCellIdentity(snapshot.activeCell);
+        if (
+            update.selectionSet &&
+            sameActiveCell &&
+            snapshot.resolvedActiveCell &&
+            snapshot.nestedEditorOpen &&
+            !event.isSync
+        ) {
+            actions.push({ type: 'syncMainSelectionToNested' });
+        }
     }
 
     if (update.docChanged && snapshot.activeCell && !snapshot.resolvedActiveCell && !event.isSync) {
