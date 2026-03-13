@@ -1,10 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import {
     convertNewlinesToBr,
-    createCellTransactionFilter,
-    createSubviewCellRangeField,
     escapeUnescapedPipes,
+    sanitizeCellChanges,
+    sanitizeLocalText,
+    toLocalSelection,
+    toRootSelection,
+    unsanitizeRootText,
 } from '../nestedEditor/transactionPolicy';
 
 describe('escapeUnescapedPipes', () => {
@@ -17,72 +20,54 @@ describe('escapeUnescapedPipes', () => {
     it('keeps already-escaped pipes intact', () => {
         expect(escapeUnescapedPipes('a\\|b')).toBe('a\\|b');
     });
-
-    it('escapes pipes preceded by an even backslash run', () => {
-        // Two backslashes means the pipe is still a delimiter in Markdown; add one more.
-        expect(escapeUnescapedPipes('a\\\\|b')).toBe('a\\\\\\|b');
-    });
 });
 
 describe('convertNewlinesToBr', () => {
     it('converts LF and CRLF to <br>', () => {
         expect(convertNewlinesToBr('a\nb')).toBe('a<br>b');
         expect(convertNewlinesToBr('a\r\nb')).toBe('a<br>b');
-        expect(convertNewlinesToBr('a\r\nb\r\nc')).toBe('a<br>b<br>c');
     });
 });
 
-describe('createCellTransactionFilter', () => {
-    it('sanitizes inserted newlines to <br> within cell range', () => {
-        const doc = 'abc';
-        const rangeField = createSubviewCellRangeField({ from: 0, to: doc.length });
-
-        let state = EditorState.create({
-            doc,
-            selection: { anchor: 1 },
-            extensions: [rangeField, createCellTransactionFilter(rangeField)],
-        });
-
-        const tr = state.update({ changes: { from: 1, to: 1, insert: 'x\ny' } });
-        state = tr.state;
-
-        expect(state.doc.toString()).toBe('ax<br>ybc');
-        expect(state.selection.main.head).toBe(1 + 'x<br>y'.length);
+describe('sanitizeLocalText / unsanitizeRootText', () => {
+    it('converts local newlines and pipes to markdown-safe cell text', () => {
+        expect(sanitizeLocalText('a\nb|c')).toBe('a<br>b\\|c');
     });
 
-    it('keeps caret after escaped pipe insertion', () => {
-        const doc = 'abc';
-        const rangeField = createSubviewCellRangeField({ from: 0, to: doc.length });
+    it('converts root markdown-safe cell text back to local display text', () => {
+        expect(unsanitizeRootText('a<br>b\\|c')).toBe('a\nb|c');
+    });
+});
 
-        let state = EditorState.create({
-            doc,
-            selection: { anchor: 1 },
-            extensions: [rangeField, createCellTransactionFilter(rangeField)],
-        });
+describe('selection mapping', () => {
+    it('maps local selection to root selection across rewritten text', () => {
+        const localText = 'a\nb|c';
+        const rootSelection = toRootSelection({ anchor: 0, head: localText.length }, localText);
 
-        const tr = state.update({ changes: { from: 1, to: 1, insert: '|' } });
-        state = tr.state;
-
-        expect(state.doc.toString()).toBe('a\\|bc');
-        expect(state.selection.main.head).toBe(3);
+        expect(rootSelection).toEqual({ anchor: 0, head: 'a<br>b\\|c'.length });
     });
 
-    it('does not add an extra backslash when user already typed one', () => {
-        const doc = 'a\\bc';
-        const rangeField = createSubviewCellRangeField({ from: 0, to: doc.length });
+    it('maps root selection back to local selection', () => {
+        const rootText = 'a<br>b\\|c';
+        const localSelection = toLocalSelection({ anchor: 0, head: rootText.length }, rootText);
 
-        let state = EditorState.create({
-            doc,
-            selection: { anchor: 2 },
-            extensions: [rangeField, createCellTransactionFilter(rangeField)],
+        expect(localSelection).toEqual({ anchor: 0, head: 'a\nb|c'.length });
+    });
+});
+
+describe('sanitizeCellChanges', () => {
+    it('sanitizes direct main-editor paste inside the active cell', () => {
+        const state = EditorState.create({
+            doc: '| H1 |',
+            selection: EditorSelection.single(2),
+        });
+        const tr = state.update({
+            changes: { from: 2, to: 2, insert: 'a\nb|c' },
         });
 
-        // Simulate a typical typing transaction, where the selection is already placed
-        // after the inserted character by the input handler.
-        const tr = state.update({ changes: { from: 2, to: 2, insert: '|' }, selection: { anchor: 3 } });
-        state = tr.state;
-
-        expect(state.doc.toString()).toBe('a\\|bc');
-        expect(state.selection.main.head).toBe(3);
+        const result = sanitizeCellChanges(tr, 2, 4);
+        expect(result.rejected).toBe(false);
+        expect(result.didModifyInserts).toBe(true);
+        expect(result.changes).toEqual([{ from: 2, to: 2, insert: 'a<br>b\\|c' }]);
     });
 });

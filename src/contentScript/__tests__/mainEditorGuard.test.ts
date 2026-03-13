@@ -16,6 +16,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -44,6 +45,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -71,6 +73,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -100,6 +103,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -128,6 +132,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -163,6 +168,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -185,6 +191,7 @@ describe('createMainEditorActiveCellGuard', () => {
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.length + 10,
                 tableFrom: doc.length + 10,
                 section: 'header',
                 row: 0,

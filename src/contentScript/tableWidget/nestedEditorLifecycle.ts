@@ -3,9 +3,8 @@ import { getActiveCell, clearActiveCellEffect } from './activeCellState';
 import { resolveActiveCell } from './activeCellResolver';
 import { rebuildAllTableWidgetsEffect } from './tableWidgetEffects';
 import {
-    applyMainSelectionToNestedEditor,
-    applyMainTransactionsToNestedEditor,
     closeNestedCellEditor,
+    handleMainEditorUpdateForNestedEditor,
     isNestedCellEditorOpen,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
@@ -143,19 +142,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'syncMainDocToNested':
-                        applyMainTransactionsToNestedEditor(this.view, {
-                            transactions: update.transactions,
-                            cellFrom: action.resolvedActiveCell.cellFrom,
-                            cellTo: action.resolvedActiveCell.cellTo,
-                        });
+                        handleMainEditorUpdateForNestedEditor(this.view, update);
                         break;
                     case 'syncMainSelectionToNested':
-                        applyMainSelectionToNestedEditor(this.view, {
-                            selection: update.state.selection,
-                            cellFrom: action.resolvedActiveCell.cellFrom,
-                            cellTo: action.resolvedActiveCell.cellTo,
-                            focus: action.focus,
-                        });
+                        handleMainEditorUpdateForNestedEditor(this.view, update);
                         break;
                     case 'clearActiveCell':
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });

@@ -7,7 +7,7 @@ import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './activeCellForTableText';
 
 function isSameActiveCell(a: ActiveCell, b: ActiveCell): boolean {
-    return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
+    return a.section === b.section && a.row === b.row && a.col === b.col;
 }
 
 interface ModifyTableParams {

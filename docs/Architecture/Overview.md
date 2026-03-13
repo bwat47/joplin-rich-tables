@@ -18,7 +18,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 1. **Main Editor (CodeMirror)**: Parses document, identifies table ranges via Lezer syntax tree.
 2. **Table Widget**: Block decoration replacing raw Markdown. Renders HTML table grid.
-3. **Nested Editor**: Transient CodeMirror instance spawned inside `<td>` for in-cell editing.
+3. **Nested Editor**: Transient isolated CodeMirror instance spawned inside `<td>` for in-cell editing.
 
 ## Core Components
 
@@ -43,12 +43,15 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 
 Cell click → `TableWidget` calculates row/column → dispatches `setActiveCellEffect` → `nestedEditorLifecycle` mounts nested editor.
 
-`ActiveCell` is logical-first state: it persists `tableFrom` plus `section/row/col`. Raw offsets such as
-`tableTo` and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
+`ActiveCell` is logical-first state: it persists `anchorPos` plus `section/row/col`. Raw offsets such as
+`tableFrom`, `tableTo`, and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
 
 ### 3. Synchronization
 
-Typing in nested editor → `forwardChangesToMain` creates transaction with `syncAnnotation` → main editor applies → annotation prevents re-render loop.
+Typing in the isolated cell editor goes through the `ActiveCellSession` bridge:
+- Local display text and selection are sanitized into authoritative root cell text and selection.
+- The main editor applies the change with `syncAnnotation`.
+- Non-sync root changes re-resolve the logical cell from the mapped anchor position and rebase the isolated editor.
 
 ### 4. Table Runtime Model
 
@@ -79,7 +82,8 @@ derive current table/cell offsets for the persisted logical active-cell state.
 Table editing transition logic is centralized in `contentScript/tableWidget/tableRuntimeTransitions.ts`.
 
 - The module is pure policy: it inspects `Transaction`/`ViewUpdate` state and returns declarative decisions/actions.
-- `nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close, selection sync, and RAF scheduling.
+- `nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
+- `nestedEditor/activeCellSession.ts` owns local/root synchronization, selection mirroring, and session invalidation.
 - `tableWidgetExtension.ts` still owns block decoration materialization through `StateField`.
 - `mainEditorGuard.ts` still owns transaction filtering, but delegates allow/reject/sanitize decisions to the shared policy.
 
@@ -91,8 +95,8 @@ flowchart TB
         K["Keyboard/Mouse"]
     end
 
-    subgraph Nested["Nested Editor (subview)"]
-        NE["nestedCellEditor.ts"]
+    subgraph Nested["Nested Editor (isolated cell editor)"]
+        NE["activeCellSession.ts"]
         DH["domHandlers.ts"]
     end
 
@@ -106,11 +110,10 @@ flowchart TB
     DH -->|"undo/redo passthrough"| ME
     DH -->|"event bubbling prevention"| NE
 
-    NE -->|"forwardChangesToMain + syncAnnotation"| ME
+    NE -->|"sanitize local cell text/selection + syncAnnotation"| ME
     NE -->|"selection mirror"| ME
 
     ME -->|"external changes (undo/redo, Joplin commands)"| LC
-    LC -->|"applyMainTransactionsToNestedEditor"| NE
-    LC -->|"applyMainSelectionToNestedEditor"| NE
+    LC -->|"forward root update"| NE
     LC -->|"detect structural changes → reopen cell"| NE
 ```

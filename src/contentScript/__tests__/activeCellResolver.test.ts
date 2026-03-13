@@ -17,6 +17,7 @@ describe('activeCellResolver', () => {
     it('resolves header cells from logical active-cell state', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const state = createState(doc, {
+            anchorPos: doc.indexOf('H2'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -33,6 +34,7 @@ describe('activeCellResolver', () => {
     it('tracks tableFrom when text is inserted before the table', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const state = createState(doc, {
+            anchorPos: doc.indexOf('H1'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -53,6 +55,7 @@ describe('activeCellResolver', () => {
     it('returns null when the anchored table no longer exists', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const state = createState(doc, {
+            anchorPos: doc.indexOf('H1'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -69,6 +72,7 @@ describe('activeCellResolver', () => {
     it('returns null when the logical cell no longer exists in the anchored table', () => {
         const startDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
         const state = createState(startDoc, {
+            anchorPos: startDoc.indexOf('b1'),
             tableFrom: 0,
             section: 'body',
             row: 1,
@@ -87,6 +91,7 @@ describe('activeCellResolver', () => {
         const doc = ['| foo  |', '| --- |'].join('\n');
         const trailingSpaceCursor = doc.indexOf('foo') + 'foo '.length;
         const state = createState(doc, {
+            anchorPos: doc.indexOf('foo'),
             tableFrom: 0,
             section: 'header',
             row: 0,

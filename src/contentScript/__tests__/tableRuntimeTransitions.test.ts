@@ -35,6 +35,7 @@ function createState(params?: { activeCell?: ActiveCell | null }) {
 
 function getHeaderCell(): ActiveCell {
     return {
+        anchorPos: doc.indexOf('H1'),
         tableFrom: 0,
         section: 'header',
         row: 0,

@@ -141,6 +141,7 @@ export function navigateCell(
 
     view.dispatch({
         effects: setActiveCellEffect.of({
+            anchorPos: cellFrom,
             tableFrom: ctx.from,
             section: target.section, // Use the proper Section type
             row: target.row,

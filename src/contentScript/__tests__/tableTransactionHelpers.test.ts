@@ -22,8 +22,9 @@ describe('tableTransactionHelpers', () => {
     }
 
     function createCell(tableText: string, row: number = 0, col: number = 0) {
-        void tableText;
+        const anchorPos = tableText.indexOf('| a |');
         return {
+            anchorPos: anchorPos >= 0 ? anchorPos + 2 : 0,
             tableFrom: 0,
             section: 'body' as const,
             row,

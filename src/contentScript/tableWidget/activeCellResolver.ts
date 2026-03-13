@@ -57,9 +57,9 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         return null;
     }
 
-    const lookupPos = Math.min(activeCell.tableFrom + 1, state.doc.length);
+    const lookupPos = Math.min(Math.max(activeCell.anchorPos, 0), state.doc.length);
     const ctx = resolveTableContextAtPos(state, lookupPos);
-    if (!ctx || ctx.from !== activeCell.tableFrom) {
+    if (!ctx) {
         return null;
     }
 
@@ -75,7 +75,10 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
     const expandedRange = expandCellEndForTrailingWhitespace(state, range);
 
     return {
-        activeCell,
+        activeCell: {
+            ...activeCell,
+            tableFrom: ctx.from,
+        },
         ctx,
         tableFrom: ctx.from,
         tableTo: ctx.to,

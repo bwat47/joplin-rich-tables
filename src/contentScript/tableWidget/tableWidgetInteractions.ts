@@ -219,6 +219,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         view.dispatch({
             selection: { anchor: cellFrom },
             effects: setActiveCellEffect.of({
+                anchorPos: cellFrom,
                 tableFrom: ctx.from,
                 section,
                 row: section === SECTION_HEADER ? 0 : row,

@@ -49,6 +49,7 @@ export function computeActiveCellFromRanges(params: {
     }
 
     return {
+        anchorPos: tableFrom + relRange.from,
         tableFrom,
         section: clamped.section,
         row: clamped.section === 'header' ? 0 : clamped.row,
