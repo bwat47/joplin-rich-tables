@@ -137,7 +137,7 @@ export function navigateCell(
         return true; // Already locked
     }
 
-    const { cellFrom, cellTo } = resolvedRange;
+    const { cellFrom } = resolvedRange;
 
     view.dispatch({
         effects: setActiveCellEffect.of({

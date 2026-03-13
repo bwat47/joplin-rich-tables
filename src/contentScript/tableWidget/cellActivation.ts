@@ -4,7 +4,7 @@
  */
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, setActiveCellEffect } from './activeCellState';
-import { findTableRanges, resolveCellDocRange } from './tablePositioning';
+import { findTableRanges } from './tablePositioning';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../tableModel/tableContext';
 import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
@@ -72,18 +72,6 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    const resolvedRange = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: targetCell,
-    });
-    if (!resolvedRange) {
-        if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-        return false;
-    }
-
     // Set the active cell state before opening the nested editor.
     view.dispatch({
         effects: setActiveCellEffect.of(newActiveCell),
@@ -133,13 +121,6 @@ export function activateTableCell(
         });
 
         if (!newActiveCell) return;
-
-        const resolvedRange = resolveCellDocRange({
-            tableFrom: ctx.from,
-            ranges: ctx.cellRanges,
-            coords,
-        });
-        if (!resolvedRange) return;
 
         // Set the active cell state before opening the nested editor.
         view.dispatch({
