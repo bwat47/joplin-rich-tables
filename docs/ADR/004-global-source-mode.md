@@ -1,4 +1,4 @@
-# ADR-003: Global Source Mode Instead of Cursor-Based Markdown Reveal
+# ADR-004: Global Source Mode Instead of Cursor-Based Markdown Reveal
 
 ## Status
 

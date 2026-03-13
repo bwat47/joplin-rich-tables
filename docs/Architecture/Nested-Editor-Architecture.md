@@ -13,7 +13,7 @@ Overlay a real editor rather than using contenteditable (avoids browser inconsis
 
 Managed by `contentScript/tableWidget/nestedEditorLifecycle.ts`.
 
-**Activation**: Cell click → `TableWidget` calculates range → `setActiveCellEffect` dispatched → lifecycle plugin mounts `NestedEditor`.
+**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges → `setActiveCellEffect` dispatched → lifecycle plugin mounts the nested editor.
 
 `setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. The lifecycle plugin resolves raw
 table/cell offsets from current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
