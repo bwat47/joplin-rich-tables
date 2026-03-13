@@ -22,16 +22,16 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Core Components
 
-| Component     | File                                                  | Purpose                                                   |
-| :------------ | :---------------------------------------------------- | :-------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`   | Main entry point; connects plugins, styles, commands.     |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`            | HTML rendering, click-to-cell coordinate mapping.         |
-| **Lifecycle** | `contentScript/tableWidget/nestedEditorLifecycle.ts`  | Nested editor open/close state, synchronization triggers. |
-| **Styles**    | `contentScript/tableWidget/tableStyles.ts`            | CSS-in-JS for theme consistency.                          |
-| **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`      | ViewPlugin actualizing nested editor lifecycle.           |
-| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`           | Normalized table model, parsing, serialization, mutations. |
-| **Context**   | `contentScript/tableModel/tableContext.ts`            | Shared parsed table + cell ranges + table span.           |
-| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`         | Floating UI for row/column/alignment actions.             |
+| Component     | File                                                 | Purpose                                                    |
+| :------------ | :--------------------------------------------------- | :--------------------------------------------------------- |
+| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`  | Main entry point; connects plugins, styles, commands.      |
+| **Rendering** | `contentScript/tableWidget/TableWidget.ts`           | HTML rendering, click-to-cell coordinate mapping.          |
+| **Lifecycle** | `contentScript/tableWidget/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.  |
+| **Styles**    | `contentScript/tableWidget/tableStyles.ts`           | CSS-in-JS for theme consistency.                           |
+| **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`     | Public facade over the active-cell session editor.         |
+| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`          | Normalized table model, parsing, serialization, mutations. |
+| **Context**   | `contentScript/tableModel/tableContext.ts`           | Shared parsed table + cell ranges + table span.            |
+| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`        | Floating UI for row/column/alignment actions.              |
 
 ## Data Flow
 
@@ -49,9 +49,11 @@ Cell click → `TableWidget` calculates row/column → dispatches `setActiveCell
 ### 3. Synchronization
 
 Typing in the isolated cell editor goes through the `ActiveCellSession` bridge:
+
 - Local display text and selection are sanitized into authoritative root cell text and selection.
 - The main editor applies the change with `syncAnnotation`.
 - Non-sync root changes re-resolve the logical cell from the mapped anchor position and rebase the isolated editor.
+- The nested editor is cell-local, not a clipped whole-document subview.
 
 ### 4. Table Runtime Model
 

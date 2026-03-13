@@ -20,8 +20,6 @@ export { nestedCellEditorPlugin, syncAnnotation };
 export function openNestedCellEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
-    cellFrom: number;
-    cellTo: number;
     initialCursorPos?: 'start' | 'end';
     onFocused?: () => void;
 }): void {

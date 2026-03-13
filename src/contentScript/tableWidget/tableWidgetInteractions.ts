@@ -211,7 +211,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return false;
         }
 
-        const { cellFrom, cellTo } = resolvedRange;
+        const { cellFrom } = resolvedRange;
 
         event.preventDefault();
         event.stopPropagation();
@@ -232,8 +232,6 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         openNestedCellEditor({
             mainView: view,
             cellElement: cell,
-            cellFrom,
-            cellTo,
         });
 
         return true;

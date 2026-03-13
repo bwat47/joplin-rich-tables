@@ -157,8 +157,6 @@ export function navigateCell(
         openNestedCellEditor({
             mainView: view,
             cellElement,
-            cellFrom,
-            cellTo,
             initialCursorPos: options.cursorPos,
             onFocused: releaseNavigationLock,
         });

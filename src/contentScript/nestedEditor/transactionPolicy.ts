@@ -1,4 +1,4 @@
-import { Annotation, ChangeSet, EditorSelection, Transaction } from '@codemirror/state';
+import { Annotation, EditorSelection, Transaction } from '@codemirror/state';
 
 /** Annotation used to mark synchronization transactions to prevent loops. */
 export const syncAnnotation = Annotation.define<boolean>();
@@ -164,18 +164,4 @@ export function sanitizeCellChanges(tr: Transaction, cellFrom: number, cellTo: n
     });
 
     return { rejected, didModifyInserts, changes };
-}
-
-export function mapSelectionForSanitizedChanges(
-    selection: EditorSelection,
-    changes: readonly SimpleChange[],
-    docLength: number
-): EditorSelection {
-    const changeSet = ChangeSet.of(changes, docLength);
-    const mappedRanges = selection.ranges.map((range) => {
-        const anchor = changeSet.mapPos(range.anchor, 1);
-        const head = changeSet.mapPos(range.head, 1);
-        return EditorSelection.range(anchor, head);
-    });
-    return EditorSelection.create(mappedRanges, selection.mainIndex);
 }

@@ -52,16 +52,12 @@ export interface CellRootState {
 }
 
 export interface ActiveCellSession {
-    id: string;
     identity: ActiveCellIdentity;
     range: CellRange;
     local: CellLocalState;
     root: CellRootState;
     editor: EditorView | null;
-    applyingLocalToRoot: boolean;
     applyingRootToLocal: boolean;
-    suspendedForRootCommand: boolean;
-    dirty: boolean;
 }
 
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
@@ -115,7 +111,6 @@ class ActiveCellSessionController {
     private editorHostEl: HTMLElement | null = null;
     private cellElement: HTMLElement | null = null;
     private mainView: EditorView | null = null;
-    private nextSessionId = 1;
 
     open(params: {
         mainView: EditorView;
@@ -155,7 +150,6 @@ class ActiveCellSessionController {
         }
 
         const session: ActiveCellSession = {
-            id: `session-${this.nextSessionId++}`,
             identity: {
                 anchorPos: params.activeCell.anchorPos,
                 section: params.activeCell.section,
@@ -171,10 +165,7 @@ class ActiveCellSessionController {
             local: { text: localText, selection: localSelection },
             root: { text: rootText, selection: rootSelection },
             editor: null,
-            applyingLocalToRoot: false,
             applyingRootToLocal: false,
-            suspendedForRootCommand: false,
-            dirty: false,
         };
 
         const isDarkTheme = params.mainView.state.facet(EditorView.darkTheme);
@@ -356,7 +347,6 @@ class ActiveCellSessionController {
         };
         const localText = update.state.doc.toString();
         this.session.local = { text: localText, selection: localSelection };
-        this.session.dirty = true;
 
         if (update.docChanged) {
             this.forwardLocalStateToRoot(true);
@@ -383,7 +373,6 @@ class ActiveCellSessionController {
             return;
         }
 
-        this.session.applyingLocalToRoot = true;
         this.mainView.dispatch({
             changes:
                 includeChanges && textChanged
@@ -399,10 +388,8 @@ class ActiveCellSessionController {
                 : [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
             scrollIntoView: false,
         });
-        this.session.applyingLocalToRoot = false;
 
         this.session.root = { text: rootText, selection: rootSelection };
-        this.session.dirty = false;
         this.refreshFromCurrentMainState();
         this.rebaseLocalEditorFromRoot();
     }
@@ -483,7 +470,6 @@ class ActiveCellSessionController {
 
         if (currentLocalText === nextLocalText && areSelectionsEqual(currentSelection, nextLocalSelection)) {
             this.session.local = { text: nextLocalText, selection: nextLocalSelection };
-            this.session.dirty = false;
             return;
         }
 
@@ -500,7 +486,6 @@ class ActiveCellSessionController {
         });
         this.session.applyingRootToLocal = false;
         this.session.local = { text: nextLocalText, selection: nextLocalSelection };
-        this.session.dirty = false;
 
         if (shouldRefocus) {
             requestAnimationFrame(() => editor.contentDOM.focus({ preventScroll: true }));
