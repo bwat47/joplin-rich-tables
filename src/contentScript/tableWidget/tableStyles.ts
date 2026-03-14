@@ -96,7 +96,7 @@ export const tableStyles = EditorView.baseTheme({
         outline: 'none',
     },
     // Style the active cell (td)
-    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE}`]: {
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_ACTIVE}`]: {
         // Use a box-shadow or outline that typically sits "inside" or "on" the border
         // absolute positioning an overlay might be cleaner to avoid layout shifts,
         // but a simple outline usually works well for spreadsheets.
