@@ -11,7 +11,11 @@ interface PendingCellOpenRequest extends PendingCellOpenOptions {
 
 const pendingCellOpenRequests = new WeakMap<EditorView, PendingCellOpenRequest>();
 
-export function rememberPendingCellOpen(view: EditorView, activeCell: ActiveCell, options: PendingCellOpenOptions): void {
+export function rememberPendingCellOpen(
+    view: EditorView,
+    activeCell: ActiveCell,
+    options: PendingCellOpenOptions
+): void {
     if (!options.initialCursorPos) {
         pendingCellOpenRequests.delete(view);
         return;

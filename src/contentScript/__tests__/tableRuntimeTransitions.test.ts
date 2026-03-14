@@ -206,7 +206,11 @@ describe('tableRuntimeTransitions', () => {
 
     it('treats normalize-before-edit full table replacement as a controlled reopen', () => {
         const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
-        let startState = createMarkdownState(nonCanonicalDoc, [activeCellField, sourceModeField, searchForceSourceModeField]);
+        let startState = createMarkdownState(nonCanonicalDoc, [
+            activeCellField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
         const startActiveCell: ActiveCell = {
             anchorPos: nonCanonicalDoc.indexOf('H1'),
             tableFrom: 0,
@@ -230,10 +234,7 @@ describe('tableRuntimeTransitions', () => {
         const tr = startState.update({
             changes: { from: 0, to: nonCanonicalDoc.length, insert: canonicalDoc },
             selection: { anchor: nextActiveCell.anchorPos },
-            effects: [
-                setActiveCellEffect.of(nextActiveCell),
-                rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
-            ],
+            effects: [setActiveCellEffect.of(nextActiveCell), rebuildTableWidgetsEffect.of({ tableFrom: 0 })],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const update = {

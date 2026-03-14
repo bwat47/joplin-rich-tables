@@ -89,14 +89,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         requestAnimationFrame(() => {
                             if (!this.view.dom.isConnected) return;
                             if (!action.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
-                            activateCellAtPosition(
-                                this.view,
-                                cursorPos,
-                                {
-                                    clearIfOutside: action.clearIfOutside,
-                                    normalizeIfNeeded: action.normalizeIfNeeded,
-                                }
-                            );
+                            activateCellAtPosition(this.view, cursorPos, {
+                                clearIfOutside: action.clearIfOutside,
+                                normalizeIfNeeded: action.normalizeIfNeeded,
+                            });
                             if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);
                             }
