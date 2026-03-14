@@ -79,7 +79,7 @@ function trimCellBounds(line: string, from: number, to: number): { from: number;
     //
     // For whitespace-only cells we pick a stable insertion point near the left edge
     // of the cell (after the first whitespace character, when possible). This avoids
-    // typing appearing visually "centered" when tables are pretty-padded with spaces.
+    // typing appearing visually centered inside the plugin's canonical padded format.
     if (start === end) {
         const insertion = Math.min(from + 1, to);
         return { from: insertion, to: insertion };

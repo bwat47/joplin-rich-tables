@@ -10,6 +10,7 @@ import {
     toRootSelection,
     unsanitizeRootText,
 } from '../nestedEditor/transactionPolicy';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('escapeUnescapedPipes', () => {
     it('escapes unescaped pipes', () => {
@@ -77,6 +78,23 @@ describe('selection mapping', () => {
         const rootSelection = toRootSelection({ anchor: localText.length, head: localText.length }, localText);
 
         expect(rootSelection).toEqual({ anchor: localText.length, head: localText.length });
+    });
+
+    it('keeps trailing-space cursor positions stable after normalizing a non-canonical table first', () => {
+        const canonicalTable = MarkdownTable.parse(['|SOMETEXT|', '|---|'].join('\n'))?.serialize();
+        expect(canonicalTable).toBe(['| SOMETEXT |', '| --- |'].join('\n'));
+        if (!canonicalTable) {
+            throw new Error('Expected canonical table text');
+        }
+
+        const cellFrom = canonicalTable.indexOf('SOMETEXT');
+        const localText = 'SOMETEXT ';
+        const rootSelection = toRootSelection({ anchor: localText.length, head: localText.length }, localText);
+        const formatted = `${canonicalTable.slice(0, cellFrom + rootSelection.anchor)}****${canonicalTable.slice(
+            cellFrom + rootSelection.head
+        )}`;
+
+        expect(formatted).toContain('SOMETEXT ****');
     });
 });
 

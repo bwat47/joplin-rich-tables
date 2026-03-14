@@ -1,5 +1,7 @@
 import type { ViewUpdate, EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableWidget/activeCellState';
+import { setActiveCellEffect } from '../tableWidget/activeCellState';
+import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import {
     activeCellSessionPlugin as nestedCellEditorPlugin,
     cleanupHostedActiveCellSessions,
@@ -10,6 +12,11 @@ import {
     refocusActiveCellSession,
 } from './activeCellSession';
 import { syncAnnotation } from './transactionPolicy';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
+import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
+import { setPendingNavigationCallback } from '../tableWidget/navigationLock';
+import { rememberPendingCellOpen } from './pendingCellOpen';
 
 export { nestedCellEditorPlugin, syncAnnotation };
 
@@ -17,9 +24,54 @@ export function openNestedCellEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
     activeCell: ActiveCell;
+    normalizeIfNeeded?: boolean;
     initialCursorPos?: 'start' | 'end';
     onFocused?: () => void;
 }): void {
+    if (params.normalizeIfNeeded) {
+        const resolved = resolveActiveCell(params.mainView.state, params.activeCell);
+        if (!resolved) {
+            return;
+        }
+
+        const canonicalText = getCanonicalTableTextIfChanged(resolved.ctx);
+        if (canonicalText) {
+            const nextActiveCell = computeActiveCellForTableText({
+                tableFrom: resolved.tableFrom,
+                tableText: canonicalText,
+                target: params.activeCell,
+            });
+            if (!nextActiveCell) {
+                return;
+            }
+
+            if (params.initialCursorPos) {
+                rememberPendingCellOpen(params.mainView, nextActiveCell, {
+                    initialCursorPos: params.initialCursorPos,
+                });
+            }
+            if (params.onFocused) {
+                setPendingNavigationCallback(params.onFocused);
+            }
+
+            params.mainView.dispatch({
+                changes: {
+                    from: resolved.tableFrom,
+                    to: resolved.tableTo,
+                    insert: canonicalText,
+                },
+                selection: { anchor: nextActiveCell.anchorPos },
+                effects: [
+                    setActiveCellEffect.of(nextActiveCell),
+                    rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
+                ],
+                annotations: normalizeBeforeEditAnnotation.of(true),
+                scrollIntoView: false,
+            });
+            return;
+        }
+    }
+
     openActiveCellSession({
         mainView: params.mainView,
         cellElement: params.cellElement,

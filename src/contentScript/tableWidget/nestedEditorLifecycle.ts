@@ -8,6 +8,7 @@ import {
     isNestedCellEditorOpen,
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
+import { clearPendingCellOpen, consumePendingCellOpenOptions } from '../nestedEditor/pendingCellOpen';
 import { findCellElement } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
@@ -91,7 +92,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             activateCellAtPosition(
                                 this.view,
                                 cursorPos,
-                                action.clearIfOutside ? { clearIfOutside: true } : undefined
+                                {
+                                    clearIfOutside: action.clearIfOutside,
+                                    normalizeIfNeeded: action.normalizeIfNeeded,
+                                }
                             );
                             if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);
@@ -119,10 +123,12 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         requestAnimationFrame(() => {
                             if (!this.view.dom.isConnected) return;
                             if (!isSameActiveCell(getActiveCell(this.view.state), action.activeCell)) {
+                                clearPendingCellOpen(this.view);
                                 return;
                             }
                             const resolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
                             if (!resolvedActiveCell) {
+                                clearPendingCellOpen(this.view);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
@@ -132,14 +138,19 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 action.activeCell
                             );
                             if (!cellElement) {
+                                clearPendingCellOpen(this.view);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
+
+                            const pendingOptions = consumePendingCellOpenOptions(this.view, action.activeCell);
 
                             openNestedCellEditor({
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
+                                normalizeIfNeeded: false,
+                                initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });
                         break;
@@ -150,6 +161,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         handleMainEditorUpdateForNestedEditor(this.view, update);
                         break;
                     case 'clearActiveCell':
+                        clearPendingCellOpen(this.view);
                         this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         break;
                 }
@@ -157,6 +169,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         destroy(): void {
+            clearPendingCellOpen(this.view);
             closeNestedCellEditor(this.view);
         }
     }

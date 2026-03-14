@@ -22,7 +22,7 @@ Everything else in the table model layer builds on this scanner (don’t split o
 - Filters to non-empty lines (matching the parser’s behavior).
 - Validates the separator row with `isSeparatorRow()`, but intentionally does not return ranges for the separator row.
 - Trims outer whitespace and ignores leading/trailing pipes.
-- Trims per-cell whitespace; for whitespace-only cells it chooses a stable insertion point so edits don’t “stick” directly to a pipe in pretty-padded tables.
+- Trims per-cell whitespace; for whitespace-only cells it chooses a stable insertion point so edits don’t “stick” directly to a pipe in the plugin’s canonical padded format.
 
 These ranges are used for:
 
@@ -57,6 +57,9 @@ This avoids duplicated resolve/parse/range work across:
 - Structural command helpers.
 
 The cache is an LRU map keyed by table text hash and stores both `MarkdownTable` and `cellRanges` together.
+
+`TableContext` is read-only derived state. It may expose that the current table text is non-canonical, but it never
+rewrites the document by itself. Canonicalization happens only when the user crosses into interactive cell editing.
 
 ## Active Cell Resolution
 

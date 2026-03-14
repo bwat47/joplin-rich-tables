@@ -20,6 +20,8 @@ import {
 } from '../tableWidget/tableRuntimeTransitions';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 import { createMarkdownState } from './testMarkdownState';
+import { normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
+import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -180,6 +182,7 @@ describe('tableRuntimeTransitions', () => {
         const event = {
             update: {} as TableRuntimeEvent['update'],
             isSync: false,
+            isNormalizeBeforeEdit: false,
             forceRebuild: false,
             rawModeEffects: {
                 exitedSourceMode: true,
@@ -196,8 +199,70 @@ describe('tableRuntimeTransitions', () => {
                 type: 'scheduleActivateCellAtCursor',
                 clearIfOutside: false,
                 ensureCursorVisibleIfNotActivated: true,
+                normalizeIfNeeded: false,
             },
         ]);
+    });
+
+    it('treats normalize-before-edit full table replacement as a controlled reopen', () => {
+        const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
+        let startState = createMarkdownState(nonCanonicalDoc, [activeCellField, sourceModeField, searchForceSourceModeField]);
+        const startActiveCell: ActiveCell = {
+            anchorPos: nonCanonicalDoc.indexOf('H1'),
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+        startState = startState.update({ effects: setActiveCellEffect.of(startActiveCell) }).state;
+
+        const canonicalDoc = doc;
+        const nextActiveCell = computeActiveCellForTableText({
+            tableFrom: 0,
+            tableText: canonicalDoc,
+            target: startActiveCell,
+        });
+        expect(nextActiveCell).not.toBeNull();
+        if (!nextActiveCell) {
+            throw new Error('Expected normalized active cell');
+        }
+
+        const tr = startState.update({
+            changes: { from: 0, to: nonCanonicalDoc.length, insert: canonicalDoc },
+            selection: { anchor: nextActiveCell.anchorPos },
+            effects: [
+                setActiveCellEffect.of(nextActiveCell),
+                rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
+            ],
+            annotations: normalizeBeforeEditAnnotation.of(true),
+        });
+        const update = {
+            startState,
+            state: tr.state,
+            transactions: [tr],
+            docChanged: tr.docChanged,
+            selectionSet: tr.selection !== startState.selection,
+        } as unknown as TableRuntimeEvent['update'];
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell: nextActiveCell,
+            prevActiveCell: startActiveCell,
+            resolvedActiveCell: requireResolvedActiveCell(tr.state),
+            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'allowTransaction',
+        });
+        expect(
+            planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
+                cursorInsideTableAfterUndoRedo: false,
+            })
+        ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell }]);
     });
 
     it('plans force rebuild as close and reopen of the nested editor', () => {

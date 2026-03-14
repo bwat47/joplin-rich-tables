@@ -241,6 +241,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             mainView: view,
             cellElement: cell,
             activeCell,
+            normalizeIfNeeded: true,
         });
 
         return true;

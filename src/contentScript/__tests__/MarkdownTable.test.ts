@@ -1,4 +1,5 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { buildTableContext } from '../tableModel/tableContext';
 
 describe('MarkdownTable', () => {
     it('parse returns normalized state for ragged tables', () => {
@@ -32,6 +33,15 @@ describe('MarkdownTable', () => {
         expect(table.serialize()).toBe(
             ['| H1 | H2 | H3 | H4 |', '| :--- | ---: | :---: | --- |', '| a | b | c | d |'].join('\n')
         );
+    });
+
+    it('keeps passive table-context builds side-effect free for non-canonical markdown', () => {
+        const text = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const ctx = buildTableContext({ from: 0, to: text.length, text });
+
+        expect(ctx).not.toBeNull();
+        expect(ctx?.text).toBe(text);
+        expect(ctx?.table.serialize()).toBe(['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n'));
     });
 
     it('returns same instance for no-op methods', () => {

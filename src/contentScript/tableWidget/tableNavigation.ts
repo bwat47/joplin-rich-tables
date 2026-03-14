@@ -164,6 +164,7 @@ export function navigateCell(
                 row: target.row,
                 col: target.col,
             },
+            normalizeIfNeeded: true,
             initialCursorPos: options.cursorPos,
             onFocused: releaseNavigationLock,
         });

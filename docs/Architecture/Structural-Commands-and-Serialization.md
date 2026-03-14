@@ -54,6 +54,10 @@ User Action (keyboard/toolbar)
 - **Alignment**: `:---` (left), `---:` (right), `:---:` (center), `---` (default).
 - **Normalization**: Ragged tables padded to consistent column counts.
 
+The same canonical serialization is also used at the interactive edit boundary: explicit user entry into a
+non-canonical table rewrites that table first, then reopens the target cell against the rebuilt widget. Lifecycle
+reopens used to restore editor state skip that rewrite so undo/redo does not get trapped re-normalizing the same table.
+
 ## Rebuild Trigger
 
 Structural edits dispatch `rebuildTableWidgetsEffect` → full table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.

@@ -124,7 +124,7 @@ export class TableWidget extends WidgetType {
             th.dataset[DATA_ROW] = '0';
             th.dataset[DATA_COL] = String(i);
 
-            const content = headerCells[i].trim();
+            const content = headerCells[i];
             this.renderCellContent(th, content);
 
             const align = alignments[i];
@@ -148,7 +148,7 @@ export class TableWidget extends WidgetType {
                 td.dataset[DATA_ROW] = String(r);
                 td.dataset[DATA_COL] = String(c);
 
-                const content = row[c].trim();
+                const content = row[c];
                 this.renderCellContent(td, content);
 
                 const align = alignments[c];

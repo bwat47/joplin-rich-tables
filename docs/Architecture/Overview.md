@@ -46,6 +46,11 @@ Cell click → `TableWidget` calculates row/column → dispatches `setActiveCell
 `ActiveCell` is logical-first state: it persists `anchorPos` plus `section/row/col`. Raw offsets such as
 `tableFrom`, `tableTo`, and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
 
+Before user-driven entry opens the nested editor, `nestedCellEditor.ts` checks whether the table markdown is already in
+the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical target cell,
+rebuilds the widget, and only then opens the nested editor. Lifecycle reopens used for undo/redo or UI restoration skip
+that normalization step. Passive parsing/rendering never mutates document text.
+
 ### 3. Synchronization
 
 Typing in the isolated cell editor goes through the `ActiveCellSession` bridge:

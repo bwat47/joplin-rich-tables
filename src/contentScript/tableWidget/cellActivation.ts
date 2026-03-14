@@ -16,6 +16,8 @@ import { isSourceModeEnabled } from './sourceMode';
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
     clearIfOutside?: boolean;
+    /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
+    normalizeIfNeeded?: boolean;
 }
 
 /**
@@ -86,6 +88,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         mainView: view,
         cellElement,
         activeCell: newActiveCell,
+        normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
     });
 
     return true;
@@ -135,6 +138,7 @@ export function activateTableCell(
             mainView: view,
             cellElement,
             activeCell: newActiveCell,
+            normalizeIfNeeded: true,
         });
     });
 }

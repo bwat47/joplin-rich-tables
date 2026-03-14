@@ -9,6 +9,7 @@ import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from 
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { sanitizeCellChanges } from '../nestedEditor/transactionPolicy';
+import { normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;
@@ -24,6 +25,7 @@ export interface TableRuntimeSnapshot {
 export interface TableRuntimeEvent {
     update: ViewUpdate;
     isSync: boolean;
+    isNormalizeBeforeEdit: boolean;
     forceRebuild: boolean;
     rawModeEffects: RawModeEffects;
     enteredRawMode: boolean;
@@ -43,7 +45,12 @@ export type TableRuntimeAction =
     | { type: 'syncMainDocToNested' }
     | { type: 'syncMainSelectionToNested' }
     | { type: 'clearActiveCell' }
-    | { type: 'scheduleActivateCellAtCursor'; clearIfOutside: boolean; ensureCursorVisibleIfNotActivated: boolean }
+    | {
+          type: 'scheduleActivateCellAtCursor';
+          clearIfOutside: boolean;
+          ensureCursorVisibleIfNotActivated: boolean;
+          normalizeIfNeeded: boolean;
+      }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
     | { type: 'scheduleRebuildAllAfterFullReplace' };
 
@@ -114,6 +121,7 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
     return {
         update,
         isSync: update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation))),
+        isNormalizeBeforeEdit: update.transactions.some((tr) => Boolean(tr.annotation(normalizeBeforeEditAnnotation))),
         forceRebuild: update.transactions.some((tr) =>
             tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))
         ),
@@ -175,7 +183,12 @@ export function planTableLifecycleActions(
     const { update, rawModeEffects } = event;
     const actions: TableRuntimeAction[] = [];
 
-    if (snapshot.hadActiveCell && event.hasFullDocumentReplace && !snapshot.pendingFullReplaceRebuild) {
+    if (
+        snapshot.hadActiveCell &&
+        event.hasFullDocumentReplace &&
+        !event.isNormalizeBeforeEdit &&
+        !snapshot.pendingFullReplaceRebuild
+    ) {
         actions.push({ type: 'scheduleRebuildAllAfterFullReplace' });
     }
 
@@ -184,6 +197,7 @@ export function planTableLifecycleActions(
             type: 'scheduleActivateCellAtCursor',
             clearIfOutside: false,
             ensureCursorVisibleIfNotActivated: true,
+            normalizeIfNeeded: false,
         });
         return actions;
     }
@@ -204,6 +218,7 @@ export function planTableLifecycleActions(
             type: 'scheduleActivateCellAtCursor',
             clearIfOutside: true,
             ensureCursorVisibleIfNotActivated: false,
+            normalizeIfNeeded: false,
         });
         return actions;
     }
@@ -289,6 +304,10 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
         return { type: 'rebuildAllDecorations' };
     }
 
+    if (tr.annotation(normalizeBeforeEditAnnotation)) {
+        return { type: 'rebuildAllDecorations' };
+    }
+
     const prevActiveCell = getActiveCell(tr.startState);
     const resolvedPrevActiveCell = resolveActiveCell(tr.startState, prevActiveCell);
     if (tr.docChanged && prevActiveCell && isFullDocumentReplace(tr)) {
@@ -326,6 +345,10 @@ export function decideMainEditorGuardTransaction(
     }
 
     if (tr.annotation(syncAnnotation)) {
+        return { type: 'allowTransaction' };
+    }
+
+    if (tr.annotation(normalizeBeforeEditAnnotation)) {
         return { type: 'allowTransaction' };
     }
 
