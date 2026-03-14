@@ -20,8 +20,6 @@ import { consumePendingNavigationCallback } from '../tableWidget/navigationLock'
 import { ensureCellWrapper } from './mounting';
 import { resolveActiveCell } from '../tableWidget/activeCellResolver';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableWidget/activeCellState';
-import { getWidgetSelector } from '../tableWidget/domHelpers';
-import { hashTableText } from '../tableWidget/hashUtils';
 import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
@@ -113,21 +111,6 @@ class ActiveCellSessionController {
     private editorHostEl: HTMLElement | null = null;
     private cellElement: HTMLElement | null = null;
     private mainView: EditorView | null = null;
-
-    private syncHostedWidgetHash(tableFrom: number, tableTo: number): void {
-        if (!this.mainView || !this.cellElement) {
-            return;
-        }
-
-        const widget = this.cellElement.closest(getWidgetSelector()) as HTMLElement | null;
-        if (!widget) {
-            return;
-        }
-
-        const tableText = this.mainView.state.doc.sliceString(tableFrom, tableTo);
-        const definitions = this.mainView.state.field(documentDefinitionsField);
-        widget.dataset.tableTextHash = hashTableText(tableText + definitions.definitionBlock);
-    }
 
     open(params: {
         mainView: EditorView;
@@ -289,12 +272,6 @@ class ActiveCellSessionController {
             selection: rootSelection,
         };
 
-        // Keep the hosted widget hash in sync with in-cell edits. Sync transactions map
-        // existing decorations instead of rebuilding them, so the widget DOM can outlive
-        // multiple cell edits. If the hash stays frozen at the pre-edit table text, a later
-        // structural rebuild can incorrectly reuse stale DOM when the table content hashes
-        // back to that old value (for example: type -> Tab -> clear row).
-        this.syncHostedWidgetHash(resolved.tableFrom, resolved.tableTo);
         this.rebaseLocalEditorFromRoot();
     }
 
@@ -422,7 +399,6 @@ class ActiveCellSessionController {
 
         this.session.root = { text: rootText, selection: rootSelection };
         this.refreshFromCurrentMainState();
-        this.syncHostedWidgetHash(this.session.range.tableFrom, this.session.range.tableTo);
         this.rebaseLocalEditorFromRoot();
     }
 
