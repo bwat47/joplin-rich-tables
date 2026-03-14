@@ -21,6 +21,7 @@ export interface SanitizeChangesResult {
 const SELECTION_MARK = '\u0000';
 const UNESCAPED_PIPE_PATTERN = /(?<!\\)(\\\\)*\|/g;
 const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
+const NON_CANONICAL_BR_PATTERN = /<br\s*\/>/gi;
 
 export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
@@ -56,12 +57,16 @@ export function convertNewlinesToBr(text: string): string {
     return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
 }
 
+export function normalizeBrTags(text: string): string {
+    return text.replace(NON_CANONICAL_BR_PATTERN, '<br>');
+}
+
 export function unsanitizeRootText(rootText: string): string {
     return rootText.split('<br>').join('\n').split('\\|').join('|');
 }
 
 export function sanitizeLocalText(localText: string): string {
-    return localText.replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
+    return normalizeBrTags(localText).replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
 }
 
 function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {
@@ -143,7 +148,7 @@ export function sanitizeCellChanges(tr: Transaction, cellFrom: number, cellTo: n
         }
 
         const insertedText = inserted.toString();
-        let sanitized = insertedText;
+        let sanitized = normalizeBrTags(insertedText);
 
         if (sanitized.includes('\n') || sanitized.includes('\r')) {
             sanitized = convertNewlinesToBr(sanitized);

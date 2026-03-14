@@ -3,6 +3,7 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipes,
+    normalizeBrTags,
     sanitizeCellChanges,
     sanitizeLocalText,
     toLocalSelection,
@@ -29,9 +30,22 @@ describe('convertNewlinesToBr', () => {
     });
 });
 
+describe('normalizeBrTags', () => {
+    it('canonicalizes self-closing br tags to <br>', () => {
+        expect(normalizeBrTags('a<br/>b')).toBe('a<br>b');
+        expect(normalizeBrTags('a<br />b')).toBe('a<br>b');
+        expect(normalizeBrTags('a<BR/>b')).toBe('a<br>b');
+    });
+});
+
 describe('sanitizeLocalText / unsanitizeRootText', () => {
     it('converts local newlines and pipes to markdown-safe cell text', () => {
         expect(sanitizeLocalText('a\nb|c')).toBe('a<br>b\\|c');
+    });
+
+    it('normalizes self-closing br tags before syncing to root text', () => {
+        expect(sanitizeLocalText('a<br/>b|c')).toBe('a<br>b\\|c');
+        expect(sanitizeLocalText('a<br />b|c')).toBe('a<br>b\\|c');
     });
 
     it('preserves trailing spaces during live editing sync', () => {
@@ -74,6 +88,21 @@ describe('sanitizeCellChanges', () => {
         });
         const tr = state.update({
             changes: { from: 2, to: 2, insert: 'a\nb|c' },
+        });
+
+        const result = sanitizeCellChanges(tr, 2, 4);
+        expect(result.rejected).toBe(false);
+        expect(result.didModifyInserts).toBe(true);
+        expect(result.changes).toEqual([{ from: 2, to: 2, insert: 'a<br>b\\|c' }]);
+    });
+
+    it('canonicalizes self-closing br tags during direct main-editor paste', () => {
+        const state = EditorState.create({
+            doc: '| H1 |',
+            selection: EditorSelection.single(2),
+        });
+        const tr = state.update({
+            changes: { from: 2, to: 2, insert: 'a<br/>b|c' },
         });
 
         const result = sanitizeCellChanges(tr, 2, 4);
