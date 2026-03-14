@@ -1,24 +1,6 @@
-import { ChangeSet, EditorState, Extension, Transaction } from '@codemirror/state';
-import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { sanitizeCellChanges, syncAnnotation } from './transactionPolicy';
-
-/**
- * Check if any changes in the transaction touch the table range.
- * Returns true if at least one change overlaps [tableFrom, tableTo].
- */
-function changesOverlapTable(tr: Transaction, tableFrom: number, tableTo: number): boolean {
-    let overlaps = false;
-    tr.changes.iterChanges((fromA, toA) => {
-        if (overlaps) return;
-        // Change overlaps table if: change.from < table.to AND change.to > table.from
-        if (fromA < tableTo && toA > tableFrom) {
-            overlaps = true;
-        }
-    });
-    return overlaps;
-}
+import { EditorState, Extension } from '@codemirror/state';
+import { clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { decideMainEditorGuardTransaction } from '../tableWidget/tableRuntimeTransitions';
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -40,73 +22,28 @@ function changesOverlapTable(tr: Transaction, tableFrom: number, tableTo: number
  */
 export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolean): Extension {
     const guardFilter = EditorState.transactionFilter.of((tr) => {
-        if (!tr.docChanged) {
-            return tr;
-        }
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: isNestedEditorOpen() });
 
-        // Allow nested->main sync transactions through untouched.
-        if (tr.annotation(syncAnnotation)) {
-            return tr;
-        }
-
-        const activeCell = getActiveCell(tr.startState);
-        if (isFullDocumentReplace(tr)) {
-            if (!activeCell) {
+        switch (decision.type) {
+            case 'allowTransaction':
                 return tr;
-            }
-            return {
-                changes: tr.changes,
-                selection: tr.selection,
-                effects: [...tr.effects, clearActiveCellEffect.of(undefined)],
-                scrollIntoView: tr.scrollIntoView,
-            };
+            case 'rejectTransaction':
+                return [];
+            case 'clearActiveCell':
+                return {
+                    changes: tr.changes,
+                    selection: decision.selection,
+                    effects: [...tr.effects, clearActiveCellEffect.of(undefined)],
+                    scrollIntoView: tr.scrollIntoView,
+                };
+            case 'sanitizeTransactionChanges':
+                return {
+                    changes: decision.changes,
+                    selection: decision.selection,
+                    effects: tr.effects,
+                    scrollIntoView: tr.scrollIntoView,
+                };
         }
-
-        // Only guard when a nested editor is actually open.
-        if (!isNestedEditorOpen()) {
-            return tr;
-        }
-
-        if (!activeCell) {
-            return tr;
-        }
-
-        // Toolbar operations replace the whole table (outside a single cell) intentionally.
-        // Those dispatch `rebuildTableWidgetsEffect`.
-        const forceRebuild = tr.effects.some((e) => e.is(rebuildTableWidgetsEffect));
-        if (forceRebuild) {
-            return tr;
-        }
-
-        // Allow changes that don't touch the active table at all.
-        // This permits other plugins to update content elsewhere in the document
-        // (e.g., updating a "Last Modified" timestamp or Table of Contents).
-        if (!changesOverlapTable(tr, activeCell.tableFrom, activeCell.tableTo)) {
-            return tr;
-        }
-
-        const { rejected, didModifyInserts, changes } = sanitizeCellChanges(tr, activeCell.cellFrom, activeCell.cellTo);
-
-        if (rejected) {
-            return [];
-        }
-
-        if (!didModifyInserts) {
-            return tr;
-        }
-
-        // Return a new transaction with sanitized changes.
-        // We must map the selection through the new changes explicitly to ensure
-        // the cursor tracks the end of the insertion (assoc=1).
-        const changeSet = ChangeSet.of(changes, tr.startState.doc.length);
-        const newSelection = tr.startState.selection.map(changeSet, 1);
-
-        return {
-            changes,
-            selection: newSelection,
-            effects: tr.effects,
-            scrollIntoView: tr.scrollIntoView,
-        };
     });
 
     return guardFilter;

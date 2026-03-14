@@ -1,58 +1,33 @@
-import {
-    Annotation,
-    ChangeSet,
-    EditorSelection,
-    EditorState,
-    Extension,
-    StateEffect,
-    StateField,
-    Transaction,
-} from '@codemirror/state';
+import { Annotation, Transaction } from '@codemirror/state';
 
-/** Annotation used to mark transactions synchronization transactions to prevent loops. */
+/** Annotation used to mark synchronization transactions to prevent loops. */
 export const syncAnnotation = Annotation.define<boolean>();
 
-/** Tracks the current start/end positions of the active cell in the document. */
-export interface SubviewCellRange {
-    from: number;
-    to: number;
+export interface LocalSelection {
+    anchor: number;
+    head: number;
 }
 
-export const setSubviewCellRangeEffect = StateEffect.define<SubviewCellRange>();
+/** A simple change spec for building sanitized transactions. */
+export type SimpleChange = { from: number; to: number; insert: string };
 
-/** Creates a StateField that tracks the cell range, mapping it through document changes. */
-export function createSubviewCellRangeField(initial: SubviewCellRange): StateField<SubviewCellRange> {
-    return StateField.define<SubviewCellRange>({
-        create() {
-            return initial;
-        },
-        update(value, tr) {
-            for (const effect of tr.effects) {
-                if (effect.is(setSubviewCellRangeEffect)) {
-                    return effect.value;
-                }
-            }
-            if (tr.docChanged) {
-                // Use assoc=-1 for 'from' so insertions at start boundary stay visible.
-                const mappedFrom = tr.changes.mapPos(value.from, -1);
-                // Use assoc=1 for 'to' so insertions at end boundary stay visible.
-                const mappedTo = tr.changes.mapPos(value.to, 1);
-                return { from: mappedFrom, to: mappedTo };
-            }
-            return value;
-        },
-    });
+/** Result of sanitizing cell changes. */
+export interface SanitizeChangesResult {
+    rejected: boolean;
+    didModifyInserts: boolean;
+    changes: SimpleChange[];
 }
 
-/** Escapes any pipe characters in the text that aren't already escaped. */
+const SELECTION_MARK = '\u0000';
+const UNESCAPED_PIPE_PATTERN = /(?<!\\)(\\\\)*\|/g;
+const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
+const NON_CANONICAL_BR_PATTERN = /<br\s*\/>/gi;
+
 export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
 }
 
 export function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
-    // Escape any '|' that is not already escaped as '\|'.
-    // A pipe is considered escaped only when preceded by an odd-length backslash run.
-    // Example: `\\|` (two backslashes + pipe) is NOT escaped in Markdown (the pipe is active).
     let result = '';
     let backslashRun = precedingBackslashes;
 
@@ -78,7 +53,69 @@ export function escapeUnescapedPipesWithContext(text: string, precedingBackslash
     return result;
 }
 
-export function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: number): number {
+export function convertNewlinesToBr(text: string): string {
+    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
+}
+
+export function normalizeBrTags(text: string): string {
+    return text.replace(NON_CANONICAL_BR_PATTERN, '<br>');
+}
+
+export function unsanitizeRootText(rootText: string): string {
+    return rootText.split('<br>').join('\n').split('\\|').join('|');
+}
+
+export function sanitizeLocalText(localText: string): string {
+    return normalizeBrTags(localText).replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
+}
+
+function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {
+    return {
+        from: Math.min(selection.anchor, selection.head),
+        to: Math.max(selection.anchor, selection.head),
+        forward: selection.anchor <= selection.head,
+    };
+}
+
+function clampSelection(selection: LocalSelection, textLength: number): LocalSelection {
+    return {
+        anchor: clamp(selection.anchor, 0, textLength),
+        head: clamp(selection.head, 0, textLength),
+    };
+}
+
+function mapSelectionThroughTransform(
+    selection: LocalSelection,
+    text: string,
+    transform: (value: string) => string
+): LocalSelection {
+    const { from, to, forward } = toSpan(selection);
+    const marked = `${text.slice(0, from)}${SELECTION_MARK}${text.slice(from, to)}${SELECTION_MARK}${text.slice(to)}`;
+    const transformed = transform(marked);
+    const mappedFrom = transformed.indexOf(SELECTION_MARK);
+    const mappedTo = transformed.lastIndexOf(SELECTION_MARK) - 1;
+    if (mappedFrom < 0 || mappedTo < -1) {
+        return { anchor: 0, head: 0 };
+    }
+
+    return forward ? { anchor: mappedFrom, head: mappedTo } : { anchor: mappedTo, head: mappedFrom };
+}
+
+export function toRootSelection(localSelection: LocalSelection, localText: string): LocalSelection {
+    return clampSelection(
+        mapSelectionThroughTransform(localSelection, localText, sanitizeLocalText),
+        sanitizeLocalText(localText).length
+    );
+}
+
+export function toLocalSelection(rootSelection: LocalSelection, rootText: string): LocalSelection {
+    return clampSelection(
+        mapSelectionThroughTransform(rootSelection, rootText, unsanitizeRootText),
+        unsanitizeRootText(rootText).length
+    );
+}
+
+export function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], pos: number): number {
     let count = 0;
     for (let i = pos - 1; i >= 0; i--) {
         if (doc.sliceString(i, i + 1) !== '\\') {
@@ -89,27 +126,12 @@ export function countTrailingBackslashesInDoc(doc: EditorState['doc'], pos: numb
     return count;
 }
 
-/** Converts CR/LF newlines to `<br>` to keep table cells single-line in Markdown. */
-export function convertNewlinesToBr(text: string): string {
-    // Normalize CRLF/CR to LF first, then replace each LF with <br>.
-    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
-}
-
-/** A simple change spec for building sanitized transactions. */
-export type SimpleChange = { from: number; to: number; insert: string };
-
-/** Result of sanitizing cell changes. */
-export interface SanitizeChangesResult {
-    /** True if any change touched outside the cell bounds. */
-    rejected: boolean;
-    /** True if any inserted text was modified (newlines converted, pipes escaped). */
-    didModifyInserts: boolean;
-    /** The sanitized changes to apply. */
-    changes: SimpleChange[];
+export function clamp(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, n));
 }
 
 /**
- * Sanitizes transaction changes for table cell editing.
+ * Sanitizes transaction changes for direct main-editor edits inside the active cell.
  * - Rejects changes that touch outside the cell bounds
  * - Converts newlines to `<br>` tags
  * - Escapes unescaped pipe characters
@@ -126,7 +148,7 @@ export function sanitizeCellChanges(tr: Transaction, cellFrom: number, cellTo: n
         }
 
         const insertedText = inserted.toString();
-        let sanitized = insertedText;
+        let sanitized = normalizeBrTags(insertedText);
 
         if (sanitized.includes('\n') || sanitized.includes('\r')) {
             sanitized = convertNewlinesToBr(sanitized);
@@ -147,121 +169,4 @@ export function sanitizeCellChanges(tr: Transaction, cellFrom: number, cellTo: n
     });
 
     return { rejected, didModifyInserts, changes };
-}
-
-/** Clamps a value between min and max. */
-export function clamp(n: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, n));
-}
-
-/**
- * Creates a transaction filter that enforces cell boundaries and table syntax.
- * Rejects newlines and escapes unescaped pipes.
- */
-export function createCellTransactionFilter(rangeField: StateField<SubviewCellRange>): Extension {
-    return EditorState.transactionFilter.of((tr) => {
-        if (!tr.docChanged && !tr.selection) {
-            return tr;
-        }
-
-        // Allow main->subview sync transactions through untouched.
-        if (tr.annotation(syncAnnotation)) {
-            return tr;
-        }
-
-        const { from: cellFrom, to: cellTo } = tr.startState.field(rangeField);
-
-        const clampSelectionToBounds = (selection: EditorSelection, from: number, to: number): EditorSelection => {
-            const boundedRanges = selection.ranges.map((range) => {
-                const anchor = clamp(range.anchor, from, to);
-                const head = clamp(range.head, from, to);
-                return EditorSelection.range(anchor, head);
-            });
-            return EditorSelection.create(boundedRanges, selection.mainIndex);
-        };
-
-        const mapSelectionWithAssoc = (
-            selection: EditorSelection,
-            changes: ChangeSet,
-            assoc: number
-        ): EditorSelection => {
-            const mappedRanges = selection.ranges.map((range) => {
-                const anchor = changes.mapPos(range.anchor, assoc);
-                const head = changes.mapPos(range.head, assoc);
-                return EditorSelection.range(anchor, head);
-            });
-            return EditorSelection.create(mappedRanges, selection.mainIndex);
-        };
-
-        if (!tr.docChanged) {
-            // Selection-only transaction.
-            if (!tr.selection) {
-                return tr;
-            }
-            const selectionSpec = clampSelectionToBounds(tr.selection, cellFrom, cellTo);
-            return { selection: selectionSpec };
-        }
-
-        const { rejected, didModifyInserts, changes: nextChanges } = sanitizeCellChanges(tr, cellFrom, cellTo);
-
-        if (rejected) {
-            return [];
-        }
-
-        // Selection handling:
-        // - If we changed inserted text length (e.g. `|` -> `\|`, `\n` -> `<br>`),
-        //   we must also update the selection so the caret ends up after the inserted content.
-        // - For unmodified changes, CodeMirror's normal selection mapping is fine; we only clamp.
-        let selectionSpec: EditorSelection | undefined;
-        if (didModifyInserts) {
-            const changeSet = ChangeSet.of(nextChanges, tr.startState.doc.length);
-            const newCellFrom = changeSet.mapPos(cellFrom, -1);
-            const newCellTo = changeSet.mapPos(cellTo, 1);
-
-            // If the user is replacing a single selection range with a single change,
-            // put the caret after the inserted text.
-            const main = tr.startState.selection.main;
-            if (
-                !main.empty &&
-                nextChanges.length === 1 &&
-                nextChanges[0].from === main.from &&
-                nextChanges[0].to === main.to &&
-                typeof nextChanges[0].insert === 'string'
-            ) {
-                const insertedLength = nextChanges[0].insert.length;
-                selectionSpec = EditorSelection.single(nextChanges[0].from + insertedLength);
-                selectionSpec = clampSelectionToBounds(selectionSpec, newCellFrom, newCellTo);
-            } else {
-                // Map the *pre-change* selection through the rewritten changes.
-                // Use assoc=1 so positions at insert boundaries end up *after* inserted content.
-                const mappedSelection = mapSelectionWithAssoc(tr.startState.selection, changeSet, 1);
-                selectionSpec = clampSelectionToBounds(mappedSelection, newCellFrom, newCellTo);
-            }
-        } else if (tr.selection) {
-            const newCellFrom = tr.changes.mapPos(cellFrom, -1);
-            const newCellTo = tr.changes.mapPos(cellTo, 1);
-            selectionSpec = clampSelectionToBounds(tr.selection, newCellFrom, newCellTo);
-        }
-
-        // If we didn't modify inserts and selection is unchanged, keep transaction.
-        if (!didModifyInserts && !selectionSpec) {
-            return tr;
-        }
-
-        return {
-            changes: didModifyInserts ? nextChanges : tr.changes,
-            ...(selectionSpec ? { selection: selectionSpec } : null),
-        };
-    });
-}
-
-/** Creates an extension that disables history for local transactions (history is managed by main editor). */
-export function createHistoryExtender(): Extension {
-    return EditorState.transactionExtender.of((tr) => {
-        // Ensure local transactions don't build history. Main editor owns history.
-        if (tr.annotation(syncAnnotation)) {
-            return null;
-        }
-        return { annotations: Transaction.addToHistory.of(false) };
-    });
 }

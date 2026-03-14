@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell, ActiveCell, clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
 import { toggleSourceMode } from '../tableWidget/sourceMode';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { activateTableCell } from '../tableWidget/cellActivation';
@@ -25,8 +26,7 @@ interface EditorControl {
 function createTableCommand(
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell,
-    forceWidgetRebuild: boolean = true,
-    serializeIfIdentity: boolean = false
+    forceWidgetRebuild: boolean = true
 ) {
     return (view: EditorView, cell: ActiveCell) => {
         runTableOperation({
@@ -35,7 +35,6 @@ function createTableCommand(
             operation,
             computeTargetCell,
             forceWidgetRebuild,
-            serializeIfIdentity,
         });
     };
 }
@@ -140,13 +139,6 @@ export const execMoveColumnRight = createTableCommand(
     }
 );
 
-export const execFormatTable = createTableCommand(
-    (t) => t,
-    (c) => c,
-    true,
-    true
-);
-
 export const execClearTable = createTableCommand(
     (t) => t.clearAllCells(),
     (c) => c
@@ -163,9 +155,17 @@ export const execClearColumn = createTableCommand(
 );
 
 export function execDeleteTable(view: EditorView, cell: ActiveCell): void {
+    const resolvedCell = resolveActiveCell(view.state, cell);
+    if (!resolvedCell) {
+        return;
+    }
+
     view.dispatch({
-        changes: { from: cell.tableFrom, to: cell.tableTo, insert: '' },
-        effects: [clearActiveCellEffect.of(undefined), rebuildTableWidgetsEffect.of({ tableFrom: cell.tableFrom })],
+        changes: { from: resolvedCell.tableFrom, to: resolvedCell.tableTo, insert: '' },
+        effects: [
+            clearActiveCellEffect.of(undefined),
+            rebuildTableWidgetsEffect.of({ tableFrom: resolvedCell.tableFrom }),
+        ],
     });
 }
 
@@ -223,7 +223,6 @@ export function registerTableCommands(editorControl: EditorControl): void {
     registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
     registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
 
-    registerCellCommand('richTables.formatTable', execFormatTable);
     registerCellCommand('richTables.clearRow', execClearRow);
     registerCellCommand('richTables.clearColumn', execClearColumn);
     registerCellCommand('richTables.clearTable', execClearTable);

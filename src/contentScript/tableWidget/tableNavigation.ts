@@ -1,8 +1,8 @@
 import { EditorView } from '@codemirror/view';
 import { SECTION_BODY, SECTION_HEADER, findCellElement } from './domHelpers';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
-import { resolveTableAtPos, resolveCellDocRange } from './tablePositioning';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { resolveActiveCell } from './activeCellResolver';
+import { resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
 import { makeTableId, type CellCoords } from '../tableModel/types';
@@ -31,19 +31,15 @@ export function navigateCell(
     }
 
     // Resolve the table structure to know valid rows/cols
-    const table = resolveTableAtPos(state, activeCell.cellFrom);
-    if (!table) {
+    const resolvedActiveCell = resolveActiveCell(state, activeCell);
+    if (!resolvedActiveCell) {
         return false;
     }
+    const ctx = resolvedActiveCell.ctx;
 
-    const cellRanges = computeMarkdownTableCellRanges(table.text);
-    if (!cellRanges) {
-        return false;
-    }
-
-    const numBodyRows = cellRanges.rows.length;
+    const numBodyRows = ctx.cellRanges.rows.length;
     // Assuming uniform column count for now, based on header
-    const numCols = cellRanges.headers.length;
+    const numCols = ctx.cellRanges.headers.length;
 
     // Convert to unified grid coordinates:
     // Header row = 0
@@ -127,8 +123,8 @@ export function navigateCell(
 
     // Activate target cell
     const resolvedRange = resolveCellDocRange({
-        tableFrom: table.from,
-        ranges: cellRanges,
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
         coords: target,
     });
 
@@ -141,14 +137,12 @@ export function navigateCell(
         return true; // Already locked
     }
 
-    const { cellFrom, cellTo } = resolvedRange;
+    const { cellFrom } = resolvedRange;
 
     view.dispatch({
         effects: setActiveCellEffect.of({
-            tableFrom: table.from,
-            tableTo: table.to,
-            cellFrom,
-            cellTo,
+            anchorPos: cellFrom,
+            tableFrom: ctx.from,
             section: target.section, // Use the proper Section type
             row: target.row,
             col: target.col,
@@ -157,14 +151,20 @@ export function navigateCell(
 
     // After dispatch, query for the fresh cell element using data attributes.
     // The DOM is ready synchronously after dispatch since CodeMirror applies decorations synchronously.
-    const cellElement = findCellElement(view, makeTableId(table.from), target);
+    const cellElement = findCellElement(view, makeTableId(ctx.from), target);
 
     if (cellElement) {
         openNestedCellEditor({
             mainView: view,
             cellElement,
-            cellFrom,
-            cellTo,
+            activeCell: {
+                anchorPos: cellFrom,
+                tableFrom: ctx.from,
+                section: target.section,
+                row: target.row,
+                col: target.col,
+            },
+            normalizeIfNeeded: true,
             initialCursorPos: options.cursorPos,
             onFocused: releaseNavigationLock,
         });

@@ -4,19 +4,19 @@ import type { CellCoords, TableSection } from '../tableModel/types';
 export type ActiveCellSection = TableSection;
 
 export interface ActiveCell extends CellCoords {
+    anchorPos: number;
     tableFrom: number;
-    tableTo: number;
-    cellFrom: number;
-    cellTo: number;
     // section, row, col inherited from CellCoords
+}
+
+export function isSameActiveCell(a: ActiveCell | null, b: ActiveCell | null): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
 }
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();
 export const clearActiveCellEffect = StateEffect.define<void>();
-
-function isValidRange(from: number, to: number): boolean {
-    return Number.isFinite(from) && Number.isFinite(to) && from >= 0 && to >= from;
-}
 
 export const activeCellField = StateField.define<ActiveCell | null>({
     create() {
@@ -37,30 +37,21 @@ export const activeCellField = StateField.define<ActiveCell | null>({
         }
 
         if (tr.docChanged) {
-            const mappedTableFrom = tr.changes.mapPos(value.tableFrom, -1);
-            const mappedTableTo = tr.changes.mapPos(value.tableTo, 1);
-
-            // Use assoc=-1 for 'from' so insertions at start boundary stay visible.
-            const mappedCellFrom = tr.changes.mapPos(value.cellFrom, -1);
-            // Use assoc=1 for 'to' so insertions at end boundary stay visible.
-            const mappedCellTo = tr.changes.mapPos(value.cellTo, 1);
-
+            const mappedAnchorPos = tr.changes.mapPos(value.anchorPos, 1);
+            const mappedTableFrom = tr.changes.mapPos(value.tableFrom, 1);
             if (
-                !isValidRange(mappedTableFrom, mappedTableTo) ||
-                !isValidRange(mappedCellFrom, mappedCellTo) ||
-                mappedCellFrom < mappedTableFrom ||
-                mappedCellTo > mappedTableTo ||
-                mappedCellFrom > mappedCellTo
+                !Number.isFinite(mappedAnchorPos) ||
+                mappedAnchorPos < 0 ||
+                !Number.isFinite(mappedTableFrom) ||
+                mappedTableFrom < 0
             ) {
                 return null;
             }
 
             return {
                 ...value,
+                anchorPos: mappedAnchorPos,
                 tableFrom: mappedTableFrom,
-                tableTo: mappedTableTo,
-                cellFrom: mappedCellFrom,
-                cellTo: mappedCellTo,
             };
         }
 

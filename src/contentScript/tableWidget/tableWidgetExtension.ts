@@ -1,142 +1,35 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin } from '@codemirror/view';
-import { EditorState, Range, StateField, ChangeSet } from '@codemirror/state';
+import { EditorState, Range, StateField } from '@codemirror/state';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { buildTableContext } from '../tableModel/tableContext';
 import { initRenderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
     isNestedCellEditorOpen,
     nestedCellEditorPlugin,
     refocusNestedEditor,
-    syncAnnotation,
 } from '../nestedEditor/nestedCellEditor';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from './tablePositioning';
-import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
 import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from './searchPanelWatcher';
-import { sourceModeField, toggleSourceModeEffect, isEffectiveRawMode } from './sourceMode';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from './searchForceSourceMode';
+import { sourceModeField } from './sourceMode';
+import { searchForceSourceModeField } from './searchForceSourceMode';
 import { navigationLockKeymap } from './navigationLockKeymap';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { createNoteIdWatcher } from './noteIdWatcher';
 import { moveCursorOutOfTable } from './cursorUtils';
-
-/**
- * Cache for parsed table data to perform expensive parsing only when content changes.
- * Keys are FNV-1a hashes of the table text.
- * Capped at 50 entries to prevent memory leaks.
- */
-const tableParseCache = new Map<string, MarkdownTable>();
-const MAX_TABLE_PARSE_CACHE_SIZE = 50;
-
-/**
- * Retrieves parsed table data from cache or parses it if missing.
- * Manages LRU cache eviction.
- */
-function getCachedOrParseTableData(text: string): { data: MarkdownTable; parseHash: string } | null {
-    const parseHash = hashTableText(text);
-    let tableData = tableParseCache.get(parseHash);
-
-    if (tableData) {
-        // Refresh recency: move to end of Map (most recently used)
-        tableParseCache.delete(parseHash);
-        tableParseCache.set(parseHash, tableData);
-    } else {
-        tableData = MarkdownTable.parse(text);
-        if (!tableData) {
-            return null;
-        }
-
-        // Simple LRU: Delete oldest if at capacity
-        if (tableParseCache.size >= MAX_TABLE_PARSE_CACHE_SIZE) {
-            const firstKey = tableParseCache.keys().next().value;
-            if (firstKey) tableParseCache.delete(firstKey);
-        }
-        tableParseCache.set(parseHash, tableData);
-    }
-
-    return { data: tableData, parseHash };
-}
-/**
- * Rebuild only the decoration for a single table, mapping all other decorations.
- * This is used for structural changes (row/col add/delete) to avoid rebuilding all tables.
- */
-function rebuildSingleTable(
-    state: EditorState,
-    decorations: DecorationSet,
-    oldTableFrom: number,
-    changes: ChangeSet
-): DecorationSet {
-    // Map the old tableFrom position through the changes to find where it is now
-    const newTableFrom = changes.mapPos(oldTableFrom);
-
-    // Find the table at the new position
-    const tables = findTableRanges(state);
-    const targetTable = tables.find((t) => t.from === newTableFrom);
-
-    if (!targetTable) {
-        // Table no longer exists (e.g. deleted) — rebuild all decorations from scratch.
-        // Mapping stale decorations can leave collapsed zero-width replace widgets in the DOM.
-        return buildTableDecorations(state);
-    }
-
-    // Build new decoration for the target table
-    const definitions = state.field(documentDefinitionsField);
-    const parsed = getCachedOrParseTableData(targetTable.text);
-
-    if (!parsed) {
-        return decorations.map(changes);
-    }
-
-    const { data: tableData } = parsed;
-
-    const contentHash = hashTableText(targetTable.text + definitions.definitionBlock);
-    const widget = new TableWidget(
-        tableData,
-        targetTable.text,
-        targetTable.from,
-        targetTable.to,
-        definitions.definitionBlock,
-        contentHash
-    );
-    const newDecoration = Decoration.replace({ widget, block: true });
-
-    // Build new decoration set: map all decorations through changes, then replace the target
-    const mapped = decorations.map(changes);
-    const result: Range<Decoration>[] = [];
-
-    // Keep all decorations except those that overlap the new table range
-    // Structural changes (like adding a row above) shift the table's position,
-    // so checking `from !== targetTable.from` is insufficient.
-    mapped.between(0, state.doc.length, (from, to, deco) => {
-        // If decoration overlaps with the new target table, drop it (it's the old version)
-        if (to <= targetTable.from || from >= targetTable.to) {
-            result.push(deco.range(from, to));
-        }
-    });
-
-    // Add the new decoration for the rebuilt table
-    result.push(newDecoration.range(targetTable.from, targetTable.to));
-
-    // Valid DecorationSets MUST be sorted. Since we are manually constructing the array
-    // (and potentially appending out of order), we must sort it explicitly to be safe.
-    result.sort((a, b) => a.from - b.from);
-
-    return Decoration.set(result, true); // true = we have manually sorted it
-}
+import { decideTableDecorationUpdate } from './tableRuntimeTransitions';
 
 /**
  * Build decorations for all tables in the document.
@@ -148,17 +41,17 @@ function buildTableDecorations(state: EditorState): DecorationSet {
     const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
-        const result = getCachedOrParseTableData(table.text);
-        if (!result) {
+        const ctx = buildTableContext(table);
+        if (!ctx) {
             continue;
         }
-        const { data: tableData } = result;
 
         // Content hash includes definition block so widgets rebuild when definitions change.
         const contentHash = hashTableText(table.text + definitions.definitionBlock);
 
         const widget = new TableWidget(
-            tableData,
+            ctx.table,
+            ctx.cellRanges,
             table.text,
             table.from,
             table.to,
@@ -187,112 +80,18 @@ const tableDecorationField = StateField.define<DecorationSet>({
         return buildTableDecorations(state);
     },
     update(decorations, transaction) {
-        // Raw markdown mode: either user source mode or search-forced override.
-        const rawModeToggled = transaction.effects.some(
-            (e) => e.is(toggleSourceModeEffect) || e.is(setSearchForceSourceModeEffect)
-        );
-        const effectiveRawMode = isEffectiveRawMode(transaction.state);
+        const decision = decideTableDecorationUpdate(transaction);
 
-        if (rawModeToggled) {
-            if (effectiveRawMode) {
+        switch (decision.type) {
+            case 'noneDecorations':
                 return Decoration.none;
-            }
-            return buildTableDecorations(transaction.state);
-        }
-
-        if (effectiveRawMode) {
-            return Decoration.none;
-        }
-
-        // Skip decoration rebuilds for internal sync transactions (nested <-> main editor mirroring).
-        const isSync = Boolean(transaction.annotation(syncAnnotation));
-        if (isSync) {
-            if (transaction.docChanged) {
+            case 'keepDecorations':
+                return decorations;
+            case 'mapDecorations':
                 return decorations.map(transaction.changes);
-            }
-            return decorations;
+            case 'rebuildAllDecorations':
+                return buildTableDecorations(transaction.state);
         }
-
-        // External full-document replacements should rebuild all tables.
-        const rebuildAll = transaction.effects.some((e) => e.is(rebuildAllTableWidgetsEffect));
-        if (rebuildAll) {
-            return buildTableDecorations(transaction.state);
-        }
-
-        // Avoid rebuilding immediately on full-document replace while a cell was active.
-        // The syntax tree may still be mapped from the old doc and can mis-detect a giant table.
-        if (transaction.docChanged && getActiveCell(transaction.startState) && isFullDocumentReplace(transaction)) {
-            return Decoration.none;
-        }
-
-        // When active cell is cleared (nested editor closed), rebuild the affected table.
-        // During in-cell editing, we map decorations to preserve DOM, but this leaves
-        // stale TableWidget instances. Rebuilding on close ensures fresh widget data
-        // so that if the table is scrolled out and back in, toDOM() renders current content.
-        const clearEffect = transaction.effects.find((e) => e.is(clearActiveCellEffect));
-        if (clearEffect) {
-            const prevActiveCell = getActiveCell(transaction.startState);
-            if (prevActiveCell) {
-                // Rebuild just the table that was being edited
-                return rebuildSingleTable(
-                    transaction.state,
-                    decorations,
-                    prevActiveCell.tableFrom,
-                    transaction.changes
-                );
-            }
-            // Fallback: rebuild all if we can't determine which table
-            return buildTableDecorations(transaction.state);
-        }
-
-        // Map all other decorations to preserve their state.
-        const rebuildEffect = transaction.effects.find((e) => e.is(rebuildTableWidgetsEffect));
-        if (rebuildEffect) {
-            const { tableFrom } = rebuildEffect.value;
-            return rebuildSingleTable(transaction.state, decorations, tableFrom, transaction.changes);
-        }
-
-        // Document changes: rebuild only if they could affect tables.
-        if (transaction.docChanged) {
-            const activeCell = getActiveCell(transaction.state);
-
-            if (activeCell) {
-                // For undo/redo with active cell, check if rebuild is needed:
-                // - Structural changes (row/col add/delete)
-                // - Changes outside active cell (other cells' content changed)
-                const isUndoRedo = transaction.isUserEvent('undo') || transaction.isUserEvent('redo');
-                if (isUndoRedo) {
-                    if (isStructuralTableChange(transaction)) {
-                        return buildTableDecorations(transaction.state);
-                    }
-                    const prevActiveCell = getActiveCell(transaction.startState);
-                    if (prevActiveCell) {
-                        let hasChangesOutsideCell = false;
-                        transaction.changes.iterChanges((fromA, toA) => {
-                            if (fromA < prevActiveCell.cellFrom || toA > prevActiveCell.cellTo) {
-                                hasChangesOutsideCell = true;
-                            }
-                        });
-                        if (hasChangesOutsideCell) {
-                            return buildTableDecorations(transaction.state);
-                        }
-                    }
-                }
-                // In-cell edits: map decorations to preserve nested editor DOM
-                return decorations.map(transaction.changes);
-            }
-
-            // Must rebuild (not just map) for two reasons:
-            // 1. Block widgets need rebuilding for CM6 to reposition them in the DOM
-            //    (e.g. inserting newlines before a table - mapping preserves stale visual position)
-            // 2. Note switches replace the entire document - mapping would leave stale widgets
-            // TableWidget.updateDOM handles efficient DOM reuse when content is unchanged.
-            return buildTableDecorations(transaction.state);
-        }
-
-        // Selection-only changes: no rebuild needed.
-        // Tables are always widgets; cell activation is handled by lifecycle plugin.
-        return decorations;
     },
     provide: (field) => EditorView.decorations.from(field),
 });

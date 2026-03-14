@@ -38,5 +38,5 @@ Two active selections exist: hidden main editor selection and visible nested edi
 
 ## Mouse Interaction
 
-- **Links**: `[text](url)` executes `joplin.commands.execute('openItem', url)`.
+- **Links**: `[text](url)` routes through the content-script link opener, which delegates the actual open action to the main plugin side.
 - **Anchors/Footnotes**: `#heading` scrolls main editor via `scrollToAnchor`.

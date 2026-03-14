@@ -3,10 +3,11 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, setActiveCellEffect } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from './activeCellState';
 import { findTableRanges } from './tablePositioning';
-import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { buildTableContext } from '../tableModel/tableContext';
+import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { findCellElement } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
@@ -15,6 +16,30 @@ import { isSourceModeEnabled } from './sourceMode';
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
     clearIfOutside?: boolean;
+    /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
+    normalizeIfNeeded?: boolean;
+}
+
+export function resolveActivationTargetCell(params: {
+    tableFrom: number;
+    relativePos: number;
+    cellRanges: Parameters<typeof findCellForPos>[0];
+    activeCell: ReturnType<typeof getActiveCell>;
+}): { section: 'header' | 'body'; row: number; col: number } {
+    const targetCell = findCellForPos(params.cellRanges, params.relativePos);
+    if (targetCell) {
+        return targetCell;
+    }
+
+    if (params.activeCell && params.activeCell.tableFrom === params.tableFrom) {
+        return {
+            section: params.activeCell.section,
+            row: params.activeCell.row,
+            col: params.activeCell.col,
+        };
+    }
+
+    return { section: 'body', row: 0, col: 0 };
 }
 
 /**
@@ -47,20 +72,26 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
     // Find which cell contains the position
     const relativePos = pos - table.from;
-    const ranges = computeMarkdownTableCellRanges(table.text);
-    if (!ranges) {
+    const ctx = buildTableContext(table);
+    if (!ctx) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
         return false;
     }
 
-    // Find the cell containing the position, fallback to first body cell
-    const targetCell = findCellForPos(ranges, relativePos) ?? { section: 'body' as const, row: 0, col: 0 };
+    // Cursor restoration during undo/redo can land on table punctuation or padding.
+    // Preserve the current logical cell in that case instead of arbitrarily snapping to (0,0).
+    const targetCell = resolveActivationTargetCell({
+        tableFrom: ctx.from,
+        relativePos,
+        cellRanges: ctx.cellRanges,
+        activeCell: getActiveCell(view.state),
+    });
 
-    const newActiveCell = computeActiveCellForTableText({
-        tableFrom: table.from,
-        tableText: table.text,
+    const newActiveCell = computeActiveCellFromRanges({
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
         target: targetCell,
     });
 
@@ -84,8 +115,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     openNestedCellEditor({
         mainView: view,
         cellElement,
-        cellFrom: newActiveCell.cellFrom,
-        cellTo: newActiveCell.cellTo,
+        activeCell: newActiveCell,
+        normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
     });
 
     return true;
@@ -112,9 +143,12 @@ export function activateTableCell(
         const table = tables.find((t) => t.from === tableFrom);
         if (!table) return;
 
-        const newActiveCell = computeActiveCellForTableText({
-            tableFrom: table.from,
-            tableText: table.text,
+        const ctx = buildTableContext(table);
+        if (!ctx) return;
+
+        const newActiveCell = computeActiveCellFromRanges({
+            tableFrom: ctx.from,
+            ranges: ctx.cellRanges,
             target: coords,
         });
 
@@ -131,8 +165,8 @@ export function activateTableCell(
         openNestedCellEditor({
             mainView: view,
             cellElement,
-            cellFrom: newActiveCell.cellFrom,
-            cellTo: newActiveCell.cellTo,
+            activeCell: newActiveCell,
+            normalizeIfNeeded: true,
         });
     });
 }

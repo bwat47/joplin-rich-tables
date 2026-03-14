@@ -6,37 +6,45 @@ In-cell editing uses a transient CodeMirror instance inside the active `<td>`.
 
 Overlay a real editor rather than using contenteditable (avoids browser inconsistencies).
 
-- **Scope**: Contains full document but clips view to active cell range only.
-- **Effect**: User edits a viewport of a second editor synced to the first.
+- **Scope**: Contains only the active cell text in isolated local coordinates.
+- **Effect**: User edits a true cell-local editor while the root document remains authoritative.
 
 ## Lifecycle
 
 Managed by `contentScript/tableWidget/nestedEditorLifecycle.ts`.
 
-**Activation**: Cell click → `TableWidget` calculates range → `setActiveCellEffect` dispatched → lifecycle plugin mounts `NestedEditor`.
+**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges → `setActiveCellEffect` dispatched → lifecycle plugin mounts the nested editor.
+
+`setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. The lifecycle plugin resolves raw
+table/cell offsets from current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
 
 **Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
 **Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → view plugin destroys instance.
 
+Lifecycle, decoration, and main-editor guard reactions share one transition-policy module
+(`contentScript/tableWidget/tableRuntimeTransitions.ts`). That module decides when to reopen,
+remap, rebuild, sanitize, or clear state; the lifecycle plugin remains responsible only for
+executing nested-editor side effects.
+
 ## Synchronization
 
 ### Edit Sync Cycle
 
-1. User types → `forwardChangesToMain` captures transaction.
-2. Creates corresponding main editor transaction tagged with `syncAnnotation`.
-3. Main editor applies transaction.
-4. `nestedEditorLifecyclePlugin` checks for `syncAnnotation`:
-    - **Present**: Ignores (came from nested editor).
-    - **Absent**: External change → `applyMainTransactionsToNestedEditor` pushes down to nested editor.
+1. User types in the isolated editor.
+2. `ActiveCellSession` sanitizes local display text (`\n` -> `<br>`, `|` -> `\|`) and maps the local selection into root cell coordinates.
+3. The main editor applies the cell-only replacement transaction tagged with `syncAnnotation`.
+4. After root dispatch, the session refreshes its derived absolute ranges from the mapped anchor position.
+5. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
 ### Selection Sync
 
 Joplin toolbar reads main editor selection, so nested must mirror upward.
 
-1. `forwardSelectionToMain` watches nested selection.
-2. Dispatches matching selection to main (with `syncAnnotation` + `addToHistory: false`).
-3. Main can also push selection down to nested editor after Joplin-native commands.
+1. `ActiveCellSession` watches local selection changes.
+2. It mirrors the mapped absolute selection to the main editor (`syncAnnotation` + `addToHistory: false`).
+3. Root-owned commands update the authoritative root selection/doc.
+4. The session rebases the isolated editor selection from the resulting root cell text.
 
 ### Undo/Redo
 
@@ -60,19 +68,21 @@ Response (to prevent stale document state):
 
 ### Nested Editor (`transactionPolicy`)
 
-- **Range Filter**: Rejects edits outside `[cellFrom, cellTo]`.
-- **Newline Conversion**: `\n`/`\r` → `<br>` tags.
-- **Pipe Escaping**: `|` → `\|`.
+- **Local → Root Sanitization**: `\n`/`\r` → `<br>`, `|` → `\|`.
+- **Root → Local Unsanitization**: `<br>` → visible line breaks, `\|` → `|`.
+- **Selection Mapping**: Local/root selections are mapped through the sanitize/unsanitize transforms, not by naive offset arithmetic.
 
 ### Main Editor (`mainEditorGuard`)
 
 Blocks unintended main editor edits during cell editing (Android IME focus issues where focus can jump to main editor).
 
+- Uses the shared transition policy to allow, reject, or sanitize main-editor transactions.
 - Rejects changes touching active table but outside cell range.
 - Allows external updates not overlapping table.
 - Whitelists `syncAnnotation` transactions.
 - Whitelists structural operations with `rebuildTableWidgetsEffect`.
 - Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
+- Clears stale active-cell state if logical resolution can no longer find the anchored table/cell from the mapped anchor position.
 
 ## Styling
 

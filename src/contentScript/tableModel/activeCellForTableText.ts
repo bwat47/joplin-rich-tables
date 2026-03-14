@@ -32,6 +32,32 @@ function clampTargetToRanges(target: TargetCell, ranges: TableCellRanges): Targe
 }
 
 /**
+ * Builds a new `ActiveCell` from pre-computed cell ranges and a target position.
+ * Use this when a `TableContext` (or cellRanges) is already available.
+ */
+export function computeActiveCellFromRanges(params: {
+    tableFrom: number;
+    ranges: TableCellRanges;
+    target: TargetCell;
+}): ActiveCell | null {
+    const { tableFrom, ranges, target } = params;
+    const clamped = clampTargetToRanges(target, ranges);
+
+    const relRange = getCellRange(ranges, clamped);
+    if (!relRange) {
+        return null;
+    }
+
+    return {
+        anchorPos: tableFrom + relRange.from,
+        tableFrom,
+        section: clamped.section,
+        row: clamped.section === 'header' ? 0 : clamped.row,
+        col: clamped.col,
+    };
+}
+
+/**
  * Builds a new `ActiveCell` for a target (section,row,col) based on the provided table markdown.
  *
  * Returns null if the table text can't be ranged (invalid markdown table).
@@ -47,20 +73,9 @@ export function computeActiveCellForTableText(params: {
         return null;
     }
 
-    const clamped = clampTargetToRanges(target, ranges);
-
-    const relRange = getCellRange(ranges, clamped);
-    if (!relRange) {
-        return null;
-    }
-
-    return {
+    return computeActiveCellFromRanges({
         tableFrom,
-        tableTo: tableFrom + tableText.length,
-        cellFrom: tableFrom + relRange.from,
-        cellTo: tableFrom + relRange.to,
-        section: clamped.section,
-        row: clamped.section === 'header' ? 0 : clamped.row,
-        col: clamped.col,
-    };
+        ranges,
+        target,
+    });
 }

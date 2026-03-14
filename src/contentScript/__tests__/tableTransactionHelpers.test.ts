@@ -1,64 +1,52 @@
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 
+jest.mock('../tableWidget/activeCellResolver', () => ({
+    resolveActiveCell: jest.fn(),
+}));
+
 describe('tableTransactionHelpers', () => {
+    let currentTableText = '';
+
     function createView(tableText: string) {
+        currentTableText = tableText;
         const dispatch = jest.fn();
         return {
             state: {
-                sliceDoc: jest.fn((_from: number, _to: number) => tableText),
+                doc: { length: tableText.length },
             },
             dispatch,
         };
     }
 
     function createCell(tableText: string, row: number = 0, col: number = 0) {
+        const anchorPos = tableText.indexOf('| a |');
         return {
+            anchorPos: anchorPos >= 0 ? anchorPos + 2 : 0,
             tableFrom: 0,
-            tableTo: tableText.length,
-            cellFrom: 0,
-            cellTo: 0,
             section: 'body' as const,
             row,
             col,
         };
     }
 
-    it('re-serializes when serializeIfIdentity is enabled and markdown formatting changes', () => {
-        const tableText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
-        const view = createView(tableText);
-        const cell = createCell(tableText);
-
-        const result = runTableOperation({
-            view: view as never,
-            cell,
-            operation: (table) => table,
-            computeTargetCell: (active) => active,
-            forceWidgetRebuild: true,
-            serializeIfIdentity: true,
-        });
-
-        expect(result).toBe(true);
-        expect(view.dispatch).toHaveBeenCalledTimes(1);
-        const dispatched = view.dispatch.mock.calls[0][0];
-        expect(dispatched.changes.insert).toBe(['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n'));
-    });
-
-    it('does not dispatch when identity and serialized text are unchanged', () => {
-        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
-        const view = createView(tableText);
-        const cell = createCell(tableText);
-
-        const result = runTableOperation({
-            view: view as never,
-            cell,
-            operation: (table) => table,
-            computeTargetCell: (active) => active,
-            forceWidgetRebuild: true,
-            serializeIfIdentity: true,
-        });
-
-        expect(result).toBe(false);
-        expect(view.dispatch).not.toHaveBeenCalled();
+    beforeEach(() => {
+        (resolveActiveCell as jest.Mock).mockImplementation((_state, cell) => ({
+            activeCell: cell,
+            tableFrom: 0,
+            tableTo: currentTableText.length,
+            cellFrom: 0,
+            cellTo: 0,
+            ctx: {
+                from: 0,
+                to: currentTableText.length,
+                text: currentTableText,
+                table: MarkdownTable.parse(currentTableText),
+                cellRanges: computeMarkdownTableCellRanges(currentTableText),
+            },
+        }));
     });
 
     it('dispatches an effect-only transaction when markdown is unchanged but target cell moves', () => {

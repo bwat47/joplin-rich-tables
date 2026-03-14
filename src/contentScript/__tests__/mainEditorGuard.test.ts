@@ -1,35 +1,23 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState } from '@codemirror/state';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { createMarkdownState } from './testMarkdownState';
 
 function createState(params: { doc: string; nestedOpen: boolean }) {
-    return EditorState.create({
-        doc: params.doc,
-        extensions: [activeCellField, createMainEditorActiveCellGuard(() => params.nestedOpen)],
-    });
+    return createMarkdownState(params.doc, [activeCellField, createMainEditorActiveCellGuard(() => params.nestedOpen)]);
 }
 
 describe('createMainEditorActiveCellGuard', () => {
     it('blocks deleting a delimiter pipe outside the active cell when nested editor is open', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        expect(tableRanges).not.toBeNull();
-
-        // Active cell: header col 0 ("H1")
-        const cellFrom = tableRanges!.headers[0].from;
-        const cellTo = tableRanges!.headers[0].to;
-
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
-                tableTo: doc.length,
-                cellFrom,
-                cellTo,
                 section: 'header',
                 row: 0,
                 col: 0,
@@ -54,19 +42,11 @@ describe('createMainEditorActiveCellGuard', () => {
     it('allows deleting within the active cell when nested editor is open', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        expect(tableRanges).not.toBeNull();
-
-        const cellFrom = tableRanges!.headers[0].from;
-        const cellTo = tableRanges!.headers[0].to;
-
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
-                tableTo: doc.length,
-                cellFrom,
-                cellTo,
                 section: 'header',
                 row: 0,
                 col: 0,
@@ -90,16 +70,11 @@ describe('createMainEditorActiveCellGuard', () => {
         const tableRanges = computeMarkdownTableCellRanges(doc);
         expect(tableRanges).not.toBeNull();
 
-        const cellFrom = tableRanges!.headers[0].from;
-        const cellTo = tableRanges!.headers[0].to;
-
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
-                tableTo: doc.length,
-                cellFrom,
-                cellTo,
                 section: 'header',
                 row: 0,
                 col: 0,
@@ -125,15 +100,11 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(tableRanges).not.toBeNull();
 
         const cellFrom = tableRanges!.headers[0].from;
-        const cellTo = tableRanges!.headers[0].to;
-
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
-                tableTo: doc.length,
-                cellFrom,
-                cellTo,
                 section: 'header',
                 row: 0,
                 col: 0,
@@ -158,15 +129,11 @@ describe('createMainEditorActiveCellGuard', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |'].join('\n');
         const tableRanges = computeMarkdownTableCellRanges(doc);
         const cellFrom = tableRanges!.headers[0].from;
-        const cellTo = tableRanges!.headers[0].to;
-
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
-                tableTo: doc.length,
-                cellFrom,
-                cellTo,
                 section: 'header',
                 row: 0,
                 col: 0,
@@ -198,16 +165,11 @@ describe('createMainEditorActiveCellGuard', () => {
         const tableRanges = computeMarkdownTableCellRanges(doc);
         expect(tableRanges).not.toBeNull();
 
-        const cellFrom = tableRanges!.headers[0].from;
-        const cellTo = tableRanges!.headers[0].to;
-
         let state = createState({ doc, nestedOpen: true });
         state = state.update({
             effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('H1'),
                 tableFrom: 0,
-                tableTo: doc.length,
-                cellFrom,
-                cellTo,
                 section: 'header',
                 row: 0,
                 col: 0,
@@ -222,5 +184,26 @@ describe('createMainEditorActiveCellGuard', () => {
 
         expect(tr.state.doc.toString()).toBe(newDoc);
         expect(getActiveCell(tr.state)).toBeNull();
+    });
+
+    it('clears stale active cell when the resolver cannot find the anchored table', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                anchorPos: doc.length + 10,
+                tableFrom: doc.length + 10,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        const tr = state.update({
+            changes: { from: 0, to: 0, insert: 'x' },
+        });
+
+        expect(getActiveCell(tr.state)).toBeNull();
+        expect(tr.state.doc.toString()).toBe(`x${doc}`);
     });
 });

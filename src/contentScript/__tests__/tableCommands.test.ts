@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { ActiveCell } from '../tableWidget/activeCellState';
+import { resolveActiveCell } from '../tableWidget/activeCellResolver';
 import { runTableOperation } from '../tableModel/tableTransactionHelpers';
 import { TargetCell } from '../tableModel/activeCellForTableText';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
@@ -18,22 +19,27 @@ import {
     execClearColumn,
     execClearTable,
     execDeleteTable,
-    execFormatTable,
 } from '../tableCommands/tableCommands';
 
 // Mock dependencies
 jest.mock('../tableModel/tableTransactionHelpers', () => ({
     runTableOperation: jest.fn(),
 }));
+jest.mock('../tableWidget/activeCellResolver', () => ({
+    resolveActiveCell: jest.fn(),
+}));
 
 describe('tableCommands (computTargetCell)', () => {
     let mockView: EditorView;
     let mockRunTableOperation: jest.Mock;
+    let mockResolveActiveCell: jest.Mock;
 
     beforeEach(() => {
         mockView = {} as EditorView;
         mockRunTableOperation = runTableOperation as jest.Mock;
         mockRunTableOperation.mockClear();
+        mockResolveActiveCell = resolveActiveCell as jest.Mock;
+        mockResolveActiveCell.mockReset();
     });
 
     // Helper to invoke a command and check the computeTargetCell logic
@@ -58,10 +64,8 @@ describe('tableCommands (computTargetCell)', () => {
     };
 
     const createCell = (section: 'header' | 'body', row: number, col: number): ActiveCell => ({
+        anchorPos: 0,
         tableFrom: 0,
-        tableTo: 0,
-        cellFrom: 0,
-        cellTo: 0,
         section,
         row,
         col,
@@ -169,23 +173,16 @@ describe('tableCommands (computTargetCell)', () => {
         });
     });
 
-    describe('formatTable', () => {
-        it('execFormatTable enables serializeIfIdentity', () => {
-            execFormatTable(mockView, createCell('body', 1, 1));
-
-            expect(mockRunTableOperation).toHaveBeenCalledTimes(1);
-            const params = mockRunTableOperation.mock.calls[0][0];
-            expect(params.serializeIfIdentity).toBe(true);
-        });
-    });
-
     describe('deleteTable', () => {
         it('execDeleteTable dispatches deletion with clearActiveCellEffect', () => {
             const dispatchMock = jest.fn();
-            const mockEditorView = { dispatch: dispatchMock } as unknown as EditorView;
+            const mockEditorView = { dispatch: dispatchMock, state: {} } as unknown as EditorView;
             const cell = createCell('body', 1, 0);
             cell.tableFrom = 10;
-            cell.tableTo = 100;
+            mockResolveActiveCell.mockReturnValue({
+                tableFrom: 10,
+                tableTo: 100,
+            });
 
             execDeleteTable(mockEditorView, cell);
 

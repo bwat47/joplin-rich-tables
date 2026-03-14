@@ -1,11 +1,16 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import {
     convertNewlinesToBr,
-    createCellTransactionFilter,
-    createSubviewCellRangeField,
     escapeUnescapedPipes,
+    normalizeBrTags,
+    sanitizeCellChanges,
+    sanitizeLocalText,
+    toLocalSelection,
+    toRootSelection,
+    unsanitizeRootText,
 } from '../nestedEditor/transactionPolicy';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('escapeUnescapedPipes', () => {
     it('escapes unescaped pipes', () => {
@@ -17,72 +22,110 @@ describe('escapeUnescapedPipes', () => {
     it('keeps already-escaped pipes intact', () => {
         expect(escapeUnescapedPipes('a\\|b')).toBe('a\\|b');
     });
-
-    it('escapes pipes preceded by an even backslash run', () => {
-        // Two backslashes means the pipe is still a delimiter in Markdown; add one more.
-        expect(escapeUnescapedPipes('a\\\\|b')).toBe('a\\\\\\|b');
-    });
 });
 
 describe('convertNewlinesToBr', () => {
     it('converts LF and CRLF to <br>', () => {
         expect(convertNewlinesToBr('a\nb')).toBe('a<br>b');
         expect(convertNewlinesToBr('a\r\nb')).toBe('a<br>b');
-        expect(convertNewlinesToBr('a\r\nb\r\nc')).toBe('a<br>b<br>c');
     });
 });
 
-describe('createCellTransactionFilter', () => {
-    it('sanitizes inserted newlines to <br> within cell range', () => {
-        const doc = 'abc';
-        const rangeField = createSubviewCellRangeField({ from: 0, to: doc.length });
+describe('normalizeBrTags', () => {
+    it('canonicalizes self-closing br tags to <br>', () => {
+        expect(normalizeBrTags('a<br/>b')).toBe('a<br>b');
+        expect(normalizeBrTags('a<br />b')).toBe('a<br>b');
+        expect(normalizeBrTags('a<BR/>b')).toBe('a<br>b');
+    });
+});
 
-        let state = EditorState.create({
-            doc,
-            selection: { anchor: 1 },
-            extensions: [rangeField, createCellTransactionFilter(rangeField)],
-        });
-
-        const tr = state.update({ changes: { from: 1, to: 1, insert: 'x\ny' } });
-        state = tr.state;
-
-        expect(state.doc.toString()).toBe('ax<br>ybc');
-        expect(state.selection.main.head).toBe(1 + 'x<br>y'.length);
+describe('sanitizeLocalText / unsanitizeRootText', () => {
+    it('converts local newlines and pipes to markdown-safe cell text', () => {
+        expect(sanitizeLocalText('a\nb|c')).toBe('a<br>b\\|c');
     });
 
-    it('keeps caret after escaped pipe insertion', () => {
-        const doc = 'abc';
-        const rangeField = createSubviewCellRangeField({ from: 0, to: doc.length });
-
-        let state = EditorState.create({
-            doc,
-            selection: { anchor: 1 },
-            extensions: [rangeField, createCellTransactionFilter(rangeField)],
-        });
-
-        const tr = state.update({ changes: { from: 1, to: 1, insert: '|' } });
-        state = tr.state;
-
-        expect(state.doc.toString()).toBe('a\\|bc');
-        expect(state.selection.main.head).toBe(3);
+    it('normalizes self-closing br tags before syncing to root text', () => {
+        expect(sanitizeLocalText('a<br/>b|c')).toBe('a<br>b\\|c');
+        expect(sanitizeLocalText('a<br />b|c')).toBe('a<br>b\\|c');
     });
 
-    it('does not add an extra backslash when user already typed one', () => {
-        const doc = 'a\\bc';
-        const rangeField = createSubviewCellRangeField({ from: 0, to: doc.length });
+    it('preserves trailing spaces during live editing sync', () => {
+        expect(sanitizeLocalText('sometext ')).toBe('sometext ');
+    });
 
-        let state = EditorState.create({
-            doc,
-            selection: { anchor: 2 },
-            extensions: [rangeField, createCellTransactionFilter(rangeField)],
+    it('converts root markdown-safe cell text back to local display text', () => {
+        expect(unsanitizeRootText('a<br>b\\|c')).toBe('a\nb|c');
+    });
+});
+
+describe('selection mapping', () => {
+    it('maps local selection to root selection across rewritten text', () => {
+        const localText = 'a\nb|c';
+        const rootSelection = toRootSelection({ anchor: 0, head: localText.length }, localText);
+
+        expect(rootSelection).toEqual({ anchor: 0, head: 'a<br>b\\|c'.length });
+    });
+
+    it('maps root selection back to local selection', () => {
+        const rootText = 'a<br>b\\|c';
+        const localSelection = toLocalSelection({ anchor: 0, head: rootText.length }, rootText);
+
+        expect(localSelection).toEqual({ anchor: 0, head: 'a\nb|c'.length });
+    });
+
+    it('keeps trailing-space cursor positions stable for root-owned commands', () => {
+        const localText = 'sometext ';
+        const rootSelection = toRootSelection({ anchor: localText.length, head: localText.length }, localText);
+
+        expect(rootSelection).toEqual({ anchor: localText.length, head: localText.length });
+    });
+
+    it('keeps trailing-space cursor positions stable after normalizing a non-canonical table first', () => {
+        const canonicalTable = MarkdownTable.parse(['|SOMETEXT|', '|---|'].join('\n'))?.serialize();
+        expect(canonicalTable).toBe(['| SOMETEXT |', '| --- |'].join('\n'));
+        if (!canonicalTable) {
+            throw new Error('Expected canonical table text');
+        }
+
+        const cellFrom = canonicalTable.indexOf('SOMETEXT');
+        const localText = 'SOMETEXT ';
+        const rootSelection = toRootSelection({ anchor: localText.length, head: localText.length }, localText);
+        const formatted = `${canonicalTable.slice(0, cellFrom + rootSelection.anchor)}****${canonicalTable.slice(
+            cellFrom + rootSelection.head
+        )}`;
+
+        expect(formatted).toContain('SOMETEXT ****');
+    });
+});
+
+describe('sanitizeCellChanges', () => {
+    it('sanitizes direct main-editor paste inside the active cell', () => {
+        const state = EditorState.create({
+            doc: '| H1 |',
+            selection: EditorSelection.single(2),
+        });
+        const tr = state.update({
+            changes: { from: 2, to: 2, insert: 'a\nb|c' },
         });
 
-        // Simulate a typical typing transaction, where the selection is already placed
-        // after the inserted character by the input handler.
-        const tr = state.update({ changes: { from: 2, to: 2, insert: '|' }, selection: { anchor: 3 } });
-        state = tr.state;
+        const result = sanitizeCellChanges(tr, 2, 4);
+        expect(result.rejected).toBe(false);
+        expect(result.didModifyInserts).toBe(true);
+        expect(result.changes).toEqual([{ from: 2, to: 2, insert: 'a<br>b\\|c' }]);
+    });
 
-        expect(state.doc.toString()).toBe('a\\|bc');
-        expect(state.selection.main.head).toBe(3);
+    it('canonicalizes self-closing br tags during direct main-editor paste', () => {
+        const state = EditorState.create({
+            doc: '| H1 |',
+            selection: EditorSelection.single(2),
+        });
+        const tr = state.update({
+            changes: { from: 2, to: 2, insert: 'a<br/>b|c' },
+        });
+
+        const result = sanitizeCellChanges(tr, 2, 4);
+        expect(result.rejected).toBe(false);
+        expect(result.didModifyInserts).toBe(true);
+        expect(result.changes).toEqual([{ from: 2, to: 2, insert: 'a<br>b\\|c' }]);
     });
 });

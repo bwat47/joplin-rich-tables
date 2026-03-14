@@ -2,8 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, clearActiveCellEffect, getActiveCell, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
-import { resolveCellDocRange, resolveTableFromEventTarget } from './tablePositioning';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { resolveCellDocRange, resolveTableContextFromEventTarget } from './tablePositioning';
 import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
@@ -198,26 +197,21 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return false;
         }
 
-        const table = resolveTableFromEventTarget(view, cell);
-        if (!table) {
-            return false;
-        }
-
-        const cellRanges = computeMarkdownTableCellRanges(table.text);
-        if (!cellRanges) {
+        const ctx = resolveTableContextFromEventTarget(view, cell);
+        if (!ctx) {
             return false;
         }
 
         const resolvedRange = resolveCellDocRange({
-            tableFrom: table.from,
-            ranges: cellRanges,
+            tableFrom: ctx.from,
+            ranges: ctx.cellRanges,
             coords: { section, row, col },
         });
         if (!resolvedRange) {
             return false;
         }
 
-        const { cellFrom, cellTo } = resolvedRange;
+        const { cellFrom } = resolvedRange;
 
         event.preventDefault();
         event.stopPropagation();
@@ -225,23 +219,29 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         view.dispatch({
             selection: { anchor: cellFrom },
             effects: setActiveCellEffect.of({
-                tableFrom: table.from,
-                tableTo: table.to,
-                cellFrom,
-                cellTo,
+                anchorPos: cellFrom,
+                tableFrom: ctx.from,
                 section,
                 row: section === SECTION_HEADER ? 0 : row,
                 col,
             }),
         });
 
+        const activeCell = {
+            anchorPos: cellFrom,
+            tableFrom: ctx.from,
+            section,
+            row: section === SECTION_HEADER ? 0 : row,
+            col,
+        };
+
         // Since we no longer rebuild widgets on setActiveCellEffect, the original
         // cell reference is still valid. Open the nested editor directly.
         openNestedCellEditor({
             mainView: view,
             cellElement: cell,
-            cellFrom,
-            cellTo,
+            activeCell,
+            normalizeIfNeeded: true,
         });
 
         return true;

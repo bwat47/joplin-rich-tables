@@ -62,6 +62,10 @@ export function consumePendingNavigationCallback(): (() => void) | null {
     return callback;
 }
 
+export function releasePendingNavigationCallback(): void {
+    consumePendingNavigationCallback()?.();
+}
+
 /**
  * Resets the navigation lock state. For testing only.
  */

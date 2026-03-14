@@ -2,11 +2,7 @@ import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import {
-    computeMarkdownTableCellRanges,
-    findCellForPos,
-    type TableCellRanges,
-} from '../tableModel/markdownTableCellRanges';
+import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
@@ -35,10 +31,11 @@ const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
  */
 export class TableWidget extends WidgetType {
     private readonly contentHash: string;
-    private readonly cellRanges: TableCellRanges | null;
+    private readonly cellRanges: TableCellRanges;
 
     constructor(
         private tableData: MarkdownTable,
+        cellRanges: TableCellRanges,
         private tableText: string,
         private tableFrom: number,
         private tableTo: number,
@@ -49,8 +46,7 @@ export class TableWidget extends WidgetType {
         // Content hash includes definition block so widgets rebuild when definitions change.
         // Hash is pre-computed by the extension to avoid redundant hashing.
         this.contentHash = contentHash;
-        // Pre-compute cell ranges once, as the table text is immutable for this widget instance
-        this.cellRanges = computeMarkdownTableCellRanges(tableText);
+        this.cellRanges = cellRanges;
     }
 
     eq(_other: TableWidget): boolean {
@@ -121,14 +117,14 @@ export class TableWidget extends WidgetType {
         // Render header — skip synthetic cells that have no source range
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        const headerCount = this.cellRanges ? this.cellRanges.headers.length : headerCells.length;
+        const headerCount = this.cellRanges.headers.length;
         for (let i = 0; i < headerCount; i++) {
             const th = document.createElement('th');
             th.dataset[DATA_SECTION] = SECTION_HEADER;
             th.dataset[DATA_ROW] = '0';
             th.dataset[DATA_COL] = String(i);
 
-            const content = headerCells[i].trim();
+            const content = headerCells[i];
             this.renderCellContent(th, content);
 
             const align = alignments[i];
@@ -145,14 +141,14 @@ export class TableWidget extends WidgetType {
         for (let r = 0; r < bodyRows.length; r++) {
             const row = bodyRows[r];
             const tr = document.createElement('tr');
-            const colCount = this.cellRanges?.rows[r]?.length ?? row.length;
+            const colCount = this.cellRanges.rows[r]?.length ?? row.length;
             for (let c = 0; c < colCount; c++) {
                 const td = document.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
                 td.dataset[DATA_ROW] = String(r);
                 td.dataset[DATA_COL] = String(c);
 
-                const content = row[c].trim();
+                const content = row[c];
                 this.renderCellContent(td, content);
 
                 const align = alignments[c];
@@ -251,10 +247,6 @@ export class TableWidget extends WidgetType {
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        if (!this.cellRanges) {
-            return null;
-        }
-
         const relativePos = pos - this.tableFrom;
         const coords = findCellForPos(this.cellRanges, relativePos);
         if (!coords) {

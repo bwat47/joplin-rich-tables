@@ -95,15 +95,6 @@ export const alignRightIcon = () =>
         { d: 'M6 18l14 0' },
     ]);
 
-export const formatTableIcon = () =>
-    createSvg([
-        { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
-        { d: 'M3 21v-4a4 4 0 1 1 4 4h-4' },
-        { d: 'M21 3a16 16 0 0 0 -12.8 10.2' },
-        { d: 'M21 3a16 16 0 0 1 -10.2 12.8' },
-        { d: 'M10.6 9a9 9 0 0 1 4.4 4.4' },
-    ]);
-
 export const moveColumnLeftIcon = () =>
     createSvg([
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
