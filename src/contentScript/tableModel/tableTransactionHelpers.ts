@@ -16,11 +16,10 @@ interface ModifyTableParams {
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable;
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell;
     forceWidgetRebuild: boolean;
-    serializeIfIdentity?: boolean;
 }
 
 export function runTableOperation(params: ModifyTableParams): boolean {
-    const { view, cell, operation, computeTargetCell, forceWidgetRebuild, serializeIfIdentity = false } = params;
+    const { view, cell, operation, computeTargetCell, forceWidgetRebuild } = params;
     const resolvedCell = resolveActiveCell(view.state, cell);
     if (!resolvedCell) return false;
 
@@ -28,7 +27,7 @@ export function runTableOperation(params: ModifyTableParams): boolean {
     const text = ctx.text;
 
     const newTableData = operation(ctx.table, cell);
-    if (newTableData === ctx.table && !serializeIfIdentity) {
+    if (newTableData === ctx.table) {
         return false;
     }
     const newText = newTableData.serialize();

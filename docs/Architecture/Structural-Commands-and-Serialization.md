@@ -28,12 +28,12 @@ User Action (keyboard/toolbar)
 
 1. **Build Context**: Slice table text → `TableContext` (`MarkdownTable` + `cellRanges`).
 2. **Mutate**: Call operation function.
-3. **Short-circuit**: Exit on no-op unless the caller requested a format-only re-serialize.
+3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `computeActiveCellForTableText()`.
 6. **Dispatch**: Replace table range, update active cell state.
 
-`forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`. `serializeIfIdentity` is used by format-only flows that want canonical Markdown output without a structural mutation.
+`forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 

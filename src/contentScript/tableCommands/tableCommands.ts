@@ -26,8 +26,7 @@ interface EditorControl {
 function createTableCommand(
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell,
-    forceWidgetRebuild: boolean = true,
-    serializeIfIdentity: boolean = false
+    forceWidgetRebuild: boolean = true
 ) {
     return (view: EditorView, cell: ActiveCell) => {
         runTableOperation({
@@ -36,7 +35,6 @@ function createTableCommand(
             operation,
             computeTargetCell,
             forceWidgetRebuild,
-            serializeIfIdentity,
         });
     };
 }
@@ -141,13 +139,6 @@ export const execMoveColumnRight = createTableCommand(
     }
 );
 
-export const execFormatTable = createTableCommand(
-    (t) => t,
-    (c) => c,
-    true,
-    true
-);
-
 export const execClearTable = createTableCommand(
     (t) => t.clearAllCells(),
     (c) => c
@@ -232,7 +223,6 @@ export function registerTableCommands(editorControl: EditorControl): void {
     registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
     registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
 
-    registerCellCommand('richTables.formatTable', execFormatTable);
     registerCellCommand('richTables.clearRow', execClearRow);
     registerCellCommand('richTables.clearColumn', execClearColumn);
     registerCellCommand('richTables.clearTable', execClearTable);

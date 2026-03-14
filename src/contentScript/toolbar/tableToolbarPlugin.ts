@@ -8,7 +8,6 @@ import {
     execDeleteRow,
     execDeleteColumn,
     execUpdateAlignment,
-    execFormatTable,
     execClearRow,
     execClearColumn,
     execClearTable,
@@ -33,7 +32,6 @@ import {
     alignLeftIcon,
     alignCenterIcon,
     alignRightIcon,
-    formatTableIcon,
     clearTableIcon,
     deleteTableIcon,
     moveColumnLeftIcon,
@@ -220,20 +218,11 @@ class TableToolbarPlugin {
 
         createSeparator();
 
-        // Format table (re-serialize to normalize whitespace)
-        createIconBtn('Format table', 'Format table', formatTableIcon(), () => {
-            if (this.currentActiveCell) {
-                execFormatTable(this.view, this.currentActiveCell);
-            }
-        });
         createIconBtn('Clear table', 'Clear table', clearTableIcon(), () => {
             if (this.currentActiveCell) {
                 execClearTable(this.view, this.currentActiveCell);
             }
         });
-
-        createSeparator();
-
         createIconBtn('Delete table', 'Delete table', deleteTableIcon(), () => {
             if (this.currentActiveCell) {
                 execDeleteTable(this.view, this.currentActiveCell);

@@ -19,7 +19,6 @@ import {
     execClearColumn,
     execClearTable,
     execDeleteTable,
-    execFormatTable,
 } from '../tableCommands/tableCommands';
 
 // Mock dependencies
@@ -171,16 +170,6 @@ describe('tableCommands (computTargetCell)', () => {
 
         it('execClearTable (header) -> stay in header', () => {
             testCommand(execClearTable, createCell('header', 0, 0), { section: 'header', row: 0, col: 0 });
-        });
-    });
-
-    describe('formatTable', () => {
-        it('execFormatTable enables serializeIfIdentity', () => {
-            execFormatTable(mockView, createCell('body', 1, 1));
-
-            expect(mockRunTableOperation).toHaveBeenCalledTimes(1);
-            const params = mockRunTableOperation.mock.calls[0][0];
-            expect(params.serializeIfIdentity).toBe(true);
         });
     });
 
