@@ -3,7 +3,7 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, setActiveCellEffect } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from './activeCellState';
 import { findTableRanges } from './tablePositioning';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../tableModel/tableContext';
@@ -18,6 +18,28 @@ export interface ActivateCellOptions {
     clearIfOutside?: boolean;
     /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
     normalizeIfNeeded?: boolean;
+}
+
+export function resolveActivationTargetCell(params: {
+    tableFrom: number;
+    relativePos: number;
+    cellRanges: Parameters<typeof findCellForPos>[0];
+    activeCell: ReturnType<typeof getActiveCell>;
+}): { section: 'header' | 'body'; row: number; col: number } {
+    const targetCell = findCellForPos(params.cellRanges, params.relativePos);
+    if (targetCell) {
+        return targetCell;
+    }
+
+    if (params.activeCell && params.activeCell.tableFrom === params.tableFrom) {
+        return {
+            section: params.activeCell.section,
+            row: params.activeCell.row,
+            col: params.activeCell.col,
+        };
+    }
+
+    return { section: 'body', row: 0, col: 0 };
 }
 
 /**
@@ -58,8 +80,14 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    // Find the cell containing the position, fallback to first body cell
-    const targetCell = findCellForPos(ctx.cellRanges, relativePos) ?? { section: 'body' as const, row: 0, col: 0 };
+    // Cursor restoration during undo/redo can land on table punctuation or padding.
+    // Preserve the current logical cell in that case instead of arbitrarily snapping to (0,0).
+    const targetCell = resolveActivationTargetCell({
+        tableFrom: ctx.from,
+        relativePos,
+        cellRanges: ctx.cellRanges,
+        activeCell: getActiveCell(view.state),
+    });
 
     const newActiveCell = computeActiveCellFromRanges({
         tableFrom: ctx.from,
