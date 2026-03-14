@@ -14,6 +14,7 @@ import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { activateCellAtPosition } from './cellActivation';
 import { isEffectiveRawMode } from './sourceMode';
+import { releasePendingNavigationCallback } from './navigationLock';
 import {
     buildTableRuntimeEvent,
     buildTableRuntimeSnapshot,
@@ -74,6 +75,11 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
+            const abortPendingOpen = (): void => {
+                clearPendingCellOpen(this.view);
+                releasePendingNavigationCallback();
+            };
+
             for (const action of actions) {
                 switch (action.type) {
                     case 'scheduleRebuildAllAfterFullReplace':
@@ -117,14 +123,17 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     case 'openNestedEditor':
                         requestAnimationFrame(() => {
-                            if (!this.view.dom.isConnected) return;
+                            if (!this.view.dom.isConnected) {
+                                abortPendingOpen();
+                                return;
+                            }
                             if (!isSameActiveCell(getActiveCell(this.view.state), action.activeCell)) {
-                                clearPendingCellOpen(this.view);
+                                abortPendingOpen();
                                 return;
                             }
                             const resolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
                             if (!resolvedActiveCell) {
-                                clearPendingCellOpen(this.view);
+                                abortPendingOpen();
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
@@ -134,7 +143,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 action.activeCell
                             );
                             if (!cellElement) {
-                                clearPendingCellOpen(this.view);
+                                abortPendingOpen();
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
