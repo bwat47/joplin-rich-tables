@@ -9,6 +9,12 @@ export interface ActiveCell extends CellCoords {
     // section, row, col inherited from CellCoords
 }
 
+export function isSameActiveCell(a: ActiveCell | null, b: ActiveCell | null): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
+}
+
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();
 export const clearActiveCellEffect = StateEffect.define<void>();
 

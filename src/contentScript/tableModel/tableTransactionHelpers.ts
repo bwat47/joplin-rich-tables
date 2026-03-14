@@ -6,7 +6,7 @@ import { MarkdownTable } from './MarkdownTable';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { computeActiveCellForTableText, type TargetCell } from './activeCellForTableText';
 
-function isSameActiveCell(a: ActiveCell, b: ActiveCell): boolean {
+function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
 }
 
@@ -39,7 +39,7 @@ export function runTableOperation(params: ModifyTableParams): boolean {
         return false;
     }
     const hasDocumentChange = newText !== text;
-    if (!hasDocumentChange && isSameActiveCell(nextActiveCell, cell)) {
+    if (!hasDocumentChange && isSameCellCoords(nextActiveCell, cell)) {
         return false;
     }
 

@@ -1,5 +1,5 @@
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
-import { getActiveCell, clearActiveCellEffect } from './activeCellState';
+import { getActiveCell, clearActiveCellEffect, isSameActiveCell } from './activeCellState';
 import { resolveActiveCell } from './activeCellResolver';
 import { rebuildAllTableWidgetsEffect } from './tableWidgetEffects';
 import {
@@ -118,6 +118,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     case 'openNestedEditor':
                         requestAnimationFrame(() => {
                             if (!this.view.dom.isConnected) return;
+                            if (!isSameActiveCell(getActiveCell(this.view.state), action.activeCell)) {
+                                return;
+                            }
                             const resolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
                             if (!resolvedActiveCell) {
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
@@ -136,6 +139,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             openNestedCellEditor({
                                 mainView: this.view,
                                 cellElement,
+                                activeCell: resolvedActiveCell.activeCell,
                             });
                         });
                         break;

@@ -85,6 +85,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     openNestedCellEditor({
         mainView: view,
         cellElement,
+        activeCell: newActiveCell,
     });
 
     return true;
@@ -133,6 +134,7 @@ export function activateTableCell(
         openNestedCellEditor({
             mainView: view,
             cellElement,
+            activeCell: newActiveCell,
         });
     });
 }

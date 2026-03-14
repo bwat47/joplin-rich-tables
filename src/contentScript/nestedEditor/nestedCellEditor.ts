@@ -1,5 +1,5 @@
 import type { ViewUpdate, EditorView } from '@codemirror/view';
-import { getActiveCell } from '../tableWidget/activeCellState';
+import type { ActiveCell } from '../tableWidget/activeCellState';
 import {
     activeCellSessionPlugin as nestedCellEditorPlugin,
     cleanupHostedActiveCellSessions,
@@ -16,18 +16,14 @@ export { nestedCellEditorPlugin, syncAnnotation };
 export function openNestedCellEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
+    activeCell: ActiveCell;
     initialCursorPos?: 'start' | 'end';
     onFocused?: () => void;
 }): void {
-    const activeCell = getActiveCell(params.mainView.state);
-    if (!activeCell) {
-        return;
-    }
-
     openActiveCellSession({
         mainView: params.mainView,
         cellElement: params.cellElement,
-        activeCell,
+        activeCell: params.activeCell,
         initialCursorPos: params.initialCursorPos,
         onFocused: params.onFocused,
     });

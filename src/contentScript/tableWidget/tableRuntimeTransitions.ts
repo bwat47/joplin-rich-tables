@@ -1,6 +1,6 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
-import { ActiveCell, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { ActiveCell, clearActiveCellEffect, getActiveCell, isSameActiveCell } from './activeCellState';
 import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
@@ -125,14 +125,6 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
     };
 }
 
-export function getStableActiveCellIdentity(activeCell: ActiveCell | null): string | null {
-    if (!activeCell) {
-        return null;
-    }
-
-    return [activeCell.tableFrom, activeCell.section, activeCell.row, activeCell.col].join(':');
-}
-
 export function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
     let overlaps = false;
     tr.changes.iterChanges((fromA, toA) => {
@@ -233,8 +225,7 @@ export function planTableLifecycleActions(
         // so syncMainSelectionToNested is not needed when doc changed.
         actions.push({ type: 'syncMainDocToNested' });
     } else {
-        const sameActiveCell =
-            getStableActiveCellIdentity(snapshot.prevActiveCell) === getStableActiveCellIdentity(snapshot.activeCell);
+        const sameActiveCell = isSameActiveCell(snapshot.prevActiveCell, snapshot.activeCell);
         if (
             update.selectionSet &&
             sameActiveCell &&

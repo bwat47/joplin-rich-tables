@@ -227,11 +227,20 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             }),
         });
 
+        const activeCell = {
+            anchorPos: cellFrom,
+            tableFrom: ctx.from,
+            section,
+            row: section === SECTION_HEADER ? 0 : row,
+            col,
+        };
+
         // Since we no longer rebuild widgets on setActiveCellEffect, the original
         // cell reference is still valid. Open the nested editor directly.
         openNestedCellEditor({
             mainView: view,
             cellElement: cell,
+            activeCell,
         });
 
         return true;
