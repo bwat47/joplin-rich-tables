@@ -17,6 +17,7 @@ export interface TableContext extends ResolvedTable {
 }
 
 interface CacheEntry {
+    text: string;
     table: MarkdownTable;
     cellRanges: TableCellRanges;
 }
@@ -28,13 +29,14 @@ const MAX_CACHE_SIZE = 50;
  * Builds a TableContext from a resolved table range.
  * Uses an LRU cache keyed by table text hash so repeated lookups
  * for the same table content skip parsing and range computation.
+ * Cache hits are verified against stored text to guard against hash collisions.
  */
 export function buildTableContext(resolved: ResolvedTable): TableContext | null {
     const { from, to, text } = resolved;
     const hash = hashTableText(text);
     let entry = tableContextCache.get(hash);
 
-    if (entry) {
+    if (entry && entry.text === text) {
         // LRU refresh: move to end of Map
         tableContextCache.delete(hash);
         tableContextCache.set(hash, entry);
@@ -45,7 +47,7 @@ export function buildTableContext(resolved: ResolvedTable): TableContext | null 
         const cellRanges = computeMarkdownTableCellRanges(text);
         if (!cellRanges) return null;
 
-        entry = { table, cellRanges };
+        entry = { text, table, cellRanges };
 
         if (tableContextCache.size >= MAX_CACHE_SIZE) {
             const firstKey = tableContextCache.keys().next().value;
