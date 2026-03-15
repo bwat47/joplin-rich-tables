@@ -8,18 +8,21 @@ The plugin's architecture is centered around a single active cell with a nested 
 
 ## Phased Scope
 
-### Phase 1: Selection + Copy (this plan)
+### Phase 1: Selection + Copy (this plan) - COMPLETED
+
 - Rectangular cell selection via Shift+Arrow and Shift+Click
 - Visual highlighting of selected cells
 - Ctrl+C copies selected cells as a markdown table fragment
 - Escape clears selection
 
 ### Phase 2: Cut + Paste (follow-up)
+
 - Ctrl+X = copy + clear selected cell contents
 - Ctrl+V into a same-sized selection replaces cell contents
 - Requires new `MarkdownTable` mutation methods
 
 ### Phase 3: Expanding Paste (deferred)
+
 - Paste that adds rows/columns when clipboard content exceeds selection bounds
 
 ---
@@ -44,6 +47,7 @@ idle ──click──> editing ──Shift+Arrow──> selecting
 - **selecting**: Cell selection active, no nested editor, active cell cleared
 
 Transitions:
+
 - `editing → selecting`: Shift+Arrow at cell boundary closes nested editor, sets selection
 - `selecting → editing`: Click cell (without Shift) or Enter clears selection, activates cell
 - `selecting → idle`: Escape or click outside table
@@ -57,13 +61,13 @@ Core state field modeled after `activeCellState.ts`.
 
 ```typescript
 interface CellSelection {
-    tableFrom: number;       // Position-mapped across doc changes
-    anchor: CellCoords;      // Where selection started
-    focus: CellCoords;       // Current extent
+    tableFrom: number; // Position-mapped across doc changes
+    anchor: CellCoords; // Where selection started
+    focus: CellCoords; // Current extent
 }
 
 interface SelectionRect {
-    minRow: number;          // Unified row (header=0, body=1+)
+    minRow: number; // Unified row (header=0, body=1+)
     maxRow: number;
     minCol: number;
     maxCol: number;
@@ -71,6 +75,7 @@ interface SelectionRect {
 ```
 
 Exports:
+
 - `setCellSelectionEffect`, `clearCellSelectionEffect` — StateEffects
 - `cellSelectionField` — StateField, clears itself when `setActiveCellEffect` fires (editing clears selection)
 - `getCellSelection(state)` — accessor
@@ -90,45 +95,31 @@ ViewPlugin that applies/removes CSS class on cell DOM elements when selection ch
 
 #### 3. `src/contentScript/tableWidget/cellSelectionKeymap.ts`
 
-Selection keyboard handling.
-
-Use two layers:
-- Standard CM keymap for cases where the main editor still has focus
-- Document-level capture plugin for selection mode, because there is no nested editor and the main editor focus is not reliable after the initial transition
-
-Main editor keymap:
-
-```typescript
-keymap.of([
-    { key: 'Shift-ArrowRight', run: extendOrStartSelection('right') },
-    { key: 'Shift-ArrowLeft',  run: extendOrStartSelection('left') },
-    { key: 'Shift-ArrowUp',    run: extendOrStartSelection('up') },
-    { key: 'Shift-ArrowDown',  run: extendOrStartSelection('down') },
-    { key: 'Escape',           run: clearSelectionIfActive },
-])
-```
+Selection keyboard handling via a single document-level capture plugin. A CM keymap was not added: once selection mode is active, the nested editor is closed and focus leaves CodeMirror, so a keymap would never fire. The capture plugin intercepts events before CM's handlers and calls `preventDefault` + `stopPropagation` when it handles them.
 
 `extendOrStartSelection(direction)`:
+
 1. If `cellSelectionField` has value → move `focus` in direction (clamped to table bounds)
 2. If `activeCellField` has value but no selection → use active cell as anchor, compute focus = anchor + direction, dispatch `setCellSelectionEffect` + `clearActiveCellEffect`
 3. If neither → return `false`
 
-Reuses direction math from `tableNavigation.ts` (unified row system, boundary clamping). Extract shared helpers if needed.
+Capture plugin:
 
-Document capture plugin:
-- Handles repeated `Shift+Arrow`, `Escape`, and `Enter` while a cell selection exists
-- Must be scoped carefully so it does not steal shortcuts from unrelated UI controls or toolbar buttons
+- Handles `Shift+Arrow`, `Escape`, and `Enter` while a cell selection exists
+- Scoped via `canHandleTableSelectionShortcut` so it does not steal shortcuts from toolbar buttons or other interactive controls
 
 #### 4. `src/contentScript/tableWidget/cellSelectionClipboard.ts`
 
 Copy handling via document-level capture plugin:
 
 ```typescript
-ViewPlugin.fromClass(class {
-    constructor(view) {
-        view.dom.ownerDocument.addEventListener('copy', onCopy, true);
+ViewPlugin.fromClass(
+    class {
+        constructor(view) {
+            view.dom.ownerDocument.addEventListener('copy', onCopy, true);
+        }
     }
-})
+);
 ```
 
 - `extractSelectedCellContents(state, sel)` → `string[][]`: reads cell text from doc using `computeMarkdownTableCellRanges()` + `getCellRange()`
@@ -140,6 +131,7 @@ ViewPlugin.fromClass(class {
 #### 5. `domHelpers.ts`
 
 Add constant:
+
 ```typescript
 export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
 ```
@@ -147,6 +139,7 @@ export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
 #### 6. `tableStyles.ts`
 
 Add CSS rule after the active cell styles (~line 109):
+
 ```typescript
 [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED},
   .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]: {
@@ -157,12 +150,14 @@ Add CSS rule after the active cell styles (~line 109):
 #### 7. `tableWidgetInteractions.ts`
 
 Modify mousedown handler:
+
 - If `event.shiftKey` and active cell or selection exists → dispatch `setCellSelectionEffect` extending to clicked cell (+ `clearActiveCellEffect` if transitioning from editing)
 - If no shift and selection exists → dispatch `clearCellSelectionEffect` before normal cell activation
 
 #### 8. `domHandlers.ts` (nested editor)
 
 Add Shift+Arrow bindings to nested editor keymap. At cell content boundaries only (same boundary detection as existing Arrow keys):
+
 - Close nested editor
 - Dispatch selection with anchor = current cell, focus = adjacent cell
 - Must use the `cellSelectionTransitionAnnotation` (see below)
@@ -170,6 +165,7 @@ Add Shift+Arrow bindings to nested editor keymap. At cell content boundaries onl
 #### 9. `tableWidgetExtension.ts`
 
 Register new extensions in the array:
+
 ```
 activeCellField,
 cellSelectionField,              // NEW - after activeCellField
@@ -188,12 +184,14 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 ### Test Files
 
 #### `cellSelectionState.test.ts`
+
 - `toSelectionRect()` — various anchor/focus combos, header+body spans
 - `isCellInRect()` — inside, outside, boundary cases
 - `toUnifiedRow()` / `fromUnifiedRow()` — round-trips, header vs body
 - StateField behavior: set, clear, clear-on-setActiveCell, clear-on-docChanged
 
 #### `cellSelectionClipboard.test.ts`
+
 - `extractSelectedCellContents()` — header-only, body-only, cross-boundary
 - Edge cases: cells with escaped pipes, `<br>` tags, empty cells
 
@@ -215,26 +213,26 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 
 ## Risks
 
-| Risk | Mitigation |
-|------|-----------|
-| Widget rebuild clears CSS classes mid-selection | ViewPlugin re-applies classes in `update()` after any transaction |
-| Lifecycle plugin side effects on clearActiveCell | `cellSelectionTransitionAnnotation` gates cursor management |
-| Shift+Arrow in nested editor conflicts with text selection | Only intercept at content boundaries (same pattern as existing Arrow keys) |
-| Selection across header/body boundary edge cases | Unified row coordinate system handles this naturally |
-| Selection mode has unreliable editor focus | Use document-level capture plugins for copy and repeated keyboard navigation |
-| Document-level capture can hijack unrelated shortcuts | Scope handlers narrowly and verify behavior with toolbar/buttons focused before expanding to cut/paste |
+| Risk                                                       | Mitigation                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Widget rebuild clears CSS classes mid-selection            | ViewPlugin re-applies classes in `update()` after any transaction                                      |
+| Lifecycle plugin side effects on clearActiveCell           | `cellSelectionTransitionAnnotation` gates cursor management                                            |
+| Shift+Arrow in nested editor conflicts with text selection | Only intercept at content boundaries (same pattern as existing Arrow keys)                             |
+| Selection across header/body boundary edge cases           | Unified row coordinate system handles this naturally                                                   |
+| Selection mode has unreliable editor focus                 | Use document-level capture plugins for copy and repeated keyboard navigation                           |
+| Document-level capture can hijack unrelated shortcuts      | Scope handlers narrowly and verify behavior with toolbar/buttons focused before expanding to cut/paste |
 
 ## Verification
 
 1. `npm test` — all new unit tests pass, existing tests unbroken
 2. `npm run dist` — builds successfully
 3. Manual testing in Joplin:
-   - Click cell → Shift+Arrow in all directions → verify highlight
-   - Continue pressing Shift+Arrow repeatedly → verify focus is not required for extension
-   - Shift+Click distant cell → verify rectangular highlight
-   - Ctrl+C → paste in text editor → verify valid markdown table output
-   - With toolbar or unrelated UI control focused, verify Ctrl+C / Escape / Enter do not get stolen unexpectedly
-   - Escape → verify selection clears
-   - Click cell (no Shift) during selection → verify selection clears, cell activates
-   - Widget rebuild (edit elsewhere in doc) during selection → verify highlight persists
-   - Undo during selection → verify selection clears cleanly
+    - Click cell → Shift+Arrow in all directions → verify highlight
+    - Continue pressing Shift+Arrow repeatedly → verify focus is not required for extension
+    - Shift+Click distant cell → verify rectangular highlight
+    - Ctrl+C → paste in text editor → verify valid markdown table output
+    - With toolbar or unrelated UI control focused, verify Ctrl+C / Escape / Enter do not get stolen unexpectedly
+    - Escape → verify selection clears
+    - Click cell (no Shift) during selection → verify selection clears, cell activates
+    - Widget rebuild (edit elsewhere in doc) during selection → verify highlight persists
+    - Undo during selection → verify selection clears cleanly
