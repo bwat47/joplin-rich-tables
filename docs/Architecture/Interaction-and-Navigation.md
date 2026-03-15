@@ -36,6 +36,16 @@ Two active selections exist: hidden main editor selection and visible nested edi
 - **Nested → Main**: Selection in cell maps to corresponding main document range. Enables Joplin toolbar (Bold, Italic, Link) to work.
 - **Android focus guard**: Reclaims focus when toolbar actions steal it.
 
+## Multi-Cell Selection Shortcuts
+
+When multi-cell selection mode is active, keyboard handling is routed through the table widget rather than a nested editor.
+
+- **Shift+Arrow**: Start or extend a rectangular selection.
+- **Enter**: Activate the focused cell and reopen the nested editor.
+- **Escape**: Clear the multi-cell selection.
+- **Delete/Backspace**: Remove the selected range. Non-empty cells are cleared; fully-selected empty rows/columns are structurally deleted instead.
+- **Undo/Redo**: `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, and `Ctrl+Y` are forwarded to the main editor history while selection mode is active.
+
 ## Mouse Interaction
 
 - **Links**: `[text](url)` routes through the content-script link opener, which delegates the actual open action to the main plugin side.

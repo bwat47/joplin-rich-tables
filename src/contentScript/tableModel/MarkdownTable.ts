@@ -386,6 +386,64 @@ export class MarkdownTable {
         return createFromUnifiedRows(nextRows, this.alignmentsData) ?? this;
     }
 
+    isRectEmpty(rect: TableRect): boolean {
+        if (
+            rect.minRow < 0 ||
+            rect.minCol < 0 ||
+            rect.maxRow >= this.rowCount ||
+            rect.maxCol >= this.columnCount ||
+            rect.minRow > rect.maxRow ||
+            rect.minCol > rect.maxCol
+        ) {
+            return false;
+        }
+
+        const rows = cloneUnifiedRows(this.headersData, this.rowsData);
+        for (let row = rect.minRow; row <= rect.maxRow; row++) {
+            for (let col = rect.minCol; col <= rect.maxCol; col++) {
+                if (rows[row][col] !== '') {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    deleteUnifiedRowRange(minRow: number, maxRow: number): MarkdownTable {
+        if (minRow < 0 || maxRow >= this.rowCount || minRow > maxRow) {
+            return this;
+        }
+
+        const allRows = cloneUnifiedRows(this.headersData, this.rowsData).filter(
+            (_row, index) => index < minRow || index > maxRow
+        );
+        if (allRows.length < 2) {
+            return this;
+        }
+
+        return createFromUnifiedRows(allRows, this.alignmentsData) ?? this;
+    }
+
+    deleteColumnRange(minCol: number, maxCol: number): MarkdownTable {
+        if (minCol < 0 || maxCol >= this.columnCount || minCol > maxCol) {
+            return this;
+        }
+
+        const remainingColumnCount = this.columnCount - (maxCol - minCol + 1);
+        if (remainingColumnCount < 1) {
+            return this;
+        }
+
+        const keepColumn = (_value: string | TableAlignment, index: number) => index < minCol || index > maxCol;
+
+        return MarkdownTable.create({
+            headerCells: this.headersData.filter(keepColumn),
+            alignments: this.alignmentsData.filter(keepColumn),
+            bodyRows: this.rowsData.map((row) => row.filter(keepColumn)),
+        });
+    }
+
     pasteFragmentAt(anchor: CellCoords, fragment: ClipboardTableFragment): PasteRectResult | null {
         const pastedRowCount = fragment.cells.length;
         const pastedColCount = fragment.cells[0]?.length ?? 0;

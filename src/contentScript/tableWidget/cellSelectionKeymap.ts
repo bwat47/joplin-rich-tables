@@ -14,6 +14,7 @@ import { makeTableId } from '../tableModel/types';
 import { buildTableContext } from '../tableModel/tableContext';
 import { resolveTableAtPos } from './tablePositioning';
 import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
+import { handleSelectionDelete } from './cellSelectionClipboard';
 
 export function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     if (getCellSelection(view.state)) {
@@ -106,6 +107,9 @@ function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
     }
 
     switch (event.key) {
+        case 'Backspace':
+        case 'Delete':
+            return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && handleSelectionDelete(view);
         case 'ArrowLeft':
             return event.shiftKey && extendOrStartSelection(view, 'left');
         case 'ArrowRight':

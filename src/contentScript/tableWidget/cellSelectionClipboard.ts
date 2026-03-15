@@ -7,6 +7,7 @@ import type { CellCoords } from '../tableModel/types';
 import { clearActiveCellEffect, getActiveCell } from './activeCellState';
 import {
     cellSelectionTransitionAnnotation,
+    clearCellSelectionEffect,
     fromUnifiedRow,
     getCellSelection,
     selectionFromRect,
@@ -27,7 +28,7 @@ export interface TableClipboardTarget {
 export interface TableClipboardRewrite {
     tableFrom: number;
     tableText: string;
-    selection: CellSelection;
+    selection: CellSelection | null;
     clearActiveCell: boolean;
     selectionAnchorPos: number;
 }
@@ -145,7 +146,71 @@ function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords:
     return activeCell?.anchorPos ?? null;
 }
 
-export function buildSelectionCutRewrite(
+function buildTableRewrite(params: {
+    tableFrom: number;
+    tableText: string;
+    selection: CellSelection | null;
+    clearActiveCell: boolean;
+}): TableClipboardRewrite | null {
+    let selectionAnchorPos = params.tableFrom;
+    if (params.selection) {
+        const rect = toSelectionRect(params.selection);
+        const topLeft = fromUnifiedRow(rect.minRow, rect.minCol);
+        const nextSelectionAnchorPos = computeSelectionAnchorPos(params.tableFrom, params.tableText, topLeft);
+        if (nextSelectionAnchorPos === null) {
+            return null;
+        }
+        selectionAnchorPos = nextSelectionAnchorPos;
+    }
+
+    return {
+        tableFrom: params.tableFrom,
+        tableText: params.tableText,
+        selection: params.selection,
+        clearActiveCell: params.clearActiveCell,
+        selectionAnchorPos,
+    };
+}
+
+function clampIndex(value: number, max: number): number {
+    return Math.max(0, Math.min(value, max));
+}
+
+function remapSelectionAfterRowDelete(
+    tableFrom: number,
+    rect: ReturnType<typeof toSelectionRect>,
+    nextTable: MarkdownTable
+) {
+    const rowSpan = rect.maxRow - rect.minRow;
+    const minRow = clampIndex(rect.minRow, nextTable.rowCount - 1);
+    const maxRow = Math.max(minRow, clampIndex(rect.minRow + rowSpan, nextTable.rowCount - 1));
+
+    return selectionFromRect(tableFrom, {
+        minRow,
+        maxRow,
+        minCol: 0,
+        maxCol: nextTable.columnCount - 1,
+    });
+}
+
+function remapSelectionAfterColumnDelete(
+    tableFrom: number,
+    rect: ReturnType<typeof toSelectionRect>,
+    nextTable: MarkdownTable
+) {
+    const colSpan = rect.maxCol - rect.minCol;
+    const minCol = clampIndex(rect.minCol, nextTable.columnCount - 1);
+    const maxCol = Math.max(minCol, clampIndex(rect.minCol + colSpan, nextTable.columnCount - 1));
+
+    return selectionFromRect(tableFrom, {
+        minRow: 0,
+        maxRow: nextTable.rowCount - 1,
+        minCol,
+        maxCol,
+    });
+}
+
+export function buildSelectionRemovalRewrite(
     state: Parameters<typeof getCellSelection>[0],
     selection: CellSelection
 ): TableClipboardRewrite | null {
@@ -155,22 +220,58 @@ export function buildSelectionCutRewrite(
     }
 
     const rect = toSelectionRect(selection);
-    const nextTable = ctx.table.clearRect(rect);
-    const nextSelection = selectionFromRect(ctx.from, rect);
-    const topLeft = fromUnifiedRow(rect.minRow, rect.minCol);
-    const tableText = nextTable.serialize();
-    const selectionAnchorPos = computeSelectionAnchorPos(ctx.from, tableText, topLeft);
-    if (selectionAnchorPos === null) {
-        return null;
+    const isEmptySelection = ctx.table.isRectEmpty(rect);
+    const spansAllRows = rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1;
+    const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
+
+    if (isEmptySelection && spansAllRows && spansAllCols) {
+        return {
+            tableFrom: ctx.from,
+            tableText: '',
+            selection: null,
+            clearActiveCell: true,
+            selectionAnchorPos: ctx.from,
+        };
     }
 
-    return {
+    if (isEmptySelection && spansAllCols) {
+        const nextTable = ctx.table.deleteUnifiedRowRange(rect.minRow, rect.maxRow);
+        if (nextTable !== ctx.table) {
+            return buildTableRewrite({
+                tableFrom: ctx.from,
+                tableText: nextTable.serialize(),
+                selection: remapSelectionAfterRowDelete(ctx.from, rect, nextTable),
+                clearActiveCell: false,
+            });
+        }
+    }
+
+    if (isEmptySelection && spansAllRows) {
+        const nextTable = ctx.table.deleteColumnRange(rect.minCol, rect.maxCol);
+        if (nextTable !== ctx.table) {
+            return buildTableRewrite({
+                tableFrom: ctx.from,
+                tableText: nextTable.serialize(),
+                selection: remapSelectionAfterColumnDelete(ctx.from, rect, nextTable),
+                clearActiveCell: false,
+            });
+        }
+    }
+
+    const nextTable = ctx.table.clearRect(rect);
+    return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText,
-        selection: nextSelection,
+        tableText: nextTable.serialize(),
+        selection: selectionFromRect(ctx.from, rect),
         clearActiveCell: false,
-        selectionAnchorPos,
-    };
+    });
+}
+
+export function buildSelectionCutRewrite(
+    state: Parameters<typeof getCellSelection>[0],
+    selection: CellSelection
+): TableClipboardRewrite | null {
+    return buildSelectionRemovalRewrite(state, selection);
 }
 
 export function buildMultiCellPasteRewrite(
@@ -216,7 +317,9 @@ export function createTableClipboardRewriteSpec(
 ) {
     const currentTable = resolveTableContextAtPos(state, rewrite.tableFrom);
     const effects = [
-        setCellSelectionEffect.of(rewrite.selection),
+        ...(rewrite.selection
+            ? [setCellSelectionEffect.of(rewrite.selection)]
+            : [clearCellSelectionEffect.of(undefined)]),
         ...(rewrite.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
     ];
 
@@ -244,6 +347,25 @@ function dispatchTableClipboardRewrite(view: EditorView, rewrite: TableClipboard
     if (!currentSelection) {
         view.focus();
     }
+}
+
+export function handleSelectionDelete(view: EditorView): boolean {
+    const selection = getCellSelection(view.state);
+    if (!selection) {
+        return false;
+    }
+
+    if (!canHandleTableSelectionShortcut(view)) {
+        return false;
+    }
+
+    const rewrite = buildSelectionRemovalRewrite(view.state, selection);
+    if (!rewrite) {
+        return false;
+    }
+
+    dispatchTableClipboardRewrite(view, rewrite);
+    return true;
 }
 
 function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {

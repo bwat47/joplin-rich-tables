@@ -146,6 +146,102 @@ describe('MarkdownTable', () => {
         expect(next.alignments).toEqual(['left', 'center', 'right']);
     });
 
+    it('detects when a rectangular selection is entirely empty', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', '', 'H3'],
+            alignments: ['left', 'center', 'right'],
+            bodyRows: [
+                ['A1', '', 'A3'],
+                ['B1', '', 'B3'],
+            ],
+        });
+
+        expect(
+            table.isRectEmpty({
+                minRow: 0,
+                maxRow: 2,
+                minCol: 1,
+                maxCol: 1,
+            })
+        ).toBe(true);
+        expect(
+            table.isRectEmpty({
+                minRow: 1,
+                maxRow: 2,
+                minCol: 0,
+                maxCol: 1,
+            })
+        ).toBe(false);
+    });
+
+    it('deletes contiguous unified body rows', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+                ['C1', 'C2'],
+            ],
+        });
+
+        const next = table.deleteUnifiedRowRange(1, 2);
+
+        expect(next.headerCells).toEqual(['H1', 'H2']);
+        expect(next.bodyRows).toEqual([['C1', 'C2']]);
+        expect(next.alignments).toEqual(['left', 'right']);
+    });
+
+    it('promotes the first surviving body row when deleting a row range that includes the header', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+                ['C1', 'C2'],
+            ],
+        });
+
+        const next = table.deleteUnifiedRowRange(0, 1);
+
+        expect(next.headerCells).toEqual(['B1', 'B2']);
+        expect(next.bodyRows).toEqual([['C1', 'C2']]);
+        expect(next.alignments).toEqual(['left', 'right']);
+    });
+
+    it('deletes contiguous column ranges while preserving remaining alignments', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2', 'H3', 'H4'],
+            alignments: ['left', 'center', 'right', null],
+            bodyRows: [
+                ['A1', 'A2', 'A3', 'A4'],
+                ['B1', 'B2', 'B3', 'B4'],
+            ],
+        });
+
+        const next = table.deleteColumnRange(1, 2);
+
+        expect(next.headerCells).toEqual(['H1', 'H4']);
+        expect(next.bodyRows).toEqual([
+            ['A1', 'A4'],
+            ['B1', 'B4'],
+        ]);
+        expect(next.alignments).toEqual(['left', null]);
+    });
+
+    it('blocks structural range deletes that would remove every body row or every column', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        expect(table.deleteUnifiedRowRange(0, 0)).toBe(table);
+        expect(table.deleteUnifiedRowRange(1, 1)).toBe(table);
+        expect(table.deleteColumnRange(0, 1)).toBe(table);
+    });
+
     it('pastes a fragment within existing bounds', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1', 'H2', 'H3'],

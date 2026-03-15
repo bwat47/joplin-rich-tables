@@ -14,8 +14,10 @@ import { createMarkdownState } from './testMarkdownState';
 import {
     buildMultiCellPasteRewrite,
     buildSelectionCutRewrite,
+    buildSelectionRemovalRewrite,
     copySelectionAsMarkdown,
     extractSelectedCellContents,
+    handleSelectionDelete,
     handleTableClipboardPaste,
     handleTableClipboardTextPaste,
     parseMarkdownTableClipboard,
@@ -186,6 +188,90 @@ describe('cellSelectionClipboard', () => {
         );
         expect(rewrite?.selection).toEqual(
             selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+        );
+    });
+
+    it('clears non-empty selections instead of structurally deleting them', () => {
+        const state = createMarkdownState(doc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 2 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe(['|  |  |  |', '| :--- | ---: | --- |', '|  |  |  |', '|  |  |  |'].join('\n'));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 2 })
+        );
+    });
+
+    it('deletes empty full-row selections and remaps the selection to surviving rows', () => {
+        const emptyRowDoc = ['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '|  |  |', '| B1 | B2 |'].join('\n');
+        const state = createMarkdownState(emptyRowDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'body', row: 1, col: 0 }, { section: 'body', row: 1, col: 1 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '| B1 | B2 |'].join('\n'));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'body', row: 1, col: 0 }, { section: 'body', row: 1, col: 1 })
+        );
+    });
+
+    it('deletes empty full-column selections and remaps the selection to surviving columns', () => {
+        const emptyColumnDoc = ['| H1 |  | H3 |', '| --- | --- | --- |', '| A1 |  | A3 |', '| B1 |  | B3 |'].join('\n');
+        const state = createMarkdownState(emptyColumnDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe(['| H1 | H3 |', '| --- | --- |', '| A1 | A3 |', '| B1 | B3 |'].join('\n'));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
+        );
+    });
+
+    it('deletes the whole table when the full selected table is empty', () => {
+        const emptyTableDoc = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
+        const state = createMarkdownState(emptyTableDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe('');
+        expect(rewrite?.selection).toBeNull();
+        expect(rewrite?.clearActiveCell).toBe(true);
+        expect(rewrite?.selectionAnchorPos).toBe(0);
+    });
+
+    it('uses the structural empty-row deletion path for Ctrl+X too', () => {
+        const emptyRowDoc = ['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '|  |  |', '| B1 | B2 |'].join('\n');
+        const state = createMarkdownState(emptyRowDoc);
+        const rewrite = buildSelectionCutRewrite(
+            state,
+            selection({ section: 'body', row: 1, col: 0 }, { section: 'body', row: 1, col: 1 })
+        );
+
+        expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '| B1 | B2 |'].join('\n'));
+    });
+
+    it('falls back to clear semantics when an empty full-row selection cannot be structurally deleted', () => {
+        const state = createMarkdownState(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
         );
     });
 
@@ -365,5 +451,41 @@ describe('cellSelectionClipboard', () => {
             selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
         );
         expect(mutableView.focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('dispatches delete/backspace removal through the shared selection rewrite path', () => {
+        const emptyColumnDoc = ['| H1 |  | H3 |', '| --- | --- | --- |', '| A1 |  | A3 |', '| B1 |  | B3 |'].join('\n');
+        let currentState = createMarkdownState(emptyColumnDoc, [cellSelectionField]);
+        currentState = currentState.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
+            ),
+        }).state;
+
+        const root = document.createElement('div');
+        document.body.appendChild(root);
+        setActiveElement(document.body);
+
+        const mutableView: MutableClipboardTestView = {
+            state: currentState,
+            dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+                currentState = currentState.update(spec).state;
+                mutableView.state = currentState;
+            }),
+            focus: jest.fn(),
+            dom: root,
+            contentDOM: root,
+            scrollDOM: root,
+        };
+        const view = mutableView as unknown as EditorView;
+
+        expect(handleSelectionDelete(view)).toBe(true);
+        expect(mutableView.state.doc.toString()).toBe(
+            ['| H1 | H3 |', '| --- | --- |', '| A1 | A3 |', '| B1 | B3 |'].join('\n')
+        );
+        expect(getCellSelection(mutableView.state)).toEqual(
+            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
+        );
+        expect(mutableView.focus).not.toHaveBeenCalled();
     });
 });

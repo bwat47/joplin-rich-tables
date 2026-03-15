@@ -28,9 +28,18 @@ User Action (keyboard/toolbar)
 ### 1b. Selection Clipboard Entry (`tableWidget/cellSelectionClipboard.ts`)
 
 - Document-level `copy`/`cut`/`paste` capture handles selection-mode clipboard operations and any nested-editor paste flows that surface as real DOM paste events.
-- `Ctrl+X` is selection-only: copy markdown fragment, clear selected cells, keep the rectangle selected.
+- `Ctrl+X` is selection-only: copy markdown fragment, then run the shared selection-removal rewrite and keep the resulting selection state.
 - `Ctrl+V` is anchor-based: selection top-left wins; otherwise an active nested editor can supply the anchor cell.
 - Valid pasted markdown table fragments may expand the target table with new body rows and columns.
+- `Delete`/`Backspace` reuse the same selection-removal rewrite path without touching the clipboard.
+
+Selection removal is resolved in this order:
+
+- If the selected rectangle is not fully empty, clear the selected cells.
+- If the selected rectangle is fully empty and spans all columns, delete those rows when doing so still leaves a valid table.
+- If the selected rectangle is fully empty and spans all unified rows (header + body), delete those columns when doing so still leaves a valid table.
+- If the selected rectangle is the entire table and every cell is empty, delete the whole table.
+- When a structural row/column delete is blocked by table invariants, fall back to normal clear semantics.
 
 When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `nestedEditor/mainEditorGuard.ts`
 upgrades the resulting root-editor `input.paste` transaction into the same table rewrite before the normal
@@ -59,6 +68,7 @@ single-cell sanitation path can flatten the fragment into text.
 - Column insert/delete/swap/alignment updates.
 - Clear row/column/table operations.
 - Rectangle clear plus anchor-based fragment paste with optional row/column expansion.
+- Selection-removal helpers for empty-rect detection and contiguous row/column deletion.
 
 ## Serialization
 
