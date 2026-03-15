@@ -24,7 +24,6 @@ import { buildRenderableContent, containsMarkdown } from '../shared/cellContentU
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
 import { CLASS_CELL_ACTIVE } from '../tableWidget/domHelpers';
-import { logger } from '../../logger';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -237,15 +236,6 @@ class ActiveCellSessionController {
             return;
         }
 
-        if (update.docChanged) {
-            logger.info('Nested editor syncing main-editor doc change into local session', {
-                transactionCount: update.transactions.length,
-                inputPaste: update.transactions.some((tr) => tr.isUserEvent('input.paste')),
-                inputEvent: update.transactions.some((tr) => tr.isUserEvent('input')),
-                sync: update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation))),
-            });
-        }
-
         // Read the mapped anchorPos from the state field rather than manually mapping
         // through transaction changes. The state field already handles position mapping
         // correctly, and manual mapping here would corrupt the position if this method
@@ -355,15 +345,6 @@ class ActiveCellSessionController {
         }
 
         const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
-        const isPaste = update.transactions.some((tr) => tr.isUserEvent('input.paste'));
-        if (isPaste) {
-            logger.info('Nested editor received CodeMirror input.paste update', {
-                docChanged: update.docChanged,
-                selectionSet: update.selectionSet,
-                activeCell: getActiveCell(this.mainView.state),
-                transactionCount: update.transactions.length,
-            });
-        }
         if (isSync || this.session.applyingRootToLocal) {
             return;
         }

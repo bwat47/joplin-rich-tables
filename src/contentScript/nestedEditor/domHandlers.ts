@@ -4,8 +4,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
 import { navigateCell } from '../tableWidget/tableNavigation';
 import { startCellSelectionFromActiveCell } from '../tableWidget/cellSelectionState';
-import { handleTableClipboardPaste, handleTableClipboardTextPaste } from '../tableWidget/cellSelectionClipboard';
-import { logger } from '../../logger';
+import { handleTableClipboardTextPaste } from '../tableWidget/cellSelectionClipboard';
 import { syncAnnotation } from './transactionPolicy';
 
 function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
@@ -186,25 +185,18 @@ export function createNestedEditorDomHandlers(
     let pendingClipboardText: string | null = null;
 
     return [
+        // Paste hits the root editor as an input.paste event and then gets sync'd back to nested editor
         EditorView.clipboardInputFilter.of((text) => {
             pendingClipboardText = text;
-            logger.info('Nested editor clipboardInputFilter saw text', {
-                textLength: text.length,
-                lineCount: text === '' ? 0 : text.split(/\r\n?|\n/).length,
-            });
             return text;
         }),
-        EditorView.inputHandler.of((_view, _from, _to, text) => {
+        EditorView.inputHandler.of((_view, _from, _to, _text) => {
             if (pendingClipboardText === null) {
                 return false;
             }
 
             const clipboardText = pendingClipboardText;
             pendingClipboardText = null;
-            logger.info('Nested editor CodeMirror input handler invoked for clipboard text', {
-                textLength: clipboardText.length,
-                textMatchesChange: clipboardText === text,
-            });
             return handleTableClipboardTextPaste(clipboardText, mainView, {
                 nestedEditorOpen: true,
                 closeNestedEditor: options.closeEditor,
@@ -212,26 +204,10 @@ export function createNestedEditorDomHandlers(
         }),
         EditorView.domEventHandlers({
             beforeinput: (e) => {
-                const inputEvent = e as InputEvent;
-                if (inputEvent.inputType === 'insertFromPaste' || inputEvent.inputType === 'insertFromPasteAsQuotation') {
-                    logger.info('Nested editor beforeinput paste-like event', {
-                        inputType: inputEvent.inputType,
-                        hasDataTransfer: Boolean(inputEvent.dataTransfer),
-                        textLength: inputEvent.dataTransfer?.getData('text/plain').length ?? 0,
-                    });
-                }
                 e.stopPropagation();
                 return false;
             },
             input: (e) => {
-                const inputEvent = e as InputEvent;
-                if (inputEvent.inputType === 'insertFromPaste' || inputEvent.inputType === 'insertFromPasteAsQuotation') {
-                    logger.info('Nested editor input paste-like event', {
-                        inputType: inputEvent.inputType,
-                        hasDataTransfer: Boolean(inputEvent.dataTransfer),
-                        textLength: inputEvent.dataTransfer?.getData('text/plain').length ?? 0,
-                    });
-                }
                 e.stopPropagation();
                 return false;
             },
@@ -245,23 +221,6 @@ export function createNestedEditorDomHandlers(
             },
             compositionend: (e) => {
                 e.stopPropagation();
-                return false;
-            },
-            paste: (e) => {
-                const clipboardEvent = e as ClipboardEvent;
-                logger.info('Nested editor paste DOM handler invoked', {
-                    hasClipboardData: Boolean(clipboardEvent.clipboardData),
-                });
-                const handled = handleTableClipboardPaste(clipboardEvent, mainView, {
-                    nestedEditorOpen: true,
-                    closeNestedEditor: options.closeEditor,
-                });
-                logger.info('Nested editor paste DOM handler result', { handled });
-                if (handled) {
-                    e.stopPropagation();
-                    return true;
-                }
-
                 return false;
             },
             keydown: (e) => {
@@ -282,10 +241,6 @@ export function createNestedEditorDomHandlers(
                 }
 
                 if (isMod && ['s', 'p', 'v'].includes(key)) {
-                    logger.info('Nested editor mod-key passthrough', {
-                        key,
-                        hasActiveCell: Boolean(getActiveCell(mainView.state)),
-                    });
                     return false;
                 }
 
