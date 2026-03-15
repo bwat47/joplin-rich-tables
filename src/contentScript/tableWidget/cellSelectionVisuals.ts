@@ -15,57 +15,78 @@ function readCoords(cell: Element): CellCoords | null {
     return { section, row, col };
 }
 
-export const cellSelectionVisualsPlugin = ViewPlugin.fromClass(
-    class {
-        private selectedCells = new Set<HTMLElement>();
+function collectSelectedCells(view: EditorView): HTMLElement[] {
+    const selection = getCellSelection(view.state);
+    if (!selection) {
+        return [];
+    }
 
-        constructor(private readonly view: EditorView) {
-            this.sync();
+    const widget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
+    if (!widget) {
+        return [];
+    }
+
+    const rect = toSelectionRect(selection);
+    const cells = widget.querySelectorAll('td[data-section][data-row][data-col], th[data-section][data-row][data-col]');
+    const selectedCells: HTMLElement[] = [];
+
+    for (const cell of cells) {
+        const coords = readCoords(cell);
+        if (!coords || !isCellInRect(rect, coords)) {
+            continue;
         }
 
-        update(_update: ViewUpdate): void {
-            this.sync();
+        selectedCells.push(cell as HTMLElement);
+    }
+
+    return selectedCells;
+}
+
+export class CellSelectionVisualsController {
+    private selectedCells = new Set<HTMLElement>();
+    private destroyed = false;
+
+    constructor(private readonly view: EditorView) {
+        this.scheduleSync();
+    }
+
+    update(_update: ViewUpdate): void {
+        this.scheduleSync();
+    }
+
+    destroy(): void {
+        this.destroyed = true;
+        this.clear();
+    }
+
+    private clear(): void {
+        for (const cell of this.selectedCells) {
+            cell.classList.remove(CLASS_CELL_SELECTED);
         }
+        this.selectedCells.clear();
+    }
 
-        destroy(): void {
-            this.clear();
-        }
-
-        private clear(): void {
-            for (const cell of this.selectedCells) {
-                cell.classList.remove(CLASS_CELL_SELECTED);
-            }
-            this.selectedCells.clear();
-        }
-
-        private sync(): void {
-            this.clear();
-
-            const selection = getCellSelection(this.view.state);
-            if (!selection) {
-                return;
-            }
-
-            const widget = findTableWidgetElement(this.view, makeTableId(selection.tableFrom));
-            if (!widget) {
-                return;
-            }
-
-            const rect = toSelectionRect(selection);
-            const cells = widget.querySelectorAll(
-                'td[data-section][data-row][data-col], th[data-section][data-row][data-col]'
-            );
-
-            for (const cell of cells) {
-                const coords = readCoords(cell);
-                if (!coords || !isCellInRect(rect, coords)) {
-                    continue;
+    private scheduleSync(): void {
+        this.view.requestMeasure({
+            key: this,
+            // Selection rewrites can rebuild the table widget, and ViewPlugin.update()
+            // may run before the replacement DOM is mounted. Defer the DOM query/write
+            // to the measure phase so the highlight is applied against the current widget.
+            read: () => collectSelectedCells(this.view),
+            write: (selectedCells: HTMLElement[]) => {
+                if (this.destroyed) {
+                    return;
                 }
 
-                const element = cell as HTMLElement;
-                element.classList.add(CLASS_CELL_SELECTED);
-                this.selectedCells.add(element);
-            }
-        }
+                this.clear();
+
+                for (const element of selectedCells) {
+                    element.classList.add(CLASS_CELL_SELECTED);
+                    this.selectedCells.add(element);
+                }
+            },
+        });
     }
-);
+}
+
+export const cellSelectionVisualsPlugin = ViewPlugin.fromClass(CellSelectionVisualsController);
