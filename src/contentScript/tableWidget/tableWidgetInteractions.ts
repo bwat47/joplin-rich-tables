@@ -1,9 +1,15 @@
 import type { EditorView } from '@codemirror/view';
 import { setActiveCellEffect, clearActiveCellEffect, getActiveCell, type ActiveCellSection } from './activeCellState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
+import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableContextFromEventTarget } from './tablePositioning';
 import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
+import {
+    clearCellSelectionEffect,
+    getCellSelection,
+    setOrExtendCellSelectionToCoords,
+} from './cellSelectionState';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -180,6 +186,9 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         // and see the context menu.
         const mouseEvent = event as MouseEvent;
         if (isLink && mouseEvent.button === 0) {
+            if (getCellSelection(view.state)) {
+                view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+            }
             return true; // Claim the event to prevent CodeMirror default selection, but don't activate cell
         }
 
@@ -216,15 +225,33 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         event.preventDefault();
         event.stopPropagation();
 
+        const currentSelection = getCellSelection(view.state);
+        const existingActiveCell = getActiveCell(view.state);
+        const hasSelection = Boolean(currentSelection);
+        if (mouseEvent.shiftKey) {
+            const canTransitionSelection =
+                currentSelection?.tableFrom === ctx.from || existingActiveCell?.tableFrom === ctx.from;
+
+            if (canTransitionSelection && isNestedCellEditorOpen(view)) {
+                closeNestedCellEditor(view);
+            }
+            if (setOrExtendCellSelectionToCoords(view, { section, row: section === SECTION_HEADER ? 0 : row, col }, ctx.from)) {
+                return true;
+            }
+        }
+
         view.dispatch({
             selection: { anchor: cellFrom },
-            effects: setActiveCellEffect.of({
-                anchorPos: cellFrom,
-                tableFrom: ctx.from,
-                section,
-                row: section === SECTION_HEADER ? 0 : row,
-                col,
-            }),
+            effects: [
+                ...(hasSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+                setActiveCellEffect.of({
+                    anchorPos: cellFrom,
+                    tableFrom: ctx.from,
+                    section,
+                    row: section === SECTION_HEADER ? 0 : row,
+                    col,
+                }),
+            ],
         });
 
         const activeCell = {

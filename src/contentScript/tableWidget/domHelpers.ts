@@ -5,6 +5,7 @@ import type { EditorView } from '@codemirror/view';
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_ACTIVE = 'cm-table-cell-active';
+export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
 
 // Nested editor wrapper elements hosted inside table cells
 export const CLASS_CELL_CONTENT = 'cm-table-cell-content';

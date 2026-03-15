@@ -183,6 +183,7 @@ describe('tableRuntimeTransitions', () => {
             update: {} as TableRuntimeEvent['update'],
             isSync: false,
             isNormalizeBeforeEdit: false,
+            isCellSelectionTransition: false,
             forceRebuild: false,
             rawModeEffects: {
                 exitedSourceMode: true,

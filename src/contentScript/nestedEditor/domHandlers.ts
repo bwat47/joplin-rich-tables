@@ -3,6 +3,7 @@ import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
 import { navigateCell } from '../tableWidget/tableNavigation';
+import { startCellSelectionFromActiveCell } from '../tableWidget/cellSelectionState';
 import { syncAnnotation } from './transactionPolicy';
 
 function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
@@ -36,6 +37,7 @@ export function createNestedEditorKeymap(
     mainView: EditorView,
     options: {
         getSelectionBounds: (view: EditorView) => { from: number; to: number };
+        closeEditor: () => void;
         extraBindings?: Record<string, StateCommand>;
     }
 ) {
@@ -102,6 +104,62 @@ export function createNestedEditorKeymap(
                 }
 
                 return false;
+            },
+        },
+        {
+            key: 'Shift-ArrowLeft',
+            run: (nestedView) => {
+                const { from } = options.getSelectionBounds(nestedView);
+                if (nestedView.state.selection.main.head !== from) {
+                    return false;
+                }
+
+                options.closeEditor();
+                return startCellSelectionFromActiveCell(mainView, 'left');
+            },
+        },
+        {
+            key: 'Shift-ArrowRight',
+            run: (nestedView) => {
+                const { to } = options.getSelectionBounds(nestedView);
+                if (nestedView.state.selection.main.head !== to) {
+                    return false;
+                }
+
+                options.closeEditor();
+                return startCellSelectionFromActiveCell(mainView, 'right');
+            },
+        },
+        {
+            key: 'Shift-ArrowUp',
+            run: (nestedView) => {
+                const { from } = options.getSelectionBounds(nestedView);
+                const { head } = nestedView.state.selection.main;
+                const headRect = nestedView.coordsAtPos(head);
+                const fromRect = nestedView.coordsAtPos(from);
+
+                if (!((headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) || head === from)) {
+                    return false;
+                }
+
+                options.closeEditor();
+                return startCellSelectionFromActiveCell(mainView, 'up');
+            },
+        },
+        {
+            key: 'Shift-ArrowDown',
+            run: (nestedView) => {
+                const { to } = options.getSelectionBounds(nestedView);
+                const { head } = nestedView.state.selection.main;
+                const headRect = nestedView.coordsAtPos(head);
+                const toRect = nestedView.coordsAtPos(to);
+
+                if (!((headRect && toRect && Math.abs(headRect.top - toRect.top) < 2) || head === to)) {
+                    return false;
+                }
+
+                options.closeEditor();
+                return startCellSelectionFromActiveCell(mainView, 'down');
             },
         },
     ];

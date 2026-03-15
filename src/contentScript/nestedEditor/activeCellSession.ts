@@ -192,6 +192,7 @@ class ActiveCellSessionController {
                 }),
                 createNestedEditorKeymap(params.mainView, {
                     getSelectionBounds: (view) => ({ from: 0, to: view.state.doc.length }),
+                    closeEditor: () => this.close(),
                     extraBindings: {
                         'Mod-a': selectAllInCell(),
                     },
