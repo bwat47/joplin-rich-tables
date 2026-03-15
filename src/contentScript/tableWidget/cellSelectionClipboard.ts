@@ -21,6 +21,7 @@ import {
 import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { resolveTableContextAtPos } from './tablePositioning';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
+import { logger } from '../../logger';
 
 export interface TableClipboardTarget {
     tableFrom: number;
@@ -283,21 +284,89 @@ function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
     return true;
 }
 
-function handleSelectionPaste(event: ClipboardEvent, view: EditorView): boolean {
-    const target = resolveTableClipboardTarget(view.state, {
-        nestedEditorOpen: isNestedCellEditorOpen(view),
+export function handleTableClipboardTextPaste(
+    clipboardText: string,
+    view: EditorView,
+    options: { nestedEditorOpen: boolean; closeNestedEditor?: () => void }
+): boolean {
+    logger.info('Clipboard text paste received', {
+        nestedEditorOpen: options.nestedEditorOpen,
+        hasSelection: Boolean(getCellSelection(view.state)),
+        hasActiveCell: Boolean(getActiveCell(view.state)),
+        textLength: clipboardText.length,
+        lineCount: clipboardText === '' ? 0 : clipboardText.split(/\r\n?|\n/).length,
     });
-    if (!target || !event.clipboardData) {
+
+    const target = resolveTableClipboardTarget(view.state, {
+        nestedEditorOpen: options.nestedEditorOpen,
+    });
+    if (!target) {
+        logger.info('Clipboard text paste ignored: no target', {
+            hasTarget: Boolean(target),
+        });
+        return false;
+    }
+
+    const rewrite = buildMultiCellPasteRewrite(view.state, target, clipboardText);
+    if (!rewrite) {
+        logger.info('Clipboard text paste did not produce table rewrite', {
+            targetSource: target.source,
+            textLength: clipboardText.length,
+        });
+        return false;
+    }
+
+    if (target.source === 'activeCell') {
+        logger.info('Clipboard text paste closing nested editor before rewrite');
+        options.closeNestedEditor?.();
+    }
+
+    logger.info('Clipboard text paste applying table rewrite', {
+        targetSource: target.source,
+        clearActiveCell: rewrite.clearActiveCell,
+    });
+    dispatchTableClipboardRewrite(view, rewrite);
+    return true;
+}
+
+export function handleTableClipboardPaste(
+    event: ClipboardEvent,
+    view: EditorView,
+    options: { nestedEditorOpen: boolean; closeNestedEditor?: () => void }
+): boolean {
+    const clipboardText = event.clipboardData?.getData('text/plain') ?? '';
+    logger.info('Clipboard paste event received', {
+        nestedEditorOpen: options.nestedEditorOpen,
+        hasClipboardData: Boolean(event.clipboardData),
+        textLength: clipboardText.length,
+    });
+
+    if (!event.clipboardData) {
+        logger.info('Clipboard paste ignored: no clipboard data');
         return false;
     }
 
     if (!canHandleTableClipboardShortcut(view)) {
+        const target = resolveTableClipboardTarget(view.state, {
+            nestedEditorOpen: options.nestedEditorOpen,
+        });
+        logger.info('Clipboard paste ignored by shortcut scope', {
+            targetSource: target?.source ?? null,
+            activeElementTag: view.dom.ownerDocument.activeElement?.tagName ?? null,
+            activeElementClass:
+                view.dom.ownerDocument.activeElement instanceof HTMLElement
+                    ? view.dom.ownerDocument.activeElement.className
+                    : null,
+        });
         return false;
     }
 
-    const rewrite = buildMultiCellPasteRewrite(view.state, target, event.clipboardData.getData('text/plain'));
-    if (!rewrite) {
-        if (target.source === 'selection') {
+    const handled = handleTableClipboardTextPaste(clipboardText, view, options);
+    if (!handled) {
+        const target = resolveTableClipboardTarget(view.state, {
+            nestedEditorOpen: options.nestedEditorOpen,
+        });
+        if (target?.source === 'selection') {
             event.preventDefault();
             return true;
         }
@@ -305,11 +374,6 @@ function handleSelectionPaste(event: ClipboardEvent, view: EditorView): boolean 
         return false;
     }
 
-    if (target.source === 'activeCell') {
-        closeNestedCellEditor(view);
-    }
-
-    dispatchTableClipboardRewrite(view, rewrite);
     event.preventDefault();
     return true;
 }
@@ -328,7 +392,13 @@ export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
                 handleSelectionCut(event, this.view);
             };
             this.onPaste = (event) => {
-                handleSelectionPaste(event, this.view);
+                logger.info('Document capture paste handler invoked', {
+                    nestedEditorOpen: isNestedCellEditorOpen(this.view),
+                });
+                handleTableClipboardPaste(event, this.view, {
+                    nestedEditorOpen: isNestedCellEditorOpen(this.view),
+                    closeNestedEditor: () => closeNestedCellEditor(this.view),
+                });
             };
 
             const doc = this.view.dom.ownerDocument;

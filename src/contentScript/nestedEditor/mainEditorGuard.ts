@@ -1,6 +1,36 @@
-import { EditorState, Extension } from '@codemirror/state';
-import { clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { EditorSelection, EditorState, Extension, Transaction } from '@codemirror/state';
+import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
+import { buildMultiCellPasteRewrite } from '../tableWidget/cellSelectionClipboard';
+import { cellSelectionTransitionAnnotation, setCellSelectionEffect } from '../tableWidget/cellSelectionState';
+import { resolveTableContextAtPos } from '../tableWidget/tablePositioning';
 import { decideMainEditorGuardTransaction } from '../tableWidget/tableRuntimeTransitions';
+import { logger } from '../../logger';
+
+function extractSingleInsertedText(tr: Transaction): string | null {
+    let insertedText: string | null = null;
+    let sawChange = false;
+
+    tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+        sawChange = true;
+        if (insertedText !== null) {
+            insertedText = null;
+            return;
+        }
+
+        insertedText = inserted.toString();
+    });
+
+    if (!sawChange || insertedText === null || insertedText.length === 0) {
+        return null;
+    }
+
+    let changeCount = 0;
+    tr.changes.iterChanges(() => {
+        changeCount++;
+    });
+
+    return changeCount === 1 ? insertedText : null;
+}
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -22,7 +52,58 @@ import { decideMainEditorGuardTransaction } from '../tableWidget/tableRuntimeTra
  */
 export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolean): Extension {
     const guardFilter = EditorState.transactionFilter.of((tr) => {
-        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: isNestedEditorOpen() });
+        const nestedEditorOpen = isNestedEditorOpen();
+
+        if (nestedEditorOpen && tr.docChanged && tr.isUserEvent('input.paste')) {
+            const activeCell = getActiveCell(tr.startState);
+            const pastedText = extractSingleInsertedText(tr);
+
+            if (activeCell && pastedText) {
+                const rewrite = buildMultiCellPasteRewrite(
+                    tr.startState,
+                    {
+                        tableFrom: activeCell.tableFrom,
+                        anchor: {
+                            section: activeCell.section,
+                            row: activeCell.row,
+                            col: activeCell.col,
+                        },
+                        source: 'activeCell',
+                    },
+                    pastedText
+                );
+
+                if (rewrite) {
+                    const currentTable = resolveTableContextAtPos(tr.startState, rewrite.tableFrom);
+                    logger.info('Main editor guard rewriting markdown-table paste while nested editor open');
+                    return {
+                        changes: {
+                            from: rewrite.tableFrom,
+                            to: currentTable?.to ?? rewrite.tableFrom,
+                            insert: rewrite.tableText,
+                        },
+                        selection: EditorSelection.single(rewrite.selectionAnchorPos),
+                        effects: [
+                            setCellSelectionEffect.of(rewrite.selection),
+                            clearActiveCellEffect.of(undefined),
+                        ],
+                        annotations: cellSelectionTransitionAnnotation.of(true),
+                        scrollIntoView: false,
+                    };
+                }
+            }
+        }
+
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen });
+
+        if (tr.docChanged && nestedEditorOpen) {
+            logger.info('Main editor guard saw doc change while nested editor open', {
+                decision: decision.type,
+                inputPaste: tr.isUserEvent('input.paste'),
+                cut: tr.isUserEvent('delete.cut'),
+                keyboard: tr.isUserEvent('input'),
+            });
+        }
 
         switch (decision.type) {
             case 'allowTransaction':

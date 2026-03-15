@@ -1,14 +1,27 @@
-import { activeCellField, setActiveCellEffect } from '../tableWidget/activeCellState';
-import { cellSelectionField, setCellSelectionEffect, type CellSelection } from '../tableWidget/cellSelectionState';
+/**
+ * @jest-environment jsdom
+ */
+
+import { EditorView } from '@codemirror/view';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
+import {
+    cellSelectionField,
+    getCellSelection,
+    setCellSelectionEffect,
+    type CellSelection,
+} from '../tableWidget/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';
 import {
     buildMultiCellPasteRewrite,
     buildSelectionCutRewrite,
     copySelectionAsMarkdown,
     extractSelectedCellContents,
+    handleTableClipboardPaste,
+    handleTableClipboardTextPaste,
     parseMarkdownTableClipboard,
     resolveTableClipboardTarget,
 } from '../tableWidget/cellSelectionClipboard';
+import { CLASS_CELL_EDITOR } from '../tableWidget/domHelpers';
 
 const doc = [
     '| H\\|1 | H2 | H3 |',
@@ -21,7 +34,28 @@ function selection(anchor: CellSelection['anchor'], focus: CellSelection['focus'
     return { tableFrom: 0, anchor, focus };
 }
 
+interface MutableClipboardTestView {
+    state: ReturnType<typeof createMarkdownState>;
+    dispatch: jest.Mock;
+    focus: jest.Mock;
+    dom: HTMLElement;
+    contentDOM: HTMLElement;
+    scrollDOM: HTMLElement;
+}
+
+function setActiveElement(element: Element | null): void {
+    Object.defineProperty(document, 'activeElement', {
+        configurable: true,
+        get: () => element,
+    });
+}
+
 describe('cellSelectionClipboard', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+        setActiveElement(document.body);
+    });
+
     it('extracts header-only selections', () => {
         const state = createMarkdownState(doc);
 
@@ -227,5 +261,122 @@ describe('cellSelectionClipboard', () => {
         };
 
         expect(buildMultiCellPasteRewrite(state, target, 'plain text')).toBeNull();
+    });
+
+    it('handles nested-editor paste through the main capture path', () => {
+        let currentState = createMarkdownState(doc, [activeCellField, cellSelectionField]);
+        currentState = currentState.update({
+            effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('b\\|c'),
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 1,
+            }),
+        }).state;
+
+        const root = document.createElement('div');
+        const nestedEditor = document.createElement('div');
+        nestedEditor.className = CLASS_CELL_EDITOR;
+        const nestedContent = document.createElement('div');
+        nestedContent.setAttribute('contenteditable', 'true');
+        nestedEditor.appendChild(nestedContent);
+        root.appendChild(nestedEditor);
+        document.body.appendChild(root);
+        setActiveElement(nestedContent);
+
+        const mutableView: MutableClipboardTestView = {
+            state: currentState,
+            dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+                currentState = currentState.update(spec).state;
+                mutableView.state = currentState;
+            }),
+            focus: jest.fn(),
+            dom: root,
+            contentDOM: root,
+            scrollDOM: root,
+        };
+        const view = mutableView as unknown as EditorView;
+
+        const closeNestedEditor = jest.fn();
+        const event = {
+            clipboardData: {
+                getData: jest.fn(() =>
+                    ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n')
+                ),
+            },
+            preventDefault: jest.fn(),
+        } as unknown as ClipboardEvent;
+
+        expect(
+            handleTableClipboardPaste(event, view, {
+                nestedEditorOpen: true,
+                closeNestedEditor,
+            })
+        ).toBe(true);
+
+        expect(closeNestedEditor).toHaveBeenCalledTimes(1);
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+        expect(mutableView.state.doc.toString()).toBe(
+            ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
+        );
+        expect(getActiveCell(mutableView.state)).toBeNull();
+        expect(getCellSelection(mutableView.state)).toEqual(
+            selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+        );
+        expect(mutableView.focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles nested-editor paste through the CodeMirror input pipeline', () => {
+        let currentState = createMarkdownState(doc, [activeCellField, cellSelectionField]);
+        currentState = currentState.update({
+            effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('b\\|c'),
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 1,
+            }),
+        }).state;
+
+        const root = document.createElement('div');
+        document.body.appendChild(root);
+        setActiveElement(root);
+
+        const mutableView: MutableClipboardTestView = {
+            state: currentState,
+            dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+                currentState = currentState.update(spec).state;
+                mutableView.state = currentState;
+            }),
+            focus: jest.fn(),
+            dom: root,
+            contentDOM: root,
+            scrollDOM: root,
+        };
+        const view = mutableView as unknown as EditorView;
+
+        const closeNestedEditor = jest.fn();
+
+        expect(
+            handleTableClipboardTextPaste(
+                ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'),
+                view,
+                {
+                    nestedEditorOpen: true,
+                    closeNestedEditor,
+                }
+            )
+        ).toBe(true);
+
+        expect(closeNestedEditor).toHaveBeenCalledTimes(1);
+        expect(mutableView.state.doc.toString()).toBe(
+            ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
+        );
+        expect(getActiveCell(mutableView.state)).toBeNull();
+        expect(getCellSelection(mutableView.state)).toEqual(
+            selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+        );
+        expect(mutableView.focus).toHaveBeenCalledTimes(1);
     });
 });
