@@ -24,6 +24,10 @@ The plugin's architecture is centered around a single active cell with a nested 
 - Successful cut/paste leaves the affected rectangle selected
 - Invalid markdown-table paste is ignored in selection mode and falls through to normal nested-editor paste behavior when editing a single cell
 
+Implementation note: in Joplin, Cmd/Ctrl+V from a nested editor can arrive as a root-editor `input.paste`
+transaction rather than a nested-editor DOM paste event. The shipped implementation handles that in
+`nestedEditor/mainEditorGuard.ts` by upgrading valid markdown table fragments before cell sanitation.
+
 ---
 
 ## Phase 1 Implementation Plan
@@ -219,7 +223,7 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 | Shift+Arrow in nested editor conflicts with text selection | Only intercept at content boundaries (same pattern as existing Arrow keys)                             |
 | Selection across header/body boundary edge cases           | Unified row coordinate system handles this naturally                                                   |
 | Selection mode has unreliable editor focus                 | Use document-level capture plugins for copy and repeated keyboard navigation                           |
-| Document-level capture can hijack unrelated shortcuts      | Scope handlers narrowly and allow nested-editor paste interception only when the clipboard contains a valid markdown table fragment |
+| Joplin may route nested-editor Cmd/Ctrl+V through root `input.paste` | `mainEditorGuard.ts` upgrades valid markdown-table fragments before the single-cell sanitation path runs |
 
 ## Verification
 

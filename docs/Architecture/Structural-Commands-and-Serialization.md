@@ -27,10 +27,14 @@ User Action (keyboard/toolbar)
 
 ### 1b. Selection Clipboard Entry (`tableWidget/cellSelectionClipboard.ts`)
 
-- Document-level `copy`/`cut`/`paste` capture handles multi-cell clipboard operations because selection mode and nested-editor paste do not reliably keep focus on the main editor.
+- Document-level `copy`/`cut`/`paste` capture handles selection-mode clipboard operations and any nested-editor paste flows that surface as real DOM paste events.
 - `Ctrl+X` is selection-only: copy markdown fragment, clear selected cells, keep the rectangle selected.
 - `Ctrl+V` is anchor-based: selection top-left wins; otherwise an active nested editor can supply the anchor cell.
 - Valid pasted markdown table fragments may expand the target table with new body rows and columns.
+
+When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `nestedEditor/mainEditorGuard.ts`
+upgrades the resulting root-editor `input.paste` transaction into the same table rewrite before the normal
+single-cell sanitation path can flatten the fragment into text.
 
 ### 2. Transaction Helpers (`tableTransactionHelpers.ts`)
 
