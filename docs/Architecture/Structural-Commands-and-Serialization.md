@@ -36,7 +36,7 @@ User Action (keyboard/toolbar)
 Selection removal is resolved in this order:
 
 - If the selected rectangle is not fully empty, clear the selected cells.
-- If the selected rectangle is fully empty and spans all columns, delete those rows when doing so still leaves a valid table.
+- If the selected rectangle is fully empty and spans all columns, delete those rows when doing so still leaves at least one row in the table. Header-only tables are valid.
 - If the selected rectangle is fully empty and spans all unified rows (header + body), delete those columns when doing so still leaves a valid table.
 - If the selected rectangle is the entire table and every cell is empty, delete the whole table.
 - When a structural row/column delete is blocked by table invariants, fall back to normal clear semantics.

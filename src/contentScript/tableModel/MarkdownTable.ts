@@ -418,7 +418,7 @@ export class MarkdownTable {
         const allRows = cloneUnifiedRows(this.headersData, this.rowsData).filter(
             (_row, index) => index < minRow || index > maxRow
         );
-        if (allRows.length < 2) {
+        if (allRows.length < 1) {
             return this;
         }
 
@@ -553,11 +553,11 @@ export class MarkdownTable {
     /**
      * Deletes the addressed row within the given section.
      * Deleting the header promotes body row 0 to header, but the operation is blocked
-     * when that would leave the table without any body rows.
+     * when that would remove the entire table.
      */
     deleteRowAt(section: TableSection, rowIndex: number): MarkdownTable {
         if (section === 'header') {
-            if (this.rowsData.length <= 1) {
+            if (this.rowsData.length === 0) {
                 return this;
             }
 
@@ -569,7 +569,7 @@ export class MarkdownTable {
             });
         }
 
-        if (this.rowsData.length <= 1 || rowIndex < 0 || rowIndex >= this.rowsData.length) {
+        if (rowIndex < 0 || rowIndex >= this.rowsData.length) {
             return this;
         }
 

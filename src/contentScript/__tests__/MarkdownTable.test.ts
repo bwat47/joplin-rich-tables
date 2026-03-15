@@ -230,15 +230,21 @@ describe('MarkdownTable', () => {
         expect(next.alignments).toEqual(['left', null]);
     });
 
-    it('blocks structural range deletes that would remove every body row or every column', () => {
+    it('allows header-only results while still blocking removal of every row or every column', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1', 'H2'],
             alignments: ['left', 'right'],
             bodyRows: [['A1', 'A2']],
         });
 
-        expect(table.deleteUnifiedRowRange(0, 0)).toBe(table);
-        expect(table.deleteUnifiedRowRange(1, 1)).toBe(table);
+        const headerOnly = table.deleteUnifiedRowRange(1, 1);
+        const promotedHeaderOnly = table.deleteUnifiedRowRange(0, 0);
+
+        expect(headerOnly.headerCells).toEqual(['H1', 'H2']);
+        expect(headerOnly.bodyRows).toEqual([]);
+        expect(promotedHeaderOnly.headerCells).toEqual(['A1', 'A2']);
+        expect(promotedHeaderOnly.bodyRows).toEqual([]);
+        expect(table.deleteUnifiedRowRange(0, 1)).toBe(table);
         expect(table.deleteColumnRange(0, 1)).toBe(table);
     });
 

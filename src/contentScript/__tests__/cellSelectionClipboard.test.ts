@@ -261,7 +261,7 @@ describe('cellSelectionClipboard', () => {
         expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '| B1 | B2 |'].join('\n'));
     });
 
-    it('falls back to clear semantics when an empty full-row selection cannot be structurally deleted', () => {
+    it('deletes the final empty body row and remaps the selection to the header row', () => {
         const state = createMarkdownState(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
         const rewrite = buildSelectionRemovalRewrite(
             state,
@@ -269,10 +269,8 @@ describe('cellSelectionClipboard', () => {
         );
 
         expect(rewrite).not.toBeNull();
-        expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
-        expect(rewrite?.selection).toEqual(
-            selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
-        );
+        expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |'].join('\n'));
+        expect(rewrite?.selection).toEqual(selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 }));
     });
 
     it('builds a paste rewrite from the selection top-left even when the pasted range is smaller', () => {
