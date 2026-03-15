@@ -1,4 +1,4 @@
-import { keymap, type EditorView } from '@codemirror/view';
+import { EditorView, ViewPlugin, keymap } from '@codemirror/view';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import {
     clearCellSelectionEffect,
@@ -13,21 +13,19 @@ import { makeTableId } from '../tableModel/types';
 import { buildTableContext } from '../tableModel/tableContext';
 import { resolveTableAtPos } from './tablePositioning';
 
-function extendOrStartSelection(direction: 'left' | 'right' | 'up' | 'down') {
-    return (view: EditorView): boolean => {
-        if (getCellSelection(view.state)) {
-            return extendExistingCellSelection(view, direction);
-        }
+export function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
+    if (getCellSelection(view.state)) {
+        return extendExistingCellSelection(view, direction);
+    }
 
-        if (getActiveCell(view.state)) {
-            return startCellSelectionFromActiveCell(view, direction);
-        }
+    if (getActiveCell(view.state)) {
+        return startCellSelectionFromActiveCell(view, direction);
+    }
 
-        return false;
-    };
+    return false;
 }
 
-function clearSelectionIfActive(view: EditorView): boolean {
+export function clearSelectionIfActive(view: EditorView): boolean {
     if (!getCellSelection(view.state)) {
         return false;
     }
@@ -36,7 +34,7 @@ function clearSelectionIfActive(view: EditorView): boolean {
     return true;
 }
 
-function activateSelectionFocus(view: EditorView): boolean {
+export function activateSelectionFocus(view: EditorView): boolean {
     const selection = getCellSelection(view.state);
     if (!selection) {
         return false;
@@ -62,10 +60,7 @@ function activateSelectionFocus(view: EditorView): boolean {
     }
 
     view.dispatch({
-        effects: [
-            clearCellSelectionEffect.of(undefined),
-            setActiveCellEffect.of(nextActiveCell),
-        ],
+        effects: [clearCellSelectionEffect.of(undefined), setActiveCellEffect.of(nextActiveCell)],
         selection: { anchor: nextActiveCell.anchorPos },
         scrollIntoView: false,
     });
@@ -85,11 +80,79 @@ function activateSelectionFocus(view: EditorView): boolean {
     return true;
 }
 
+function shouldIgnoreSelectionKeydown(view: EditorView): boolean {
+    const activeElement = view.dom.ownerDocument.activeElement;
+    if (!activeElement) {
+        return false;
+    }
+
+    if (view.dom.contains(activeElement)) {
+        return false;
+    }
+
+    const tagName = activeElement.tagName;
+    if (tagName === 'INPUT' || tagName === 'TEXTAREA') {
+        return true;
+    }
+
+    return activeElement instanceof HTMLElement && activeElement.isContentEditable;
+}
+
+function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
+    if (shouldIgnoreSelectionKeydown(view)) {
+        return false;
+    }
+
+    switch (event.key) {
+        case 'ArrowLeft':
+            return event.shiftKey && extendOrStartSelection(view, 'left');
+        case 'ArrowRight':
+            return event.shiftKey && extendOrStartSelection(view, 'right');
+        case 'ArrowUp':
+            return event.shiftKey && extendOrStartSelection(view, 'up');
+        case 'ArrowDown':
+            return event.shiftKey && extendOrStartSelection(view, 'down');
+        case 'Escape':
+            return clearSelectionIfActive(view);
+        case 'Enter':
+            return !event.shiftKey && activateSelectionFocus(view);
+        default:
+            return false;
+    }
+}
+
+export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
+    class {
+        private readonly onKeyDown: (event: KeyboardEvent) => void;
+
+        constructor(private readonly view: EditorView) {
+            this.onKeyDown = (event) => {
+                if (!getCellSelection(this.view.state)) {
+                    return;
+                }
+
+                if (!runSelectionKeydown(this.view, event)) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+            };
+
+            this.view.dom.ownerDocument.addEventListener('keydown', this.onKeyDown, true);
+        }
+
+        destroy(): void {
+            this.view.dom.ownerDocument.removeEventListener('keydown', this.onKeyDown, true);
+        }
+    }
+);
+
 export const cellSelectionKeymap = keymap.of([
-    { key: 'Shift-ArrowRight', run: extendOrStartSelection('right') },
-    { key: 'Shift-ArrowLeft', run: extendOrStartSelection('left') },
-    { key: 'Shift-ArrowUp', run: extendOrStartSelection('up') },
-    { key: 'Shift-ArrowDown', run: extendOrStartSelection('down') },
+    { key: 'Shift-ArrowRight', run: (view) => extendOrStartSelection(view, 'right') },
+    { key: 'Shift-ArrowLeft', run: (view) => extendOrStartSelection(view, 'left') },
+    { key: 'Shift-ArrowUp', run: (view) => extendOrStartSelection(view, 'up') },
+    { key: 'Shift-ArrowDown', run: (view) => extendOrStartSelection(view, 'down') },
     { key: 'Escape', run: clearSelectionIfActive },
     { key: 'Enter', run: activateSelectionFocus },
 ]);
