@@ -5,11 +5,7 @@ import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/n
 import { openLink } from '../services/markdownRenderer';
 import { resolveCellDocRange, resolveTableContextFromEventTarget } from './tablePositioning';
 import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
-import {
-    clearCellSelectionEffect,
-    getCellSelection,
-    setOrExtendCellSelectionToCoords,
-} from './cellSelectionState';
+import { clearCellSelectionEffect, getCellSelection, setOrExtendCellSelectionToCoords } from './cellSelectionState';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -235,7 +231,13 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             if (canTransitionSelection && isNestedCellEditorOpen(view)) {
                 closeNestedCellEditor(view);
             }
-            if (setOrExtendCellSelectionToCoords(view, { section, row: section === SECTION_HEADER ? 0 : row, col }, ctx.from)) {
+            if (
+                setOrExtendCellSelectionToCoords(
+                    view,
+                    { section, row: section === SECTION_HEADER ? 0 : row, col },
+                    ctx.from
+                )
+            ) {
                 return true;
             }
         }

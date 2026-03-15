@@ -52,10 +52,7 @@ export function isCellInRect(rect: SelectionRect, coords: CellCoords): boolean {
     const unifiedRow = toUnifiedRow(coords);
 
     return (
-        unifiedRow >= rect.minRow &&
-        unifiedRow <= rect.maxRow &&
-        coords.col >= rect.minCol &&
-        coords.col <= rect.maxCol
+        unifiedRow >= rect.minRow && unifiedRow <= rect.maxRow && coords.col >= rect.minCol && coords.col <= rect.maxCol
     );
 }
 
@@ -138,11 +135,7 @@ export function moveCellCoords(coords: CellCoords, direction: 'left' | 'right' |
     }
 }
 
-function dispatchSelection(
-    view: EditorView,
-    selection: CellSelection,
-    options: { clearActiveCell: boolean }
-): boolean {
+function dispatchSelection(view: EditorView, selection: CellSelection, options: { clearActiveCell: boolean }): boolean {
     const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
@@ -199,16 +192,17 @@ export function startCellSelectionFromActiveCell(
     );
 }
 
-export function extendExistingCellSelection(
-    view: EditorView,
-    direction: 'left' | 'right' | 'up' | 'down'
-): boolean {
+export function extendExistingCellSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     const selection = getCellSelection(view.state);
     if (!selection) {
         return false;
     }
 
-    const clampedFocus = clampSelectionFocus(view.state, selection.tableFrom, moveCellCoords(selection.focus, direction));
+    const clampedFocus = clampSelectionFocus(
+        view.state,
+        selection.tableFrom,
+        moveCellCoords(selection.focus, direction)
+    );
     if (!clampedFocus) {
         return false;
     }

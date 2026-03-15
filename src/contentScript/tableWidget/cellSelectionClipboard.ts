@@ -1,10 +1,6 @@
 import { EditorSelection } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import {
-    ClipboardTableFragment,
-    MarkdownTable,
-    type TableAlignment,
-} from '../tableModel/MarkdownTable';
+import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
 import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../tableModel/types';
@@ -36,7 +32,10 @@ export interface TableClipboardRewrite {
     selectionAnchorPos: number;
 }
 
-export function extractSelectedCellContents(state: Parameters<typeof getCellSelection>[0], selection: CellSelection): string[][] {
+export function extractSelectedCellContents(
+    state: Parameters<typeof getCellSelection>[0],
+    selection: CellSelection
+): string[][] {
     const ctx = resolveTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return [];
@@ -61,7 +60,10 @@ export function extractSelectedCellContents(state: Parameters<typeof getCellSele
     return rows;
 }
 
-export function copySelectionAsMarkdown(state: Parameters<typeof getCellSelection>[0], selection: CellSelection): string | null {
+export function copySelectionAsMarkdown(
+    state: Parameters<typeof getCellSelection>[0],
+    selection: CellSelection
+): string | null {
     const ctx = resolveTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return null;

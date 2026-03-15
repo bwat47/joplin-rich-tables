@@ -108,9 +108,10 @@ export const tableStyles = EditorView.baseTheme({
         overflowWrap: 'normal',
         boxSizing: 'border-box',
     },
-    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]: {
-        backgroundColor: 'var(--joplin-selected-text-background-color, rgba(0, 120, 215, 0.15))',
-    },
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]:
+        {
+            backgroundColor: 'var(--joplin-selected-text-background-color, rgba(0, 120, 215, 0.15))',
+        },
     [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
         backgroundColor: 'currentColor',
         color: 'inherit',

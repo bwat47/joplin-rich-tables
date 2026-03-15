@@ -23,12 +23,7 @@ import {
 } from '../tableWidget/cellSelectionClipboard';
 import { CLASS_CELL_EDITOR } from '../tableWidget/domHelpers';
 
-const doc = [
-    '| H\\|1 | H2 | H3 |',
-    '| :--- | ---: | --- |',
-    '| a | b\\|c |  |',
-    '| x | <br> | z |',
-].join('\n');
+const doc = ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | b\\|c |  |', '| x | <br> | z |'].join('\n');
 
 function selection(anchor: CellSelection['anchor'], focus: CellSelection['focus']): CellSelection {
     return { tableFrom: 0, anchor, focus };
@@ -186,7 +181,9 @@ describe('cellSelectionClipboard', () => {
         );
 
         expect(rewrite).not.toBeNull();
-        expect(rewrite?.tableText).toBe(['| H\\|1 |  |  |', '| :--- | ---: | --- |', '| a |  |  |', '| x |  |  |'].join('\n'));
+        expect(rewrite?.tableText).toBe(
+            ['| H\\|1 |  |  |', '| :--- | ---: | --- |', '| a |  |  |', '| x |  |  |'].join('\n')
+        );
         expect(rewrite?.selection).toEqual(
             selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
         );
@@ -201,11 +198,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(
-            state,
-            target!,
-            ['| P1 |', '| --- |', '| Q1 |'].join('\n')
-        );
+        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| --- |', '| Q1 |'].join('\n'));
 
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(
@@ -301,9 +294,7 @@ describe('cellSelectionClipboard', () => {
         const closeNestedEditor = jest.fn();
         const event = {
             clipboardData: {
-                getData: jest.fn(() =>
-                    ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n')
-                ),
+                getData: jest.fn(() => ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n')),
             },
             preventDefault: jest.fn(),
         } as unknown as ClipboardEvent;
@@ -359,14 +350,10 @@ describe('cellSelectionClipboard', () => {
         const closeNestedEditor = jest.fn();
 
         expect(
-            handleTableClipboardTextPaste(
-                ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'),
-                view,
-                {
-                    nestedEditorOpen: true,
-                    closeNestedEditor,
-                }
-            )
+            handleTableClipboardTextPaste(['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'), view, {
+                nestedEditorOpen: true,
+                closeNestedEditor,
+            })
         ).toBe(true);
 
         expect(closeNestedEditor).toHaveBeenCalledTimes(1);

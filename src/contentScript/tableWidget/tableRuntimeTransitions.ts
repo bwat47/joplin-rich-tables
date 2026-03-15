@@ -124,7 +124,9 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
         update,
         isSync: update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation))),
         isNormalizeBeforeEdit: update.transactions.some((tr) => Boolean(tr.annotation(normalizeBeforeEditAnnotation))),
-        isCellSelectionTransition: update.transactions.some((tr) => Boolean(tr.annotation(cellSelectionTransitionAnnotation))),
+        isCellSelectionTransition: update.transactions.some((tr) =>
+            Boolean(tr.annotation(cellSelectionTransitionAnnotation))
+        ),
         forceRebuild: update.transactions.some((tr) =>
             tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))
         ),

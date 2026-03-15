@@ -52,7 +52,9 @@ export const cellSelectionVisualsPlugin = ViewPlugin.fromClass(
             }
 
             const rect = toSelectionRect(selection);
-            const cells = widget.querySelectorAll('td[data-section][data-row][data-col], th[data-section][data-row][data-col]');
+            const cells = widget.querySelectorAll(
+                'td[data-section][data-row][data-col], th[data-section][data-row][data-col]'
+            );
 
             for (const cell of cells) {
                 const coords = readCoords(cell);
