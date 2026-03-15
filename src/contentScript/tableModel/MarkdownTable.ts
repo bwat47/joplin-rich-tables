@@ -1,12 +1,22 @@
 import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
-import type { TableSection } from './types';
+import type { CellCoords, TableRect, TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
 export interface MarkdownTableParts {
     headerCells: readonly string[];
     alignments: readonly TableAlignment[];
     bodyRows: readonly (readonly string[])[];
+}
+
+export interface ClipboardTableFragment {
+    cells: readonly (readonly string[])[];
+    alignments: readonly TableAlignment[];
+}
+
+export interface PasteRectResult {
+    table: MarkdownTable;
+    pastedRect: TableRect;
 }
 
 function parseAlignment(cell: string): TableAlignment {
@@ -89,6 +99,30 @@ function createEmptyRow(columnCount: number): string[] {
     return new Array(columnCount).fill('');
 }
 
+function cloneUnifiedRows(headers: readonly string[], rows: readonly (readonly string[])[]): string[][] {
+    return [[...headers], ...cloneRows(rows)];
+}
+
+function toUnifiedRow(coords: CellCoords): number {
+    return coords.section === 'header' ? 0 : coords.row + 1;
+}
+
+function createFromUnifiedRows(
+    allRows: readonly (readonly string[])[],
+    alignments: readonly TableAlignment[]
+): MarkdownTable | null {
+    const [headerCells, ...bodyRows] = allRows;
+    if (!headerCells) {
+        return null;
+    }
+
+    return MarkdownTable.fromParts({
+        headerCells,
+        alignments,
+        bodyRows,
+    });
+}
+
 export class MarkdownTable {
     private constructor(
         private readonly headersData: readonly string[],
@@ -147,6 +181,10 @@ export class MarkdownTable {
 
     get columnCount(): number {
         return this.headersData.length;
+    }
+
+    get rowCount(): number {
+        return 1 + this.rowsData.length;
     }
 
     serialize(): string {
@@ -315,6 +353,108 @@ export class MarkdownTable {
             alignments: this.alignmentsData,
             bodyRows: rows,
         });
+    }
+
+    clearRect(rect: TableRect): MarkdownTable {
+        if (
+            rect.minRow < 0 ||
+            rect.minCol < 0 ||
+            rect.maxRow >= this.rowCount ||
+            rect.maxCol >= this.columnCount ||
+            rect.minRow > rect.maxRow ||
+            rect.minCol > rect.maxCol
+        ) {
+            return this;
+        }
+
+        const nextRows = cloneUnifiedRows(this.headersData, this.rowsData);
+        let didChange = false;
+
+        for (let row = rect.minRow; row <= rect.maxRow; row++) {
+            for (let col = rect.minCol; col <= rect.maxCol; col++) {
+                if (nextRows[row][col] !== '') {
+                    nextRows[row][col] = '';
+                    didChange = true;
+                }
+            }
+        }
+
+        if (!didChange) {
+            return this;
+        }
+
+        return createFromUnifiedRows(nextRows, this.alignmentsData) ?? this;
+    }
+
+    pasteFragmentAt(anchor: CellCoords, fragment: ClipboardTableFragment): PasteRectResult | null {
+        const pastedRowCount = fragment.cells.length;
+        const pastedColCount = fragment.cells[0]?.length ?? 0;
+        const anchorRow = toUnifiedRow(anchor);
+
+        if (
+            anchor.col < 0 ||
+            anchorRow < 0 ||
+            pastedRowCount <= 0 ||
+            pastedColCount <= 0 ||
+            fragment.cells.some((row) => row.length !== pastedColCount)
+        ) {
+            return null;
+        }
+
+        const requiredRowCount = anchorRow + pastedRowCount;
+        const requiredColCount = anchor.col + pastedColCount;
+        const nextRows = cloneUnifiedRows(this.headersData, this.rowsData);
+        const nextAlignments = [...this.alignmentsData];
+        let didChange = requiredRowCount > this.rowCount || requiredColCount > this.columnCount;
+
+        if (requiredColCount > this.columnCount) {
+            for (let targetCol = this.columnCount; targetCol < requiredColCount; targetCol++) {
+                const clipboardCol = targetCol - anchor.col;
+                nextRows[0].push('');
+                nextAlignments.push(fragment.alignments[clipboardCol] ?? null);
+            }
+
+            for (let row = 1; row < nextRows.length; row++) {
+                while (nextRows[row].length < requiredColCount) {
+                    nextRows[row].push('');
+                }
+            }
+        }
+
+        while (nextRows.length < requiredRowCount) {
+            nextRows.push(new Array(requiredColCount).fill(''));
+        }
+
+        for (let row = 0; row < nextRows.length; row++) {
+            while (nextRows[row].length < requiredColCount) {
+                nextRows[row].push('');
+            }
+        }
+
+        for (let rowOffset = 0; rowOffset < pastedRowCount; rowOffset++) {
+            const targetRow = anchorRow + rowOffset;
+
+            for (let colOffset = 0; colOffset < pastedColCount; colOffset++) {
+                const targetCol = anchor.col + colOffset;
+                const nextValue = fragment.cells[rowOffset][colOffset];
+
+                if (nextRows[targetRow][targetCol] !== nextValue) {
+                    nextRows[targetRow][targetCol] = nextValue;
+                    didChange = true;
+                }
+            }
+        }
+
+        const pastedRect: TableRect = {
+            minRow: anchorRow,
+            maxRow: anchorRow + pastedRowCount - 1,
+            minCol: anchor.col,
+            maxCol: anchor.col + pastedColCount - 1,
+        };
+
+        const table = didChange ? (createFromUnifiedRows(nextRows, nextAlignments) ?? this) : this;
+
+        return { table, pastedRect };
     }
 
     /**

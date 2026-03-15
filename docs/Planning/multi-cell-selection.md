@@ -15,15 +15,14 @@ The plugin's architecture is centered around a single active cell with a nested 
 - Ctrl+C copies selected cells as a markdown table fragment
 - Escape clears selection
 
-### Phase 2: Cut + Paste (follow-up)
+### Phase 2: Anchor-Based Cut + Expanding Paste - COMPLETED
 
-- Ctrl+X = copy + clear selected cell contents
-- Ctrl+V into a same-sized selection replaces cell contents
-- Requires new `MarkdownTable` mutation methods
-
-### Phase 3: Expanding Paste (deferred)
-
-- Paste that adds rows/columns when clipboard content exceeds selection bounds
+- Ctrl+X copies the selected rectangle as a markdown table fragment, then clears those cells
+- Ctrl+V uses the selection's top-left cell as the anchor when a selection exists
+- Ctrl+V also works from an active nested editor; a valid pasted markdown table closes the nested editor and uses the active cell as the anchor
+- Pasted table fragments can expand downward and to the right by adding body rows and columns
+- Successful cut/paste leaves the affected rectangle selected
+- Invalid markdown-table paste is ignored in selection mode and falls through to normal nested-editor paste behavior when editing a single cell
 
 ---
 
@@ -201,9 +200,9 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 
 1. **Selection is rectangular, not sequential** — selecting from (0,1) to (2,3) selects ALL cells in that rectangle, not a range of cells in reading order.
 
-2. **Clear selection on docChanged** — conservative approach avoids stale coordinates after undo. The user can re-select easily. Can be refined later to map coordinates.
+2. **Selection normally clears on docChanged, except explicit clipboard rewrites** — arbitrary doc changes still clear selection conservatively, but cut/paste transactions re-set the resulting rectangle in the same dispatch so the affected area stays visible.
 
-3. **Markdown table clipboard format** — copied cells produce a valid markdown table fragment. Pasting into Joplin (or any markdown editor) creates a new table naturally. Alignment row included when header is in selection.
+3. **Markdown table clipboard format** — copied cells produce a valid markdown table fragment. Multi-cell paste only triggers when `MarkdownTable.parse()` accepts clipboard `text/plain`. Alignment row included when header is in selection.
 
 4. **ViewPlugin for visuals, not decoration rebuild** — toggling CSS classes is cheaper than forcing widget reconstruction. The plugin reads state and mutates DOM directly.
 
@@ -220,7 +219,7 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 | Shift+Arrow in nested editor conflicts with text selection | Only intercept at content boundaries (same pattern as existing Arrow keys)                             |
 | Selection across header/body boundary edge cases           | Unified row coordinate system handles this naturally                                                   |
 | Selection mode has unreliable editor focus                 | Use document-level capture plugins for copy and repeated keyboard navigation                           |
-| Document-level capture can hijack unrelated shortcuts      | Scope handlers narrowly and verify behavior with toolbar/buttons focused before expanding to cut/paste |
+| Document-level capture can hijack unrelated shortcuts      | Scope handlers narrowly and allow nested-editor paste interception only when the clipboard contains a valid markdown table fragment |
 
 ## Verification
 
@@ -231,8 +230,12 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
     - Continue pressing Shift+Arrow repeatedly → verify focus is not required for extension
     - Shift+Click distant cell → verify rectangular highlight
     - Ctrl+C → paste in text editor → verify valid markdown table output
-    - With toolbar or unrelated UI control focused, verify Ctrl+C / Escape / Enter do not get stolen unexpectedly
+    - With toolbar or unrelated UI control focused, verify Ctrl+C / Ctrl+X / Ctrl+V / Escape / Enter do not get stolen unexpectedly
     - Escape → verify selection clears
     - Click cell (no Shift) during selection → verify selection clears, cell activates
     - Widget rebuild (edit elsewhere in doc) during selection → verify highlight persists
     - Undo during selection → verify selection clears cleanly
+    - Paste a copied range into a smaller selection → verify top-left anchoring, not selection-size matching
+    - Paste a copied range from an active nested editor → verify editor closes and pasted rectangle becomes selected
+    - Paste a fragment that exceeds table bounds → verify rows/columns are added and only new columns inherit clipboard alignments
+    - Paste plain text while nested editor is active → verify normal single-cell paste still works

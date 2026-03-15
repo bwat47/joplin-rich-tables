@@ -4,18 +4,31 @@
 
 import { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
+import { activeCellField, setActiveCellEffect } from '../tableWidget/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableWidget/cellSelectionState';
-import { canHandleTableSelectionShortcut } from '../tableWidget/cellSelectionShortcutScope';
-import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
+import {
+    canHandleTableClipboardShortcut,
+    canHandleTableSelectionShortcut,
+} from '../tableWidget/cellSelectionShortcutScope';
+import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 
 function createViewHarness() {
-    let state = createMarkdownState('| H1 |\n| --- |\n| a |', [cellSelectionField]);
+    let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField]);
     state = state.update({
-        effects: setCellSelectionEffect.of({
-            tableFrom: 0,
-            anchor: { section: 'header', row: 0, col: 0 },
-            focus: { section: 'body', row: 0, col: 0 },
-        }),
+        effects: [
+            setActiveCellEffect.of({
+                anchorPos: 2,
+                tableFrom: 0,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+            setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 0 },
+            }),
+        ],
     }).state;
 
     const root = document.createElement('div');
@@ -87,5 +100,18 @@ describe('cellSelectionShortcutScope', () => {
         setActiveElement(button);
 
         expect(canHandleTableSelectionShortcut(view)).toBe(false);
+    });
+
+    it('allows clipboard shortcuts when focus is inside the nested editor', () => {
+        const { view, root } = createViewHarness();
+        const editorHost = document.createElement('div');
+        editorHost.className = CLASS_CELL_EDITOR;
+        const nestedContent = document.createElement('div');
+        nestedContent.setAttribute('contenteditable', 'true');
+        editorHost.appendChild(nestedContent);
+        root.appendChild(editorHost);
+        setActiveElement(nestedContent);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(true);
     });
 });

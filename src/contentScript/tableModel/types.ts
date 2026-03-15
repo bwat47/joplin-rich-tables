@@ -24,6 +24,13 @@ export interface CellCoords {
     col: number; // 0-based index
 }
 
+export interface TableRect {
+    minRow: number; // unified row index; header = 0, body = 1+
+    maxRow: number;
+    minCol: number;
+    maxCol: number;
+}
+
 /**
  * Branded type for table identity.
  * Currently based on the table's starting document position (tableFrom),

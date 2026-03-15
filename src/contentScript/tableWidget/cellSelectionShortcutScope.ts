@@ -1,5 +1,6 @@
 import type { EditorView } from '@codemirror/view';
-import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from './domHelpers';
+import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from './domHelpers';
+import { getActiveCell } from './activeCellState';
 import { getCellSelection } from './cellSelectionState';
 import { makeTableId } from '../tableModel/types';
 
@@ -41,15 +42,24 @@ function isInteractiveElement(element: Element): boolean {
     return element instanceof HTMLElement && element.isContentEditable;
 }
 
-export function canHandleTableSelectionShortcut(view: EditorView): boolean {
+function isNestedEditorElement(element: Element): boolean {
+    return Boolean(element.closest(`.${CLASS_CELL_EDITOR}`));
+}
+
+export function canHandleTableClipboardShortcut(view: EditorView): boolean {
     const selection = getCellSelection(view.state);
-    if (!selection) {
+    const activeCell = getActiveCell(view.state);
+    if (!selection && !activeCell) {
         return false;
     }
 
     const doc = view.dom.ownerDocument;
     const activeElement = doc.activeElement;
     if (!activeElement) {
+        return Boolean(selection);
+    }
+
+    if (isNestedEditorElement(activeElement) && view.dom.contains(activeElement)) {
         return true;
     }
 
@@ -64,13 +74,21 @@ export function canHandleTableSelectionShortcut(view: EditorView): boolean {
         activeElement === view.contentDOM ||
         activeElement === view.scrollDOM
     ) {
-        return true;
+        return Boolean(selection);
     }
 
-    const selectedWidget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
-    if (selectedWidget && (activeElement === selectedWidget || selectedWidget.contains(activeElement))) {
-        return true;
+    if (selection) {
+        const selectedWidget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
+        if (selectedWidget && (activeElement === selectedWidget || selectedWidget.contains(activeElement))) {
+            return true;
+        }
+
+        return view.dom.contains(activeElement);
     }
 
-    return view.dom.contains(activeElement);
+    return false;
+}
+
+export function canHandleTableSelectionShortcut(view: EditorView): boolean {
+    return Boolean(getCellSelection(view.state)) && canHandleTableClipboardShortcut(view);
 }

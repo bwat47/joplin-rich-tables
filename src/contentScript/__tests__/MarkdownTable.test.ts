@@ -120,4 +120,127 @@ describe('MarkdownTable', () => {
             ['', ''],
         ]);
     });
+
+    it('clears rectangular selections across header and body rows', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2', 'H3'],
+            alignments: ['left', 'center', 'right'],
+            bodyRows: [
+                ['A1', 'A2', 'A3'],
+                ['B1', 'B2', 'B3'],
+            ],
+        });
+
+        const next = table.clearRect({
+            minRow: 0,
+            maxRow: 2,
+            minCol: 1,
+            maxCol: 1,
+        });
+
+        expect(next.headerCells).toEqual(['H1', '', 'H3']);
+        expect(next.bodyRows).toEqual([
+            ['A1', '', 'A3'],
+            ['B1', '', 'B3'],
+        ]);
+        expect(next.alignments).toEqual(['left', 'center', 'right']);
+    });
+
+    it('pastes a fragment within existing bounds', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2', 'H3'],
+            alignments: ['left', 'center', 'right'],
+            bodyRows: [
+                ['A1', 'A2', 'A3'],
+                ['B1', 'B2', 'B3'],
+            ],
+        });
+
+        const result = table.pasteFragmentAt(
+            { section: 'body', row: 0, col: 1 },
+            {
+                cells: [
+                    ['P1', 'P2'],
+                    ['Q1', 'Q2'],
+                ],
+                alignments: [null, 'right'],
+            }
+        );
+
+        expect(result).not.toBeNull();
+        expect(result?.pastedRect).toEqual({
+            minRow: 1,
+            maxRow: 2,
+            minCol: 1,
+            maxCol: 2,
+        });
+        expect(result?.table.headerCells).toEqual(['H1', 'H2', 'H3']);
+        expect(result?.table.bodyRows).toEqual([
+            ['A1', 'P1', 'P2'],
+            ['B1', 'Q1', 'Q2'],
+        ]);
+        expect(result?.table.alignments).toEqual(['left', 'center', 'right']);
+    });
+
+    it('expands rows and columns when pasted content exceeds current bounds', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        const result = table.pasteFragmentAt(
+            { section: 'body', row: 0, col: 1 },
+            {
+                cells: [
+                    ['P1', 'P2', 'P3'],
+                    ['Q1', 'Q2', 'Q3'],
+                ],
+                alignments: ['left', 'center', 'right'],
+            }
+        );
+
+        expect(result).not.toBeNull();
+        expect(result?.pastedRect).toEqual({
+            minRow: 1,
+            maxRow: 2,
+            minCol: 1,
+            maxCol: 3,
+        });
+        expect(result?.table.headerCells).toEqual(['H1', 'H2', '', '']);
+        expect(result?.table.bodyRows).toEqual([
+            ['A1', 'P1', 'P2', 'P3'],
+            ['', 'Q1', 'Q2', 'Q3'],
+        ]);
+        expect(result?.table.alignments).toEqual(['left', 'right', 'center', 'right']);
+    });
+
+    it('treats pasted row zero as header only when anchored on the header', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        const result = table.pasteFragmentAt(
+            { section: 'header', row: 0, col: 0 },
+            {
+                cells: [
+                    ['NH1', 'NH2'],
+                    ['NB1', 'NB2'],
+                ],
+                alignments: ['center', 'left'],
+            }
+        );
+
+        expect(result?.pastedRect).toEqual({
+            minRow: 0,
+            maxRow: 1,
+            minCol: 0,
+            maxCol: 1,
+        });
+        expect(result?.table.headerCells).toEqual(['NH1', 'NH2']);
+        expect(result?.table.bodyRows).toEqual([['NB1', 'NB2']]);
+        expect(result?.table.alignments).toEqual(['left', 'right']);
+    });
 });

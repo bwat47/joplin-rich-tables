@@ -88,4 +88,20 @@ describe('cellSelectionState', () => {
 
         expect(getCellSelection(state)).toBeNull();
     });
+
+    it('keeps explicitly-set selection state across the same doc-changing transaction', () => {
+        let state = createState();
+        const nextSelection = {
+            tableFrom: 0,
+            anchor: { section: 'header' as const, row: 0, col: 0 },
+            focus: { section: 'body' as const, row: 0, col: 1 },
+        };
+
+        state = state.update({
+            changes: { from: doc.length, to: doc.length, insert: '\ntext' },
+            effects: setCellSelectionEffect.of(nextSelection),
+        }).state;
+
+        expect(getCellSelection(state)).toEqual(nextSelection);
+    });
 });

@@ -2,7 +2,7 @@ import { Annotation, EditorSelection, EditorState, StateEffect, StateField } fro
 import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from './activeCellState';
 import { resolveTableContextAtPos, resolveCellDocRange } from './tablePositioning';
-import type { CellCoords } from '../tableModel/types';
+import type { CellCoords, TableRect } from '../tableModel/types';
 
 export interface CellSelection {
     tableFrom: number;
@@ -10,12 +10,7 @@ export interface CellSelection {
     focus: CellCoords;
 }
 
-export interface SelectionRect {
-    minRow: number;
-    maxRow: number;
-    minCol: number;
-    maxCol: number;
-}
+export type SelectionRect = TableRect;
 
 export const cellSelectionTransitionAnnotation = Annotation.define<boolean>();
 export const setCellSelectionEffect = StateEffect.define<CellSelection>();
@@ -45,6 +40,14 @@ export function toSelectionRect(selection: CellSelection): SelectionRect {
     };
 }
 
+export function selectionFromRect(tableFrom: number, rect: SelectionRect): CellSelection {
+    return {
+        tableFrom,
+        anchor: fromUnifiedRow(rect.minRow, rect.minCol),
+        focus: fromUnifiedRow(rect.maxRow, rect.maxCol),
+    };
+}
+
 export function isCellInRect(rect: SelectionRect, coords: CellCoords): boolean {
     const unifiedRow = toUnifiedRow(coords);
 
@@ -66,6 +69,7 @@ export const cellSelectionField = StateField.define<CellSelection | null>({
     },
     update(value, tr) {
         let nextValue = value;
+        let sawSetSelectionEffect = false;
 
         for (const effect of tr.effects) {
             if (effect.is(clearCellSelectionEffect) || effect.is(setActiveCellEffect)) {
@@ -75,10 +79,11 @@ export const cellSelectionField = StateField.define<CellSelection | null>({
 
             if (effect.is(setCellSelectionEffect)) {
                 nextValue = effect.value;
+                sawSetSelectionEffect = true;
             }
         }
 
-        if (tr.docChanged) {
+        if (tr.docChanged && !sawSetSelectionEffect) {
             return null;
         }
 
