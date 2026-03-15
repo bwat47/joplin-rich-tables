@@ -10,7 +10,7 @@ import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
 import { cellSelectionClipboardPlugin } from './cellSelectionClipboard';
-import { cellSelectionKeyCapturePlugin, cellSelectionKeymap } from './cellSelectionKeymap';
+import { cellSelectionKeyCapturePlugin } from './cellSelectionKeymap';
 import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from './cellSelectionState';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
 import {
@@ -263,7 +263,6 @@ export default function (context: ContentScriptContext) {
                 activeCellField,
                 cellSelectionField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
-                cellSelectionKeymap,
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,

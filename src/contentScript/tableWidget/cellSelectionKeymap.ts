@@ -1,4 +1,4 @@
-import { EditorView, ViewPlugin, keymap } from '@codemirror/view';
+import { EditorView, ViewPlugin } from '@codemirror/view';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import {
     clearCellSelectionEffect,
@@ -131,11 +131,3 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
     }
 );
 
-export const cellSelectionKeymap = keymap.of([
-    { key: 'Shift-ArrowRight', run: (view) => extendOrStartSelection(view, 'right') },
-    { key: 'Shift-ArrowLeft', run: (view) => extendOrStartSelection(view, 'left') },
-    { key: 'Shift-ArrowUp', run: (view) => extendOrStartSelection(view, 'up') },
-    { key: 'Shift-ArrowDown', run: (view) => extendOrStartSelection(view, 'down') },
-    { key: 'Escape', run: clearSelectionIfActive },
-    { key: 'Enter', run: activateSelectionFocus },
-]);
