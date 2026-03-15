@@ -73,6 +73,35 @@ describe('cursorTrackingIntegration', () => {
         expect(sliceCellText(newText, next!)).toBe('b2');
     });
 
+    test('delete last remaining body row falls back to the header cell', () => {
+        const tableFrom = 0;
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const active = computeActiveCellForTableText({
+            tableFrom,
+            tableText,
+            target: { section: 'body', row: 0, col: 1 },
+        });
+        expect(active).not.toBeNull();
+
+        const table = MarkdownTable.parse(tableText);
+        expect(table).not.toBeNull();
+
+        const newTable = table!.deleteRowAt(active!.section, active!.row);
+        const newText = newTable.serialize();
+
+        const next = computeActiveCellForTableText({
+            tableFrom,
+            tableText: newText,
+            target: { section: 'body', row: 0, col: 1 },
+        });
+
+        expect(next).not.toBeNull();
+        expect(next!.section).toBe('header');
+        expect(next!.row).toBe(0);
+        expect(next!.col).toBe(1);
+        expect(sliceCellText(newText, next!)).toBe('H2');
+    });
+
     test('insert column before moves to new column cell', () => {
         const tableFrom = 0;
         const active = computeActiveCellForTableText({

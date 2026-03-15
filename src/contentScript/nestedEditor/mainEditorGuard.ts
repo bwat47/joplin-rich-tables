@@ -1,6 +1,21 @@
-import { EditorState, Extension } from '@codemirror/state';
-import { clearActiveCellEffect } from '../tableWidget/activeCellState';
+import { EditorState, Extension, Transaction } from '@codemirror/state';
+import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
+import { buildMultiCellPasteRewrite, createTableClipboardRewriteSpec } from '../tableWidget/cellSelectionClipboard';
 import { decideMainEditorGuardTransaction } from '../tableWidget/tableRuntimeTransitions';
+
+function extractSingleInsertedText(tr: Transaction): string | null {
+    let insertedText: string | null = null;
+    let changeCount = 0;
+
+    tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+        changeCount++;
+        if (changeCount === 1) {
+            insertedText = inserted.toString();
+        }
+    });
+
+    return changeCount === 1 && insertedText ? insertedText : null;
+}
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -22,7 +37,37 @@ import { decideMainEditorGuardTransaction } from '../tableWidget/tableRuntimeTra
  */
 export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolean): Extension {
     const guardFilter = EditorState.transactionFilter.of((tr) => {
-        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: isNestedEditorOpen() });
+        const nestedEditorOpen = isNestedEditorOpen();
+
+        if (nestedEditorOpen && tr.docChanged && tr.isUserEvent('input.paste')) {
+            const activeCell = getActiveCell(tr.startState);
+            const pastedText = extractSingleInsertedText(tr);
+
+            if (activeCell && pastedText) {
+                // Joplin can route Cmd/Ctrl+V to the root editor even while the nested
+                // cell editor is visually focused. Upgrade valid markdown-table fragments
+                // before the normal single-cell sanitation path turns them into text.
+                const rewrite = buildMultiCellPasteRewrite(
+                    tr.startState,
+                    {
+                        tableFrom: activeCell.tableFrom,
+                        anchor: {
+                            section: activeCell.section,
+                            row: activeCell.row,
+                            col: activeCell.col,
+                        },
+                        source: 'activeCell',
+                    },
+                    pastedText
+                );
+
+                if (rewrite) {
+                    return createTableClipboardRewriteSpec(tr.startState, rewrite);
+                }
+            }
+        }
+
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen });
 
         switch (decision.type) {
             case 'allowTransaction':

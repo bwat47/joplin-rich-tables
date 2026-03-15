@@ -10,6 +10,7 @@ import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
 import { sanitizeCellChanges } from '../nestedEditor/transactionPolicy';
 import { normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
+import { cellSelectionTransitionAnnotation } from './cellSelectionState';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;
@@ -26,6 +27,7 @@ export interface TableRuntimeEvent {
     update: ViewUpdate;
     isSync: boolean;
     isNormalizeBeforeEdit: boolean;
+    isCellSelectionTransition: boolean;
     forceRebuild: boolean;
     rawModeEffects: RawModeEffects;
     enteredRawMode: boolean;
@@ -122,6 +124,9 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
         update,
         isSync: update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation))),
         isNormalizeBeforeEdit: update.transactions.some((tr) => Boolean(tr.annotation(normalizeBeforeEditAnnotation))),
+        isCellSelectionTransition: update.transactions.some((tr) =>
+            Boolean(tr.annotation(cellSelectionTransitionAnnotation))
+        ),
         forceRebuild: update.transactions.some((tr) =>
             tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))
         ),
@@ -202,11 +207,11 @@ export function planTableLifecycleActions(
         return actions;
     }
 
-    if (event.enteredRawMode) {
+    if (event.enteredRawMode && !event.isCellSelectionTransition) {
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' });
     }
 
-    if (event.exitedRawMode && !snapshot.activeCell) {
+    if (event.exitedRawMode && !snapshot.activeCell && !event.isCellSelectionTransition) {
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 

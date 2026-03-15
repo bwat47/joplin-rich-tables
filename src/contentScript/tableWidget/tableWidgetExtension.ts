@@ -9,6 +9,10 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { cellSelectionClipboardPlugin } from './cellSelectionClipboard';
+import { cellSelectionKeyCapturePlugin } from './cellSelectionKeymap';
+import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from './cellSelectionState';
+import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
 import {
     closeNestedCellEditor,
     isNestedCellEditorOpen,
@@ -125,7 +129,8 @@ function handleOutsideTableInteraction(
 
     const hasActiveCell = Boolean(getActiveCell(view.state));
     const hasNestedEditor = isNestedCellEditorOpen(view);
-    if (!hasActiveCell && !hasNestedEditor) {
+    const hasCellSelection = Boolean(getCellSelection(view.state));
+    if (!hasActiveCell && !hasNestedEditor && !hasCellSelection) {
         return false;
     }
 
@@ -140,7 +145,10 @@ function handleOutsideTableInteraction(
         // menu opens against the expected pointer target without viewport jumps.
         view.dispatch({
             selection: { anchor: clickPos },
-            effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+            effects: [
+                ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+                ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+            ],
             scrollIntoView: !options.preserveContextMenu,
         });
         if (!options.preserveContextMenu) {
@@ -150,8 +158,13 @@ function handleOutsideTableInteraction(
             // main editor without scrolling so the caret is painted.
             view.contentDOM.focus({ preventScroll: true });
         }
-    } else if (hasActiveCell) {
-        view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+    } else if (hasActiveCell || hasCellSelection) {
+        view.dispatch({
+            effects: [
+                ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+                ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+            ],
+        });
     }
 
     // For mousedown, consume only if we positioned the cursor.
@@ -248,12 +261,16 @@ export default function (context: ContentScriptContext) {
                 sourceModeField,
                 nestedCellEditorPlugin,
                 activeCellField,
+                cellSelectionField,
                 createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,
                 closeOnOutsideMouseDown,
                 outsideInteractionCapturePlugin,
+                cellSelectionKeyCapturePlugin,
+                cellSelectionClipboardPlugin,
+                cellSelectionVisualsPlugin,
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,

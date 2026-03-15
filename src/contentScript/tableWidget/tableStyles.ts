@@ -4,6 +4,7 @@ import {
     CLASS_CELL_CONTENT,
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
+    CLASS_CELL_SELECTED,
     CLASS_TABLE_WIDGET_TABLE,
     getWidgetSelector,
 } from './domHelpers';
@@ -107,6 +108,10 @@ export const tableStyles = EditorView.baseTheme({
         overflowWrap: 'normal',
         boxSizing: 'border-box',
     },
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]:
+        {
+            backgroundColor: 'var(--joplin-selected-text-background-color, rgba(0, 120, 215, 0.15))',
+        },
     [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
         backgroundColor: 'currentColor',
         color: 'inherit',

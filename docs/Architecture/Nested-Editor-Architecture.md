@@ -82,6 +82,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 - Whitelists `syncAnnotation` transactions.
 - Whitelists structural operations with `rebuildTableWidgetsEffect`.
 - Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
+- Upgrades root-editor `input.paste` transactions into multi-cell table paste when Joplin routes Cmd/Ctrl+V to the main editor while a nested editor is open.
 - Clears stale active-cell state if logical resolution can no longer find the anchored table/cell from the mapped anchor position.
 
 ## Styling

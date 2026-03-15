@@ -98,12 +98,13 @@ describe('markdownTableOperations', () => {
         expect(next.bodyRows.length).toBe(2);
     });
 
-    it('should not delete last remaining body row', () => {
+    it('should allow deleting the last remaining body row and keep a header-only table', () => {
         const table = parseTable(['| H1 | H2 |', '| --- | --- |', '| A | B |'].join('\n'));
         const next = table.deleteRowAt('body', 0);
 
-        expect(next).toBe(table);
-        expect(next.bodyRows.length).toBe(1);
+        expect(next).not.toBe(table);
+        expect(next.headerCells).toEqual(['H1', 'H2']);
+        expect(next.bodyRows).toEqual([]);
     });
 
     it('should preserve extra row cells by expanding headers on serialize', () => {

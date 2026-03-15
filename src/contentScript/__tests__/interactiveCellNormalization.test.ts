@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableWidget/cellActivation';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableWidget/activeCellState';
+import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableWidget/cellSelectionState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { sourceModeField } from '../tableWidget/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
@@ -53,7 +54,11 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
         body1: HTMLElement;
     };
 } {
-    let currentState = createMarkdownState(params?.doc ?? NON_CANONICAL_DOC, [activeCellField, sourceModeField]);
+    let currentState = createMarkdownState(params?.doc ?? NON_CANONICAL_DOC, [
+        activeCellField,
+        cellSelectionField,
+        sourceModeField,
+    ]);
     if (params?.activeCell) {
         currentState = currentState.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
     }
@@ -148,6 +153,62 @@ describe('interactive cell normalization', () => {
             col: 0,
         });
         expect(openActiveCellSessionMock).not.toHaveBeenCalled();
+    });
+
+    it('starts rectangular selection on shift-click from the active cell', () => {
+        const { view, cells } = createViewHarness({
+            activeCell: {
+                anchorPos: NON_CANONICAL_DOC.indexOf('H1'),
+                tableFrom: 0,
+                section: 'header',
+                row: 0,
+                col: 0,
+            },
+        });
+        const event = {
+            type: 'mousedown',
+            button: 0,
+            shiftKey: true,
+            target: cells.body1,
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+        } as unknown as MouseEvent;
+
+        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'header', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        });
+        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
+    });
+
+    it('clears an existing selection before activating a clicked cell', () => {
+        const { view, cells } = createViewHarness();
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        const event = {
+            type: 'mousedown',
+            button: 0,
+            target: cells.body0,
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+        } as unknown as MouseEvent;
+
+        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
     });
 
     it('normalizes on cursor activation before opening the nested editor', () => {

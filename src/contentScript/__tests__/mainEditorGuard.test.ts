@@ -1,12 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
+import { cellSelectionField, getCellSelection } from '../tableWidget/cellSelectionState';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
 
 function createState(params: { doc: string; nestedOpen: boolean }) {
-    return createMarkdownState(params.doc, [activeCellField, createMainEditorActiveCellGuard(() => params.nestedOpen)]);
+    return createMarkdownState(params.doc, [
+        activeCellField,
+        cellSelectionField,
+        createMainEditorActiveCellGuard(() => params.nestedOpen),
+    ]);
 }
 
 describe('createMainEditorActiveCellGuard', () => {
@@ -158,6 +163,44 @@ describe('createMainEditorActiveCellGuard', () => {
         // Sanitized insert is length 6 ("a<br>b").
         // We expect cursor to be at cellFrom + 6.
         expect(resultingSelection.head).toBe(cellFrom + expectedContent.length);
+    });
+
+    it('rewrites markdown-table paste into a multi-cell paste when nested editor paste lands in the main editor', () => {
+        const doc = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a | b | c |', '| d | e | f |'].join('\n');
+        const tableRanges = computeMarkdownTableCellRanges(doc);
+        expect(tableRanges).not.toBeNull();
+
+        const bodyCell = tableRanges!.rows[0][1];
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('b'),
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 1,
+            }),
+            selection: { anchor: bodyCell.from, head: bodyCell.from },
+        }).state;
+
+        const tr = state.update({
+            changes: {
+                from: bodyCell.from,
+                to: bodyCell.from,
+                insert: ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'),
+            },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(
+            ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a | P1 | P2 |', '| d | Q1 | Q2 |'].join('\n')
+        );
+        expect(getActiveCell(tr.state)).toBeNull();
+        expect(getCellSelection(tr.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 1 },
+            focus: { section: 'body', row: 1, col: 2 },
+        });
     });
 
     it('allows full document replacement and clears active cell', () => {
