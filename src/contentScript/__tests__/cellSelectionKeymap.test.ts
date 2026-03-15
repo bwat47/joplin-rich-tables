@@ -35,7 +35,13 @@ describe('cellSelectionKeymap', () => {
 
         const view = new EditorView({
             parent,
-            extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+            extensions: [
+                markdownExtension,
+                history(),
+                activeCellField,
+                cellSelectionField,
+                cellSelectionKeyCapturePlugin,
+            ],
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 
@@ -76,7 +82,13 @@ describe('cellSelectionKeymap', () => {
 
         const view = new EditorView({
             parent,
-            extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+            extensions: [
+                markdownExtension,
+                history(),
+                activeCellField,
+                cellSelectionField,
+                cellSelectionKeyCapturePlugin,
+            ],
             doc: ['| H1 |  | H3 |', '| --- | --- | --- |', '| A1 |  | A3 |', '| B1 |  | B3 |'].join('\n'),
         });
 
@@ -113,7 +125,13 @@ describe('cellSelectionKeymap', () => {
 
         const view = new EditorView({
             parent,
-            extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+            extensions: [
+                markdownExtension,
+                history(),
+                activeCellField,
+                cellSelectionField,
+                cellSelectionKeyCapturePlugin,
+            ],
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 
@@ -149,7 +167,13 @@ describe('cellSelectionKeymap', () => {
         const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const view = new EditorView({
             parent,
-            extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+            extensions: [
+                markdownExtension,
+                history(),
+                activeCellField,
+                cellSelectionField,
+                cellSelectionKeyCapturePlugin,
+            ],
             doc: initialDoc,
         });
 

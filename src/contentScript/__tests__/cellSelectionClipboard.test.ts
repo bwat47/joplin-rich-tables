@@ -270,7 +270,9 @@ describe('cellSelectionClipboard', () => {
 
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |'].join('\n'));
-        expect(rewrite?.selection).toEqual(selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 }));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+        );
     });
 
     it('builds a paste rewrite from the selection top-left even when the pasted range is smaller', () => {
