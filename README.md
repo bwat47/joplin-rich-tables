@@ -38,7 +38,6 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Moving columns (left/right)
 - Changing column alignment (left/center/right)
 - Clear table
-- Format table (normalizes whitespace to one space around cell content).
 
 > [!note]
 >
@@ -68,4 +67,3 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 ### Important Notes/Limitations
 
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
-- Limited support for multi-line content (you can use shift + enter to add a `<br>` and newlines will be converted to `<br>` for pasted content, but they aren't rendered as line breaks during editing).
