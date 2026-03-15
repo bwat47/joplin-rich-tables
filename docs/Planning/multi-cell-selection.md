@@ -189,7 +189,6 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 
 #### `cellSelectionClipboard.test.ts`
 - `extractSelectedCellContents()` — header-only, body-only, cross-boundary
-- `cellContentsToTsv()` / round-trip with `tsvToCellContents()`
 - Edge cases: cells with escaped pipes, `<br>` tags, empty cells
 
 ---
@@ -200,7 +199,7 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 
 2. **Clear selection on docChanged** — conservative approach avoids stale coordinates after undo. The user can re-select easily. Can be refined later to map coordinates.
 
-3. **Markdown table clipboard format** — copied cells produce a valid markdown table fragment. Pasting into Joplin (or any markdown editor) creates a new table naturally. Alignment row included when header is in selection. TSV could be added later as a secondary format for spreadsheet interop.
+3. **Markdown table clipboard format** — copied cells produce a valid markdown table fragment. Pasting into Joplin (or any markdown editor) creates a new table naturally. Alignment row included when header is in selection.
 
 4. **ViewPlugin for visuals, not decoration rebuild** — toggling CSS classes is cheaper than forcing widget reconstruction. The plugin reads state and mutates DOM directly.
 

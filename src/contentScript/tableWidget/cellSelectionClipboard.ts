@@ -1,4 +1,4 @@
-import { EditorView } from '@codemirror/view';
+import { EditorView, ViewPlugin } from '@codemirror/view';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import { resolveTableContextAtPos } from './tablePositioning';
@@ -55,20 +55,58 @@ export function copySelectionAsMarkdown(state: Parameters<typeof getCellSelectio
     }).serialize();
 }
 
-export const cellSelectionClipboardHandlers = EditorView.domEventHandlers({
-    copy: (event, view) => {
-        const selection = getCellSelection(view.state);
-        if (!selection) {
-            return false;
-        }
+function shouldIgnoreCopy(view: EditorView, activeElement: Element | null): boolean {
+    if (!activeElement) {
+        return false;
+    }
 
-        const markdown = copySelectionAsMarkdown(view.state, selection);
-        if (!markdown || !event.clipboardData) {
-            return false;
-        }
+    if (view.dom.contains(activeElement)) {
+        return false;
+    }
 
-        event.clipboardData.setData('text/plain', markdown);
-        event.preventDefault();
+    const tagName = activeElement.tagName;
+    if (tagName === 'INPUT' || tagName === 'TEXTAREA') {
         return true;
-    },
-});
+    }
+
+    return activeElement instanceof HTMLElement && activeElement.isContentEditable;
+}
+
+function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
+    const selection = getCellSelection(view.state);
+    if (!selection || !event.clipboardData) {
+        return false;
+    }
+
+    const doc = view.dom.ownerDocument;
+    if (shouldIgnoreCopy(view, doc.activeElement)) {
+        return false;
+    }
+
+    const markdown = copySelectionAsMarkdown(view.state, selection);
+    if (!markdown) {
+        return false;
+    }
+
+    event.clipboardData.setData('text/plain', markdown);
+    event.preventDefault();
+    return true;
+}
+
+export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
+    class {
+        private readonly onCopy: (event: ClipboardEvent) => void;
+
+        constructor(private readonly view: EditorView) {
+            this.onCopy = (event) => {
+                handleSelectionCopy(event, this.view);
+            };
+
+            this.view.dom.ownerDocument.addEventListener('copy', this.onCopy, true);
+        }
+
+        destroy(): void {
+            this.view.dom.ownerDocument.removeEventListener('copy', this.onCopy, true);
+        }
+    }
+);

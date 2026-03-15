@@ -77,4 +77,15 @@ describe('cellSelectionClipboard', () => {
             )
         ).toBe(['| a | b\\|c |', '| --- | --- |', '| x | <br> |'].join('\n'));
     });
+
+    it('serializes vertical single-column selections without turning them into a row', () => {
+        const state = createMarkdownState(doc);
+
+        expect(
+            copySelectionAsMarkdown(
+                state,
+                selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 1, col: 0 })
+            )
+        ).toBe(['| a |', '| --- |', '| x |'].join('\n'));
+    });
 });

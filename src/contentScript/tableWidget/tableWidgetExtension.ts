@@ -9,7 +9,7 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from './hashUtils';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
-import { cellSelectionClipboardHandlers } from './cellSelectionClipboard';
+import { cellSelectionClipboardPlugin } from './cellSelectionClipboard';
 import { cellSelectionKeymap } from './cellSelectionKeymap';
 import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from './cellSelectionState';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
@@ -269,7 +269,7 @@ export default function (context: ContentScriptContext) {
                 tableWidgetInteractionHandlers,
                 closeOnOutsideMouseDown,
                 outsideInteractionCapturePlugin,
-                cellSelectionClipboardHandlers,
+                cellSelectionClipboardPlugin,
                 cellSelectionVisualsPlugin,
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
