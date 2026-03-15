@@ -121,6 +121,7 @@ function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
         case 'Escape':
             return clearSelectionIfActive(view);
         case 'Enter':
+        case 'Tab':
             return !event.shiftKey && activateSelectionFocus(view);
         default:
             return false;

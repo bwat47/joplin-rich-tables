@@ -41,7 +41,7 @@ Two active selections exist: hidden main editor selection and visible nested edi
 When multi-cell selection mode is active, keyboard handling is routed through the table widget rather than a nested editor.
 
 - **Shift+Arrow**: Start or extend a rectangular selection.
-- **Enter**: Activate the focused cell and reopen the nested editor.
+- **Enter/Tab**: Activate the focused cell and reopen the nested editor.
 - **Escape**: Clear the multi-cell selection.
 - **Delete/Backspace**: Remove the selected range. Non-empty cells are cleared; fully-selected empty rows/columns are structurally deleted instead.
 - **Undo/Redo**: `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, and `Ctrl+Y` are forwarded to the main editor history while selection mode is active.
