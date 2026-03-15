@@ -12,6 +12,7 @@ import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableTex
 import { makeTableId } from '../tableModel/types';
 import { buildTableContext } from '../tableModel/tableContext';
 import { resolveTableAtPos } from './tablePositioning';
+import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 
 export function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     if (getCellSelection(view.state)) {
@@ -80,26 +81,8 @@ export function activateSelectionFocus(view: EditorView): boolean {
     return true;
 }
 
-function shouldIgnoreSelectionKeydown(view: EditorView): boolean {
-    const activeElement = view.dom.ownerDocument.activeElement;
-    if (!activeElement) {
-        return false;
-    }
-
-    if (view.dom.contains(activeElement)) {
-        return false;
-    }
-
-    const tagName = activeElement.tagName;
-    if (tagName === 'INPUT' || tagName === 'TEXTAREA') {
-        return true;
-    }
-
-    return activeElement instanceof HTMLElement && activeElement.isContentEditable;
-}
-
 function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
-    if (shouldIgnoreSelectionKeydown(view)) {
+    if (!canHandleTableSelectionShortcut(view)) {
         return false;
     }
 

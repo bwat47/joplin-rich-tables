@@ -3,6 +3,7 @@ import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import { resolveTableContextAtPos } from './tablePositioning';
 import { fromUnifiedRow, getCellSelection, toSelectionRect, type CellSelection } from './cellSelectionState';
+import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 
 export function extractSelectedCellContents(state: Parameters<typeof getCellSelection>[0], selection: CellSelection): string[][] {
     const ctx = resolveTableContextAtPos(state, selection.tableFrom);
@@ -55,31 +56,13 @@ export function copySelectionAsMarkdown(state: Parameters<typeof getCellSelectio
     }).serialize();
 }
 
-function shouldIgnoreCopy(view: EditorView, activeElement: Element | null): boolean {
-    if (!activeElement) {
-        return false;
-    }
-
-    if (view.dom.contains(activeElement)) {
-        return false;
-    }
-
-    const tagName = activeElement.tagName;
-    if (tagName === 'INPUT' || tagName === 'TEXTAREA') {
-        return true;
-    }
-
-    return activeElement instanceof HTMLElement && activeElement.isContentEditable;
-}
-
 function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
     const selection = getCellSelection(view.state);
     if (!selection || !event.clipboardData) {
         return false;
     }
 
-    const doc = view.dom.ownerDocument;
-    if (shouldIgnoreCopy(view, doc.activeElement)) {
+    if (!canHandleTableSelectionShortcut(view)) {
         return false;
     }
 

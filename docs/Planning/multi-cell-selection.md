@@ -90,7 +90,13 @@ ViewPlugin that applies/removes CSS class on cell DOM elements when selection ch
 
 #### 3. `src/contentScript/tableWidget/cellSelectionKeymap.ts`
 
-Main editor keymap for selection operations:
+Selection keyboard handling.
+
+Use two layers:
+- Standard CM keymap for cases where the main editor still has focus
+- Document-level capture plugin for selection mode, because there is no nested editor and the main editor focus is not reliable after the initial transition
+
+Main editor keymap:
 
 ```typescript
 keymap.of([
@@ -109,26 +115,25 @@ keymap.of([
 
 Reuses direction math from `tableNavigation.ts` (unified row system, boundary clamping). Extract shared helpers if needed.
 
+Document capture plugin:
+- Handles repeated `Shift+Arrow`, `Escape`, and `Enter` while a cell selection exists
+- Must be scoped carefully so it does not steal shortcuts from unrelated UI controls or toolbar buttons
+
 #### 4. `src/contentScript/tableWidget/cellSelectionClipboard.ts`
 
-Copy handler using DOM `copy` event:
+Copy handling via document-level capture plugin:
 
 ```typescript
-EditorView.domEventHandlers({
-    copy: (event, view) => {
-        const sel = getCellSelection(view.state);
-        if (!sel) return false;
-        const markdown = copySelectionAsMarkdown(view.state, sel);
-        if (!markdown) return false;
-        event.clipboardData?.setData('text/plain', markdown);
-        event.preventDefault();
-        return true;
-    },
+ViewPlugin.fromClass(class {
+    constructor(view) {
+        view.dom.ownerDocument.addEventListener('copy', onCopy, true);
+    }
 })
 ```
 
 - `extractSelectedCellContents(state, sel)` → `string[][]`: reads cell text from doc using `computeMarkdownTableCellRanges()` + `getCellRange()`
 - `copySelectionAsMarkdown(state, sel)` → string: builds a valid markdown table fragment from selected cells using `MarkdownTable.fromParts()` + `serialize()`. Includes alignment row when header cells are in the selection.
+- Capture plugin is needed because selection mode does not reliably keep CodeMirror focused
 
 ### Modified Files
 
@@ -171,8 +176,9 @@ cellSelectionField,              // NEW - after activeCellField
 ...
 cellSelectionKeymap,             // NEW - before navigationLockKeymap
 ...
+cellSelectionKeyCapturePlugin,   // NEW
+cellSelectionClipboardPlugin,    // NEW
 cellSelectionVisualsPlugin,      // NEW
-cellSelectionClipboardHandlers,  // NEW
 ```
 
 #### 10. `nestedEditorLifecycle.ts`
@@ -215,6 +221,8 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 | Lifecycle plugin side effects on clearActiveCell | `cellSelectionTransitionAnnotation` gates cursor management |
 | Shift+Arrow in nested editor conflicts with text selection | Only intercept at content boundaries (same pattern as existing Arrow keys) |
 | Selection across header/body boundary edge cases | Unified row coordinate system handles this naturally |
+| Selection mode has unreliable editor focus | Use document-level capture plugins for copy and repeated keyboard navigation |
+| Document-level capture can hijack unrelated shortcuts | Scope handlers narrowly and verify behavior with toolbar/buttons focused before expanding to cut/paste |
 
 ## Verification
 
@@ -222,8 +230,10 @@ When `clearActiveCellEffect` fires during a selection transition, the lifecycle 
 2. `npm run dist` — builds successfully
 3. Manual testing in Joplin:
    - Click cell → Shift+Arrow in all directions → verify highlight
+   - Continue pressing Shift+Arrow repeatedly → verify focus is not required for extension
    - Shift+Click distant cell → verify rectangular highlight
    - Ctrl+C → paste in text editor → verify valid markdown table output
+   - With toolbar or unrelated UI control focused, verify Ctrl+C / Escape / Enter do not get stolen unexpectedly
    - Escape → verify selection clears
    - Click cell (no Shift) during selection → verify selection clears, cell activates
    - Widget rebuild (edit elsewhere in doc) during selection → verify highlight persists
