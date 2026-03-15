@@ -1,3 +1,4 @@
+import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { getActiveCell, setActiveCellEffect } from './activeCellState';
 import {
@@ -86,6 +87,24 @@ function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
         return false;
     }
 
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && key === 'z') {
+        const command = event.shiftKey ? redo : undo;
+        const handled = command(view);
+        if (handled) {
+            view.focus();
+        }
+        return handled;
+    }
+
+    if (event.ctrlKey && !event.metaKey && key === 'y') {
+        const handled = redo(view);
+        if (handled) {
+            view.focus();
+        }
+        return handled;
+    }
+
     switch (event.key) {
         case 'ArrowLeft':
             return event.shiftKey && extendOrStartSelection(view, 'left');
@@ -130,4 +149,3 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
         }
     }
 );
-
