@@ -127,7 +127,8 @@ ViewPlugin.fromClass(
 
 - `extractSelectedCellContents(state, sel)` → `string[][]`: reads cell text from doc using `computeMarkdownTableCellRanges()` + `getCellRange()`
 - `copySelectionAsMarkdown(state, sel)` → string: builds a valid markdown table fragment from selected cells using `MarkdownTable.fromParts()` + `serialize()`. Includes alignment row when header cells are in the selection.
-- Capture plugin is needed because selection mode does not reliably keep CodeMirror focused
+- Capture plugin is needed because selection mode does not reliably keep CodeMirror focused.
+- Final implementation detail: this module also owns the shared table-paste rewrite helpers used by both document-level clipboard capture and the main-editor paste guard.
 
 ### Modified Files
 
@@ -164,6 +165,19 @@ Add Shift+Arrow bindings to nested editor keymap. At cell content boundaries onl
 - Close nested editor
 - Dispatch selection with anchor = current cell, focus = adjacent cell
 - Must use the `cellSelectionTransitionAnnotation` (see below)
+
+Final implementation detail:
+
+- Nested-editor multi-cell paste is not driven by a nested-editor DOM `paste` handler.
+- `domHandlers.ts` keeps a CodeMirror clipboard/input fallback (`clipboardInputFilter` + `inputHandler`) for cases where paste text enters through the nested editor's input pipeline.
+
+#### 8b. `mainEditorGuard.ts` (nested editor)
+
+Add a root-editor paste upgrade path while the nested editor is open:
+
+- Detect root-editor `input.paste` transactions targeting the active cell
+- If the inserted text parses as a markdown table fragment, convert the transaction into the same multi-cell table rewrite used by clipboard capture
+- Fall back to the existing sanitize/reject logic when the pasted text is not a valid table fragment
 
 #### 9. `tableWidgetExtension.ts`
 
