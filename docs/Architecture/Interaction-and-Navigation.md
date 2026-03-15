@@ -44,6 +44,9 @@ When multi-cell selection mode is active, keyboard handling is routed through th
 - **Enter/Tab**: Activate the focused cell and reopen the nested editor.
 - **Escape**: Clear the multi-cell selection.
 - **Delete/Backspace**: Remove the selected range. Non-empty cells are cleared; fully-selected empty rows/columns are structurally deleted instead.
+- **Ctrl + C**: Copy selected cells to clipboard.
+- **Ctrl + X**: Clear selected cells and copy them to clipboard. If selection only contains entirely empty rows/columns, delete the rows/columns instead of clearing cell content.
+- **Ctrl + V**: Paste selected cells into table, expanding as needed.
 - **Undo/Redo**: `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, and `Ctrl+Y` are forwarded to the main editor history while selection mode is active.
 
 ## Mouse Interaction
