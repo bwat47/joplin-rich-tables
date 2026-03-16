@@ -1,5 +1,5 @@
 import type { EditorView } from '@codemirror/view';
-import { isSameActiveCell, type ActiveCell } from '../tableWidget/activeCellState';
+import { isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
 
 export interface PendingCellOpenOptions {
     initialCursorPos?: 'start' | 'end';

@@ -5,11 +5,11 @@ import {
     clearActiveCellEffect,
     setActiveCellEffect,
     type ActiveCell,
-} from '../tableWidget/activeCellState';
-import { resolveCurrentActiveCell } from '../tableWidget/activeCellResolver';
-import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
-import { sourceModeField, toggleSourceModeEffect } from '../tableWidget/sourceMode';
-import { searchForceSourceModeField } from '../tableWidget/searchForceSourceMode';
+} from '../tableState/activeCellState';
+import { resolveCurrentActiveCell } from '../tableRuntime/activeCellResolver';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import {
     buildTableRuntimeEvent,
     decideMainEditorGuardTransaction,
@@ -17,11 +17,11 @@ import {
     planTableLifecycleActions,
     type TableRuntimeEvent,
     type TableRuntimeSnapshot,
-} from '../tableWidget/tableRuntimeTransitions';
+} from '../tableRuntime/tableRuntimeTransitions';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 import { createMarkdownState } from './testMarkdownState';
-import { normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
+import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -222,7 +222,7 @@ describe('tableRuntimeTransitions', () => {
         startState = startState.update({ effects: setActiveCellEffect.of(startActiveCell) }).state;
 
         const canonicalDoc = doc;
-        const nextActiveCell = computeActiveCellForTableText({
+        const nextActiveCell = createActiveCellForTableText({
             tableFrom: 0,
             tableText: canonicalDoc,
             target: startActiveCell,

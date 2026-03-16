@@ -1,16 +1,16 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { activateCellAtPosition } from '../tableWidget/cellActivation';
+import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableWidget/activeCellState';
-import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableWidget/cellSelectionState';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { sourceModeField } from '../tableWidget/sourceMode';
+import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
-import { navigateCell } from '../tableWidget/tableNavigation';
+import { navigateCell } from '../tableRuntime/tableNavigation';
 import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEditor/pendingCellOpen';
-import { resetNavigationLock } from '../tableWidget/navigationLock';
+import { resetNavigationLock } from '../tableRuntime/navigationLock';
 
 const openActiveCellSessionMock = jest.fn();
 

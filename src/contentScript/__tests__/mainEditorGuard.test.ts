@@ -1,9 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
-import { cellSelectionField, getCellSelection } from '../tableWidget/cellSelectionState';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
-import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
 
 function createState(params: { doc: string; nestedOpen: boolean }) {

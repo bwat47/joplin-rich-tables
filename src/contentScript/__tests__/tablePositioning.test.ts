@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { trimTrailingNonTableLines } from '../tableWidget/tablePositioning';
+import { trimTrailingNonTableLines } from '../tableRuntime/tablePositioning';
 
 describe('trimTrailingNonTableLines', () => {
     it('returns unchanged text for valid table without trailing content', () => {

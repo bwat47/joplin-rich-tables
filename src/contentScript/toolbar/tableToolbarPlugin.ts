@@ -1,5 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, ActiveCell } from '../tableWidget/activeCellState';
+import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
     execInsertRowAbove,
     execInsertRowBelow,
@@ -16,9 +16,9 @@ import {
     execMoveRowDown,
     execMoveColumnLeft,
     execMoveColumnRight,
-} from '../tableCommands/tableCommands';
+} from '../tableRuntime/tableOperations';
 import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
-import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 

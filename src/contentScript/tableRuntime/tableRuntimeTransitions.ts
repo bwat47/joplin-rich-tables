@@ -1,16 +1,16 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
-import { ActiveCell, clearActiveCellEffect, getActiveCell, isSameActiveCell } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
+import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
-import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from './sourceMode';
-import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
+import { isStructuralTableChange } from './structuralChangeDetection';
 import { sanitizeCellChanges } from '../nestedEditor/transactionPolicy';
-import { normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
-import { cellSelectionTransitionAnnotation } from './cellSelectionState';
+import { normalizeBeforeEditAnnotation } from './tableNormalization';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;

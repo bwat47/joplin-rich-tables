@@ -1,18 +1,14 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { getActiveCell, setActiveCellEffect } from './activeCellState';
-import {
-    clearCellSelectionEffect,
-    extendExistingCellSelection,
-    getCellSelection,
-    startCellSelectionFromActiveCell,
-} from './cellSelectionState';
-import { findCellElement } from './domHelpers';
+import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { createActiveCellFromRanges } from './activeCellFactory';
+import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
+import { resolveTableAtPos } from './tablePositioning';
+import { findCellElement } from '../tableWidget/domHelpers';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
 import { makeTableId } from '../tableModel/types';
 import { buildTableContext } from '../tableModel/tableContext';
-import { resolveTableAtPos } from './tablePositioning';
 import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 
@@ -53,7 +49,7 @@ export function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const nextActiveCell = computeActiveCellFromRanges({
+    const nextActiveCell = createActiveCellFromRanges({
         tableFrom: ctx.from,
         ranges: ctx.cellRanges,
         target: selection.focus,

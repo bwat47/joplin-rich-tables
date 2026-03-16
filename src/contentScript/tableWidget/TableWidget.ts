@@ -3,10 +3,10 @@ import { renderer } from '../services/markdownRenderer';
 import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
-    CLASS_CELL_CONTENT,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,

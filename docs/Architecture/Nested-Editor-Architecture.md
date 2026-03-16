@@ -11,7 +11,7 @@ Overlay a real editor rather than using contenteditable (for full syntax highlig
 
 ## Lifecycle
 
-Managed by `contentScript/tableWidget/nestedEditorLifecycle.ts`.
+Managed by `contentScript/tableRuntime/nestedEditorLifecycle.ts`.
 
 **Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges → `setActiveCellEffect` dispatched → lifecycle plugin mounts the nested editor.
 
@@ -23,7 +23,7 @@ table/cell offsets from current editor state immediately before opening the isol
 **Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → view plugin destroys instance.
 
 Lifecycle, decoration, and main-editor guard reactions share one transition-policy module
-(`contentScript/tableWidget/tableRuntimeTransitions.ts`). That module decides when to reopen,
+(`contentScript/tableRuntime/tableRuntimeTransitions.ts`). That module decides when to reopen,
 remap, rebuild, sanitize, or clear state; the lifecycle plugin remains responsible only for
 executing nested-editor side effects.
 

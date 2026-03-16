@@ -3,16 +3,18 @@
 Command flow from user action to Markdown serialization, including non-structural clear/format commands that still re-serialize table text.
 
 Multi-cell clipboard writes use the same parse -> mutate -> serialize pattern, but enter through
-`tableWidget/cellSelectionClipboard.ts` rather than `tableCommands.ts`.
+`tableRuntime/cellSelectionClipboard.ts` rather than `tableCommands.ts`.
 
 ## Command Flow
 
 ```
 User Action (keyboard/toolbar)
          ↓
-    tableCommands.ts           ← Command registration & dispatch
+    tableCommands.ts           ← Command registration only
          ↓
- tableTransactionHelpers.ts    ← Parse, mutate, serialize, dispatch
+   tableOperations.ts          ← Runtime entry points
+         ↓
+   runTableOperation.ts        ← Parse, mutate, serialize, dispatch
          ↓
      MarkdownTable.ts          ← Runtime model + structural operations
 ```
@@ -23,9 +25,9 @@ User Action (keyboard/toolbar)
 
 - **Joplin Registration**: `richTables.insertRowBelow`, etc.
 - **Active Cell Validation**: Checks before executing.
-- **Target Cell Computation**: Determines cell to re-activate after mutation.
+- **Delegation Only**: Dispatches into `tableRuntime/tableOperations.ts`.
 
-### 1b. Selection Clipboard Entry (`tableWidget/cellSelectionClipboard.ts`)
+### 1b. Selection Clipboard Entry (`tableRuntime/cellSelectionClipboard.ts`)
 
 - Document-level `copy`/`cut`/`paste` capture handles selection-mode clipboard operations and any nested-editor paste flows that surface as real DOM paste events.
 - `Ctrl+X` is selection-only: copy markdown fragment, then run the shared selection-removal rewrite and keep the resulting selection state.
@@ -45,7 +47,7 @@ When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `
 upgrades the resulting root-editor `input.paste` transaction into the same table rewrite before the normal
 single-cell sanitation path can flatten the fragment into text.
 
-### 2. Transaction Helpers (`tableTransactionHelpers.ts`)
+### 2. Runtime Mutation Helpers (`tableRuntime/runTableOperation.ts`)
 
 `runTableOperation()` orchestrates:
 
@@ -53,7 +55,7 @@ single-cell sanitation path can flatten the fragment into text.
 2. **Mutate**: Call operation function.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
-5. **Compute Active Cell**: `computeActiveCellForTableText()`.
+5. **Compute Active Cell**: `tableRuntime/activeCellFactory.ts`.
 6. **Dispatch**: Replace table range, update active cell state.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
@@ -88,6 +90,6 @@ clipboard alignments are only applied to newly created columns.
 
 ## Rebuild Trigger
 
-Structural edits dispatch `rebuildTableWidgetsEffect` → full table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.
+Structural edits dispatch `rebuildTableWidgetsEffect` from `tableState/tableWidgetEffects.ts` → full table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.
 
 Full table rebuild; no row/column DOM diffing.

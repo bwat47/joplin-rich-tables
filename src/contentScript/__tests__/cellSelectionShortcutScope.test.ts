@@ -4,13 +4,14 @@
 
 import { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
-import { activeCellField, setActiveCellEffect } from '../tableWidget/activeCellState';
-import { cellSelectionField, setCellSelectionEffect } from '../tableWidget/cellSelectionState';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import {
     canHandleTableClipboardShortcut,
     canHandleTableSelectionShortcut,
-} from '../tableWidget/cellSelectionShortcutScope';
-import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
+} from '../tableRuntime/cellSelectionShortcutScope';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 
 function createViewHarness() {
     let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField]);

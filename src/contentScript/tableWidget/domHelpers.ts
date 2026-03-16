@@ -1,16 +1,17 @@
 import { type CellCoords, type TableId, makeTableId } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
+import {
+    CLASS_CELL_ACTIVE,
+    CLASS_CELL_CONTENT,
+    CLASS_CELL_EDITOR,
+    CLASS_CELL_EDITOR_HIDDEN,
+} from '../shared/tableDomClasses';
 
 // Main widget structure classes
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
-export const CLASS_CELL_ACTIVE = 'cm-table-cell-active';
 export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
-
-// Nested editor wrapper elements hosted inside table cells
-export const CLASS_CELL_CONTENT = 'cm-table-cell-content';
-export const CLASS_CELL_EDITOR = 'cm-table-cell-editor';
-export const CLASS_CELL_EDITOR_HIDDEN = 'cm-table-cell-editor-hidden';
+export { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR, CLASS_CELL_EDITOR_HIDDEN };
 
 // Floating toolbar container (positioned relative to the active table widget)
 export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';

@@ -1,7 +1,6 @@
 import type { ViewUpdate, EditorView } from '@codemirror/view';
-import type { ActiveCell } from '../tableWidget/activeCellState';
-import { setActiveCellEffect } from '../tableWidget/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableWidget/tableWidgetEffects';
+import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import {
     activeCellSessionPlugin as nestedCellEditorPlugin,
     cleanupHostedActiveCellSessions,
@@ -12,10 +11,10 @@ import {
     refocusActiveCellSession,
 } from './activeCellSession';
 import { syncAnnotation } from './transactionPolicy';
-import { resolveActiveCell } from '../tableWidget/activeCellResolver';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
-import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
-import { setPendingNavigationCallback } from '../tableWidget/navigationLock';
+import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { setPendingNavigationCallback } from '../tableRuntime/navigationLock';
+import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
 import { rememberPendingCellOpen } from './pendingCellOpen';
 
 export { nestedCellEditorPlugin, syncAnnotation };
@@ -36,7 +35,7 @@ export function openNestedCellEditor(params: {
 
         const canonicalText = getCanonicalTableTextIfChanged(resolved.ctx);
         if (canonicalText) {
-            const nextActiveCell = computeActiveCellForTableText({
+            const nextActiveCell = createActiveCellForTableText({
                 tableFrom: resolved.tableFrom,
                 tableText: canonicalText,
                 target: params.activeCell,

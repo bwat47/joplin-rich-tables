@@ -3,13 +3,13 @@
  */
 
 import { EditorView } from '@codemirror/view';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableWidget/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import {
     cellSelectionField,
     getCellSelection,
     setCellSelectionEffect,
     type CellSelection,
-} from '../tableWidget/cellSelectionState';
+} from '../tableState/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';
 import {
     buildMultiCellPasteRewrite,
@@ -22,8 +22,8 @@ import {
     handleTableClipboardTextPaste,
     parseMarkdownTableClipboard,
     resolveTableClipboardTarget,
-} from '../tableWidget/cellSelectionClipboard';
-import { CLASS_CELL_EDITOR } from '../tableWidget/domHelpers';
+} from '../tableRuntime/cellSelectionClipboard';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const doc = ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | b\\|c |  |', '| x | <br> | z |'].join('\n');
 

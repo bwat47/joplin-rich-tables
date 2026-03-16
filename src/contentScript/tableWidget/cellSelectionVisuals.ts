@@ -1,5 +1,5 @@
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
-import { getCellSelection, isCellInRect, toSelectionRect } from './cellSelectionState';
+import { getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
 import { CLASS_CELL_SELECTED, findTableWidgetElement } from './domHelpers';
 import { makeTableId, type CellCoords } from '../tableModel/types';
 

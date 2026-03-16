@@ -5,7 +5,7 @@ import {
     setPendingNavigationCallback,
     consumePendingNavigationCallback,
     resetNavigationLock,
-} from '../tableWidget/navigationLock';
+} from '../tableRuntime/navigationLock';
 
 // Mock the logger to avoid console output during tests
 jest.mock('../../logger', () => ({

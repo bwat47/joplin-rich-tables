@@ -3,15 +3,15 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { isSourceModeEnabled } from '../tableState/sourceMode';
 import { findTableRanges } from './tablePositioning';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../tableModel/tableContext';
-import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
+import { createActiveCellFromRanges } from './activeCellFactory';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { findCellElement } from './domHelpers';
+import { findCellElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
-import { isSourceModeEnabled } from './sourceMode';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -89,7 +89,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         activeCell: getActiveCell(view.state),
     });
 
-    const newActiveCell = computeActiveCellFromRanges({
+    const newActiveCell = createActiveCellFromRanges({
         tableFrom: ctx.from,
         ranges: ctx.cellRanges,
         target: targetCell,
@@ -146,7 +146,7 @@ export function activateTableCell(
         const ctx = buildTableContext(table);
         if (!ctx) return;
 
-        const newActiveCell = computeActiveCellFromRanges({
+        const newActiveCell = createActiveCellFromRanges({
             tableFrom: ctx.from,
             ranges: ctx.cellRanges,
             target: coords,

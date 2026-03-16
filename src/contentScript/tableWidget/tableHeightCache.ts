@@ -5,7 +5,7 @@
  * can stabilize scrolling when large block widgets are mounted/rebuilt.
  */
 
-import { hashTableText } from './hashUtils';
+import { hashTableText } from '../shared/hashUtils';
 
 const MAX_ENTRIES = 200;
 

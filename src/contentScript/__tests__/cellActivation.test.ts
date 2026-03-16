@@ -1,6 +1,6 @@
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { resolveActivationTargetCell } from '../tableWidget/cellActivation';
-import type { ActiveCell } from '../tableWidget/activeCellState';
+import { resolveActivationTargetCell } from '../tableRuntime/cellActivation';
+import type { ActiveCell } from '../tableState/activeCellState';
 
 const tableText = ['| H1 | H2 |', '| --- | --- |', '| aaa bbb ccc | zzz |'].join('\n');
 

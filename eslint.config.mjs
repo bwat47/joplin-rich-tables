@@ -7,6 +7,10 @@ import importPlugin from 'eslint-plugin-import';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
+function siblingGroups(folderNames) {
+    return folderNames.flatMap((name) => [`../${name}`, `../${name}/*`, `../${name}/**`]);
+}
+
 export default [
     {
         ignores: ['api/**', 'dist/**'],
@@ -41,6 +45,158 @@ export default [
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
             'no-useless-escape': 'off',
+        },
+    },
+
+    {
+        files: ['src/contentScript/shared/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups([
+                                'tableModel',
+                                'tableState',
+                                'tableRuntime',
+                                'tableWidget',
+                                'tableCommands',
+                                'nestedEditor',
+                                'services',
+                                'toolbar',
+                            ]),
+                            message: 'shared must stay feature-agnostic.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+
+    {
+        files: ['src/contentScript/services/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups([
+                                'tableModel',
+                                'tableState',
+                                'tableRuntime',
+                                'tableWidget',
+                                'tableCommands',
+                                'nestedEditor',
+                                'toolbar',
+                            ]),
+                            message: 'services may depend only on shared utilities and external integration code.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+
+    {
+        files: ['src/contentScript/tableModel/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups([
+                                'tableState',
+                                'tableRuntime',
+                                'tableWidget',
+                                'tableCommands',
+                                'nestedEditor',
+                                'services',
+                                'toolbar',
+                            ]),
+                            message: 'tableModel must not depend on higher-level editor layers.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+
+    {
+        files: ['src/contentScript/tableState/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups([
+                                'tableRuntime',
+                                'tableWidget',
+                                'tableCommands',
+                                'nestedEditor',
+                                'services',
+                                'toolbar',
+                            ]),
+                            message: 'tableState is limited to model types, shared helpers, and sibling state modules.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+
+    {
+        files: ['src/contentScript/tableRuntime/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups(['tableCommands']),
+                            message: 'tableRuntime must stay below tableCommands in the dependency graph.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+
+    {
+        files: ['src/contentScript/tableCommands/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups(['tableWidget', 'nestedEditor', 'services']),
+                            message: 'tableCommands should go through state/runtime APIs instead of widget or nested-editor internals.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+
+    {
+        files: ['src/contentScript/tableWidget/**/*.ts'],
+        ignores: ['src/contentScript/tableWidget/tableWidgetExtension.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: siblingGroups(['tableCommands']),
+                            message: 'tableWidget modules must not depend on command registration or command entry points.',
+                        },
+                    ],
+                },
+            ],
         },
     },
 

@@ -1,4 +1,4 @@
-import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../tableWidget/domHelpers';
+import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 /** Ensures the cell element has the required structure (content div and editor host div). */
 export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; editorHost: HTMLElement } {

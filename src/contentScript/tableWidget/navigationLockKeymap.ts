@@ -7,7 +7,7 @@
  */
 
 import { keymap } from '@codemirror/view';
-import { isNavigationLocked } from './navigationLock';
+import { isNavigationLocked } from '../tableRuntime/navigationLock';
 
 export const navigationLockKeymap = keymap.of([
     {

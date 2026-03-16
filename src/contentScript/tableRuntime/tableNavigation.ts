@@ -1,11 +1,11 @@
 import { EditorView } from '@codemirror/view';
-import { SECTION_BODY, SECTION_HEADER, findCellElement } from './domHelpers';
-import { getActiveCell, setActiveCellEffect } from './activeCellState';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { resolveActiveCell } from './activeCellResolver';
 import { resolveCellDocRange } from './tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
+import { execInsertRowAtBottom } from './tableOperations';
 import { makeTableId, type CellCoords } from '../tableModel/types';
+import { SECTION_BODY, SECTION_HEADER, findCellElement } from '../tableWidget/domHelpers';
 import {
     isNavigationLocked,
     acquireNavigationLock,

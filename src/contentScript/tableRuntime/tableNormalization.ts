@@ -1,5 +1,5 @@
 import { Annotation } from '@codemirror/state';
-import type { TableContext } from './tableContext';
+import type { TableContext } from '../tableModel/tableContext';
 
 export const normalizeBeforeEditAnnotation = Annotation.define<boolean>();
 

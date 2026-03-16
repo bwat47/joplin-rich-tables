@@ -2,6 +2,17 @@
 
 A Joplin plugin that replaces Markdown table syntax with interactive `TableWidget` decorations using CodeMirror 6.
 
+## Content Script Layers
+
+- `tableModel/`: pure table parsing, serialization, and table math.
+- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions and selectors.
+- `tableRuntime/`: editor-bound orchestration, lifecycle, navigation, and mutation helpers.
+- `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
+- `tableCommands/`: Joplin command registration only.
+- `nestedEditor/`: isolated in-cell editor implementation.
+- `services/`: Joplin/external integration.
+- `shared/`: generic helpers with no table-feature ownership.
+
 ## Documentation Index
 
 - [Table-Display.md](./Table-Display.md) - Rendering, optimizations, display modes.
@@ -26,11 +37,13 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 | :------------ | :--------------------------------------------------- | :--------------------------------------------------------- |
 | **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`  | Main entry point; connects plugins, styles, commands.      |
 | **Rendering** | `contentScript/tableWidget/TableWidget.ts`           | HTML rendering, click-to-cell coordinate mapping.          |
-| **Lifecycle** | `contentScript/tableWidget/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.  |
+| **Lifecycle** | `contentScript/tableRuntime/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.  |
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`           | CSS-in-JS for theme consistency.                           |
 | **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`     | Public facade over the active-cell session editor.         |
 | **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`          | Normalized table model, parsing, serialization, mutations. |
 | **Context**   | `contentScript/tableModel/tableContext.ts`           | Shared parsed table + cell ranges + table span.            |
+| **State**     | `contentScript/tableState/activeCellState.ts`        | Logical active-cell state and effect wiring.               |
+| **Runtime**   | `contentScript/tableRuntime/tableOperations.ts`      | Table mutation orchestration and target-cell rebasing.     |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`        | Floating UI for row/column/alignment actions.              |
 
 ## Data Flow
@@ -41,7 +54,7 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 
 ### 2. Interaction
 
-Cell click → `TableWidget` calculates row/column → dispatches `setActiveCellEffect` → `nestedEditorLifecycle` mounts nested editor.
+Cell click → widget/runtime logic resolves row/column → dispatches `setActiveCellEffect` → `tableRuntime/nestedEditorLifecycle` mounts nested editor.
 
 `ActiveCell` is logical-first state: it persists `anchorPos` plus `section/row/col`. Raw offsets such as
 `tableFrom`, `tableTo`, and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
@@ -86,10 +99,10 @@ derive current table/cell offsets for the persisted logical active-cell state.
 
 ### 6. Shared Transition Policy
 
-Table editing transition logic is centralized in `contentScript/tableWidget/tableRuntimeTransitions.ts`.
+Table editing transition logic is centralized in `contentScript/tableRuntime/tableRuntimeTransitions.ts`.
 
 - The module is pure policy: it inspects `Transaction`/`ViewUpdate` state and returns declarative decisions/actions.
-- `nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
+- `tableRuntime/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
 - `nestedEditor/activeCellSession.ts` owns local/root synchronization, selection mirroring, and session invalidation.
 - `tableWidgetExtension.ts` still owns block decoration materialization through `StateField`.
 - `mainEditorGuard.ts` still owns transaction filtering, but delegates allow/reject/sanitize decisions to the shared policy.
@@ -109,7 +122,7 @@ flowchart TB
 
     subgraph Main["Main Editor"]
         ME["Main EditorView"]
-        LC["nestedEditorLifecycle.ts"]
+        LC["tableRuntime/nestedEditorLifecycle.ts"]
     end
 
     K --> DH

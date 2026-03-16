@@ -1,10 +1,7 @@
 import { EditorSelection } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
-import { computeActiveCellForTableText } from '../tableModel/activeCellForTableText';
-import { getCellRange } from '../tableModel/markdownTableCellRanges';
-import type { CellCoords } from '../tableModel/types';
-import { clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
@@ -14,9 +11,12 @@ import {
     setCellSelectionEffect,
     toSelectionRect,
     type CellSelection,
-} from './cellSelectionState';
-import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
+} from '../tableState/cellSelectionState';
+import { createActiveCellForTableText } from './activeCellFactory';
 import { resolveTableContextAtPos } from './tablePositioning';
+import { getCellRange } from '../tableModel/markdownTableCellRanges';
+import type { CellCoords } from '../tableModel/types';
+import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 
 export interface TableClipboardTarget {
@@ -137,7 +137,7 @@ export function resolveTableClipboardTarget(
 }
 
 function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords: CellCoords): number | null {
-    const activeCell = computeActiveCellForTableText({
+    const activeCell = createActiveCellForTableText({
         tableFrom,
         tableText,
         target: coords,

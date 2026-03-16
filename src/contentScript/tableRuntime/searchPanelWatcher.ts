@@ -8,9 +8,9 @@
  */
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { searchPanelOpen } from '@codemirror/search';
-import { clearActiveCellEffect, getActiveCell } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
-import { setSearchForceSourceModeEffect, exitSearchForceSourceModeEffect } from './searchForceSourceMode';
+import { setSearchForceSourceModeEffect, exitSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 
 /**
  * ViewPlugin that watches for search panel state transitions.
