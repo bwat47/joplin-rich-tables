@@ -18,14 +18,16 @@ Table rendering includes rendering of inline markdown and image embeds.
 > [!note]
 > Table rendering can be temporarily disabled by toggling "source mode" via toolbar button or keyboard shortcut.
 
-#### Supported markdown syntax for rendered tables
+#### Markdown Rendering
+
+Supports syntax highlighting (while editing) and rendering (cells not being edited) most markdown syntax supported by Joplin:
 
 - Basic formatting: bold/italic/inline code/strikethrough/highlight(==mark==)/underline(++insert++).
 - Links (markdown links, autolinks, reference style links).
-- Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just displays the exact footnote number that's defined in the footnote link (e.g. `[^1]`).
+- Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just displays the exact footnote label that's defined in the footnote link (e.g. `[^1]`).
 - Embeds (markdown and html image embeds, video embeds when you have joplin's video plugin enabled, youtube links will be rendered as video embed in joplin 3.6.1 or newer).
 - Katex (math) - will be rendered, but not syntax highlighted when editing.
-- Line breaks (as html `<br>` tags).
+- Line breaks (html `<br>` tags, rendered as line breaks while editing).
 
 ### Table Editing
 
@@ -38,6 +40,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Moving columns (left/right)
 - Changing column alignment (left/center/right)
 - Clear table
+- Select multiple table cells and cut/copy/paste/clear/delete
 
 > [!note]
 >
@@ -62,8 +65,11 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
 - **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
 - **Enter Key:** Moves to next row, or creates new row on last row.
-- **Shift + Enter:** Insert `<br>` (line break)
+- **Shift + Enter:** Insert `<br>` (line break).
+- **Shift + Click:** Select multiple table cells.
+- **Shift + Arrow:** Select multiple table cells.
 
 ### Important Notes/Limitations
 
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
+- Multi-cell selection is keyboard only
