@@ -4,7 +4,7 @@ In-cell editing uses a transient CodeMirror instance inside the active `<td>`.
 
 ## Concept
 
-Overlay a real editor rather than using contenteditable (avoids browser inconsistencies).
+Overlay a real editor rather than using contenteditable (for full syntax highlighting, better multi-line handling, better integration/synchronization with the main editor).
 
 - **Scope**: Contains only the active cell text in isolated local coordinates.
 - **Effect**: User edits a true cell-local editor while the root document remains authoritative.
