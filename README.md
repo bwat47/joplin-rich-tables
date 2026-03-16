@@ -46,11 +46,11 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 >
 > The plugin does not provide handling for ctrl + clicking links while editing a table cell. However, you can left click links on table cells that aren't actively being edited, and you can get right click context menu options for links using plugins like Rich Markdown or Context Utils.
 
-## Undo/Redo
+### Undo/Redo
 
 Properly supports undo/redo while editing tables (integrated with main editor's undo/redo history).
 
-## Search integration
+### Search integration
 
 Table markdown is revealed while joplin search panel is active. When closing search (and if search result selection is in a table), closing search will activate that table cell with the search result highlighted.
 
