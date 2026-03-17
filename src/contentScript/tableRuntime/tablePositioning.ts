@@ -103,6 +103,37 @@ function resolveTableContextFromResolved(resolved: ResolvedTable | null): TableC
     return buildTableContext(resolved);
 }
 
+function clampDocPos(state: EditorState, pos: number): number {
+    return Math.min(Math.max(pos, 0), state.doc.length);
+}
+
+function resolveActiveCellTableContext(state: EditorState): TableContext | null {
+    const activeCell = getActiveCell(state);
+    if (!activeCell) {
+        return null;
+    }
+
+    const candidatePositions = [activeCell.tableFrom, activeCell.anchorPos].map((pos) => clampDocPos(state, pos));
+    const seenPositions = new Set<number>();
+
+    for (const pos of candidatePositions) {
+        if (seenPositions.has(pos)) {
+            continue;
+        }
+        seenPositions.add(pos);
+
+        const context = resolveTableContextAtPos(state, pos);
+        if (
+            context &&
+            resolveCellDocRange({ tableFrom: context.from, ranges: context.cellRanges, coords: activeCell })
+        ) {
+            return context;
+        }
+    }
+
+    return null;
+}
+
 /**
  * Resolve a table context from an event target, using a best-effort set of fallbacks.
  *
@@ -139,17 +170,11 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
         }
     }
 
-    // Fallback: use the active-cell state's mapped anchorPos to locate the table,
-    // then validate that the cell coordinates still resolve within that table.
-    const activeCell = getActiveCell(view.state);
-    if (activeCell) {
-        const context = resolveTableContextAtPos(view.state, activeCell.anchorPos);
-        if (
-            context &&
-            resolveCellDocRange({ tableFrom: context.from, ranges: context.cellRanges, coords: activeCell })
-        ) {
-            return context;
-        }
+    // Fallback: prefer the mapped table start, then try the mapped anchor as a
+    // secondary recovery path. Either candidate must still resolve the logical cell.
+    const activeCellContext = resolveActiveCellTableContext(view.state);
+    if (activeCellContext) {
+        return activeCellContext;
     }
 
     return null;

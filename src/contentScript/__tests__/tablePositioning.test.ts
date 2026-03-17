@@ -1,5 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
-import { trimTrailingNonTableLines } from '../tableRuntime/tablePositioning';
+import { EditorView } from '@codemirror/view';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { createMarkdownState } from './testMarkdownState';
+import { resolveTableContextFromEventTarget, trimTrailingNonTableLines } from '../tableRuntime/tablePositioning';
 
 describe('trimTrailingNonTableLines', () => {
     it('returns unchanged text for valid table without trailing content', () => {
@@ -42,5 +45,46 @@ describe('trimTrailingNonTableLines', () => {
         const table = ['| h1 | h2 |', '| --- | --- |', '| r1c1 | r1c2 |', '| r2c1 | r2c2 |'].join('\n');
         const input = table + '\nsome trailing text';
         expect(trimTrailingNonTableLines(input)).toBe(table);
+    });
+});
+
+describe('resolveTableContextFromEventTarget', () => {
+    it('prefers activeCell.tableFrom over a drifted anchorPos fallback', () => {
+        const doc = [
+            '| H1 | H2 |',
+            '| --- | --- |',
+            '| a1 |  |',
+            '',
+            '|  | Bands |',
+            '| --- | :--- |',
+            '| **2G:** | `GSM 850 / 900 / 1800 / 1900 CDMA 800` a |',
+        ].join('\n');
+        let state = createMarkdownState(doc, [activeCellField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                anchorPos: doc.indexOf('|  | Bands |'),
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 1,
+            }),
+        }).state;
+
+        const view = {
+            state,
+            posAtDOM: () => {
+                throw new Error('force active-cell fallback');
+            },
+        } as unknown as EditorView;
+
+        const target = {
+            closest: () => null,
+        } as unknown as HTMLElement;
+
+        const context = resolveTableContextFromEventTarget(view, target);
+
+        expect(context).not.toBeNull();
+        expect(context?.from).toBe(0);
+        expect(context?.table.bodyRows[0][1]).toBe('');
     });
 });
