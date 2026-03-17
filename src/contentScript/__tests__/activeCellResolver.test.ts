@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
-import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell, resolveCurrentActiveCell } from '../tableRuntime/activeCellResolver';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { createMarkdownState } from './testMarkdownState';
 
 function createState(doc: string, activeCell?: ActiveCell) {
@@ -24,7 +24,7 @@ describe('activeCellResolver', () => {
             col: 1,
         });
 
-        const resolved = resolveCurrentActiveCell(state);
+        const resolved = resolveActiveCell(state, getActiveCell(state));
 
         expect(resolved).not.toBeNull();
         expect(resolved?.cellFrom).toBe(doc.indexOf('H2'));
@@ -44,7 +44,7 @@ describe('activeCellResolver', () => {
         const tr = state.update({
             changes: { from: 0, to: 0, insert: 'before\n' },
         });
-        const resolved = resolveCurrentActiveCell(tr.state);
+        const resolved = resolveActiveCell(tr.state, getActiveCell(tr.state));
 
         expect(resolved).not.toBeNull();
         expect(tr.state.field(activeCellField)?.tableFrom).toBe('before\n'.length);
@@ -66,7 +66,7 @@ describe('activeCellResolver', () => {
             changes: { from: 0, to: doc.length, insert: '# replaced' },
         });
 
-        expect(resolveCurrentActiveCell(tr.state)).toBeNull();
+        expect(resolveActiveCell(tr.state, getActiveCell(tr.state))).toBeNull();
     });
 
     it('returns null when the logical cell no longer exists in the anchored table', () => {
@@ -100,7 +100,7 @@ describe('activeCellResolver', () => {
             selection: { anchor: trailingSpaceCursor },
         }).state;
 
-        const resolved = resolveCurrentActiveCell(state);
+        const resolved = resolveActiveCell(state, getActiveCell(state));
 
         expect(resolved).not.toBeNull();
         expect(resolved?.cellFrom).toBe(doc.indexOf('foo'));

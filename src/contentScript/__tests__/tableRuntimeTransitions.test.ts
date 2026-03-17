@@ -3,10 +3,11 @@ import { EditorState, Transaction } from '@codemirror/state';
 import {
     activeCellField,
     clearActiveCellEffect,
+    getActiveCell,
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import { resolveCurrentActiveCell } from '../tableRuntime/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
@@ -46,7 +47,7 @@ function getHeaderCell(): ActiveCell {
 }
 
 function requireResolvedActiveCell(state: EditorState) {
-    const resolved = resolveCurrentActiveCell(state);
+    const resolved = resolveActiveCell(state, getActiveCell(state));
     if (!resolved) {
         throw new Error('Expected resolved active cell');
     }
