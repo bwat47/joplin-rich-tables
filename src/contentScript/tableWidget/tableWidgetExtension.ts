@@ -7,11 +7,14 @@ import { buildTableContext } from '../tableModel/tableContext';
 import { initRenderer } from '../services/markdownRenderer';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
-import { hashTableText } from './hashUtils';
-import { activeCellField, clearActiveCellEffect, getActiveCell } from './activeCellState';
-import { cellSelectionClipboardPlugin } from './cellSelectionClipboard';
-import { cellSelectionKeyCapturePlugin } from './cellSelectionKeymap';
-import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from './cellSelectionState';
+import { hashTableText } from '../shared/hashUtils';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { activeCellField, clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
+import { sourceModeField } from '../tableState/sourceMode';
+import { cellSelectionClipboardPlugin } from '../tableRuntime/cellSelectionClipboard';
+import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
 import {
     closeNestedCellEditor,
@@ -21,19 +24,17 @@ import {
 } from '../nestedEditor/nestedCellEditor';
 import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
-import { findTableRanges } from './tablePositioning';
+import { findTableRanges } from '../tableRuntime/tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
-import { CLASS_CELL_EDITOR, CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
+import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
-import { nestedEditorLifecyclePlugin } from './nestedEditorLifecycle';
+import { nestedEditorLifecyclePlugin } from '../tableRuntime/nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import { searchPanelWatcherPlugin } from './searchPanelWatcher';
-import { sourceModeField } from './sourceMode';
-import { searchForceSourceModeField } from './searchForceSourceMode';
+import { searchPanelWatcherPlugin } from '../tableRuntime/searchPanelWatcher';
 import { navigationLockKeymap } from './navigationLockKeymap';
-import { createNoteIdWatcher } from './noteIdWatcher';
-import { moveCursorOutOfTable } from './cursorUtils';
-import { decideTableDecorationUpdate } from './tableRuntimeTransitions';
+import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
+import { moveCursorOutOfTable } from '../tableRuntime/cursorUtils';
+import { decideTableDecorationUpdate } from '../tableRuntime/tableRuntimeTransitions';
 
 /**
  * Build decorations for all tables in the document.

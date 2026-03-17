@@ -1,22 +1,18 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { getActiveCell, setActiveCellEffect } from './activeCellState';
-import {
-    clearCellSelectionEffect,
-    extendExistingCellSelection,
-    getCellSelection,
-    startCellSelectionFromActiveCell,
-} from './cellSelectionState';
-import { findCellElement } from './domHelpers';
+import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { createActiveCellFromRanges } from './activeCellFactory';
+import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
+import { resolveTableAtPos } from './tablePositioning';
+import { findCellElement } from '../tableWidget/domHelpers';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { computeActiveCellFromRanges } from '../tableModel/activeCellForTableText';
 import { makeTableId } from '../tableModel/types';
 import { buildTableContext } from '../tableModel/tableContext';
-import { resolveTableAtPos } from './tablePositioning';
 import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 
-export function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
+function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     if (getCellSelection(view.state)) {
         return extendExistingCellSelection(view, direction);
     }
@@ -28,7 +24,7 @@ export function extendOrStartSelection(view: EditorView, direction: 'left' | 'ri
     return false;
 }
 
-export function clearSelectionIfActive(view: EditorView): boolean {
+function clearSelectionIfActive(view: EditorView): boolean {
     if (!getCellSelection(view.state)) {
         return false;
     }
@@ -37,7 +33,7 @@ export function clearSelectionIfActive(view: EditorView): boolean {
     return true;
 }
 
-export function activateSelectionFocus(view: EditorView): boolean {
+function activateSelectionFocus(view: EditorView): boolean {
     const selection = getCellSelection(view.state);
     if (!selection) {
         return false;
@@ -53,7 +49,7 @@ export function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const nextActiveCell = computeActiveCellFromRanges({
+    const nextActiveCell = createActiveCellFromRanges({
         tableFrom: ctx.from,
         ranges: ctx.cellRanges,
         target: selection.focus,

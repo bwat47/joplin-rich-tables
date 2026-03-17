@@ -4,7 +4,7 @@ import { Transaction } from '@codemirror/state';
  * Checks if a string contains an unescaped pipe character.
  * An unescaped pipe is one not preceded by an odd number of backslashes.
  */
-export function hasUnescapedPipe(text: string): boolean {
+function hasUnescapedPipe(text: string): boolean {
     let backslashRun = 0;
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];

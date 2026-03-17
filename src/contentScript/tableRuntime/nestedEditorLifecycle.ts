@@ -1,7 +1,8 @@
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
-import { getActiveCell, clearActiveCellEffect, isSameActiveCell } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import { isEffectiveRawMode } from '../tableState/sourceMode';
+import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { resolveActiveCell } from './activeCellResolver';
-import { rebuildAllTableWidgetsEffect } from './tableWidgetEffects';
 import {
     closeNestedCellEditor,
     handleMainEditorUpdateForNestedEditor,
@@ -9,11 +10,10 @@ import {
     openNestedCellEditor,
 } from '../nestedEditor/nestedCellEditor';
 import { clearPendingCellOpen, consumePendingCellOpenOptions } from '../nestedEditor/pendingCellOpen';
-import { findCellElement } from './domHelpers';
+import { findCellElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { activateCellAtPosition } from './cellActivation';
-import { isEffectiveRawMode } from './sourceMode';
 import { releasePendingNavigationCallback } from './navigationLock';
 import {
     buildTableRuntimeEvent,

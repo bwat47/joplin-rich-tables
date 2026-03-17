@@ -4,10 +4,8 @@ import {
     CLASS_CELL_CONTENT,
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
-    CLASS_CELL_SELECTED,
-    CLASS_TABLE_WIDGET_TABLE,
-    getWidgetSelector,
-} from './domHelpers';
+} from '../shared/tableDomClasses';
+import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
 
 /**
  * Basic styles for the table widget.

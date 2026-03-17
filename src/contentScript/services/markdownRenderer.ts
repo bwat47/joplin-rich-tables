@@ -115,20 +115,6 @@ async function renderMarkdown(markdown: string): Promise<string> {
 }
 
 /**
- * Clear the render cache (useful when document changes significantly)
- */
-export function clearRenderCache(): void {
-    renderCache.clear();
-}
-
-/**
- * Check if markdown content is cached
- */
-export function isCached(markdown: string): boolean {
-    return renderCache.has(markdown);
-}
-
-/**
  * Default renderer implementation using internal cache and postMessage.
  */
 class DefaultMarkdownRenderer implements MarkdownRenderService {

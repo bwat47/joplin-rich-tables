@@ -8,7 +8,7 @@
  */
 import { MarkdownTable } from './MarkdownTable';
 import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
-import { hashTableText } from '../tableWidget/hashUtils';
+import { hashTableText } from '../shared/hashUtils';
 import type { ResolvedTable } from './types';
 
 export interface TableContext extends ResolvedTable {

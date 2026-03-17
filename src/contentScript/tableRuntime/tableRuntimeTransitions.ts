@@ -1,16 +1,16 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
-import { ActiveCell, clearActiveCellEffect, getActiveCell, isSameActiveCell } from './activeCellState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
+import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from './tableWidgetEffects';
 import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
-import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from './sourceMode';
-import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from './searchForceSourceMode';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { isStructuralTableChange } from '../tableModel/structuralChangeDetection';
+import { isStructuralTableChange } from './structuralChangeDetection';
 import { sanitizeCellChanges } from '../nestedEditor/transactionPolicy';
-import { normalizeBeforeEditAnnotation } from '../tableModel/tableNormalization';
-import { cellSelectionTransitionAnnotation } from './cellSelectionState';
+import { normalizeBeforeEditAnnotation } from './tableNormalization';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;
@@ -138,7 +138,7 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
     };
 }
 
-export function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
+function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
     let overlaps = false;
     tr.changes.iterChanges((fromA, toA) => {
         if (overlaps) {
@@ -151,7 +151,7 @@ export function changesOverlapRange(tr: Transaction, from: number, to: number): 
     return overlaps;
 }
 
-export function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
+function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
     let outsideCell = false;
     tr.changes.iterChanges((fromA, toA) => {
         if (outsideCell) {
@@ -164,7 +164,7 @@ export function transactionChangesOutsideCell(tr: Transaction, activeCell: Resol
     return outsideCell;
 }
 
-export function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {
+function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {
     if (!activeCell) {
         return false;
     }

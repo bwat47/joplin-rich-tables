@@ -1,8 +1,10 @@
 import { computeMarkdownTableCellRanges, getCellRange, type TableCellRanges } from './markdownTableCellRanges';
-import type { ActiveCell } from '../tableWidget/activeCellState';
 import type { CellCoords } from './types';
 
 export type TargetCell = CellCoords;
+export interface TableCellAnchor extends TargetCell {
+    anchorOffset: number;
+}
 
 function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
@@ -32,15 +34,14 @@ function clampTargetToRanges(target: TargetCell, ranges: TableCellRanges): Targe
 }
 
 /**
- * Builds a new `ActiveCell` from pre-computed cell ranges and a target position.
+ * Builds a new relative cell anchor from pre-computed cell ranges and a target position.
  * Use this when a `TableContext` (or cellRanges) is already available.
  */
-export function computeActiveCellFromRanges(params: {
-    tableFrom: number;
+export function computeCellAnchorFromRanges(params: {
     ranges: TableCellRanges;
     target: TargetCell;
-}): ActiveCell | null {
-    const { tableFrom, ranges, target } = params;
+}): TableCellAnchor | null {
+    const { ranges, target } = params;
     const clamped = clampTargetToRanges(target, ranges);
 
     const relRange = getCellRange(ranges, clamped);
@@ -49,8 +50,7 @@ export function computeActiveCellFromRanges(params: {
     }
 
     return {
-        anchorPos: tableFrom + relRange.from,
-        tableFrom,
+        anchorOffset: relRange.from,
         section: clamped.section,
         row: clamped.section === 'header' ? 0 : clamped.row,
         col: clamped.col,
@@ -58,24 +58,19 @@ export function computeActiveCellFromRanges(params: {
 }
 
 /**
- * Builds a new `ActiveCell` for a target (section,row,col) based on the provided table markdown.
+ * Builds a new relative cell anchor for a target (section,row,col) based on the provided table markdown.
  *
  * Returns null if the table text can't be ranged (invalid markdown table).
  */
-export function computeActiveCellForTableText(params: {
-    tableFrom: number;
+export function computeCellAnchorForTableText(params: {
     tableText: string;
     target: TargetCell;
-}): ActiveCell | null {
-    const { tableFrom, tableText, target } = params;
+}): TableCellAnchor | null {
+    const { tableText, target } = params;
     const ranges = computeMarkdownTableCellRanges(tableText);
     if (!ranges) {
         return null;
     }
 
-    return computeActiveCellFromRanges({
-        tableFrom,
-        ranges,
-        target,
-    });
+    return computeCellAnchorFromRanges({ ranges, target });
 }

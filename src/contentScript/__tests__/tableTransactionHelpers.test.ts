@@ -1,9 +1,9 @@
-import { resolveActiveCell } from '../tableWidget/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { runTableOperation } from '../tableModel/tableTransactionHelpers';
+import { runTableOperation } from '../tableRuntime/runTableOperation';
 
-jest.mock('../tableWidget/activeCellResolver', () => ({
+jest.mock('../tableRuntime/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
 }));
 

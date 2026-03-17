@@ -16,14 +16,14 @@ import {
     toRootSelection,
     unsanitizeRootText,
 } from './transactionPolicy';
-import { consumePendingNavigationCallback } from '../tableWidget/navigationLock';
+import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { ensureCellWrapper } from './mounting';
-import { resolveActiveCell } from '../tableWidget/activeCellResolver';
-import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableWidget/activeCellState';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
+import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
-import { CLASS_CELL_ACTIVE } from '../tableWidget/domHelpers';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 

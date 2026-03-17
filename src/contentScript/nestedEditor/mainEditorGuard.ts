@@ -1,7 +1,7 @@
 import { EditorState, Extension, Transaction } from '@codemirror/state';
-import { clearActiveCellEffect, getActiveCell } from '../tableWidget/activeCellState';
-import { buildMultiCellPasteRewrite, createTableClipboardRewriteSpec } from '../tableWidget/cellSelectionClipboard';
-import { decideMainEditorGuardTransaction } from '../tableWidget/tableRuntimeTransitions';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { buildMultiCellPasteRewrite, createTableClipboardRewriteSpec } from '../tableRuntime/cellSelectionClipboard';
+import { decideMainEditorGuardTransaction } from '../tableRuntime/tableRuntimeTransitions';
 
 function extractSingleInsertedText(tr: Transaction): string | null {
     let insertedText: string | null = null;

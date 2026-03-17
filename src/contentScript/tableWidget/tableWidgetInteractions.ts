@@ -1,11 +1,18 @@
 import type { EditorView } from '@codemirror/view';
-import { setActiveCellEffect, clearActiveCellEffect, getActiveCell, type ActiveCellSection } from './activeCellState';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import {
+    setActiveCellEffect,
+    clearActiveCellEffect,
+    getActiveCell,
+    type ActiveCellSection,
+} from '../tableState/activeCellState';
+import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { setOrExtendCellSelectionToCoords } from '../tableRuntime/cellSelectionController';
+import { resolveCellDocRange, resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
-import { resolveCellDocRange, resolveTableContextFromEventTarget } from './tablePositioning';
-import { DATA_COL, DATA_ROW, DATA_SECTION, CLASS_CELL_EDITOR, SECTION_HEADER, getWidgetSelector } from './domHelpers';
-import { clearCellSelectionEffect, getCellSelection, setOrExtendCellSelectionToCoords } from './cellSelectionState';
+import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -43,7 +50,7 @@ import { slugify } from '../shared/cellContentUtils';
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
 
-export function scrollToAnchor(view: EditorView, anchor: string): void {
+function scrollToAnchor(view: EditorView, anchor: string): void {
     // 1. Try Footnote Extraction
     // Defines: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
     const fnMatch = anchor.match(/^#fn-?(.+)$/) || anchor.match(/^#fnref-?(.+)$/);

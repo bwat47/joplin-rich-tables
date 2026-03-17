@@ -9,8 +9,8 @@ import {
     toSelectionRect,
     toUnifiedRow,
     type CellSelection,
-} from '../tableWidget/cellSelectionState';
-import { activeCellField, setActiveCellEffect } from '../tableWidget/activeCellState';
+} from '../tableState/cellSelectionState';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { createMarkdownState } from './testMarkdownState';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');

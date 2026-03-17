@@ -1,22 +1,22 @@
 import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { navigateCell } from '../tableWidget/tableNavigation';
-import { getActiveCell } from '../tableWidget/activeCellState';
-import { resolveActiveCell } from '../tableWidget/activeCellResolver';
-import { resolveCellDocRange } from '../tableWidget/tablePositioning';
+import { navigateCell } from '../tableRuntime/tableNavigation';
+import { getActiveCell } from '../tableState/activeCellState';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { resolveCellDocRange } from '../tableRuntime/tablePositioning';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
-import { resetNavigationLock } from '../tableWidget/navigationLock';
+import { resetNavigationLock } from '../tableRuntime/navigationLock';
 
-import * as activeCellState from '../tableWidget/activeCellState';
-import { execInsertRowAtBottom } from '../tableCommands/tableCommands';
+import * as activeCellState from '../tableState/activeCellState';
+import { execInsertRowAtBottom } from '../tableRuntime/tableOperations';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
-jest.mock('../tableWidget/tablePositioning');
-jest.mock('../tableWidget/activeCellResolver', () => ({
+jest.mock('../tableRuntime/tablePositioning');
+jest.mock('../tableRuntime/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
 }));
 jest.mock('../nestedEditor/nestedCellEditor');
-jest.mock('../tableCommands/tableCommands', () => ({
+jest.mock('../tableRuntime/tableOperations', () => ({
     __esModule: true,
     execInsertRowAtBottom: jest.fn(),
 }));

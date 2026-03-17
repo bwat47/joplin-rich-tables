@@ -16,9 +16,9 @@ import { history } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { activeCellField, getActiveCell } from '../tableWidget/activeCellState';
-import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableWidget/cellSelectionState';
-import { cellSelectionKeyCapturePlugin } from '../tableWidget/cellSelectionKeymap';
+import { activeCellField, getActiveCell } from '../tableState/activeCellState';
+import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
+import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
 
 const markdownExtension = markdown({
     extensions: [GFM],
