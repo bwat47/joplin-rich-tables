@@ -4,7 +4,7 @@ import type { SyntaxNode } from '@lezer/common';
 import type { EditorView } from '@codemirror/view';
 import { getCellRange, type TableCellRanges, type CellRange } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
-import { getActiveCell } from '../tableState/activeCellState';
+import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import type { CellCoords, ResolvedTable } from '../tableModel/types';
 
@@ -107,12 +107,16 @@ function clampDocPos(state: EditorState, pos: number): number {
     return Math.min(Math.max(pos, 0), state.doc.length);
 }
 
-function resolveActiveCellTableContext(state: EditorState): TableContext | null {
-    const activeCell = getActiveCell(state);
-    if (!activeCell) {
-        return null;
-    }
-
+export function resolveTableForActiveCell(
+    state: EditorState,
+    activeCell: ActiveCell
+): {
+    ctx: TableContext;
+    tableFrom: number;
+    tableTo: number;
+    cellFrom: number;
+    cellTo: number;
+} | null {
     const candidatePositions = [activeCell.tableFrom, activeCell.anchorPos].map((pos) => clampDocPos(state, pos));
     const seenPositions = new Set<number>();
 
@@ -122,16 +126,39 @@ function resolveActiveCellTableContext(state: EditorState): TableContext | null 
         }
         seenPositions.add(pos);
 
-        const context = resolveTableContextAtPos(state, pos);
-        if (
-            context &&
-            resolveCellDocRange({ tableFrom: context.from, ranges: context.cellRanges, coords: activeCell })
-        ) {
-            return context;
+        const ctx = resolveTableContextAtPos(state, pos);
+        if (!ctx) {
+            continue;
         }
+
+        const range = resolveCellDocRange({
+            tableFrom: ctx.from,
+            ranges: ctx.cellRanges,
+            coords: activeCell,
+        });
+        if (!range) {
+            continue;
+        }
+
+        return {
+            ctx,
+            tableFrom: ctx.from,
+            tableTo: ctx.to,
+            cellFrom: range.cellFrom,
+            cellTo: range.cellTo,
+        };
     }
 
     return null;
+}
+
+function resolveActiveCellTableContext(state: EditorState): TableContext | null {
+    const activeCell = getActiveCell(state);
+    if (!activeCell) {
+        return null;
+    }
+
+    return resolveTableForActiveCell(state, activeCell)?.ctx ?? null;
 }
 
 /**
