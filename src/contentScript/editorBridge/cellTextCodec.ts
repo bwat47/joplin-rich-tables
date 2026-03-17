@@ -1,7 +1,4 @@
-import { Annotation, Transaction } from '@codemirror/state';
-
-/** Annotation used to mark synchronization transactions to prevent loops. */
-export const syncAnnotation = Annotation.define<boolean>();
+import { Transaction } from '@codemirror/state';
 
 export interface LocalSelection {
     anchor: number;

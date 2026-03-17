@@ -1,11 +1,11 @@
 import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
 import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/cellSelectionController';
 import { navigateCell } from '../tableRuntime/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/cellSelectionClipboard';
-import { syncAnnotation } from './transactionPolicy';
 
 function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
     const activeCellBefore = getActiveCell(mainView.state);

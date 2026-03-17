@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
+import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
 

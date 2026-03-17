@@ -68,8 +68,8 @@ that normalization step. Passive parsing/rendering never mutates document text.
 
 Typing in the isolated cell editor goes through the `ActiveCellSession` bridge:
 
-- Local display text and selection are sanitized into authoritative root cell text and selection.
-- The main editor applies the change with `syncAnnotation`.
+- `editorBridge/cellTextCodec.ts` sanitizes local display text and selection into authoritative root cell text and selection.
+- The main editor applies the change with `editorBridge/syncAnnotation.ts`.
 - Non-sync root changes re-resolve the logical cell from the mapped anchor position and rebase the isolated editor.
 - The nested editor is cell-local, not a clipped whole-document subview.
 
@@ -104,8 +104,9 @@ Table editing transition logic is centralized in `contentScript/tableRuntime/tab
 - The module is pure policy: it inspects `Transaction`/`ViewUpdate` state and returns declarative decisions/actions.
 - `tableRuntime/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
 - `nestedEditor/activeCellSession.ts` owns local/root synchronization, selection mirroring, and session invalidation.
+- `editorBridge/cellTextCodec.ts` and `editorBridge/syncAnnotation.ts` own the cross-editor text/selection protocol.
+- `editorBridge/mainEditorGuard.ts` owns main-editor transaction filtering while nested editing is active.
 - `tableWidgetExtension.ts` still owns block decoration materialization through `StateField`.
-- `mainEditorGuard.ts` still owns transaction filtering, but delegates allow/reject/sanitize decisions to the shared policy.
 
 **Sync Flow Diagram**:
 
@@ -130,7 +131,7 @@ flowchart TB
     DH -->|"undo/redo passthrough"| ME
     DH -->|"event bubbling prevention"| NE
 
-    NE -->|"sanitize local cell text/selection + syncAnnotation"| ME
+    NE -->|"cellTextCodec + syncAnnotation"| ME
     NE -->|"selection mirror"| ME
 
     ME -->|"external changes (undo/redo, Joplin commands)"| LC
