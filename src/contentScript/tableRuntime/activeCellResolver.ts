@@ -1,5 +1,5 @@
 import type { EditorState } from '@codemirror/state';
-import { resolveCellDocRange, resolveTableContextAtPos } from './tablePositioning';
+import { resolveTableForActiveCell } from './tablePositioning';
 import type { ActiveCell } from '../tableState/activeCellState';
 import type { TableContext } from '../tableModel/tableContext';
 
@@ -57,31 +57,21 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         return null;
     }
 
-    const lookupPos = Math.min(Math.max(activeCell.anchorPos, 0), state.doc.length);
-    const ctx = resolveTableContextAtPos(state, lookupPos);
-    if (!ctx) {
+    const resolved = resolveTableForActiveCell(state, activeCell);
+    if (!resolved) {
         return null;
     }
 
-    const range = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: activeCell,
-    });
-    if (!range) {
-        return null;
-    }
-
-    const expandedRange = expandCellEndForTrailingWhitespace(state, range);
+    const expandedRange = expandCellEndForTrailingWhitespace(state, resolved);
 
     return {
         activeCell: {
             ...activeCell,
-            tableFrom: ctx.from,
+            tableFrom: resolved.tableFrom,
         },
-        ctx,
-        tableFrom: ctx.from,
-        tableTo: ctx.to,
+        ctx: resolved.ctx,
+        tableFrom: resolved.tableFrom,
+        tableTo: resolved.tableTo,
         cellFrom: expandedRange.cellFrom,
         cellTo: expandedRange.cellTo,
     };

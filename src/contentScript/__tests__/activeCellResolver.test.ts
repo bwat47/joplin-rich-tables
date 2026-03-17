@@ -107,4 +107,32 @@ describe('activeCellResolver', () => {
         expect(resolved?.cellTo).toBe(doc.indexOf('|', doc.indexOf('foo')));
         expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
     });
+
+    it('prefers the mapped table start over a drifted anchor when another table follows', () => {
+        const doc = [
+            '| H1 | H2 |',
+            '| --- | --- |',
+            '| a1 |  |',
+            '',
+            '|  | Bands |',
+            '| --- | :--- |',
+            '| **2G:** | `GSM 850 / 900 / 1800 / 1900 CDMA 800` a |',
+        ].join('\n');
+        const state = createState(doc, {
+            anchorPos: doc.indexOf('|  | Bands |'),
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+
+        const resolved = resolveActiveCell(state, getActiveCell(state));
+
+        expect(resolved).not.toBeNull();
+        expect(resolved?.tableFrom).toBe(0);
+        expect(resolved?.activeCell.section).toBe('body');
+        expect(resolved?.activeCell.row).toBe(0);
+        expect(resolved?.activeCell.col).toBe(1);
+        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('');
+    });
 });
