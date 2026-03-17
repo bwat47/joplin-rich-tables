@@ -14,6 +14,7 @@ import { findCellElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
 import { activateCellAtPosition } from './cellActivation';
+import { moveCursorOutOfTable } from './cursorUtils';
 import { releasePendingNavigationCallback } from './navigationLock';
 import {
     buildTableRuntimeEvent,
@@ -64,10 +65,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             });
             const event = buildTableRuntimeEvent(update, this.wasEffectiveRawMode);
             const cursorPos = update.state.selection.main.head;
-            const cursorInsideTableAfterUndoRedo = findTableRanges(update.state).some(
+            const cursorInsideTable = findTableRanges(update.state).some(
                 (table) => cursorPos >= table.from && cursorPos <= table.to
             );
-            const actions = planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo });
+            const actions = planTableLifecycleActions(snapshot, event, { cursorInsideTable });
 
             this.executeActions(actions, update);
             this.hadActiveCell = Boolean(getActiveCell(update.state));
@@ -116,6 +117,14 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 return;
                             }
                             ensureCursorVisible(this.view);
+                        });
+                        break;
+                    case 'scheduleMoveCursorOutOfTable':
+                        requestAnimationFrame(() => {
+                            if (!this.view.dom.isConnected) return;
+                            if (isEffectiveRawMode(this.view.state)) return;
+                            if (getActiveCell(this.view.state) || isNestedCellEditorOpen(this.view)) return;
+                            moveCursorOutOfTable(this.view);
                         });
                         break;
                     case 'closeNestedEditor':

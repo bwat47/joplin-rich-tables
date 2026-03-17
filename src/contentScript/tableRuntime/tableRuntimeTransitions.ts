@@ -26,6 +26,7 @@ export interface TableRuntimeSnapshot {
 export interface TableRuntimeEvent {
     update: ViewUpdate;
     isSync: boolean;
+    isPaste: boolean;
     isNormalizeBeforeEdit: boolean;
     isCellSelectionTransition: boolean;
     forceRebuild: boolean;
@@ -53,6 +54,7 @@ export type TableRuntimeAction =
           ensureCursorVisibleIfNotActivated: boolean;
           normalizeIfNeeded: boolean;
       }
+    | { type: 'scheduleMoveCursorOutOfTable' }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
     | { type: 'scheduleRebuildAllAfterFullReplace' };
 
@@ -123,6 +125,7 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
     return {
         update,
         isSync: update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation))),
+        isPaste: update.transactions.some((tr) => tr.isUserEvent('input.paste')),
         isNormalizeBeforeEdit: update.transactions.some((tr) => Boolean(tr.annotation(normalizeBeforeEditAnnotation))),
         isCellSelectionTransition: update.transactions.some((tr) =>
             Boolean(tr.annotation(cellSelectionTransitionAnnotation))
@@ -183,7 +186,7 @@ function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedAc
 export function planTableLifecycleActions(
     snapshot: TableRuntimeSnapshot,
     event: TableRuntimeEvent,
-    options: { cursorInsideTableAfterUndoRedo: boolean }
+    options: { cursorInsideTable: boolean }
 ): TableRuntimeAction[] {
     const { update, rawModeEffects } = event;
     const actions: TableRuntimeAction[] = [];
@@ -215,7 +218,7 @@ export function planTableLifecycleActions(
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 
-    if (shouldRepositionCellAfterUndoRedo(snapshot, event, options.cursorInsideTableAfterUndoRedo)) {
+    if (shouldRepositionCellAfterUndoRedo(snapshot, event, options.cursorInsideTable)) {
         if (snapshot.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor' });
         }
@@ -225,6 +228,11 @@ export function planTableLifecycleActions(
             ensureCursorVisibleIfNotActivated: false,
             normalizeIfNeeded: false,
         });
+        return actions;
+    }
+
+    if (shouldMoveCursorOutOfTableAfterPaste(snapshot, event, options.cursorInsideTable)) {
+        actions.push({ type: 'scheduleMoveCursorOutOfTable' });
         return actions;
     }
 
@@ -271,7 +279,7 @@ export function planTableLifecycleActions(
 function shouldRepositionCellAfterUndoRedo(
     snapshot: TableRuntimeSnapshot,
     event: TableRuntimeEvent,
-    cursorInsideTableAfterUndoRedo: boolean
+    cursorInsideTable: boolean
 ): boolean {
     const { update, isSync } = event;
 
@@ -284,7 +292,27 @@ function shouldRepositionCellAfterUndoRedo(
     }
 
     const isUndoRedo = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
-    return isUndoRedo && cursorInsideTableAfterUndoRedo;
+    return isUndoRedo && cursorInsideTable;
+}
+
+function shouldMoveCursorOutOfTableAfterPaste(
+    snapshot: TableRuntimeSnapshot,
+    event: TableRuntimeEvent,
+    cursorInsideTable: boolean
+): boolean {
+    if (
+        !event.update.docChanged ||
+        !event.isPaste ||
+        event.isSync ||
+        event.isCellSelectionTransition ||
+        snapshot.effectiveRawMode ||
+        snapshot.nestedEditorOpen ||
+        snapshot.activeCell
+    ) {
+        return false;
+    }
+
+    return cursorInsideTable;
 }
 
 export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {

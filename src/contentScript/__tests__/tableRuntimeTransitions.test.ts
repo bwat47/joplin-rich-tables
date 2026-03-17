@@ -183,6 +183,7 @@ describe('tableRuntimeTransitions', () => {
         const event = {
             update: {} as TableRuntimeEvent['update'],
             isSync: false,
+            isPaste: false,
             isNormalizeBeforeEdit: false,
             isCellSelectionTransition: false,
             forceRebuild: false,
@@ -196,7 +197,7 @@ describe('tableRuntimeTransitions', () => {
             hasFullDocumentReplace: false,
         } satisfies TableRuntimeEvent;
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTable: false })).toEqual([
             {
                 type: 'scheduleActivateCellAtCursor',
                 clearIfOutside: false,
@@ -263,7 +264,7 @@ describe('tableRuntimeTransitions', () => {
         });
         expect(
             planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
-                cursorInsideTableAfterUndoRedo: false,
+                cursorInsideTable: false,
             })
         ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell }]);
     });
@@ -285,7 +286,7 @@ describe('tableRuntimeTransitions', () => {
             pendingFullReplaceRebuild: false,
         };
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTable: false })).toEqual([
             { type: 'closeNestedEditor' },
             { type: 'openNestedEditor', activeCell },
         ]);
@@ -309,9 +310,53 @@ describe('tableRuntimeTransitions', () => {
             pendingFullReplaceRebuild: false,
         };
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toContainEqual({
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTable: false })).toContainEqual({
             type: 'clearActiveCell',
         });
+    });
+
+    it('moves the main cursor out after pasting a table into widget mode', () => {
+        const startState = createMarkdownState('', [activeCellField, sourceModeField, searchForceSourceModeField]);
+        const pastedTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const { event } = createViewUpdate(startState, {
+            changes: { from: 0, to: 0, insert: pastedTable },
+            annotations: Transaction.userEvent.of('input.paste'),
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell: null,
+            prevActiveCell: null,
+            resolvedActiveCell: null,
+            resolvedPrevActiveCell: null,
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: false,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTable: true })).toEqual([
+            { type: 'scheduleMoveCursorOutOfTable' },
+        ]);
+    });
+
+    it('does not move the cursor out for non-paste table inserts', () => {
+        const startState = createMarkdownState('', [activeCellField, sourceModeField, searchForceSourceModeField]);
+        const insertedTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const { event } = createViewUpdate(startState, {
+            changes: { from: 0, to: 0, insert: insertedTable },
+            annotations: Transaction.userEvent.of('input'),
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell: null,
+            prevActiveCell: null,
+            resolvedActiveCell: null,
+            resolvedPrevActiveCell: null,
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: false,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTable: true })).toEqual([]);
     });
 
     it('clears stale active cell when the resolver cannot find the table', () => {
@@ -341,7 +386,7 @@ describe('tableRuntimeTransitions', () => {
 
         expect(
             planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
-                cursorInsideTableAfterUndoRedo: false,
+                cursorInsideTable: false,
             })
         ).toContainEqual({
             type: 'clearActiveCell',
