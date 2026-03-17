@@ -52,36 +52,72 @@ function expandCellEndForTrailingWhitespace(
     };
 }
 
+function clampDocPos(state: EditorState, pos: number): number {
+    return Math.min(Math.max(pos, 0), state.doc.length);
+}
+
+function resolveTableForActiveCell(state: EditorState, activeCell: ActiveCell): {
+    ctx: TableContext;
+    tableFrom: number;
+    tableTo: number;
+    cellFrom: number;
+    cellTo: number;
+} | null {
+    const candidatePositions = [activeCell.tableFrom, activeCell.anchorPos].map((pos) => clampDocPos(state, pos));
+    const seenPositions = new Set<number>();
+
+    for (const pos of candidatePositions) {
+        if (seenPositions.has(pos)) {
+            continue;
+        }
+        seenPositions.add(pos);
+
+        const ctx = resolveTableContextAtPos(state, pos);
+        if (!ctx) {
+            continue;
+        }
+
+        const range = resolveCellDocRange({
+            tableFrom: ctx.from,
+            ranges: ctx.cellRanges,
+            coords: activeCell,
+        });
+        if (!range) {
+            continue;
+        }
+
+        return {
+            ctx,
+            tableFrom: ctx.from,
+            tableTo: ctx.to,
+            cellFrom: range.cellFrom,
+            cellTo: range.cellTo,
+        };
+    }
+
+    return null;
+}
+
 export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
     if (!activeCell) {
         return null;
     }
 
-    const lookupPos = Math.min(Math.max(activeCell.anchorPos, 0), state.doc.length);
-    const ctx = resolveTableContextAtPos(state, lookupPos);
-    if (!ctx) {
+    const resolved = resolveTableForActiveCell(state, activeCell);
+    if (!resolved) {
         return null;
     }
 
-    const range = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: activeCell,
-    });
-    if (!range) {
-        return null;
-    }
-
-    const expandedRange = expandCellEndForTrailingWhitespace(state, range);
+    const expandedRange = expandCellEndForTrailingWhitespace(state, resolved);
 
     return {
         activeCell: {
             ...activeCell,
-            tableFrom: ctx.from,
+            tableFrom: resolved.tableFrom,
         },
-        ctx,
-        tableFrom: ctx.from,
-        tableTo: ctx.to,
+        ctx: resolved.ctx,
+        tableFrom: resolved.tableFrom,
+        tableTo: resolved.tableTo,
         cellFrom: expandedRange.cellFrom,
         cellTo: expandedRange.cellTo,
     };
