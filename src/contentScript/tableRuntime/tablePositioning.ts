@@ -139,9 +139,8 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
         }
     }
 
-    // Fallback: resolve the current cell position from logical active-cell state.
-    // This derives a fresh in-doc `cellFrom` from the mapped table anchor plus
-    // section/row/col, rather than relying on persisted cell offsets.
+    // Fallback: use the active-cell state's mapped anchorPos to locate the table,
+    // then validate that the cell coordinates still resolve within that table.
     const activeCell = getActiveCell(view.state);
     if (activeCell) {
         const context = resolveTableContextAtPos(view.state, activeCell.anchorPos);

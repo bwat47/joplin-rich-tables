@@ -28,7 +28,7 @@ Start here when exploring the codebase:
 | File                                                     | Purpose                                    |
 | -------------------------------------------------------- | ------------------------------------------ |
 | `src/contentScript/tableWidget/tableWidgetExtension.ts`  | Main wiring; connects all plugins/styles.  |
-| `src/contentScript/tableWidget/nestedEditorLifecycle.ts` | Nested editor state, sync triggers.        |
+| `src/contentScript/tableRuntime/nestedEditorLifecycle.ts` | Nested editor state, sync triggers.        |
 | `src/contentScript/tableWidget/TableWidget.ts`           | Widget rendering, cell coordinate mapping. |
 | `src/contentScript/nestedEditor/nestedCellEditor.ts`     | Nested editor implementation.              |
 
