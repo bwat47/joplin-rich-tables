@@ -27,7 +27,7 @@ export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
 }
 
-export function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
+function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
     let result = '';
     let backslashRun = precedingBackslashes;
 
@@ -115,7 +115,7 @@ export function toLocalSelection(rootSelection: LocalSelection, rootText: string
     );
 }
 
-export function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], pos: number): number {
+function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], pos: number): number {
     let count = 0;
     for (let i = pos - 1; i >= 0; i--) {
         if (doc.sliceString(i, i + 1) !== '\\') {

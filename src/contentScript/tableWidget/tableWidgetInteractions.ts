@@ -50,7 +50,7 @@ import { slugify } from '../shared/cellContentUtils';
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
 
-export function scrollToAnchor(view: EditorView, anchor: string): void {
+function scrollToAnchor(view: EditorView, anchor: string): void {
     // 1. Try Footnote Extraction
     // Defines: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
     const fnMatch = anchor.match(/^#fn-?(.+)$/) || anchor.match(/^#fnref-?(.+)$/);

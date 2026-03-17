@@ -138,7 +138,7 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
     };
 }
 
-export function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
+function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
     let overlaps = false;
     tr.changes.iterChanges((fromA, toA) => {
         if (overlaps) {
@@ -151,7 +151,7 @@ export function changesOverlapRange(tr: Transaction, from: number, to: number): 
     return overlaps;
 }
 
-export function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
+function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
     let outsideCell = false;
     tr.changes.iterChanges((fromA, toA) => {
         if (outsideCell) {
@@ -164,7 +164,7 @@ export function transactionChangesOutsideCell(tr: Transaction, activeCell: Resol
     return outsideCell;
 }
 
-export function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {
+function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {
     if (!activeCell) {
         return false;
     }

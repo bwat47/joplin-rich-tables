@@ -2,7 +2,7 @@
  * FNV-1a 32-bit hash function.
  * Fast, simple, and provides reasonable distribution for short strings.
  */
-export function fnv1aHash(text: string): number {
+function fnv1aHash(text: string): number {
     let hash = 2166136261;
     for (let i = 0; i < text.length; i++) {
         hash ^= text.charCodeAt(i);
