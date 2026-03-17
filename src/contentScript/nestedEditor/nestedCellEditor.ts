@@ -10,14 +10,13 @@ import {
     openActiveCellSession,
     refocusActiveCellSession,
 } from './activeCellSession';
-import { syncAnnotation } from './transactionPolicy';
 import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { setPendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
 import { rememberPendingCellOpen } from './pendingCellOpen';
 
-export { nestedCellEditorPlugin, syncAnnotation };
+export { nestedCellEditorPlugin };
 
 export function openNestedCellEditor(params: {
     mainView: EditorView;

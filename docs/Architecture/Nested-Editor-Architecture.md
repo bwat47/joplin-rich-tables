@@ -32,8 +32,8 @@ executing nested-editor side effects.
 ### Edit Sync Cycle
 
 1. User types in the isolated editor.
-2. `ActiveCellSession` sanitizes local display text (`\n` -> `<br>`, `|` -> `\|`) and maps the local selection into root cell coordinates.
-3. The main editor applies the cell-only replacement transaction tagged with `syncAnnotation`.
+2. `ActiveCellSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
+3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
 4. After root dispatch, the session refreshes its derived absolute ranges from the mapped anchor position.
 5. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
@@ -66,13 +66,13 @@ Response (to prevent stale document state):
 
 ## Boundary Enforcement
 
-### Nested Editor (`transactionPolicy`)
+### Editor Bridge (`cellTextCodec`, `syncAnnotation`)
 
 - **Local → Root Sanitization**: `\n`/`\r` → `<br>`, `|` → `\|`.
 - **Root → Local Unsanitization**: `<br>` → visible line breaks, `\|` → `|`.
 - **Selection Mapping**: Local/root selections are mapped through the sanitize/unsanitize transforms, not by naive offset arithmetic.
 
-### Main Editor (`mainEditorGuard`)
+### Main Editor (`editorBridge/mainEditorGuard`)
 
 Blocks unintended main editor edits during cell editing (Android IME focus issues where focus can jump to main editor).
 

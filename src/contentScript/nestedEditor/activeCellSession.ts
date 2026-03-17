@@ -11,11 +11,11 @@ import { createNestedEditorTheme } from './nestedEditorTheme';
 import {
     LocalSelection,
     sanitizeLocalText,
-    syncAnnotation,
     toLocalSelection,
     toRootSelection,
     unsanitizeRootText,
-} from './transactionPolicy';
+} from '../editorBridge/cellTextCodec';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { ensureCellWrapper } from './mounting';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';

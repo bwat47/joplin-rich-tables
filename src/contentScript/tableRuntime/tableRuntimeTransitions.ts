@@ -5,11 +5,11 @@ import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionSt
 import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { sanitizeCellChanges } from '../editorBridge/cellTextCodec';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver';
-import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { isStructuralTableChange } from './structuralChangeDetection';
-import { sanitizeCellChanges } from '../nestedEditor/transactionPolicy';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
 
 export interface TableRuntimeSnapshot {

@@ -19,7 +19,7 @@ import {
     type TableRuntimeEvent,
     type TableRuntimeSnapshot,
 } from '../tableRuntime/tableRuntimeTransitions';
-import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory';

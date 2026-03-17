@@ -9,7 +9,7 @@ import {
     toLocalSelection,
     toRootSelection,
     unsanitizeRootText,
-} from '../nestedEditor/transactionPolicy';
+} from '../editorBridge/cellTextCodec';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('escapeUnescapedPipes', () => {

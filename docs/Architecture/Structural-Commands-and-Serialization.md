@@ -43,7 +43,7 @@ Selection removal is resolved in this order:
 - If the selected rectangle is the entire table and every cell is empty, delete the whole table.
 - When a structural row/column delete is blocked by table invariants, fall back to normal clear semantics.
 
-When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `nestedEditor/mainEditorGuard.ts`
+When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `editorBridge/mainEditorGuard.ts`
 upgrades the resulting root-editor `input.paste` transaction into the same table rewrite before the normal
 single-cell sanitation path can flatten the fragment into text.
 

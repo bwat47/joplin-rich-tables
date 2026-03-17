@@ -18,9 +18,9 @@ import {
     execMoveColumnRight,
 } from '../tableRuntime/tableOperations';
 import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { syncAnnotation } from '../nestedEditor/nestedCellEditor';
 
 import {
     rowInsertTopIcon,

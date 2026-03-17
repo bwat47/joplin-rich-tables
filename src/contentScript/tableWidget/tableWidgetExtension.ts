@@ -22,7 +22,7 @@ import {
     nestedCellEditorPlugin,
     refocusNestedEditor,
 } from '../nestedEditor/nestedCellEditor';
-import { createMainEditorActiveCellGuard } from '../nestedEditor/mainEditorGuard';
+import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from '../tableRuntime/tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
