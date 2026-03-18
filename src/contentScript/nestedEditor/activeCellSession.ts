@@ -293,8 +293,7 @@ class ActiveCellSessionController {
             this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
         }
 
-        const cellFrom = params?.cellFrom ?? session?.range.cellFrom ?? 0;
-        const cellTo = params?.cellTo ?? session?.range.cellTo ?? 0;
+        const { cellFrom, cellTo } = this.resolveCellRangeForClose(params, session, mainView);
 
         if (this.contentEl && mainView) {
             const cellText = mainView.state.doc.sliceString(cellFrom, cellTo).trim();
@@ -323,6 +322,46 @@ class ActiveCellSessionController {
         this.editorHostEl = null;
         this.cellElement = null;
         this.mainView = null;
+    }
+
+    /**
+     * Resolve cell range for close(), preferring freshly-resolved positions over
+     * cached session positions. After undo/redo, the cached session.range may
+     * point to stale document positions (the document shifted but session.range
+     * was not remapped), causing close() to read the wrong cell text.
+     *
+     * Re-resolves the cell using the session's own identity and cached table
+     * position against the current editor state. This stays anchored to the
+     * session's table (avoiding cross-table misreads when open() closes a
+     * previous session after activating a cell in a different table) while
+     * picking up any position shifts from undo/redo.
+     */
+    private resolveCellRangeForClose(
+        params: { cellFrom?: number; cellTo?: number } | undefined,
+        session: ActiveCellSession | null,
+        mainView: EditorView | null
+    ): { cellFrom: number; cellTo: number } {
+        if (params?.cellFrom != null && params?.cellTo != null) {
+            return { cellFrom: params.cellFrom, cellTo: params.cellTo };
+        }
+
+        if (session && mainView) {
+            const resolved = resolveActiveCell(mainView.state, {
+                anchorPos: session.identity.anchorPos,
+                tableFrom: session.range.tableFrom,
+                section: session.identity.section,
+                row: session.identity.row,
+                col: session.identity.col,
+            });
+            if (resolved) {
+                return { cellFrom: resolved.cellFrom, cellTo: resolved.cellTo };
+            }
+        }
+
+        return {
+            cellFrom: session?.range.cellFrom ?? 0,
+            cellTo: session?.range.cellTo ?? 0,
+        };
     }
 
     isOpen(): boolean {
