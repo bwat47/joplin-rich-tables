@@ -325,13 +325,16 @@ class ActiveCellSessionController {
     }
 
     /**
-     * Resolve cell range for close(), preferring fresh positions from the current
-     * editor state over cached session positions. After undo/redo, the cached
-     * session.range may point to stale document positions (the document shifted
-     * but session.range was not remapped), causing close() to read wrong text.
+     * Resolve cell range for close(), preferring freshly-resolved positions over
+     * cached session positions. After undo/redo, the cached session.range may
+     * point to stale document positions (the document shifted but session.range
+     * was not remapped), causing close() to read the wrong cell text.
      *
-     * The activeCellField maps positions through document changes, so using its
-     * values gives us correctly-mapped positions to resolve the cell.
+     * Re-resolves the cell using the session's own identity and cached table
+     * position against the current editor state. This stays anchored to the
+     * session's table (avoiding cross-table misreads when open() closes a
+     * previous session after activating a cell in a different table) while
+     * picking up any position shifts from undo/redo.
      */
     private resolveCellRangeForClose(
         params: { cellFrom?: number; cellTo?: number } | undefined,
@@ -343,17 +346,15 @@ class ActiveCellSessionController {
         }
 
         if (session && mainView) {
-            const stateActiveCell = getActiveCell(mainView.state);
-            if (stateActiveCell) {
-                const resolved = resolveActiveCell(mainView.state, stateActiveCell);
-                if (
-                    resolved &&
-                    resolved.activeCell.section === session.identity.section &&
-                    resolved.activeCell.row === session.identity.row &&
-                    resolved.activeCell.col === session.identity.col
-                ) {
-                    return { cellFrom: resolved.cellFrom, cellTo: resolved.cellTo };
-                }
+            const resolved = resolveActiveCell(mainView.state, {
+                anchorPos: session.identity.anchorPos,
+                tableFrom: session.range.tableFrom,
+                section: session.identity.section,
+                row: session.identity.row,
+                col: session.identity.col,
+            });
+            if (resolved) {
+                return { cellFrom: resolved.cellFrom, cellTo: resolved.cellTo };
             }
         }
 
