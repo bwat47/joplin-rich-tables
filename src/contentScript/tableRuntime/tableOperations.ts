@@ -5,9 +5,13 @@ import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable'
 import type { TargetCell } from '../tableModel/activeCellForTableText';
 import { resolveActiveCell } from './activeCellResolver';
 import { activateTableCell } from './cellActivation';
+import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runTableOperation } from './runTableOperation';
 
 export type CommandColumnAlignment = TableAlignment;
+
+const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
+const DEFAULT_INSERTED_TABLE_SELECTION_OFFSET = 2;
 
 function createTableOperation(
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
@@ -140,13 +144,25 @@ export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, target
 
 export function insertTableAndActivate(view: EditorView): boolean {
     const cursorPos = view.state.selection.main.head;
-    const tableMarkdown = '\n|  |  |\n| --- | --- |\n|  |  |\n';
+    const rewrite = buildIsolatedRootTableInsertRewrite(
+        view.state,
+        cursorPos,
+        cursorPos,
+        DEFAULT_INSERTED_TABLE_MARKDOWN
+    ) ?? {
+        changes: {
+            from: cursorPos,
+            to: cursorPos,
+            insert: `\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n`,
+        },
+        tableFrom: cursorPos + 1,
+    };
 
     view.dispatch({
-        changes: { from: cursorPos, insert: tableMarkdown },
-        selection: { anchor: cursorPos + 3 },
+        changes: rewrite.changes,
+        selection: { anchor: rewrite.tableFrom + DEFAULT_INSERTED_TABLE_SELECTION_OFFSET },
     });
 
-    activateTableCell(view, cursorPos + 1, { section: 'header', row: 0, col: 0 });
+    activateTableCell(view, rewrite.tableFrom, { section: 'header', row: 0, col: 0 });
     return true;
 }
