@@ -2,18 +2,23 @@
  * @jest-environment jsdom
  */
 
-import { EditorState } from '@codemirror/state';
+import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/nestedEditorLifecycle';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
-import { activeCellField } from '../tableState/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
+import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 
 const activateTableCellMock = jest.fn();
+const nestedCellEditorMock = jest.requireMock('../nestedEditor/nestedCellEditor') as {
+    closeNestedCellEditor: jest.Mock;
+    isNestedCellEditorOpen: jest.Mock;
+};
 
 jest.mock('../tableRuntime/cellActivation', () => ({
     activateCellAtPosition: jest.fn(),
@@ -32,6 +37,9 @@ describe('nestedEditorLifecycle', () => {
 
     beforeEach(() => {
         activateTableCellMock.mockReset();
+        nestedCellEditorMock.closeNestedCellEditor.mockReset();
+        nestedCellEditorMock.isNestedCellEditorOpen.mockReset();
+        nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(false);
         global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
             callback(0);
             return 1;
@@ -72,6 +80,53 @@ describe('nestedEditorLifecycle', () => {
             section: 'header',
             row: 0,
             col: 0,
+        });
+
+        view.destroy();
+    });
+
+    it('passes the mapped cell range when undo or redo closes the nested editor', () => {
+        nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(true);
+
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const activeCell: ActiveCell = {
+            anchorPos: doc.indexOf('H1'),
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        view.dispatch({
+            changes: { from: 0, to: 0, insert: 'abc\n' },
+            annotations: Transaction.userEvent.of('redo'),
+        });
+
+        const resolved = resolveActiveCell(view.state, getActiveCell(view.state));
+        expect(resolved).not.toBeNull();
+        if (!resolved) {
+            throw new Error('Expected resolved active cell after redo');
+        }
+
+        expect(nestedCellEditorMock.closeNestedCellEditor).toHaveBeenCalledWith(view, {
+            cellFrom: resolved.cellFrom,
+            cellTo: resolved.cellTo,
         });
 
         view.destroy();
