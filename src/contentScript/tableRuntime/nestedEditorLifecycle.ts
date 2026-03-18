@@ -146,7 +146,11 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'closeNestedEditor':
-                        closeNestedCellEditor(this.view);
+                        if (action.useResolvedRangeFromUpdate) {
+                            closeNestedCellEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
+                        } else {
+                            closeNestedCellEditor(this.view);
+                        }
                         break;
                     case 'openNestedEditor':
                         requestAnimationFrame(() => {
@@ -206,3 +210,16 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
     }
 );
+
+function snapshotResolvedCellRange(state: EditorView['state']): { cellFrom: number; cellTo: number } | null {
+    const activeCell = getActiveCell(state);
+    const resolved = resolveActiveCell(state, activeCell);
+    if (!resolved) {
+        return null;
+    }
+
+    return {
+        cellFrom: resolved.cellFrom,
+        cellTo: resolved.cellTo,
+    };
+}
