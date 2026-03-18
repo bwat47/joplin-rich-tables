@@ -293,8 +293,7 @@ class ActiveCellSessionController {
             this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
         }
 
-        const cellFrom = params?.cellFrom ?? session?.range.cellFrom ?? 0;
-        const cellTo = params?.cellTo ?? session?.range.cellTo ?? 0;
+        const { cellFrom, cellTo } = this.resolveCellRangeForClose(params, session, mainView);
 
         if (this.contentEl && mainView) {
             const cellText = mainView.state.doc.sliceString(cellFrom, cellTo).trim();
@@ -323,6 +322,45 @@ class ActiveCellSessionController {
         this.editorHostEl = null;
         this.cellElement = null;
         this.mainView = null;
+    }
+
+    /**
+     * Resolve cell range for close(), preferring fresh positions from the current
+     * editor state over cached session positions. After undo/redo, the cached
+     * session.range may point to stale document positions (the document shifted
+     * but session.range was not remapped), causing close() to read wrong text.
+     *
+     * The activeCellField maps positions through document changes, so using its
+     * values gives us correctly-mapped positions to resolve the cell.
+     */
+    private resolveCellRangeForClose(
+        params: { cellFrom?: number; cellTo?: number } | undefined,
+        session: ActiveCellSession | null,
+        mainView: EditorView | null
+    ): { cellFrom: number; cellTo: number } {
+        if (params?.cellFrom != null && params?.cellTo != null) {
+            return { cellFrom: params.cellFrom, cellTo: params.cellTo };
+        }
+
+        if (session && mainView) {
+            const stateActiveCell = getActiveCell(mainView.state);
+            if (stateActiveCell) {
+                const resolved = resolveActiveCell(mainView.state, stateActiveCell);
+                if (
+                    resolved &&
+                    resolved.activeCell.section === session.identity.section &&
+                    resolved.activeCell.row === session.identity.row &&
+                    resolved.activeCell.col === session.identity.col
+                ) {
+                    return { cellFrom: resolved.cellFrom, cellTo: resolved.cellTo };
+                }
+            }
+        }
+
+        return {
+            cellFrom: session?.range.cellFrom ?? 0,
+            cellTo: session?.range.cellTo ?? 0,
+        };
     }
 
     isOpen(): boolean {
