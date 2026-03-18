@@ -1,5 +1,6 @@
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { resolveActiveCell } from './activeCellResolver';
@@ -13,7 +14,7 @@ import { clearPendingCellOpen, consumePendingCellOpenOptions } from '../nestedEd
 import { findCellElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
-import { activateCellAtPosition } from './cellActivation';
+import { activateCellAtPosition, activateTableCell } from './cellActivation';
 import { releasePendingNavigationCallback } from './navigationLock';
 import {
     buildTableRuntimeEvent,
@@ -37,6 +38,18 @@ function ensureCursorVisible(view: EditorView): void {
     if (!cursorAbove && !cursorBelow) return;
 
     view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
+}
+
+function getInsertedTableActivationRequest(update: ViewUpdate) {
+    for (const tr of update.transactions) {
+        for (const effect of tr.effects) {
+            if (effect.is(activateInsertedTableEffect)) {
+                return effect.value;
+            }
+        }
+    }
+
+    return null;
 }
 
 // ============================================================================
@@ -70,8 +83,22 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const actions = planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo });
 
             this.executeActions(actions, update);
+            this.scheduleInsertedTableActivation(update);
             this.hadActiveCell = Boolean(getActiveCell(update.state));
             this.wasEffectiveRawMode = isEffectiveRawMode(update.state);
+        }
+
+        private scheduleInsertedTableActivation(update: ViewUpdate): void {
+            const activationRequest = getInsertedTableActivationRequest(update);
+            if (!activationRequest) {
+                return;
+            }
+
+            requestAnimationFrame(() => {
+                if (!this.view.dom.isConnected) return;
+
+                activateTableCell(this.view, activationRequest.tableFrom, activationRequest.target);
+            });
         }
 
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {

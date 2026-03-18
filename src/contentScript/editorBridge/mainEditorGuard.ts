@@ -1,21 +1,8 @@
-import { EditorState, Extension, Transaction } from '@codemirror/state';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { buildMultiCellPasteRewrite, createTableClipboardRewriteSpec } from '../tableRuntime/cellSelectionClipboard';
+import { EditorState, Extension } from '@codemirror/state';
+import { clearActiveCellEffect } from '../tableState/activeCellState';
+import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
+import { createTableClipboardRewriteSpec } from '../tableRuntime/cellSelectionClipboard';
 import { decideMainEditorGuardTransaction } from '../tableRuntime/tableRuntimeTransitions';
-
-function extractSingleInsertedText(tr: Transaction): string | null {
-    let insertedText: string | null = null;
-    let changeCount = 0;
-
-    tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
-        changeCount++;
-        if (changeCount === 1) {
-            insertedText = inserted.toString();
-        }
-    });
-
-    return changeCount === 1 && insertedText ? insertedText : null;
-}
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -39,34 +26,6 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
     const guardFilter = EditorState.transactionFilter.of((tr) => {
         const nestedEditorOpen = isNestedEditorOpen();
 
-        if (nestedEditorOpen && tr.docChanged && tr.isUserEvent('input.paste')) {
-            const activeCell = getActiveCell(tr.startState);
-            const pastedText = extractSingleInsertedText(tr);
-
-            if (activeCell && pastedText) {
-                // Joplin can route Cmd/Ctrl+V to the root editor even while the nested
-                // cell editor is visually focused. Upgrade valid markdown-table fragments
-                // before the normal single-cell sanitation path turns them into text.
-                const rewrite = buildMultiCellPasteRewrite(
-                    tr.startState,
-                    {
-                        tableFrom: activeCell.tableFrom,
-                        anchor: {
-                            section: activeCell.section,
-                            row: activeCell.row,
-                            col: activeCell.col,
-                        },
-                        source: 'activeCell',
-                    },
-                    pastedText
-                );
-
-                if (rewrite) {
-                    return createTableClipboardRewriteSpec(tr.startState, rewrite);
-                }
-            }
-        }
-
         const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen });
 
         switch (decision.type) {
@@ -79,6 +38,21 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
                     changes: tr.changes,
                     selection: decision.selection,
                     effects: [...tr.effects, clearActiveCellEffect.of(undefined)],
+                    scrollIntoView: tr.scrollIntoView,
+                };
+            case 'rewriteTableClipboard':
+                return createTableClipboardRewriteSpec(tr.startState, decision.rewrite);
+            case 'rewriteRootTablePaste':
+                return {
+                    changes: decision.rewrite.changes,
+                    selection: { anchor: decision.rewrite.selectionAnchor },
+                    effects: [
+                        ...tr.effects,
+                        activateInsertedTableEffect.of({
+                            tableFrom: decision.rewrite.tableFrom,
+                            target: { section: 'header', row: 0, col: 0 },
+                        }),
+                    ],
                     scrollIntoView: tr.scrollIntoView,
                 };
             case 'sanitizeTransactionChanges':
