@@ -3,12 +3,7 @@ import { ViewUpdate } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation, getCellSelection } from '../tableState/cellSelectionState';
 import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import {
-    exitSourceModeEffect,
-    isEffectiveRawMode,
-    isSourceModeEnabled,
-    toggleSourceModeEffect,
-} from '../tableState/sourceMode';
+import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sanitizeCellChanges } from '../editorBridge/cellTextCodec';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
@@ -420,7 +415,7 @@ export function decideMainEditorGuardTransaction(
                 }
             }
 
-            if (!params.nestedEditorOpen && !getCellSelection(tr.startState) && !isSourceModeEnabled(tr.startState)) {
+            if (!params.nestedEditorOpen && !getCellSelection(tr.startState) && !isEffectiveRawMode(tr.startState)) {
                 const changeRange = extractSingleChangeRange(tr);
                 if (changeRange) {
                     const rewrite = buildRootTablePasteRewrite(

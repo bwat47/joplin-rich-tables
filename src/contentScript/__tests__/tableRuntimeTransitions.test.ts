@@ -11,7 +11,7 @@ import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSe
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
     buildTableRuntimeEvent,
     decideMainEditorGuardTransaction,
@@ -225,6 +225,27 @@ describe('tableRuntimeTransitions', () => {
 
         const tr = state.update({
             changes: { from: 0, to: 0, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: false })).toEqual({
+            type: 'allowTransaction',
+        });
+    });
+
+    it('does not return a root-table rewrite when search is forcing raw mode', () => {
+        let state = createMarkdownState(['before', '', 'after'].join('\n'), [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        state = state.update({ effects: setSearchForceSourceModeEffect.of(true) }).state;
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = 'before\n'.length;
+
+        const tr = state.update({
+            changes: { from: pastePos, to: pastePos, insert: pasteText },
             userEvent: 'input.paste',
         });
 

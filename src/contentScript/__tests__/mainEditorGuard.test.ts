@@ -4,6 +4,7 @@ import { cellSelectionField, getCellSelection } from '../tableState/cellSelectio
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
@@ -12,6 +13,7 @@ function createState(params: { doc: string; nestedOpen: boolean }) {
     return createMarkdownState(params.doc, [
         activeCellField,
         cellSelectionField,
+        searchForceSourceModeField,
         sourceModeField,
         createMainEditorActiveCellGuard(() => params.nestedOpen),
     ]);
@@ -285,6 +287,24 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toBe(pasteText);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+    });
+
+    it('leaves table paste unchanged when search forces raw mode', () => {
+        let state = createState({
+            doc: ['before', '', 'after'].join('\n'),
+            nestedOpen: false,
+        });
+        state = state.update({ effects: setSearchForceSourceModeEffect.of(true) }).state;
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = 'before\n'.length;
+
+        const tr = state.update({
+            changes: { from: pastePos, to: pastePos, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(`before\n${pasteText}\nafter`);
         expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
     });
 
