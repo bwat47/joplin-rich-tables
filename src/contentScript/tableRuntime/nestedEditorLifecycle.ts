@@ -146,10 +146,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'closeNestedEditor':
-                        closeNestedCellEditor(
-                            this.view,
-                            snapshotResolvedCellRange(update.state) ?? undefined
-                        );
+                        closeNestedCellEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
                         break;
                     case 'openNestedEditor':
                         requestAnimationFrame(() => {
@@ -210,9 +207,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     }
 );
 
-function snapshotResolvedCellRange(
-    state: EditorView['state']
-): { cellFrom: number; cellTo: number } | null {
+function snapshotResolvedCellRange(state: EditorView['state']): { cellFrom: number; cellTo: number } | null {
     const activeCell = getActiveCell(state);
     const resolved = resolveActiveCell(state, activeCell);
     if (!resolved) {
