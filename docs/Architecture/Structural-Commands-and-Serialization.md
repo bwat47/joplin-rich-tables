@@ -49,6 +49,11 @@ has two `input.paste` upgrade paths:
 - With a nested editor open, it upgrades valid markdown table fragments into the same multi-cell table rewrite before the normal single-cell sanitation path can flatten the fragment into text.
 - With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and schedule activation of header cell `(0,0)`.
 
+The explicit "insert table" command reuses the same isolated root-table insertion rewrite for block-boundary
+insertions, so paste and command creation share the same blank-line separation rules. Mid-line command
+insertion still falls back to the legacy direct insert path because the paste rewrite intentionally does not
+define paragraph-splitting behavior.
+
 ### 2. Runtime Mutation Helpers (`tableRuntime/runTableOperation.ts`)
 
 `runTableOperation()` orchestrates:
