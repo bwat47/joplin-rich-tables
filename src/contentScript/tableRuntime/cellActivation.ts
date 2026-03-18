@@ -3,15 +3,15 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import { isSourceModeEnabled } from '../tableState/sourceMode';
 import { findTableRanges } from './tablePositioning';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
-import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
+import { activateCell, clearActiveCell } from './activeCellController';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -60,10 +60,11 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     if (!table) {
         // Position is outside any table
         if (options?.clearIfOutside) {
-            view.dispatch({
-                effects: clearActiveCellEffect.of(undefined),
+            clearActiveCell(view, {
+                reason: 'activateCellAtPosition:outside-table',
                 selection: { anchor: pos },
                 scrollIntoView: true,
+                clearSelection: true,
             });
             view.focus();
         }
@@ -75,7 +76,10 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     const ctx = buildTableContext(table);
     if (!ctx) {
         if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+            clearActiveCell(view, {
+                reason: 'activateCellAtPosition:missing-context',
+                clearSelection: true,
+            });
         }
         return false;
     }
@@ -97,29 +101,25 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
     if (!newActiveCell) {
         if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+            clearActiveCell(view, {
+                reason: 'activateCellAtPosition:missing-active-cell',
+                clearSelection: true,
+            });
         }
         return false;
     }
-
-    // Set the active cell state before opening the nested editor.
-    view.dispatch({
-        effects: setActiveCellEffect.of(newActiveCell),
-    });
 
     const cellElement = findCellElement(view, makeTableId(table.from), newActiveCell);
     if (!cellElement) {
         return false;
     }
 
-    openNestedCellEditor({
-        mainView: view,
-        cellElement,
+    return activateCell(view, {
         activeCell: newActiveCell,
+        cellElement,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
+        selectionPolicy: 'clear',
     });
-
-    return true;
 }
 
 /**
@@ -154,19 +154,14 @@ export function activateTableCell(
 
         if (!newActiveCell) return;
 
-        // Set the active cell state before opening the nested editor.
-        view.dispatch({
-            effects: setActiveCellEffect.of(newActiveCell),
-        });
-
         const cellElement = findCellElement(view, makeTableId(tableFrom), coords);
         if (!cellElement) return;
 
-        openNestedCellEditor({
-            mainView: view,
-            cellElement,
+        activateCell(view, {
             activeCell: newActiveCell,
+            cellElement,
             normalizeIfNeeded: true,
+            selectionPolicy: 'clear',
         });
     });
 }

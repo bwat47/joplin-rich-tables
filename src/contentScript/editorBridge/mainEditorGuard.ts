@@ -1,7 +1,7 @@
 import { EditorState, Extension } from '@codemirror/state';
-import { clearActiveCellEffect } from '../tableState/activeCellState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { createTableClipboardRewriteSpec } from '../tableRuntime/cellSelectionClipboard';
+import { withClearActiveCellEffect } from '../tableRuntime/activeCellController';
 import { decideMainEditorGuardTransaction } from '../tableRuntime/tableRuntimeTransitions';
 
 /**
@@ -34,12 +34,12 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             case 'rejectTransaction':
                 return [];
             case 'clearActiveCell':
-                return {
+                return withClearActiveCellEffect({
                     changes: tr.changes,
                     selection: decision.selection,
-                    effects: [...tr.effects, clearActiveCellEffect.of(undefined)],
+                    effects: tr.effects,
                     scrollIntoView: tr.scrollIntoView,
-                };
+                });
             case 'rewriteTableClipboard':
                 return createTableClipboardRewriteSpec(tr.startState, decision.rewrite);
             case 'rewriteRootTablePaste':

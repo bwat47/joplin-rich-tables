@@ -1,11 +1,10 @@
 import { EditorView } from '@codemirror/view';
-import type { StateEffect } from '@codemirror/state';
-import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import type { TargetCell } from '../tableModel/activeCellForTableText';
 import { createActiveCellForTableText } from './activeCellFactory';
 import { resolveActiveCell } from './activeCellResolver';
+import { retargetAfterTableRewrite } from './activeCellController';
 
 function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
@@ -17,6 +16,7 @@ export interface ModifyTableParams {
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable;
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell;
     forceWidgetRebuild: boolean;
+    onFocused?: () => void;
 }
 
 export function runTableOperation(params: ModifyTableParams): boolean {
@@ -43,22 +43,23 @@ export function runTableOperation(params: ModifyTableParams): boolean {
         return false;
     }
 
-    const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell)];
-    if (forceWidgetRebuild) {
-        effects.push(rebuildTableWidgetsEffect.of({ tableFrom }));
-    }
-
     if (hasDocumentChange) {
-        view.dispatch({
+        retargetAfterTableRewrite(view, {
+            nextActiveCell,
             changes: {
                 from: tableFrom,
                 to: tableTo,
                 insert: newText,
             },
-            effects,
+            rebuildTableFrom: forceWidgetRebuild ? tableFrom : undefined,
+            onFocused: params.onFocused,
         });
     } else {
-        view.dispatch({ effects });
+        retargetAfterTableRewrite(view, {
+            nextActiveCell,
+            rebuildTableFrom: forceWidgetRebuild ? tableFrom : undefined,
+            onFocused: params.onFocused,
+        });
     }
 
     return true;

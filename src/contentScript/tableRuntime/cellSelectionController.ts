@@ -1,6 +1,6 @@
 import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     fromUnifiedRow,
@@ -14,6 +14,7 @@ import {
 } from '../tableState/cellSelectionState';
 import { resolveCellDocRange, resolveTableContextAtPos } from './tablePositioning';
 import type { CellCoords } from '../tableModel/types';
+import { buildClearActiveCellEffects } from './activeCellController';
 
 function getTableBounds(view: EditorView, tableFrom: number): { totalRows: number; totalCols: number } | null {
     const ctx = resolveTableContextAtPos(view.state, tableFrom);
@@ -62,7 +63,7 @@ function dispatchSelection(view: EditorView, selection: CellSelection, options: 
                 anchor: normalizeCellCoords(selection.anchor),
                 focus: normalizeCellCoords(selection.focus),
             }),
-            ...(options.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+            ...(options.clearActiveCell ? buildClearActiveCellEffects() : []),
         ],
         annotations: cellSelectionTransitionAnnotation.of(true),
         scrollIntoView: false,

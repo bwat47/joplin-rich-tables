@@ -1,5 +1,4 @@
 import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/state';
-import { setActiveCellEffect } from './activeCellState';
 import type { CellCoords, TableRect } from '../tableModel/types';
 
 export interface CellSelection {
@@ -68,7 +67,7 @@ export const cellSelectionField = StateField.define<CellSelection | null>({
         let sawSetSelectionEffect = false;
 
         for (const effect of tr.effects) {
-            if (effect.is(clearCellSelectionEffect) || effect.is(setActiveCellEffect)) {
+            if (effect.is(clearCellSelectionEffect)) {
                 nextValue = null;
                 continue;
             }

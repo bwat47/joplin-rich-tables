@@ -2,10 +2,11 @@ import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
 import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/cellSelectionController';
 import { navigateCell } from '../tableRuntime/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/cellSelectionClipboard';
+import { clearActiveCell } from '../tableRuntime/activeCellController';
 
 function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
     const activeCellBefore = getActiveCell(mainView.state);
@@ -230,7 +231,10 @@ export function createNestedEditorDomHandlers(
                 if (isMod && key === 'f') {
                     options.closeEditor();
                     if (getActiveCell(mainView.state)) {
-                        mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        clearActiveCell(mainView, {
+                            reason: 'nested-editor:mod-f',
+                            clearPendingState: false,
+                        });
                     }
                     return false;
                 }

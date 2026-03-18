@@ -9,7 +9,7 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from '../shared/hashUtils';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { activeCellField, clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
@@ -35,6 +35,7 @@ import { navigationLockKeymap } from './navigationLockKeymap';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { moveCursorOutOfTable } from '../tableRuntime/cursorUtils';
 import { decideTableDecorationUpdate } from '../tableRuntime/tableRuntimeTransitions';
+import { clearActiveCell } from '../tableRuntime/activeCellController';
 
 /**
  * Build decorations for all tables in the document.
@@ -144,14 +145,20 @@ function handleOutsideTableInteraction(
     if (clickPos !== null) {
         // On right-click context menus, avoid forcing focus/scroll so the native/Joplin
         // menu opens against the expected pointer target without viewport jumps.
-        view.dispatch({
-            selection: { anchor: clickPos },
-            effects: [
-                ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
-                ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-            ],
-            scrollIntoView: !options.preserveContextMenu,
-        });
+        if (hasActiveCell) {
+            clearActiveCell(view, {
+                reason: 'outside-table-interaction',
+                selection: { anchor: clickPos },
+                scrollIntoView: !options.preserveContextMenu,
+                clearSelection: hasCellSelection,
+            });
+        } else {
+            view.dispatch({
+                selection: { anchor: clickPos },
+                effects: hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : [],
+                scrollIntoView: !options.preserveContextMenu,
+            });
+        }
         if (!options.preserveContextMenu) {
             view.focus();
         } else if (hasNestedEditor) {
@@ -160,12 +167,16 @@ function handleOutsideTableInteraction(
             view.contentDOM.focus({ preventScroll: true });
         }
     } else if (hasActiveCell || hasCellSelection) {
-        view.dispatch({
-            effects: [
-                ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
-                ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-            ],
-        });
+        if (hasActiveCell) {
+            clearActiveCell(view, {
+                reason: 'outside-table-interaction:no-click-pos',
+                clearSelection: hasCellSelection,
+            });
+        } else if (hasCellSelection) {
+            view.dispatch({
+                effects: [clearCellSelectionEffect.of(undefined)],
+            });
+        }
     }
 
     // For mousedown, consume only if we positioned the cursor.

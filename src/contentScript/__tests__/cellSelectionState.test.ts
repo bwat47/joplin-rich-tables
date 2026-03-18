@@ -61,7 +61,7 @@ describe('cellSelectionState', () => {
         expect(getCellSelection(state)).toBeNull();
     });
 
-    it('clears selection when an active cell is set', () => {
+    it('preserves selection when an active cell is set directly', () => {
         let state = createState();
         state = state.update({ effects: setCellSelectionEffect.of(createSelection()) }).state;
 
@@ -75,7 +75,7 @@ describe('cellSelectionState', () => {
             }),
         }).state;
 
-        expect(getCellSelection(state)).toBeNull();
+        expect(getCellSelection(state)).toEqual(createSelection());
     });
 
     it('clears selection on document changes', () => {

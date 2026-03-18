@@ -13,14 +13,15 @@ Overlay a real editor rather than using contenteditable (for full syntax highlig
 
 Managed by `contentScript/tableRuntime/nestedEditorLifecycle.ts`.
 
-**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges → `setActiveCellEffect` dispatched → lifecycle plugin mounts the nested editor.
+**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges → `tableRuntime/activeCellController.ts` dispatches the active-cell transaction → lifecycle plugin mounts the nested editor.
 
-`setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. The lifecycle plugin resolves raw
+`setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. `activeCellState.ts` is storage-only;
+`activeCellController.ts` owns when that state is written or cleared. The lifecycle plugin resolves raw
 table/cell offsets from current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
 
 **Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
-**Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → view plugin destroys instance.
+**Deactivation**: Click outside, note switch, Source Mode toggle, or resolver invalidation → `activeCellController.ts` clears active-cell ownership → view plugin destroys the instance.
 
 Lifecycle, decoration, and main-editor guard reactions share one transition-policy module
 (`contentScript/tableRuntime/tableRuntimeTransitions.ts`). That module decides when to reopen,
@@ -36,6 +37,8 @@ executing nested-editor side effects.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
 4. After root dispatch, the session refreshes its derived absolute ranges from the mapped anchor position.
 5. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
+
+Normalization-before-open also runs through `activeCellController.ts`: it rewrites the table once, retargets the logical cell, and lets lifecycle reopen. `nestedCellEditor.ts` itself only opens/closes the isolated session.
 
 ### Selection Sync
 

@@ -4,8 +4,9 @@ import { navigateCell } from '../tableRuntime/tableNavigation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { resolveCellDocRange } from '../tableRuntime/tablePositioning';
-import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
+import { SECTION_BODY, SECTION_HEADER, findCellElement } from '../tableWidget/domHelpers';
 import { resetNavigationLock } from '../tableRuntime/navigationLock';
+import { activateCell } from '../tableRuntime/activeCellController';
 
 import * as activeCellState from '../tableState/activeCellState';
 import { execInsertRowAtBottom } from '../tableRuntime/tableOperations';
@@ -15,7 +16,16 @@ jest.mock('../tableRuntime/tablePositioning');
 jest.mock('../tableRuntime/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
 }));
-jest.mock('../nestedEditor/nestedCellEditor');
+jest.mock('../tableWidget/domHelpers', () => {
+    const actual = jest.requireActual('../tableWidget/domHelpers');
+    return {
+        ...actual,
+        findCellElement: jest.fn(() => ({})),
+    };
+});
+jest.mock('../tableRuntime/activeCellController', () => ({
+    activateCell: jest.fn(() => true),
+}));
 jest.mock('../tableRuntime/tableOperations', () => ({
     __esModule: true,
     execInsertRowAtBottom: jest.fn(),
@@ -56,6 +66,14 @@ describe('navigateCell', () => {
         (resolveActiveCell as jest.Mock).mockReset();
         (resolveCellDocRange as jest.Mock).mockReset();
         (execInsertRowAtBottom as jest.Mock).mockReset();
+        (findCellElement as jest.Mock).mockReset();
+        (findCellElement as jest.Mock).mockReturnValue({});
+        (activateCell as jest.Mock).mockReset();
+        (activateCell as jest.Mock).mockReturnValue(true);
+    });
+
+    afterEach(() => {
+        resetNavigationLock();
     });
 
     const setupTable = (rows: number, cols: number) => {
@@ -102,18 +120,16 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'next');
 
-        expect(mockDispatch).toHaveBeenCalledWith(
+        expect(activateCell).toHaveBeenCalledWith(
+            mockView,
             expect.objectContaining({
-                effects: expect.anything(),
+                activeCell: expect.objectContaining({
+                    section: SECTION_HEADER,
+                    row: 0,
+                    col: 1,
+                }),
             })
         );
-
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
-            section: SECTION_HEADER,
-            row: 0,
-            col: 1,
-        });
     });
 
     it('should navigate next from header end to body start', () => {
@@ -122,12 +138,16 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'next');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
-            section: SECTION_BODY,
-            row: 0,
-            col: 0,
-        });
+        expect(activateCell).toHaveBeenCalledWith(
+            mockView,
+            expect.objectContaining({
+                activeCell: expect.objectContaining({
+                    section: SECTION_BODY,
+                    row: 0,
+                    col: 0,
+                }),
+            })
+        );
     });
 
     it('should navigate next within body', () => {
@@ -136,12 +156,16 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'next');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
-            section: SECTION_BODY,
-            row: 1, // Next row
-            col: 0, // Wrap to first col
-        });
+        expect(activateCell).toHaveBeenCalledWith(
+            mockView,
+            expect.objectContaining({
+                activeCell: expect.objectContaining({
+                    section: SECTION_BODY,
+                    row: 1, // Next row
+                    col: 0, // Wrap to first col
+                }),
+            })
+        );
     });
 
     it('should stop at end of table (next)', () => {
@@ -162,7 +186,7 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'next', { allowRowCreation: true });
 
         expect(result).toBe(true);
-        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 0);
+        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 0, expect.any(Function));
     });
 
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
@@ -172,7 +196,7 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
 
         expect(result).toBe(true);
-        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 1);
+        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 1, expect.any(Function));
     });
 
     it('should NOT add row at end of table if allowRowCreation is false', () => {
@@ -191,12 +215,16 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'previous');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
-            section: SECTION_HEADER,
-            row: 0,
-            col: 1, // Last col
-        });
+        expect(activateCell).toHaveBeenCalledWith(
+            mockView,
+            expect.objectContaining({
+                activeCell: expect.objectContaining({
+                    section: SECTION_HEADER,
+                    row: 0,
+                    col: 1, // Last col
+                }),
+            })
+        );
     });
 
     it('should navigate down from header to body', () => {
@@ -205,12 +233,16 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'down');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
-            section: SECTION_BODY,
-            row: 0,
-            col: 0,
-        });
+        expect(activateCell).toHaveBeenCalledWith(
+            mockView,
+            expect.objectContaining({
+                activeCell: expect.objectContaining({
+                    section: SECTION_BODY,
+                    row: 0,
+                    col: 0,
+                }),
+            })
+        );
     });
 
     it('should navigate up from body to header', () => {
@@ -219,11 +251,15 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'up');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
-            section: SECTION_HEADER,
-            row: 0,
-            col: 0,
-        });
+        expect(activateCell).toHaveBeenCalledWith(
+            mockView,
+            expect.objectContaining({
+                activeCell: expect.objectContaining({
+                    section: SECTION_HEADER,
+                    row: 0,
+                    col: 0,
+                }),
+            })
+        );
     });
 });

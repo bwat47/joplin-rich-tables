@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import type { ActiveCell } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import type { TargetCell } from '../tableModel/activeCellForTableText';
@@ -7,6 +7,7 @@ import { resolveActiveCell } from './activeCellResolver';
 import { activateTableCell } from './cellActivation';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runTableOperation } from './runTableOperation';
+import { withClearActiveCellEffect } from './activeCellController';
 
 export type CommandColumnAlignment = TableAlignment;
 
@@ -110,13 +111,12 @@ export function execDeleteTable(view: EditorView, cell: ActiveCell): void {
         return;
     }
 
-    view.dispatch({
-        changes: { from: resolvedCell.tableFrom, to: resolvedCell.tableTo, insert: '' },
-        effects: [
-            clearActiveCellEffect.of(undefined),
-            rebuildTableWidgetsEffect.of({ tableFrom: resolvedCell.tableFrom }),
-        ],
-    });
+    view.dispatch(
+        withClearActiveCellEffect({
+            changes: { from: resolvedCell.tableFrom, to: resolvedCell.tableTo, insert: '' },
+            effects: [rebuildTableWidgetsEffect.of({ tableFrom: resolvedCell.tableFrom })],
+        })
+    );
 }
 
 export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: CommandColumnAlignment): boolean {
@@ -129,7 +129,12 @@ export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: C
     });
 }
 
-export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, targetCol: number): boolean {
+export function execInsertRowAtBottom(
+    view: EditorView,
+    cell: ActiveCell,
+    targetCol: number,
+    onFocused?: () => void
+): boolean {
     return runTableOperation({
         view,
         cell,
@@ -139,6 +144,7 @@ export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, target
                 ? { section: 'body', row: 0, col: targetCol }
                 : { section: 'body', row: c.row + 1, col: targetCol },
         forceWidgetRebuild: true,
+        onFocused,
     });
 }
 

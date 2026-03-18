@@ -1,9 +1,10 @@
 import { EditorState, Extension, Facet, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { moveCursorOutOfTable } from './cursorUtils';
 import { logger } from '../../logger';
+import { withClearActiveCellEffect } from './activeCellController';
 
 /**
  * Facet for accessing the current note ID from Joplin's editor extensions.
@@ -66,7 +67,7 @@ export function createNoteIdWatcher(noteIdFacet: NoteIdFacet, getView: () => Edi
 
             // Clear active cell state
             if (hasActiveCell) {
-                return { effects: clearActiveCellEffect.of(undefined) };
+                return withClearActiveCellEffect();
             }
         }
 

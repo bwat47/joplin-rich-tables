@@ -1,7 +1,7 @@
 import { EditorSelection } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
@@ -18,6 +18,7 @@ import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
+import { buildClearActiveCellEffects } from './activeCellController';
 
 export interface TableClipboardTarget {
     tableFrom: number;
@@ -320,7 +321,7 @@ export function createTableClipboardRewriteSpec(
         ...(rewrite.selection
             ? [setCellSelectionEffect.of(rewrite.selection)]
             : [clearCellSelectionEffect.of(undefined)]),
-        ...(rewrite.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+        ...(rewrite.clearActiveCell ? buildClearActiveCellEffects() : []),
     ];
 
     return {

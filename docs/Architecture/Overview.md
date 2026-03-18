@@ -42,7 +42,8 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 | **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`     | Public facade over the active-cell session editor.         |
 | **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`          | Normalized table model, parsing, serialization, mutations. |
 | **Context**   | `contentScript/tableModel/tableContext.ts`           | Shared parsed table + cell ranges + table span.            |
-| **State**     | `contentScript/tableState/activeCellState.ts`        | Logical active-cell state and effect wiring.               |
+| **State**     | `contentScript/tableState/activeCellState.ts`        | Storage-only logical active-cell state.                    |
+| **Control**   | `contentScript/tableRuntime/activeCellController.ts` | Central runtime API for activate/clear/retarget commands.  |
 | **Runtime**   | `contentScript/tableRuntime/tableOperations.ts`      | Table mutation orchestration and target-cell rebasing.     |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`        | Floating UI for row/column/alignment actions.              |
 
@@ -54,15 +55,16 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 
 ### 2. Interaction
 
-Cell click → widget/runtime logic resolves row/column → dispatches `setActiveCellEffect` → `tableRuntime/nestedEditorLifecycle` mounts nested editor.
+Cell click/navigation/selection-focus → `tableRuntime/activeCellController` resolves intent and dispatches the active-cell transaction → `tableRuntime/nestedEditorLifecycle` mounts the nested editor.
 
-`ActiveCell` is logical-first state: it persists `anchorPos` plus `section/row/col`. Raw offsets such as
+`ActiveCell` is logical-first state: it persists `anchorPos` plus `section/row/col`. `activeCellState.ts` does not own policy; it only stores and maps that logical state across transactions. Raw offsets such as
 `tableFrom`, `tableTo`, and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
 
-Before user-driven entry opens the nested editor, `nestedCellEditor.ts` checks whether the table markdown is already in
+Before user-driven entry opens the nested editor, `activeCellController.ts` checks whether the table markdown is already in
 the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical target cell,
-rebuilds the widget, and only then opens the nested editor. Lifecycle reopens used for undo/redo or UI restoration skip
-that normalization step. Passive parsing/rendering never mutates document text.
+rebuilds the widget, and only then lets lifecycle reopen the session. `nestedCellEditor.ts` is session-only and no longer
+dispatches active-cell retargeting itself. Lifecycle reopens used for undo/redo or UI restoration skip that normalization step.
+Passive parsing/rendering never mutates document text.
 
 ### 3. Synchronization
 
@@ -102,6 +104,7 @@ derive current table/cell offsets for the persisted logical active-cell state.
 Table editing transition logic is centralized in `contentScript/tableRuntime/tableRuntimeTransitions.ts`.
 
 - The module is pure policy: it inspects `Transaction`/`ViewUpdate` state and returns declarative decisions/actions.
+- `tableRuntime/activeCellController.ts` is the only runtime writer of active-cell set/clear effects.
 - `tableRuntime/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
 - `nestedEditor/activeCellSession.ts` owns local/root synchronization, selection mirroring, and session invalidation.
 - `editorBridge/cellTextCodec.ts` and `editorBridge/syncAnnotation.ts` own the cross-editor text/selection protocol.

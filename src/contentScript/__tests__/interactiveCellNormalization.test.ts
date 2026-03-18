@@ -11,6 +11,7 @@ import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { navigateCell } from '../tableRuntime/tableNavigation';
 import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 import { resetNavigationLock } from '../tableRuntime/navigationLock';
+import { activateCell } from '../tableRuntime/activeCellController';
 
 const openActiveCellSessionMock = jest.fn();
 
@@ -260,7 +261,7 @@ describe('interactive cell normalization', () => {
         clearPendingCellOpen(view);
     });
 
-    it('normalizes directly through the shared nested-editor gate', () => {
+    it('normalizes directly through the shared active-cell controller', () => {
         const { view, cells } = createViewHarness({
             activeCell: {
                 anchorPos: NON_CANONICAL_DOC.indexOf('a'),
@@ -271,11 +272,11 @@ describe('interactive cell normalization', () => {
             },
         });
 
-        openNestedCellEditor({
-            mainView: view,
-            cellElement: cells.body0,
+        activateCell(view, {
             activeCell: getActiveCell(view.state)!,
+            cellElement: cells.body0,
             normalizeIfNeeded: true,
+            selectionPolicy: 'preserve',
         });
 
         expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
@@ -287,7 +288,7 @@ describe('interactive cell normalization', () => {
         expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
-    it('skips normalization when the shared open path is used for lifecycle-style reopen', () => {
+    it('skips normalization when the session open path is used for lifecycle-style reopen', () => {
         const { view, cells } = createViewHarness({
             activeCell: {
                 anchorPos: NON_CANONICAL_DOC.indexOf('a'),
@@ -302,7 +303,6 @@ describe('interactive cell normalization', () => {
             mainView: view,
             cellElement: cells.body0,
             activeCell: getActiveCell(view.state)!,
-            normalizeIfNeeded: false,
         });
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);

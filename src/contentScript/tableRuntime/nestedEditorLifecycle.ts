@@ -1,5 +1,5 @@
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import { getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
@@ -22,6 +22,7 @@ import {
     planTableLifecycleActions,
     type TableRuntimeAction,
 } from './tableRuntimeTransitions';
+import { clearActiveCell } from './activeCellController';
 
 // ============================================================================
 // Utilities
@@ -165,7 +166,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             const resolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
                             if (!resolvedActiveCell) {
                                 abortPendingOpen();
-                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                                clearActiveCell(this.view, {
+                                    reason: 'nested-editor-lifecycle:resolved-active-cell-missing',
+                                    clearPendingState: false,
+                                });
                                 return;
                             }
                             const cellElement = findCellElement(
@@ -175,7 +179,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             );
                             if (!cellElement) {
                                 abortPendingOpen();
-                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                                clearActiveCell(this.view, {
+                                    reason: 'nested-editor-lifecycle:cell-element-missing',
+                                    clearPendingState: false,
+                                });
                                 return;
                             }
 
@@ -185,7 +192,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
-                                normalizeIfNeeded: false,
                                 initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });
@@ -197,8 +203,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         handleMainEditorUpdateForNestedEditor(this.view, update);
                         break;
                     case 'clearActiveCell':
-                        clearPendingCellOpen(this.view);
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        clearActiveCell(this.view, {
+                            reason: 'nested-editor-lifecycle:clear-action',
+                        });
                         break;
                 }
             }

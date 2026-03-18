@@ -19,11 +19,12 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { ensureCellWrapper } from './mounting';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
-import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
+import { clearActiveCell } from '../tableRuntime/activeCellController';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -253,7 +254,10 @@ class ActiveCellSessionController {
             const mainView = this.mainView;
             this.close();
             if (mainView && getActiveCell(update.state)) {
-                mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                clearActiveCell(mainView, {
+                    reason: 'active-cell-session:resolved-range-missing',
+                    clearPendingState: false,
+                });
             }
             return;
         }
