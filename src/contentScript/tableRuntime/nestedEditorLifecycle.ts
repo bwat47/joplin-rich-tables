@@ -146,7 +146,11 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'closeNestedEditor':
-                        closeNestedCellEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
+                        if (action.useResolvedRangeFromUpdate) {
+                            closeNestedCellEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
+                        } else {
+                            closeNestedCellEditor(this.view);
+                        }
                         break;
                     case 'openNestedEditor':
                         requestAnimationFrame(() => {

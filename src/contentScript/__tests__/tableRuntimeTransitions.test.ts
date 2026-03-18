@@ -392,8 +392,37 @@ describe('tableRuntimeTransitions', () => {
         };
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
-            { type: 'closeNestedEditor' },
+            { type: 'closeNestedEditor', useResolvedRangeFromUpdate: false },
             { type: 'openNestedEditor', activeCell },
+        ]);
+    });
+
+    it('uses the resolved update range when undo or redo repositions the active cell', () => {
+        const activeCell = getHeaderCell();
+        const startState = createState({ activeCell });
+        const { event } = createViewUpdate(startState, {
+            changes: { from: 0, to: 0, insert: 'abc\n' },
+            annotations: Transaction.userEvent.of('redo'),
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell: getActiveCell(event.update.state),
+            prevActiveCell: activeCell,
+            resolvedActiveCell: resolveActiveCell(event.update.state, getActiveCell(event.update.state)),
+            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
+            effectiveRawMode: false,
+            nestedEditorOpen: true,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: true })).toEqual([
+            { type: 'closeNestedEditor', useResolvedRangeFromUpdate: true },
+            {
+                type: 'scheduleActivateCellAtCursor',
+                clearIfOutside: true,
+                ensureCursorVisibleIfNotActivated: false,
+                normalizeIfNeeded: false,
+            },
         ]);
     });
 

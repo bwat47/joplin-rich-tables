@@ -45,7 +45,7 @@ export interface RawModeEffects {
 
 export type TableRuntimeAction =
     | { type: 'openNestedEditor'; activeCell: ActiveCell }
-    | { type: 'closeNestedEditor' }
+    | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
     | { type: 'syncMainDocToNested' }
     | { type: 'syncMainSelectionToNested' }
     | { type: 'clearActiveCell' }
@@ -249,7 +249,7 @@ export function planTableLifecycleActions(
 
     if (shouldRepositionCellAfterUndoRedo(snapshot, event, options.cursorInsideTableAfterUndoRedo)) {
         if (snapshot.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor' });
+            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: true });
         }
         actions.push({
             type: 'scheduleActivateCellAtCursor',
@@ -262,14 +262,14 @@ export function planTableLifecycleActions(
 
     if (event.forceRebuild && snapshot.activeCell && !event.isSync) {
         if (snapshot.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor' });
+            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
         }
         actions.push({ type: 'openNestedEditor', activeCell: snapshot.activeCell });
         return actions;
     }
 
     if (!snapshot.activeCell && snapshot.hadActiveCell) {
-        actions.push({ type: 'closeNestedEditor' });
+        actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
     }
 
     if (update.docChanged && snapshot.resolvedActiveCell && snapshot.nestedEditorOpen && !event.isSync) {

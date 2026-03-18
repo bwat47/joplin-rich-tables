@@ -10,11 +10,13 @@ import { activateInsertedTableEffect } from '../tableState/insertedTableActivati
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 
 const activateTableCellMock = jest.fn();
+const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
 const nestedCellEditorMock = jest.requireMock('../nestedEditor/nestedCellEditor') as {
     closeNestedCellEditor: jest.Mock;
     isNestedCellEditorOpen: jest.Mock;
@@ -23,6 +25,11 @@ const nestedCellEditorMock = jest.requireMock('../nestedEditor/nestedCellEditor'
 jest.mock('../tableRuntime/cellActivation', () => ({
     activateCellAtPosition: jest.fn(),
     activateTableCell: (...args: unknown[]) => activateTableCellMock(...args),
+}));
+
+jest.mock('../tableWidget/domHelpers', () => ({
+    findCellElement: (view: unknown, tableId: unknown, activeCell: unknown) =>
+        findCellElementMock(view, tableId, activeCell),
 }));
 
 jest.mock('../nestedEditor/nestedCellEditor', () => ({
@@ -37,6 +44,7 @@ describe('nestedEditorLifecycle', () => {
 
     beforeEach(() => {
         activateTableCellMock.mockReset();
+        findCellElementMock.mockClear();
         nestedCellEditorMock.closeNestedCellEditor.mockReset();
         nestedCellEditorMock.isNestedCellEditorOpen.mockReset();
         nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(false);
@@ -110,7 +118,6 @@ describe('nestedEditorLifecycle', () => {
         state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
 
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
         const view = new EditorView({ parent, state });
 
         view.dispatch({
@@ -128,6 +135,54 @@ describe('nestedEditorLifecycle', () => {
             cellFrom: resolved.cellFrom,
             cellTo: resolved.cellTo,
         });
+
+        view.destroy();
+    });
+
+    it('does not pass a resolved range when force rebuild closes the nested editor', () => {
+        nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(true);
+
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const activeCell: ActiveCell = {
+            anchorPos: doc.indexOf('H1'),
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        const nextActiveCell: ActiveCell = {
+            anchorPos: doc.indexOf('H2'),
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        };
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(nextActiveCell),
+                rebuildTableWidgetsEffect.of({ tableFrom: nextActiveCell.tableFrom }),
+            ],
+        });
+
+        expect(nestedCellEditorMock.closeNestedCellEditor).toHaveBeenCalledWith(view);
 
         view.destroy();
     });
