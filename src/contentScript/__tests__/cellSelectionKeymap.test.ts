@@ -160,6 +160,64 @@ describe('cellSelectionKeymap', () => {
         view.destroy();
     });
 
+    it('focuses the main editor after deleting an emptied table via multi-cell selection', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+
+        const view = new EditorView({
+            parent,
+            extensions: [
+                markdownExtension,
+                history(),
+                activeCellField,
+                cellSelectionField,
+                cellSelectionKeyCapturePlugin,
+            ],
+            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
+        });
+        const focusSpy = jest.spyOn(view, 'focus');
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        document.body.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Delete',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+
+        expect(view.state.doc.toString()).toBe(['|  |  |', '| --- | --- |', '|  |  |'].join('\n'));
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'header', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        });
+
+        focusSpy.mockClear();
+
+        document.body.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Delete',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+
+        expect(view.state.doc.toString()).toBe('');
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.state.selection.main.anchor).toBe(0);
+        expect(focusSpy).toHaveBeenCalledTimes(1);
+
+        view.destroy();
+    });
+
     it('ignores Delete when multi-cell selection mode is not active', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);

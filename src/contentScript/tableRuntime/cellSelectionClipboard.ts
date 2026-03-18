@@ -344,7 +344,7 @@ function dispatchTableClipboardRewrite(view: EditorView, rewrite: TableClipboard
     const currentSelection = getCellSelection(view.state);
     view.dispatch(createTableClipboardRewriteSpec(view.state, rewrite));
 
-    if (!currentSelection) {
+    if (!currentSelection || rewrite.selection === null) {
         view.focus();
     }
 }
