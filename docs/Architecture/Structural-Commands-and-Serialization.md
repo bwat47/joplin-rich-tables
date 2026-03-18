@@ -44,8 +44,10 @@ Selection removal is resolved in this order:
 - When a structural row/column delete is blocked by table invariants, fall back to normal clear semantics.
 
 When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `editorBridge/mainEditorGuard.ts`
-upgrades the resulting root-editor `input.paste` transaction into the same table rewrite before the normal
-single-cell sanitation path can flatten the fragment into text.
+has two `input.paste` upgrade paths:
+
+- With a nested editor open, it upgrades valid markdown table fragments into the same multi-cell table rewrite before the normal single-cell sanitation path can flatten the fragment into text.
+- With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and schedule activation of header cell `(0,0)`.
 
 ### 2. Runtime Mutation Helpers (`tableRuntime/runTableOperation.ts`)
 

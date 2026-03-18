@@ -7,10 +7,11 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
+import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
     buildTableRuntimeEvent,
     decideMainEditorGuardTransaction,
@@ -27,7 +28,12 @@ import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory'
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 function createState(params?: { activeCell?: ActiveCell | null }) {
-    let state = createMarkdownState(doc, [activeCellField, sourceModeField, searchForceSourceModeField]);
+    let state = createMarkdownState(doc, [
+        activeCellField,
+        cellSelectionField,
+        sourceModeField,
+        searchForceSourceModeField,
+    ]);
 
     if (params?.activeCell) {
         state = state.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
@@ -145,6 +151,106 @@ describe('tableRuntimeTransitions', () => {
 
         expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
             type: 'rejectTransaction',
+        });
+    });
+
+    it('returns a clipboard rewrite decision for markdown-table paste while nested editor is open', () => {
+        const activeCell = getHeaderCell();
+        let state = createState({ activeCell });
+        const resolved = requireResolvedActiveCell(state);
+        state = state.update({
+            selection: { anchor: resolved.cellFrom, head: resolved.cellFrom },
+        }).state;
+
+        const tr = state.update({
+            changes: {
+                from: resolved.cellFrom,
+                to: resolved.cellFrom,
+                insert: ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'),
+            },
+            userEvent: 'input.paste',
+        });
+
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true });
+
+        expect(decision.type).toBe('rewriteTableClipboard');
+        if (decision.type !== 'rewriteTableClipboard') {
+            throw new Error('Expected clipboard rewrite decision');
+        }
+
+        expect(decision.rewrite.tableText).toBe(['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n'));
+    });
+
+    it('returns a root-table rewrite decision for standalone table paste at a block boundary', () => {
+        const state = createMarkdownState(['before', '', 'after'].join('\n'), [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = 'before\n'.length;
+
+        const tr = state.update({
+            changes: { from: pastePos, to: pastePos, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: false });
+
+        expect(decision.type).toBe('rewriteRootTablePaste');
+        if (decision.type !== 'rewriteRootTablePaste') {
+            throw new Error('Expected root paste rewrite decision');
+        }
+
+        expect(decision.rewrite.changes.insert).toBe(['', '| H1 | H2 |', '| --- | --- |', '| a | b |', ''].join('\n'));
+        expect(decision.rewrite.tableFrom).toBe(8);
+    });
+
+    it('does not return a root-table rewrite when a cell selection is active', () => {
+        let state = createMarkdownState(['before', '', 'after'].join('\n'), [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        state = state.update({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 0 },
+            }),
+        }).state;
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+
+        const tr = state.update({
+            changes: { from: 0, to: 0, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: false })).toEqual({
+            type: 'allowTransaction',
+        });
+    });
+
+    it('does not return a root-table rewrite when search is forcing raw mode', () => {
+        let state = createMarkdownState(['before', '', 'after'].join('\n'), [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        state = state.update({ effects: setSearchForceSourceModeEffect.of(true) }).state;
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = 'before\n'.length;
+
+        const tr = state.update({
+            changes: { from: pastePos, to: pastePos, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: false })).toEqual({
+            type: 'allowTransaction',
         });
     });
 

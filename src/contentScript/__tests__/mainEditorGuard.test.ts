@@ -1,8 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
+import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -10,6 +13,8 @@ function createState(params: { doc: string; nestedOpen: boolean }) {
     return createMarkdownState(params.doc, [
         activeCellField,
         cellSelectionField,
+        searchForceSourceModeField,
+        sourceModeField,
         createMainEditorActiveCellGuard(() => params.nestedOpen),
     ]);
 }
@@ -201,6 +206,106 @@ describe('createMainEditorActiveCellGuard', () => {
             anchor: { section: 'body', row: 0, col: 1 },
             focus: { section: 'body', row: 1, col: 2 },
         });
+    });
+
+    it('rewrites plain root markdown-table paste into canonical table text and activation effect', () => {
+        const state = createState({
+            doc: ['before', '', 'after'].join('\n'),
+            nestedOpen: false,
+        });
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = 'before\n'.length;
+
+        const tr = state.update({
+            changes: {
+                from: pastePos,
+                to: pastePos,
+                insert: pasteText,
+            },
+            selection: { anchor: pastePos },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(
+            ['before', '', '| H1 | H2 |', '| --- | --- |', '| a | b |', '', 'after'].join('\n')
+        );
+        expect(tr.state.selection.main.head).toBe(8);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
+        expect(getActiveCell(tr.state)).toBeNull();
+        expect(getCellSelection(tr.state)).toBeNull();
+    });
+
+    it('leaves non-table paste unchanged in the plain root editor', () => {
+        const state = createState({ doc: '', nestedOpen: false });
+
+        const tr = state.update({
+            changes: { from: 0, to: 0, insert: 'plain text' },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe('plain text');
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+    });
+
+    it('rewrites plain root markdown-table paste in an empty document with surrounding newlines', () => {
+        const state = createState({ doc: '', nestedOpen: false });
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+
+        const tr = state.update({
+            changes: { from: 0, to: 0, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(`\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`);
+        expect(tr.state.selection.main.head).toBe(1);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
+    });
+
+    it('leaves mid-line table paste unchanged in the plain root editor', () => {
+        const doc = 'before after';
+        const state = createState({ doc, nestedOpen: false });
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = doc.indexOf(' ');
+
+        const tr = state.update({
+            changes: { from: pastePos, to: pastePos, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(`before${pasteText} after`);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+    });
+
+    it('leaves table paste unchanged in source mode', () => {
+        let state = createState({ doc: '', nestedOpen: false });
+        state = state.update({ effects: toggleSourceModeEffect.of(true) }).state;
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+
+        const tr = state.update({
+            changes: { from: 0, to: 0, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(pasteText);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+    });
+
+    it('leaves table paste unchanged when search forces raw mode', () => {
+        let state = createState({
+            doc: ['before', '', 'after'].join('\n'),
+            nestedOpen: false,
+        });
+        state = state.update({ effects: setSearchForceSourceModeEffect.of(true) }).state;
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const pastePos = 'before\n'.length;
+
+        const tr = state.update({
+            changes: { from: pastePos, to: pastePos, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(`before\n${pasteText}\nafter`);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
     });
 
     it('allows full document replacement and clears active cell', () => {

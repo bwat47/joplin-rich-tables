@@ -1,7 +1,7 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
-import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
+import { cellSelectionTransitionAnnotation, getCellSelection } from '../tableState/cellSelectionState';
 import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
@@ -11,6 +11,8 @@ import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { isStructuralTableChange } from './structuralChangeDetection';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
+import { buildMultiCellPasteRewrite, type TableClipboardRewrite } from './cellSelectionClipboard';
+import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from './pasteTableNormalizer';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;
@@ -66,11 +68,41 @@ export type GuardDecision =
     | { type: 'allowTransaction' }
     | { type: 'rejectTransaction' }
     | { type: 'clearActiveCell'; selection: EditorSelection | undefined }
+    | { type: 'rewriteTableClipboard'; rewrite: TableClipboardRewrite }
+    | { type: 'rewriteRootTablePaste'; rewrite: RootTablePasteRewrite }
     | {
           type: 'sanitizeTransactionChanges';
           changes: ReturnType<typeof sanitizeCellChanges>['changes'];
           selection: EditorSelection;
       };
+
+function extractSingleInsertedText(tr: Transaction): string | null {
+    let insertedText: string | null = null;
+    let changeCount = 0;
+
+    tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+        changeCount++;
+        if (changeCount === 1) {
+            insertedText = inserted.toString();
+        }
+    });
+
+    return changeCount === 1 && insertedText ? insertedText : null;
+}
+
+function extractSingleChangeRange(tr: Transaction): { from: number; to: number } | null {
+    let changeRange: { from: number; to: number } | null = null;
+    let changeCount = 0;
+
+    tr.changes.iterChanges((fromA, toA) => {
+        changeCount++;
+        if (changeCount === 1) {
+            changeRange = { from: fromA, to: toA };
+        }
+    });
+
+    return changeCount === 1 ? changeRange : null;
+}
 
 function scanRawModeEffects(transactions: readonly Transaction[]): RawModeEffects {
     let exitedSourceMode = false;
@@ -355,6 +387,50 @@ export function decideMainEditorGuardTransaction(
 
     if (tr.annotation(normalizeBeforeEditAnnotation)) {
         return { type: 'allowTransaction' };
+    }
+
+    if (tr.isUserEvent('input.paste')) {
+        const pastedText = extractSingleInsertedText(tr);
+
+        if (pastedText) {
+            const activeCell = getActiveCell(tr.startState);
+
+            if (params.nestedEditorOpen && activeCell) {
+                const rewrite = buildMultiCellPasteRewrite(
+                    tr.startState,
+                    {
+                        tableFrom: activeCell.tableFrom,
+                        anchor: {
+                            section: activeCell.section,
+                            row: activeCell.row,
+                            col: activeCell.col,
+                        },
+                        source: 'activeCell',
+                    },
+                    pastedText
+                );
+
+                if (rewrite) {
+                    return { type: 'rewriteTableClipboard', rewrite };
+                }
+            }
+
+            if (!params.nestedEditorOpen && !getCellSelection(tr.startState) && !isEffectiveRawMode(tr.startState)) {
+                const changeRange = extractSingleChangeRange(tr);
+                if (changeRange) {
+                    const rewrite = buildRootTablePasteRewrite(
+                        tr.startState,
+                        changeRange.from,
+                        changeRange.to,
+                        pastedText
+                    );
+
+                    if (rewrite) {
+                        return { type: 'rewriteRootTablePaste', rewrite };
+                    }
+                }
+            }
+        }
     }
 
     const activeCell = getActiveCell(tr.startState);
