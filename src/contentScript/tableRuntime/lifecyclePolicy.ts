@@ -162,9 +162,9 @@ export function planTableLifecycleActions(
     const actions: TableRuntimeAction[] = [];
 
     if (event.openRequest) {
-        if (snapshot.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
-        }
+        // Keep the current nested editor mounted until the replacement opens.
+        // Closing first introduces a blur/focus gap that causes Android IMEs
+        // to dismiss and reopen when switching cells by tap.
         actions.push({
             type: 'openNestedEditor',
             activeCell: event.openRequest.activeCell,
