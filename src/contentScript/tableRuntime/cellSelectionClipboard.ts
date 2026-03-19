@@ -17,7 +17,7 @@ import { resolveTableContextAtPos } from './tablePositioning';
 import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
-import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
+import { isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 
 export interface TableClipboardTarget {
     tableFrom: number;
@@ -417,7 +417,7 @@ function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
 export function handleTableClipboardTextPaste(
     clipboardText: string,
     view: EditorView,
-    options: { nestedEditorOpen: boolean; closeNestedEditor?: () => void }
+    options: { nestedEditorOpen: boolean }
 ): boolean {
     const target = resolveTableClipboardTarget(view.state, {
         nestedEditorOpen: options.nestedEditorOpen,
@@ -431,10 +431,6 @@ export function handleTableClipboardTextPaste(
         return false;
     }
 
-    if (target.source === 'activeCell') {
-        options.closeNestedEditor?.();
-    }
-
     dispatchTableClipboardRewrite(view, rewrite);
     return true;
 }
@@ -442,7 +438,7 @@ export function handleTableClipboardTextPaste(
 export function handleTableClipboardPaste(
     event: ClipboardEvent,
     view: EditorView,
-    options: { nestedEditorOpen: boolean; closeNestedEditor?: () => void }
+    options: { nestedEditorOpen: boolean }
 ): boolean {
     if (!event.clipboardData) {
         return false;
@@ -486,7 +482,6 @@ export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
             this.onPaste = (event) => {
                 handleTableClipboardPaste(event, this.view, {
                     nestedEditorOpen: isNestedCellEditorOpen(this.view),
-                    closeNestedEditor: () => closeNestedCellEditor(this.view),
                 });
             };
 

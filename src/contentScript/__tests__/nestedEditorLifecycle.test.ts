@@ -14,12 +14,15 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
+import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
 const nestedCellEditorMock = jest.requireMock('../nestedEditor/nestedCellEditor') as {
     closeNestedCellEditor: jest.Mock;
     isNestedCellEditorOpen: jest.Mock;
+    openNestedCellEditor: jest.Mock;
 };
 
 jest.mock('../tableRuntime/cellActivation', () => ({
@@ -47,6 +50,7 @@ describe('nestedEditorLifecycle', () => {
         findCellElementMock.mockClear();
         nestedCellEditorMock.closeNestedCellEditor.mockReset();
         nestedCellEditorMock.isNestedCellEditorOpen.mockReset();
+        nestedCellEditorMock.openNestedCellEditor.mockReset();
         nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(false);
         global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
             callback(0);
@@ -183,6 +187,56 @@ describe('nestedEditorLifecycle', () => {
         });
 
         expect(nestedCellEditorMock.closeNestedCellEditor).toHaveBeenCalledWith(view);
+
+        view.destroy();
+    });
+
+    it('opens the nested editor only when an open request effect is dispatched', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const activeCell: ActiveCell = {
+            anchorPos: doc.indexOf('H2'),
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        rememberPendingCellOpen(view, activeCell, { initialCursorPos: 'end' });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                requestOpenActiveCellEffect.of({
+                    activeCell,
+                    normalizeIfNeeded: false,
+                }),
+            ],
+        });
+
+        expect(nestedCellEditorMock.openNestedCellEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                activeCell,
+                normalizeIfNeeded: false,
+                initialCursorPos: 'end',
+            })
+        );
 
         view.destroy();
     });

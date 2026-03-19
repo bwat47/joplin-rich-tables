@@ -1,16 +1,14 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
 import { resolveTableAtPos } from './tablePositioning';
-import { findCellElement } from '../tableWidget/domHelpers';
-import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { makeTableId } from '../tableModel/types';
 import { buildTableContext } from '../tableModel/tableContext';
 import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
+import { selectAndRequestOpenActiveCell } from './activeCellOpen';
 
 function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     if (getCellSelection(view.state)) {
@@ -58,22 +56,12 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    view.dispatch({
-        effects: [clearCellSelectionEffect.of(undefined), setActiveCellEffect.of(nextActiveCell)],
-        selection: { anchor: nextActiveCell.anchorPos },
-        scrollIntoView: false,
-    });
-
-    const cellElement = findCellElement(view, makeTableId(ctx.from), nextActiveCell);
-    if (!cellElement) {
-        return true;
-    }
-
-    openNestedCellEditor({
-        mainView: view,
-        cellElement,
+    selectAndRequestOpenActiveCell(view, {
         activeCell: nextActiveCell,
+        clearCellSelection: true,
         normalizeIfNeeded: true,
+        selectionAnchor: nextActiveCell.anchorPos,
+        scrollIntoView: false,
     });
 
     return true;

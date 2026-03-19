@@ -199,7 +199,6 @@ export function createNestedEditorDomHandlers(
             pendingClipboardText = null;
             return handleTableClipboardTextPaste(clipboardText, mainView, {
                 nestedEditorOpen: true,
-                closeNestedEditor: options.closeEditor,
             });
         }),
         EditorView.domEventHandlers({

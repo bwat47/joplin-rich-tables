@@ -19,6 +19,7 @@ import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
 
 const markdownExtension = markdown({
     extensions: [GFM],
@@ -258,6 +259,7 @@ describe('cellSelectionKeymap', () => {
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 
+        const dispatchSpy = jest.spyOn(view, 'dispatch');
         view.dispatch({
             effects: setCellSelectionEffect.of({
                 tableFrom: 0,
@@ -280,7 +282,10 @@ describe('cellSelectionKeymap', () => {
             row: 0,
             col: 1,
         });
-        expect(openNestedCellEditorMock).toHaveBeenCalledTimes(1);
+        const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
+        const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
+        expect(effects.some((effect) => effect?.is?.(requestOpenActiveCellEffect))).toBe(true);
+        expect(openNestedCellEditorMock).not.toHaveBeenCalled();
 
         view.destroy();
     });

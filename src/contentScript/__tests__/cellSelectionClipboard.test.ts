@@ -377,7 +377,6 @@ describe('cellSelectionClipboard', () => {
         };
         const view = mutableView as unknown as EditorView;
 
-        const closeNestedEditor = jest.fn();
         const event = {
             clipboardData: {
                 getData: jest.fn(() => ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n')),
@@ -388,11 +387,9 @@ describe('cellSelectionClipboard', () => {
         expect(
             handleTableClipboardPaste(event, view, {
                 nestedEditorOpen: true,
-                closeNestedEditor,
             })
         ).toBe(true);
 
-        expect(closeNestedEditor).toHaveBeenCalledTimes(1);
         expect(event.preventDefault).toHaveBeenCalledTimes(1);
         expect(mutableView.state.doc.toString()).toBe(
             ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
@@ -433,16 +430,12 @@ describe('cellSelectionClipboard', () => {
         };
         const view = mutableView as unknown as EditorView;
 
-        const closeNestedEditor = jest.fn();
-
         expect(
             handleTableClipboardTextPaste(['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'), view, {
                 nestedEditorOpen: true,
-                closeNestedEditor,
             })
         ).toBe(true);
 
-        expect(closeNestedEditor).toHaveBeenCalledTimes(1);
         expect(mutableView.state.doc.toString()).toBe(
             ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
         );

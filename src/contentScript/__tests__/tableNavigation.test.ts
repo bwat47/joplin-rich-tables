@@ -8,6 +8,8 @@ import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { resetNavigationLock } from '../tableRuntime/navigationLock';
 
 import * as activeCellState from '../tableState/activeCellState';
+import { setActiveCellEffect } from '../tableState/activeCellState';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
 import { execInsertRowAtBottom } from '../tableRuntime/tableOperations';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
@@ -57,6 +59,19 @@ describe('navigateCell', () => {
         (resolveCellDocRange as jest.Mock).mockReset();
         (execInsertRowAtBottom as jest.Mock).mockReset();
     });
+
+    afterEach(() => {
+        resetNavigationLock();
+    });
+
+    const getEffects = () => {
+        const spec = mockDispatch.mock.calls[0]?.[0];
+        const effects = spec?.effects;
+        return Array.isArray(effects) ? effects : effects ? [effects] : [];
+    };
+
+    const getSetActiveCellValue = () => getEffects().find((effect) => effect.is?.(setActiveCellEffect))?.value;
+    const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(requestOpenActiveCellEffect))?.value;
 
     const setupTable = (rows: number, cols: number) => {
         const headers = Array(cols).fill({});
@@ -108,11 +123,13 @@ describe('navigateCell', () => {
             })
         );
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
+        expect(getSetActiveCellValue()).toMatchObject({
             section: SECTION_HEADER,
             row: 0,
             col: 1,
+        });
+        expect(getOpenRequestValue()).toMatchObject({
+            normalizeIfNeeded: true,
         });
     });
 
@@ -122,8 +139,7 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'next');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
+        expect(getSetActiveCellValue()).toMatchObject({
             section: SECTION_BODY,
             row: 0,
             col: 0,
@@ -136,8 +152,7 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'next');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
+        expect(getSetActiveCellValue()).toMatchObject({
             section: SECTION_BODY,
             row: 1, // Next row
             col: 0, // Wrap to first col
@@ -191,8 +206,7 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'previous');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
+        expect(getSetActiveCellValue()).toMatchObject({
             section: SECTION_HEADER,
             row: 0,
             col: 1, // Last col
@@ -205,8 +219,7 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'down');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
+        expect(getSetActiveCellValue()).toMatchObject({
             section: SECTION_BODY,
             row: 0,
             col: 0,
@@ -219,8 +232,7 @@ describe('navigateCell', () => {
 
         navigateCell(mockView, 'up');
 
-        const effect = mockDispatch.mock.calls[0][0].effects;
-        expect(effect.value).toMatchObject({
+        expect(getSetActiveCellValue()).toMatchObject({
             section: SECTION_HEADER,
             row: 0,
             col: 0,

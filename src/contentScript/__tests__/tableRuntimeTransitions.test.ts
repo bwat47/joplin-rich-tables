@@ -300,6 +300,7 @@ describe('tableRuntimeTransitions', () => {
             enteredRawMode: false,
             exitedRawMode: true,
             hasFullDocumentReplace: false,
+            openRequest: null,
         } satisfies TableRuntimeEvent;
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
@@ -371,7 +372,7 @@ describe('tableRuntimeTransitions', () => {
             planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
                 cursorInsideTableAfterUndoRedo: false,
             })
-        ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell }]);
+        ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell, normalizeIfNeeded: false }]);
     });
 
     it('plans force rebuild as close and reopen of the nested editor', () => {
@@ -393,7 +394,7 @@ describe('tableRuntimeTransitions', () => {
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
             { type: 'closeNestedEditor', useResolvedRangeFromUpdate: false },
-            { type: 'openNestedEditor', activeCell },
+            { type: 'openNestedEditor', activeCell, normalizeIfNeeded: false },
         ]);
     });
 

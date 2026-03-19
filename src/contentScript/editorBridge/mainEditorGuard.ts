@@ -2,7 +2,7 @@ import { EditorState, Extension } from '@codemirror/state';
 import { clearActiveCellEffect } from '../tableState/activeCellState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { createTableClipboardRewriteSpec } from '../tableRuntime/cellSelectionClipboard';
-import { decideMainEditorGuardTransaction } from '../tableRuntime/tableRuntimeTransitions';
+import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back

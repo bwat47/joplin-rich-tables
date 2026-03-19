@@ -15,9 +15,15 @@ import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
 import { setPendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
 import { rememberPendingCellOpen } from './pendingCellOpen';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
 
 export { nestedCellEditorPlugin };
 
+/**
+ * Lifecycle-internal gate for opening the nested editor.
+ * Other runtime modules should dispatch active-cell state plus open intent and
+ * let nestedEditorLifecycle.ts call this function.
+ */
 export function openNestedCellEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
@@ -61,6 +67,10 @@ export function openNestedCellEditor(params: {
                 selection: { anchor: nextActiveCell.anchorPos },
                 effects: [
                     setActiveCellEffect.of(nextActiveCell),
+                    requestOpenActiveCellEffect.of({
+                        activeCell: nextActiveCell,
+                        normalizeIfNeeded: false,
+                    }),
                     rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
                 ],
                 annotations: normalizeBeforeEditAnnotation.of(true),

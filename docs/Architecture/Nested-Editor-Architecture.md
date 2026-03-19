@@ -13,19 +13,24 @@ Overlay a real editor rather than using contenteditable (for full syntax highlig
 
 Managed by `contentScript/tableRuntime/nestedEditorLifecycle.ts`.
 
-**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges → `setActiveCellEffect` dispatched → lifecycle plugin mounts the nested editor.
+**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges →
+`setActiveCellEffect` plus an open-intent effect dispatched → lifecycle plugin mounts the nested editor.
 
-`setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. The lifecycle plugin resolves raw
-table/cell offsets from current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
+`setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. A separate open-intent effect
+declares whether the lifecycle should normalize before opening. The lifecycle plugin resolves raw table/cell offsets from
+current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
 
 **Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
-**Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → view plugin destroys instance.
+**Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → lifecycle plugin destroys the instance.
 
-Lifecycle, decoration, and main-editor guard reactions share one transition-policy module
-(`contentScript/tableRuntime/tableRuntimeTransitions.ts`). That module decides when to reopen,
-remap, rebuild, sanitize, or clear state; the lifecycle plugin remains responsible only for
-executing nested-editor side effects.
+Policy is split by concern:
+
+- `tableRuntime/lifecyclePolicy.ts` decides when to reopen, remap, rebuild, or clear active-cell state.
+- `editorBridge/mainEditorGuardPolicy.ts` decides whether main-editor transactions are allowed, rewritten, or sanitized.
+- `tableWidget/tableDecorationPolicy.ts` decides whether table decorations are kept, mapped, removed, or rebuilt.
+
+The lifecycle plugin remains responsible only for executing nested-editor side effects.
 
 ## Synchronization
 
@@ -34,8 +39,9 @@ executing nested-editor side effects.
 1. User types in the isolated editor.
 2. `ActiveCellSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
-4. After root dispatch, the session refreshes its derived absolute ranges from the mapped anchor position.
-5. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
+4. If normalization rewrites the whole table first, it also dispatches a reopen intent so lifecycle can reopen after rebuild.
+5. After root dispatch, the session refreshes its derived absolute ranges from the mapped anchor position.
+6. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
 ### Selection Sync
 

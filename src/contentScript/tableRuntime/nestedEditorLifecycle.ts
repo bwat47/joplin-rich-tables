@@ -21,7 +21,7 @@ import {
     buildTableRuntimeSnapshot,
     planTableLifecycleActions,
     type TableRuntimeAction,
-} from './tableRuntimeTransitions';
+} from './lifecyclePolicy';
 
 // ============================================================================
 // Utilities
@@ -185,7 +185,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
-                                normalizeIfNeeded: false,
+                                normalizeIfNeeded: action.normalizeIfNeeded,
                                 initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });
