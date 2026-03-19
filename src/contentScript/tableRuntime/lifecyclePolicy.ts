@@ -53,6 +53,7 @@ export type TableRuntimeAction =
           clearIfOutside: boolean;
           ensureCursorVisibleIfNotActivated: boolean;
           normalizeIfNeeded: boolean;
+          preserveMainSelection: boolean;
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
     | { type: 'scheduleRebuildAllAfterFullReplace' };
@@ -187,6 +188,7 @@ export function planTableLifecycleActions(
             clearIfOutside: false,
             ensureCursorVisibleIfNotActivated: true,
             normalizeIfNeeded: false,
+            preserveMainSelection: true,
         });
         return actions;
     }
@@ -208,6 +210,7 @@ export function planTableLifecycleActions(
             clearIfOutside: true,
             ensureCursorVisibleIfNotActivated: false,
             normalizeIfNeeded: false,
+            preserveMainSelection: false,
         });
         return actions;
     }

@@ -18,6 +18,7 @@ export interface SelectAndRequestOpenActiveCellParams {
     onFocused?: () => void;
     selectionAnchor?: number;
     scrollIntoView?: boolean;
+    preserveMainSelection?: boolean;
 }
 
 export const requestOpenActiveCellEffect = StateEffect.define<OpenActiveCellRequest>();
@@ -31,7 +32,9 @@ export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectA
     }
 
     view.dispatch({
-        selection: { anchor: params.selectionAnchor ?? params.activeCell.anchorPos },
+        ...(!params.preserveMainSelection
+            ? { selection: { anchor: params.selectionAnchor ?? params.activeCell.anchorPos } }
+            : {}),
         effects: [
             ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
             setActiveCellEffect.of(params.activeCell),

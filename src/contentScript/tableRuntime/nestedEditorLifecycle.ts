@@ -125,6 +125,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             activateCellAtPosition(this.view, cursorPos, {
                                 clearIfOutside: action.clearIfOutside,
                                 normalizeIfNeeded: action.normalizeIfNeeded,
+                                preserveMainSelection: action.preserveMainSelection,
                             });
                             if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);

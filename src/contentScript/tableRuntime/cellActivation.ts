@@ -16,6 +16,8 @@ export interface ActivateCellOptions {
     clearIfOutside?: boolean;
     /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
     normalizeIfNeeded?: boolean;
+    /** If true, preserve the current main-editor selection when requesting the nested editor open */
+    preserveMainSelection?: boolean;
 }
 
 export function resolveActivationTargetCell(params: {
@@ -103,6 +105,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     selectAndRequestOpenActiveCell(view, {
         activeCell: newActiveCell,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
+        preserveMainSelection: options?.preserveMainSelection ?? false,
     });
 
     return true;

@@ -309,6 +309,7 @@ describe('tableRuntimeTransitions', () => {
                 clearIfOutside: false,
                 ensureCursorVisibleIfNotActivated: true,
                 normalizeIfNeeded: false,
+                preserveMainSelection: true,
             },
         ]);
     });
@@ -423,6 +424,7 @@ describe('tableRuntimeTransitions', () => {
                 clearIfOutside: true,
                 ensureCursorVisibleIfNotActivated: false,
                 normalizeIfNeeded: false,
+                preserveMainSelection: false,
             },
         ]);
     });

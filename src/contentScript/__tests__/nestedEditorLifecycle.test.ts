@@ -9,7 +9,7 @@ import { nestedEditorLifecyclePlugin } from '../tableRuntime/nestedEditorLifecyc
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
-import { sourceModeField } from '../tableState/sourceMode';
+import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
@@ -237,6 +237,48 @@ describe('nestedEditorLifecycle', () => {
                 initialCursorPos: 'end',
             })
         );
+
+        view.destroy();
+    });
+
+    it('preserves the raw-mode text selection when exiting source mode into a nested editor', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const selectionFrom = doc.indexOf('H1');
+        const selectionTo = selectionFrom + 'H1'.length;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({
+            effects: toggleSourceModeEffect.of(true),
+            selection: { anchor: selectionFrom, head: selectionTo },
+        }).state;
+        const view = new EditorView({
+            parent,
+            state,
+        });
+        jest.spyOn(view, 'coordsAtPos').mockReturnValue({
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+        });
+
+        view.dispatch({
+            effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+        });
+
+        expect(view.state.selection.main.anchor).toBe(selectionFrom);
+        expect(view.state.selection.main.head).toBe(selectionTo);
 
         view.destroy();
     });
