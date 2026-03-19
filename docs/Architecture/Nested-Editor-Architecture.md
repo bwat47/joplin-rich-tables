@@ -18,7 +18,8 @@ Managed by `contentScript/tableRuntime/nestedEditorLifecycle.ts`.
 
 `setActiveCellEffect` stores stable logical cell identity: `tableFrom` plus `section/row/col`. Any cursor placement for
 opening is passed separately as transient selection-anchor data. The lifecycle plugin resolves raw table/cell offsets from
-current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
+current editor state immediately before opening the isolated editor, including the one-time normalization-before-open
+check for user-driven entry. Ongoing mount/sync/close behavior is handled by `nestedEditor/nestedEditorController.ts`.
 
 **Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
@@ -37,7 +38,7 @@ The lifecycle plugin remains responsible only for executing nested-editor side e
 ### Edit Sync Cycle
 
 1. User types in the isolated editor.
-2. `ActiveCellSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
+2. `NestedEditorSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
 4. If normalization rewrites the whole table first, it also dispatches a reopen intent so lifecycle can reopen after rebuild.
 5. After root dispatch, the session refreshes its derived absolute ranges from the current active-cell identity.
@@ -47,7 +48,7 @@ The lifecycle plugin remains responsible only for executing nested-editor side e
 
 Joplin toolbar reads main editor selection, so nested must mirror upward.
 
-1. `ActiveCellSession` watches local selection changes.
+1. `NestedEditorSession` watches local selection changes.
 2. It mirrors the mapped absolute selection to the main editor (`syncAnnotation` + `addToHistory: false`).
 3. Root-owned commands update the authoritative root selection/doc.
 4. The session rebases the isolated editor selection from the resulting root cell text.

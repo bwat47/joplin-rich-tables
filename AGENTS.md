@@ -30,7 +30,7 @@ Start here when exploring the codebase:
 | `src/contentScript/tableWidget/tableWidgetExtension.ts`  | Main wiring; connects all plugins/styles.  |
 | `src/contentScript/tableRuntime/nestedEditorLifecycle.ts` | Nested editor state, sync triggers.        |
 | `src/contentScript/tableWidget/TableWidget.ts`           | Widget rendering, cell coordinate mapping. |
-| `src/contentScript/nestedEditor/nestedCellEditor.ts`     | Nested editor implementation.              |
+| `src/contentScript/nestedEditor/nestedEditorController.ts` | Nested editor mount/sync/close logic.      |
 
 ## Common Pitfalls
 

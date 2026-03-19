@@ -1,21 +1,33 @@
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import {
+    clearActiveCellEffect,
+    getActiveCell,
+    isSameActiveCell,
+    setActiveCellEffect,
+} from '../tableState/activeCellState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
-import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { resolveActiveCell } from './activeCellResolver';
 import {
-    closeNestedCellEditor,
-    handleMainEditorUpdateForNestedEditor,
-    isNestedCellEditorOpen,
-    openNestedCellEditor,
-} from '../nestedEditor/nestedCellEditor';
-import { clearPendingCellOpen, consumePendingCellOpenOptions } from '../nestedEditor/pendingCellOpen';
+    closeNestedEditor,
+    handleMainEditorUpdate,
+    isNestedEditorOpen,
+    openNestedEditor,
+} from '../nestedEditor/nestedEditorController';
+import {
+    clearPendingCellOpen,
+    consumePendingCellOpenOptions,
+    rememberPendingCellOpen,
+} from '../nestedEditor/pendingCellOpen';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { findTableRanges } from './tablePositioning';
+import { createActiveCellForTableText } from './activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from './cellActivation';
 import { releasePendingNavigationCallback } from './navigationLock';
+import { requestOpenActiveCellEffect } from './activeCellOpen';
+import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import {
     buildTableRuntimeEvent,
     buildTableRuntimeSnapshot,
@@ -52,6 +64,63 @@ function getInsertedTableActivationRequest(update: ViewUpdate) {
     return null;
 }
 
+function normalizeTableBeforeOpen(params: {
+    view: EditorView;
+    activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
+    normalizeIfNeeded: boolean;
+    initialCursorPos?: 'start' | 'end';
+}): boolean {
+    if (!params.normalizeIfNeeded) {
+        return false;
+    }
+
+    const resolved = resolveActiveCell(params.view.state, params.activeCell);
+    if (!resolved) {
+        return false;
+    }
+
+    const canonicalText = getCanonicalTableTextIfChanged(resolved.ctx);
+    if (!canonicalText) {
+        return false;
+    }
+
+    const nextActiveCell = createActiveCellForTableText({
+        tableFrom: resolved.tableFrom,
+        tableText: canonicalText,
+        target: params.activeCell,
+    });
+    if (!nextActiveCell) {
+        return true;
+    }
+
+    if (params.initialCursorPos) {
+        rememberPendingCellOpen(params.view, nextActiveCell.activeCell, {
+            initialCursorPos: params.initialCursorPos,
+        });
+    }
+
+    params.view.dispatch({
+        changes: {
+            from: resolved.tableFrom,
+            to: resolved.tableTo,
+            insert: canonicalText,
+        },
+        selection: { anchor: nextActiveCell.selectionAnchor },
+        effects: [
+            setActiveCellEffect.of(nextActiveCell.activeCell),
+            requestOpenActiveCellEffect.of({
+                activeCell: nextActiveCell.activeCell,
+                normalizeIfNeeded: false,
+            }),
+            rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
+        ],
+        annotations: normalizeBeforeEditAnnotation.of(true),
+        scrollIntoView: false,
+    });
+
+    return true;
+}
+
 // ============================================================================
 // Plugin Definition
 // ============================================================================
@@ -71,7 +140,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         update(update: ViewUpdate): void {
             const snapshot = buildTableRuntimeSnapshot({
                 update,
-                nestedEditorOpen: isNestedCellEditorOpen(this.view),
+                nestedEditorOpen: isNestedEditorOpen(this.view),
                 hadActiveCell: this.hadActiveCell,
                 pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
             });
@@ -148,9 +217,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     case 'closeNestedEditor':
                         if (action.useResolvedRangeFromUpdate) {
-                            closeNestedCellEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
+                            closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
                         } else {
-                            closeNestedCellEditor(this.view);
+                            closeNestedEditor(this.view);
                         }
                         break;
                     case 'openNestedEditor':
@@ -182,20 +251,30 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                             const pendingOptions = consumePendingCellOpenOptions(this.view, action.activeCell);
 
-                            openNestedCellEditor({
+                            if (
+                                normalizeTableBeforeOpen({
+                                    view: this.view,
+                                    activeCell: resolvedActiveCell.activeCell,
+                                    normalizeIfNeeded: action.normalizeIfNeeded,
+                                    initialCursorPos: pendingOptions?.initialCursorPos,
+                                })
+                            ) {
+                                return;
+                            }
+
+                            openNestedEditor({
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
-                                normalizeIfNeeded: action.normalizeIfNeeded,
                                 initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });
                         break;
                     case 'syncMainDocToNested':
-                        handleMainEditorUpdateForNestedEditor(this.view, update);
+                        handleMainEditorUpdate(this.view, update);
                         break;
                     case 'syncMainSelectionToNested':
-                        handleMainEditorUpdateForNestedEditor(this.view, update);
+                        handleMainEditorUpdate(this.view, update);
                         break;
                     case 'clearActiveCell':
                         clearPendingCellOpen(this.view);
@@ -207,7 +286,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         destroy(): void {
             clearPendingCellOpen(this.view);
-            closeNestedCellEditor(this.view);
+            closeNestedEditor(this.view);
         }
     }
 );

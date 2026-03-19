@@ -1,6 +1,6 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { renderer } from '../services/markdownRenderer';
-import { cleanupHostedEditors } from '../nestedEditor/nestedCellEditor';
+import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
@@ -284,7 +284,7 @@ export class TableWidget extends WidgetType {
         // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
         const view = widgetViews.get(dom);
         if (view) {
-            cleanupHostedEditors(view, dom);
+            cleanupHostedNestedEditors(view, dom);
         }
     }
 }
