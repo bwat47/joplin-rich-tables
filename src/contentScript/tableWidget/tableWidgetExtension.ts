@@ -13,8 +13,8 @@ import { activeCellField, clearActiveCellEffect, getActiveCell } from '../tableS
 import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
-import { cellSelectionClipboardPlugin } from '../tableRuntime/cellSelectionClipboard';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
+import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
+import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
 import { isNestedEditorOpen, nestedEditorPlugin, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
@@ -23,12 +23,12 @@ import { findTableRanges } from '../tableRuntime/tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
-import { nestedEditorLifecyclePlugin } from '../tableRuntime/nestedEditorLifecycle';
+import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from '../tableRuntime/searchPanelWatcher';
 import { navigationLockKeymap } from './navigationLockKeymap';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
-import { moveCursorOutOfTable } from '../tableRuntime/cursorUtils';
+import { moveCursorOutOfTable } from '../tableRuntime/navigation/cursorUtils';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 /**

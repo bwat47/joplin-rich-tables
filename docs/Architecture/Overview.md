@@ -6,7 +6,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 - `tableModel/`: pure table parsing, serialization, and table math.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions and selectors.
-- `tableRuntime/`: editor-bound orchestration, lifecycle, navigation, and mutation helpers.
+- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.
@@ -33,18 +33,18 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Core Components
 
-| Component     | File                                                   | Purpose                                                    |
-| :------------ | :----------------------------------------------------- | :--------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`    | Main entry point; connects plugins, styles, commands.      |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`             | HTML rendering, click-to-cell coordinate mapping.          |
-| **Lifecycle** | `contentScript/tableRuntime/nestedEditorLifecycle.ts`  | Nested editor open/close state, synchronization triggers.  |
-| **Styles**    | `contentScript/tableWidget/tableStyles.ts`             | CSS-in-JS for theme consistency.                           |
-| **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts` | Nested editor mount/sync/close behavior.                   |
-| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`            | Normalized table model, parsing, serialization, mutations. |
-| **Context**   | `contentScript/tableModel/tableContext.ts`             | Shared parsed table + cell ranges + table span.            |
-| **State**     | `contentScript/tableState/activeCellState.ts`          | Logical active-cell state and effect wiring.               |
-| **Runtime**   | `contentScript/tableRuntime/tableOperations.ts`        | Table mutation orchestration and target-cell rebasing.     |
-| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`          | Floating UI for row/column/alignment actions.              |
+| Component     | File                                                            | Purpose                                                    |
+| :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------- |
+| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`             | Main entry point; connects plugins, styles, commands.      |
+| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering, click-to-cell coordinate mapping.          |
+| **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.  |
+| **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                           |
+| **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                   |
+| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, parsing, serialization, mutations. |
+| **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.            |
+| **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.               |
+| **Runtime**   | `contentScript/tableRuntime/operations/tableOperations.ts`      | Table mutation orchestration and target-cell rebasing.     |
+| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row/column/alignment actions.              |
 
 ## Data Flow
 
@@ -55,13 +55,13 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 ### 2. Interaction
 
 Cell click / navigation / selection focus → widget/runtime logic resolves row/column → dispatches
-`setActiveCellEffect` plus an open-intent effect → `tableRuntime/nestedEditorLifecycle` mounts the nested editor.
+`setActiveCellEffect` plus an open-intent effect → `tableRuntime/lifecycle/nestedEditorLifecycle` mounts the nested editor.
 
 `ActiveCell` is logical-first state: it persists `tableFrom` plus `section/row/col`. Cursor placement such as
 the main-editor selection anchor is transient request data, not part of persisted active-cell identity. Raw offsets
 such as `tableTo` and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
 
-Before lifecycle opens the nested editor for user-driven entry, `nestedEditorLifecycle.ts` checks whether the table markdown
+Before lifecycle opens the nested editor for user-driven entry, `tableRuntime/lifecycle/nestedEditorLifecycle.ts` checks whether the table markdown
 is already in the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical
 target cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested editor. Lifecycle reopens
 used for undo/redo or UI restoration skip that normalization step. Passive parsing/rendering never mutates document text.
@@ -103,8 +103,8 @@ derive current table/cell offsets for the persisted logical active-cell state.
 
 Table editing transition logic is split by responsibility:
 
-- `tableRuntime/lifecyclePolicy.ts` is pure lifecycle policy: it inspects `ViewUpdate` state and returns declarative lifecycle actions.
-- `tableRuntime/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
+- `tableRuntime/lifecycle/lifecyclePolicy.ts` is pure lifecycle policy: it inspects `ViewUpdate` state and returns declarative lifecycle actions.
+- `tableRuntime/lifecycle/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
 - `editorBridge/mainEditorGuardPolicy.ts` owns main-editor transaction filtering and paste rewrite decisions while nested editing is active.
 - `tableWidget/tableDecorationPolicy.ts` owns block-decoration rebuild decisions.
 - `nestedEditor/nestedEditorController.ts` owns nested editor mount, local/root synchronization, selection mirroring, and session invalidation.
@@ -129,7 +129,7 @@ flowchart TB
 
     subgraph Main["Main Editor"]
         ME["Main EditorView"]
-        LC["tableRuntime/nestedEditorLifecycle.ts"]
+        LC["tableRuntime/lifecycle/nestedEditorLifecycle.ts"]
     end
 
     K --> DH

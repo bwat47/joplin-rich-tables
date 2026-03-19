@@ -1,7 +1,7 @@
 import type { EditorState } from '@codemirror/state';
-import { resolveTableForActiveCell } from './tablePositioning';
-import type { ActiveCell } from '../tableState/activeCellState';
-import type { TableContext } from '../tableModel/tableContext';
+import { resolveTableForActiveCell } from '../tablePositioning';
+import type { ActiveCell } from '../../tableState/activeCellState';
+import type { TableContext } from '../../tableModel/tableContext';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;

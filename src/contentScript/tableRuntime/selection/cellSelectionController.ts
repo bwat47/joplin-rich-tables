@@ -1,6 +1,6 @@
 import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     fromUnifiedRow,
@@ -11,9 +11,9 @@ import {
     toUnifiedRow,
     type CellSelection,
     type CellSelectionDirection,
-} from '../tableState/cellSelectionState';
-import { resolveCellDocRange, resolveTableContextAtPos } from './tablePositioning';
-import type { CellCoords } from '../tableModel/types';
+} from '../../tableState/cellSelectionState';
+import { resolveCellDocRange, resolveTableContextAtPos } from '../tablePositioning';
+import type { CellCoords } from '../../tableModel/types';
 
 function getTableBounds(view: EditorView, tableFrom: number): { totalRows: number; totalCols: number } | null {
     const ctx = resolveTableContextAtPos(view.state, tableFrom);

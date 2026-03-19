@@ -1,16 +1,16 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { activateCellAtPosition } from '../tableRuntime/cellActivation';
+import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
-import { navigateCell } from '../tableRuntime/tableNavigation';
+import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 import { resetNavigationLock } from '../tableRuntime/navigationLock';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 

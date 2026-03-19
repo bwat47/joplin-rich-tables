@@ -1,5 +1,5 @@
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { resolveActivationTargetCell } from '../tableRuntime/cellActivation';
+import { resolveActivationTargetCell } from '../tableRuntime/activeCell/cellActivation';
 import type { ActiveCell } from '../tableState/activeCellState';
 
 const tableText = ['| H1 | H2 |', '| --- | --- |', '| aaa bbb ccc | zzz |'].join('\n');

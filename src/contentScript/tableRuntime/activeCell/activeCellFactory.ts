@@ -1,11 +1,11 @@
-import type { TableCellRanges } from '../tableModel/markdownTableCellRanges';
+import type { TableCellRanges } from '../../tableModel/markdownTableCellRanges';
 import {
     computeCellAnchorForTableText,
     computeCellAnchorFromRanges,
     type TargetCell,
     type TableCellAnchor,
-} from '../tableModel/activeCellForTableText';
-import type { ActiveCell } from '../tableState/activeCellState';
+} from '../../tableModel/activeCellForTableText';
+import type { ActiveCell } from '../../tableState/activeCellState';
 
 export interface ActiveCellSelectionTarget {
     activeCell: ActiveCell;

@@ -1,16 +1,19 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
-import { getActiveCell, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
-import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
-import { exitSearchForceSourceModeEffect, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
+import { getActiveCell, isSameActiveCell, type ActiveCell } from '../../tableState/activeCellState';
+import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
+import {
+    exitSearchForceSourceModeEffect,
+    setSearchForceSourceModeEffect,
+} from '../../tableState/searchForceSourceMode';
+import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
+import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { syncAnnotation } from '../../editorBridge/syncAnnotation';
+import { resolveActiveCell, type ResolvedActiveCell } from '../activeCell/activeCellResolver';
+import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { isStructuralTableChange } from './structuralChangeDetection';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
-import { requestOpenActiveCellEffect, type OpenActiveCellRequest } from './activeCellOpen';
+import { requestOpenActiveCellEffect, type OpenActiveCellRequest } from '../activeCell/activeCellOpen';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;

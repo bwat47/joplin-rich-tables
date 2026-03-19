@@ -3,9 +3,9 @@ import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
-import { startCellSelectionFromActiveCell } from '../tableRuntime/cellSelectionController';
-import { navigateCell } from '../tableRuntime/tableNavigation';
-import { handleTableClipboardTextPaste } from '../tableRuntime/cellSelectionClipboard';
+import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
+import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
+import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 
 function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
     const activeCellBefore = getActiveCell(mainView.state);

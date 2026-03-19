@@ -1,10 +1,10 @@
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
-import type { TargetCell } from '../tableModel/activeCellForTableText';
-import { resolveActiveCell } from './activeCellResolver';
-import { activateTableCell } from './cellActivation';
+import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
+import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
+import type { TargetCell } from '../../tableModel/activeCellForTableText';
+import { resolveActiveCell } from '../activeCell/activeCellResolver';
+import { activateTableCell } from '../activeCell/cellActivation';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runTableOperation } from './runTableOperation';
 

@@ -4,13 +4,19 @@ import { getCellSelection } from '../tableState/cellSelectionState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
-import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
-import { buildMultiCellPasteRewrite, type TableClipboardRewrite } from '../tableRuntime/cellSelectionClipboard';
-import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from '../tableRuntime/pasteTableNormalizer';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import {
+    buildMultiCellPasteRewrite,
+    type TableClipboardRewrite,
+} from '../tableRuntime/selection/cellSelectionClipboard';
+import {
+    buildRootTablePasteRewrite,
+    type RootTablePasteRewrite,
+} from '../tableRuntime/operations/pasteTableNormalizer';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
-import { mapSelectionRange } from '../tableRuntime/lifecyclePolicy';
+import { mapSelectionRange } from '../tableRuntime/lifecycle/lifecyclePolicy';
 
 export type GuardDecision =
     | { type: 'allowTransaction' }

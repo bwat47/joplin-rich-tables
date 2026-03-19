@@ -22,7 +22,7 @@ import {
     handleTableClipboardTextPaste,
     parseMarkdownTableClipboard,
     resolveTableClipboardTarget,
-} from '../tableRuntime/cellSelectionClipboard';
+} from '../tableRuntime/selection/cellSelectionClipboard';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const doc = ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | b\\|c |  |', '| x | <br> | z |'].join('\n');

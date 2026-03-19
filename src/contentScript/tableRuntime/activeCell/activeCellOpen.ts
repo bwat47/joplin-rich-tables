@@ -1,9 +1,9 @@
 import { StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
-import { setPendingNavigationCallback } from './navigationLock';
-import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
+import { setActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
+import { clearCellSelectionEffect } from '../../tableState/cellSelectionState';
+import { setPendingNavigationCallback } from '../navigationLock';
+import { rememberPendingCellOpen } from '../../nestedEditor/pendingCellOpen';
 
 export interface OpenActiveCellRequest {
     activeCell: ActiveCell;

@@ -9,7 +9,7 @@ import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSe
 import {
     canHandleTableClipboardShortcut,
     canHandleTableSelectionShortcut,
-} from '../tableRuntime/cellSelectionShortcutScope';
+} from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 

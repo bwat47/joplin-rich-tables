@@ -1,6 +1,6 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/markdownTableCellRanges';
-import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory';
+import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import type { ActiveCell } from '../tableState/activeCellState';
 
 function sliceCellText(tableText: string, activeCell: ActiveCell): string {

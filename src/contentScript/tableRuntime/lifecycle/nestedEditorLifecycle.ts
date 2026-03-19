@@ -4,29 +4,29 @@ import {
     getActiveCell,
     isSameActiveCell,
     setActiveCellEffect,
-} from '../tableState/activeCellState';
-import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
-import { isEffectiveRawMode } from '../tableState/sourceMode';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { resolveActiveCell } from './activeCellResolver';
+} from '../../tableState/activeCellState';
+import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { resolveActiveCell } from '../activeCell/activeCellResolver';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
     isNestedEditorOpen,
     openNestedEditor,
-} from '../nestedEditor/nestedEditorController';
+} from '../../nestedEditor/nestedEditorController';
 import {
     clearPendingCellOpen,
     consumePendingCellOpenOptions,
     rememberPendingCellOpen,
-} from '../nestedEditor/pendingCellOpen';
-import { findCellElement } from '../tableWidget/domHelpers';
-import { makeTableId } from '../tableModel/types';
-import { findTableRanges } from './tablePositioning';
-import { createActiveCellForTableText } from './activeCellFactory';
-import { activateCellAtPosition, activateTableCell } from './cellActivation';
-import { releasePendingNavigationCallback } from './navigationLock';
-import { requestOpenActiveCellEffect } from './activeCellOpen';
+} from '../../nestedEditor/pendingCellOpen';
+import { findCellElement } from '../../tableWidget/domHelpers';
+import { makeTableId } from '../../tableModel/types';
+import { findTableRanges } from '../tablePositioning';
+import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
+import { releasePendingNavigationCallback } from '../navigationLock';
+import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import {
     buildTableRuntimeEvent,

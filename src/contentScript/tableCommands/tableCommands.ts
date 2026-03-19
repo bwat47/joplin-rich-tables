@@ -18,7 +18,7 @@ import {
     execMoveRowUp,
     execUpdateAlignment,
     insertTableAndActivate,
-} from '../tableRuntime/tableOperations';
+} from '../tableRuntime/operations/tableOperations';
 
 /**
  * Editor control interface provided by Joplin

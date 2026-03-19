@@ -1,17 +1,17 @@
 import { EditorView } from '@codemirror/view';
-import { getActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from './activeCellResolver';
-import { resolveCellDocRange } from './tablePositioning';
-import { execInsertRowAtBottom } from './tableOperations';
-import { type CellCoords } from '../tableModel/types';
-import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
+import { getActiveCell } from '../../tableState/activeCellState';
+import { resolveActiveCell } from '../activeCell/activeCellResolver';
+import { resolveCellDocRange } from '../tablePositioning';
+import { execInsertRowAtBottom } from '../operations/tableOperations';
+import { type CellCoords } from '../../tableModel/types';
+import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
 import {
     isNavigationLocked,
     acquireNavigationLock,
     releaseNavigationLock,
     setPendingNavigationCallback,
-} from './navigationLock';
-import { selectAndRequestOpenActiveCell } from './activeCellOpen';
+} from '../navigationLock';
+import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
 
 export function navigateCell(
     view: EditorView,

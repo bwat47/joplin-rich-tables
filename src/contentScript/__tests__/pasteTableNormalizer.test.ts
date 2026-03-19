@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { createMarkdownState } from './testMarkdownState';
-import { buildRootTablePasteRewrite, parseSinglePastedTable } from '../tableRuntime/pasteTableNormalizer';
+import { buildRootTablePasteRewrite, parseSinglePastedTable } from '../tableRuntime/operations/pasteTableNormalizer';
 
 const NON_CANONICAL_TABLE = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_TABLE = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');

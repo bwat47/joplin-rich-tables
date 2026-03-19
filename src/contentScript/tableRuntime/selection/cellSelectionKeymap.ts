@@ -1,14 +1,14 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { getActiveCell } from '../tableState/activeCellState';
-import { createActiveCellFromRanges } from './activeCellFactory';
+import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import { getActiveCell } from '../../tableState/activeCellState';
+import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
-import { resolveTableAtPos } from './tablePositioning';
-import { buildTableContext } from '../tableModel/tableContext';
+import { resolveTableAtPos } from '../tablePositioning';
+import { buildTableContext } from '../../tableModel/tableContext';
 import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
-import { selectAndRequestOpenActiveCell } from './activeCellOpen';
+import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
 
 function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     if (getCellSelection(view.state)) {

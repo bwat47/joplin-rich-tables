@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { findTableRanges } from './tablePositioning';
+import { findTableRanges } from '../tablePositioning';
 
 export function moveCursorOutOfTable(view: EditorView, offset: number = 1): boolean {
     const tables = findTableRanges(view.state);

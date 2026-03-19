@@ -1,7 +1,7 @@
 import { EditorSelection } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
+import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
@@ -11,13 +11,13 @@ import {
     setCellSelectionEffect,
     toSelectionRect,
     type CellSelection,
-} from '../tableState/cellSelectionState';
-import { createActiveCellForTableText } from './activeCellFactory';
-import { resolveTableContextAtPos } from './tablePositioning';
-import { getCellRange } from '../tableModel/markdownTableCellRanges';
-import type { CellCoords } from '../tableModel/types';
+} from '../../tableState/cellSelectionState';
+import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { resolveTableContextAtPos } from '../tablePositioning';
+import { getCellRange } from '../../tableModel/markdownTableCellRanges';
+import type { CellCoords } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
-import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
+import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 
 export interface TableClipboardTarget {
     tableFrom: number;

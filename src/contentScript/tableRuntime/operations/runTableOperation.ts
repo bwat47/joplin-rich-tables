@@ -1,11 +1,11 @@
 import { EditorView } from '@codemirror/view';
 import type { StateEffect } from '@codemirror/state';
-import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
-import type { TargetCell } from '../tableModel/activeCellForTableText';
-import { createActiveCellForTableText } from './activeCellFactory';
-import { resolveActiveCell } from './activeCellResolver';
+import { setActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
+import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { MarkdownTable } from '../../tableModel/MarkdownTable';
+import type { TargetCell } from '../../tableModel/activeCellForTableText';
+import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { resolveActiveCell } from '../activeCell/activeCellResolver';
 
 function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
