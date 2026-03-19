@@ -4,7 +4,6 @@ import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
@@ -13,20 +12,7 @@ import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEd
 import { resetNavigationLock } from '../tableRuntime/navigationLock';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
 
-const openActiveCellSessionMock = jest.fn();
-
-jest.mock('../nestedEditor/activeCellSession', () => ({
-    activeCellSessionPlugin: {},
-    cleanupHostedActiveCellSessions: jest.fn(),
-    closeActiveCellSession: jest.fn(),
-    handleMainEditorSessionUpdate: jest.fn(),
-    isActiveCellSessionOpen: jest.fn(() => false),
-    openActiveCellSession: (...args: unknown[]) => openActiveCellSessionMock(...args),
-    refocusActiveCellSession: jest.fn(),
-}));
-
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
-const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 
 interface CellStub {
     dataset: Record<string, string>;
@@ -140,13 +126,11 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
 
 describe('interactive cell normalization', () => {
     beforeEach(() => {
-        openActiveCellSessionMock.mockReset();
         resetNavigationLock();
     });
 
     afterEach(() => {
         resetNavigationLock();
-        openActiveCellSessionMock.mockReset();
     });
 
     it('normalizes on mousedown cell activation before opening the nested editor', () => {
@@ -167,7 +151,6 @@ describe('interactive cell normalization', () => {
             col: 0,
         });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
-        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
     it('starts rectangular selection on shift-click from the active cell', () => {
@@ -195,7 +178,6 @@ describe('interactive cell normalization', () => {
             anchor: { section: 'header', row: 0, col: 0 },
             focus: { section: 'body', row: 0, col: 1 },
         });
-        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
     it('clears an existing selection before activating a clicked cell', () => {
@@ -236,7 +218,6 @@ describe('interactive cell normalization', () => {
             col: 0,
         });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
-        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
     it('can skip normalization on cursor activation for lifecycle-driven re-entry', () => {
@@ -246,7 +227,6 @@ describe('interactive cell normalization', () => {
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
         expect(openRequest?.value).toMatchObject({ normalizeIfNeeded: false });
-        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
     it('normalizes on keyboard navigation before reopening the target cell', () => {
@@ -269,58 +249,10 @@ describe('interactive cell normalization', () => {
             col: 1,
         });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
-        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
         expect(consumePendingCellOpenOptions(view, activeCell!)).toEqual({
             initialCursorPos: 'end',
         });
 
         clearPendingCellOpen(view);
-    });
-
-    it('normalizes directly through the shared nested-editor gate', () => {
-        const { view, cells } = createViewHarness({
-            activeCell: {
-                tableFrom: 0,
-                section: 'body',
-                row: 0,
-                col: 0,
-            },
-        });
-
-        openNestedCellEditor({
-            mainView: view,
-            cellElement: cells.body0,
-            activeCell: getActiveCell(view.state)!,
-            normalizeIfNeeded: true,
-        });
-
-        expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
-        expect(getActiveCell(view.state)).toMatchObject({
-            section: 'body',
-            row: 0,
-            col: 0,
-        });
-        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
-    });
-
-    it('skips normalization when the shared open path is used for lifecycle-style reopen', () => {
-        const { view, cells } = createViewHarness({
-            activeCell: {
-                tableFrom: 0,
-                section: 'body',
-                row: 0,
-                col: 0,
-            },
-        });
-
-        openNestedCellEditor({
-            mainView: view,
-            cellElement: cells.body0,
-            activeCell: getActiveCell(view.state)!,
-            normalizeIfNeeded: false,
-        });
-
-        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
-        expect(openActiveCellSessionMock).toHaveBeenCalledTimes(1);
     });
 });

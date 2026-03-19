@@ -17,7 +17,7 @@ import { resolveTableContextAtPos } from './tablePositioning';
 import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
-import { isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
+import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 
 export interface TableClipboardTarget {
     tableFrom: number;
@@ -481,7 +481,7 @@ export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
             };
             this.onPaste = (event) => {
                 handleTableClipboardPaste(event, this.view, {
-                    nestedEditorOpen: isNestedCellEditorOpen(this.view),
+                    nestedEditorOpen: isNestedEditorOpen(this.view),
                 });
             };
 

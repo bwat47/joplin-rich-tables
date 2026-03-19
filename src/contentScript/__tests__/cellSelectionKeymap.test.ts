@@ -2,12 +2,6 @@
  * @jest-environment jsdom
  */
 
-const openNestedCellEditorMock = jest.fn();
-
-jest.mock('../nestedEditor/nestedCellEditor', () => ({
-    openNestedCellEditor: (...args: unknown[]) => openNestedCellEditorMock.apply(null, args),
-}));
-
 jest.mock('../tableWidget/domHelpers', () => ({
     findCellElement: jest.fn(() => ({})),
 }));
@@ -26,10 +20,6 @@ const markdownExtension = markdown({
 });
 
 describe('cellSelectionKeymap', () => {
-    beforeEach(() => {
-        openNestedCellEditorMock.mockReset();
-    });
-
     it('routes undo through the main editor while a multi-cell selection is active', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
@@ -285,7 +275,6 @@ describe('cellSelectionKeymap', () => {
         const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
         const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
         expect(effects.some((effect) => effect?.is?.(requestOpenActiveCellEffect))).toBe(true);
-        expect(openNestedCellEditorMock).not.toHaveBeenCalled();
 
         view.destroy();
     });

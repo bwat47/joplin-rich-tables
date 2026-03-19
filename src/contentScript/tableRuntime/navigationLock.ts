@@ -54,7 +54,7 @@ export function setPendingNavigationCallback(callback: () => void): void {
 
 /**
  * Gets and clears the pending navigation callback.
- * Called by openNestedCellEditor to invoke the callback after focus.
+ * Called by openNestedEditor to invoke the callback after focus.
  */
 export function consumePendingNavigationCallback(): (() => void) | null {
     const callback = pendingReleaseCallback;

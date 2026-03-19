@@ -33,18 +33,18 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Core Components
 
-| Component     | File                                                 | Purpose                                                    |
-| :------------ | :--------------------------------------------------- | :--------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`  | Main entry point; connects plugins, styles, commands.      |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`           | HTML rendering, click-to-cell coordinate mapping.          |
-| **Lifecycle** | `contentScript/tableRuntime/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.  |
-| **Styles**    | `contentScript/tableWidget/tableStyles.ts`           | CSS-in-JS for theme consistency.                           |
-| **Editor**    | `contentScript/nestedEditor/nestedCellEditor.ts`     | Public facade over the active-cell session editor.         |
-| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`          | Normalized table model, parsing, serialization, mutations. |
-| **Context**   | `contentScript/tableModel/tableContext.ts`           | Shared parsed table + cell ranges + table span.            |
-| **State**     | `contentScript/tableState/activeCellState.ts`        | Logical active-cell state and effect wiring.               |
-| **Runtime**   | `contentScript/tableRuntime/tableOperations.ts`      | Table mutation orchestration and target-cell rebasing.     |
-| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`        | Floating UI for row/column/alignment actions.              |
+| Component     | File                                                   | Purpose                                                    |
+| :------------ | :----------------------------------------------------- | :--------------------------------------------------------- |
+| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`    | Main entry point; connects plugins, styles, commands.      |
+| **Rendering** | `contentScript/tableWidget/TableWidget.ts`             | HTML rendering, click-to-cell coordinate mapping.          |
+| **Lifecycle** | `contentScript/tableRuntime/nestedEditorLifecycle.ts`  | Nested editor open/close state, synchronization triggers.  |
+| **Styles**    | `contentScript/tableWidget/tableStyles.ts`             | CSS-in-JS for theme consistency.                           |
+| **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts` | Nested editor mount/sync/close behavior.                   |
+| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`            | Normalized table model, parsing, serialization, mutations. |
+| **Context**   | `contentScript/tableModel/tableContext.ts`             | Shared parsed table + cell ranges + table span.            |
+| **State**     | `contentScript/tableState/activeCellState.ts`          | Logical active-cell state and effect wiring.               |
+| **Runtime**   | `contentScript/tableRuntime/tableOperations.ts`        | Table mutation orchestration and target-cell rebasing.     |
+| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`          | Floating UI for row/column/alignment actions.              |
 
 ## Data Flow
 
@@ -61,14 +61,14 @@ Cell click / navigation / selection focus → widget/runtime logic resolves row/
 the main-editor selection anchor is transient request data, not part of persisted active-cell identity. Raw offsets
 such as `tableTo` and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
 
-Before lifecycle opens the nested editor for user-driven entry, `nestedCellEditor.ts` checks whether the table markdown is
-already in the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical target
-cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested editor. Lifecycle reopens used for
-undo/redo or UI restoration skip that normalization step. Passive parsing/rendering never mutates document text.
+Before lifecycle opens the nested editor for user-driven entry, `nestedEditorLifecycle.ts` checks whether the table markdown
+is already in the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical
+target cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested editor. Lifecycle reopens
+used for undo/redo or UI restoration skip that normalization step. Passive parsing/rendering never mutates document text.
 
 ### 3. Synchronization
 
-Typing in the isolated cell editor goes through the `ActiveCellSession` bridge:
+Typing in the isolated cell editor goes through the `NestedEditorSession` bridge:
 
 - `editorBridge/cellTextCodec.ts` sanitizes local display text and selection into authoritative root cell text and selection.
 - The main editor applies the change with `editorBridge/syncAnnotation.ts`.
@@ -107,11 +107,12 @@ Table editing transition logic is split by responsibility:
 - `tableRuntime/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
 - `editorBridge/mainEditorGuardPolicy.ts` owns main-editor transaction filtering and paste rewrite decisions while nested editing is active.
 - `tableWidget/tableDecorationPolicy.ts` owns block-decoration rebuild decisions.
-- `nestedEditor/activeCellSession.ts` owns local/root synchronization, selection mirroring, and session invalidation.
+- `nestedEditor/nestedEditorController.ts` owns nested editor mount, local/root synchronization, selection mirroring, and session invalidation.
 - `editorBridge/cellTextCodec.ts` and `editorBridge/syncAnnotation.ts` own the cross-editor text/selection protocol.
 
-`nestedEditor/nestedCellEditor.ts` is a lifecycle-internal gate: non-lifecycle modules should request opening via effects,
-not import it directly.
+Non-lifecycle modules should request nested-editor opening via effects, and
+`nestedEditorLifecycle.ts` decides whether to normalize before delegating mount/sync/close behavior to
+`nestedEditor/nestedEditorController.ts`.
 
 **Sync Flow Diagram**:
 
@@ -122,7 +123,7 @@ flowchart TB
     end
 
     subgraph Nested["Nested Editor (isolated cell editor)"]
-        NE["activeCellSession.ts"]
+        NE["nestedEditorController.ts"]
         DH["domHandlers.ts"]
     end
 

@@ -19,11 +19,13 @@ import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
-const nestedCellEditorMock = jest.requireMock('../nestedEditor/nestedCellEditor') as {
-    closeNestedCellEditor: jest.Mock;
-    isNestedCellEditorOpen: jest.Mock;
-    openNestedCellEditor: jest.Mock;
+const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
+    closeNestedEditor: jest.Mock;
+    isNestedEditorOpen: jest.Mock;
+    openNestedEditor: jest.Mock;
 };
+const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 
 jest.mock('../tableRuntime/cellActivation', () => ({
     activateCellAtPosition: jest.fn(),
@@ -35,26 +37,35 @@ jest.mock('../tableWidget/domHelpers', () => ({
         findCellElementMock(view, tableId, activeCell),
 }));
 
-jest.mock('../nestedEditor/nestedCellEditor', () => ({
-    closeNestedCellEditor: jest.fn(),
-    handleMainEditorUpdateForNestedEditor: jest.fn(),
-    isNestedCellEditorOpen: jest.fn(() => false),
-    openNestedCellEditor: jest.fn(),
+jest.mock('../nestedEditor/nestedEditorController', () => ({
+    closeNestedEditor: jest.fn(),
+    handleMainEditorUpdate: jest.fn(),
+    isNestedEditorOpen: jest.fn(() => false),
+    openNestedEditor: jest.fn(),
 }));
 
 describe('nestedEditorLifecycle', () => {
     const originalRequestAnimationFrame = global.requestAnimationFrame;
+    let animationFrameQueue: FrameRequestCallback[] = [];
+
+    const flushAnimationFrames = (): void => {
+        while (animationFrameQueue.length > 0) {
+            const callback = animationFrameQueue.shift();
+            callback?.(0);
+        }
+    };
 
     beforeEach(() => {
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
-        nestedCellEditorMock.closeNestedCellEditor.mockReset();
-        nestedCellEditorMock.isNestedCellEditorOpen.mockReset();
-        nestedCellEditorMock.openNestedCellEditor.mockReset();
-        nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(false);
+        nestedEditorControllerMock.closeNestedEditor.mockReset();
+        nestedEditorControllerMock.isNestedEditorOpen.mockReset();
+        nestedEditorControllerMock.openNestedEditor.mockReset();
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
+        animationFrameQueue = [];
         global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
-            callback(0);
-            return 1;
+            animationFrameQueue.push(callback);
+            return animationFrameQueue.length;
         }) as typeof requestAnimationFrame;
     });
 
@@ -87,6 +98,7 @@ describe('nestedEditorLifecycle', () => {
                 target: { section: 'header', row: 0, col: 0 },
             }),
         });
+        flushAnimationFrames();
 
         expect(activateTableCellMock).toHaveBeenCalledWith(view, 42, {
             section: 'header',
@@ -98,7 +110,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('passes the mapped cell range when undo or redo closes the nested editor', () => {
-        nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(true);
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell: ActiveCell = {
@@ -134,7 +146,7 @@ describe('nestedEditorLifecycle', () => {
             throw new Error('Expected resolved active cell after redo');
         }
 
-        expect(nestedCellEditorMock.closeNestedCellEditor).toHaveBeenCalledWith(view, {
+        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, {
             cellFrom: resolved.cellFrom,
             cellTo: resolved.cellTo,
         });
@@ -143,7 +155,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('does not pass a resolved range when force rebuild closes the nested editor', () => {
-        nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(true);
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell: ActiveCell = {
@@ -183,18 +195,18 @@ describe('nestedEditorLifecycle', () => {
             ],
         });
 
-        expect(nestedCellEditorMock.closeNestedCellEditor).toHaveBeenCalledWith(view);
+        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
 
         view.destroy();
     });
 
-    it('opens the nested editor only when an open request effect is dispatched', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+    it('opens the nested editor directly when no normalization is requested', () => {
+        const doc = NON_CANONICAL_DOC;
         const activeCell: ActiveCell = {
             tableFrom: 0,
             section: 'header',
             row: 0,
-            col: 1,
+            col: 0,
         };
 
         const parent = document.createElement('div');
@@ -224,12 +236,79 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
+        flushAnimationFrames();
 
-        expect(nestedCellEditorMock.openNestedCellEditor).toHaveBeenCalledWith(
+        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 activeCell,
-                normalizeIfNeeded: false,
+                initialCursorPos: 'end',
+            })
+        );
+
+        view.destroy();
+    });
+
+    it('normalizes before opening and preserves pending cursor placement', () => {
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc: NON_CANONICAL_DOC,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+        const dispatchSpy = jest.spyOn(view, 'dispatch');
+
+        rememberPendingCellOpen(view, activeCell, { initialCursorPos: 'end' });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                requestOpenActiveCellEffect.of({
+                    activeCell,
+                    normalizeIfNeeded: true,
+                }),
+            ],
+        });
+        flushAnimationFrames();
+
+        expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
+
+        const normalizedOpenDispatch = dispatchSpy.mock.calls
+            .map((call) => call[0])
+            .find((spec) => {
+                const effects = Array.isArray(spec?.effects) ? spec.effects : [spec?.effects];
+                return effects.some(
+                    (effect) => effect?.is?.(requestOpenActiveCellEffect) && effect.value?.normalizeIfNeeded === false
+                );
+            });
+
+        expect(normalizedOpenDispatch).toBeDefined();
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                activeCell: {
+                    tableFrom: 0,
+                    section: 'header',
+                    row: 0,
+                    col: 1,
+                },
                 initialCursorPos: 'end',
             })
         );
@@ -272,6 +351,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
         });
+        flushAnimationFrames();
 
         expect(view.state.selection.main.anchor).toBe(selectionFrom);
         expect(view.state.selection.main.head).toBe(selectionTo);

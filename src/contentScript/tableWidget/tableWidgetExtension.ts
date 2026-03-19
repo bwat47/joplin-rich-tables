@@ -16,7 +16,7 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
-import { isNestedCellEditorOpen, nestedCellEditorPlugin, refocusNestedEditor } from '../nestedEditor/nestedCellEditor';
+import { isNestedEditorOpen, nestedEditorPlugin, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from '../tableRuntime/tablePositioning';
@@ -124,7 +124,7 @@ function handleOutsideTableInteraction(
     }
 
     const hasActiveCell = Boolean(getActiveCell(view.state));
-    const hasNestedEditor = isNestedCellEditorOpen(view);
+    const hasNestedEditor = isNestedEditorOpen(view);
     const hasCellSelection = Boolean(getCellSelection(view.state));
     if (!hasActiveCell && !hasNestedEditor && !hasCellSelection) {
         return false;
@@ -213,7 +213,7 @@ const nestedEditorFocusGuard = EditorView.domEventHandlers({
         // If the nested editor is open and should have focus, reclaim it.
         // This handles cases where Android or other focus management systems
         // redirect focus to the main editor after toolbar button presses.
-        if (isNestedCellEditorOpen(view) && getActiveCell(view.state)) {
+        if (isNestedEditorOpen(view) && getActiveCell(view.state)) {
             refocusNestedEditor(view);
             return true;
         }
@@ -251,10 +251,10 @@ export default function (context: ContentScriptContext) {
                 searchPanelWatcherPlugin,
                 searchForceSourceModeField,
                 sourceModeField,
-                nestedCellEditorPlugin,
+                nestedEditorPlugin,
                 activeCellField,
                 cellSelectionField,
-                createMainEditorActiveCellGuard(() => isNestedCellEditorOpen(cm6View)),
+                createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild
 
                 tableWidgetInteractionHandlers,

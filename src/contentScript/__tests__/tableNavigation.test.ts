@@ -17,7 +17,6 @@ jest.mock('../tableRuntime/tablePositioning');
 jest.mock('../tableRuntime/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
 }));
-jest.mock('../nestedEditor/nestedCellEditor');
 jest.mock('../tableRuntime/tableOperations', () => ({
     __esModule: true,
     execInsertRowAtBottom: jest.fn(),

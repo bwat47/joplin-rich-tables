@@ -27,28 +27,28 @@ import { renderer } from '../services/markdownRenderer';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
-export interface CellRange {
+export interface NestedEditorCellRange {
     tableFrom: number;
     tableTo: number;
     cellFrom: number;
     cellTo: number;
 }
 
-export interface CellLocalState {
+export interface NestedEditorLocalState {
     text: string;
     selection: LocalSelection;
 }
 
-export interface CellRootState {
+export interface NestedEditorRootState {
     text: string;
     selection: LocalSelection;
 }
 
-export interface ActiveCellSession {
+export interface NestedEditorSession {
     activeCell: ActiveCell;
-    range: CellRange;
-    local: CellLocalState;
-    root: CellRootState;
+    range: NestedEditorCellRange;
+    local: NestedEditorLocalState;
+    root: NestedEditorRootState;
     editor: EditorView | null;
     applyingRootToLocal: boolean;
 }
@@ -88,8 +88,8 @@ function isEditorFocused(view: EditorView | null): boolean {
     return Boolean(view?.hasFocus);
 }
 
-class ActiveCellSessionController {
-    private session: ActiveCellSession | null = null;
+class NestedEditorController {
+    private session: NestedEditorSession | null = null;
     private contentEl: HTMLElement | null = null;
     private editorHostEl: HTMLElement | null = null;
     private cellElement: HTMLElement | null = null;
@@ -132,7 +132,7 @@ class ActiveCellSessionController {
             localSelection = { anchor: localText.length, head: localText.length };
         }
 
-        const session: ActiveCellSession = {
+        const session: NestedEditorSession = {
             activeCell: resolved.activeCell,
             range: {
                 tableFrom: resolved.tableFrom,
@@ -310,7 +310,7 @@ class ActiveCellSessionController {
      */
     private resolveCellRangeForClose(
         params: { cellFrom?: number; cellTo?: number } | undefined,
-        session: ActiveCellSession | null,
+        session: NestedEditorSession | null,
         mainView: EditorView | null
     ): { cellFrom: number; cellTo: number } {
         if (params?.cellFrom != null && params?.cellTo != null) {
@@ -510,9 +510,9 @@ class ActiveCellSessionController {
     }
 }
 
-export const activeCellSessionPlugin = ViewPlugin.fromClass(
+export const nestedEditorPlugin = ViewPlugin.fromClass(
     class {
-        controller = new ActiveCellSessionController();
+        controller = new NestedEditorController();
 
         destroy(): void {
             this.controller.close();
@@ -520,12 +520,12 @@ export const activeCellSessionPlugin = ViewPlugin.fromClass(
     }
 );
 
-function getController(view: EditorView): ActiveCellSessionController | null {
-    const plugin = view.plugin(activeCellSessionPlugin);
+function getController(view: EditorView): NestedEditorController | null {
+    const plugin = view.plugin(nestedEditorPlugin);
     return plugin ? plugin.controller : null;
 }
 
-export function openActiveCellSession(params: {
+export function openNestedEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
     activeCell: ActiveCell;
@@ -535,22 +535,22 @@ export function openActiveCellSession(params: {
     getController(params.mainView)?.open(params);
 }
 
-export function closeActiveCellSession(view: EditorView, params?: { cellFrom?: number; cellTo?: number }): void {
+export function closeNestedEditor(view: EditorView, params?: { cellFrom?: number; cellTo?: number }): void {
     getController(view)?.close(params);
 }
 
-export function isActiveCellSessionOpen(view: EditorView): boolean {
+export function isNestedEditorOpen(view: EditorView): boolean {
     return getController(view)?.isOpen() ?? false;
 }
 
-export function handleMainEditorSessionUpdate(view: EditorView, update: ViewUpdate): void {
+export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate): void {
     getController(view)?.handleMainEditorUpdate(update);
 }
 
-export function refocusActiveCellSession(view: EditorView): void {
+export function refocusNestedEditor(view: EditorView): void {
     getController(view)?.refocusWithPreventScroll();
 }
 
-export function cleanupHostedActiveCellSessions(view: EditorView, container: HTMLElement): void {
+export function cleanupHostedNestedEditors(view: EditorView, container: HTMLElement): void {
     getController(view)?.checkAndCloseIfHostedIn(container);
 }
