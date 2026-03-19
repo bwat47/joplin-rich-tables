@@ -3,11 +3,11 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { isSourceModeEnabled } from '../tableState/sourceMode';
-import { findTableRanges } from './tablePositioning';
-import { findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { buildTableContext } from '../tableModel/tableContext';
+import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
+import { isSourceModeEnabled } from '../../tableState/sourceMode';
+import { findTableRanges } from '../tablePositioning';
+import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
+import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { selectAndRequestOpenActiveCell } from './activeCellOpen';
 

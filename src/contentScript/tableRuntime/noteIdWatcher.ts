@@ -1,7 +1,7 @@
 import { EditorState, Extension, Facet, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { moveCursorOutOfTable } from './cursorUtils';
+import { moveCursorOutOfTable } from './navigation/cursorUtils';
 import { logger } from '../../logger';
 
 /**

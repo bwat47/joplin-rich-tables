@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
-import { runTableOperation } from '../tableRuntime/runTableOperation';
+import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { runTableOperation } from '../tableRuntime/operations/runTableOperation';
 import { TargetCell } from '../tableModel/activeCellForTableText';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import {
@@ -19,13 +19,13 @@ import {
     execClearColumn,
     execClearTable,
     execDeleteTable,
-} from '../tableRuntime/tableOperations';
+} from '../tableRuntime/operations/tableOperations';
 
 // Mock dependencies
-jest.mock('../tableRuntime/runTableOperation', () => ({
+jest.mock('../tableRuntime/operations/runTableOperation', () => ({
     runTableOperation: jest.fn(),
 }));
-jest.mock('../tableRuntime/activeCellResolver', () => ({
+jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
 }));
 

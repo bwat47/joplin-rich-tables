@@ -1,7 +1,7 @@
 import { EditorState, Extension } from '@codemirror/state';
 import { clearActiveCellEffect } from '../tableState/activeCellState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
-import { createTableClipboardRewriteSpec } from '../tableRuntime/cellSelectionClipboard';
+import { createTableClipboardRewriteSpec } from '../tableRuntime/selection/cellSelectionClipboard';
 import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
 
 /**

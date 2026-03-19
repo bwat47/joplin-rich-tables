@@ -18,7 +18,7 @@ import {
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { ensureCellWrapper } from './mounting';
-import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';

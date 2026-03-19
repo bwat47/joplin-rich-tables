@@ -20,7 +20,7 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 
 Rapid navigation can cause race conditions (new request before previous cell mounts).
 
-The `tableRuntime/navigationLock` module:
+The `tableRuntime/navigation/navigationLock.ts` module:
 
 1. `acquireNavigationLock()` before navigating; rejects if locked.
 2. Lock held while state dispatches, nested editor mounts, focus transfers.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { createMarkdownState } from './testMarkdownState';
 
 function createState(doc: string, activeCell?: ActiveCell) {

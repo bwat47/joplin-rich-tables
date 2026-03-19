@@ -3,7 +3,7 @@
 Command flow from user action to Markdown serialization, including non-structural clear/format commands that still re-serialize table text.
 
 Multi-cell clipboard writes use the same parse -> mutate -> serialize pattern, but enter through
-`tableRuntime/cellSelectionClipboard.ts` rather than `tableCommands.ts`.
+`tableRuntime/selection/cellSelectionClipboard.ts` rather than `tableCommands.ts`.
 
 ## Command Flow
 
@@ -12,9 +12,9 @@ User Action (keyboard/toolbar)
          ↓
     tableCommands.ts           ← Command registration only
          ↓
-   tableOperations.ts          ← Runtime entry points
+   operations/tableOperations.ts   ← Runtime entry points
          ↓
-   runTableOperation.ts        ← Parse, mutate, serialize, dispatch
+   operations/runTableOperation.ts ← Parse, mutate, serialize, dispatch
          ↓
      MarkdownTable.ts          ← Runtime model + structural operations
 ```
@@ -25,9 +25,9 @@ User Action (keyboard/toolbar)
 
 - **Joplin Registration**: `richTables.insertRowBelow`, etc.
 - **Active Cell Validation**: Checks before executing.
-- **Delegation Only**: Dispatches into `tableRuntime/tableOperations.ts`.
+- **Delegation Only**: Dispatches into `tableRuntime/operations/tableOperations.ts`.
 
-### 1b. Selection Clipboard Entry (`tableRuntime/cellSelectionClipboard.ts`)
+### 1b. Selection Clipboard Entry (`tableRuntime/selection/cellSelectionClipboard.ts`)
 
 - Document-level `copy`/`cut`/`paste` capture handles selection-mode clipboard operations and any nested-editor paste flows that surface as real DOM paste events.
 - `Ctrl+X` is selection-only: copy markdown fragment, then run the shared selection-removal rewrite and keep the resulting selection state.
@@ -54,7 +54,7 @@ insertions, so paste and command creation share the same blank-line separation r
 insertion still falls back to the legacy direct insert path because the paste rewrite intentionally does not
 define paragraph-splitting behavior.
 
-### 2. Runtime Mutation Helpers (`tableRuntime/runTableOperation.ts`)
+### 2. Runtime Mutation Helpers (`tableRuntime/operations/runTableOperation.ts`)
 
 `runTableOperation()` orchestrates:
 
@@ -62,7 +62,7 @@ define paragraph-splitting behavior.
 2. **Mutate**: Call operation function.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
-5. **Compute Active Cell**: `tableRuntime/activeCellFactory.ts`.
+5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
 6. **Dispatch**: Replace table range, update active cell state.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.

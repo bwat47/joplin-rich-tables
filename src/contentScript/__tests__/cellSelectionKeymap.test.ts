@@ -12,8 +12,8 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
+import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 
 const markdownExtension = markdown({
     extensions: [GFM],

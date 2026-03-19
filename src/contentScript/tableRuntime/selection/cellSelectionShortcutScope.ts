@@ -1,9 +1,9 @@
 import type { EditorView } from '@codemirror/view';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { getActiveCell } from '../tableState/activeCellState';
-import { getCellSelection } from '../tableState/cellSelectionState';
-import { makeTableId } from '../tableModel/types';
-import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from '../tableWidget/domHelpers';
+import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
+import { getActiveCell } from '../../tableState/activeCellState';
+import { getCellSelection } from '../../tableState/cellSelectionState';
+import { makeTableId } from '../../tableModel/types';
+import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from '../../tableWidget/domHelpers';
 
 const INTERACTIVE_SELECTOR = [
     'input',

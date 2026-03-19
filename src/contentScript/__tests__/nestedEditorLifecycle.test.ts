@@ -5,7 +5,7 @@
 import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
-import { nestedEditorLifecyclePlugin } from '../tableRuntime/nestedEditorLifecycle';
+import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
@@ -13,8 +13,8 @@ import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '.
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
+import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 
 const activateTableCellMock = jest.fn();
@@ -27,7 +27,7 @@ const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEdito
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 
-jest.mock('../tableRuntime/cellActivation', () => ({
+jest.mock('../tableRuntime/activeCell/cellActivation', () => ({
     activateCellAtPosition: jest.fn(),
     activateTableCell: (...args: unknown[]) => activateTableCellMock(...args),
 }));

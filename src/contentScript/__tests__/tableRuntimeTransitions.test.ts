@@ -8,7 +8,7 @@ import {
     type ActiveCell,
 } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
@@ -22,8 +22,8 @@ import {
 } from '../tableRuntime/tableRuntimeTransitions';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableNormalization';
-import { createActiveCellForTableText } from '../tableRuntime/activeCellFactory';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 

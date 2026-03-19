@@ -1,5 +1,5 @@
 import type { EditorState } from '@codemirror/state';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { MarkdownTable } from '../../tableModel/MarkdownTable';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
 
 export interface RootTablePasteRewrite {

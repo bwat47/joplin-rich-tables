@@ -16,7 +16,7 @@ import {
     execMoveRowDown,
     execMoveColumnLeft,
     execMoveColumnRight,
-} from '../tableRuntime/tableOperations';
+} from '../tableRuntime/operations/tableOperations';
 import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';

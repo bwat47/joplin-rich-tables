@@ -2,11 +2,11 @@ import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { setOrExtendCellSelectionToCoords } from '../tableRuntime/cellSelectionController';
+import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveCellDocRange, resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { openLink } from '../services/markdownRenderer';
 import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
-import { selectAndRequestOpenActiveCell } from '../tableRuntime/activeCellOpen';
+import { selectAndRequestOpenActiveCell } from '../tableRuntime/activeCell/activeCellOpen';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
