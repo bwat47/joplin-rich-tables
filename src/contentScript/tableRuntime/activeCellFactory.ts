@@ -7,13 +7,20 @@ import {
 } from '../tableModel/activeCellForTableText';
 import type { ActiveCell } from '../tableState/activeCellState';
 
-function toActiveCell(tableFrom: number, anchor: TableCellAnchor): ActiveCell {
+export interface ActiveCellSelectionTarget {
+    activeCell: ActiveCell;
+    selectionAnchor: number;
+}
+
+function toActiveCellSelectionTarget(tableFrom: number, anchor: TableCellAnchor): ActiveCellSelectionTarget {
     return {
-        anchorPos: tableFrom + anchor.anchorOffset,
-        tableFrom,
-        section: anchor.section,
-        row: anchor.row,
-        col: anchor.col,
+        activeCell: {
+            tableFrom,
+            section: anchor.section,
+            row: anchor.row,
+            col: anchor.col,
+        },
+        selectionAnchor: tableFrom + anchor.anchorOffset,
     };
 }
 
@@ -21,22 +28,22 @@ export function createActiveCellFromRanges(params: {
     tableFrom: number;
     ranges: TableCellRanges;
     target: TargetCell;
-}): ActiveCell | null {
+}): ActiveCellSelectionTarget | null {
     const anchor = computeCellAnchorFromRanges({
         ranges: params.ranges,
         target: params.target,
     });
-    return anchor ? toActiveCell(params.tableFrom, anchor) : null;
+    return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;
 }
 
 export function createActiveCellForTableText(params: {
     tableFrom: number;
     tableText: string;
     target: TargetCell;
-}): ActiveCell | null {
+}): ActiveCellSelectionTarget | null {
     const anchor = computeCellAnchorForTableText({
         tableText: params.tableText,
         target: params.target,
     });
-    return anchor ? toActiveCell(params.tableFrom, anchor) : null;
+    return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;
 }

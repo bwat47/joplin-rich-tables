@@ -44,7 +44,6 @@ function createState(params?: { activeCell?: ActiveCell | null }) {
 
 function getHeaderCell(): ActiveCell {
     return {
-        anchorPos: doc.indexOf('H1'),
         tableFrom: 0,
         section: 'header',
         row: 0,
@@ -322,7 +321,6 @@ describe('tableRuntimeTransitions', () => {
             searchForceSourceModeField,
         ]);
         const startActiveCell: ActiveCell = {
-            anchorPos: nonCanonicalDoc.indexOf('H1'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -343,8 +341,11 @@ describe('tableRuntimeTransitions', () => {
 
         const tr = startState.update({
             changes: { from: 0, to: nonCanonicalDoc.length, insert: canonicalDoc },
-            selection: { anchor: nextActiveCell.anchorPos },
-            effects: [setActiveCellEffect.of(nextActiveCell), rebuildTableWidgetsEffect.of({ tableFrom: 0 })],
+            selection: { anchor: nextActiveCell.selectionAnchor },
+            effects: [
+                setActiveCellEffect.of(nextActiveCell.activeCell),
+                rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
+            ],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const update = {
@@ -355,7 +356,7 @@ describe('tableRuntimeTransitions', () => {
             selectionSet: tr.selection !== startState.selection,
         } as unknown as TableRuntimeEvent['update'];
         const snapshot: TableRuntimeSnapshot = {
-            activeCell: nextActiveCell,
+            activeCell: nextActiveCell.activeCell,
             prevActiveCell: startActiveCell,
             resolvedActiveCell: requireResolvedActiveCell(tr.state),
             resolvedPrevActiveCell: requireResolvedActiveCell(startState),
@@ -373,7 +374,7 @@ describe('tableRuntimeTransitions', () => {
             planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
                 cursorInsideTableAfterUndoRedo: false,
             })
-        ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell, normalizeIfNeeded: false }]);
+        ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell.activeCell, normalizeIfNeeded: false }]);
     });
 
     it('plans force rebuild as close and reopen of the nested editor', () => {

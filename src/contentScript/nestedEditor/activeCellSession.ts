@@ -27,13 +27,6 @@ import { renderer } from '../services/markdownRenderer';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
-export interface ActiveCellIdentity {
-    anchorPos: number;
-    section: 'header' | 'body';
-    row: number;
-    col: number;
-}
-
 export interface CellRange {
     tableFrom: number;
     tableTo: number;
@@ -52,7 +45,7 @@ export interface CellRootState {
 }
 
 export interface ActiveCellSession {
-    identity: ActiveCellIdentity;
+    activeCell: ActiveCell;
     range: CellRange;
     local: CellLocalState;
     root: CellRootState;
@@ -93,16 +86,6 @@ function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolean {
 
 function isEditorFocused(view: EditorView | null): boolean {
     return Boolean(view?.hasFocus);
-}
-
-function createActiveCellFromIdentity(identity: ActiveCellIdentity, tableFrom: number): ActiveCell {
-    return {
-        anchorPos: identity.anchorPos,
-        tableFrom,
-        section: identity.section,
-        row: identity.row,
-        col: identity.col,
-    };
 }
 
 class ActiveCellSessionController {
@@ -150,12 +133,7 @@ class ActiveCellSessionController {
         }
 
         const session: ActiveCellSession = {
-            identity: {
-                anchorPos: params.activeCell.anchorPos,
-                section: params.activeCell.section,
-                row: params.activeCell.row,
-                col: params.activeCell.col,
-            },
+            activeCell: resolved.activeCell,
             range: {
                 tableFrom: resolved.tableFrom,
                 tableTo: resolved.tableTo,
@@ -236,19 +214,12 @@ class ActiveCellSessionController {
             return;
         }
 
-        // Read the mapped anchorPos from the state field rather than manually mapping
-        // through transaction changes. The state field already handles position mapping
-        // correctly, and manual mapping here would corrupt the position if this method
-        // is called multiple times for the same update.
         const stateActiveCell = getActiveCell(update.state);
         if (stateActiveCell) {
-            this.session.identity.anchorPos = stateActiveCell.anchorPos;
+            this.session.activeCell = stateActiveCell;
         }
 
-        const resolved = resolveActiveCell(
-            update.state,
-            createActiveCellFromIdentity(this.session.identity, this.session.range.tableFrom)
-        );
+        const resolved = resolveActiveCell(update.state, this.session.activeCell);
         if (!resolved) {
             const mainView = this.mainView;
             this.close();
@@ -258,6 +229,7 @@ class ActiveCellSessionController {
             return;
         }
 
+        this.session.activeCell = resolved.activeCell;
         this.session.range = {
             tableFrom: resolved.tableFrom,
             tableTo: resolved.tableTo,
@@ -346,13 +318,7 @@ class ActiveCellSessionController {
         }
 
         if (session && mainView) {
-            const resolved = resolveActiveCell(mainView.state, {
-                anchorPos: session.identity.anchorPos,
-                tableFrom: session.range.tableFrom,
-                section: session.identity.section,
-                row: session.identity.row,
-                col: session.identity.col,
-            });
+            const resolved = resolveActiveCell(mainView.state, session.activeCell);
             if (resolved) {
                 return { cellFrom: resolved.cellFrom, cellTo: resolved.cellTo };
             }
@@ -482,14 +448,17 @@ class ActiveCellSessionController {
             return;
         }
 
-        const resolved = resolveActiveCell(
-            this.mainView.state,
-            createActiveCellFromIdentity(this.session.identity, this.session.range.tableFrom)
-        );
+        const stateActiveCell = getActiveCell(this.mainView.state);
+        if (stateActiveCell) {
+            this.session.activeCell = stateActiveCell;
+        }
+
+        const resolved = resolveActiveCell(this.mainView.state, this.session.activeCell);
         if (!resolved) {
             return;
         }
 
+        this.session.activeCell = resolved.activeCell;
         this.session.range = {
             tableFrom: resolved.tableFrom,
             tableTo: resolved.tableTo,

@@ -117,39 +117,27 @@ export function resolveTableForActiveCell(
     cellFrom: number;
     cellTo: number;
 } | null {
-    const candidatePositions = [activeCell.tableFrom, activeCell.anchorPos].map((pos) => clampDocPos(state, pos));
-    const seenPositions = new Set<number>();
-
-    for (const pos of candidatePositions) {
-        if (seenPositions.has(pos)) {
-            continue;
-        }
-        seenPositions.add(pos);
-
-        const ctx = resolveTableContextAtPos(state, pos);
-        if (!ctx) {
-            continue;
-        }
-
-        const range = resolveCellDocRange({
-            tableFrom: ctx.from,
-            ranges: ctx.cellRanges,
-            coords: activeCell,
-        });
-        if (!range) {
-            continue;
-        }
-
-        return {
-            ctx,
-            tableFrom: ctx.from,
-            tableTo: ctx.to,
-            cellFrom: range.cellFrom,
-            cellTo: range.cellTo,
-        };
+    const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
+    if (!ctx) {
+        return null;
     }
 
-    return null;
+    const range = resolveCellDocRange({
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
+        coords: activeCell,
+    });
+    if (!range) {
+        return null;
+    }
+
+    return {
+        ctx,
+        tableFrom: ctx.from,
+        tableTo: ctx.to,
+        cellFrom: range.cellFrom,
+        cellTo: range.cellTo,
+    };
 }
 
 function resolveActiveCellTableContext(state: EditorState): TableContext | null {
@@ -197,8 +185,8 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
         }
     }
 
-    // Fallback: prefer the mapped table start, then try the mapped anchor as a
-    // secondary recovery path. Either candidate must still resolve the logical cell.
+    // Fallback: use the persisted active cell identity when nested editing has
+    // detached the event target from a reliable document position.
     const activeCellContext = resolveActiveCellTableContext(view.state);
     if (activeCellContext) {
         return activeCellContext;

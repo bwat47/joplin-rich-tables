@@ -154,7 +154,6 @@ describe('cellSelectionClipboard', () => {
         let state = createMarkdownState(doc, [activeCellField]);
         state = state.update({
             effects: setActiveCellEffect.of({
-                anchorPos: doc.indexOf('b\\|c'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,
@@ -300,7 +299,6 @@ describe('cellSelectionClipboard', () => {
         let state = createMarkdownState(doc, [activeCellField]);
         state = state.update({
             effects: setActiveCellEffect.of({
-                anchorPos: doc.indexOf('b\\|c'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,
@@ -346,7 +344,6 @@ describe('cellSelectionClipboard', () => {
         let currentState = createMarkdownState(doc, [activeCellField, cellSelectionField]);
         currentState = currentState.update({
             effects: setActiveCellEffect.of({
-                anchorPos: doc.indexOf('b\\|c'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,
@@ -405,7 +402,6 @@ describe('cellSelectionClipboard', () => {
         let currentState = createMarkdownState(doc, [activeCellField, cellSelectionField]);
         currentState = currentState.update({
             effects: setActiveCellEffect.of({
-                anchorPos: doc.indexOf('b\\|c'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,

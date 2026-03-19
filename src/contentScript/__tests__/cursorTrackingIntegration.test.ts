@@ -26,7 +26,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: baseMarkdown,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
         expect(active).not.toBeNull();
 
         const table = MarkdownTable.parse(baseMarkdown);
@@ -39,7 +39,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: newText,
             target: { section: 'body', row: 1, col: 1 },
-        });
+        })?.activeCell;
 
         expect(next).not.toBeNull();
         expect(next!.section).toBe('body');
@@ -54,7 +54,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: baseMarkdown,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
         expect(active).not.toBeNull();
 
         const table = MarkdownTable.parse(baseMarkdown);
@@ -67,7 +67,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: newText,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
 
         expect(next).not.toBeNull();
         expect(sliceCellText(newText, next!)).toBe('b2');
@@ -80,7 +80,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
         expect(active).not.toBeNull();
 
         const table = MarkdownTable.parse(tableText);
@@ -93,7 +93,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: newText,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
 
         expect(next).not.toBeNull();
         expect(next!.section).toBe('header');
@@ -108,7 +108,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: baseMarkdown,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
         expect(active).not.toBeNull();
 
         const table = MarkdownTable.parse(baseMarkdown);
@@ -121,7 +121,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: newText,
             target: { section: 'body', row: 0, col: 1 },
-        });
+        })?.activeCell;
 
         expect(next).not.toBeNull();
         expect(next!.col).toBe(1);
@@ -134,7 +134,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: baseMarkdown,
             target: { section: 'body', row: 0, col: 0 },
-        });
+        })?.activeCell;
         expect(active).not.toBeNull();
 
         const table = MarkdownTable.parse(baseMarkdown);
@@ -147,7 +147,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: newText,
             target: { section: 'body', row: 0, col: 0 },
-        });
+        })?.activeCell;
 
         expect(next).not.toBeNull();
         expect(sliceCellText(newText, next!)).toBe('a2');
@@ -159,7 +159,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: baseMarkdown,
             target: { section: 'body', row: 1, col: 1 },
-        });
+        })?.activeCell;
         expect(active).not.toBeNull();
 
         const table = MarkdownTable.parse(baseMarkdown);
@@ -172,7 +172,7 @@ describe('cursorTrackingIntegration', () => {
             tableFrom,
             tableText: newText,
             target: { section: 'body', row: 1, col: 1 },
-        });
+        })?.activeCell;
 
         expect(next).not.toBeNull();
         expect(next!.section).toBe('body');

@@ -50,7 +50,7 @@ export function openNestedCellEditor(params: {
             }
 
             if (params.initialCursorPos) {
-                rememberPendingCellOpen(params.mainView, nextActiveCell, {
+                rememberPendingCellOpen(params.mainView, nextActiveCell.activeCell, {
                     initialCursorPos: params.initialCursorPos,
                 });
             }
@@ -64,11 +64,11 @@ export function openNestedCellEditor(params: {
                     to: resolved.tableTo,
                     insert: canonicalText,
                 },
-                selection: { anchor: nextActiveCell.anchorPos },
+                selection: { anchor: nextActiveCell.selectionAnchor },
                 effects: [
-                    setActiveCellEffect.of(nextActiveCell),
+                    setActiveCellEffect.of(nextActiveCell.activeCell),
                     requestOpenActiveCellEffect.of({
-                        activeCell: nextActiveCell,
+                        activeCell: nextActiveCell.activeCell,
                         normalizeIfNeeded: false,
                     }),
                     rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),

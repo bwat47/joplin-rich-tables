@@ -2,7 +2,7 @@ import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
 import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/cellSelectionController';
 import { navigateCell } from '../tableRuntime/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/cellSelectionClipboard';
@@ -16,13 +16,7 @@ function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean
     }
 
     const activeCellAfter = getActiveCell(mainView.state);
-    const stayedInSameCell =
-        activeCellBefore &&
-        activeCellAfter &&
-        activeCellBefore.section === activeCellAfter.section &&
-        activeCellBefore.row === activeCellAfter.row &&
-        activeCellBefore.col === activeCellAfter.col &&
-        activeCellBefore.anchorPos === activeCellAfter.anchorPos;
+    const stayedInSameCell = isSameActiveCell(activeCellBefore, activeCellAfter);
 
     if (stayedInSameCell) {
         mainView.dispatch({

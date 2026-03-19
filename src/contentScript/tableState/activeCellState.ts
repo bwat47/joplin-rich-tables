@@ -4,7 +4,6 @@ import type { CellCoords, TableSection } from '../tableModel/types';
 export type ActiveCellSection = TableSection;
 
 export interface ActiveCell extends CellCoords {
-    anchorPos: number;
     tableFrom: number;
     // section, row, col inherited from CellCoords
 }
@@ -37,20 +36,13 @@ export const activeCellField = StateField.define<ActiveCell | null>({
         }
 
         if (tr.docChanged) {
-            const mappedAnchorPos = tr.changes.mapPos(value.anchorPos, 1);
             const mappedTableFrom = tr.changes.mapPos(value.tableFrom, 1);
-            if (
-                !Number.isFinite(mappedAnchorPos) ||
-                mappedAnchorPos < 0 ||
-                !Number.isFinite(mappedTableFrom) ||
-                mappedTableFrom < 0
-            ) {
+            if (!Number.isFinite(mappedTableFrom) || mappedTableFrom < 0) {
                 return null;
             }
 
             return {
                 ...value,
-                anchorPos: mappedAnchorPos,
                 tableFrom: mappedTableFrom,
             };
         }

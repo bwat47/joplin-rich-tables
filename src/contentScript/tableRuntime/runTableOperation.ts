@@ -39,11 +39,11 @@ export function runTableOperation(params: ModifyTableParams): boolean {
         return false;
     }
     const hasDocumentChange = newText !== text;
-    if (!hasDocumentChange && isSameCellCoords(nextActiveCell, cell)) {
+    if (!hasDocumentChange && isSameCellCoords(nextActiveCell.activeCell, cell)) {
         return false;
     }
 
-    const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell)];
+    const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(nextActiveCell.activeCell)];
     if (forceWidgetRebuild) {
         effects.push(rebuildTableWidgetsEffect.of({ tableFrom }));
     }

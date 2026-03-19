@@ -49,7 +49,7 @@ describe('trimTrailingNonTableLines', () => {
 });
 
 describe('resolveTableContextFromEventTarget', () => {
-    it('prefers activeCell.tableFrom over a drifted anchorPos fallback', () => {
+    it('uses activeCell.tableFrom as the fallback identity when DOM lookup fails', () => {
         const doc = [
             '| H1 | H2 |',
             '| --- | --- |',
@@ -62,7 +62,6 @@ describe('resolveTableContextFromEventTarget', () => {
         let state = createMarkdownState(doc, [activeCellField]);
         state = state.update({
             effects: setActiveCellEffect.of({
-                anchorPos: doc.indexOf('|  | Bands |'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,
