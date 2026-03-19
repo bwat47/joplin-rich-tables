@@ -162,9 +162,11 @@ export function planTableLifecycleActions(
     const actions: TableRuntimeAction[] = [];
 
     if (event.openRequest) {
-        // Keep the current nested editor mounted until the replacement opens.
-        // Closing first introduces a blur/focus gap that causes Android IMEs
-        // to dismiss and reopen when switching cells by tap.
+        // Route replacement through the open path instead of issuing a
+        // separate close action first. The session controller still closes the
+        // previous editor before mounting the next one, but doing both in one
+        // path avoids the blur/focus gap that makes Android dismiss and reopen
+        // the IME when switching cells by tap.
         actions.push({
             type: 'openNestedEditor',
             activeCell: event.openRequest.activeCell,
