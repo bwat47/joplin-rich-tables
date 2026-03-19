@@ -67,7 +67,6 @@ describe('cellSelectionState', () => {
 
         state = state.update({
             effects: setActiveCellEffect.of({
-                anchorPos: doc.indexOf('a1'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,

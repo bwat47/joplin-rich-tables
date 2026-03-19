@@ -15,7 +15,6 @@ function requireCellRanges() {
 describe('resolveActivationTargetCell', () => {
     it('keeps the current active cell when the cursor lands on table punctuation', () => {
         const activeCell: ActiveCell = {
-            anchorPos: tableText.indexOf('aaa'),
             tableFrom: 0,
             section: 'body',
             row: 0,

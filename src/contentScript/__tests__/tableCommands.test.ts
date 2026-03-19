@@ -64,7 +64,6 @@ describe('tableCommands (computTargetCell)', () => {
     };
 
     const createCell = (section: 'header' | 'body', row: number, col: number): ActiveCell => ({
-        anchorPos: 0,
         tableFrom: 0,
         section,
         row,

@@ -103,7 +103,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     selectAndRequestOpenActiveCell(view, {
-        activeCell: newActiveCell,
+        activeCell: newActiveCell.activeCell,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,
         selectionAnchor: pos,
@@ -145,8 +145,9 @@ export function activateTableCell(
         if (!newActiveCell) return;
 
         selectAndRequestOpenActiveCell(view, {
-            activeCell: newActiveCell,
+            activeCell: newActiveCell.activeCell,
             normalizeIfNeeded: true,
+            selectionAnchor: newActiveCell.selectionAnchor,
         });
     });
 }

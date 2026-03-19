@@ -16,8 +16,8 @@ Managed by `contentScript/tableRuntime/nestedEditorLifecycle.ts`.
 **Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges →
 `setActiveCellEffect` plus an open-intent effect dispatched → lifecycle plugin mounts the nested editor.
 
-`setActiveCellEffect` stores logical cell identity plus an anchor position inside the table. A separate open-intent effect
-declares whether the lifecycle should normalize before opening. The lifecycle plugin resolves raw table/cell offsets from
+`setActiveCellEffect` stores stable logical cell identity: `tableFrom` plus `section/row/col`. Any cursor placement for
+opening is passed separately as transient selection-anchor data. The lifecycle plugin resolves raw table/cell offsets from
 current editor state immediately before opening the isolated editor. Ongoing sync is handled by `nestedEditor/activeCellSession.ts`.
 
 **Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
@@ -40,7 +40,7 @@ The lifecycle plugin remains responsible only for executing nested-editor side e
 2. `ActiveCellSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
 4. If normalization rewrites the whole table first, it also dispatches a reopen intent so lifecycle can reopen after rebuild.
-5. After root dispatch, the session refreshes its derived absolute ranges from the mapped anchor position.
+5. After root dispatch, the session refreshes its derived absolute ranges from the current active-cell identity.
 6. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
 ### Selection Sync
@@ -90,7 +90,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 - Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
 - Upgrades root-editor `input.paste` transactions into multi-cell table paste when Joplin routes Cmd/Ctrl+V to the main editor while a nested editor is open.
 - Also upgrades plain root-editor `input.paste` of a standalone markdown table at a block boundary into canonical table markdown plus deferred cell activation when no nested editor or cell selection is active.
-- Clears stale active-cell state if logical resolution can no longer find the anchored table/cell from the mapped anchor position.
+- Clears stale active-cell state if logical resolution can no longer find the anchored table/cell from the persisted active-cell identity.
 
 ## Styling
 

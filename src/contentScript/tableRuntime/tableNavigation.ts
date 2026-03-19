@@ -136,11 +136,8 @@ export function navigateCell(
         return true; // Already locked
     }
 
-    const { cellFrom } = resolvedRange;
-
     selectAndRequestOpenActiveCell(view, {
         activeCell: {
-            anchorPos: cellFrom,
             tableFrom: ctx.from,
             section: target.section,
             row: target.row,
@@ -149,6 +146,7 @@ export function navigateCell(
         normalizeIfNeeded: true,
         initialCursorPos: options.cursorPos,
         onFocused: releaseNavigationLock,
+        selectionAnchor: resolvedRange.cellFrom,
     });
 
     return true;

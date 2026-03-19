@@ -65,6 +65,9 @@ rewrites the document by itself. Canonicalization happens only when the user cro
 
 `ActiveCell` itself is intentionally logical-first: `tableFrom` plus `section/row/col`.
 
+Selection placement is separate transient state. Code that needs to move the main-editor cursor into the active cell
+threads an explicit selection anchor rather than persisting that offset inside `ActiveCell`.
+
 When code needs current document offsets for the active table/cell, it must resolve them from
 the current editor state through the shared active-cell resolver. That resolver:
 

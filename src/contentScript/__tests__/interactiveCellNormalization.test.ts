@@ -173,7 +173,6 @@ describe('interactive cell normalization', () => {
     it('starts rectangular selection on shift-click from the active cell', () => {
         const { view, cells } = createViewHarness({
             activeCell: {
-                anchorPos: NON_CANONICAL_DOC.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -253,7 +252,6 @@ describe('interactive cell normalization', () => {
     it('normalizes on keyboard navigation before reopening the target cell', () => {
         const { view } = createViewHarness({
             activeCell: {
-                anchorPos: NON_CANONICAL_DOC.indexOf('H1'),
                 tableFrom: 0,
                 section: 'header',
                 row: 0,
@@ -282,7 +280,6 @@ describe('interactive cell normalization', () => {
     it('normalizes directly through the shared nested-editor gate', () => {
         const { view, cells } = createViewHarness({
             activeCell: {
-                anchorPos: NON_CANONICAL_DOC.indexOf('a'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,
@@ -309,7 +306,6 @@ describe('interactive cell normalization', () => {
     it('skips normalization when the shared open path is used for lifecycle-style reopen', () => {
         const { view, cells } = createViewHarness({
             activeCell: {
-                anchorPos: NON_CANONICAL_DOC.indexOf('a'),
                 tableFrom: 0,
                 section: 'body',
                 row: 0,

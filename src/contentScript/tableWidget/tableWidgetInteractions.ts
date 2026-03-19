@@ -238,7 +238,6 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
         selectAndRequestOpenActiveCell(view, {
             activeCell: {
-                anchorPos: cellFrom,
                 tableFrom: ctx.from,
                 section,
                 row: section === SECTION_HEADER ? 0 : row,

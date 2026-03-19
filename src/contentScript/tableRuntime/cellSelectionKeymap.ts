@@ -57,10 +57,10 @@ function activateSelectionFocus(view: EditorView): boolean {
     }
 
     selectAndRequestOpenActiveCell(view, {
-        activeCell: nextActiveCell,
+        activeCell: nextActiveCell.activeCell,
         clearCellSelection: true,
         normalizeIfNeeded: true,
-        selectionAnchor: nextActiveCell.anchorPos,
+        selectionAnchor: nextActiveCell.selectionAnchor,
         scrollIntoView: false,
     });
 

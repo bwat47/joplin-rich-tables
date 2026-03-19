@@ -18,7 +18,6 @@ function createViewHarness() {
     state = state.update({
         effects: [
             setActiveCellEffect.of({
-                anchorPos: 2,
                 tableFrom: 0,
                 section: 'header',
                 row: 0,

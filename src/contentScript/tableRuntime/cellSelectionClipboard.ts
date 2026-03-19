@@ -143,7 +143,7 @@ function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords:
         target: coords,
     });
 
-    return activeCell?.anchorPos ?? null;
+    return activeCell?.selectionAnchor ?? null;
 }
 
 function buildTableRewrite(params: {

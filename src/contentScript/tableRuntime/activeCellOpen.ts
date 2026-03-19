@@ -32,8 +32,8 @@ export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectA
     }
 
     view.dispatch({
-        ...(!params.preserveMainSelection
-            ? { selection: { anchor: params.selectionAnchor ?? params.activeCell.anchorPos } }
+        ...(!params.preserveMainSelection && params.selectionAnchor != null
+            ? { selection: { anchor: params.selectionAnchor } }
             : {}),
         effects: [
             ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),

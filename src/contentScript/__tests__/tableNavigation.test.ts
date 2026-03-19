@@ -98,7 +98,6 @@ describe('navigateCell', () => {
 
     const setupActiveCell = (section: 'header' | 'body', row: number, col: number) => {
         getActiveCellSpy.mockReturnValue({
-            anchorPos: 10,
             tableFrom: 0,
             section,
             row,

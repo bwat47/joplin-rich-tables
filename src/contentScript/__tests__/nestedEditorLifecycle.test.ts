@@ -102,7 +102,6 @@ describe('nestedEditorLifecycle', () => {
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell: ActiveCell = {
-            anchorPos: doc.indexOf('H1'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -148,7 +147,6 @@ describe('nestedEditorLifecycle', () => {
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell: ActiveCell = {
-            anchorPos: doc.indexOf('H1'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -172,7 +170,6 @@ describe('nestedEditorLifecycle', () => {
         const view = new EditorView({ parent, state });
 
         const nextActiveCell: ActiveCell = {
-            anchorPos: doc.indexOf('H2'),
             tableFrom: 0,
             section: 'header',
             row: 0,
@@ -194,7 +191,6 @@ describe('nestedEditorLifecycle', () => {
     it('opens the nested editor only when an open request effect is dispatched', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell: ActiveCell = {
-            anchorPos: doc.indexOf('H2'),
             tableFrom: 0,
             section: 'header',
             row: 0,
