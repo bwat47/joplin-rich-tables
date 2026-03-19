@@ -54,15 +54,16 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 
 ### 2. Interaction
 
-Cell click → widget/runtime logic resolves row/column → dispatches `setActiveCellEffect` → `tableRuntime/nestedEditorLifecycle` mounts nested editor.
+Cell click / navigation / selection focus → widget/runtime logic resolves row/column → dispatches
+`setActiveCellEffect` plus an open-intent effect → `tableRuntime/nestedEditorLifecycle` mounts the nested editor.
 
 `ActiveCell` is logical-first state: it persists `anchorPos` plus `section/row/col`. Raw offsets such as
 `tableFrom`, `tableTo`, and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
 
-Before user-driven entry opens the nested editor, `nestedCellEditor.ts` checks whether the table markdown is already in
-the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical target cell,
-rebuilds the widget, and only then opens the nested editor. Lifecycle reopens used for undo/redo or UI restoration skip
-that normalization step. Passive parsing/rendering never mutates document text.
+Before lifecycle opens the nested editor for user-driven entry, `nestedCellEditor.ts` checks whether the table markdown is
+already in the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical target
+cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested editor. Lifecycle reopens used for
+undo/redo or UI restoration skip that normalization step. Passive parsing/rendering never mutates document text.
 
 ### 3. Synchronization
 
@@ -99,14 +100,17 @@ derive current table/cell offsets for the persisted logical active-cell state.
 
 ### 6. Shared Transition Policy
 
-Table editing transition logic is centralized in `contentScript/tableRuntime/tableRuntimeTransitions.ts`.
+Table editing transition logic is split by responsibility:
 
-- The module is pure policy: it inspects `Transaction`/`ViewUpdate` state and returns declarative decisions/actions.
+- `tableRuntime/lifecyclePolicy.ts` is pure lifecycle policy: it inspects `ViewUpdate` state and returns declarative lifecycle actions.
 - `tableRuntime/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
+- `editorBridge/mainEditorGuardPolicy.ts` owns main-editor transaction filtering and paste rewrite decisions while nested editing is active.
+- `tableWidget/tableDecorationPolicy.ts` owns block-decoration rebuild decisions.
 - `nestedEditor/activeCellSession.ts` owns local/root synchronization, selection mirroring, and session invalidation.
 - `editorBridge/cellTextCodec.ts` and `editorBridge/syncAnnotation.ts` own the cross-editor text/selection protocol.
-- `editorBridge/mainEditorGuard.ts` owns main-editor transaction filtering while nested editing is active.
-- `tableWidgetExtension.ts` still owns block decoration materialization through `StateField`.
+
+`nestedEditor/nestedCellEditor.ts` is a lifecycle-internal gate: non-lifecycle modules should request opening via effects,
+not import it directly.
 
 **Sync Flow Diagram**:
 

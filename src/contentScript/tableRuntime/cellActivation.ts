@@ -3,21 +3,21 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { isSourceModeEnabled } from '../tableState/sourceMode';
 import { findTableRanges } from './tablePositioning';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
-import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { findCellElement } from '../tableWidget/domHelpers';
-import { makeTableId } from '../tableModel/types';
+import { selectAndRequestOpenActiveCell } from './activeCellOpen';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
     clearIfOutside?: boolean;
     /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
     normalizeIfNeeded?: boolean;
+    /** If true, preserve the current main-editor selection when requesting the nested editor open */
+    preserveMainSelection?: boolean;
 }
 
 export function resolveActivationTargetCell(params: {
@@ -102,21 +102,11 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    // Set the active cell state before opening the nested editor.
-    view.dispatch({
-        effects: setActiveCellEffect.of(newActiveCell),
-    });
-
-    const cellElement = findCellElement(view, makeTableId(table.from), newActiveCell);
-    if (!cellElement) {
-        return false;
-    }
-
-    openNestedCellEditor({
-        mainView: view,
-        cellElement,
+    selectAndRequestOpenActiveCell(view, {
         activeCell: newActiveCell,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
+        preserveMainSelection: options?.preserveMainSelection ?? false,
+        selectionAnchor: pos,
     });
 
     return true;
@@ -154,17 +144,7 @@ export function activateTableCell(
 
         if (!newActiveCell) return;
 
-        // Set the active cell state before opening the nested editor.
-        view.dispatch({
-            effects: setActiveCellEffect.of(newActiveCell),
-        });
-
-        const cellElement = findCellElement(view, makeTableId(tableFrom), coords);
-        if (!cellElement) return;
-
-        openNestedCellEditor({
-            mainView: view,
-            cellElement,
+        selectAndRequestOpenActiveCell(view, {
             activeCell: newActiveCell,
             normalizeIfNeeded: true,
         });

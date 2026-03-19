@@ -11,6 +11,7 @@ import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { navigateCell } from '../tableRuntime/tableNavigation';
 import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 import { resetNavigationLock } from '../tableRuntime/navigationLock';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
 
 const openActiveCellSessionMock = jest.fn();
 
@@ -43,6 +44,19 @@ interface MutableTestView {
     dom: {
         isConnected: boolean;
     };
+}
+
+function getLastDispatchSpec(view: MutableTestView): Parameters<EditorView['dispatch']>[0] {
+    const call = view.dispatch.mock.calls[view.dispatch.mock.calls.length - 1];
+    if (!call) {
+        throw new Error('Expected a dispatch call');
+    }
+    return call[0];
+}
+
+function findOpenRequest(spec: Parameters<EditorView['dispatch']>[0]) {
+    const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
+    return effects.find((effect) => effect?.is?.(requestOpenActiveCellEffect)) ?? null;
 }
 
 function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): {
@@ -146,12 +160,13 @@ describe('interactive cell normalization', () => {
         } as unknown as MouseEvent;
 
         expect(handleTableInteraction(view, event)).toBe(true);
-        expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',
             row: 0,
             col: 0,
         });
+        expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
         expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
@@ -215,12 +230,13 @@ describe('interactive cell normalization', () => {
         const { view } = createViewHarness();
 
         expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'))).toBe(true);
-        expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',
             row: 0,
             col: 0,
         });
+        expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
         expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
@@ -229,7 +245,9 @@ describe('interactive cell normalization', () => {
 
         expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'), { normalizeIfNeeded: false })).toBe(true);
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
-        expect(openActiveCellSessionMock).toHaveBeenCalledTimes(1);
+        const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
+        expect(openRequest?.value).toMatchObject({ normalizeIfNeeded: false });
+        expect(openActiveCellSessionMock).not.toHaveBeenCalled();
     });
 
     it('normalizes on keyboard navigation before reopening the target cell', () => {
@@ -244,7 +262,7 @@ describe('interactive cell normalization', () => {
         });
 
         expect(navigateCell(view, 'next', { cursorPos: 'end' })).toBe(true);
-        expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
 
         const activeCell = getActiveCell(view.state);
         expect(activeCell).toMatchObject({
@@ -252,6 +270,7 @@ describe('interactive cell normalization', () => {
             row: 0,
             col: 1,
         });
+        expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
         expect(openActiveCellSessionMock).not.toHaveBeenCalled();
         expect(consumePendingCellOpenOptions(view, activeCell!)).toEqual({
             initialCursorPos: 'end',

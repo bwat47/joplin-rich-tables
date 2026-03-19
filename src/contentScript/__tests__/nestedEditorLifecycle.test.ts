@@ -9,17 +9,20 @@ import { nestedEditorLifecyclePlugin } from '../tableRuntime/nestedEditorLifecyc
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
-import { sourceModeField } from '../tableState/sourceMode';
+import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCellResolver';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCellOpen';
+import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
 const nestedCellEditorMock = jest.requireMock('../nestedEditor/nestedCellEditor') as {
     closeNestedCellEditor: jest.Mock;
     isNestedCellEditorOpen: jest.Mock;
+    openNestedCellEditor: jest.Mock;
 };
 
 jest.mock('../tableRuntime/cellActivation', () => ({
@@ -47,6 +50,7 @@ describe('nestedEditorLifecycle', () => {
         findCellElementMock.mockClear();
         nestedCellEditorMock.closeNestedCellEditor.mockReset();
         nestedCellEditorMock.isNestedCellEditorOpen.mockReset();
+        nestedCellEditorMock.openNestedCellEditor.mockReset();
         nestedCellEditorMock.isNestedCellEditorOpen.mockReturnValue(false);
         global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
             callback(0);
@@ -183,6 +187,98 @@ describe('nestedEditorLifecycle', () => {
         });
 
         expect(nestedCellEditorMock.closeNestedCellEditor).toHaveBeenCalledWith(view);
+
+        view.destroy();
+    });
+
+    it('opens the nested editor only when an open request effect is dispatched', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const activeCell: ActiveCell = {
+            anchorPos: doc.indexOf('H2'),
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        rememberPendingCellOpen(view, activeCell, { initialCursorPos: 'end' });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                requestOpenActiveCellEffect.of({
+                    activeCell,
+                    normalizeIfNeeded: false,
+                }),
+            ],
+        });
+
+        expect(nestedCellEditorMock.openNestedCellEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                activeCell,
+                normalizeIfNeeded: false,
+                initialCursorPos: 'end',
+            })
+        );
+
+        view.destroy();
+    });
+
+    it('preserves the raw-mode text selection when exiting source mode into a nested editor', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const selectionFrom = doc.indexOf('H1');
+        const selectionTo = selectionFrom + 'H1'.length;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({
+            effects: toggleSourceModeEffect.of(true),
+            selection: { anchor: selectionFrom, head: selectionTo },
+        }).state;
+        const view = new EditorView({
+            parent,
+            state,
+        });
+        jest.spyOn(view, 'coordsAtPos').mockReturnValue({
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+        });
+
+        view.dispatch({
+            effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+        });
+
+        expect(view.state.selection.main.anchor).toBe(selectionFrom);
+        expect(view.state.selection.main.head).toBe(selectionTo);
 
         view.destroy();
     });

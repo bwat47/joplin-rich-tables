@@ -9,13 +9,12 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { searchPanelOpen } from '@codemirror/search';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { setSearchForceSourceModeEffect, exitSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 
 /**
  * ViewPlugin that watches for search panel state transitions.
  * Uses ViewPlugin instead of StateField because it needs to perform side effects
- * (dispatching effects, closing nested editors) which belong in ViewPlugin.update().
+ * (dispatching effects) which belong in ViewPlugin.update().
  */
 export const searchPanelWatcherPlugin = ViewPlugin.fromClass(
     class {
@@ -28,18 +27,16 @@ export const searchPanelWatcherPlugin = ViewPlugin.fromClass(
         update(update: ViewUpdate): void {
             const isOpen = searchPanelOpen(update.state);
 
-            // Search panel just opened → close nested editor and force raw markdown tables
+            // Search panel just opened → clear active cell and force raw markdown tables
             // Use queueMicrotask to defer dispatches until after the current update cycle.
             if (!this.wasSearchOpen && isOpen) {
                 queueMicrotask(() => {
-                    if (isNestedCellEditorOpen(this.view)) {
-                        closeNestedCellEditor(this.view);
-                    }
-                    if (getActiveCell(this.view.state)) {
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                    }
-
-                    this.view.dispatch({ effects: setSearchForceSourceModeEffect.of(true) });
+                    this.view.dispatch({
+                        effects: [
+                            ...(getActiveCell(this.view.state) ? [clearActiveCellEffect.of(undefined)] : []),
+                            setSearchForceSourceModeEffect.of(true),
+                        ],
+                    });
                 });
             }
 

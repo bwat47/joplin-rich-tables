@@ -1,17 +1,17 @@
 import { EditorView } from '@codemirror/view';
-import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getActiveCell } from '../tableState/activeCellState';
 import { resolveActiveCell } from './activeCellResolver';
 import { resolveCellDocRange } from './tablePositioning';
-import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
 import { execInsertRowAtBottom } from './tableOperations';
-import { makeTableId, type CellCoords } from '../tableModel/types';
-import { SECTION_BODY, SECTION_HEADER, findCellElement } from '../tableWidget/domHelpers';
+import { type CellCoords } from '../tableModel/types';
+import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import {
     isNavigationLocked,
     acquireNavigationLock,
     releaseNavigationLock,
     setPendingNavigationCallback,
 } from './navigationLock';
+import { selectAndRequestOpenActiveCell } from './activeCellOpen';
 
 export function navigateCell(
     view: EditorView,
@@ -93,7 +93,6 @@ export function navigateCell(
                 // Row creation failed (parse error, no-op) - release lock immediately
                 releaseNavigationLock();
             } else {
-                // Set pending callback for row creation path (goes through lifecycle plugin)
                 setPendingNavigationCallback(releaseNavigationLock);
             }
             return true;
@@ -139,39 +138,18 @@ export function navigateCell(
 
     const { cellFrom } = resolvedRange;
 
-    view.dispatch({
-        effects: setActiveCellEffect.of({
+    selectAndRequestOpenActiveCell(view, {
+        activeCell: {
             anchorPos: cellFrom,
             tableFrom: ctx.from,
-            section: target.section, // Use the proper Section type
+            section: target.section,
             row: target.row,
             col: target.col,
-        }),
+        },
+        normalizeIfNeeded: true,
+        initialCursorPos: options.cursorPos,
+        onFocused: releaseNavigationLock,
     });
-
-    // After dispatch, query for the fresh cell element using data attributes.
-    // The DOM is ready synchronously after dispatch since CodeMirror applies decorations synchronously.
-    const cellElement = findCellElement(view, makeTableId(ctx.from), target);
-
-    if (cellElement) {
-        openNestedCellEditor({
-            mainView: view,
-            cellElement,
-            activeCell: {
-                anchorPos: cellFrom,
-                tableFrom: ctx.from,
-                section: target.section,
-                row: target.row,
-                col: target.col,
-            },
-            normalizeIfNeeded: true,
-            initialCursorPos: options.cursorPos,
-            onFocused: releaseNavigationLock,
-        });
-    } else {
-        // No cell element found, release lock immediately
-        releaseNavigationLock();
-    }
 
     return true;
 }

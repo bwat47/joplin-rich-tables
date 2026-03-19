@@ -1,18 +1,12 @@
 import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import {
-    setActiveCellEffect,
-    clearActiveCellEffect,
-    getActiveCell,
-    type ActiveCellSection,
-} from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/cellSelectionController';
 import { resolveCellDocRange, resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
-import { openNestedCellEditor } from '../nestedEditor/nestedCellEditor';
-import { closeNestedCellEditor, isNestedCellEditorOpen } from '../nestedEditor/nestedCellEditor';
 import { openLink } from '../services/markdownRenderer';
 import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
+import { selectAndRequestOpenActiveCell } from '../tableRuntime/activeCellOpen';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -229,15 +223,8 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         event.stopPropagation();
 
         const currentSelection = getCellSelection(view.state);
-        const existingActiveCell = getActiveCell(view.state);
         const hasSelection = Boolean(currentSelection);
         if (mouseEvent.shiftKey) {
-            const canTransitionSelection =
-                currentSelection?.tableFrom === ctx.from || existingActiveCell?.tableFrom === ctx.from;
-
-            if (canTransitionSelection && isNestedCellEditorOpen(view)) {
-                closeNestedCellEditor(view);
-            }
             if (
                 setOrExtendCellSelectionToCoords(
                     view,
@@ -249,35 +236,17 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             }
         }
 
-        view.dispatch({
-            selection: { anchor: cellFrom },
-            effects: [
-                ...(hasSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-                setActiveCellEffect.of({
-                    anchorPos: cellFrom,
-                    tableFrom: ctx.from,
-                    section,
-                    row: section === SECTION_HEADER ? 0 : row,
-                    col,
-                }),
-            ],
-        });
-
-        const activeCell = {
-            anchorPos: cellFrom,
-            tableFrom: ctx.from,
-            section,
-            row: section === SECTION_HEADER ? 0 : row,
-            col,
-        };
-
-        // Since we no longer rebuild widgets on setActiveCellEffect, the original
-        // cell reference is still valid. Open the nested editor directly.
-        openNestedCellEditor({
-            mainView: view,
-            cellElement: cell,
-            activeCell,
+        selectAndRequestOpenActiveCell(view, {
+            activeCell: {
+                anchorPos: cellFrom,
+                tableFrom: ctx.from,
+                section,
+                row: section === SECTION_HEADER ? 0 : row,
+                col,
+            },
+            clearCellSelection: hasSelection,
             normalizeIfNeeded: true,
+            selectionAnchor: cellFrom,
         });
 
         return true;

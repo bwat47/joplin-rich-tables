@@ -16,12 +16,7 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/cellSelectionKeymap';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
-import {
-    closeNestedCellEditor,
-    isNestedCellEditorOpen,
-    nestedCellEditorPlugin,
-    refocusNestedEditor,
-} from '../nestedEditor/nestedCellEditor';
+import { isNestedCellEditorOpen, nestedCellEditorPlugin, refocusNestedEditor } from '../nestedEditor/nestedCellEditor';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from '../tableRuntime/tablePositioning';
@@ -34,7 +29,7 @@ import { searchPanelWatcherPlugin } from '../tableRuntime/searchPanelWatcher';
 import { navigationLockKeymap } from './navigationLockKeymap';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { moveCursorOutOfTable } from '../tableRuntime/cursorUtils';
-import { decideTableDecorationUpdate } from '../tableRuntime/tableRuntimeTransitions';
+import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 /**
  * Build decorations for all tables in the document.
@@ -136,10 +131,6 @@ function handleOutsideTableInteraction(
     }
 
     const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-
-    if (hasNestedEditor) {
-        closeNestedCellEditor(view);
-    }
 
     if (clickPos !== null) {
         // On right-click context menus, avoid forcing focus/scroll so the native/Joplin

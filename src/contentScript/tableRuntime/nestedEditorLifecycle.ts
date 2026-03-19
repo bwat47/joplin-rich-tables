@@ -21,7 +21,7 @@ import {
     buildTableRuntimeSnapshot,
     planTableLifecycleActions,
     type TableRuntimeAction,
-} from './tableRuntimeTransitions';
+} from './lifecyclePolicy';
 
 // ============================================================================
 // Utilities
@@ -125,6 +125,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             activateCellAtPosition(this.view, cursorPos, {
                                 clearIfOutside: action.clearIfOutside,
                                 normalizeIfNeeded: action.normalizeIfNeeded,
+                                preserveMainSelection: action.preserveMainSelection,
                             });
                             if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);
@@ -185,7 +186,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
-                                normalizeIfNeeded: false,
+                                normalizeIfNeeded: action.normalizeIfNeeded,
                                 initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });
