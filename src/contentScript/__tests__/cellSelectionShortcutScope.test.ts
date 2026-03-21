@@ -8,7 +8,7 @@ import { activeCellField, setActiveCellEffect } from '../tableState/activeCellSt
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import {
     canHandleTableClipboardShortcut,
-    canHandleTableSelectionShortcut,
+    canHandleTableSelectionKeydown,
 } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
@@ -71,14 +71,14 @@ describe('cellSelectionShortcutScope', () => {
         const { view } = createViewHarness();
         setActiveElement(document.body);
 
-        expect(canHandleTableSelectionShortcut(view)).toBe(true);
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
     });
 
     it('allows shortcuts when focus is inside the selected table widget', () => {
         const { view, selectedWidgetChild } = createViewHarness();
         setActiveElement(selectedWidgetChild);
 
-        expect(canHandleTableSelectionShortcut(view)).toBe(true);
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
     });
 
     it('rejects shortcuts when focus is on a toolbar button', () => {
@@ -90,7 +90,7 @@ describe('cellSelectionShortcutScope', () => {
         root.appendChild(toolbar);
         setActiveElement(button);
 
-        expect(canHandleTableSelectionShortcut(view)).toBe(false);
+        expect(canHandleTableSelectionKeydown(view)).toBe(false);
     });
 
     it('rejects shortcuts when focus is on another interactive control in the editor', () => {
@@ -99,7 +99,7 @@ describe('cellSelectionShortcutScope', () => {
         root.appendChild(button);
         setActiveElement(button);
 
-        expect(canHandleTableSelectionShortcut(view)).toBe(false);
+        expect(canHandleTableSelectionKeydown(view)).toBe(false);
     });
 
     it('allows clipboard shortcuts when focus is inside the nested editor', () => {

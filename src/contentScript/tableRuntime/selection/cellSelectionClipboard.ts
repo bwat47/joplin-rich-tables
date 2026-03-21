@@ -16,7 +16,7 @@ import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { resolveTableContextAtPos } from '../tablePositioning';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../../tableModel/types';
-import { canHandleTableClipboardShortcut, canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
+import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 
 export interface TableClipboardTarget {
@@ -355,7 +355,7 @@ export function handleSelectionDelete(view: EditorView): boolean {
         return false;
     }
 
-    if (!canHandleTableSelectionShortcut(view)) {
+    if (!canHandleTableSelectionKeydown(view)) {
         return false;
     }
 
@@ -374,7 +374,7 @@ function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
         return false;
     }
 
-    if (!canHandleTableSelectionShortcut(view)) {
+    if (!canHandleTableSelectionKeydown(view)) {
         return false;
     }
 
@@ -394,7 +394,7 @@ function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
         return false;
     }
 
-    if (!canHandleTableSelectionShortcut(view)) {
+    if (!canHandleTableSelectionKeydown(view)) {
         return false;
     }
 

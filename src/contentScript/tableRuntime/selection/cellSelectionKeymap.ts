@@ -6,7 +6,7 @@ import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
 import { resolveTableAtPos } from '../tablePositioning';
 import { buildTableContext } from '../../tableModel/tableContext';
-import { canHandleTableSelectionShortcut } from './cellSelectionShortcutScope';
+import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
 
@@ -68,7 +68,7 @@ function activateSelectionFocus(view: EditorView): boolean {
 }
 
 function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
-    if (!canHandleTableSelectionShortcut(view)) {
+    if (!canHandleTableSelectionKeydown(view)) {
         return false;
     }
 
