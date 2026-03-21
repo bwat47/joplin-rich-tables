@@ -41,6 +41,8 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             overflowWrap: 'normal !important',
         },
         '.cm-line': {
+            margin: '0 !important',
+            padding: '0 !important',
             wordBreak: 'normal !important',
             overflowWrap: 'normal !important',
         },
