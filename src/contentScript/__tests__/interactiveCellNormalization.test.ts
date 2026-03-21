@@ -24,6 +24,7 @@ interface MutableTestView {
     dispatch: jest.Mock;
     focus: jest.Mock;
     posAtDOM: jest.Mock;
+    requestMeasure: jest.Mock;
     contentDOM: {
         querySelectorAll: jest.Mock;
     };
@@ -113,6 +114,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
         }),
         focus: jest.fn(),
         posAtDOM: jest.fn(() => 0),
+        requestMeasure: jest.fn(),
         contentDOM: {
             querySelectorAll: jest.fn(() => [widget]),
         },

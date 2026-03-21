@@ -13,7 +13,8 @@ import {
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tablePositioning';
-import type { CellCoords } from '../../tableModel/types';
+import { makeTableId, type CellCoords } from '../../tableModel/types';
+import { findCellElement } from '../../tableWidget/domHelpers';
 
 function getTableBounds(view: EditorView, tableFrom: number): { totalRows: number; totalCols: number } | null {
     const ctx = resolveTableContextAtPos(view.state, tableFrom);
@@ -67,6 +68,18 @@ function dispatchSelection(view: EditorView, selection: CellSelection, options: 
         annotations: cellSelectionTransitionAnnotation.of(true),
         scrollIntoView: false,
     });
+
+    const cellElement = findCellElement(view, makeTableId(ctx.from), selection.focus);
+    if (cellElement) {
+        view.requestMeasure({
+            read: () => cellElement.isConnected,
+            write: (isConnected) => {
+                if (isConnected) {
+                    cellElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+            },
+        });
+    }
 
     return true;
 }
