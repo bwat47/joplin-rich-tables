@@ -35,6 +35,16 @@ describe('MarkdownTable', () => {
         );
     });
 
+    it('normalizes non-canonical <br> variants to <br> during serialization', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1<br/>H2', 'H3<br />H4'],
+            alignments: [null, null],
+            bodyRows: [['a<br/>b', 'c<BR/>d']],
+        });
+
+        expect(table.serialize()).toBe(['| H1<br>H2 | H3<br>H4 |', '| --- | --- |', '| a<br>b | c<br>d |'].join('\n'));
+    });
+
     it('keeps passive table-context builds side-effect free for non-canonical markdown', () => {
         const text = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
         const ctx = buildTableContext({ from: 0, to: text.length, text });

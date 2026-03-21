@@ -1,5 +1,6 @@
 import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
+import { normalizeBrTags } from '../shared/cellTextNormalization';
 import type { CellCoords, TableRect, TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
@@ -199,9 +200,9 @@ export class MarkdownTable {
             return '---';
         };
 
-        const headerLine = joinRow(this.headersData);
+        const headerLine = joinRow(this.headersData.map(normalizeBrTags));
         const separatorLine = joinRow(this.alignmentsData.map(separatorCellForAlignment));
-        const bodyLines = this.rowsData.map((row) => joinRow(row));
+        const bodyLines = this.rowsData.map((row) => joinRow(row.map(normalizeBrTags)));
 
         return [headerLine, separatorLine, ...bodyLines].join('\n');
     }

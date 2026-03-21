@@ -1,4 +1,5 @@
 import { Transaction } from '@codemirror/state';
+import { normalizeBrTags } from '../shared/cellTextNormalization';
 
 export interface LocalSelection {
     anchor: number;
@@ -18,7 +19,6 @@ export interface SanitizeChangesResult {
 const SELECTION_MARK = '\u0000';
 const UNESCAPED_PIPE_PATTERN = /(?<!\\)(\\\\)*\|/g;
 const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
-const NON_CANONICAL_BR_PATTERN = /<br\s*\/>/gi;
 
 export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
@@ -52,10 +52,6 @@ function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: num
 
 export function convertNewlinesToBr(text: string): string {
     return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
-}
-
-export function normalizeBrTags(text: string): string {
-    return text.replace(NON_CANONICAL_BR_PATTERN, '<br>');
 }
 
 export function unsanitizeRootText(rootText: string): string {

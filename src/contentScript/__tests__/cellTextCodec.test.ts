@@ -3,13 +3,13 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipes,
-    normalizeBrTags,
     sanitizeCellChanges,
     sanitizeLocalText,
     toLocalSelection,
     toRootSelection,
     unsanitizeRootText,
 } from '../editorBridge/cellTextCodec';
+import { normalizeBrTags } from '../shared/cellTextNormalization';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('escapeUnescapedPipes', () => {
