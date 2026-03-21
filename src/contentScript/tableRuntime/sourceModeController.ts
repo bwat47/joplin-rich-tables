@@ -1,7 +1,23 @@
 import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { isSearchForceSourceModeEnabled } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
+
+function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
+    requestAnimationFrame(() => {
+        if (!view.dom.isConnected) {
+            return;
+        }
+
+        // Search-forced raw mode intentionally lets Joplin keep focus on the search UI.
+        if (!isSourceModeEnabled(view.state) || isSearchForceSourceModeEnabled(view.state)) {
+            return;
+        }
+
+        view.contentDOM.focus({ preventScroll: true });
+    });
+}
 
 export function toggleSourceMode(view: EditorView): boolean {
     const current = isSourceModeEnabled(view.state);
@@ -13,6 +29,7 @@ export function toggleSourceMode(view: EditorView): boolean {
             effects.unshift(clearActiveCellEffect.of(undefined));
         }
         view.dispatch({ effects });
+        focusMainEditorForExplicitSourceModeEntry(view);
         return true;
     }
 
