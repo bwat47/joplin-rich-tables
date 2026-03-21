@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
 
 export interface PendingCellOpenOptions {
-    initialCursorPos?: 'start' | 'end';
+    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
 }
 
 interface PendingCellOpenRequest extends PendingCellOpenOptions {

@@ -14,7 +14,7 @@ export interface SelectAndRequestOpenActiveCellParams {
     activeCell: ActiveCell;
     clearCellSelection?: boolean;
     normalizeIfNeeded?: boolean;
-    initialCursorPos?: 'start' | 'end';
+    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     onFocused?: () => void;
     selectionAnchor?: number;
     scrollIntoView?: boolean;

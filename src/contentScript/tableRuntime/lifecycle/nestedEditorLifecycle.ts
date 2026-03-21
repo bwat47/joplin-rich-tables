@@ -68,7 +68,7 @@ function normalizeTableBeforeOpen(params: {
     view: EditorView;
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
     normalizeIfNeeded: boolean;
-    initialCursorPos?: 'start' | 'end';
+    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
 }): boolean {
     if (!params.normalizeIfNeeded) {
         return false;

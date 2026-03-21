@@ -72,11 +72,11 @@ export function createNestedEditorKeymap(
                 const fromRect = nestedView.coordsAtPos(from);
 
                 if (headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) {
-                    return navigateCell(mainView, 'up', { cursorPos: 'start' });
+                    return navigateCell(mainView, 'up', { cursorPos: 'lastLineStart' });
                 }
 
                 if (head === from) {
-                    return navigateCell(mainView, 'up', { cursorPos: 'start' });
+                    return navigateCell(mainView, 'up', { cursorPos: 'lastLineStart' });
                 }
 
                 return false;

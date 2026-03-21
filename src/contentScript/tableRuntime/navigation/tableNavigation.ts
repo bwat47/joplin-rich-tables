@@ -16,7 +16,7 @@ import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
 export function navigateCell(
     view: EditorView,
     direction: 'next' | 'previous' | 'up' | 'down',
-    options: { cursorPos?: 'start' | 'end'; allowRowCreation?: boolean } = {}
+    options: { cursorPos?: 'start' | 'end' | 'lastLineStart'; allowRowCreation?: boolean } = {}
 ): boolean {
     // Prevent race conditions from rapid key-holding
     if (isNavigationLocked()) {

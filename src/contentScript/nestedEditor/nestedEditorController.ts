@@ -99,7 +99,7 @@ class NestedEditorController {
         mainView: EditorView;
         cellElement: HTMLElement;
         activeCell: ActiveCell;
-        initialCursorPos?: 'start' | 'end';
+        initialCursorPos?: 'start' | 'end' | 'lastLineStart';
         onFocused?: () => void;
     }): void {
         this.close();
@@ -130,6 +130,10 @@ class NestedEditorController {
             localSelection = { anchor: 0, head: 0 };
         } else if (params.initialCursorPos === 'end') {
             localSelection = { anchor: localText.length, head: localText.length };
+        } else if (params.initialCursorPos === 'lastLineStart') {
+            const lastNewline = localText.lastIndexOf('\n');
+            const pos = lastNewline === -1 ? 0 : lastNewline + 1;
+            localSelection = { anchor: pos, head: pos };
         }
 
         const session: NestedEditorSession = {
@@ -529,7 +533,7 @@ export function openNestedEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
     activeCell: ActiveCell;
-    initialCursorPos?: 'start' | 'end';
+    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     onFocused?: () => void;
 }): void {
     getController(params.mainView)?.open(params);
