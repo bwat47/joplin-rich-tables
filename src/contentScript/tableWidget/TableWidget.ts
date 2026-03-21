@@ -17,7 +17,7 @@ import {
     getCellSelector,
 } from './domHelpers';
 import { estimateTableHeight } from './tableHeightEstimation';
-import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
+import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -208,16 +208,16 @@ export class TableWidget extends WidgetType {
             return;
         }
 
-        // Show raw text initially
-        contentWrapper.textContent = displayText;
+        // Show content with <br> rendered as line breaks while async render runs
+        contentWrapper.innerHTML = escapeHtmlPreservingBr(displayText);
 
         // Check if content likely contains markdown (optimization)
         if (containsMarkdown(displayText)) {
             // Request async rendering and update when ready
             renderer.renderAsync(cacheKey, (html) => {
-                // Only update if the wrapper is still in the DOM and content hasn't changed.
+                // Only update if the wrapper is still in the DOM.
                 // Note: Height re-measurement is handled automatically by ResizeObserver.
-                if (contentWrapper.isConnected && contentWrapper.textContent === displayText) {
+                if (contentWrapper.isConnected) {
                     contentWrapper.innerHTML = html;
                 }
             });

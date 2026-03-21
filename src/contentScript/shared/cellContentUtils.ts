@@ -96,6 +96,19 @@ export function buildRenderableContent(cellText: string, definitionBlock: string
 }
 
 /**
+ * Escapes HTML entities but preserves <br> tags as actual line breaks.
+ * Used as a fallback when the render cache misses, so that multi-line
+ * content doesn't flash raw <br> text while the async renderer runs.
+ */
+export function escapeHtmlPreservingBr(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/&lt;br&gt;/g, '<br>');
+}
+
+/**
  * Quick check if content likely contains markdown formatting
  * Avoids unnecessary render requests for plain text
  */

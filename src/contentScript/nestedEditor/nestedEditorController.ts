@@ -20,7 +20,7 @@ import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock
 import { ensureCellWrapper } from './mounting';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
-import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
+import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
@@ -280,7 +280,7 @@ class NestedEditorController {
             if (cached !== undefined) {
                 this.contentEl.innerHTML = cached;
             } else {
-                this.contentEl.textContent = displayText;
+                this.contentEl.innerHTML = escapeHtmlPreservingBr(displayText);
                 if (containsMarkdown(displayText)) {
                     const contentEl = this.contentEl;
                     renderer.renderAsync(cacheKey, (html) => {
