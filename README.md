@@ -47,7 +47,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 >
 > The plugin does not provide handling for ctrl + clicking links while editing a table cell. However, you can left click links on table cells that aren't actively being edited, and you can get right click context menu options for links using plugins like Rich Markdown or Context Utils.
 
-## Formatting commands
+### Formatting commands
 
 The cell editor syncs cursor position/selection with the main editor, so Joplin's native formatting toolbar buttons/shortcuts work while editing tables (Bold Text, Italic Text, Inline Code, Insert Link).
 
