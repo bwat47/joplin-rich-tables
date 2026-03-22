@@ -23,6 +23,7 @@ Table rendering includes rendering of inline markdown and image embeds.
 Supports syntax highlighting (while editing) and rendering (cells not being edited) most markdown syntax supported by Joplin:
 
 - Basic formatting: bold/italic/inline code/strikethrough/highlight(==mark==)/underline(++insert++).
+- Inline HTML (Joplin 3.6 and newer), e.g. `<sup></sup>`.
 - Links (markdown links, autolinks, reference style links).
 - Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just displays the exact footnote label that's defined in the footnote link (e.g. `[^1]`).
 - Embeds (markdown and html image embeds, video embeds when you have joplin's video plugin enabled, youtube links will be rendered as video embed in joplin 3.6.1 or newer).
@@ -40,11 +41,15 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Moving columns (left/right)
 - Changing column alignment (left/center/right)
 - Clear table
-- Select multiple table cells and cut/copy/paste/clear/delete
+- Select multiple table cells and cut/copy/paste/clear/delete (desktop only).
 
 > [!note]
 >
 > The plugin does not provide handling for ctrl + clicking links while editing a table cell. However, you can left click links on table cells that aren't actively being edited, and you can get right click context menu options for links using plugins like Rich Markdown or Context Utils.
+
+## Formatting commands
+
+The cell editor syncs cursor position/selection with the main editor, so Joplin's native formatting toolbar buttons/shortcuts work while editing tables (Bold Text, Italic Text, Inline Code, Insert Link).
 
 ### Undo/Redo
 
@@ -52,7 +57,7 @@ Properly supports undo/redo while editing tables (integrated with main editor's 
 
 ### Search integration
 
-Table markdown is revealed while joplin search panel is active. When closing search (and if search result selection is in a table), closing search will activate that table cell with the search result highlighted.
+Table markdown is revealed while joplin search panel is active. When closing the search panel (and if current search result selection is inside a table), closing search will activate that table cell with the current search result selected.
 
 ### Keyboard Shortcuts
 
@@ -79,5 +84,6 @@ Table markdown is revealed while joplin search panel is active. When closing sea
 
 ### Important Notes/Limitations
 
+- The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
-- Multi-cell selection is keyboard only
+- Multi-cell selection is keyboard only.
