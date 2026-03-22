@@ -34,6 +34,7 @@ Supports syntax highlighting (while editing) and rendering (cells not being edit
 
 Provides table editing from the rendered HTML table similar to the Rich text editor. The following operations are supported:
 
+- Create new table
 - Editing table cells (with syntax highlighting for markdown)
 - Adding/Deleting/Clearing rows
 - Adding/Deleting/Clearing columns
