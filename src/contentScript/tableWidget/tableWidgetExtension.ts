@@ -30,6 +30,7 @@ import { navigationLockKeymap } from './navigationLockKeymap';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { moveCursorOutOfTable } from '../tableRuntime/navigation/cursorUtils';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
+import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
 
 /**
  * Build decorations for all tables in the document.
@@ -148,7 +149,7 @@ function handleOutsideTableInteraction(
         } else if (hasNestedEditor) {
             // The nested editor we just destroyed held focus; restore it to the
             // main editor without scrolling so the caret is painted.
-            view.contentDOM.focus({ preventScroll: true });
+            focusMainEditorWithoutScroll(view);
         }
     } else if (hasActiveCell || hasCellSelection) {
         view.dispatch({

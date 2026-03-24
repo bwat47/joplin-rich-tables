@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { isSearchForceSourceModeEnabled } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
 
 function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
     requestAnimationFrame(() => {
@@ -15,7 +16,7 @@ function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
             return;
         }
 
-        view.contentDOM.focus({ preventScroll: true });
+        focusMainEditorWithoutScroll(view);
     });
 }
 

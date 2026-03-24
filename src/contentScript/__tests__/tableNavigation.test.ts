@@ -5,7 +5,7 @@ import { getActiveCell } from '../tableState/activeCellState';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { resolveCellDocRange } from '../tableRuntime/tablePositioning';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
-import { resetNavigationLock } from '../tableRuntime/navigationLock';
+import { isNavigationLocked, resetNavigationLock } from '../tableRuntime/navigationLock';
 
 import * as activeCellState from '../tableState/activeCellState';
 import { setActiveCellEffect } from '../tableState/activeCellState';
@@ -42,6 +42,7 @@ describe('navigateCell', () => {
             state: mockState,
             dispatch: mockDispatch,
             contentDOM: {
+                focus: jest.fn(),
                 querySelectorAll: jest.fn().mockReturnValue([]),
             },
             dom: {
@@ -171,21 +172,25 @@ describe('navigateCell', () => {
     it('should add row at end of table with col 0 when Tab (next) with allowRowCreation', () => {
         setupTable(1, 2);
         setupActiveCell(SECTION_BODY, 0, 1); // Last cell, col 1
+        (execInsertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'next', { allowRowCreation: true });
 
         expect(result).toBe(true);
         expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 0);
+        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
     });
 
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
         setupTable(1, 2);
         setupActiveCell(SECTION_BODY, 0, 1); // Last row, col 1
+        (execInsertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
 
         expect(result).toBe(true);
         expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 1);
+        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
     });
 
     it('should NOT add row at end of table if allowRowCreation is false', () => {
@@ -196,6 +201,18 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(execInsertRowAtBottom).not.toHaveBeenCalled();
+    });
+
+    it('should not hand off focus and should release navigation lock when row creation fails', () => {
+        setupTable(1, 2);
+        setupActiveCell(SECTION_BODY, 0, 1);
+        (execInsertRowAtBottom as jest.Mock).mockReturnValue(false);
+
+        const result = navigateCell(mockView, 'down', { allowRowCreation: true });
+
+        expect(result).toBe(true);
+        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(isNavigationLocked()).toBe(false);
     });
 
     it('should navigate previous from body start to header end', () => {
