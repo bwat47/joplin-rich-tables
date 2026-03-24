@@ -21,7 +21,7 @@ import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/d
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { handoffMainEditorFocus } from '../shared/mainEditorFocus';
+import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
 
 import {
     rowInsertTopIcon,
@@ -118,7 +118,7 @@ class TableToolbarPlugin {
                 e.preventDefault();
                 e.stopPropagation();
                 onClick();
-                handoffMainEditorFocus(this.view);
+                focusMainEditorWithoutScroll(this.view);
             };
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
