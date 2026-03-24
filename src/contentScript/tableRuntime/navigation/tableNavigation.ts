@@ -12,6 +12,34 @@ import {
     setPendingNavigationCallback,
 } from '../navigationLock';
 import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
+import { handoffMainEditorFocus } from '../../shared/mainEditorFocus';
+
+function insertRowFromKeyboardNavigation(
+    view: EditorView,
+    activeCell: NonNullable<ReturnType<typeof getActiveCell>>,
+    targetCol: number
+): boolean {
+    // Acquire lock before row creation (which opens a nested editor)
+    // Note: row-creation re-open happens after execInsertRowAtBottom returns
+    // via RAF in nestedEditorLifecycle.ts
+    if (!acquireNavigationLock()) {
+        return true; // Already locked
+    }
+
+    const success = execInsertRowAtBottom(view, activeCell, targetCol);
+    if (!success) {
+        // Row creation failed (parse error, no-op) - release lock immediately
+        releaseNavigationLock();
+        return true;
+    }
+
+    // Focus the main editor after the old nested editor has been closed by the
+    // structural dispatch so Android keeps the IME alive until the replacement
+    // editor mounts.
+    handoffMainEditorFocus(view);
+    setPendingNavigationCallback(releaseNavigationLock);
+    return true;
+}
 
 export function navigateCell(
     view: EditorView,
@@ -80,22 +108,9 @@ export function navigateCell(
 
     if (unifiedRow >= totalRows) {
         if (options.allowRowCreation) {
-            // Acquire lock before row creation (which opens a nested editor)
-            // Note: row‑creation re‑open happens after execInsertRowAtBottom returns
-            // via RAF in nestedEditorLifecycle.ts
-            if (!acquireNavigationLock()) {
-                return true; // Already locked
-            }
             // Tab ('next') goes to first col, Enter/down stays in same col
             const targetCol = direction === 'next' ? 0 : activeCell.col;
-            const success = execInsertRowAtBottom(view, activeCell, targetCol);
-            if (!success) {
-                // Row creation failed (parse error, no-op) - release lock immediately
-                releaseNavigationLock();
-            } else {
-                setPendingNavigationCallback(releaseNavigationLock);
-            }
-            return true;
+            return insertRowFromKeyboardNavigation(view, activeCell, targetCol);
         }
         // Walked off end of table
         return true;

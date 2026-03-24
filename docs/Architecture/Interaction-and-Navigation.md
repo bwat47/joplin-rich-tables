@@ -29,6 +29,10 @@ The `tableRuntime/navigationLock.ts` module:
 
 **Pending callback**: For row creation where initiator can't pass `onFocused` directly.
 
+Keyboard-created row insertion also hands focus back to the main editor immediately after the
+structural dispatch so Android can keep the IME alive during the close/reopen gap before the
+replacement nested editor mounts. Toolbar structural commands use the same focus handoff.
+
 ## Selection Sync
 
 Two active selections exist: hidden main editor selection and visible nested editor selection.
