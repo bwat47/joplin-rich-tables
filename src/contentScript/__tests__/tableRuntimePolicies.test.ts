@@ -14,12 +14,12 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
     buildTableRuntimeEvent,
-    decideMainEditorGuardTransaction,
-    decideTableDecorationUpdate,
     planTableLifecycleActions,
     type TableRuntimeEvent,
     type TableRuntimeSnapshot,
-} from '../tableRuntime/tableRuntimeTransitions';
+} from '../tableRuntime/lifecycle/lifecyclePolicy';
+import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
+import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
@@ -79,7 +79,7 @@ function createViewUpdate(
     };
 }
 
-describe('tableRuntimeTransitions', () => {
+describe('tableRuntimePolicies', () => {
     it('maps decorations for in-cell edits while active', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });
