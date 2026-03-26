@@ -53,7 +53,7 @@ export const tableStyles = EditorView.baseTheme({
     // Reset white-space to prevent newlines in serialized HTML from rendering as gaps
     // (Joplin's editor uses white-space: break-spaces which makes all whitespace visible)
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}`]: {
-        paddingLeft: '1px',
+        paddingLeft: '1px !important',
         whiteSpace: 'normal',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
