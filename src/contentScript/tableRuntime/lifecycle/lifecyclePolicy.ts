@@ -1,4 +1,4 @@
-import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
+import { ChangeSet, EditorSelection, SelectionRange, Text, Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
@@ -282,13 +282,23 @@ function shouldRepositionCellAfterUndoRedo(
     return isUndoRedo && cursorInsideTableAfterUndoRedo;
 }
 
+function expandCellToThroughTrailingPadding(doc: Text, cellTo: number): number {
+    const line = doc.lineAt(cellTo);
+    let pos = cellTo;
+    while (pos < line.to && /\s/.test(doc.sliceString(pos, pos + 1))) {
+        pos++;
+    }
+    return pos;
+}
+
 function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
+    const effectiveCellTo = expandCellToThroughTrailingPadding(tr.startState.doc, activeCell.cellTo);
     let outsideCell = false;
     tr.changes.iterChanges((fromA, toA) => {
         if (outsideCell) {
             return;
         }
-        if (fromA < activeCell.cellFrom || toA > activeCell.cellTo) {
+        if (fromA < activeCell.cellFrom || toA > effectiveCellTo) {
             outsideCell = true;
         }
     });

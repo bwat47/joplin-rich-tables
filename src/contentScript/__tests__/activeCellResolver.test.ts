@@ -103,7 +103,7 @@ describe('activeCellResolver', () => {
         expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
     });
 
-    it('extends the resolved cell range across trailing whitespace when the selection is exactly at cell end', () => {
+    it('does not expand when the selection is exactly at the trimmed cell end', () => {
         const doc = ['| foo  |', '| --- |'].join('\n');
         const cellEndCursor = doc.indexOf('foo') + 'foo'.length;
         const state = createState(doc, {
@@ -119,8 +119,8 @@ describe('activeCellResolver', () => {
 
         expect(resolved).not.toBeNull();
         expect(resolved?.cellFrom).toBe(doc.indexOf('foo'));
-        expect(resolved?.cellTo).toBe(doc.indexOf('|', doc.indexOf('foo')));
-        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
+        expect(resolved?.cellTo).toBe(doc.indexOf('foo') + 'foo'.length);
+        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo');
     });
 
     it('resolves the anchored table from tableFrom when another table follows', () => {

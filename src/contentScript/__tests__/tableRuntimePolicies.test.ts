@@ -15,6 +15,7 @@ import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../t
 import {
     buildTableRuntimeEvent,
     planTableLifecycleActions,
+    transactionRequiresTableRebuild,
     type TableRuntimeEvent,
     type TableRuntimeSnapshot,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
@@ -451,6 +452,23 @@ describe('tableRuntimePolicies', () => {
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toContainEqual({
             type: 'clearActiveCell',
         });
+    });
+
+    it('does not require rebuild when undo change range falls within trailing cell padding', () => {
+        // `| H1 | H2 |` — "H1" is at positions 2-3 (trimmed), but the raw cell is `| H1 |`
+        // so position 4 is a trailing space, position 5 is the pipe. An undo that produces
+        // a change touching positions 2-4 (content + one trailing space) should not rebuild.
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const resolved = requireResolvedActiveCell(state);
+
+        // Simulate an undo transaction whose change range extends one position into trailing padding
+        const tr = state.update({
+            changes: { from: resolved.cellFrom, to: resolved.cellTo + 1, insert: 'H1' },
+            annotations: Transaction.userEvent.of('undo'),
+        });
+
+        expect(transactionRequiresTableRebuild(tr, resolved)).toBe(false);
     });
 
     it('clears stale active cell when the resolver cannot find the table', () => {
