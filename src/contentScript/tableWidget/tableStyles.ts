@@ -8,9 +8,19 @@ import {
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
 
 /**
- * Basic styles for the table widget.
+ * Base styles for the table widget, split by responsibility:
+ *
+ *   1. Widget container and table layout
+ *   2. Cell layout and resets
+ *   3. Nested editor DOM resets
+ *   4. Rendered content styling (markdown output inside cells)
+ *   5. Joplin artifact cleanup
  */
 export const tableStyles = EditorView.baseTheme({
+    // -------------------------------------------------------------------------
+    // 1. Widget container and table layout
+    // -------------------------------------------------------------------------
+
     [getWidgetSelector()]: {
         padding: '8px 0',
         position: 'relative',
@@ -26,8 +36,13 @@ export const tableStyles = EditorView.baseTheme({
         fontFamily: 'inherit',
         fontSize: 'inherit',
     },
+
+    // -------------------------------------------------------------------------
+    // 2. Cell layout and resets
+    // -------------------------------------------------------------------------
+
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
-        border: '1px solid var(--joplin-divider-color, #dddddd)',
+        border: '1px solid var(--rt-border-color)',
         padding: '8px 12px',
         minWidth: '75px',
         // Joplin/CodeMirror editor styles can apply aggressive breaking (e.g. `overflow-wrap: anywhere`)
@@ -59,9 +74,42 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
     },
+    // Style the active cell (td/th)
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_ACTIVE}`]: {
+        outline: '2px solid var(--rt-border-color)',
+        outlineOffset: '-1px', // Draw inside existing border
+        zIndex: '5', // Ensure on top of neighbors
+        wordBreak: 'normal',
+        overflowWrap: 'normal',
+        boxSizing: 'border-box',
+    },
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]:
+        {
+            backgroundColor: 'var(--rt-selection-bg)',
+        },
+
+    // -------------------------------------------------------------------------
+    // 3. Nested editor DOM resets
+    //
+    // The nested editor mounts inside a <td>. Its CodeMirror DOM inherits Joplin
+    // editor styles that break cell layout; override them here.
+    // -------------------------------------------------------------------------
+
+    // Editor host visibility: hidden by default, shown when cell is active.
+    // Controlled via CLASS_CELL_ACTIVE on the parent <td>/<th> rather than
+    // inline style.display writes in JS.
     [`.${CLASS_CELL_EDITOR}`]: {
+        display: 'none',
         width: '100%',
     },
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE} > .${CLASS_CELL_EDITOR}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_ACTIVE} > .${CLASS_CELL_EDITOR}`]:
+        {
+            display: 'block',
+        },
+    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE} > .${CLASS_CELL_CONTENT}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_ACTIVE} > .${CLASS_CELL_CONTENT}`]:
+        {
+            display: 'none',
+        },
     [`.${CLASS_CELL_EDITOR} .cm-editor`]: {
         width: '100%',
     },
@@ -95,26 +143,15 @@ export const tableStyles = EditorView.baseTheme({
     [`.${CLASS_CELL_EDITOR} .cm-editor.cm-focused`]: {
         outline: 'none',
     },
-    // Style the active cell (td)
-    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_ACTIVE}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_ACTIVE}`]: {
-        // Use a box-shadow or outline that typically sits "inside" or "on" the border
-        // absolute positioning an overlay might be cleaner to avoid layout shifts,
-        // but a simple outline usually works well for spreadsheets.
-        outline: '2px solid var(--joplin-divider-color, #dddddd)',
-        outlineOffset: '-1px', // Draw inside existing border
-        zIndex: '5', // Ensure on top of neighbors
-        wordBreak: 'normal',
-        overflowWrap: 'normal',
-        boxSizing: 'border-box',
-    },
-    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]:
-        {
-            backgroundColor: 'var(--joplin-selected-text-background-color, rgba(0, 120, 215, 0.15))',
-        },
     [`.${CLASS_CELL_EDITOR} .cm-fat-cursor`]: {
         backgroundColor: 'currentColor',
         color: 'inherit',
     },
+
+    // -------------------------------------------------------------------------
+    // 4. Rendered content styling (markdown output inside cells)
+    // -------------------------------------------------------------------------
+
     // Remove margins from rendered markdown elements inside cells
     [`.${CLASS_TABLE_WIDGET_TABLE} th p, .${CLASS_TABLE_WIDGET_TABLE} td p`]: {
         margin: '0',
@@ -127,9 +164,9 @@ export const tableStyles = EditorView.baseTheme({
     },
     // Inline code styling
     [`.${CLASS_TABLE_WIDGET_TABLE} code`]: {
-        backgroundColor: 'var(--joplin-code-background-color, rgb(243, 243, 243))',
-        border: '1px solid var(--joplin-divider-color, #dddddd)',
-        color: 'var(--joplin-code-color, rgb(0,0,0))',
+        backgroundColor: 'var(--rt-code-bg)',
+        border: '1px solid var(--rt-border-color)',
+        color: 'var(--rt-code-color)',
         padding: '0 2px',
         borderRadius: '3px',
         fontFamily: 'monospace',
@@ -138,31 +175,39 @@ export const tableStyles = EditorView.baseTheme({
     },
     // Highlight/mark styling (==text==)
     [`.${CLASS_TABLE_WIDGET_TABLE} mark`]: {
-        backgroundColor: 'var(--joplin-mark-highlight-background-color, #F7D26E)',
-        color: 'var(--joplin-mark-highlight-color, black)',
+        backgroundColor: 'var(--rt-mark-bg)',
+        color: 'var(--rt-mark-color)',
         padding: '1px 2px',
     },
     // Link styling
     [`.${CLASS_TABLE_WIDGET_TABLE} a`]: {
         textDecoration: 'underline',
-        color: 'var(--joplin-url-color, #155BDA)',
+        color: 'var(--rt-link-color)',
         overflowWrap: 'break-word',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE} th`]: {
-        backgroundColor: 'var(--joplin-table-background-color, rgb(247, 247, 247))',
+        backgroundColor: 'var(--rt-header-bg)',
         fontWeight: 'bold',
     },
-    // Hide Joplin's source elements for rendered content (Math, Mermaid, etc.) which cause layout issues
-    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-source`]: {
-        display: 'none',
-    },
-    // Media constraints - prevent massive videos/images from breaking the table
-    // Scoped to CLASS_CELL_CONTENT to avoid affecting CodeMirror's internal <img class="cm-widgetBuffer"> elements
+    // Media constraints - prevent massive videos/images from breaking the table.
+    // Scoped to CLASS_CELL_CONTENT to avoid affecting CodeMirror's internal <img class="cm-widgetBuffer"> elements.
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} img, .${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} video`]:
         {
             maxWidth: '100%',
             height: 'auto',
         },
+
+    // -------------------------------------------------------------------------
+    // 5. Joplin artifact cleanup
+    //
+    // Rules that neutralize Joplin-injected elements or behaviors that would
+    // otherwise break or clutter the table widget.
+    // -------------------------------------------------------------------------
+
+    // Hide Joplin's source elements for rendered content (Math, Mermaid, etc.) which cause layout issues
+    [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-source`]: {
+        display: 'none',
+    },
     // Fix for YouTube/video embeds layout
     [`.${CLASS_TABLE_WIDGET_TABLE} .joplin-youtube-player-rendered`]: {
         margin: '0 !important',
