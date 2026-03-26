@@ -19,7 +19,7 @@ function expandCellEndForTrailingWhitespace(
     const selection = state.selection.main;
     const maxSelectionPos = Math.max(selection.anchor, selection.head);
 
-    if (maxSelectionPos <= range.cellTo) {
+    if (maxSelectionPos < range.cellTo) {
         return range;
     }
 

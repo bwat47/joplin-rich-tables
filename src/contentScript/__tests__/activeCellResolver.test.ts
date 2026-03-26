@@ -103,6 +103,26 @@ describe('activeCellResolver', () => {
         expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
     });
 
+    it('extends the resolved cell range across trailing whitespace when the selection is exactly at cell end', () => {
+        const doc = ['| foo  |', '| --- |'].join('\n');
+        const cellEndCursor = doc.indexOf('foo') + 'foo'.length;
+        const state = createState(doc, {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        }).update({
+            selection: { anchor: cellEndCursor },
+        }).state;
+
+        const resolved = resolveActiveCell(state, getActiveCell(state));
+
+        expect(resolved).not.toBeNull();
+        expect(resolved?.cellFrom).toBe(doc.indexOf('foo'));
+        expect(resolved?.cellTo).toBe(doc.indexOf('|', doc.indexOf('foo')));
+        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
+    });
+
     it('resolves the anchored table from tableFrom when another table follows', () => {
         const doc = [
             '| H1 | H2 |',
