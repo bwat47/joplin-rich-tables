@@ -35,12 +35,16 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
         },
         '.cm-content': {
             padding: '0',
+            // CodeMirror injects font-size: 1.1875em on mobile to prevent iOS/Android auto-zoom.
+            // Override so the editor font matches the rendered cell (which uses inherit).
+            fontSize: 'inherit !important',
             // CodeMirror's `lineWrapping` uses break-word; override to match rendered-table behavior
             // (wrap at whitespace, but don't split short words).
             wordBreak: 'normal !important',
             overflowWrap: 'normal !important',
         },
         '.cm-line': {
+            paddingLeft: '1px !important',
             wordBreak: 'normal !important',
             overflowWrap: 'normal !important',
         },
