@@ -17,7 +17,8 @@ export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; ed
     if (!editorHost) {
         editorHost = document.createElement('div');
         editorHost.className = CLASS_CELL_EDITOR;
-        editorHost.style.display = 'none';
+        // Visibility is controlled via CSS: hidden by default, shown when the parent
+        // cell has CLASS_CELL_ACTIVE.
         cell.appendChild(editorHost);
     }
 
