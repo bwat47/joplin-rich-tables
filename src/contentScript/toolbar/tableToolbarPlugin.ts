@@ -483,11 +483,11 @@ export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);
 export const tableToolbarTheme = EditorView.baseTheme({
     [`.${CLASS_FLOATING_TOOLBAR}`]: {
         position: 'absolute',
-        backgroundColor: 'var(--rt-toolbar-bg)',
-        border: '1px solid var(--rt-border-color)',
+        backgroundColor: 'var(--joplin-background-color)',
+        border: '1px solid var(--joplin-divider-color)',
         borderRadius: '6px',
         padding: '4px',
-        boxShadow: '0 4px 12px var(--rt-toolbar-shadow)',
+        boxShadow: '0 4px 12px var(--joplin-background-color-transparent2)',
         display: 'flex',
         flexWrap: 'wrap',
         gap: '4px',
@@ -503,7 +503,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         cursor: 'pointer',
         padding: '4px 8px',
         fontSize: 'inherit',
-        color: 'var(--rt-toolbar-color)',
+        color: 'var(--joplin-color)',
         whiteSpace: 'nowrap',
         transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
     },
@@ -517,13 +517,13 @@ export const tableToolbarTheme = EditorView.baseTheme({
         lineHeight: '0',
     },
     '.cm-table-toolbar-btn:hover': {
-        backgroundColor: 'var(--rt-toolbar-hover-bg)',
-        borderColor: 'var(--rt-border-color)',
+        backgroundColor: 'var(--joplin-selected-color)',
+        borderColor: 'var(--joplin-divider-color)',
     },
     '.cm-table-toolbar-separator': {
         width: '1px',
         height: '18px',
-        backgroundColor: 'var(--rt-border-color)',
+        backgroundColor: 'var(--joplin-divider-color)',
         margin: '0 4px',
     },
 });

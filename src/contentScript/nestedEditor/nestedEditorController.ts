@@ -117,6 +117,8 @@ class NestedEditorController {
         this.editorHostEl = editorHost;
 
         this.cellElement.classList.add(CLASS_CELL_ACTIVE);
+        content.style.display = 'none';
+        editorHost.style.display = '';
         editorHost.textContent = '';
 
         const rootText = params.mainView.state.doc.sliceString(resolved.cellFrom, resolved.cellTo);
@@ -260,6 +262,7 @@ class NestedEditorController {
 
         if (this.editorHostEl) {
             this.editorHostEl.textContent = '';
+            this.editorHostEl.style.display = 'none';
         }
 
         if (this.cellElement) {
@@ -287,6 +290,7 @@ class NestedEditorController {
                     });
                 }
             }
+            this.contentEl.style.display = '';
         }
 
         this.session = null;

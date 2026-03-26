@@ -23,7 +23,6 @@ import { findTableRanges } from '../tableRuntime/tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
-import { richTableThemeVars } from './richTableThemeVars';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from '../tableRuntime/searchPanelWatcher';
@@ -269,7 +268,6 @@ export default function (context: ContentScriptContext) {
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
                 documentDefinitionsField,
-                richTableThemeVars,
                 tableStyles,
                 tableToolbarTheme,
                 tableToolbarPlugin,
