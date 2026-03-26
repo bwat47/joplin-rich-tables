@@ -4,7 +4,7 @@ import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/source
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { transactionRequiresTableRebuild } from '../tableRuntime/lifecycle/lifecyclePolicy';
@@ -42,7 +42,7 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
     }
 
     const prevActiveCell = getActiveCell(tr.startState);
-    const resolvedPrevActiveCell = resolveActiveCell(tr.startState, prevActiveCell);
+    const resolvedPrevActiveCell = getResolvedActiveCell(tr.startState);
     if (tr.docChanged && prevActiveCell && isFullDocumentReplace(tr)) {
         return { type: 'noneDecorations' };
     }
