@@ -10,6 +10,7 @@ import { logger } from '../../logger';
 import { hashTableText } from '../shared/hashUtils';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
@@ -255,6 +256,7 @@ export default function (context: ContentScriptContext) {
                 sourceModeField,
                 nestedEditorPlugin,
                 activeCellField,
+                resolvedActiveCellField,
                 cellSelectionField,
                 createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
                 navigationLockKeymap, // Block Tab/Enter during row creation rebuild

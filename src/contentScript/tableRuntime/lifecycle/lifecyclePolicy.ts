@@ -9,7 +9,8 @@ import {
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { syncAnnotation } from '../../editorBridge/syncAnnotation';
-import { resolveActiveCell, type ResolvedActiveCell } from '../activeCell/activeCellResolver';
+import { type ResolvedActiveCell } from '../activeCell/activeCellResolver';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { isStructuralTableChange } from './structuralChangeDetection';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
@@ -109,8 +110,8 @@ export function buildTableRuntimeSnapshot(params: {
     return {
         activeCell,
         prevActiveCell,
-        resolvedActiveCell: resolveActiveCell(params.update.state, activeCell),
-        resolvedPrevActiveCell: resolveActiveCell(params.update.startState, prevActiveCell),
+        resolvedActiveCell: getResolvedActiveCell(params.update.state),
+        resolvedPrevActiveCell: getResolvedActiveCell(params.update.startState),
         effectiveRawMode: isEffectiveRawMode(params.update.state),
         nestedEditorOpen: params.nestedEditorOpen,
         hadActiveCell: params.hadActiveCell,

@@ -4,7 +4,7 @@ import { getCellSelection } from '../tableState/cellSelectionState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import {
@@ -132,7 +132,7 @@ export function decideMainEditorGuardTransaction(
     }
 
     const activeCell = getActiveCell(tr.startState);
-    const resolvedActiveCell = resolveActiveCell(tr.startState, activeCell);
+    const resolvedActiveCell = getResolvedActiveCell(tr.startState);
     if (isFullDocumentReplace(tr)) {
         return activeCell
             ? { type: 'clearActiveCell', selection: tr.selection ?? undefined }
