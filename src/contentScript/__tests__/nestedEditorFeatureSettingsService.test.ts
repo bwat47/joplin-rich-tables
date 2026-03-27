@@ -7,17 +7,6 @@ jest.mock('../../logger', () => ({
     },
 }));
 
-function deferred<T>() {
-    let resolve!: (value: T) => void;
-    let reject!: (error?: unknown) => void;
-    const promise = new Promise<T>((res, rej) => {
-        resolve = res;
-        reject = rej;
-    });
-
-    return { promise, resolve, reject };
-}
-
 describe('nestedEditorFeatureSettingsService', () => {
     const validSettings: NestedEditorFeatureSettings = {
         autoMatchingBraces: true,
@@ -27,56 +16,58 @@ describe('nestedEditorFeatureSettingsService', () => {
         jest.resetModules();
     });
 
-    it('caches the first successful response', async () => {
+    it('stores the startup snapshot after initialization', async () => {
         const postMessage = jest.fn(async () => validSettings);
         const service = await import('../services/nestedEditorFeatureSettingsService');
-        service.initNestedEditorFeatureSettings(postMessage);
+        await service.initNestedEditorFeatureSettings(postMessage);
 
-        const first = await service.getNestedEditorFeatureSettings();
-        const second = await service.getNestedEditorFeatureSettings();
+        const result = service.getNestedEditorFeatureSettings();
 
-        expect(first).toEqual(validSettings);
-        expect(second).toEqual(validSettings);
+        expect(result).toEqual(validSettings);
         expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
-    it('deduplicates concurrent initial requests', async () => {
-        const pending = deferred<unknown>();
-        const postMessage = jest.fn(() => pending.promise);
+    it('returns defaults before initialization completes', async () => {
+        let resolveRequest: ((value: NestedEditorFeatureSettings) => void) | null = null;
+        const postMessage = jest.fn(
+            () =>
+                new Promise<NestedEditorFeatureSettings>((resolve) => {
+                    resolveRequest = resolve;
+                })
+        );
         const service = await import('../services/nestedEditorFeatureSettingsService');
-        service.initNestedEditorFeatureSettings(postMessage);
+        const initPromise = service.initNestedEditorFeatureSettings(postMessage);
 
-        const firstPromise = service.getNestedEditorFeatureSettings();
-        const secondPromise = service.getNestedEditorFeatureSettings();
-        pending.resolve(validSettings);
+        expect(service.getNestedEditorFeatureSettings()).toEqual({
+            autoMatchingBraces: false,
+        });
 
-        const [first, second] = await Promise.all([firstPromise, secondPromise]);
+        resolveRequest?.(validSettings);
+        await initPromise;
 
-        expect(first).toEqual(validSettings);
-        expect(second).toEqual(validSettings);
-        expect(postMessage).toHaveBeenCalledTimes(1);
+        expect(service.getNestedEditorFeatureSettings()).toEqual(validSettings);
     });
 
-    it('falls back safely when the response is malformed', async () => {
+    it('keeps defaults when the startup response is malformed', async () => {
         const postMessage = jest.fn(async () => ({ invalid: true }));
         const service = await import('../services/nestedEditorFeatureSettingsService');
-        service.initNestedEditorFeatureSettings(postMessage);
+        await service.initNestedEditorFeatureSettings(postMessage);
 
-        const result = await service.getNestedEditorFeatureSettings();
+        const result = service.getNestedEditorFeatureSettings();
 
         expect(result).toEqual({
             autoMatchingBraces: false,
         });
     });
 
-    it('falls back safely when the request rejects', async () => {
+    it('keeps defaults when the startup request rejects', async () => {
         const postMessage = jest.fn(async () => {
             throw new Error('boom');
         });
         const service = await import('../services/nestedEditorFeatureSettingsService');
-        service.initNestedEditorFeatureSettings(postMessage);
+        await service.initNestedEditorFeatureSettings(postMessage);
 
-        const result = await service.getNestedEditorFeatureSettings();
+        const result = service.getNestedEditorFeatureSettings();
 
         expect(result).toEqual({
             autoMatchingBraces: false,

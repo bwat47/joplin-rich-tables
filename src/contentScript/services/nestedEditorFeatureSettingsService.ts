@@ -8,55 +8,30 @@ import {
 
 type PostMessageFn = (message: unknown) => Promise<unknown>;
 
-let postMessageFn: PostMessageFn | null = null;
-let cachedSettings: NestedEditorFeatureSettings | null = null;
-let pendingSettingsRequest: Promise<NestedEditorFeatureSettings> | null = null;
+let cachedSettings: NestedEditorFeatureSettings = defaultNestedEditorFeatureSettings();
 
-export function initNestedEditorFeatureSettings(postMessage: PostMessageFn): void {
-    postMessageFn = postMessage;
-    cachedSettings = null;
-    pendingSettingsRequest = null;
-}
-
-export async function getNestedEditorFeatureSettings(): Promise<NestedEditorFeatureSettings> {
-    if (cachedSettings) {
-        return cachedSettings;
-    }
-
-    if (pendingSettingsRequest) {
-        return pendingSettingsRequest;
-    }
-
-    if (!postMessageFn) {
-        logger.warn('Nested editor feature settings service not initialized, using defaults');
-        return defaultNestedEditorFeatureSettings();
-    }
-
+export async function initNestedEditorFeatureSettings(postMessage: PostMessageFn): Promise<void> {
+    cachedSettings = defaultNestedEditorFeatureSettings();
     const request: GetNestedEditorFeatureSettingsMessage = {
         type: 'getNestedEditorFeatureSettings',
     };
 
-    pendingSettingsRequest = postMessageFn(request)
-        .then((result) => {
-            if (!isNestedEditorFeatureSettings(result)) {
-                logger.warn('Received invalid nested editor feature settings, using defaults', result);
-                const fallback = defaultNestedEditorFeatureSettings();
-                cachedSettings = fallback;
-                return fallback;
-            }
+    try {
+        const result = await postMessage(request);
+        if (!isNestedEditorFeatureSettings(result)) {
+            logger.warn(
+                'Received invalid nested editor feature settings during initialization, using defaults',
+                result
+            );
+            return;
+        }
 
-            cachedSettings = result;
-            return result;
-        })
-        .catch((error) => {
-            logger.warn('Failed to fetch nested editor feature settings, using defaults', error);
-            const fallback = defaultNestedEditorFeatureSettings();
-            cachedSettings = fallback;
-            return fallback;
-        })
-        .finally(() => {
-            pendingSettingsRequest = null;
-        });
+        cachedSettings = result;
+    } catch (error) {
+        logger.warn('Failed to fetch nested editor feature settings during initialization, using defaults', error);
+    }
+}
 
-    return pendingSettingsRequest;
+export function getNestedEditorFeatureSettings(): NestedEditorFeatureSettings {
+    return cachedSettings;
 }

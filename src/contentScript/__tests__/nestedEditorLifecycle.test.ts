@@ -23,7 +23,7 @@ const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'
 const DEFAULT_FEATURE_SETTINGS = {
     autoMatchingBraces: true,
 } satisfies NestedEditorFeatureSettings;
-const getNestedEditorFeatureSettingsMock = jest.fn(async () => DEFAULT_FEATURE_SETTINGS);
+const getNestedEditorFeatureSettingsMock = jest.fn(() => DEFAULT_FEATURE_SETTINGS);
 const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
     closeNestedEditor: jest.Mock;
     isNestedEditorOpen: jest.Mock;
@@ -64,16 +64,11 @@ describe('nestedEditorLifecycle', () => {
         }
     };
 
-    const flushMicrotasks = async (): Promise<void> => {
-        await Promise.resolve();
-        await Promise.resolve();
-    };
-
     beforeEach(() => {
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
         getNestedEditorFeatureSettingsMock.mockReset();
-        getNestedEditorFeatureSettingsMock.mockImplementation(async () => DEFAULT_FEATURE_SETTINGS);
+        getNestedEditorFeatureSettingsMock.mockImplementation(() => DEFAULT_FEATURE_SETTINGS);
         nestedEditorControllerMock.closeNestedEditor.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReset();
@@ -216,7 +211,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('opens the nested editor directly when no normalization is requested', async () => {
+    it('opens the nested editor directly when no normalization is requested', () => {
         const doc = NON_CANONICAL_DOC;
         const activeCell: ActiveCell = {
             tableFrom: 0,
@@ -253,7 +248,6 @@ describe('nestedEditorLifecycle', () => {
             ],
         });
         flushAnimationFrames();
-        await flushMicrotasks();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
@@ -268,7 +262,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('normalizes before opening and preserves pending cursor placement', async () => {
+    it('normalizes before opening and preserves pending cursor placement', () => {
         const activeCell: ActiveCell = {
             tableFrom: 0,
             section: 'header',
@@ -305,7 +299,6 @@ describe('nestedEditorLifecycle', () => {
             ],
         });
         flushAnimationFrames();
-        await flushMicrotasks();
 
         expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
 
@@ -332,66 +325,6 @@ describe('nestedEditorLifecycle', () => {
                 initialCursorPos: 'end',
             })
         );
-
-        view.destroy();
-    });
-
-    it('aborts stale async opens if the active cell changes before settings resolve', async () => {
-        let resolveSettings: ((value: typeof DEFAULT_FEATURE_SETTINGS) => void) | null = null;
-        const settingsPromise = new Promise<typeof DEFAULT_FEATURE_SETTINGS>((resolve) => {
-            resolveSettings = resolve;
-        });
-        getNestedEditorFeatureSettingsMock.mockReturnValue(settingsPromise);
-
-        const doc = CANONICAL_DOC;
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-        const nextActiveCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 1,
-        };
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
-        });
-
-        view.dispatch({
-            effects: [
-                setActiveCellEffect.of(activeCell),
-                requestOpenActiveCellEffect.of({
-                    activeCell,
-                    normalizeIfNeeded: false,
-                }),
-            ],
-        });
-        flushAnimationFrames();
-
-        view.dispatch({
-            effects: setActiveCellEffect.of(nextActiveCell),
-        });
-
-        resolveSettings?.(DEFAULT_FEATURE_SETTINGS);
-        await flushMicrotasks();
-
-        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
 
         view.destroy();
     });

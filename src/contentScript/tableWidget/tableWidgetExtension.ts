@@ -5,10 +5,7 @@ import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { TableWidget } from './TableWidget';
 import { buildTableContext } from '../tableModel/tableContext';
 import { initRenderer } from '../services/markdownRenderer';
-import {
-    getNestedEditorFeatureSettings,
-    initNestedEditorFeatureSettings,
-} from '../services/nestedEditorFeatureSettingsService';
+import { initNestedEditorFeatureSettings } from '../services/nestedEditorFeatureSettingsService';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from '../shared/hashUtils';
@@ -236,8 +233,7 @@ export default function (context: ContentScriptContext) {
 
     // Initialize the markdown renderer with postMessage function
     initRenderer(context.postMessage);
-    initNestedEditorFeatureSettings(context.postMessage);
-    void getNestedEditorFeatureSettings();
+    void initNestedEditorFeatureSettings(context.postMessage);
 
     return {
         plugin: (editorControl: CodeMirrorControl) => {

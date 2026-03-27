@@ -201,13 +201,6 @@ joplin.plugins.register({
             ToolbarButtonLocation.EditorToolbar
         );
 
-        // Register the CodeMirror content script
-        await joplin.contentScripts.register(
-            ContentScriptType.CodeMirrorPlugin,
-            CONTENT_SCRIPT_ID,
-            './contentScript/tableWidget/tableWidgetExtension.js'
-        );
-
         // Handle messages from content script
         await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, async (message: unknown) => {
             if (typeof message !== 'object' || message === null || !('type' in message)) {
@@ -257,6 +250,13 @@ joplin.plugins.register({
 
             return null;
         });
+
+        // Register the CodeMirror content script after the message handler is ready.
+        await joplin.contentScripts.register(
+            ContentScriptType.CodeMirrorPlugin,
+            CONTENT_SCRIPT_ID,
+            './contentScript/tableWidget/tableWidgetExtension.js'
+        );
 
         logger.info('Rich Tables plugin started');
     },

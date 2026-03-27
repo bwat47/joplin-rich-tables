@@ -263,41 +263,12 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 return;
                             }
 
-                            void getNestedEditorFeatureSettings().then((featureSettings) => {
-                                if (!this.view.dom.isConnected) {
-                                    abortPendingOpen();
-                                    return;
-                                }
-                                if (!isSameActiveCell(getActiveCell(this.view.state), action.activeCell)) {
-                                    abortPendingOpen();
-                                    return;
-                                }
-
-                                const latestResolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
-                                if (!latestResolvedActiveCell) {
-                                    abortPendingOpen();
-                                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                                    return;
-                                }
-
-                                const latestCellElement = findCellElement(
-                                    this.view,
-                                    makeTableId(action.activeCell.tableFrom),
-                                    action.activeCell
-                                );
-                                if (!latestCellElement) {
-                                    abortPendingOpen();
-                                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                                    return;
-                                }
-
-                                openNestedEditor({
-                                    mainView: this.view,
-                                    cellElement: latestCellElement,
-                                    activeCell: latestResolvedActiveCell.activeCell,
-                                    featureSettings,
-                                    initialCursorPos: pendingOptions?.initialCursorPos,
-                                });
+                            openNestedEditor({
+                                mainView: this.view,
+                                cellElement,
+                                activeCell: resolvedActiveCell.activeCell,
+                                featureSettings: getNestedEditorFeatureSettings(),
+                                initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });
                         break;
