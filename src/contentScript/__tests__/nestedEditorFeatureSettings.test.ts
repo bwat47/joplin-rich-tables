@@ -7,7 +7,7 @@ jest.mock('../../logger', () => ({
     },
 }));
 
-describe('nestedEditorFeatureSettingsService', () => {
+describe('nestedEditorFeatureSettings', () => {
     const validSettings: NestedEditorFeatureSettings = {
         autoMatchingBraces: true,
     };
@@ -18,7 +18,7 @@ describe('nestedEditorFeatureSettingsService', () => {
 
     it('stores the startup snapshot after initialization', async () => {
         const postMessage = jest.fn(async () => validSettings);
-        const service = await import('../services/nestedEditorFeatureSettingsService');
+        const service = await import('../services/nestedEditorFeatureSettings');
         await service.initNestedEditorFeatureSettings(postMessage);
 
         const result = service.getNestedEditorFeatureSettings();
@@ -35,7 +35,7 @@ describe('nestedEditorFeatureSettingsService', () => {
                     resolveRequest = resolve;
                 })
         );
-        const service = await import('../services/nestedEditorFeatureSettingsService');
+        const service = await import('../services/nestedEditorFeatureSettings');
         const initPromise = service.initNestedEditorFeatureSettings(postMessage);
 
         expect(service.getNestedEditorFeatureSettings()).toEqual({
@@ -50,7 +50,7 @@ describe('nestedEditorFeatureSettingsService', () => {
 
     it('keeps defaults when the startup response is malformed', async () => {
         const postMessage = jest.fn(async () => ({ invalid: true }));
-        const service = await import('../services/nestedEditorFeatureSettingsService');
+        const service = await import('../services/nestedEditorFeatureSettings');
         await service.initNestedEditorFeatureSettings(postMessage);
 
         const result = service.getNestedEditorFeatureSettings();
@@ -64,7 +64,7 @@ describe('nestedEditorFeatureSettingsService', () => {
         const postMessage = jest.fn(async () => {
             throw new Error('boom');
         });
-        const service = await import('../services/nestedEditorFeatureSettingsService');
+        const service = await import('../services/nestedEditorFeatureSettings');
         await service.initNestedEditorFeatureSettings(postMessage);
 
         const result = service.getNestedEditorFeatureSettings();

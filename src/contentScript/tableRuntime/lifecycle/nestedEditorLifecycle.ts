@@ -28,7 +28,7 @@ import { activateCellAtPosition, activateTableCell } from '../activeCell/cellAct
 import { releasePendingNavigationCallback } from '../navigationLock';
 import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
-import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettingsService';
+import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
 import {
     buildTableRuntimeEvent,
     buildTableRuntimeSnapshot,

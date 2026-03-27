@@ -49,7 +49,7 @@ jest.mock('../nestedEditor/nestedEditorController', () => ({
     openNestedEditor: jest.fn(),
 }));
 
-jest.mock('../services/nestedEditorFeatureSettingsService', () => ({
+jest.mock('../services/nestedEditorFeatureSettings', () => ({
     getNestedEditorFeatureSettings: () => getNestedEditorFeatureSettingsMock(),
 }));
 
