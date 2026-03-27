@@ -28,6 +28,7 @@ import { activateCellAtPosition, activateTableCell } from '../activeCell/cellAct
 import { releasePendingNavigationCallback } from '../navigationLock';
 import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
+import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettingsService';
 import {
     buildTableRuntimeEvent,
     buildTableRuntimeSnapshot,
@@ -266,6 +267,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
+                                featureSettings: getNestedEditorFeatureSettings(),
                                 initialCursorPos: pendingOptions?.initialCursorPos,
                             });
                         });

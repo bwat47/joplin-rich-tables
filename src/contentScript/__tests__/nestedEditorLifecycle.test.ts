@@ -16,9 +16,14 @@ import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
+import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
+const DEFAULT_FEATURE_SETTINGS = {
+    autoMatchingBraces: true,
+} satisfies NestedEditorFeatureSettings;
+const getNestedEditorFeatureSettingsMock = jest.fn(() => DEFAULT_FEATURE_SETTINGS);
 const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
     closeNestedEditor: jest.Mock;
     isNestedEditorOpen: jest.Mock;
@@ -44,6 +49,10 @@ jest.mock('../nestedEditor/nestedEditorController', () => ({
     openNestedEditor: jest.fn(),
 }));
 
+jest.mock('../services/nestedEditorFeatureSettingsService', () => ({
+    getNestedEditorFeatureSettings: () => getNestedEditorFeatureSettingsMock(),
+}));
+
 describe('nestedEditorLifecycle', () => {
     const originalRequestAnimationFrame = global.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
@@ -58,6 +67,8 @@ describe('nestedEditorLifecycle', () => {
     beforeEach(() => {
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
+        getNestedEditorFeatureSettingsMock.mockReset();
+        getNestedEditorFeatureSettingsMock.mockImplementation(() => DEFAULT_FEATURE_SETTINGS);
         nestedEditorControllerMock.closeNestedEditor.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReset();
@@ -243,6 +254,7 @@ describe('nestedEditorLifecycle', () => {
             expect.objectContaining({
                 mainView: view,
                 activeCell,
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
@@ -309,6 +321,7 @@ describe('nestedEditorLifecycle', () => {
                     row: 0,
                     col: 1,
                 },
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
