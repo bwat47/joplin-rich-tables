@@ -1,6 +1,6 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
-import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
+import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { inlineCodePlugin, insertPlugin, markPlugin } from './decorationPlugins';
@@ -24,6 +24,8 @@ import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
+import type { NestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
+import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -99,6 +101,7 @@ class NestedEditorController {
         mainView: EditorView;
         cellElement: HTMLElement;
         activeCell: ActiveCell;
+        featureSettings: NestedEditorFeatureSettings;
         initialCursorPos?: 'start' | 'end' | 'lastLineStart';
         onFocused?: () => void;
     }): void {
@@ -149,6 +152,7 @@ class NestedEditorController {
         };
 
         const isDarkTheme = params.mainView.state.facet(EditorView.darkTheme);
+        const featureExtensions: Extension[] = createNestedEditorFeatureExtensions(params.featureSettings);
         const state = EditorState.create({
             doc: localText,
             selection: EditorSelection.single(localSelection.anchor, localSelection.head),
@@ -158,6 +162,7 @@ class NestedEditorController {
                 EditorView.contentAttributes.of({
                     autocapitalize: 'sentences',
                 }),
+                ...featureExtensions,
                 EditorState.transactionExtender.of((tr) => {
                     if (tr.annotation(syncAnnotation)) {
                         return null;
@@ -529,6 +534,7 @@ export function openNestedEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
     activeCell: ActiveCell;
+    featureSettings: NestedEditorFeatureSettings;
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     onFocused?: () => void;
 }): void {

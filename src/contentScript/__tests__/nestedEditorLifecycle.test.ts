@@ -16,9 +16,14 @@ import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
+import type { NestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
+const DEFAULT_FEATURE_SETTINGS = {
+    autoMatchingBraces: true,
+} satisfies NestedEditorFeatureSettings;
+const getNestedEditorFeatureSettingsMock = jest.fn(async () => DEFAULT_FEATURE_SETTINGS);
 const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
     closeNestedEditor: jest.Mock;
     isNestedEditorOpen: jest.Mock;
@@ -44,6 +49,10 @@ jest.mock('../nestedEditor/nestedEditorController', () => ({
     openNestedEditor: jest.fn(),
 }));
 
+jest.mock('../services/nestedEditorFeatureSettingsService', () => ({
+    getNestedEditorFeatureSettings: () => getNestedEditorFeatureSettingsMock(),
+}));
+
 describe('nestedEditorLifecycle', () => {
     const originalRequestAnimationFrame = global.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
@@ -55,9 +64,16 @@ describe('nestedEditorLifecycle', () => {
         }
     };
 
+    const flushMicrotasks = async (): Promise<void> => {
+        await Promise.resolve();
+        await Promise.resolve();
+    };
+
     beforeEach(() => {
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
+        getNestedEditorFeatureSettingsMock.mockReset();
+        getNestedEditorFeatureSettingsMock.mockImplementation(async () => DEFAULT_FEATURE_SETTINGS);
         nestedEditorControllerMock.closeNestedEditor.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReset();
@@ -200,7 +216,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('opens the nested editor directly when no normalization is requested', () => {
+    it('opens the nested editor directly when no normalization is requested', async () => {
         const doc = NON_CANONICAL_DOC;
         const activeCell: ActiveCell = {
             tableFrom: 0,
@@ -237,12 +253,14 @@ describe('nestedEditorLifecycle', () => {
             ],
         });
         flushAnimationFrames();
+        await flushMicrotasks();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 activeCell,
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
@@ -250,7 +268,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('normalizes before opening and preserves pending cursor placement', () => {
+    it('normalizes before opening and preserves pending cursor placement', async () => {
         const activeCell: ActiveCell = {
             tableFrom: 0,
             section: 'header',
@@ -287,6 +305,7 @@ describe('nestedEditorLifecycle', () => {
             ],
         });
         flushAnimationFrames();
+        await flushMicrotasks();
 
         expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
 
@@ -309,9 +328,70 @@ describe('nestedEditorLifecycle', () => {
                     row: 0,
                     col: 1,
                 },
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
+
+        view.destroy();
+    });
+
+    it('aborts stale async opens if the active cell changes before settings resolve', async () => {
+        let resolveSettings: ((value: typeof DEFAULT_FEATURE_SETTINGS) => void) | null = null;
+        const settingsPromise = new Promise<typeof DEFAULT_FEATURE_SETTINGS>((resolve) => {
+            resolveSettings = resolve;
+        });
+        getNestedEditorFeatureSettingsMock.mockReturnValue(settingsPromise);
+
+        const doc = CANONICAL_DOC;
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+        const nextActiveCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                requestOpenActiveCellEffect.of({
+                    activeCell,
+                    normalizeIfNeeded: false,
+                }),
+            ],
+        });
+        flushAnimationFrames();
+
+        view.dispatch({
+            effects: setActiveCellEffect.of(nextActiveCell),
+        });
+
+        resolveSettings?.(DEFAULT_FEATURE_SETTINGS);
+        await flushMicrotasks();
+
+        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
 
         view.destroy();
     });

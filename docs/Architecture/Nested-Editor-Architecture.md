@@ -21,7 +21,8 @@ opening is passed separately as transient selection-anchor data. The lifecycle p
 current editor state immediately before opening the isolated editor, including the one-time normalization-before-open
 check for user-driven entry. Ongoing mount/sync/close behavior is handled by `nestedEditor/nestedEditorController.ts`.
 
-**Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
+**Mounting**: `ensureSyntaxTree` (with timeout) prevents FOUC → lifecycle resolves a cached plugin-process snapshot of
+the Joplin `editor.autoMatchingBraces` setting → editor mounted into `<td>` → focus transferred.
 
 **Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → lifecycle plugin destroys the instance.
 
@@ -101,3 +102,5 @@ Nested editor requires its own extensions for parity with main editor:
 - **Inline Code**: Styled border around backticked code.
 - **Mark**: `==text==` highlighting.
 - **Insert**: `++text++` underline.
+- **Editor Features**: Close-bracket behavior is sourced from a content-script-session cache of the Joplin
+  `editor.autoMatchingBraces` setting fetched through the plugin process.

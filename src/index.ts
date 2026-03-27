@@ -1,6 +1,10 @@
 import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
+import {
+    readNestedEditorFeatureSettings,
+    type GetNestedEditorFeatureSettingsMessage,
+} from './services/nestedEditorFeatureSettings';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 
@@ -22,6 +26,8 @@ interface OpenLinkMessage {
     type: 'openLink';
     href: string;
 }
+
+type ContentScriptMessage = RenderMarkupMessage | OpenLinkMessage | GetNestedEditorFeatureSettingsMessage;
 
 joplin.plugins.register({
     onStart: async function () {
@@ -208,7 +214,7 @@ joplin.plugins.register({
                 return null;
             }
 
-            const msgType = (message as { type: string }).type;
+            const msgType = (message as ContentScriptMessage).type;
 
             if (msgType === 'renderMarkup') {
                 const { markdown, id } = message as RenderMarkupMessage;
@@ -243,6 +249,10 @@ joplin.plugins.register({
                     logger.error('Failed to open link:', error);
                     return { success: false, error: String(error) };
                 }
+            }
+
+            if (msgType === 'getNestedEditorFeatureSettings') {
+                return readNestedEditorFeatureSettings(joplin);
             }
 
             return null;
