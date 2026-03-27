@@ -4,7 +4,7 @@ import {
     GetNestedEditorFeatureSettingsMessage,
     isNestedEditorFeatureSettings,
     type NestedEditorFeatureSettings,
-} from '../../services/nestedEditorFeatureSettings';
+} from '../../contentScriptBridge/editorSettingsBridge';
 
 type PostMessageFn = (message: unknown) => Promise<unknown>;
 

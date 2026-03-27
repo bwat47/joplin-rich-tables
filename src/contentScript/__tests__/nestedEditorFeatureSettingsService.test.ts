@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import type { NestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
+import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 
 jest.mock('../../logger', () => ({
     logger: {

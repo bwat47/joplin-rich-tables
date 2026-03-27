@@ -24,7 +24,7 @@ import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
-import type { NestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
+import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;

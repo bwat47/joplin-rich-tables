@@ -16,7 +16,7 @@ import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
-import type { NestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
+import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));

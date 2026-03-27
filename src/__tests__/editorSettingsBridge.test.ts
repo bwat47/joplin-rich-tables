@@ -1,9 +1,9 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
-import type { NestedEditorFeatureSettingsDeps } from '../services/nestedEditorFeatureSettings';
+import type { NestedEditorFeatureSettingsDeps } from '../contentScriptBridge/editorSettingsBridge';
 import {
     defaultNestedEditorFeatureSettings,
     readNestedEditorFeatureSettings,
-} from '../services/nestedEditorFeatureSettings';
+} from '../contentScriptBridge/editorSettingsBridge';
 
 jest.mock('../logger', () => ({
     logger: {
@@ -11,7 +11,7 @@ jest.mock('../logger', () => ({
     },
 }));
 
-describe('nestedEditorFeatureSettings', () => {
+describe('editorSettingsBridge', () => {
     let deps: NestedEditorFeatureSettingsDeps;
     let globalValuesMock: jest.MockedFunction<NestedEditorFeatureSettingsDeps['settings']['globalValues']>;
 
