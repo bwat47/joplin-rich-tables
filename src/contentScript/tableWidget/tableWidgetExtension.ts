@@ -34,6 +34,7 @@ import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { moveCursorOutOfTable } from '../tableRuntime/navigation/cursorUtils';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
+import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 
 /**
  * Build decorations for all tables in the document.
@@ -252,6 +253,7 @@ export default function (context: ContentScriptContext) {
             editorControl.addExtension([
                 // Close nested editor on note switch (detected via noteIdFacet)
                 createNoteIdWatcher(noteIdFacet, () => cm6View),
+                createUndoScrollPreservation(() => cm6View),
 
                 searchPanelWatcherPlugin,
                 searchForceSourceModeField,

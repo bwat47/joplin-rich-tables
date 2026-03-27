@@ -2,30 +2,13 @@ import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
 import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 
 function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
-    const activeCellBefore = getActiveCell(mainView.state);
-    const scrollSnapshot = mainView.scrollSnapshot();
-    const result = command(mainView);
-    if (!result) {
-        return false;
-    }
-
-    const activeCellAfter = getActiveCell(mainView.state);
-    const stayedInSameCell = isSameActiveCell(activeCellBefore, activeCellAfter);
-
-    if (stayedInSameCell) {
-        mainView.dispatch({
-            effects: scrollSnapshot,
-            annotations: Transaction.addToHistory.of(false),
-        });
-    }
-
-    return true;
+    return command(mainView);
 }
 
 export function createNestedEditorKeymap(
