@@ -25,12 +25,7 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
 /** Associates widget DOM elements with their ResizeObserver for safe DOM reuse. */
 const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
 
-function requestTableMeasurement(
-    view: EditorView,
-    container: HTMLElement,
-    tableFrom: number,
-    tableText: string
-): void {
+function requestTableMeasurement(view: EditorView, container: HTMLElement, tableFrom: number, tableText: string): void {
     view.requestMeasure({
         read: () => {
             if (!container.isConnected) {

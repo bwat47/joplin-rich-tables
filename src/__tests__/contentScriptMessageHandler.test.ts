@@ -11,15 +11,17 @@ jest.mock('../logger', () => ({
 
 describe('contentScriptMessageHandler', () => {
     const globalValues = jest.fn(async (_keys: string[]) => [true]);
+    const values = jest.fn(async (_keys: string[] | string) => ({}));
     const execute = jest.fn(async (_commandName: string, ..._args: unknown[]) => ({ html: '<p>ok</p>' }));
     const handler = createContentScriptMessageHandler({
         commands: { execute },
-        settings: { globalValues },
+        settings: { globalValues, values },
     });
 
     beforeEach(() => {
         execute.mockClear();
         globalValues.mockClear();
+        values.mockClear();
     });
 
     it('renders markdown via Joplin commands', async () => {
@@ -58,6 +60,29 @@ describe('contentScriptMessageHandler', () => {
         expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces']);
         expect(result).toEqual({
             autoMatchingBraces: true,
+        });
+    });
+
+    it('reads floating toolbar settings', async () => {
+        values.mockResolvedValueOnce({
+            'floatingToolbar.showMoveButtons': false,
+            'floatingToolbar.showClearButtons': true,
+            'floatingToolbar.showAlignmentButtons': false,
+        });
+
+        const result = await handler({
+            type: 'getToolbarSettings',
+        });
+
+        expect(values).toHaveBeenCalledWith([
+            'floatingToolbar.showMoveButtons',
+            'floatingToolbar.showClearButtons',
+            'floatingToolbar.showAlignmentButtons',
+        ]);
+        expect(result).toEqual({
+            showMoveButtons: false,
+            showClearButtons: true,
+            showAlignmentButtons: false,
         });
     });
 

@@ -1,15 +1,54 @@
 import joplin from 'api';
-import { ContentScriptType, MenuItemLocation, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 import { createContentScriptMessageHandler } from './contentScriptBridge/contentScriptMessageHandler';
+import {
+    TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
+    TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
+    TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
+} from './contentScriptBridge/toolbarSettingsBridge';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
+const SETTINGS_SECTION = 'richTables';
 
 const INSERT_TABLE_COMMAND = 'richTables.insertTable';
 
 joplin.plugins.register({
     onStart: async function () {
         logger.info('Rich Tables plugin starting...');
+
+        await joplin.settings.registerSection(SETTINGS_SECTION, {
+            label: 'Rich Tables',
+            iconName: 'fas fa-table',
+            description: 'Configure the Rich Tables floating toolbar.',
+        });
+
+        await joplin.settings.registerSettings({
+            [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: {
+                value: true,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Show move row/column buttons',
+                description: 'Display move row and move column actions in the floating table toolbar.',
+            },
+            [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: {
+                value: true,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Show clear row/column/table buttons',
+                description: 'Display clear row, clear column, and clear table actions in the floating table toolbar.',
+            },
+            [TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY]: {
+                value: true,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Show alignment buttons',
+                description: 'Display align left, center, and right actions in the floating table toolbar.',
+            },
+        });
 
         await joplin.commands.register({
             name: INSERT_TABLE_COMMAND,

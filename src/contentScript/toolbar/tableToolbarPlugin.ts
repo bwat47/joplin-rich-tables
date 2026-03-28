@@ -22,41 +22,25 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
-
-import {
-    rowInsertTopIcon,
-    rowInsertBottomIcon,
-    rowRemoveIcon,
-    columnInsertLeftIcon,
-    columnInsertRightIcon,
-    columnRemoveIcon,
-    alignLeftIcon,
-    alignCenterIcon,
-    alignRightIcon,
-    clearTableIcon,
-    deleteTableIcon,
-    moveColumnLeftIcon,
-    moveColumnRightIcon,
-    moveRowUpIcon,
-    moveRowDownIcon,
-} from './icons';
 import { findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
+import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarSettings';
+import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 
 class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
     private cleanupAutoUpdate: (() => void) | null = null;
     private cleanupViewportListeners: (() => void) | null = null;
+    private buttonsInitialized = false;
+    private buttonsReadyPromise: Promise<void> | null = null;
+    private destroyed = false;
 
     constructor(private view: EditorView) {
         this.dom = document.createElement('div');
         this.dom.className = CLASS_FLOATING_TOOLBAR;
         this.dom.style.position = 'absolute';
         this.dom.style.display = 'none';
-
-        // Add buttons
-        this.createButtons();
 
         view.dom.appendChild(this.dom);
     }
@@ -103,11 +87,34 @@ class TableToolbarPlugin {
     }
 
     destroy() {
+        this.destroyed = true;
         this.cleanupPositioning();
         this.dom.remove();
     }
 
+    private async ensureButtonsInitialized() {
+        if (this.buttonsInitialized) {
+            return;
+        }
+
+        if (!this.buttonsReadyPromise) {
+            this.buttonsReadyPromise = (async () => {
+                await waitForToolbarSettings();
+                if (this.destroyed || this.buttonsInitialized) {
+                    return;
+                }
+
+                this.createButtons();
+                this.buttonsInitialized = true;
+            })();
+        }
+
+        await this.buttonsReadyPromise;
+    }
+
     private createButtons() {
+        this.dom.replaceChildren();
+
         const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => void) => {
             const btn = document.createElement('button');
             btn.title = title;
@@ -123,112 +130,88 @@ class TableToolbarPlugin {
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
             this.dom.appendChild(btn);
-            return btn;
         };
 
-        // Row Operations
-        createIconBtn('Insert row before', 'Insert row before', rowInsertTopIcon(), () => {
-            if (this.currentActiveCell) {
-                execInsertRowAbove(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Insert row after', 'Insert row after', rowInsertBottomIcon(), () => {
-            if (this.currentActiveCell) {
-                execInsertRowBelow(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Delete row', 'Delete row', rowRemoveIcon(), () => {
-            if (this.currentActiveCell) {
-                execDeleteRow(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Clear row', 'Clear row', clearTableIcon(), () => {
-            if (this.currentActiveCell) {
-                execClearRow(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Move row up', 'Move row up', moveRowUpIcon(), () => {
-            if (this.currentActiveCell) {
-                execMoveRowUp(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Move row down', 'Move row down', moveRowDownIcon(), () => {
-            if (this.currentActiveCell) {
-                execMoveRowDown(this.view, this.currentActiveCell);
-            }
-        });
-
-        // Separator
         const createSeparator = () => {
             const sep = document.createElement('span');
             sep.className = 'cm-table-toolbar-separator';
             this.dom.appendChild(sep);
         };
-        createSeparator();
 
-        // Column Operations
-        createIconBtn('Insert column before', 'Insert column before', columnInsertLeftIcon(), () => {
-            if (this.currentActiveCell) {
-                execInsertColumnLeft(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Insert column after', 'Insert column after', columnInsertRightIcon(), () => {
-            if (this.currentActiveCell) {
-                execInsertColumnRight(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Delete column', 'Delete column', columnRemoveIcon(), () => {
-            if (this.currentActiveCell) {
-                execDeleteColumn(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Clear column', 'Clear column', clearTableIcon(), () => {
-            if (this.currentActiveCell) {
-                execClearColumn(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Move column left', 'Move column left', moveColumnLeftIcon(), () => {
-            if (this.currentActiveCell) {
-                execMoveColumnLeft(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Move column right', 'Move column right', moveColumnRightIcon(), () => {
-            if (this.currentActiveCell) {
-                execMoveColumnRight(this.view, this.currentActiveCell);
-            }
-        });
+        renderToolbarButtonGroups(
+            getToolbarButtonGroups(getToolbarSettings()),
+            (button) => {
+                createIconBtn(
+                    button.title,
+                    button.ariaLabel,
+                    button.iconFactory(),
+                    this.getActionHandler(button.actionId)
+                );
+            },
+            createSeparator
+        );
+    }
 
-        createSeparator();
+    private getActionHandler(actionId: ToolbarActionId): () => void {
+        return () => {
+            if (!this.currentActiveCell) {
+                return;
+            }
 
-        // Alignment Operations
-        createIconBtn('Align left', 'Align column left', alignLeftIcon(), () => {
-            if (this.currentActiveCell) {
-                execUpdateAlignment(this.view, this.currentActiveCell, 'left');
+            switch (actionId) {
+                case 'insertRowBefore':
+                    execInsertRowAbove(this.view, this.currentActiveCell);
+                    break;
+                case 'insertRowAfter':
+                    execInsertRowBelow(this.view, this.currentActiveCell);
+                    break;
+                case 'deleteRow':
+                    execDeleteRow(this.view, this.currentActiveCell);
+                    break;
+                case 'insertColumnBefore':
+                    execInsertColumnLeft(this.view, this.currentActiveCell);
+                    break;
+                case 'insertColumnAfter':
+                    execInsertColumnRight(this.view, this.currentActiveCell);
+                    break;
+                case 'deleteColumn':
+                    execDeleteColumn(this.view, this.currentActiveCell);
+                    break;
+                case 'deleteTable':
+                    execDeleteTable(this.view, this.currentActiveCell);
+                    break;
+                case 'moveRowUp':
+                    execMoveRowUp(this.view, this.currentActiveCell);
+                    break;
+                case 'moveRowDown':
+                    execMoveRowDown(this.view, this.currentActiveCell);
+                    break;
+                case 'moveColumnLeft':
+                    execMoveColumnLeft(this.view, this.currentActiveCell);
+                    break;
+                case 'moveColumnRight':
+                    execMoveColumnRight(this.view, this.currentActiveCell);
+                    break;
+                case 'clearRow':
+                    execClearRow(this.view, this.currentActiveCell);
+                    break;
+                case 'clearColumn':
+                    execClearColumn(this.view, this.currentActiveCell);
+                    break;
+                case 'clearTable':
+                    execClearTable(this.view, this.currentActiveCell);
+                    break;
+                case 'alignLeft':
+                    execUpdateAlignment(this.view, this.currentActiveCell, 'left');
+                    break;
+                case 'alignCenter':
+                    execUpdateAlignment(this.view, this.currentActiveCell, 'center');
+                    break;
+                case 'alignRight':
+                    execUpdateAlignment(this.view, this.currentActiveCell, 'right');
+                    break;
             }
-        });
-        createIconBtn('Align center', 'Align column center', alignCenterIcon(), () => {
-            if (this.currentActiveCell) {
-                execUpdateAlignment(this.view, this.currentActiveCell, 'center');
-            }
-        });
-        createIconBtn('Align right', 'Align column right', alignRightIcon(), () => {
-            if (this.currentActiveCell) {
-                execUpdateAlignment(this.view, this.currentActiveCell, 'right');
-            }
-        });
-
-        createSeparator();
-
-        createIconBtn('Clear table', 'Clear table', clearTableIcon(), () => {
-            if (this.currentActiveCell) {
-                execClearTable(this.view, this.currentActiveCell);
-            }
-        });
-        createIconBtn('Delete table', 'Delete table', deleteTableIcon(), () => {
-            if (this.currentActiveCell) {
-                execDeleteTable(this.view, this.currentActiveCell);
-            }
-        });
+        };
     }
 
     private showToolbar() {
@@ -273,12 +256,21 @@ class TableToolbarPlugin {
         this.view.requestMeasure({
             key: this,
             read: () => null,
-            write: () => this.updatePosition(),
+            write: () => {
+                void this.updatePosition();
+            },
         });
     }
 
-    private updatePosition() {
+    private async updatePosition() {
         if (!this.currentActiveCell) {
+            this.cleanupPositioning();
+            this.hideToolbar();
+            return;
+        }
+
+        await this.ensureButtonsInitialized();
+        if (this.destroyed || !this.currentActiveCell) {
             this.cleanupPositioning();
             this.hideToolbar();
             return;
