@@ -25,6 +25,26 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
 /** Associates widget DOM elements with their ResizeObserver for safe DOM reuse. */
 const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
 
+function requestTableMeasurement(
+    view: EditorView,
+    container: HTMLElement,
+    tableFrom: number,
+    tableText: string
+): void {
+    view.requestMeasure({
+        read: () => {
+            if (!container.isConnected) {
+                return;
+            }
+
+            const currentFrom = Number(container.getAttribute(`data-${ATTR_TABLE_FROM}`)) || tableFrom;
+            const height = container.getBoundingClientRect().height;
+            tableHeightCache.set({ tableFrom: currentFrom, tableText, heightPx: height });
+        },
+        key: tableHeightCache.getMeasureKey(tableFrom, tableText),
+    });
+}
+
 /**
  * Widget that renders a markdown table as an interactive HTML table
  * Supports rendering markdown content inside cells
@@ -79,21 +99,15 @@ export class TableWidget extends WidgetType {
         // Ensure a ResizeObserver exists for this DOM, even when it was reused.
         if (!widgetResizeObservers.has(dom)) {
             const observer = new ResizeObserver(() => {
-                view.requestMeasure({
-                    read: () => {
-                        if (!dom.isConnected) {
-                            return;
-                        }
-                        const currentFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`)) || this.tableFrom;
-                        const height = dom.getBoundingClientRect().height;
-                        tableHeightCache.set({ tableFrom: currentFrom, tableText: this.tableText, heightPx: height });
-                    },
-                    key: tableHeightCache.getMeasureKey(this.tableFrom, this.tableText),
-                });
+                requestTableMeasurement(view, dom, this.tableFrom, this.tableText);
             });
             observer.observe(dom);
             widgetResizeObservers.set(dom, observer);
         }
+
+        // Prime CodeMirror's vertical layout info immediately on reuse instead of
+        // waiting for ResizeObserver, which may fire too late for the first undo.
+        requestTableMeasurement(view, dom, this.tableFrom, this.tableText);
 
         return true;
     }
@@ -167,23 +181,16 @@ export class TableWidget extends WidgetType {
         // This eliminates the race condition between async rendering and CM6's coordinate system.
         const observer = new ResizeObserver(() => {
             // requestMeasure is debounced internally by CM6, so safe to call frequently.
-            view.requestMeasure({
-                read: () => {
-                    if (!container.isConnected) {
-                        return;
-                    }
-                    const currentFrom = Number(container.getAttribute(`data-${ATTR_TABLE_FROM}`)) || this.tableFrom;
-                    const height = container.getBoundingClientRect().height;
-                    tableHeightCache.set({ tableFrom: currentFrom, tableText: this.tableText, heightPx: height });
-                },
-                key: tableHeightCache.getMeasureKey(this.tableFrom, this.tableText),
-            });
+            requestTableMeasurement(view, container, this.tableFrom, this.tableText);
         });
         observer.observe(container);
         widgetResizeObservers.set(container, observer);
 
         // Store view reference for cleanup when widget is destroyed
         widgetViews.set(container, view);
+        // Prime the measurement immediately on mount so the first scroll-preserving
+        // undo/redo in a fresh note uses real widget geometry instead of estimates.
+        requestTableMeasurement(view, container, this.tableFrom, this.tableText);
 
         return container;
     }
