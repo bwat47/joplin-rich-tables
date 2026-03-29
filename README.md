@@ -83,6 +83,17 @@ Table markdown is revealed while joplin search panel is active. When closing the
 - **Shift + Click:** Select multiple table cells.
 - **Shift + Arrow:** Select multiple table cells.
 
+### Settings
+
+- Show move row/column buttons
+    - Display move row and move column actions in the floating table toolbar.
+
+- Show clear row/column/table buttons
+    - Display clear row, clear column, and clear table actions in the floating table toolbar.
+
+- Show alignment buttons
+    - Display align left, center, and right actions in the floating table toolbar.
+
 ### Important Notes/Limitations
 
 - The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
