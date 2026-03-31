@@ -56,7 +56,7 @@ function dispatchSelection(view: EditorView, selection: CellSelection, options: 
     }
 
     view.dispatch({
-        selection: EditorSelection.single(focusRange.cellFrom),
+        selection: EditorSelection.single(focusRange.editableFrom),
         effects: [
             setCellSelectionEffect.of({
                 tableFrom: ctx.from,

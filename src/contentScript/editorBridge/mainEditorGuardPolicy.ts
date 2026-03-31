@@ -155,7 +155,7 @@ export function decideMainEditorGuardTransaction(
         return { type: 'allowTransaction' };
     }
 
-    const sanitized = sanitizeCellChanges(tr, resolvedActiveCell.cellFrom, resolvedActiveCell.cellTo);
+    const sanitized = sanitizeCellChanges(tr, resolvedActiveCell.editableFrom, resolvedActiveCell.editableTo);
     if (sanitized.rejected) {
         return { type: 'rejectTransaction' };
     }

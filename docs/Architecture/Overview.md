@@ -59,7 +59,7 @@ Cell click / navigation / selection focus → widget/runtime logic resolves row/
 
 `ActiveCell` is logical-first state: it persists `tableFrom` plus `section/row/col`. Cursor placement such as
 the main-editor selection anchor is transient request data, not part of persisted active-cell identity. Raw offsets
-such as `tableTo` and `cellFrom/cellTo` are derived on demand through the shared active-cell resolver.
+such as `tableTo` plus semantic/editable cell spans are derived on demand through the shared active-cell resolver.
 
 Before lifecycle opens the nested editor for user-driven entry, `tableRuntime/lifecycle/nestedEditorLifecycle.ts` checks whether the table markdown
 is already in the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical
@@ -73,6 +73,9 @@ Typing in the isolated cell editor goes through the `NestedEditorSession` bridge
 - `editorBridge/cellTextCodec.ts` sanitizes local display text and selection into authoritative root cell text and selection.
 - The main editor applies the change with `editorBridge/syncAnnotation.ts`.
 - Non-sync root changes re-resolve the logical cell from the persisted active-cell identity and rebase the isolated editor.
+- `cellRanges` expose both trimmed semantic bounds and editable bounds; nested-editor sync and Joplin formatting-command
+  selection mirroring use the editable span so user-entered edge whitespace stays addressable without exposing canonical
+  delimiter padding in the local editor.
 - The nested editor is cell-local, not a clipped whole-document subview.
 
 ### 4. Table Runtime Model

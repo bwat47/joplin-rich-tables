@@ -114,8 +114,10 @@ export function resolveTableForActiveCell(
     ctx: TableContext;
     tableFrom: number;
     tableTo: number;
-    cellFrom: number;
-    cellTo: number;
+    contentFrom: number;
+    contentTo: number;
+    editableFrom: number;
+    editableTo: number;
 } | null {
     const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
     if (!ctx) {
@@ -135,8 +137,10 @@ export function resolveTableForActiveCell(
         ctx,
         tableFrom: ctx.from,
         tableTo: ctx.to,
-        cellFrom: range.cellFrom,
-        cellTo: range.cellTo,
+        contentFrom: range.contentFrom,
+        contentTo: range.contentTo,
+        editableFrom: range.editableFrom,
+        editableTo: range.editableTo,
     };
 }
 
@@ -195,11 +199,13 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
     return null;
 }
 
-export function resolveCellDocRange(params: {
-    tableFrom: number;
-    ranges: TableCellRanges;
-    coords: CellCoords;
-}): { cellFrom: number; cellTo: number; relRange: CellRange } | null {
+export function resolveCellDocRange(params: { tableFrom: number; ranges: TableCellRanges; coords: CellCoords }): {
+    contentFrom: number;
+    contentTo: number;
+    editableFrom: number;
+    editableTo: number;
+    relRange: CellRange;
+} | null {
     const { tableFrom, ranges, coords } = params;
 
     const relRange = getCellRange(ranges, coords);
@@ -208,8 +214,10 @@ export function resolveCellDocRange(params: {
     }
 
     return {
-        cellFrom: tableFrom + relRange.from,
-        cellTo: tableFrom + relRange.to,
+        contentFrom: tableFrom + relRange.from,
+        contentTo: tableFrom + relRange.to,
+        editableFrom: tableFrom + relRange.editableFrom,
+        editableTo: tableFrom + relRange.editableTo,
         relRange,
     };
 }

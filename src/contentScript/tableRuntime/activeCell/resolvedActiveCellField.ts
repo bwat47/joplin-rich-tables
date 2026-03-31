@@ -8,21 +8,16 @@ import type { EditorState } from '@codemirror/state';
  * CodeMirror reuses this cached value for all readers of the same state, eliminating the
  * 4–5 redundant resolveActiveCell calls that otherwise occur on every keystroke.
  *
- * Resolution depends on the active cell identity, document content, and selection
- * (expandCellEndForTrailingWhitespace reads state.selection.main), so it is re-derived
- * whenever any of these change.
+ * Resolution depends on the active cell identity and document content, so it is re-derived
+ * whenever either changes.
  */
 export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | null>({
     create(state) {
         return resolveActiveCell(state, getActiveCell(state));
     },
     update(value, tr) {
-        // Re-derive when doc, selection, or active cell identity changes.
-        // All three affect resolveActiveCell's output:
-        //   - doc: syntax tree positions
-        //   - selection: expandCellEndForTrailingWhitespace
-        //   - activeCellField: cell identity
-        if (!tr.docChanged && !tr.selection) {
+        // Re-derive when doc or active cell identity changes.
+        if (!tr.docChanged) {
             // Use the false flag so states without activeCellField (e.g. nested editor
             // states, autocomplete states) return undefined instead of throwing.
             if (tr.startState.field(activeCellField, false) === tr.state.field(activeCellField, false)) {

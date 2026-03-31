@@ -8,48 +8,10 @@ export interface ResolvedActiveCell {
     ctx: TableContext;
     tableFrom: number;
     tableTo: number;
-    cellFrom: number;
-    cellTo: number;
-}
-
-function expandCellEndForTrailingWhitespace(
-    state: EditorState,
-    range: { cellFrom: number; cellTo: number }
-): { cellFrom: number; cellTo: number } {
-    const selection = state.selection.main;
-    const maxSelectionPos = Math.max(selection.anchor, selection.head);
-
-    if (maxSelectionPos <= range.cellTo) {
-        return range;
-    }
-
-    const line = state.doc.lineAt(range.cellTo);
-    if (maxSelectionPos > line.to) {
-        return range;
-    }
-
-    let expandedCellTo = range.cellTo;
-    while (expandedCellTo < line.to && /\s/.test(state.doc.sliceString(expandedCellTo, expandedCellTo + 1))) {
-        expandedCellTo++;
-    }
-
-    if (expandedCellTo === range.cellTo) {
-        return range;
-    }
-
-    const nextChar = expandedCellTo < line.to ? state.doc.sliceString(expandedCellTo, expandedCellTo + 1) : '';
-    if (nextChar && nextChar !== '|') {
-        return range;
-    }
-
-    if (maxSelectionPos > expandedCellTo) {
-        return range;
-    }
-
-    return {
-        cellFrom: range.cellFrom,
-        cellTo: expandedCellTo,
-    };
+    contentFrom: number;
+    contentTo: number;
+    editableFrom: number;
+    editableTo: number;
 }
 
 export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
@@ -62,8 +24,6 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         return null;
     }
 
-    const expandedRange = expandCellEndForTrailingWhitespace(state, resolved);
-
     return {
         activeCell: {
             ...activeCell,
@@ -72,7 +32,9 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         ctx: resolved.ctx,
         tableFrom: resolved.tableFrom,
         tableTo: resolved.tableTo,
-        cellFrom: expandedRange.cellFrom,
-        cellTo: expandedRange.cellTo,
+        contentFrom: resolved.contentFrom,
+        contentTo: resolved.contentTo,
+        editableFrom: resolved.editableFrom,
+        editableTo: resolved.editableTo,
     };
 }

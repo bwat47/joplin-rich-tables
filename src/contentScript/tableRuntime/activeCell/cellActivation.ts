@@ -106,7 +106,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         activeCell: newActiveCell.activeCell,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,
-        selectionAnchor: pos,
+        selectionAnchor: newActiveCell.selectionAnchor,
     });
 
     return true;

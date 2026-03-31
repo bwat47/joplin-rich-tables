@@ -41,7 +41,7 @@ The lifecycle plugin remains responsible only for executing nested-editor side e
 2. `NestedEditorSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
 4. If normalization rewrites the whole table first, it also dispatches a reopen intent so lifecycle can reopen after rebuild.
-5. After root dispatch, the session refreshes its derived absolute ranges from the current active-cell identity.
+5. After root dispatch, the session refreshes its derived semantic/editable ranges from the current active-cell identity.
 6. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
 ### Selection Sync
@@ -52,6 +52,10 @@ Joplin toolbar reads main editor selection, so nested must mirror upward.
 2. It mirrors the mapped absolute selection to the main editor (`syncAnnotation` + `addToHistory: false`).
 3. Root-owned commands update the authoritative root selection/doc.
 4. The session rebases the isolated editor selection from the resulting root cell text.
+
+Selection mirroring uses the cell's editable span, not the fully trimmed semantic content span. This keeps toolbar and
+formatting commands aligned with user-entered leading/trailing whitespace while still hiding canonical delimiter padding
+from the local editor.
 
 ### Undo/Redo
 
@@ -85,6 +89,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 
 - Uses the shared transition policy to allow, reject, or sanitize main-editor transactions.
 - Rejects changes touching active table but outside cell range.
+- Treats the editable span as the allowed in-cell edit range while the semantic span remains the render/parse source.
 - Allows external updates not overlapping table.
 - Whitelists `syncAnnotation` transactions.
 - Whitelists structural operations with `rebuildTableWidgetsEffect`.

@@ -22,13 +22,17 @@ Everything else in the table model layer builds on this scanner (don’t split o
 - Filters to non-empty lines (matching the parser’s behavior).
 - Validates the separator row with `isSeparatorRow()`, but intentionally does not return ranges for the separator row.
 - Trims outer whitespace and ignores leading/trailing pipes.
-- Trims per-cell whitespace; for whitespace-only cells it chooses a stable insertion point so edits don’t “stick” directly to a pipe in the plugin’s canonical padded format.
+- Produces two bounds per cell:
+    - `from/to`: trimmed semantic content bounds used for parsing/rendering.
+    - `editableFrom/editableTo`: editing bounds used by the nested editor and selection sync.
+- Editable bounds hide one delimiter-adjacent pad character per side while preserving any additional leading/trailing whitespace the user typed into the cell.
+- For empty or whitespace-only cells, editable bounds collapse to a stable insertion point so edits don’t “stick” directly to a pipe in the plugin’s canonical padded format.
 
 These ranges are used for:
 
-- Mapping positions back to cell coordinates (`findCellForPos()`).
-- Resolving a cell’s `from/to` range (`getCellRange()`).
-- Deriving live `cellFrom/cellTo` values for logical active-cell state.
+- Mapping positions back to cell coordinates (`findCellForPos()`), using the editable span.
+- Resolving a cell’s semantic/editable ranges (`getCellRange()`).
+- Deriving live semantic/editable document spans for logical active-cell state.
 
 ## Parsing to a Structured Table Model
 
@@ -73,7 +77,7 @@ the current editor state through the shared active-cell resolver. That resolver:
 
 - Re-resolves the anchored table from `tableFrom`.
 - Rebuilds `TableContext`.
-- Derives `tableTo` and `cellFrom/cellTo` from current `cellRanges`.
+- Derives `tableTo`, trimmed content bounds, and editable bounds from current `cellRanges`.
 
 If resolution fails, the active cell is treated as stale and cleared rather than clamped to a nearby cell.
 
