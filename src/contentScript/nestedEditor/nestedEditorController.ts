@@ -25,8 +25,14 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
 import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
+import { getWidgetSelector } from '../tableWidget/domHelpers';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
+const CELL_REVEAL_VIEWPORT_PADDING_PX = 12;
+const CELL_REVEAL_DEBOUNCE_MS = 100;
+const CELL_REVEAL_FALLBACK_MS = 150;
+const CELL_REVEAL_SETTLE_RAF_COUNT = 2;
+const INTERNAL_SCROLL_THRESHOLD_PX = 1;
 
 export interface NestedEditorCellRange {
     tableFrom: number;
@@ -58,13 +64,79 @@ export interface NestedEditorSession {
 
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
     mainView.requestMeasure({
-        read: () => cellElement.isConnected,
-        write: (isConnected) => {
-            if (isConnected) {
+        read: () => {
+            if (!cellElement.isConnected) {
+                return null;
+            }
+
+            const cellRect = cellElement.getBoundingClientRect();
+            const scrollDOM = mainView.scrollDOM;
+            const hasInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + INTERNAL_SCROLL_THRESHOLD_PX;
+            const scrollDOMRect = hasInternalScroll ? scrollDOM.getBoundingClientRect() : null;
+            const widgetRect = cellElement.closest(getWidgetSelector())?.getBoundingClientRect() ?? null;
+
+            if (hasInternalScroll) {
+                return {
+                    cellRect,
+                    viewportTop: scrollDOMRect!.top,
+                    viewportBottom: scrollDOMRect!.bottom,
+                    viewportLeft: widgetRect?.left ?? scrollDOMRect!.left,
+                    viewportRight: widgetRect?.right ?? scrollDOMRect!.right,
+                };
+            }
+
+            return {
+                cellRect,
+                viewportTop: 0,
+                viewportBottom: window.visualViewport?.height ?? window.innerHeight,
+                viewportLeft: widgetRect?.left ?? 0,
+                viewportRight: widgetRect?.right ?? (window.visualViewport?.width ?? window.innerWidth),
+            };
+        },
+        write: (measurement) => {
+            if (!measurement) {
+                return;
+            }
+
+            const viewportTop = measurement.viewportTop + CELL_REVEAL_VIEWPORT_PADDING_PX;
+            const viewportBottom = measurement.viewportBottom - CELL_REVEAL_VIEWPORT_PADDING_PX;
+            const viewportLeft = measurement.viewportLeft + CELL_REVEAL_VIEWPORT_PADDING_PX;
+            const viewportRight = measurement.viewportRight - CELL_REVEAL_VIEWPORT_PADDING_PX;
+            const verticallyVisible = measurement.cellRect.top >= viewportTop && measurement.cellRect.bottom <= viewportBottom;
+            const horizontallyVisible =
+                measurement.cellRect.left >= viewportLeft && measurement.cellRect.right <= viewportRight;
+            const safelyVisible = verticallyVisible && horizontallyVisible;
+
+            if (!safelyVisible) {
                 cellElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             }
         },
     });
+}
+
+function scheduleAfterAnimationFrames(frameCount: number, callback: () => void): () => void {
+    let active = true;
+
+    const scheduleNext = (remainingFrames: number): void => {
+        requestAnimationFrame(() => {
+            if (!active) {
+                return;
+            }
+
+            if (remainingFrames <= 1) {
+                callback();
+                return;
+            }
+
+            scheduleNext(remainingFrames - 1);
+        });
+    };
+
+    scheduleNext(frameCount);
+
+    return () => {
+        active = false;
+    };
 }
 
 function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): LocalSelection {
@@ -97,6 +169,7 @@ class NestedEditorController {
     private editorHostEl: HTMLElement | null = null;
     private cellElement: HTMLElement | null = null;
     private mainView: EditorView | null = null;
+    private pendingCellRevealCleanup: (() => void) | null = null;
 
     open(params: {
         mainView: EditorView;
@@ -207,8 +280,8 @@ class NestedEditorController {
         this.session = session;
 
         this.flushSelectionToRoot();
-        scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
         session.editor.contentDOM.focus({ preventScroll: true });
+        this.scheduleCellRevealAfterFocus(params.mainView, params.cellElement);
 
         requestAnimationFrame(() => {
             params.onFocused?.();
@@ -264,6 +337,7 @@ class NestedEditorController {
     close(params?: { contentFrom?: number; contentTo?: number }): void {
         const session = this.session;
         const mainView = this.mainView;
+        this.cancelPendingCellReveal();
 
         if (session?.editor) {
             session.editor.destroy();
@@ -353,6 +427,107 @@ class NestedEditorController {
         if (this.editorHostEl && container.contains(this.editorHostEl)) {
             this.close();
         }
+    }
+
+    private cancelPendingCellReveal(): void {
+        this.pendingCellRevealCleanup?.();
+        this.pendingCellRevealCleanup = null;
+    }
+
+    private scheduleCellRevealAfterFocus(mainView: EditorView, cellElement: HTMLElement): void {
+        this.cancelPendingCellReveal();
+
+        let active = true;
+        let sawViewportEvent = false;
+        let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
+        let debounceTimeoutId: ReturnType<typeof setTimeout> | null = null;
+        let cancelSettledReveal: (() => void) | null = null;
+        let visualViewportCleanup: (() => void) | null = null;
+
+        const cleanup = (): void => {
+            if (!active) {
+                return;
+            }
+
+            active = false;
+
+            if (fallbackTimeoutId !== null) {
+                clearTimeout(fallbackTimeoutId);
+                fallbackTimeoutId = null;
+            }
+
+            if (debounceTimeoutId !== null) {
+                clearTimeout(debounceTimeoutId);
+                debounceTimeoutId = null;
+            }
+
+            cancelSettledReveal?.();
+            cancelSettledReveal = null;
+            visualViewportCleanup?.();
+            visualViewportCleanup = null;
+
+            if (this.pendingCellRevealCleanup === cleanup) {
+                this.pendingCellRevealCleanup = null;
+            }
+        };
+
+        const runReveal = (): void => {
+            if (!active) {
+                return;
+            }
+
+            scrollCellIntoViewWithinEditor(mainView, cellElement);
+            cleanup();
+        };
+
+        this.pendingCellRevealCleanup = cleanup;
+
+        const hasInternalScroll =
+            mainView.scrollDOM.scrollHeight > mainView.scrollDOM.clientHeight + INTERNAL_SCROLL_THRESHOLD_PX;
+        if (hasInternalScroll) {
+            cancelSettledReveal = scheduleAfterAnimationFrames(1, runReveal);
+            return;
+        }
+
+        const visualViewport = window.visualViewport;
+        if (visualViewport) {
+            const scheduleSettledReveal = (): void => {
+                if (debounceTimeoutId !== null) {
+                    clearTimeout(debounceTimeoutId);
+                }
+
+                debounceTimeoutId = setTimeout(() => {
+                    debounceTimeoutId = null;
+                    cancelSettledReveal?.();
+                    cancelSettledReveal = scheduleAfterAnimationFrames(CELL_REVEAL_SETTLE_RAF_COUNT, runReveal);
+                }, CELL_REVEAL_DEBOUNCE_MS);
+            };
+
+            const handleViewportChange = (): void => {
+                if (!active) {
+                    return;
+                }
+
+                sawViewportEvent = true;
+                scheduleSettledReveal();
+            };
+
+            visualViewport.addEventListener('resize', handleViewportChange);
+            visualViewport.addEventListener('scroll', handleViewportChange);
+            visualViewportCleanup = () => {
+                visualViewport.removeEventListener('resize', handleViewportChange);
+                visualViewport.removeEventListener('scroll', handleViewportChange);
+            };
+        }
+
+        fallbackTimeoutId = setTimeout(() => {
+            fallbackTimeoutId = null;
+            if (!active || sawViewportEvent) {
+                return;
+            }
+
+            runReveal();
+        }, CELL_REVEAL_FALLBACK_MS);
     }
 
     private handleLocalUpdate(update: ViewUpdate): void {
