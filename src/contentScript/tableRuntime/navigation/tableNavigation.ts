@@ -161,7 +161,7 @@ export function navigateCell(
         normalizeIfNeeded: true,
         initialCursorPos: options.cursorPos,
         onFocused: releaseNavigationLock,
-        selectionAnchor: resolvedRange.cellFrom,
+        selectionAnchor: resolvedRange.editableFrom,
     });
 
     return true;

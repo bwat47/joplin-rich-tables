@@ -86,7 +86,7 @@ describe('tableRuntimePolicies', () => {
         const state = createState({ activeCell });
         const resolved = requireResolvedActiveCell(state);
         const tr = state.update({
-            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'x' },
+            changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'x' },
         });
 
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'mapDecorations' });
@@ -133,7 +133,7 @@ describe('tableRuntimePolicies', () => {
         const state = createState({ activeCell });
         const resolved = requireResolvedActiveCell(state);
         const tr = state.update({
-            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'x' },
+            changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'x' },
             annotations: syncAnnotation.of(true),
         });
 
@@ -154,18 +154,38 @@ describe('tableRuntimePolicies', () => {
         });
     });
 
+    it('allows guard changes inside editable edge whitespace', () => {
+        const paddedDoc = ['| H1  | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        let state = createMarkdownState(paddedDoc, [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        state = state.update({ effects: setActiveCellEffect.of(getHeaderCell()) }).state;
+        const resolved = requireResolvedActiveCell(state);
+
+        const tr = state.update({
+            changes: { from: resolved.editableTo, to: resolved.editableTo, insert: ' ' },
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'allowTransaction',
+        });
+    });
+
     it('returns a clipboard rewrite decision for markdown-table paste while nested editor is open', () => {
         const activeCell = getHeaderCell();
         let state = createState({ activeCell });
         const resolved = requireResolvedActiveCell(state);
         state = state.update({
-            selection: { anchor: resolved.cellFrom, head: resolved.cellFrom },
+            selection: { anchor: resolved.editableFrom, head: resolved.editableFrom },
         }).state;
 
         const tr = state.update({
             changes: {
-                from: resolved.cellFrom,
-                to: resolved.cellFrom,
+                from: resolved.editableFrom,
+                to: resolved.editableFrom,
                 insert: ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n'),
             },
             userEvent: 'input.paste',
@@ -259,10 +279,10 @@ describe('tableRuntimePolicies', () => {
         let state = createState({ activeCell });
         const resolved = requireResolvedActiveCell(state);
         state = state.update({
-            selection: { anchor: resolved.cellFrom, head: resolved.cellFrom },
+            selection: { anchor: resolved.editableFrom, head: resolved.editableFrom },
         }).state;
         const tr = state.update({
-            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'a\nb|c' },
+            changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'a\nb|c' },
         });
 
         const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true });
@@ -271,7 +291,7 @@ describe('tableRuntimePolicies', () => {
             throw new Error('Expected sanitize decision');
         }
 
-        expect(decision.selection.main.head).toBe(resolved.cellFrom + 'a<br>b\\|c'.length);
+        expect(decision.selection.main.head).toBe(resolved.editableFrom + 'a<br>b\\|c'.length);
     });
 
     it('plans raw mode exit as cursor reactivation', () => {
@@ -436,7 +456,7 @@ describe('tableRuntimePolicies', () => {
         const startState = createState({ activeCell });
         const resolved = requireResolvedActiveCell(startState);
         const { event } = createViewUpdate(startState, {
-            changes: { from: resolved.cellFrom, to: resolved.cellFrom, insert: 'x' },
+            changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'x' },
         });
         const snapshot: TableRuntimeSnapshot = {
             activeCell,
@@ -454,17 +474,19 @@ describe('tableRuntimePolicies', () => {
         });
     });
 
-    it('does not require rebuild when undo change range falls within trailing cell padding', () => {
-        // `| H1 | H2 |` — "H1" is at positions 2-3 (trimmed), but the raw cell is `| H1 |`
-        // so position 4 is a trailing space, position 5 is the pipe. An undo that produces
-        // a change touching positions 2-4 (content + one trailing space) should not rebuild.
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
+    it('does not require rebuild when undo change range stays within the editable span', () => {
+        const paddedDoc = ['| H1  | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        let state = createMarkdownState(paddedDoc, [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        state = state.update({ effects: setActiveCellEffect.of(getHeaderCell()) }).state;
         const resolved = requireResolvedActiveCell(state);
 
-        // Simulate an undo transaction whose change range extends one position into trailing padding
         const tr = state.update({
-            changes: { from: resolved.cellFrom, to: resolved.cellTo + 1, insert: 'H1' },
+            changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'H1 ' },
             annotations: Transaction.userEvent.of('undo'),
         });
 

@@ -88,8 +88,10 @@ describe('navigateCell', () => {
         };
 
         (resolveCellDocRange as jest.Mock).mockReturnValue({
-            cellFrom: 10,
-            cellTo: 20,
+            contentFrom: 10,
+            contentTo: 20,
+            editableFrom: 10,
+            editableTo: 20,
         });
         (resolveActiveCell as jest.Mock).mockReturnValue({
             ctx,

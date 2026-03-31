@@ -66,6 +66,71 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, r.from, r.to)).toBe('');
     });
 
+    it('hides canonical delimiter padding from editable bounds', () => {
+        const text = ['| foo |', '| --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const header = ranges.headers[0];
+        expect(sliceRange(text, header.from, header.to)).toBe('foo');
+        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('foo');
+    });
+
+    it('preserves user-entered trailing whitespace in editable bounds', () => {
+        const text = ['| foo  |', '| --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const header = ranges.headers[0];
+        expect(sliceRange(text, header.from, header.to)).toBe('foo');
+        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('foo ');
+    });
+
+    it('preserves user-entered leading whitespace in editable bounds', () => {
+        const text = ['|  foo |', '| --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const header = ranges.headers[0];
+        expect(sliceRange(text, header.from, header.to)).toBe('foo');
+        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe(' foo');
+    });
+
+    it('preserves user-entered leading and trailing whitespace in editable bounds', () => {
+        const text = ['|  foo  |', '| --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const header = ranges.headers[0];
+        expect(sliceRange(text, header.from, header.to)).toBe('foo');
+        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe(' foo ');
+    });
+
+    it('uses a zero-width editable span for canonical empty cells', () => {
+        const text = ['|  |', '| --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const header = ranges.headers[0];
+        expect(header.editableFrom).toBe(header.editableTo);
+        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('');
+    });
+
+    it('returns stable editable bounds for cells without canonical pad spaces', () => {
+        const text = ['|foo|bar|', '|---|---|'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        expect(sliceRange(text, ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe('foo');
+        expect(sliceRange(text, ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
+    });
+
     it('allows uneven row lengths', () => {
         const text = ['| a | b |', '| --- | --- |', '| c |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);
@@ -144,6 +209,19 @@ describe('findCellForPos', () => {
         // Position in middle of cell
         const coordsMiddle = findCellForPos(ranges, headerCell.from + 1);
         expect(coordsMiddle).toEqual({ section: 'header', row: 0, col: 0 });
+    });
+
+    it('finds cells for positions in editable edge whitespace but not structural pad space', () => {
+        const text = ['|  foo  |', '| --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const headerCell = ranges.headers[0];
+
+        expect(findCellForPos(ranges, headerCell.editableFrom)).toEqual({ section: 'header', row: 0, col: 0 });
+        expect(findCellForPos(ranges, headerCell.editableTo)).toEqual({ section: 'header', row: 0, col: 0 });
+        expect(findCellForPos(ranges, headerCell.editableFrom - 1)).toBeNull();
     });
 
     it('returns null for positions outside any cell', () => {

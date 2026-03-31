@@ -158,8 +158,8 @@ describe('nestedEditorLifecycle', () => {
         }
 
         expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, {
-            cellFrom: resolved.cellFrom,
-            cellTo: resolved.cellTo,
+            contentFrom: resolved.contentFrom,
+            contentTo: resolved.contentTo,
         });
 
         view.destroy();

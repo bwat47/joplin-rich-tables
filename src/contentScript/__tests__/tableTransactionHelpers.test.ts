@@ -35,8 +35,10 @@ describe('tableTransactionHelpers', () => {
             activeCell: cell,
             tableFrom: 0,
             tableTo: currentTableText.length,
-            cellFrom: 0,
-            cellTo: 0,
+            contentFrom: 0,
+            contentTo: 0,
+            editableFrom: 0,
+            editableTo: 0,
             ctx: {
                 from: 0,
                 to: currentTableText.length,

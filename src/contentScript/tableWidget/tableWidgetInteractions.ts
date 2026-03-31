@@ -217,7 +217,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return false;
         }
 
-        const { cellFrom } = resolvedRange;
+        const { editableFrom } = resolvedRange;
 
         event.preventDefault();
         event.stopPropagation();
@@ -245,7 +245,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             },
             clearCellSelection: hasSelection,
             normalizeIfNeeded: true,
-            selectionAnchor: cellFrom,
+            selectionAnchor: editableFrom,
         });
 
         return true;

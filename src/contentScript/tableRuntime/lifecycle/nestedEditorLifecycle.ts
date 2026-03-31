@@ -293,7 +293,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     }
 );
 
-function snapshotResolvedCellRange(state: EditorView['state']): { cellFrom: number; cellTo: number } | null {
+function snapshotResolvedCellRange(state: EditorView['state']): { contentFrom: number; contentTo: number } | null {
     const activeCell = getActiveCell(state);
     const resolved = resolveActiveCell(state, activeCell);
     if (!resolved) {
@@ -301,7 +301,7 @@ function snapshotResolvedCellRange(state: EditorView['state']): { cellFrom: numb
     }
 
     return {
-        cellFrom: resolved.cellFrom,
-        cellTo: resolved.cellTo,
+        contentFrom: resolved.contentFrom,
+        contentTo: resolved.contentTo,
     };
 }

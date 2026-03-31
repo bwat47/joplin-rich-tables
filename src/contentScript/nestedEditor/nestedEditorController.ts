@@ -32,8 +32,10 @@ const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 export interface NestedEditorCellRange {
     tableFrom: number;
     tableTo: number;
-    cellFrom: number;
-    cellTo: number;
+    contentFrom: number;
+    contentTo: number;
+    editableFrom: number;
+    editableTo: number;
 }
 
 export interface NestedEditorLocalState {
@@ -66,19 +68,19 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
     });
 }
 
-function toAbsoluteSelection(selection: LocalSelection, cellFrom: number): LocalSelection {
+function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): LocalSelection {
     return {
-        anchor: cellFrom + selection.anchor,
-        head: cellFrom + selection.head,
+        anchor: editableFrom + selection.anchor,
+        head: editableFrom + selection.head,
     };
 }
 
-function toRelativeSelection(selection: EditorSelection, cellFrom: number, cellTo: number): LocalSelection {
+function toRelativeSelection(selection: EditorSelection, editableFrom: number, editableTo: number): LocalSelection {
     const main = selection.main;
-    const clamp = (pos: number) => Math.max(cellFrom, Math.min(cellTo, pos));
+    const clamp = (pos: number) => Math.max(editableFrom, Math.min(editableTo, pos));
     return {
-        anchor: clamp(main.anchor) - cellFrom,
-        head: clamp(main.head) - cellFrom,
+        anchor: clamp(main.anchor) - editableFrom,
+        head: clamp(main.head) - editableFrom,
     };
 }
 
@@ -122,9 +124,13 @@ class NestedEditorController {
         this.cellElement.classList.add(CLASS_CELL_ACTIVE);
         editorHost.textContent = '';
 
-        const rootText = params.mainView.state.doc.sliceString(resolved.cellFrom, resolved.cellTo);
+        const rootText = params.mainView.state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
         const localText = unsanitizeRootText(rootText);
-        const rootSelection = toRelativeSelection(params.mainView.state.selection, resolved.cellFrom, resolved.cellTo);
+        const rootSelection = toRelativeSelection(
+            params.mainView.state.selection,
+            resolved.editableFrom,
+            resolved.editableTo
+        );
         let localSelection = toLocalSelection(rootSelection, rootText);
 
         if (params.initialCursorPos === 'start') {
@@ -142,8 +148,10 @@ class NestedEditorController {
             range: {
                 tableFrom: resolved.tableFrom,
                 tableTo: resolved.tableTo,
-                cellFrom: resolved.cellFrom,
-                cellTo: resolved.cellTo,
+                contentFrom: resolved.contentFrom,
+                contentTo: resolved.contentTo,
+                editableFrom: resolved.editableFrom,
+                editableTo: resolved.editableTo,
             },
             local: { text: localText, selection: localSelection },
             root: { text: rootText, selection: rootSelection },
@@ -240,12 +248,14 @@ class NestedEditorController {
         this.session.range = {
             tableFrom: resolved.tableFrom,
             tableTo: resolved.tableTo,
-            cellFrom: resolved.cellFrom,
-            cellTo: resolved.cellTo,
+            contentFrom: resolved.contentFrom,
+            contentTo: resolved.contentTo,
+            editableFrom: resolved.editableFrom,
+            editableTo: resolved.editableTo,
         };
 
-        const rootText = update.state.doc.sliceString(resolved.cellFrom, resolved.cellTo);
-        const rootSelection = toRelativeSelection(update.state.selection, resolved.cellFrom, resolved.cellTo);
+        const rootText = update.state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
+        const rootSelection = toRelativeSelection(update.state.selection, resolved.editableFrom, resolved.editableTo);
 
         this.session.root = {
             text: rootText,
@@ -255,7 +265,7 @@ class NestedEditorController {
         this.rebaseLocalEditorFromRoot();
     }
 
-    close(params?: { cellFrom?: number; cellTo?: number }): void {
+    close(params?: { contentFrom?: number; contentTo?: number }): void {
         const session = this.session;
         const mainView = this.mainView;
 
@@ -271,10 +281,10 @@ class NestedEditorController {
             this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
         }
 
-        const { cellFrom, cellTo } = this.resolveCellRangeForClose(params, session, mainView);
+        const { contentFrom, contentTo } = this.resolveCellRangeForClose(params, session, mainView);
 
         if (this.contentEl && mainView) {
-            const cellText = mainView.state.doc.sliceString(cellFrom, cellTo).trim();
+            const cellText = mainView.state.doc.sliceString(contentFrom, contentTo).trim();
             const definitions = mainView.state.field(documentDefinitionsField);
             const { displayText, cacheKey } = buildRenderableContent(cellText, definitions.definitionBlock);
             const cached = renderer.getCached(cacheKey);
@@ -314,24 +324,24 @@ class NestedEditorController {
      * picking up any position shifts from undo/redo.
      */
     private resolveCellRangeForClose(
-        params: { cellFrom?: number; cellTo?: number } | undefined,
+        params: { contentFrom?: number; contentTo?: number } | undefined,
         session: NestedEditorSession | null,
         mainView: EditorView | null
-    ): { cellFrom: number; cellTo: number } {
-        if (params?.cellFrom != null && params?.cellTo != null) {
-            return { cellFrom: params.cellFrom, cellTo: params.cellTo };
+    ): { contentFrom: number; contentTo: number } {
+        if (params?.contentFrom != null && params?.contentTo != null) {
+            return { contentFrom: params.contentFrom, contentTo: params.contentTo };
         }
 
         if (session && mainView) {
             const resolved = resolveActiveCell(mainView.state, session.activeCell);
             if (resolved) {
-                return { cellFrom: resolved.cellFrom, cellTo: resolved.cellTo };
+                return { contentFrom: resolved.contentFrom, contentTo: resolved.contentTo };
             }
         }
 
         return {
-            cellFrom: session?.range.cellFrom ?? 0,
-            cellTo: session?.range.cellTo ?? 0,
+            contentFrom: session?.range.contentFrom ?? 0,
+            contentTo: session?.range.contentTo ?? 0,
         };
     }
 
@@ -380,7 +390,7 @@ class NestedEditorController {
 
         const rootText = sanitizeLocalText(this.session.local.text);
         const rootSelection = toRootSelection(this.session.local.selection, this.session.local.text);
-        const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.range.cellFrom);
+        const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.range.editableFrom);
         const currentMainSelection = this.mainView.state.selection.main;
 
         const textChanged = rootText !== this.session.root.text;
@@ -396,8 +406,8 @@ class NestedEditorController {
             changes:
                 includeChanges && textChanged
                     ? {
-                          from: this.session.range.cellFrom,
-                          to: this.session.range.cellTo,
+                          from: this.session.range.editableFrom,
+                          to: this.session.range.editableTo,
                           insert: rootText,
                       }
                     : undefined,
@@ -444,7 +454,7 @@ class NestedEditorController {
         mirrorLocalSelectionToMain({
             nestedView,
             mainView: this.mainView,
-            selection: toAbsoluteSelection(rootSelection, this.session.range.cellFrom),
+            selection: toAbsoluteSelection(rootSelection, this.session.range.editableFrom),
         });
     }
 
@@ -467,12 +477,14 @@ class NestedEditorController {
         this.session.range = {
             tableFrom: resolved.tableFrom,
             tableTo: resolved.tableTo,
-            cellFrom: resolved.cellFrom,
-            cellTo: resolved.cellTo,
+            contentFrom: resolved.contentFrom,
+            contentTo: resolved.contentTo,
+            editableFrom: resolved.editableFrom,
+            editableTo: resolved.editableTo,
         };
         this.session.root = {
-            text: this.mainView.state.doc.sliceString(resolved.cellFrom, resolved.cellTo),
-            selection: toRelativeSelection(this.mainView.state.selection, resolved.cellFrom, resolved.cellTo),
+            text: this.mainView.state.doc.sliceString(resolved.editableFrom, resolved.editableTo),
+            selection: toRelativeSelection(this.mainView.state.selection, resolved.editableFrom, resolved.editableTo),
         };
     }
 
@@ -541,7 +553,7 @@ export function openNestedEditor(params: {
     getController(params.mainView)?.open(params);
 }
 
-export function closeNestedEditor(view: EditorView, params?: { cellFrom?: number; cellTo?: number }): void {
+export function closeNestedEditor(view: EditorView, params?: { contentFrom?: number; contentTo?: number }): void {
     getController(view)?.close(params);
 }
 

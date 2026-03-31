@@ -10,6 +10,8 @@ import type { CellCoords } from './types';
 export interface CellRange {
     from: number;
     to: number;
+    editableFrom: number;
+    editableTo: number;
 }
 
 export interface TableCellRanges {
@@ -88,6 +90,25 @@ function trimCellBounds(line: string, from: number, to: number): { from: number;
     return { from: start, to: end };
 }
 
+function editableCellBounds(line: string, from: number, to: number): { from: number; to: number } {
+    let start = from;
+    let end = to;
+
+    if (start < end && /\s/.test(line[start])) {
+        start++;
+    }
+    if (end > start && /\s/.test(line[end - 1])) {
+        end--;
+    }
+
+    if (start === end && from < to) {
+        const insertion = Math.min(from + 1, to);
+        return { from: insertion, to: insertion };
+    }
+
+    return { from: start, to: end };
+}
+
 function parseLineCellRanges(line: string, lineFromInTable: number): CellRange[] {
     const { from: trimFrom, to: trimTo } = findTrimBounds(line);
     if (trimTo <= trimFrom) {
@@ -115,18 +136,24 @@ function parseLineCellRanges(line: string, lineFromInTable: number): CellRange[]
     for (const delimiterIndex of delimiters) {
         const segmentEnd = delimiterIndex;
         const trimmed = trimCellBounds(line, segmentStart, segmentEnd);
+        const editable = editableCellBounds(line, segmentStart, segmentEnd);
         ranges.push({
             from: lineFromInTable + trimmed.from,
             to: lineFromInTable + trimmed.to,
+            editableFrom: lineFromInTable + editable.from,
+            editableTo: lineFromInTable + editable.to,
         });
         segmentStart = delimiterIndex + 1;
     }
 
     // Last segment
     const lastTrimmed = trimCellBounds(line, segmentStart, innerTo);
+    const lastEditable = editableCellBounds(line, segmentStart, innerTo);
     ranges.push({
         from: lineFromInTable + lastTrimmed.from,
         to: lineFromInTable + lastTrimmed.to,
+        editableFrom: lineFromInTable + lastEditable.from,
+        editableTo: lineFromInTable + lastEditable.to,
     });
 
     return ranges;
@@ -138,7 +165,8 @@ function parseLineCellRanges(line: string, lineFromInTable: number): CellRange[]
  * Notes:
  * - Uses the same "non-empty line" behavior as the table parser.
  * - Treats unescaped pipes as delimiters; escaped pipes (\|) stay inside a cell.
- * - Trims whitespace inside each cell so the returned ranges map to the rendered cell text.
+ * - Exposes both trimmed semantic bounds (`from/to`) and editable bounds
+ *   (`editableFrom/editableTo`) for nested editing and selection sync.
  */
 export function computeMarkdownTableCellRanges(text: string): TableCellRanges | null {
     const lines = getNonEmptyLinesWithOffsets(text);
@@ -182,7 +210,7 @@ export function findCellForPos(ranges: TableCellRanges, relativePos: number): Ce
     // Check header cells
     for (let col = 0; col < ranges.headers.length; col++) {
         const r = ranges.headers[col];
-        if (relativePos >= r.from && relativePos <= r.to) {
+        if (relativePos >= r.editableFrom && relativePos <= r.editableTo) {
             return { section: 'header', row: 0, col };
         }
     }
@@ -192,7 +220,7 @@ export function findCellForPos(ranges: TableCellRanges, relativePos: number): Ce
         const rowCells = ranges.rows[row];
         for (let col = 0; col < rowCells.length; col++) {
             const r = rowCells[col];
-            if (relativePos >= r.from && relativePos <= r.to) {
+            if (relativePos >= r.editableFrom && relativePos <= r.editableTo) {
                 return { section: 'body', row, col };
             }
         }

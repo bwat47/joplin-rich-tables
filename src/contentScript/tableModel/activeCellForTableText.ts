@@ -50,7 +50,7 @@ export function computeCellAnchorFromRanges(params: {
     }
 
     return {
-        anchorOffset: relRange.from,
+        anchorOffset: relRange.editableFrom,
         section: clamped.section,
         row: clamped.section === 'header' ? 0 : clamped.row,
         col: clamped.col,

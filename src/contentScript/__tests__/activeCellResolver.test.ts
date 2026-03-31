@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { createMarkdownState } from './testMarkdownState';
 
 function createState(doc: string, activeCell?: ActiveCell) {
@@ -26,8 +27,10 @@ describe('activeCellResolver', () => {
         const resolved = resolveActiveCell(state, getActiveCell(state));
 
         expect(resolved).not.toBeNull();
-        expect(resolved?.cellFrom).toBe(doc.indexOf('H2'));
-        expect(resolved?.cellTo).toBe(doc.indexOf('H2') + 2);
+        expect(resolved?.contentFrom).toBe(doc.indexOf('H2'));
+        expect(resolved?.contentTo).toBe(doc.indexOf('H2') + 2);
+        expect(resolved?.editableFrom).toBe(doc.indexOf('H2'));
+        expect(resolved?.editableTo).toBe(doc.indexOf('H2') + 2);
     });
 
     it('tracks tableFrom when text is inserted before the table', () => {
@@ -47,7 +50,7 @@ describe('activeCellResolver', () => {
         expect(resolved).not.toBeNull();
         expect(tr.state.field(activeCellField)?.tableFrom).toBe('before\n'.length);
         expect(resolved?.tableFrom).toBe('before\n'.length);
-        expect(tr.state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('H1');
+        expect(tr.state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('H1');
     });
 
     it('returns null when the anchored table no longer exists', () => {
@@ -83,44 +86,65 @@ describe('activeCellResolver', () => {
         expect(resolveActiveCell(tr.state, tr.state.field(activeCellField))).toBeNull();
     });
 
-    it('extends the resolved cell range across trailing whitespace that contains the selection', () => {
-        const doc = ['| foo  |', '| --- |'].join('\n');
-        const trailingSpaceCursor = doc.indexOf('foo') + 'foo '.length;
+    it('returns separate content and editable spans for edge whitespace', () => {
+        const doc = ['|  foo  |', '| --- |'].join('\n');
         const state = createState(doc, {
             tableFrom: 0,
             section: 'header',
             row: 0,
             col: 0,
-        }).update({
-            selection: { anchor: trailingSpaceCursor },
-        }).state;
+        });
 
         const resolved = resolveActiveCell(state, getActiveCell(state));
 
         expect(resolved).not.toBeNull();
-        expect(resolved?.cellFrom).toBe(doc.indexOf('foo'));
-        expect(resolved?.cellTo).toBe(doc.indexOf('|', doc.indexOf('foo')));
-        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo  ');
+        expect(resolved?.contentFrom).toBe(doc.indexOf('foo'));
+        expect(resolved?.contentTo).toBe(doc.indexOf('foo') + 'foo'.length);
+        expect(resolved?.editableFrom).toBe(doc.indexOf('foo') - 1);
+        expect(resolved?.editableTo).toBe(doc.indexOf('foo') + 'foo '.length);
+        expect(state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('foo');
+        expect(state.doc.sliceString(resolved!.editableFrom, resolved!.editableTo)).toBe(' foo ');
     });
 
-    it('does not expand when the selection is exactly at the trimmed cell end', () => {
+    it('is selection-independent even when the cursor moves into editable edge whitespace', () => {
         const doc = ['| foo  |', '| --- |'].join('\n');
-        const cellEndCursor = doc.indexOf('foo') + 'foo'.length;
         const state = createState(doc, {
             tableFrom: 0,
             section: 'header',
             row: 0,
             col: 0,
-        }).update({
-            selection: { anchor: cellEndCursor },
+        });
+        const withSelection = state.update({
+            selection: { anchor: doc.indexOf('foo') + 'foo '.length },
         }).state;
 
         const resolved = resolveActiveCell(state, getActiveCell(state));
+        const resolvedWithSelection = resolveActiveCell(withSelection, getActiveCell(withSelection));
 
         expect(resolved).not.toBeNull();
-        expect(resolved?.cellFrom).toBe(doc.indexOf('foo'));
-        expect(resolved?.cellTo).toBe(doc.indexOf('foo') + 'foo'.length);
-        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('foo');
+        expect(resolvedWithSelection).not.toBeNull();
+        expect(resolvedWithSelection).toEqual(resolved);
+    });
+
+    it('reuses the cached resolved active cell across selection-only updates', () => {
+        let state = createMarkdownState(['| foo  |', '| --- |'].join('\n'), [activeCellField, resolvedActiveCellField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+
+        const initialResolved = getResolvedActiveCell(state);
+        const nextState = state.update({
+            selection: { anchor: state.doc.toString().indexOf('foo') + 'foo '.length },
+        }).state;
+        const nextResolved = getResolvedActiveCell(nextState);
+
+        expect(initialResolved).not.toBeNull();
+        expect(nextResolved).toBe(initialResolved);
     });
 
     it('resolves the anchored table from tableFrom when another table follows', () => {
@@ -147,6 +171,6 @@ describe('activeCellResolver', () => {
         expect(resolved?.activeCell.section).toBe('body');
         expect(resolved?.activeCell.row).toBe(0);
         expect(resolved?.activeCell.col).toBe(1);
-        expect(state.doc.sliceString(resolved!.cellFrom, resolved!.cellTo)).toBe('');
+        expect(state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('');
     });
 });

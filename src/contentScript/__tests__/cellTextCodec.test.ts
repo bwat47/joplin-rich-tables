@@ -80,6 +80,13 @@ describe('selection mapping', () => {
         expect(rootSelection).toEqual({ anchor: localText.length, head: localText.length });
     });
 
+    it('keeps leading-space cursor positions stable for root-owned commands', () => {
+        const localText = ' sometext';
+        const rootSelection = toRootSelection({ anchor: 1, head: 1 }, localText);
+
+        expect(rootSelection).toEqual({ anchor: 1, head: 1 });
+    });
+
     it('keeps trailing-space cursor positions stable after normalizing a non-canonical table first', () => {
         const canonicalTable = MarkdownTable.parse(['|SOMETEXT|', '|---|'].join('\n'))?.serialize();
         expect(canonicalTable).toBe(['| SOMETEXT |', '| --- |'].join('\n'));
