@@ -34,6 +34,16 @@ const CELL_REVEAL_FALLBACK_MS = 150;
 const CELL_REVEAL_SETTLE_RAF_COUNT = 2;
 const INTERNAL_SCROLL_THRESHOLD_PX = 1;
 
+type CellRevealMode = 'internal-scroll' | 'visual-viewport';
+
+interface CellRevealViewport {
+    mode: CellRevealMode;
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+}
+
 export interface NestedEditorCellRange {
     tableFrom: number;
     tableTo: number;
@@ -62,6 +72,31 @@ export interface NestedEditorSession {
     applyingRootToLocal: boolean;
 }
 
+function getCellRevealViewport(mainView: EditorView, cellElement: HTMLElement): CellRevealViewport {
+    const scrollDOM = mainView.scrollDOM;
+    const hasInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + INTERNAL_SCROLL_THRESHOLD_PX;
+    const scrollDOMRect = scrollDOM.getBoundingClientRect();
+    const widgetRect = cellElement.closest(getWidgetSelector())?.getBoundingClientRect() ?? null;
+
+    if (hasInternalScroll) {
+        return {
+            mode: 'internal-scroll',
+            top: scrollDOMRect.top,
+            bottom: scrollDOMRect.bottom,
+            left: widgetRect?.left ?? scrollDOMRect.left,
+            right: widgetRect?.right ?? scrollDOMRect.right,
+        };
+    }
+
+    return {
+        mode: 'visual-viewport',
+        top: 0,
+        bottom: window.visualViewport?.height ?? window.innerHeight,
+        left: widgetRect?.left ?? 0,
+        right: widgetRect?.right ?? window.visualViewport?.width ?? window.innerWidth,
+    };
+}
+
 function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
     mainView.requestMeasure({
         read: () => {
@@ -70,27 +105,14 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
             }
 
             const cellRect = cellElement.getBoundingClientRect();
-            const scrollDOM = mainView.scrollDOM;
-            const hasInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + INTERNAL_SCROLL_THRESHOLD_PX;
-            const scrollDOMRect = hasInternalScroll ? scrollDOM.getBoundingClientRect() : null;
-            const widgetRect = cellElement.closest(getWidgetSelector())?.getBoundingClientRect() ?? null;
-
-            if (hasInternalScroll) {
-                return {
-                    cellRect,
-                    viewportTop: scrollDOMRect!.top,
-                    viewportBottom: scrollDOMRect!.bottom,
-                    viewportLeft: widgetRect?.left ?? scrollDOMRect!.left,
-                    viewportRight: widgetRect?.right ?? scrollDOMRect!.right,
-                };
-            }
+            const viewport = getCellRevealViewport(mainView, cellElement);
 
             return {
                 cellRect,
-                viewportTop: 0,
-                viewportBottom: window.visualViewport?.height ?? window.innerHeight,
-                viewportLeft: widgetRect?.left ?? 0,
-                viewportRight: widgetRect?.right ?? (window.visualViewport?.width ?? window.innerWidth),
+                viewportTop: viewport.top,
+                viewportBottom: viewport.bottom,
+                viewportLeft: viewport.left,
+                viewportRight: viewport.right,
             };
         },
         write: (measurement) => {
@@ -102,7 +124,8 @@ function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLE
             const viewportBottom = measurement.viewportBottom - CELL_REVEAL_VIEWPORT_PADDING_PX;
             const viewportLeft = measurement.viewportLeft + CELL_REVEAL_VIEWPORT_PADDING_PX;
             const viewportRight = measurement.viewportRight - CELL_REVEAL_VIEWPORT_PADDING_PX;
-            const verticallyVisible = measurement.cellRect.top >= viewportTop && measurement.cellRect.bottom <= viewportBottom;
+            const verticallyVisible =
+                measurement.cellRect.top >= viewportTop && measurement.cellRect.bottom <= viewportBottom;
             const horizontallyVisible =
                 measurement.cellRect.left >= viewportLeft && measurement.cellRect.right <= viewportRight;
             const safelyVisible = verticallyVisible && horizontallyVisible;
@@ -482,9 +505,8 @@ class NestedEditorController {
 
         this.pendingCellRevealCleanup = cleanup;
 
-        const hasInternalScroll =
-            mainView.scrollDOM.scrollHeight > mainView.scrollDOM.clientHeight + INTERNAL_SCROLL_THRESHOLD_PX;
-        if (hasInternalScroll) {
+        const revealViewport = getCellRevealViewport(mainView, cellElement);
+        if (revealViewport.mode === 'internal-scroll') {
             cancelSettledReveal = scheduleAfterAnimationFrames(1, runReveal);
             return;
         }
