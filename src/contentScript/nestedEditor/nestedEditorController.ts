@@ -1,11 +1,10 @@
-import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { GFM } from '@lezer/markdown';
 import { inlineCodePlugin, insertPlugin, markPlugin } from './decorationPlugins';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSelectionToMain } from './domHandlers';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
+import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import { selectAllInCell } from './markdownCommands';
 import { createNestedEditorTheme } from './nestedEditorTheme';
 import {
@@ -190,10 +189,7 @@ class NestedEditorController {
                         'Mod-a': selectAllInCell(),
                     },
                 }),
-                markdown({
-                    extensions: [GFM],
-                    addKeymap: false,
-                }),
+                createNestedEditorMarkdownExtension(),
                 inlineCodePlugin,
                 markPlugin,
                 insertPlugin,

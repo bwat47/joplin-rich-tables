@@ -102,7 +102,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 
 Nested editor requires its own extensions for parity with main editor:
 
-- **GFM**: GitHub Flavored Markdown enabled.
+- **Markdown parsing**: GFM-derived inline parsing enabled, but block-level parsers (headings, lists, blockquotes, fenced code, tables, task lists, etc.) are removed so cell editing matches inline-only cell rendering.
 - **Inline Code**: Styled border around backticked code.
 - **Mark**: `==text==` highlighting.
 - **Insert**: `++text++` underline.
