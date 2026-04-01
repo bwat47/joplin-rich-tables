@@ -56,17 +56,6 @@ export interface NestedEditorSession {
     applyingRootToLocal: boolean;
 }
 
-function scrollCellIntoViewWithinEditor(mainView: EditorView, cellElement: HTMLElement): void {
-    mainView.requestMeasure({
-        read: () => cellElement.isConnected,
-        write: (isConnected) => {
-            if (isConnected) {
-                cellElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-            }
-        },
-    });
-}
-
 function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): LocalSelection {
     return {
         anchor: editableFrom + selection.anchor,
@@ -207,8 +196,7 @@ class NestedEditorController {
         this.session = session;
 
         this.flushSelectionToRoot();
-        scrollCellIntoViewWithinEditor(params.mainView, params.cellElement);
-        session.editor.contentDOM.focus({ preventScroll: true });
+        session.editor.contentDOM.focus();
 
         requestAnimationFrame(() => {
             params.onFocused?.();
@@ -346,7 +334,7 @@ class NestedEditorController {
     }
 
     refocusWithPreventScroll(): void {
-        this.session?.editor?.contentDOM.focus({ preventScroll: true });
+        this.session?.editor?.contentDOM.focus();
     }
 
     checkAndCloseIfHostedIn(container: HTMLElement): void {
@@ -518,7 +506,7 @@ class NestedEditorController {
         this.session.local = { text: nextLocalText, selection: nextLocalSelection };
 
         if (shouldRefocus) {
-            requestAnimationFrame(() => editor.contentDOM.focus({ preventScroll: true }));
+            requestAnimationFrame(() => editor.contentDOM.focus());
         }
     }
 }
