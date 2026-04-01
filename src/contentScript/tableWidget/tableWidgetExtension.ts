@@ -212,7 +212,6 @@ const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
 /**
  * Defensive focus handler that reclaims focus for the nested editor when it's
  * unexpectedly stolen (e.g., by Android's focus management after toolbar commands).
- * Uses preventScroll to avoid scroll jumps.
  */
 const nestedEditorFocusGuard = EditorView.domEventHandlers({
     focus: (_event, view) => {
