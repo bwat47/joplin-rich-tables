@@ -333,7 +333,7 @@ class NestedEditorController {
         return Boolean(this.session?.editor);
     }
 
-    refocusWithPreventScroll(): void {
+    refocus(): void {
         this.session?.editor?.contentDOM.focus();
     }
 
@@ -550,7 +550,7 @@ export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate): vo
 }
 
 export function refocusNestedEditor(view: EditorView): void {
-    getController(view)?.refocusWithPreventScroll();
+    getController(view)?.refocus();
 }
 
 export function cleanupHostedNestedEditors(view: EditorView, container: HTMLElement): void {
