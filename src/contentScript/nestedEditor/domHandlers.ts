@@ -16,6 +16,7 @@ export function createNestedEditorKeymap(
     options: {
         getSelectionBounds: (view: EditorView) => { from: number; to: number };
         closeEditor: () => void;
+        syncPendingChangesToRoot: () => void;
         extraBindings?: Record<string, StateCommand>;
     }
 ) {
@@ -23,14 +24,33 @@ export function createNestedEditorKeymap(
         { key: 'Mod-z', run: () => runHistoryCommand(mainView, undo) },
         { key: 'Mod-y', run: () => runHistoryCommand(mainView, redo) },
         { key: 'Mod-Shift-z', run: () => runHistoryCommand(mainView, redo) },
-        { key: 'Tab', run: () => navigateCell(mainView, 'next', { allowRowCreation: true }) },
-        { key: 'Shift-Tab', run: () => navigateCell(mainView, 'previous') },
-        { key: 'Enter', run: () => navigateCell(mainView, 'down', { allowRowCreation: true }) },
+        {
+            key: 'Tab',
+            run: () => {
+                options.syncPendingChangesToRoot();
+                return navigateCell(mainView, 'next', { allowRowCreation: true });
+            },
+        },
+        {
+            key: 'Shift-Tab',
+            run: () => {
+                options.syncPendingChangesToRoot();
+                return navigateCell(mainView, 'previous');
+            },
+        },
+        {
+            key: 'Enter',
+            run: () => {
+                options.syncPendingChangesToRoot();
+                return navigateCell(mainView, 'down', { allowRowCreation: true });
+            },
+        },
         {
             key: 'ArrowLeft',
             run: (nestedView) => {
                 const { from } = options.getSelectionBounds(nestedView);
                 if (nestedView.state.selection.main.head === from) {
+                    options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'previous', { cursorPos: 'end' });
                 }
                 return false;
@@ -41,6 +61,7 @@ export function createNestedEditorKeymap(
             run: (nestedView) => {
                 const { to } = options.getSelectionBounds(nestedView);
                 if (nestedView.state.selection.main.head === to) {
+                    options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'next', { cursorPos: 'start' });
                 }
                 return false;
@@ -55,10 +76,12 @@ export function createNestedEditorKeymap(
                 const fromRect = nestedView.coordsAtPos(from);
 
                 if (headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) {
+                    options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'up', { cursorPos: 'lastLineStart' });
                 }
 
                 if (head === from) {
+                    options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'up', { cursorPos: 'lastLineStart' });
                 }
 
@@ -74,10 +97,12 @@ export function createNestedEditorKeymap(
                 const toRect = nestedView.coordsAtPos(to);
 
                 if (headRect && toRect && Math.abs(headRect.top - toRect.top) < 2) {
+                    options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'down', { cursorPos: 'start' });
                 }
 
                 if (head === to) {
+                    options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'down', { cursorPos: 'start' });
                 }
 

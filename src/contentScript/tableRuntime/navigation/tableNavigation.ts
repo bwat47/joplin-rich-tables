@@ -12,7 +12,6 @@ import {
     setPendingNavigationCallback,
 } from '../navigationLock';
 import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
-import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 
 function insertRowFromKeyboardNavigation(
     view: EditorView,
@@ -33,10 +32,9 @@ function insertRowFromKeyboardNavigation(
         return true;
     }
 
-    // Focus the main editor after the old nested editor has been closed by the
-    // structural dispatch so Android keeps the IME alive until the replacement
-    // editor mounts.
-    focusMainEditorWithoutScroll(view);
+    // Let the replacement nested editor reclaim focus when it mounts. Routing
+    // focus through the main editor creates an input leak window on desktop
+    // where trailing keystrokes can land outside the table.
     setPendingNavigationCallback(releaseNavigationLock);
     return true;
 }

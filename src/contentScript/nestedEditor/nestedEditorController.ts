@@ -174,6 +174,7 @@ class NestedEditorController {
                 createNestedEditorKeymap(params.mainView, {
                     getSelectionBounds: (view) => ({ from: 0, to: view.state.doc.length }),
                     closeEditor: () => this.close(),
+                    syncPendingChangesToRoot: () => this.flushLocalStateToRoot(),
                     extraBindings: {
                         'Mod-a': selectAllInCell(),
                     },
@@ -333,6 +334,10 @@ class NestedEditorController {
         return Boolean(this.session?.editor);
     }
 
+    flushLocalStateToRoot(): void {
+        this.forwardLocalStateToRoot(true);
+    }
+
     refocus(): void {
         this.session?.editor?.contentDOM.focus();
     }
@@ -345,6 +350,12 @@ class NestedEditorController {
 
     private handleLocalUpdate(update: ViewUpdate): void {
         if (!this.session || !this.mainView) {
+            return;
+        }
+
+        // Ignore delayed updates from a nested editor instance that has already
+        // been replaced during navigation or structural table edits.
+        if (update.view !== this.session.editor) {
             return;
         }
 
