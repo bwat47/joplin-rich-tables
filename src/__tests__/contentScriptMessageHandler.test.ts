@@ -12,7 +12,11 @@ jest.mock('../logger', () => ({
 describe('contentScriptMessageHandler', () => {
     const globalValues = jest.fn(async (_keys: string[]) => [true]);
     const values = jest.fn(async (_keys: string[] | string) => ({}));
-    const execute = jest.fn(async (_commandName: string, ..._args: unknown[]) => ({ html: '<p>ok</p>' }));
+    const execute = jest.fn(
+        async (_commandName: string, ..._args: unknown[]): Promise<unknown> => ({
+            html: '<p>ok</p>',
+        })
+    );
     const handler = createContentScriptMessageHandler({
         commands: { execute },
         settings: { globalValues, values },

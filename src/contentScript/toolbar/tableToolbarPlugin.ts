@@ -430,6 +430,12 @@ class TableToolbarPlugin {
                     });
                     return;
                 }
+
+                if (!result) {
+                    this.hideToolbar();
+                    return;
+                }
+
                 // Reset to absolute positioning for Floating UI results
                 this.dom.style.position = 'absolute';
                 Object.assign(this.dom.style, {

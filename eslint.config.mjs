@@ -3,7 +3,7 @@
 import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
-import importPlugin from 'eslint-plugin-import';
+import importPlugin from 'eslint-plugin-import-x';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -38,10 +38,7 @@ export default [
             'no-undef': 'off',
             ...tsPlugin.configs.recommended.rules,
             // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
-            '@typescript-eslint/no-unused-vars': [
-                'error',
-                { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-            ],
+            '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
             'no-useless-escape': 'off',
@@ -174,7 +171,8 @@ export default [
                     patterns: [
                         {
                             group: siblingGroups(['tableWidget', 'nestedEditor', 'services']),
-                            message: 'tableCommands should go through state/runtime APIs instead of widget or nested-editor internals.',
+                            message:
+                                'tableCommands should go through state/runtime APIs instead of widget or nested-editor internals.',
                         },
                     ],
                 },
@@ -192,7 +190,8 @@ export default [
                     patterns: [
                         {
                             group: siblingGroups(['tableCommands']),
-                            message: 'tableWidget modules must not depend on command registration or command entry points.',
+                            message:
+                                'tableWidget modules must not depend on command registration or command entry points.',
                         },
                     ],
                 },

@@ -29,7 +29,7 @@ describe('toolbarSettings', () => {
     });
 
     it('returns defaults before initialization completes', async () => {
-        let resolveRequest: ((value: ToolbarSettings) => void) | null = null;
+        let resolveRequest!: (value: ToolbarSettings) => void;
         const postMessage = jest.fn(
             () =>
                 new Promise<ToolbarSettings>((resolve) => {
@@ -45,7 +45,7 @@ describe('toolbarSettings', () => {
             showAlignmentButtons: true,
         });
 
-        resolveRequest?.(validSettings);
+        resolveRequest(validSettings);
         await initPromise;
 
         expect(service.getToolbarSettings()).toEqual(validSettings);

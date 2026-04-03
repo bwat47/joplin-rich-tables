@@ -28,7 +28,7 @@ describe('nestedEditorFeatureSettings', () => {
     });
 
     it('returns defaults before initialization completes', async () => {
-        let resolveRequest: ((value: NestedEditorFeatureSettings) => void) | null = null;
+        let resolveRequest!: (value: NestedEditorFeatureSettings) => void;
         const postMessage = jest.fn(
             () =>
                 new Promise<NestedEditorFeatureSettings>((resolve) => {
@@ -42,7 +42,7 @@ describe('nestedEditorFeatureSettings', () => {
             autoMatchingBraces: false,
         });
 
-        resolveRequest?.(validSettings);
+        resolveRequest(validSettings);
         await initPromise;
 
         expect(service.getNestedEditorFeatureSettings()).toEqual(validSettings);

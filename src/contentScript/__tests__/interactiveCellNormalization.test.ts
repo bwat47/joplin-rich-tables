@@ -1,4 +1,5 @@
-import { EditorState } from '@codemirror/state';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
@@ -21,7 +22,7 @@ interface CellStub {
 
 interface MutableTestView {
     state: EditorState;
-    dispatch: jest.Mock;
+    dispatch: jest.Mock<(spec: TransactionSpec) => void>;
     focus: jest.Mock;
     posAtDOM: jest.Mock;
     requestMeasure: jest.Mock;
@@ -33,7 +34,7 @@ interface MutableTestView {
     };
 }
 
-function getLastDispatchSpec(view: MutableTestView): Parameters<EditorView['dispatch']>[0] {
+function getLastDispatchSpec(view: MutableTestView): TransactionSpec {
     const call = view.dispatch.mock.calls[view.dispatch.mock.calls.length - 1];
     if (!call) {
         throw new Error('Expected a dispatch call');
@@ -41,7 +42,7 @@ function getLastDispatchSpec(view: MutableTestView): Parameters<EditorView['disp
     return call[0];
 }
 
-function findOpenRequest(spec: Parameters<EditorView['dispatch']>[0]) {
+function findOpenRequest(spec: TransactionSpec) {
     const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
     return effects.find((effect) => effect?.is?.(requestOpenActiveCellEffect)) ?? null;
 }
@@ -69,7 +70,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
     };
 
     const createCellStub = (section: 'header' | 'body', row: number, col: number): HTMLElement => {
-        const cell = {
+        const cell: CellStub = {
             dataset: {
                 section,
                 row: String(row),
@@ -87,7 +88,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
                 }
                 return null;
             },
-        } satisfies CellStub;
+        };
 
         return cell as unknown as HTMLElement;
     };
@@ -108,7 +109,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
 
     const view: MutableTestView = {
         state: currentState,
-        dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+        dispatch: jest.fn((spec: TransactionSpec) => {
             currentState = currentState.update(spec).state;
             view.state = currentState;
         }),

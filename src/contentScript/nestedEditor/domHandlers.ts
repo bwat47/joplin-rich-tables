@@ -1,6 +1,6 @@
 import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
 import { undo, redo } from '@codemirror/commands';
-import { EditorView, keymap } from '@codemirror/view';
+import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
@@ -20,7 +20,7 @@ export function createNestedEditorKeymap(
         extraBindings?: Record<string, StateCommand>;
     }
 ) {
-    const bindings = [
+    const bindings: KeyBinding[] = [
         { key: 'Mod-z', run: () => runHistoryCommand(mainView, undo) },
         { key: 'Mod-y', run: () => runHistoryCommand(mainView, redo) },
         { key: 'Mod-Shift-z', run: () => runHistoryCommand(mainView, redo) },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState, Transaction } from '@codemirror/state';
+import { EditorState, Transaction, type TransactionSpec } from '@codemirror/state';
 import {
     activeCellField,
     clearActiveCellEffect,
@@ -62,7 +62,7 @@ function requireResolvedActiveCell(state: EditorState) {
 
 function createViewUpdate(
     startState: EditorState,
-    spec: Parameters<EditorState['update']>[0]
+    spec: TransactionSpec
 ): { state: EditorState; event: TableRuntimeEvent; update: TableRuntimeEvent['update'] } {
     const tr = startState.update(spec);
     const update = {
