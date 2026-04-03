@@ -180,7 +180,8 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 0);
-        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(isNavigationLocked()).toBe(true);
     });
 
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
@@ -192,7 +193,8 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 1);
-        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(isNavigationLocked()).toBe(true);
     });
 
     it('should NOT add row at end of table if allowRowCreation is false', () => {
