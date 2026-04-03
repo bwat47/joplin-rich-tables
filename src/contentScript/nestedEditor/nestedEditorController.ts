@@ -339,7 +339,7 @@ class NestedEditorController {
     }
 
     refocus(): void {
-        this.session?.editor?.contentDOM.focus();
+        this.session?.editor?.contentDOM.focus({ preventScroll: true });
     }
 
     checkAndCloseIfHostedIn(container: HTMLElement): void {
