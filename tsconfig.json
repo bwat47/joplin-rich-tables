@@ -5,10 +5,12 @@
         "target": "es2020",
         "jsx": "react",
         "allowJs": true,
-        "baseUrl": ".",
         "esModuleInterop": true,
         "types": ["node", "jest"],
-        "ignoreDeprecations": "6.0"
+        "paths": {
+            "api": ["./api/index.ts"],
+            "api/*": ["./api/*"]
+        }
     },
     "exclude": ["dist", "src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.spec.ts"]
 }
