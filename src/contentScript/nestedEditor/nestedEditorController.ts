@@ -25,6 +25,7 @@ import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
 import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
+import { requestViewAnimationFrame } from '../shared/domContext';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
 
@@ -199,7 +200,7 @@ class NestedEditorController {
         this.flushSelectionToRoot();
         session.editor.contentDOM.focus();
 
-        requestAnimationFrame(() => {
+        requestViewAnimationFrame(params.mainView, () => {
             params.onFocused?.();
             consumePendingNavigationCallback()?.();
         });
@@ -516,8 +517,9 @@ class NestedEditorController {
         this.session.applyingRootToLocal = false;
         this.session.local = { text: nextLocalText, selection: nextLocalSelection };
 
-        if (shouldRefocus) {
-            requestAnimationFrame(() => editor.contentDOM.focus());
+        const mainView = this.mainView;
+        if (shouldRefocus && mainView) {
+            requestViewAnimationFrame(mainView, () => editor.contentDOM.focus());
         }
     }
 }
