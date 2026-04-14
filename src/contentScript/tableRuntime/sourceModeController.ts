@@ -4,9 +4,10 @@ import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellSt
 import { isSearchForceSourceModeEnabled } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
+import { requestViewAnimationFrame } from '../shared/domContext';
 
 function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
-    requestAnimationFrame(() => {
+    requestViewAnimationFrame(view, () => {
         if (!view.dom.isConnected) {
             return;
         }

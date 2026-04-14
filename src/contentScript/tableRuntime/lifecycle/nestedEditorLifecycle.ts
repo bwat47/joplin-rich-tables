@@ -35,6 +35,7 @@ import {
     planTableLifecycleActions,
     type TableRuntimeAction,
 } from './lifecyclePolicy';
+import { requestViewAnimationFrame } from '../../shared/domContext';
 
 // ============================================================================
 // Utilities
@@ -164,7 +165,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 return;
             }
 
-            requestAnimationFrame(() => {
+            requestViewAnimationFrame(this.view, () => {
                 if (!this.view.dom.isConnected) return;
 
                 activateTableCell(this.view, activationRequest.tableFrom, activationRequest.target);
@@ -181,7 +182,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 switch (action.type) {
                     case 'scheduleRebuildAllAfterFullReplace':
                         this.pendingFullReplaceRebuild = true;
-                        requestAnimationFrame(() => {
+                        requestViewAnimationFrame(this.view, () => {
                             this.pendingFullReplaceRebuild = false;
                             if (!this.view.dom.isConnected) return;
                             this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
@@ -189,7 +190,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     case 'scheduleActivateCellAtCursor': {
                         const cursorPos = update.state.selection.main.head;
-                        requestAnimationFrame(() => {
+                        requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) return;
                             if (!action.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
                             activateCellAtPosition(this.view, cursorPos, {
@@ -204,7 +205,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     }
                     case 'scheduleEnsureCursorVisible':
-                        requestAnimationFrame(() => {
+                        requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) return;
                             if (action.mode === 'enteredRawMode' && !isEffectiveRawMode(this.view.state)) return;
                             if (
@@ -224,7 +225,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         }
                         break;
                     case 'openNestedEditor':
-                        requestAnimationFrame(() => {
+                        requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) {
                                 abortPendingOpen();
                                 return;

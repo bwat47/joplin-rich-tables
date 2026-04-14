@@ -26,6 +26,7 @@ import { findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarSettings';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
+import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 
 class TableToolbarPlugin {
     dom: HTMLElement;
@@ -37,7 +38,8 @@ class TableToolbarPlugin {
     private destroyed = false;
 
     constructor(private view: EditorView) {
-        this.dom = document.createElement('div');
+        const doc = getViewDocument(view);
+        this.dom = doc.createElement('div');
         this.dom.className = CLASS_FLOATING_TOOLBAR;
         this.dom.style.position = 'absolute';
         this.dom.style.display = 'none';
@@ -113,10 +115,11 @@ class TableToolbarPlugin {
     }
 
     private createButtons() {
+        const doc = getViewDocument(this.view);
         this.dom.replaceChildren();
 
         const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => void) => {
-            const btn = document.createElement('button');
+            const btn = doc.createElement('button');
             btn.title = title;
             btn.className = 'cm-table-toolbar-btn';
             btn.type = 'button';
@@ -133,7 +136,7 @@ class TableToolbarPlugin {
         };
 
         const createSeparator = () => {
-            const sep = document.createElement('span');
+            const sep = doc.createElement('span');
             sep.className = 'cm-table-toolbar-separator';
             this.dom.appendChild(sep);
         };
@@ -144,7 +147,7 @@ class TableToolbarPlugin {
                 createIconBtn(
                     button.title,
                     button.ariaLabel,
-                    button.iconFactory(),
+                    button.iconFactory(doc),
                     this.getActionHandler(button.actionId)
                 );
             },
@@ -288,6 +291,8 @@ class TableToolbarPlugin {
         this.prepareToolbarForPositioning();
 
         const scrollDOM = this.view.scrollDOM;
+        const doc = getViewDocument(this.view);
+        const viewWindow = getDocumentWindow(doc);
         const isInternalScroll = scrollDOM.scrollHeight > scrollDOM.clientHeight + 1;
         if (!isInternalScroll) {
             // External scroll (mobile) doesn't reliably trigger autoUpdate's ancestor scroll handlers.
@@ -315,10 +320,10 @@ class TableToolbarPlugin {
                 // Desktop uses internal CM scrolling; mobile uses external WebView scrolling.
                 // For internal scroll, the visible viewport is the scrollDOM rect.
                 // For external scroll, use visualViewport/window dimensions anchored to the page.
-                const visualViewport = window.visualViewport;
+                const visualViewport = viewWindow.visualViewport;
                 const viewportHeight = isInternalScroll
                     ? scrollDOMRect.height
-                    : (visualViewport?.height ?? window.innerHeight);
+                    : (visualViewport?.height ?? viewWindow.innerHeight);
                 const viewportTop = isInternalScroll ? scrollDOMRect.top : 0;
                 const viewportBottom = isInternalScroll ? scrollDOMRect.bottom : viewportHeight;
 
@@ -361,7 +366,7 @@ class TableToolbarPlugin {
                         // Desktop (internal scroll): use position: absolute with offset parent calculations
                         // to keep the toolbar within the editor panel bounds.
                         const viewRect = this.view.dom.getBoundingClientRect();
-                        const offsetParent = (this.dom.offsetParent ?? document.body) as HTMLElement;
+                        const offsetParent = (this.dom.offsetParent ?? doc.body) as HTMLElement;
                         const offsetParentRect = offsetParent.getBoundingClientRect();
 
                         const minX = TOOLBAR_VIEWPORT_PADDING_PX;
@@ -380,7 +385,7 @@ class TableToolbarPlugin {
                         // Mobile (external scroll): use position: fixed with viewport-relative coordinates
                         // to avoid jitter caused by offset parent recalculations during scroll.
                         // Mobile editor disables pinch-zoom (maximum-scale=1), so pageLeft should be 0.
-                        const viewportWidth = visualViewport?.width ?? window.innerWidth;
+                        const viewportWidth = visualViewport?.width ?? viewWindow.innerWidth;
                         const minX = TOOLBAR_VIEWPORT_PADDING_PX;
                         const maxX = Math.max(
                             TOOLBAR_VIEWPORT_PADDING_PX,
@@ -454,20 +459,22 @@ class TableToolbarPlugin {
     }
 
     private attachViewportListeners() {
+        const doc = getViewDocument(this.view);
+        const viewWindow = getDocumentWindow(doc);
         const handler = () => {
             this.schedulePositionUpdate();
         };
 
-        document.addEventListener('scroll', handler, { passive: true });
-        window.addEventListener('resize', handler);
-        window.visualViewport?.addEventListener('scroll', handler);
-        window.visualViewport?.addEventListener('resize', handler);
+        doc.addEventListener('scroll', handler, { passive: true });
+        viewWindow.addEventListener('resize', handler);
+        viewWindow.visualViewport?.addEventListener('scroll', handler);
+        viewWindow.visualViewport?.addEventListener('resize', handler);
 
         return () => {
-            document.removeEventListener('scroll', handler);
-            window.removeEventListener('resize', handler);
-            window.visualViewport?.removeEventListener('scroll', handler);
-            window.visualViewport?.removeEventListener('resize', handler);
+            doc.removeEventListener('scroll', handler);
+            viewWindow.removeEventListener('resize', handler);
+            viewWindow.visualViewport?.removeEventListener('scroll', handler);
+            viewWindow.visualViewport?.removeEventListener('resize', handler);
         };
     }
 }

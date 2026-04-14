@@ -10,6 +10,7 @@ import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { selectAndRequestOpenActiveCell } from './activeCellOpen';
+import { requestViewAnimationFrame } from '../../shared/domContext';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -122,7 +123,7 @@ export function activateTableCell(
     tableFrom: number,
     coords: { section: 'header' | 'body'; row: number; col: number }
 ): void {
-    requestAnimationFrame(() => {
+    requestViewAnimationFrame(view, () => {
         if (!view.dom.isConnected) return;
 
         // Don't activate cells in source mode (no widgets exist)

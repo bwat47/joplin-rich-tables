@@ -40,7 +40,7 @@ export interface ToolbarButtonDescriptor {
     actionId: ToolbarActionId;
     title: string;
     ariaLabel: string;
-    iconFactory: () => SVGSVGElement;
+    iconFactory: (doc: Document) => SVGSVGElement;
 }
 
 const baseRowButtons: ToolbarButtonDescriptor[] = [

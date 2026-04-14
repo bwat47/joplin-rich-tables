@@ -18,12 +18,19 @@ import {
 } from './domHelpers';
 import { estimateTableHeight } from './tableHeightEstimation';
 import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
+import { getViewDocument, getViewWindow } from '../shared/domContext';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
 
 /** Associates widget DOM elements with their ResizeObserver for safe DOM reuse. */
 const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
+
+function getViewResizeObserver(view: EditorView): typeof ResizeObserver {
+    return (
+        (getViewWindow(view) as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? ResizeObserver
+    );
+}
 
 function requestTableMeasurement(view: EditorView, container: HTMLElement, tableFrom: number, tableText: string): void {
     view.requestMeasure({
@@ -93,7 +100,8 @@ export class TableWidget extends WidgetType {
 
         // Ensure a ResizeObserver exists for this DOM, even when it was reused.
         if (!widgetResizeObservers.has(dom)) {
-            const observer = new ResizeObserver(() => {
+            const ResizeObserverCtor = getViewResizeObserver(view);
+            const observer = new ResizeObserverCtor(() => {
                 requestTableMeasurement(view, dom, this.tableFrom, this.tableText);
             });
             observer.observe(dom);
@@ -108,7 +116,9 @@ export class TableWidget extends WidgetType {
     }
 
     toDOM(view: EditorView): HTMLElement {
-        const container = document.createElement('div');
+        const doc = getViewDocument(view);
+        const ResizeObserverCtor = getViewResizeObserver(view);
+        const container = doc.createElement('div');
         container.className = CLASS_TABLE_WIDGET;
 
         // Used by extension-level interaction handlers as a reliable fallback.
@@ -117,24 +127,24 @@ export class TableWidget extends WidgetType {
         // Store content hash for updateDOM() to detect content vs position-only changes.
         container.dataset.tableTextHash = this.contentHash;
 
-        const table = document.createElement('table');
+        const table = doc.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
         const headerCells = this.tableData.headerCells;
         const bodyRows = this.tableData.bodyRows;
         const alignments = this.tableData.alignments;
 
         // Render header — skip synthetic cells that have no source range
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
+        const thead = doc.createElement('thead');
+        const headerRow = doc.createElement('tr');
         const headerCount = this.cellRanges.headers.length;
         for (let i = 0; i < headerCount; i++) {
-            const th = document.createElement('th');
+            const th = doc.createElement('th');
             th.dataset[DATA_SECTION] = SECTION_HEADER;
             th.dataset[DATA_ROW] = '0';
             th.dataset[DATA_COL] = String(i);
 
             const content = headerCells[i];
-            this.renderCellContent(th, content);
+            this.renderCellContent(th, content, doc);
 
             const align = alignments[i];
             if (align) {
@@ -146,19 +156,19 @@ export class TableWidget extends WidgetType {
         table.appendChild(thead);
 
         // Render body — skip synthetic cells that have no source range
-        const tbody = document.createElement('tbody');
+        const tbody = doc.createElement('tbody');
         for (let r = 0; r < bodyRows.length; r++) {
             const row = bodyRows[r];
-            const tr = document.createElement('tr');
+            const tr = doc.createElement('tr');
             const colCount = this.cellRanges.rows[r]?.length ?? row.length;
             for (let c = 0; c < colCount; c++) {
-                const td = document.createElement('td');
+                const td = doc.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
                 td.dataset[DATA_ROW] = String(r);
                 td.dataset[DATA_COL] = String(c);
 
                 const content = row[c];
-                this.renderCellContent(td, content);
+                this.renderCellContent(td, content, doc);
 
                 const align = alignments[c];
                 if (align) {
@@ -174,7 +184,7 @@ export class TableWidget extends WidgetType {
 
         // Use ResizeObserver to notify CodeMirror whenever the table height changes.
         // This eliminates the race condition between async rendering and CM6's coordinate system.
-        const observer = new ResizeObserver(() => {
+        const observer = new ResizeObserverCtor(() => {
             // requestMeasure is debounced internally by CM6, so safe to call frequently.
             requestTableMeasurement(view, container, this.tableFrom, this.tableText);
         });
@@ -194,12 +204,12 @@ export class TableWidget extends WidgetType {
      * Render cell content with markdown support
      * Uses cached HTML if available, otherwise shows text and updates async
      */
-    private renderCellContent(cell: HTMLElement, markdown: string): void {
+    private renderCellContent(cell: HTMLElement, markdown: string, doc: Document): void {
         const { displayText, cacheKey } = buildRenderableContent(markdown, this.definitionBlock);
 
         // Create a wrapper div for the content. This matches the structure ensureCellWrapper()
         // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
-        const contentWrapper = document.createElement('div');
+        const contentWrapper = doc.createElement('div');
         contentWrapper.className = CLASS_CELL_CONTENT;
         cell.appendChild(contentWrapper);
 
