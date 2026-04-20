@@ -281,7 +281,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     case 'clearActiveCell':
                         clearPendingCellOpen(this.view);
-                        this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        requestViewAnimationFrame(this.view, () => {
+                            if (!this.view.dom.isConnected) return;
+                            this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                        });
                         break;
                 }
             }

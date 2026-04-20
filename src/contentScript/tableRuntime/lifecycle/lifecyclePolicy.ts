@@ -233,6 +233,14 @@ export function planTableLifecycleActions(
         return actions;
     }
 
+    if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event)) {
+        if (snapshot.nestedEditorOpen) {
+            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
+        }
+        actions.push({ type: 'clearActiveCell' });
+        return actions;
+    }
+
     if (!snapshot.activeCell && snapshot.hadActiveCell) {
         actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
     }
@@ -280,6 +288,37 @@ function shouldRepositionCellAfterUndoRedo(
 
     const isUndoRedo = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
     return isUndoRedo && cursorInsideTableAfterUndoRedo;
+}
+
+function shouldClearActiveCellWhenSelectionLeavesTable(
+    snapshot: TableRuntimeSnapshot,
+    event: TableRuntimeEvent
+): boolean {
+    const { update, isSync, isCellSelectionTransition } = event;
+    if (
+        !update.selectionSet ||
+        isSync ||
+        isCellSelectionTransition ||
+        snapshot.effectiveRawMode ||
+        !snapshot.nestedEditorOpen
+    ) {
+        return false;
+    }
+
+    const resolved = snapshot.resolvedActiveCell;
+    if (!resolved) {
+        return false;
+    }
+
+    const { main } = update.state.selection;
+    return (
+        !isPositionInsideRange(main.anchor, resolved.tableFrom, resolved.tableTo) ||
+        !isPositionInsideRange(main.head, resolved.tableFrom, resolved.tableTo)
+    );
+}
+
+function isPositionInsideRange(pos: number, from: number, to: number): boolean {
+    return pos >= from && pos <= to;
 }
 
 function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
