@@ -295,7 +295,13 @@ function shouldClearActiveCellWhenSelectionLeavesTable(
     event: TableRuntimeEvent
 ): boolean {
     const { update, isSync, isCellSelectionTransition } = event;
-    if (!update.selectionSet || isSync || isCellSelectionTransition || snapshot.effectiveRawMode) {
+    if (
+        !update.selectionSet ||
+        isSync ||
+        isCellSelectionTransition ||
+        snapshot.effectiveRawMode ||
+        !snapshot.nestedEditorOpen
+    ) {
         return false;
     }
 

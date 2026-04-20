@@ -17,6 +17,7 @@ import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
+import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
@@ -410,6 +411,72 @@ describe('nestedEditorLifecycle', () => {
 
         expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
         expect(getActiveCell(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
+    it('keeps the pending reopen when selection leaves the table after a structural close', () => {
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValueOnce(true).mockReturnValue(false);
+
+        const originalTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const updatedTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '|  |  |'].join('\n');
+        const prefixedDoc = ['before', '', originalTable, '', 'after'].join('\n');
+        const tableFrom = 'before\n\n'.length;
+        const tableTo = tableFrom + originalTable.length;
+        const currentCell: ActiveCell = {
+            tableFrom,
+            section: 'body',
+            row: 0,
+            col: 1,
+        };
+        const nextCell = createActiveCellForTableText({
+            tableFrom,
+            tableText: updatedTable,
+            target: { section: 'body', row: 1, col: 1 },
+        })?.activeCell;
+        expect(nextCell).not.toBeNull();
+        if (!nextCell) {
+            throw new Error('Expected next active cell after structural edit');
+        }
+
+        let state = EditorState.create({
+            doc: prefixedDoc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({
+            effects: setActiveCellEffect.of(currentCell),
+            selection: { anchor: tableFrom + originalTable.indexOf('a2') },
+        }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        view.dispatch({
+            changes: { from: tableFrom, to: tableTo, insert: updatedTable },
+            effects: [setActiveCellEffect.of(nextCell), rebuildTableWidgetsEffect.of({ tableFrom })],
+        });
+
+        view.dispatch({
+            selection: { anchor: 0 },
+        });
+
+        flushAnimationFrames();
+
+        expect(getActiveCell(view.state)).toEqual(nextCell);
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                activeCell: nextCell,
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
+            })
+        );
 
         view.destroy();
     });

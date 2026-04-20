@@ -491,6 +491,43 @@ describe('tableRuntimePolicies', () => {
         ]);
     });
 
+    it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
+        const prefixedDoc = ['before', '', doc, '', 'after'].join('\n');
+        const tableFrom = 'before\n\n'.length;
+        const activeCell: ActiveCell = {
+            tableFrom,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+        let startState = createMarkdownState(prefixedDoc, [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        startState = startState.update({
+            effects: setActiveCellEffect.of(activeCell),
+            selection: { anchor: tableFrom + 2 },
+        }).state;
+
+        const { event } = createViewUpdate(startState, {
+            selection: { anchor: 0 },
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell,
+            prevActiveCell: activeCell,
+            resolvedActiveCell: requireResolvedActiveCell(startState),
+            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
+            effectiveRawMode: false,
+            nestedEditorOpen: false,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([]);
+    });
+
     it('plans stale active cell cleanup when the nested editor is gone', () => {
         const activeCell = getHeaderCell();
         const startState = createState({ activeCell });
