@@ -54,7 +54,7 @@ jest.mock('../services/nestedEditorFeatureSettings', () => ({
 }));
 
 describe('nestedEditorLifecycle', () => {
-    const originalRequestAnimationFrame = global.requestAnimationFrame;
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
 
     const flushAnimationFrames = (): void => {
@@ -74,14 +74,14 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.openNestedEditor.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
         animationFrameQueue = [];
-        global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+        globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
             animationFrameQueue.push(callback);
             return animationFrameQueue.length;
         }) as typeof requestAnimationFrame;
     });
 
     afterEach(() => {
-        global.requestAnimationFrame = originalRequestAnimationFrame;
+        globalThis.requestAnimationFrame = originalRequestAnimationFrame;
         document.body.innerHTML = '';
     });
 
@@ -368,6 +368,48 @@ describe('nestedEditorLifecycle', () => {
 
         expect(view.state.selection.main.anchor).toBe(selectionFrom);
         expect(view.state.selection.main.head).toBe(selectionTo);
+
+        view.destroy();
+    });
+
+    it('closes and clears the active cell when main-editor selection leaves the active table', () => {
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+
+        const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
+        const tableFrom = 'before\n\n'.length;
+        const activeCell: ActiveCell = {
+            tableFrom,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+
+        let state = EditorState.create({
+            doc: prefixedDoc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({
+            effects: setActiveCellEffect.of(activeCell),
+            selection: { anchor: tableFrom + 2 },
+        }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        view.dispatch({
+            selection: { anchor: 0 },
+        });
+        flushAnimationFrames();
+
+        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
+        expect(getActiveCell(view.state)).toBeNull();
 
         view.destroy();
     });
