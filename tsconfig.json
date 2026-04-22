@@ -12,5 +12,5 @@
             "api/*": ["./api/*"]
         }
     },
-    "exclude": ["dist", "src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.spec.ts"]
+    "exclude": ["dist"]
 }
