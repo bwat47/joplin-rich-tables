@@ -27,14 +27,10 @@ The `tableRuntime/navigationLock.ts` module:
 3. `releaseNavigationLock()` called via `onFocused` callback.
 4. Auto-releases after 1 second to prevent deadlock.
 
-Row creation now uses a two-phase reopen flow on top of the shared row-insert transaction:
-the row-insert operation dispatches table replacement, main-editor selection, active-cell state,
-and an open request in one transaction, then immediately hands focus to the main editor without
-scrolling so mobile IMEs stay alive through the close/reopen gap. Lifecycle still owns the second
-phase: reopening the replacement nested editor and invoking `onFocused` after that editor takes focus.
-
-This pass only aims to match current toolbar behavior on mobile. It does not add a dedicated
-row-insert scroll policy beyond the existing selection update plus focus handoff.
+Row creation uses the same explicit reopen path as other command-driven structural operations.
+The row-insert transaction updates table text, main-editor selection, active-cell state, and open intent together.
+Lifecycle then reopens the replacement nested editor, and the navigation lock is released through `onFocused`
+after focus lands on that editor.
 
 ## Selection Sync
 
