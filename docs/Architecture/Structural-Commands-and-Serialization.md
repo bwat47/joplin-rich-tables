@@ -12,9 +12,9 @@ User Action (keyboard/toolbar)
          ↓
     tableCommands.ts           ← Command registration only
          ↓
-   operations/tableOperations.ts   ← Runtime entry points
-         ↓
-   operations/runTableOperation.ts ← Parse, mutate, serialize, dispatch
+   operations/structuralOperations.ts   ← Runtime entry points
+          ↓
+   operations/runStructuralMutation.ts ← Parse, mutate, serialize, dispatch
          ↓
      MarkdownTable.ts          ← Runtime model + structural operations
 ```
@@ -25,7 +25,7 @@ User Action (keyboard/toolbar)
 
 - **Joplin Registration**: `richTables.insertRowBelow`, etc.
 - **Active Cell Validation**: Checks before executing.
-- **Delegation Only**: Dispatches into `tableRuntime/operations/tableOperations.ts`.
+- **Delegation Only**: Dispatches into `tableRuntime/operations/structuralOperations.ts`.
 
 ### 1b. Selection Clipboard Entry (`tableRuntime/selection/cellSelectionClipboard.ts`)
 
@@ -54,18 +54,33 @@ insertions, so paste and command creation share the same blank-line separation r
 insertion still falls back to the legacy direct insert path because the paste rewrite intentionally does not
 define paragraph-splitting behavior.
 
-### 2. Runtime Mutation Helpers (`tableRuntime/operations/runTableOperation.ts`)
+### 2. Runtime Mutation Helpers (`tableRuntime/operations/runStructuralMutation.ts`)
 
-`runTableOperation()` orchestrates:
+`runStructuralMutation.ts` has one shared preparation core that orchestrates:
 
 1. **Build Context**: Slice table text → `TableContext` (`MarkdownTable` + `cellRanges`).
 2. **Mutate**: Call operation function.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
-6. **Dispatch**: Replace table range, update active cell state.
+6. **Dispatch**:
+    - `runStructuralMutation()` replaces the table range and updates active-cell state.
+    - `runStructuralMutationAndReopen()` does the same work, then also sets the main-editor selection,
+      registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, forces a widget rebuild,
+      and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
+
+`structuralOperations.ts` is the intent layer on top of the runner:
+
+- It groups entry points into reopening structural-operation families rather than ad hoc wrappers.
+- It owns shared reopen defaults such as main-editor focus handoff.
+- Row-insert helpers extend those defaults with `initialCursorPos: 'start'`.
+
+All active-cell-preserving structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
+delete, move, clear, and alignment updates. That means command-driven structural edits don't rely on lifecycle
+inferring reopen intent from a rebuild-only transaction. Lifecycle rebuild fallback remains for recovery and
+rebuild-only transitions, not as the normal command path.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 
@@ -97,6 +112,10 @@ clipboard alignments are only applied to newly created columns.
 
 ## Rebuild Trigger
 
-Structural edits dispatch `rebuildTableWidgetsEffect` from `tableState/tableWidgetEffects.ts` → full table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.
+Command-driven structural mutations dispatch both `rebuildTableWidgetsEffect` and an explicit open request, so
+lifecycle follows the open-request path instead of the generic rebuild fallback.
+
+Rebuild-only fallback still exists for recovery flows, undo/redo repositioning, and other transitions that do not
+carry an explicit reopen request.
 
 Full table rebuild; no row/column DOM diffing.

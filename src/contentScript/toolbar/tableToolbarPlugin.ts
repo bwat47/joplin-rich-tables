@@ -1,27 +1,26 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
-    execInsertRowAbove,
-    execInsertRowBelow,
-    execInsertColumnLeft,
-    execInsertColumnRight,
-    execDeleteRow,
-    execDeleteColumn,
-    execUpdateAlignment,
-    execClearRow,
-    execClearColumn,
-    execClearTable,
-    execDeleteTable,
-    execMoveRowUp,
-    execMoveRowDown,
-    execMoveColumnLeft,
-    execMoveColumnRight,
-} from '../tableRuntime/operations/tableOperations';
+    insertRowAbove,
+    insertRowBelow,
+    insertColumnLeft,
+    insertColumnRight,
+    deleteRow,
+    deleteColumn,
+    updateAlignment,
+    clearRow,
+    clearColumn,
+    clearTable,
+    deleteTable,
+    moveRowUp,
+    moveRowDown,
+    moveColumnLeft,
+    moveColumnRight,
+} from '../tableRuntime/operations/structuralOperations';
 import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
 import { findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarSettings';
@@ -128,7 +127,6 @@ class TableToolbarPlugin {
                 e.preventDefault();
                 e.stopPropagation();
                 onClick();
-                focusMainEditorWithoutScroll(this.view);
             };
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
@@ -163,55 +161,55 @@ class TableToolbarPlugin {
 
             switch (actionId) {
                 case 'insertRowBefore':
-                    execInsertRowAbove(this.view, this.currentActiveCell);
+                    insertRowAbove(this.view, this.currentActiveCell);
                     break;
                 case 'insertRowAfter':
-                    execInsertRowBelow(this.view, this.currentActiveCell);
+                    insertRowBelow(this.view, this.currentActiveCell);
                     break;
                 case 'deleteRow':
-                    execDeleteRow(this.view, this.currentActiveCell);
+                    deleteRow(this.view, this.currentActiveCell);
                     break;
                 case 'insertColumnBefore':
-                    execInsertColumnLeft(this.view, this.currentActiveCell);
+                    insertColumnLeft(this.view, this.currentActiveCell);
                     break;
                 case 'insertColumnAfter':
-                    execInsertColumnRight(this.view, this.currentActiveCell);
+                    insertColumnRight(this.view, this.currentActiveCell);
                     break;
                 case 'deleteColumn':
-                    execDeleteColumn(this.view, this.currentActiveCell);
+                    deleteColumn(this.view, this.currentActiveCell);
                     break;
                 case 'deleteTable':
-                    execDeleteTable(this.view, this.currentActiveCell);
+                    deleteTable(this.view, this.currentActiveCell);
                     break;
                 case 'moveRowUp':
-                    execMoveRowUp(this.view, this.currentActiveCell);
+                    moveRowUp(this.view, this.currentActiveCell);
                     break;
                 case 'moveRowDown':
-                    execMoveRowDown(this.view, this.currentActiveCell);
+                    moveRowDown(this.view, this.currentActiveCell);
                     break;
                 case 'moveColumnLeft':
-                    execMoveColumnLeft(this.view, this.currentActiveCell);
+                    moveColumnLeft(this.view, this.currentActiveCell);
                     break;
                 case 'moveColumnRight':
-                    execMoveColumnRight(this.view, this.currentActiveCell);
+                    moveColumnRight(this.view, this.currentActiveCell);
                     break;
                 case 'clearRow':
-                    execClearRow(this.view, this.currentActiveCell);
+                    clearRow(this.view, this.currentActiveCell);
                     break;
                 case 'clearColumn':
-                    execClearColumn(this.view, this.currentActiveCell);
+                    clearColumn(this.view, this.currentActiveCell);
                     break;
                 case 'clearTable':
-                    execClearTable(this.view, this.currentActiveCell);
+                    clearTable(this.view, this.currentActiveCell);
                     break;
                 case 'alignLeft':
-                    execUpdateAlignment(this.view, this.currentActiveCell, 'left');
+                    updateAlignment(this.view, this.currentActiveCell, 'left');
                     break;
                 case 'alignCenter':
-                    execUpdateAlignment(this.view, this.currentActiveCell, 'center');
+                    updateAlignment(this.view, this.currentActiveCell, 'center');
                     break;
                 case 'alignRight':
-                    execUpdateAlignment(this.view, this.currentActiveCell, 'right');
+                    updateAlignment(this.view, this.currentActiveCell, 'right');
                     break;
             }
         };

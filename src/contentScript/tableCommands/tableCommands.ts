@@ -2,23 +2,23 @@ import { EditorView } from '@codemirror/view';
 import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { toggleSourceMode } from '../tableRuntime/sourceModeController';
 import {
-    execClearColumn,
-    execClearRow,
-    execClearTable,
-    execDeleteColumn,
-    execDeleteRow,
-    execDeleteTable,
-    execInsertColumnLeft,
-    execInsertColumnRight,
-    execInsertRowAbove,
-    execInsertRowBelow,
-    execMoveColumnLeft,
-    execMoveColumnRight,
-    execMoveRowDown,
-    execMoveRowUp,
-    execUpdateAlignment,
+    clearColumn,
+    clearRow,
+    clearTable,
+    deleteColumn,
+    deleteRow,
+    deleteTable,
+    insertColumnLeft,
+    insertColumnRight,
+    insertRowAbove,
+    insertRowBelow,
+    moveColumnLeft,
+    moveColumnRight,
+    moveRowDown,
+    moveRowUp,
+    updateAlignment,
     insertTableAndActivate,
-} from '../tableRuntime/operations/tableOperations';
+} from '../tableRuntime/operations/structuralOperations';
 
 /**
  * Editor control interface provided by Joplin
@@ -42,26 +42,26 @@ export function registerTableCommands(editorControl: EditorControl): void {
     };
 
     // Register table manipulation commands
-    registerCellCommand('richTables.addRowAbove', execInsertRowAbove);
-    registerCellCommand('richTables.addRowBelow', execInsertRowBelow);
-    registerCellCommand('richTables.addColumnLeft', execInsertColumnLeft);
-    registerCellCommand('richTables.addColumnRight', execInsertColumnRight);
-    registerCellCommand('richTables.deleteRow', execDeleteRow);
-    registerCellCommand('richTables.deleteColumn', execDeleteColumn);
+    registerCellCommand('richTables.addRowAbove', insertRowAbove);
+    registerCellCommand('richTables.addRowBelow', insertRowBelow);
+    registerCellCommand('richTables.addColumnLeft', insertColumnLeft);
+    registerCellCommand('richTables.addColumnRight', insertColumnRight);
+    registerCellCommand('richTables.deleteRow', deleteRow);
+    registerCellCommand('richTables.deleteColumn', deleteColumn);
 
-    registerCellCommand('richTables.alignLeft', (v, c) => execUpdateAlignment(v, c, 'left'));
-    registerCellCommand('richTables.alignRight', (v, c) => execUpdateAlignment(v, c, 'right'));
-    registerCellCommand('richTables.alignCenter', (v, c) => execUpdateAlignment(v, c, 'center'));
+    registerCellCommand('richTables.alignLeft', (v, c) => updateAlignment(v, c, 'left'));
+    registerCellCommand('richTables.alignRight', (v, c) => updateAlignment(v, c, 'right'));
+    registerCellCommand('richTables.alignCenter', (v, c) => updateAlignment(v, c, 'center'));
 
-    registerCellCommand('richTables.moveRowUp', execMoveRowUp);
-    registerCellCommand('richTables.moveRowDown', execMoveRowDown);
-    registerCellCommand('richTables.moveColumnLeft', execMoveColumnLeft);
-    registerCellCommand('richTables.moveColumnRight', execMoveColumnRight);
+    registerCellCommand('richTables.moveRowUp', moveRowUp);
+    registerCellCommand('richTables.moveRowDown', moveRowDown);
+    registerCellCommand('richTables.moveColumnLeft', moveColumnLeft);
+    registerCellCommand('richTables.moveColumnRight', moveColumnRight);
 
-    registerCellCommand('richTables.clearRow', execClearRow);
-    registerCellCommand('richTables.clearColumn', execClearColumn);
-    registerCellCommand('richTables.clearTable', execClearTable);
-    registerCellCommand('richTables.deleteTable', execDeleteTable);
+    registerCellCommand('richTables.clearRow', clearRow);
+    registerCellCommand('richTables.clearColumn', clearColumn);
+    registerCellCommand('richTables.clearTable', clearTable);
+    registerCellCommand('richTables.deleteTable', deleteTable);
 
     // Register insert table command that activates the first cell
     editorControl.registerCommand('richTables.insertTableAndActivate', () => {

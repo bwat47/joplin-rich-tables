@@ -46,7 +46,7 @@ export function releaseNavigationLock(): void {
 
 /**
  * Sets a callback to be invoked when navigation completes.
- * Used when the caller can't directly pass onFocused (e.g., row creation path).
+ * Used by transaction-building helpers so lifecycle-triggered focus can release the lock.
  */
 export function setPendingNavigationCallback(callback: () => void): void {
     pendingReleaseCallback = callback;

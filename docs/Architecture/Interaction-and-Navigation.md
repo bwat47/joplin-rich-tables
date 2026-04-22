@@ -27,11 +27,10 @@ The `tableRuntime/navigationLock.ts` module:
 3. `releaseNavigationLock()` called via `onFocused` callback.
 4. Auto-releases after 1 second to prevent deadlock.
 
-**Pending callback**: For row creation where initiator can't pass `onFocused` directly.
-
-Keyboard-created row insertion also hands focus back to the main editor immediately after the
-structural dispatch so Android can keep the IME alive during the close/reopen gap before the
-replacement nested editor mounts. Toolbar structural commands use the same focus handoff.
+Row creation uses the same explicit reopen path as other command-driven structural operations.
+The row-insert transaction updates table text, main-editor selection, active-cell state, and open intent together.
+Lifecycle then reopens the replacement nested editor, and the navigation lock is released through `onFocused`
+after focus lands on that editor.
 
 ## Selection Sync
 

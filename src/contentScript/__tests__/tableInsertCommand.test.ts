@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import type { EditorState, TransactionSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { insertTableAndActivate } from '../tableRuntime/operations/tableOperations';
+import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';
 import { createMarkdownState } from './testMarkdownState';
 
 const activateTableCellMock = jest.fn();

@@ -25,6 +25,7 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -417,6 +418,34 @@ describe('tableRuntimePolicies', () => {
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
             { type: 'closeNestedEditor', useResolvedRangeFromUpdate: false },
+            { type: 'openNestedEditor', activeCell, normalizeIfNeeded: false },
+        ]);
+    });
+
+    it('prefers an explicit open request over the generic force-rebuild branch', () => {
+        const activeCell = getHeaderCell();
+        const startState = createState({ activeCell });
+        const { event } = createViewUpdate(startState, {
+            effects: [
+                requestOpenActiveCellEffect.of({
+                    activeCell,
+                    normalizeIfNeeded: false,
+                }),
+                rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
+            ],
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell,
+            prevActiveCell: activeCell,
+            resolvedActiveCell: requireResolvedActiveCell(startState),
+            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
+            effectiveRawMode: false,
+            nestedEditorOpen: true,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
             { type: 'openNestedEditor', activeCell, normalizeIfNeeded: false },
         ]);
     });

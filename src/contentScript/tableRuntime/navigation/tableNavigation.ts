@@ -1,15 +1,10 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/activeCellResolver';
-import { execInsertRowAtBottom } from '../operations/tableOperations';
+import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
-import {
-    isNavigationLocked,
-    acquireNavigationLock,
-    releaseNavigationLock,
-    setPendingNavigationCallback,
-} from '../navigationLock';
+import { isNavigationLocked, acquireNavigationLock, releaseNavigationLock } from '../navigationLock';
 import { selectAndRequestOpenResolvedActiveCell } from '../activeCell/activeCellOpen';
 
 function insertRowFromKeyboardNavigation(
@@ -17,24 +12,18 @@ function insertRowFromKeyboardNavigation(
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>,
     targetCol: number
 ): boolean {
-    // Acquire lock before row creation (which opens a nested editor)
-    // Note: row-creation re-open happens after execInsertRowAtBottom returns
-    // via RAF in nestedEditorLifecycle.ts
     if (!acquireNavigationLock()) {
         return true; // Already locked
     }
 
-    const success = execInsertRowAtBottom(view, activeCell, targetCol);
+    const success = insertRowAtBottom(view, activeCell, targetCol, {
+        onFocused: releaseNavigationLock,
+    });
     if (!success) {
-        // Row creation failed (parse error, no-op) - release lock immediately
         releaseNavigationLock();
         return true;
     }
 
-    // Let the replacement nested editor reclaim focus when it mounts. Routing
-    // focus through the main editor creates an input leak window on desktop
-    // where trailing keystrokes can land outside the table.
-    setPendingNavigationCallback(releaseNavigationLock);
     return true;
 }
 
