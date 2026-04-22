@@ -66,13 +66,15 @@ define paragraph-splitting behavior.
 6. **Dispatch**:
    - `runTableOperation()` replaces the table range and updates active-cell state.
    - `runTableOperationAndOpen()` does the same work, then also sets the main-editor selection,
-     registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, and forces a widget rebuild.
+     registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, forces a widget rebuild,
+     and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
 
 Row insertion uses `runTableOperationAndOpen()` for every entry path: toolbar commands, command palette actions,
 and keyboard-created rows from Enter/Tab at the end of the table. That means row creation no longer relies on
-lifecycle inferring reopen intent from a rebuild-only transaction.
+lifecycle inferring reopen intent from a rebuild-only transaction, and all row-insert paths share the same
+immediate main-editor focus handoff before lifecycle reopens the nested editor.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 
@@ -109,5 +111,8 @@ table-decoration rebuild → widget destroyed/recreated → new nested editor at
 
 Row insertion is the exception in this pass: it dispatches both `rebuildTableWidgetsEffect` and an explicit
 open request, so lifecycle follows the open-request path instead of the generic rebuild fallback.
+
+The row-insert flow in this pass is about toolbar parity on mobile, not new viewport policy. It does not add
+a dedicated row-insert scroll step beyond the selection update and focus handoff already described above.
 
 Full table rebuild; no row/column DOM diffing.

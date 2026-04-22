@@ -23,6 +23,7 @@ export interface ModifyTableParams {
 export interface ModifyTableAndOpenParams extends Omit<ModifyTableParams, 'forceWidgetRebuild'> {
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     onFocused?: () => void;
+    afterDispatch?: () => void;
     clearCellSelection?: boolean;
 }
 
@@ -125,6 +126,7 @@ export function runTableOperationAndOpen(params: ModifyTableAndOpenParams): bool
         ...openTransaction,
         effects: [...openTransaction.effects, rebuildTableWidgetsEffect.of({ tableFrom: prepared.tableFrom })],
     });
+    params.afterDispatch?.();
 
     return true;
 }

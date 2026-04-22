@@ -198,11 +198,13 @@ describe('navigateCell', () => {
             0,
             expect.objectContaining({
                 initialCursorPos: 'start',
+                afterDispatch: expect.any(Function),
                 onFocused: expect.any(Function),
             })
         );
-        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
         expect(isNavigationLocked()).toBe(true);
+        openOptions.afterDispatch();
+        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
         openOptions.onFocused();
         expect(isNavigationLocked()).toBe(false);
     });
@@ -222,11 +224,13 @@ describe('navigateCell', () => {
             1,
             expect.objectContaining({
                 initialCursorPos: 'start',
+                afterDispatch: expect.any(Function),
                 onFocused: expect.any(Function),
             })
         );
-        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
         expect(isNavigationLocked()).toBe(true);
+        openOptions.afterDispatch();
+        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
         openOptions.onFocused();
         expect(isNavigationLocked()).toBe(false);
     });

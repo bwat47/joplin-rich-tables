@@ -5,6 +5,7 @@ import { MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTab
 import type { TargetCell } from '../../tableModel/activeCellForTableText';
 import { resolveActiveCell } from '../activeCell/activeCellResolver';
 import { activateTableCell } from '../activeCell/cellActivation';
+import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runTableOperation, runTableOperationAndOpen } from './runTableOperation';
 
@@ -39,6 +40,7 @@ function createRowInsertOperation(
         options?: {
             initialCursorPos?: 'start' | 'end' | 'lastLineStart';
             onFocused?: () => void;
+            afterDispatch?: () => void;
             clearCellSelection?: boolean;
         }
     ): boolean =>
@@ -49,6 +51,7 @@ function createRowInsertOperation(
             computeTargetCell,
             initialCursorPos: options?.initialCursorPos ?? 'start',
             onFocused: options?.onFocused,
+            afterDispatch: options?.afterDispatch ?? (() => focusMainEditorWithoutScroll(view)),
             clearCellSelection: options?.clearCellSelection,
         });
 }
@@ -160,6 +163,7 @@ export function execInsertRowAtBottom(
     options?: {
         initialCursorPos?: 'start' | 'end' | 'lastLineStart';
         onFocused?: () => void;
+        afterDispatch?: () => void;
         clearCellSelection?: boolean;
     }
 ): boolean {
@@ -173,6 +177,7 @@ export function execInsertRowAtBottom(
                 : { section: 'body', row: c.row + 1, col: targetCol },
         initialCursorPos: options?.initialCursorPos ?? 'start',
         onFocused: options?.onFocused,
+        afterDispatch: options?.afterDispatch ?? (() => focusMainEditorWithoutScroll(view)),
         clearCellSelection: options?.clearCellSelection,
     });
 }

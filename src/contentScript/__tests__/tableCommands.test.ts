@@ -131,6 +131,7 @@ describe('tableCommands (computTargetCell)', () => {
                     view: mockView,
                     cell,
                     initialCursorPos: 'start',
+                    afterDispatch: expect.any(Function),
                 })
             );
             expect(mockRunTableOperation).not.toHaveBeenCalled();

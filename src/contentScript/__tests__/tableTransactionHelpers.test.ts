@@ -102,6 +102,7 @@ describe('tableTransactionHelpers', () => {
         }
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 1);
+        const afterDispatch = jest.fn();
 
         const result = runTableOperationAndOpen({
             view: view as never,
@@ -109,10 +110,12 @@ describe('tableTransactionHelpers', () => {
             operation: (table) => table.insertRowRelativeTo('body', 0, 'after'),
             computeTargetCell: () => ({ section: 'body', row: 1, col: 1 }),
             initialCursorPos: 'start',
+            afterDispatch,
         });
 
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
+        expect(afterDispatch).toHaveBeenCalledTimes(1);
 
         const dispatched = view.dispatch.mock.calls[0][0] as {
             changes?: unknown;
@@ -140,5 +143,24 @@ describe('tableTransactionHelpers', () => {
             activeCell: { section: 'body', row: 1, col: 1 },
             normalizeIfNeeded: false,
         });
+    });
+
+    it('does not run the post-dispatch callback when row insertion is a no-op', () => {
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+        const view = createView(tableText);
+        const cell = createCell(tableText, 0, 1);
+        const afterDispatch = jest.fn();
+
+        const result = runTableOperationAndOpen({
+            view: view as never,
+            cell,
+            operation: (table) => table,
+            computeTargetCell: () => ({ section: 'body', row: 0, col: 1 }),
+            afterDispatch,
+        });
+
+        expect(result).toBe(false);
+        expect(view.dispatch).not.toHaveBeenCalled();
+        expect(afterDispatch).not.toHaveBeenCalled();
     });
 });

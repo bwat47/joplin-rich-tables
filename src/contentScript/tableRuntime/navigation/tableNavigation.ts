@@ -6,6 +6,7 @@ import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
 import { isNavigationLocked, acquireNavigationLock, releaseNavigationLock } from '../navigationLock';
 import { selectAndRequestOpenResolvedActiveCell } from '../activeCell/activeCellOpen';
+import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 
 function insertRowFromKeyboardNavigation(
     view: EditorView,
@@ -19,6 +20,7 @@ function insertRowFromKeyboardNavigation(
     const success = execInsertRowAtBottom(view, activeCell, targetCol, {
         initialCursorPos: 'start',
         onFocused: releaseNavigationLock,
+        afterDispatch: () => focusMainEditorWithoutScroll(view),
     });
     if (!success) {
         releaseNavigationLock();

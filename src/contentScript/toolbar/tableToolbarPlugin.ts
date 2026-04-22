@@ -26,6 +26,7 @@ import { findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarSettings';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
+import { shouldToolbarActionFocusMainEditor } from './toolbarFocusPolicy';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 
 class TableToolbarPlugin {
@@ -118,7 +119,13 @@ class TableToolbarPlugin {
         const doc = getViewDocument(this.view);
         this.dom.replaceChildren();
 
-        const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => void) => {
+        const createIconBtn = (
+            title: string,
+            ariaLabel: string,
+            svg: SVGSVGElement,
+            onClick: () => void,
+            actionId: ToolbarActionId
+        ) => {
             const btn = doc.createElement('button');
             btn.title = title;
             btn.className = 'cm-table-toolbar-btn';
@@ -128,7 +135,9 @@ class TableToolbarPlugin {
                 e.preventDefault();
                 e.stopPropagation();
                 onClick();
-                focusMainEditorWithoutScroll(this.view);
+                if (shouldToolbarActionFocusMainEditor(actionId)) {
+                    focusMainEditorWithoutScroll(this.view);
+                }
             };
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
@@ -148,7 +157,8 @@ class TableToolbarPlugin {
                     button.title,
                     button.ariaLabel,
                     button.iconFactory(doc),
-                    this.getActionHandler(button.actionId)
+                    this.getActionHandler(button.actionId),
+                    button.actionId
                 );
             },
             createSeparator
