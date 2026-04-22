@@ -396,7 +396,11 @@ describe('tableCommands (computTargetCell)', () => {
     describe('deleteTable', () => {
         it('deleteTable dispatches deletion with clearActiveCellEffect', () => {
             const dispatchMock = jest.fn();
-            const mockEditorView = { dispatch: dispatchMock, state: {} } as unknown as EditorView;
+            const mockEditorView = {
+                dispatch: dispatchMock,
+                state: {},
+                contentDOM: { focus: jest.fn() },
+            } as unknown as EditorView;
             const cell = createCell('body', 1, 0);
             cell.tableFrom = 10;
             mockResolveActiveCell.mockReturnValue({
