@@ -38,6 +38,7 @@ import {
     type TableRuntimeAction,
 } from './lifecyclePolicy';
 import { requestViewAnimationFrame } from '../../shared/domContext';
+import { isManagedTablePointerInteractionActive } from '../../tableWidget/tableInteractionContext';
 
 // ============================================================================
 // Utilities
@@ -181,7 +182,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const cursorInsideTableAfterUndoRedo = findTableRanges(update.state).some(
                 (table) => cursorPos >= table.from && cursorPos <= table.to
             );
-            const actions = planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo });
+            const actions = planTableLifecycleActions(snapshot, event, {
+                cursorInsideTableAfterUndoRedo,
+                suppressSelectionLeaveClose: isManagedTablePointerInteractionActive(this.view),
+            });
 
             this.executeActions(actions, update);
             this.scheduleInsertedTableActivation(update);

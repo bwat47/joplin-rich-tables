@@ -160,7 +160,7 @@ export function transactionRequiresTableRebuild(tr: Transaction, activeCell: Res
 export function planTableLifecycleActions(
     snapshot: TableRuntimeSnapshot,
     event: TableRuntimeEvent,
-    options: { cursorInsideTableAfterUndoRedo: boolean }
+    options: { cursorInsideTableAfterUndoRedo: boolean; suppressSelectionLeaveClose?: boolean }
 ): TableRuntimeAction[] {
     const { update, rawModeEffects } = event;
     const actions: TableRuntimeAction[] = [];
@@ -235,7 +235,7 @@ export function planTableLifecycleActions(
         return actions;
     }
 
-    if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event)) {
+    if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event, options.suppressSelectionLeaveClose ?? false)) {
         if (snapshot.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
         }
@@ -294,7 +294,8 @@ function shouldRepositionCellAfterUndoRedo(
 
 function shouldClearActiveCellWhenSelectionLeavesTable(
     snapshot: TableRuntimeSnapshot,
-    event: TableRuntimeEvent
+    event: TableRuntimeEvent,
+    suppressSelectionLeaveClose: boolean
 ): boolean {
     const { update, isSync, isCellSelectionTransition } = event;
     if (
@@ -302,7 +303,8 @@ function shouldClearActiveCellWhenSelectionLeavesTable(
         isSync ||
         isCellSelectionTransition ||
         snapshot.effectiveRawMode ||
-        !snapshot.nestedEditorOpen
+        !snapshot.nestedEditorOpen ||
+        suppressSelectionLeaveClose
     ) {
         return false;
     }

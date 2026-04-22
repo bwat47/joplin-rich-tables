@@ -10,7 +10,6 @@ import { initToolbarSettings } from '../services/toolbarSettings';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { hashTableText } from '../shared/hashUtils';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { activeCellField, clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { cellSelectionField, clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
@@ -24,7 +23,6 @@ import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard
 import { handleTableInteraction } from './tableWidgetInteractions';
 import { findTableRanges } from '../tableRuntime/tablePositioning';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
-import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from './domHelpers';
 import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
@@ -36,6 +34,11 @@ import { moveCursorOutOfTable } from '../tableRuntime/navigation/cursorUtils';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 import { focusMainEditorWithoutScroll } from '../shared/mainEditorFocus';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
+import {
+    beginManagedTablePointerInteraction,
+    endManagedTablePointerInteraction,
+    isInteractionInsideManagedTableUi,
+} from './tableInteractionContext';
 
 /**
  * Build decorations for all tables in the document.
@@ -102,30 +105,12 @@ const tableDecorationField = StateField.define<DecorationSet>({
     provide: (field) => EditorView.decorations.from(field),
 });
 
-function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null {
-    const target = event.target;
-    if (!target) return null;
-    if (target instanceof Element) return target;
-    if (target instanceof Node) return target.parentElement;
-    return null;
-}
-
-function handleOutsideTableInteraction(
+export function handleOutsideTableInteraction(
     view: EditorView,
     event: MouseEvent | PointerEvent,
     options: { preserveContextMenu: boolean }
 ): boolean {
-    const target = getEventTargetElement(event);
-    if (!target) {
-        return false;
-    }
-
-    // Keep editor open if interaction is inside the widget or nested editor.
-    if (
-        target.closest(getWidgetSelector()) ||
-        target.closest(`.${CLASS_CELL_EDITOR}`) ||
-        target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
-    ) {
+    if (isInteractionInsideManagedTableUi(view, event)) {
         return false;
     }
 
@@ -200,6 +185,39 @@ const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
     }
 );
 
+const tablePointerInteractionCapturePlugin = ViewPlugin.fromClass(
+    class {
+        private readonly onPointerDown: (event: PointerEvent) => void;
+        private readonly onPointerUp: () => void;
+        private readonly onMouseDown: (event: MouseEvent) => void;
+        private readonly onMouseUp: () => void;
+
+        constructor(private readonly view: EditorView) {
+            this.onPointerDown = (event) => beginManagedTablePointerInteraction(this.view, event);
+            this.onPointerUp = () => endManagedTablePointerInteraction(this.view);
+            this.onMouseDown = (event) => beginManagedTablePointerInteraction(this.view, event);
+            this.onMouseUp = () => endManagedTablePointerInteraction(this.view);
+
+            const doc = this.view.dom.ownerDocument;
+            doc.addEventListener('pointerdown', this.onPointerDown, true);
+            doc.addEventListener('pointerup', this.onPointerUp, true);
+            doc.addEventListener('pointercancel', this.onPointerUp, true);
+            doc.addEventListener('mousedown', this.onMouseDown, true);
+            doc.addEventListener('mouseup', this.onMouseUp, true);
+        }
+
+        destroy(): void {
+            const doc = this.view.dom.ownerDocument;
+            doc.removeEventListener('pointerdown', this.onPointerDown, true);
+            doc.removeEventListener('pointerup', this.onPointerUp, true);
+            doc.removeEventListener('pointercancel', this.onPointerUp, true);
+            doc.removeEventListener('mousedown', this.onMouseDown, true);
+            doc.removeEventListener('mouseup', this.onMouseUp, true);
+            endManagedTablePointerInteraction(this.view);
+        }
+    }
+);
+
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
         return handleTableInteraction(view, event);
@@ -269,6 +287,7 @@ export default function (context: ContentScriptContext) {
                 tableWidgetInteractionHandlers,
                 closeOnOutsideMouseDown,
                 outsideInteractionCapturePlugin,
+                tablePointerInteractionCapturePlugin,
                 cellSelectionKeyCapturePlugin,
                 cellSelectionClipboardPlugin,
                 cellSelectionVisualsPlugin,
