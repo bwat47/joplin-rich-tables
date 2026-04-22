@@ -43,7 +43,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 | **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, parsing, serialization, mutations. |
 | **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.            |
 | **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.               |
-| **Runtime**   | `contentScript/tableRuntime/operations/tableOperations.ts`      | Table mutation orchestration and target-cell rebasing.     |
+| **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Table mutation orchestration and target-cell rebasing.     |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row/column/alignment actions.              |
 
 ## Data Flow

@@ -3,7 +3,10 @@ import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { runTableOperation, runTableOperationAndOpen } from '../tableRuntime/operations/runTableOperation';
+import {
+    runStructuralMutation,
+    runStructuralMutationAndReopen,
+} from '../tableRuntime/operations/runStructuralMutation';
 import { setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
@@ -64,7 +67,7 @@ describe('tableTransactionHelpers', () => {
         const view = createView(tableText);
         const cell = createCell(tableText, 1, 0);
 
-        const result = runTableOperation({
+        const result = runStructuralMutation({
             view: view as never,
             cell,
             operation: (table) => table.moveRow('body', 1, 'up'),
@@ -104,7 +107,7 @@ describe('tableTransactionHelpers', () => {
         const cell = createCell(tableText, 0, 1);
         const afterDispatch = jest.fn();
 
-        const result = runTableOperationAndOpen({
+        const result = runStructuralMutationAndReopen({
             view: view as never,
             cell,
             operation: (table) => table.insertRowRelativeTo('body', 0, 'after'),
@@ -151,7 +154,7 @@ describe('tableTransactionHelpers', () => {
         const cell = createCell(tableText, 0, 1);
         const afterDispatch = jest.fn();
 
-        const result = runTableOperationAndOpen({
+        const result = runStructuralMutationAndReopen({
             view: view as never,
             cell,
             operation: (table) => table,
@@ -162,5 +165,40 @@ describe('tableTransactionHelpers', () => {
         expect(result).toBe(false);
         expect(view.dispatch).not.toHaveBeenCalled();
         expect(afterDispatch).not.toHaveBeenCalled();
+    });
+
+    it('dispatches explicit reopen effects for non-row structural mutations too', () => {
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+        const updatedTableText = ['| H1 | H2 |', '| :---: | --- |', '| a | b |'].join('\n');
+        const nextActiveCell = createActiveCellForTableText({
+            tableFrom: 0,
+            tableText: updatedTableText,
+            target: { section: 'body', row: 0, col: 0 },
+        });
+        expect(nextActiveCell).not.toBeNull();
+        if (!nextActiveCell) {
+            throw new Error('Expected aligned active cell');
+        }
+
+        const view = createView(tableText);
+        const cell = createCell(tableText, 0, 0);
+
+        const result = runStructuralMutationAndReopen({
+            view: view as never,
+            cell,
+            operation: (table, currentCell) => table.updateColumnAlignment(currentCell.col, 'center'),
+            computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
+        });
+
+        expect(result).toBe(true);
+        expect(view.dispatch).toHaveBeenCalledTimes(1);
+
+        const dispatched = view.dispatch.mock.calls[0][0] as {
+            changes?: { insert: string };
+            effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
+        };
+        expect(dispatched.changes?.insert).toBe(updatedTableText);
+        expect(dispatched.effects.some((effect) => effect.is?.(requestOpenActiveCellEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
     });
 });

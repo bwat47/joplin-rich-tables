@@ -12,7 +12,7 @@ function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
 }
 
-export interface ModifyTableParams {
+export interface RunStructuralMutationParams {
     view: EditorView;
     cell: ActiveCell;
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable;
@@ -20,14 +20,17 @@ export interface ModifyTableParams {
     forceWidgetRebuild: boolean;
 }
 
-export interface ModifyTableAndOpenParams extends Omit<ModifyTableParams, 'forceWidgetRebuild'> {
+export interface StructuralReopenOptions {
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     onFocused?: () => void;
     afterDispatch?: () => void;
     clearCellSelection?: boolean;
 }
 
-interface PreparedTableOperation {
+export interface RunStructuralMutationAndReopenParams
+    extends Omit<RunStructuralMutationParams, 'forceWidgetRebuild'>, StructuralReopenOptions {}
+
+interface PreparedStructuralMutation {
     tableFrom: number;
     tableTo: number;
     newText: string;
@@ -35,7 +38,7 @@ interface PreparedTableOperation {
     nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTableText>>;
 }
 
-function prepareTableOperation(params: ModifyTableParams): PreparedTableOperation | null {
+function prepareStructuralMutation(params: RunStructuralMutationParams): PreparedStructuralMutation | null {
     const { view, cell, operation, computeTargetCell } = params;
     const resolvedCell = resolveActiveCell(view.state, cell);
     if (!resolvedCell) return null;
@@ -68,8 +71,8 @@ function prepareTableOperation(params: ModifyTableParams): PreparedTableOperatio
     };
 }
 
-export function runTableOperation(params: ModifyTableParams): boolean {
-    const prepared = prepareTableOperation(params);
+export function runStructuralMutation(params: RunStructuralMutationParams): boolean {
+    const prepared = prepareStructuralMutation(params);
     if (!prepared) {
         return false;
     }
@@ -95,8 +98,8 @@ export function runTableOperation(params: ModifyTableParams): boolean {
     return true;
 }
 
-export function runTableOperationAndOpen(params: ModifyTableAndOpenParams): boolean {
-    const prepared = prepareTableOperation({
+export function runStructuralMutationAndReopen(params: RunStructuralMutationAndReopenParams): boolean {
+    const prepared = prepareStructuralMutation({
         ...params,
         forceWidgetRebuild: true,
     });

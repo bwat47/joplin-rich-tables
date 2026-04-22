@@ -166,11 +166,11 @@ export function planTableLifecycleActions(
     const actions: TableRuntimeAction[] = [];
 
     if (event.openRequest) {
-        // Route replacement through the open path instead of issuing a
-        // separate close action first. The session controller still closes the
-        // previous editor before mounting the next one, but doing both in one
-        // path avoids the blur/focus gap that makes Android dismiss and reopen
-        // the IME when switching cells by tap.
+        // Command-driven structural mutations and direct cell activations
+        // route through the explicit open path. The session controller still
+        // closes the previous editor before mounting the next one, but doing
+        // both in one path avoids the blur/focus gap that makes Android
+        // dismiss and reopen the IME when switching cells by tap.
         actions.push({
             type: 'openNestedEditor',
             activeCell: event.openRequest.activeCell,
@@ -222,6 +222,8 @@ export function planTableLifecycleActions(
     }
 
     if (event.forceRebuild && snapshot.activeCell && !event.isSync) {
+        // Fallback for rebuild-only transitions such as recovery and
+        // non-command table state restoration.
         if (snapshot.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
         }

@@ -1,12 +1,11 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/activeCellResolver';
-import { execInsertRowAtBottom } from '../operations/tableOperations';
+import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
 import { isNavigationLocked, acquireNavigationLock, releaseNavigationLock } from '../navigationLock';
 import { selectAndRequestOpenResolvedActiveCell } from '../activeCell/activeCellOpen';
-import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 
 function insertRowFromKeyboardNavigation(
     view: EditorView,
@@ -17,10 +16,8 @@ function insertRowFromKeyboardNavigation(
         return true; // Already locked
     }
 
-    const success = execInsertRowAtBottom(view, activeCell, targetCol, {
-        initialCursorPos: 'start',
+    const success = insertRowAtBottom(view, activeCell, targetCol, {
         onFocused: releaseNavigationLock,
-        afterDispatch: () => focusMainEditorWithoutScroll(view),
     });
     if (!success) {
         releaseNavigationLock();
