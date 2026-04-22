@@ -22,9 +22,17 @@ export interface SelectAndRequestOpenActiveCellParams {
     preserveMainSelection?: boolean;
 }
 
+export interface PreparedOpenActiveCellTransaction {
+    selection?: { anchor: number };
+    effects: StateEffect<unknown>[];
+}
+
 export const requestOpenActiveCellEffect = StateEffect.define<OpenActiveCellRequest>();
 
-export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectAndRequestOpenActiveCellParams): void {
+export function prepareOpenActiveCellTransaction(
+    view: EditorView,
+    params: SelectAndRequestOpenActiveCellParams
+): PreparedOpenActiveCellTransaction {
     rememberPendingCellOpen(view, params.activeCell, {
         initialCursorPos: params.initialCursorPos,
     });
@@ -32,7 +40,7 @@ export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectA
         setPendingNavigationCallback(params.onFocused);
     }
 
-    view.dispatch({
+    return {
         ...(!params.preserveMainSelection && params.selectionAnchor != null
             ? { selection: { anchor: params.selectionAnchor } }
             : {}),
@@ -44,6 +52,12 @@ export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectA
                 normalizeIfNeeded: params.normalizeIfNeeded ?? true,
             }),
         ],
+    };
+}
+
+export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectAndRequestOpenActiveCellParams): void {
+    view.dispatch({
+        ...prepareOpenActiveCellTransaction(view, params),
         scrollIntoView: params.scrollIntoView ?? false,
     });
 }

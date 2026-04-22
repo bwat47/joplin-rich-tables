@@ -56,16 +56,23 @@ define paragraph-splitting behavior.
 
 ### 2. Runtime Mutation Helpers (`tableRuntime/operations/runTableOperation.ts`)
 
-`runTableOperation()` orchestrates:
+`runTableOperation.ts` has one shared preparation core that orchestrates:
 
 1. **Build Context**: Slice table text → `TableContext` (`MarkdownTable` + `cellRanges`).
 2. **Mutate**: Call operation function.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
-6. **Dispatch**: Replace table range, update active cell state.
+6. **Dispatch**:
+   - `runTableOperation()` replaces the table range and updates active-cell state.
+   - `runTableOperationAndOpen()` does the same work, then also sets the main-editor selection,
+     registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, and forces a widget rebuild.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
+
+Row insertion uses `runTableOperationAndOpen()` for every entry path: toolbar commands, command palette actions,
+and keyboard-created rows from Enter/Tab at the end of the table. That means row creation no longer relies on
+lifecycle inferring reopen intent from a rebuild-only transaction.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 
@@ -97,6 +104,10 @@ clipboard alignments are only applied to newly created columns.
 
 ## Rebuild Trigger
 
-Structural edits dispatch `rebuildTableWidgetsEffect` from `tableState/tableWidgetEffects.ts` → full table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.
+Most structural edits still dispatch `rebuildTableWidgetsEffect` from `tableState/tableWidgetEffects.ts` → full
+table-decoration rebuild → widget destroyed/recreated → new nested editor at target cell.
+
+Row insertion is the exception in this pass: it dispatches both `rebuildTableWidgetsEffect` and an explicit
+open request, so lifecycle follows the open-request path instead of the generic rebuild fallback.
 
 Full table rebuild; no row/column DOM diffing.

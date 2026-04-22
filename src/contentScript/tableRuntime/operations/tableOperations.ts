@@ -6,7 +6,7 @@ import type { TargetCell } from '../../tableModel/activeCellForTableText';
 import { resolveActiveCell } from '../activeCell/activeCellResolver';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
-import { runTableOperation } from './runTableOperation';
+import { runTableOperation, runTableOperationAndOpen } from './runTableOperation';
 
 export type CommandColumnAlignment = TableAlignment;
 
@@ -29,13 +29,37 @@ function createTableOperation(
     };
 }
 
-export const execInsertRowAbove = createTableOperation(
+function createRowInsertOperation(
+    operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
+    computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell
+) {
+    return (
+        view: EditorView,
+        cell: ActiveCell,
+        options?: {
+            initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+            onFocused?: () => void;
+            clearCellSelection?: boolean;
+        }
+    ): boolean =>
+        runTableOperationAndOpen({
+            view,
+            cell,
+            operation,
+            computeTargetCell,
+            initialCursorPos: options?.initialCursorPos ?? 'start',
+            onFocused: options?.onFocused,
+            clearCellSelection: options?.clearCellSelection,
+        });
+}
+
+export const execInsertRowAbove = createRowInsertOperation(
     (t, c) => t.insertRowRelativeTo(c.section, c.row, 'before'),
     (c) =>
         c.section === 'header' ? { section: 'header', row: 0, col: c.col } : { section: 'body', row: c.row, col: c.col }
 );
 
-export const execInsertRowBelow = createTableOperation(
+export const execInsertRowBelow = createRowInsertOperation(
     (t, c) => t.insertRowRelativeTo(c.section, c.row, 'after'),
     (c) =>
         c.section === 'header'
@@ -129,8 +153,17 @@ export function execUpdateAlignment(view: EditorView, cell: ActiveCell, align: C
     });
 }
 
-export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, targetCol: number): boolean {
-    return runTableOperation({
+export function execInsertRowAtBottom(
+    view: EditorView,
+    cell: ActiveCell,
+    targetCol: number,
+    options?: {
+        initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+        onFocused?: () => void;
+        clearCellSelection?: boolean;
+    }
+): boolean {
+    return runTableOperationAndOpen({
         view,
         cell,
         operation: (t, c) => t.insertRowRelativeTo(c.section, c.row, 'after'),
@@ -138,7 +171,9 @@ export function execInsertRowAtBottom(view: EditorView, cell: ActiveCell, target
             c.section === 'header'
                 ? { section: 'body', row: 0, col: targetCol }
                 : { section: 'body', row: c.row + 1, col: targetCol },
-        forceWidgetRebuild: true,
+        initialCursorPos: options?.initialCursorPos ?? 'start',
+        onFocused: options?.onFocused,
+        clearCellSelection: options?.clearCellSelection,
     });
 }
 

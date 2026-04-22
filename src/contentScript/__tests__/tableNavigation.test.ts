@@ -189,11 +189,22 @@ describe('navigateCell', () => {
         (execInsertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'next', { allowRowCreation: true });
+        const openOptions = (execInsertRowAtBottom as jest.Mock).mock.calls[0][3];
 
         expect(result).toBe(true);
-        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 0);
+        expect(execInsertRowAtBottom).toHaveBeenCalledWith(
+            mockView,
+            expect.anything(),
+            0,
+            expect.objectContaining({
+                initialCursorPos: 'start',
+                onFocused: expect.any(Function),
+            })
+        );
         expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
         expect(isNavigationLocked()).toBe(true);
+        openOptions.onFocused();
+        expect(isNavigationLocked()).toBe(false);
     });
 
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
@@ -202,11 +213,22 @@ describe('navigateCell', () => {
         (execInsertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
+        const openOptions = (execInsertRowAtBottom as jest.Mock).mock.calls[0][3];
 
         expect(result).toBe(true);
-        expect(execInsertRowAtBottom).toHaveBeenCalledWith(mockView, expect.anything(), 1);
+        expect(execInsertRowAtBottom).toHaveBeenCalledWith(
+            mockView,
+            expect.anything(),
+            1,
+            expect.objectContaining({
+                initialCursorPos: 'start',
+                onFocused: expect.any(Function),
+            })
+        );
         expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
         expect(isNavigationLocked()).toBe(true);
+        openOptions.onFocused();
+        expect(isNavigationLocked()).toBe(false);
     });
 
     it('should NOT add row at end of table if allowRowCreation is false', () => {
