@@ -26,8 +26,9 @@ import { makeTableId } from '../tableModel/types';
 import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarSettings';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
+import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 
-class TableToolbarPlugin {
+export class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
     private cleanupAutoUpdate: (() => void) | null = null;
@@ -117,7 +118,7 @@ class TableToolbarPlugin {
         const doc = getViewDocument(this.view);
         this.dom.replaceChildren();
 
-        const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => void) => {
+        const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => boolean | void) => {
             const btn = doc.createElement('button');
             btn.title = title;
             btn.className = 'cm-table-toolbar-btn';
@@ -126,7 +127,9 @@ class TableToolbarPlugin {
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onClick();
+                if (onClick() === false) {
+                    this.restoreNestedEditorFocusAfterNoop();
+                }
             };
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
@@ -153,7 +156,7 @@ class TableToolbarPlugin {
         );
     }
 
-    private getActionHandler(actionId: ToolbarActionId): () => void {
+    private getActionHandler(actionId: ToolbarActionId): () => boolean | void {
         return () => {
             if (!this.currentActiveCell) {
                 return;
@@ -161,58 +164,49 @@ class TableToolbarPlugin {
 
             switch (actionId) {
                 case 'insertRowBefore':
-                    insertRowAbove(this.view, this.currentActiveCell);
-                    break;
+                    return insertRowAbove(this.view, this.currentActiveCell);
                 case 'insertRowAfter':
-                    insertRowBelow(this.view, this.currentActiveCell);
-                    break;
+                    return insertRowBelow(this.view, this.currentActiveCell);
                 case 'deleteRow':
-                    deleteRow(this.view, this.currentActiveCell);
-                    break;
+                    return deleteRow(this.view, this.currentActiveCell);
                 case 'insertColumnBefore':
-                    insertColumnLeft(this.view, this.currentActiveCell);
-                    break;
+                    return insertColumnLeft(this.view, this.currentActiveCell);
                 case 'insertColumnAfter':
-                    insertColumnRight(this.view, this.currentActiveCell);
-                    break;
+                    return insertColumnRight(this.view, this.currentActiveCell);
                 case 'deleteColumn':
-                    deleteColumn(this.view, this.currentActiveCell);
-                    break;
+                    return deleteColumn(this.view, this.currentActiveCell);
                 case 'deleteTable':
-                    deleteTable(this.view, this.currentActiveCell);
-                    break;
+                    return deleteTable(this.view, this.currentActiveCell);
                 case 'moveRowUp':
-                    moveRowUp(this.view, this.currentActiveCell);
-                    break;
+                    return moveRowUp(this.view, this.currentActiveCell);
                 case 'moveRowDown':
-                    moveRowDown(this.view, this.currentActiveCell);
-                    break;
+                    return moveRowDown(this.view, this.currentActiveCell);
                 case 'moveColumnLeft':
-                    moveColumnLeft(this.view, this.currentActiveCell);
-                    break;
+                    return moveColumnLeft(this.view, this.currentActiveCell);
                 case 'moveColumnRight':
-                    moveColumnRight(this.view, this.currentActiveCell);
-                    break;
+                    return moveColumnRight(this.view, this.currentActiveCell);
                 case 'clearRow':
-                    clearRow(this.view, this.currentActiveCell);
-                    break;
+                    return clearRow(this.view, this.currentActiveCell);
                 case 'clearColumn':
-                    clearColumn(this.view, this.currentActiveCell);
-                    break;
+                    return clearColumn(this.view, this.currentActiveCell);
                 case 'clearTable':
-                    clearTable(this.view, this.currentActiveCell);
-                    break;
+                    return clearTable(this.view, this.currentActiveCell);
                 case 'alignLeft':
-                    updateAlignment(this.view, this.currentActiveCell, 'left');
-                    break;
+                    return updateAlignment(this.view, this.currentActiveCell, 'left');
                 case 'alignCenter':
-                    updateAlignment(this.view, this.currentActiveCell, 'center');
-                    break;
+                    return updateAlignment(this.view, this.currentActiveCell, 'center');
                 case 'alignRight':
-                    updateAlignment(this.view, this.currentActiveCell, 'right');
-                    break;
+                    return updateAlignment(this.view, this.currentActiveCell, 'right');
             }
         };
+    }
+
+    private restoreNestedEditorFocusAfterNoop() {
+        if (!this.currentActiveCell || !isNestedEditorOpen(this.view)) {
+            return;
+        }
+
+        refocusNestedEditor(this.view);
     }
 
     private showToolbar() {
