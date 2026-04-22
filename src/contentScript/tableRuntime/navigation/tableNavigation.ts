@@ -1,7 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { resolveActiveCell } from '../activeCell/activeCellResolver';
-import { resolveCellDocRange } from '../tablePositioning';
+import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/activeCellResolver';
 import { execInsertRowAtBottom } from '../operations/tableOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
@@ -11,7 +10,7 @@ import {
     releaseNavigationLock,
     setPendingNavigationCallback,
 } from '../navigationLock';
-import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
+import { selectAndRequestOpenResolvedActiveCell } from '../activeCell/activeCellOpen';
 
 function insertRowFromKeyboardNavigation(
     view: EditorView,
@@ -134,13 +133,8 @@ export function navigateCell(
     };
 
     // Activate target cell
-    const resolvedRange = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: target,
-    });
-
-    if (!resolvedRange) {
+    const nextResolvedCell = retargetResolvedActiveCell(resolvedActiveCell, target);
+    if (!nextResolvedCell) {
         return false;
     }
 
@@ -149,17 +143,11 @@ export function navigateCell(
         return true; // Already locked
     }
 
-    selectAndRequestOpenActiveCell(view, {
-        activeCell: {
-            tableFrom: ctx.from,
-            section: target.section,
-            row: target.row,
-            col: target.col,
-        },
+    selectAndRequestOpenResolvedActiveCell(view, {
+        resolvedCell: nextResolvedCell,
         normalizeIfNeeded: true,
         initialCursorPos: options.cursorPos,
         onFocused: releaseNavigationLock,
-        selectionAnchor: resolvedRange.editableFrom,
     });
 
     return true;

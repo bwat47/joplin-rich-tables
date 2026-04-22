@@ -3,10 +3,11 @@ import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
-import { resolveCellDocRange, resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
+import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { openLink } from '../services/markdownRenderer';
 import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
-import { selectAndRequestOpenActiveCell } from '../tableRuntime/activeCell/activeCellOpen';
+import { selectAndRequestOpenResolvedActiveCell } from '../tableRuntime/activeCell/activeCellOpen';
+import { createResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -208,16 +209,17 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             return false;
         }
 
-        const resolvedRange = resolveCellDocRange({
-            tableFrom: ctx.from,
-            ranges: ctx.cellRanges,
-            coords: { section, row, col },
+        const resolvedCell = createResolvedActiveCell({
+            ctx,
+            coords: {
+                section,
+                row: section === SECTION_HEADER ? 0 : row,
+                col,
+            },
         });
-        if (!resolvedRange) {
+        if (!resolvedCell) {
             return false;
         }
-
-        const { editableFrom } = resolvedRange;
 
         event.preventDefault();
         event.stopPropagation();
@@ -236,16 +238,10 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             }
         }
 
-        selectAndRequestOpenActiveCell(view, {
-            activeCell: {
-                tableFrom: ctx.from,
-                section,
-                row: section === SECTION_HEADER ? 0 : row,
-                col,
-            },
+        selectAndRequestOpenResolvedActiveCell(view, {
+            resolvedCell,
             clearCellSelection: hasSelection,
             normalizeIfNeeded: true,
-            selectionAnchor: editableFrom,
         });
 
         return true;

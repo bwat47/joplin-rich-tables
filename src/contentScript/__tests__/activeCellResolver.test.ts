@@ -1,8 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import {
+    createResolvedActiveCell,
+    resolveActiveCell,
+    retargetResolvedActiveCell,
+} from '../tableRuntime/activeCell/activeCellResolver';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { createMarkdownState } from './testMarkdownState';
+import { buildTableContext } from '../tableModel/tableContext';
 
 function createState(doc: string, activeCell?: ActiveCell) {
     let state = createMarkdownState(doc, [activeCellField]);
@@ -104,6 +109,85 @@ describe('activeCellResolver', () => {
         expect(resolved?.editableTo).toBe(doc.indexOf('foo') + 'foo '.length);
         expect(state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('foo');
         expect(state.doc.sliceString(resolved!.editableFrom, resolved!.editableTo)).toBe(' foo ');
+    });
+
+    it('creates a resolved active cell directly from table context and coords', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const ctx = buildTableContext({ from: 0, to: doc.length, text: doc });
+
+        expect(ctx).not.toBeNull();
+        if (!ctx) {
+            throw new Error('Expected table context');
+        }
+
+        const resolved = createResolvedActiveCell({
+            ctx,
+            coords: { section: 'body', row: 0, col: 1 },
+        });
+
+        expect(resolved).not.toBeNull();
+        expect(resolved?.activeCell).toEqual({
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+        expect(resolved?.tableFrom).toBe(0);
+        expect(resolved?.tableTo).toBe(doc.length);
+        expect(resolved?.contentFrom).toBe(doc.indexOf('a2'));
+        expect(resolved?.contentTo).toBe(doc.indexOf('a2') + 2);
+        expect(resolved?.editableFrom).toBe(doc.indexOf('a2'));
+        expect(resolved?.editableTo).toBe(doc.indexOf('a2') + 2);
+    });
+
+    it('retargets within the same resolved table context without reparsing', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const state = createState(doc, {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+
+        const resolved = resolveActiveCell(state, getActiveCell(state));
+        expect(resolved).not.toBeNull();
+        if (!resolved) {
+            throw new Error('Expected resolved cell');
+        }
+
+        const retargeted = retargetResolvedActiveCell(resolved, {
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+
+        expect(retargeted).not.toBeNull();
+        expect(retargeted?.ctx).toBe(resolved.ctx);
+        expect(retargeted?.activeCell).toEqual({
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+        expect(retargeted?.editableFrom).toBe(doc.indexOf('a2'));
+        expect(retargeted?.editableTo).toBe(doc.indexOf('a2') + 2);
+    });
+
+    it('returns null when creating a resolved active cell for invalid coordinates', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const ctx = buildTableContext({ from: 0, to: doc.length, text: doc });
+
+        expect(ctx).not.toBeNull();
+        if (!ctx) {
+            throw new Error('Expected table context');
+        }
+
+        expect(
+            createResolvedActiveCell({
+                ctx,
+                coords: { section: 'body', row: 9, col: 9 },
+            })
+        ).toBeNull();
     });
 
     it('is selection-independent even when the cursor moves into editable edge whitespace', () => {

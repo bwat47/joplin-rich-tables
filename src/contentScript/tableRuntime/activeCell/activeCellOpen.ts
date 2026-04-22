@@ -4,6 +4,7 @@ import { setActiveCellEffect, type ActiveCell } from '../../tableState/activeCel
 import { clearCellSelectionEffect } from '../../tableState/cellSelectionState';
 import { setPendingNavigationCallback } from '../navigationLock';
 import { rememberPendingCellOpen } from '../../nestedEditor/pendingCellOpen';
+import type { ResolvedActiveCell } from './activeCellResolver';
 
 export interface OpenActiveCellRequest {
     activeCell: ActiveCell;
@@ -44,5 +45,18 @@ export function selectAndRequestOpenActiveCell(view: EditorView, params: SelectA
             }),
         ],
         scrollIntoView: params.scrollIntoView ?? false,
+    });
+}
+
+export function selectAndRequestOpenResolvedActiveCell(
+    view: EditorView,
+    params: Omit<SelectAndRequestOpenActiveCellParams, 'activeCell' | 'selectionAnchor'> & {
+        resolvedCell: ResolvedActiveCell;
+    }
+): void {
+    selectAndRequestOpenActiveCell(view, {
+        ...params,
+        activeCell: params.resolvedCell.activeCell,
+        selectionAnchor: params.resolvedCell.editableFrom,
     });
 }

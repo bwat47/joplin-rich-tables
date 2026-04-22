@@ -7,7 +7,13 @@ import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import {
+    activeCellField,
+    clearActiveCellEffect,
+    getActiveCell,
+    setActiveCellEffect,
+    type ActiveCell,
+} from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
@@ -19,6 +25,7 @@ import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
 import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 
+const activateCellAtPositionMock = jest.fn();
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
 const DEFAULT_FEATURE_SETTINGS = {
@@ -34,7 +41,7 @@ const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 
 jest.mock('../tableRuntime/activeCell/cellActivation', () => ({
-    activateCellAtPosition: jest.fn(),
+    activateCellAtPosition: (...args: unknown[]) => activateCellAtPositionMock(...args),
     activateTableCell: (...args: unknown[]) => activateTableCellMock(...args),
 }));
 
@@ -66,6 +73,7 @@ describe('nestedEditorLifecycle', () => {
     };
 
     beforeEach(() => {
+        activateCellAtPositionMock.mockReset();
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
         getNestedEditorFeatureSettingsMock.mockReset();
@@ -162,6 +170,108 @@ describe('nestedEditorLifecycle', () => {
             contentFrom: resolved.contentFrom,
             contentTo: resolved.contentTo,
         });
+
+        view.destroy();
+    });
+
+    it('passes the pre-undo active cell as a fallback hint during undo or redo reactivation', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'body',
+            row: 1,
+            col: 1,
+        };
+
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        view.dispatch({
+            changes: {
+                from: doc.indexOf('| b1 | b2 |'),
+                to: doc.length,
+                insert: '',
+            },
+            effects: clearActiveCellEffect.of(undefined),
+            annotations: Transaction.userEvent.of('undo'),
+            selection: { anchor: doc.indexOf('| a2') },
+        });
+        flushAnimationFrames();
+
+        expect(activateCellAtPositionMock).toHaveBeenCalledWith(
+            view,
+            doc.indexOf('| a2'),
+            expect.objectContaining({
+                clearIfOutside: true,
+                normalizeIfNeeded: false,
+                preserveMainSelection: false,
+                preferredActiveCell: activeCell,
+            })
+        );
+
+        view.destroy();
+    });
+
+    it('maps the fallback hint when undo or redo shifts the table start before reactivation', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
+        const insertedPrefix = 'abc\n';
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'body',
+            row: 1,
+            col: 1,
+        };
+
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        view.dispatch({
+            changes: { from: 0, to: 0, insert: insertedPrefix },
+            effects: clearActiveCellEffect.of(undefined),
+            annotations: Transaction.userEvent.of('redo'),
+            selection: { anchor: insertedPrefix.length + doc.indexOf('| a2') },
+        });
+        flushAnimationFrames();
+
+        expect(activateCellAtPositionMock).toHaveBeenCalledWith(
+            view,
+            insertedPrefix.length + doc.indexOf('| a2'),
+            expect.objectContaining({
+                clearIfOutside: true,
+                normalizeIfNeeded: false,
+                preserveMainSelection: false,
+                preferredActiveCell: {
+                    ...activeCell,
+                    tableFrom: insertedPrefix.length,
+                },
+            })
+        );
 
         view.destroy();
     });

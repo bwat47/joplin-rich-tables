@@ -79,6 +79,10 @@ the current editor state through the shared active-cell resolver. That resolver:
 - Rebuilds `TableContext`.
 - Derives `tableTo`, trimmed content bounds, and editable bounds from current `cellRanges`.
 
+The resulting `ResolvedActiveCell` is the standard transient runtime object for active-cell-aware code. Once a concrete
+current-state cell has been chosen, runtime paths should pass `ResolvedActiveCell` rather than re-threading separate
+`ActiveCell`, `TableContext`, and raw offset fields.
+
 If resolution fails, the active cell is treated as stale and cleared rather than clamped to a nearby cell.
 
 ## Structural Operations (Rows/Columns/Alignment)

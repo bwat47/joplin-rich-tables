@@ -13,8 +13,8 @@ Overlay a real editor rather than using contenteditable (for full syntax highlig
 
 Managed by `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts`.
 
-**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges →
-`setActiveCellEffect` plus an open-intent effect dispatched → lifecycle plugin mounts the nested editor.
+**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges into
+`ResolvedActiveCell` → `setActiveCellEffect` plus an open-intent effect dispatched → lifecycle plugin mounts the nested editor.
 
 `setActiveCellEffect` stores stable logical cell identity: `tableFrom` plus `section/row/col`. Any cursor placement for
 opening is passed separately as transient selection-anchor data. The lifecycle plugin resolves raw table/cell offsets from
@@ -41,7 +41,7 @@ The lifecycle plugin remains responsible only for executing nested-editor side e
 2. `NestedEditorSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
 4. If normalization rewrites the whole table first, it also dispatches a reopen intent so lifecycle can reopen after rebuild.
-5. After root dispatch, the session refreshes its derived semantic/editable ranges from the current active-cell identity.
+5. After root dispatch, the session refreshes its `ResolvedActiveCell` from the current active-cell identity.
 6. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
 ### Selection Sync

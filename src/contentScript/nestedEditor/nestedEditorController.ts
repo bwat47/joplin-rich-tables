@@ -17,7 +17,7 @@ import {
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { ensureCellWrapper } from './mounting';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { resolveActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
@@ -28,15 +28,6 @@ import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig
 import { requestViewAnimationFrame } from '../shared/domContext';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 500;
-
-export interface NestedEditorCellRange {
-    tableFrom: number;
-    tableTo: number;
-    contentFrom: number;
-    contentTo: number;
-    editableFrom: number;
-    editableTo: number;
-}
 
 export interface NestedEditorLocalState {
     text: string;
@@ -49,8 +40,7 @@ export interface NestedEditorRootState {
 }
 
 export interface NestedEditorSession {
-    activeCell: ActiveCell;
-    range: NestedEditorCellRange;
+    resolvedCell: ResolvedActiveCell;
     local: NestedEditorLocalState;
     root: NestedEditorRootState;
     editor: EditorView | null;
@@ -133,15 +123,7 @@ class NestedEditorController {
         }
 
         const session: NestedEditorSession = {
-            activeCell: resolved.activeCell,
-            range: {
-                tableFrom: resolved.tableFrom,
-                tableTo: resolved.tableTo,
-                contentFrom: resolved.contentFrom,
-                contentTo: resolved.contentTo,
-                editableFrom: resolved.editableFrom,
-                editableTo: resolved.editableTo,
-            },
+            resolvedCell: resolved,
             local: { text: localText, selection: localSelection },
             root: { text: rootText, selection: rootSelection },
             editor: null,
@@ -216,11 +198,7 @@ class NestedEditorController {
         }
 
         const stateActiveCell = getActiveCell(update.state);
-        if (stateActiveCell) {
-            this.session.activeCell = stateActiveCell;
-        }
-
-        const resolved = resolveActiveCell(update.state, this.session.activeCell);
+        const resolved = resolveActiveCell(update.state, stateActiveCell ?? this.session.resolvedCell.activeCell);
         if (!resolved) {
             const mainView = this.mainView;
             this.close();
@@ -230,15 +208,7 @@ class NestedEditorController {
             return;
         }
 
-        this.session.activeCell = resolved.activeCell;
-        this.session.range = {
-            tableFrom: resolved.tableFrom,
-            tableTo: resolved.tableTo,
-            contentFrom: resolved.contentFrom,
-            contentTo: resolved.contentTo,
-            editableFrom: resolved.editableFrom,
-            editableTo: resolved.editableTo,
-        };
+        this.session.resolvedCell = resolved;
 
         const rootText = update.state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
         const rootSelection = toRelativeSelection(update.state.selection, resolved.editableFrom, resolved.editableTo);
@@ -299,9 +269,9 @@ class NestedEditorController {
 
     /**
      * Resolve cell range for close(), preferring freshly-resolved positions over
-     * cached session positions. After undo/redo, the cached session.range may
-     * point to stale document positions (the document shifted but session.range
-     * was not remapped), causing close() to read the wrong cell text.
+     * cached session positions. After undo/redo, the cached resolved cell may
+     * point to stale document positions until it is refreshed, causing close()
+     * to read the wrong cell text.
      *
      * Re-resolves the cell using the session's own identity and cached table
      * position against the current editor state. This stays anchored to the
@@ -319,15 +289,15 @@ class NestedEditorController {
         }
 
         if (session && mainView) {
-            const resolved = resolveActiveCell(mainView.state, session.activeCell);
+            const resolved = resolveActiveCell(mainView.state, session.resolvedCell.activeCell);
             if (resolved) {
                 return { contentFrom: resolved.contentFrom, contentTo: resolved.contentTo };
             }
         }
 
         return {
-            contentFrom: session?.range.contentFrom ?? 0,
-            contentTo: session?.range.contentTo ?? 0,
+            contentFrom: session?.resolvedCell.contentFrom ?? 0,
+            contentTo: session?.resolvedCell.contentTo ?? 0,
         };
     }
 
@@ -386,7 +356,7 @@ class NestedEditorController {
 
         const rootText = sanitizeLocalText(this.session.local.text);
         const rootSelection = toRootSelection(this.session.local.selection, this.session.local.text);
-        const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.range.editableFrom);
+        const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.resolvedCell.editableFrom);
         const currentMainSelection = this.mainView.state.selection.main;
 
         const textChanged = rootText !== this.session.root.text;
@@ -402,8 +372,8 @@ class NestedEditorController {
             changes:
                 includeChanges && textChanged
                     ? {
-                          from: this.session.range.editableFrom,
-                          to: this.session.range.editableTo,
+                          from: this.session.resolvedCell.editableFrom,
+                          to: this.session.resolvedCell.editableTo,
                           insert: rootText,
                       }
                     : undefined,
@@ -450,7 +420,7 @@ class NestedEditorController {
         mirrorLocalSelectionToMain({
             nestedView,
             mainView: this.mainView,
-            selection: toAbsoluteSelection(rootSelection, this.session.range.editableFrom),
+            selection: toAbsoluteSelection(rootSelection, this.session.resolvedCell.editableFrom),
         });
     }
 
@@ -460,24 +430,15 @@ class NestedEditorController {
         }
 
         const stateActiveCell = getActiveCell(this.mainView.state);
-        if (stateActiveCell) {
-            this.session.activeCell = stateActiveCell;
-        }
-
-        const resolved = resolveActiveCell(this.mainView.state, this.session.activeCell);
+        const resolved = resolveActiveCell(
+            this.mainView.state,
+            stateActiveCell ?? this.session.resolvedCell.activeCell
+        );
         if (!resolved) {
             return;
         }
 
-        this.session.activeCell = resolved.activeCell;
-        this.session.range = {
-            tableFrom: resolved.tableFrom,
-            tableTo: resolved.tableTo,
-            contentFrom: resolved.contentFrom,
-            contentTo: resolved.contentTo,
-            editableFrom: resolved.editableFrom,
-            editableTo: resolved.editableTo,
-        };
+        this.session.resolvedCell = resolved;
         this.session.root = {
             text: this.mainView.state.doc.sliceString(resolved.editableFrom, resolved.editableTo),
             selection: toRelativeSelection(this.mainView.state.selection, resolved.editableFrom, resolved.editableTo),
