@@ -2,8 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
-import { resolveCellDocRange } from '../tableRuntime/tablePositioning';
+import { resolveActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { isNavigationLocked, resetNavigationLock } from '../tableRuntime/navigationLock';
 
@@ -13,9 +12,9 @@ import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCe
 import { execInsertRowAtBottom } from '../tableRuntime/operations/tableOperations';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
-jest.mock('../tableRuntime/tablePositioning');
 jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
+    retargetResolvedActiveCell: jest.fn(),
 }));
 jest.mock('../tableRuntime/operations/tableOperations', () => ({
     __esModule: true,
@@ -56,7 +55,7 @@ describe('navigateCell', () => {
         getActiveCellSpy = jest.spyOn(activeCellState, 'getActiveCell');
         getActiveCellSpy.mockReset();
         (resolveActiveCell as jest.Mock).mockReset();
-        (resolveCellDocRange as jest.Mock).mockReset();
+        (retargetResolvedActiveCell as jest.Mock).mockReset();
         (execInsertRowAtBottom as jest.Mock).mockReset();
     });
 
@@ -87,13 +86,21 @@ describe('navigateCell', () => {
             },
         };
 
-        (resolveCellDocRange as jest.Mock).mockReturnValue({
+        (retargetResolvedActiveCell as jest.Mock).mockImplementation((_resolved, target) => ({
+            activeCell: {
+                tableFrom: 0,
+                section: target.section,
+                row: target.row,
+                col: target.col,
+            },
+            editableFrom: 10,
+            editableTo: 20,
+        }));
+        (resolveActiveCell as jest.Mock).mockReturnValue({
             contentFrom: 10,
             contentTo: 20,
             editableFrom: 10,
             editableTo: 20,
-        });
-        (resolveActiveCell as jest.Mock).mockReturnValue({
             ctx,
         });
     };
@@ -132,6 +139,11 @@ describe('navigateCell', () => {
         expect(getOpenRequestValue()).toMatchObject({
             normalizeIfNeeded: true,
         });
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                selection: { anchor: 10 },
+            })
+        );
     });
 
     it('should navigate next from header end to body start', () => {

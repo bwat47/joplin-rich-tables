@@ -8,8 +8,8 @@ import { isSourceModeEnabled } from '../../tableState/sourceMode';
 import { findTableRanges } from '../tablePositioning';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../../tableModel/tableContext';
-import { createActiveCellFromRanges } from './activeCellFactory';
-import { selectAndRequestOpenActiveCell } from './activeCellOpen';
+import { createResolvedActiveCell } from './activeCellResolver';
+import { selectAndRequestOpenResolvedActiveCell } from './activeCellOpen';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 
 export interface ActivateCellOptions {
@@ -90,24 +90,22 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         activeCell: getActiveCell(view.state),
     });
 
-    const newActiveCell = createActiveCellFromRanges({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        target: targetCell,
+    const resolvedCell = createResolvedActiveCell({
+        ctx,
+        coords: targetCell,
     });
 
-    if (!newActiveCell) {
+    if (!resolvedCell) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
         return false;
     }
 
-    selectAndRequestOpenActiveCell(view, {
-        activeCell: newActiveCell.activeCell,
+    selectAndRequestOpenResolvedActiveCell(view, {
+        resolvedCell,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,
-        selectionAnchor: newActiveCell.selectionAnchor,
     });
 
     return true;
@@ -137,18 +135,16 @@ export function activateTableCell(
         const ctx = buildTableContext(table);
         if (!ctx) return;
 
-        const newActiveCell = createActiveCellFromRanges({
-            tableFrom: ctx.from,
-            ranges: ctx.cellRanges,
-            target: coords,
+        const resolvedCell = createResolvedActiveCell({
+            ctx,
+            coords,
         });
 
-        if (!newActiveCell) return;
+        if (!resolvedCell) return;
 
-        selectAndRequestOpenActiveCell(view, {
-            activeCell: newActiveCell.activeCell,
+        selectAndRequestOpenResolvedActiveCell(view, {
+            resolvedCell,
             normalizeIfNeeded: true,
-            selectionAnchor: newActiveCell.selectionAnchor,
         });
     });
 }

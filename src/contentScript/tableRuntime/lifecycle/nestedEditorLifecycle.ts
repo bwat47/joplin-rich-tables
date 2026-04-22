@@ -9,6 +9,7 @@ import { activateInsertedTableEffect } from '../../tableState/insertedTableActiv
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { resolveActiveCell } from '../activeCell/activeCellResolver';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -66,6 +67,18 @@ function getInsertedTableActivationRequest(update: ViewUpdate) {
     return null;
 }
 
+function getResolvedActiveCellFromStateOrExplicit(
+    state: EditorView['state'],
+    activeCell: NonNullable<ReturnType<typeof getActiveCell>>
+) {
+    const resolvedFromState = getResolvedActiveCell(state);
+    if (resolvedFromState && isSameActiveCell(resolvedFromState.activeCell, activeCell)) {
+        return resolvedFromState;
+    }
+
+    return resolveActiveCell(state, activeCell);
+}
+
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
@@ -76,7 +89,7 @@ function normalizeTableBeforeOpen(params: {
         return false;
     }
 
-    const resolved = resolveActiveCell(params.view.state, params.activeCell);
+    const resolved = getResolvedActiveCellFromStateOrExplicit(params.view.state, params.activeCell);
     if (!resolved) {
         return false;
     }
@@ -234,7 +247,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 abortPendingOpen();
                                 return;
                             }
-                            const resolvedActiveCell = resolveActiveCell(this.view.state, action.activeCell);
+                            const resolvedActiveCell = getResolvedActiveCellFromStateOrExplicit(
+                                this.view.state,
+                                action.activeCell
+                            );
                             if (!resolvedActiveCell) {
                                 abortPendingOpen();
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
@@ -298,8 +314,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 );
 
 function snapshotResolvedCellRange(state: EditorView['state']): { contentFrom: number; contentTo: number } | null {
-    const activeCell = getActiveCell(state);
-    const resolved = resolveActiveCell(state, activeCell);
+    const resolved = getResolvedActiveCell(state);
     if (!resolved) {
         return null;
     }

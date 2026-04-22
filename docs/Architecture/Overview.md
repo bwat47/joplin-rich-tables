@@ -101,6 +101,8 @@ resolve -> parse -> compute-ranges chains for the same table content.
 
 The active-cell resolver builds on `TableContext` and is the only supported way to
 derive current table/cell offsets for the persisted logical active-cell state.
+Once current-state code has a concrete active cell, it should pass `ResolvedActiveCell`
+through the runtime instead of re-threading table context and raw offsets separately.
 
 ### 6. Shared Transition Policy
 
