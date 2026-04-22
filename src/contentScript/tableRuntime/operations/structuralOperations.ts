@@ -180,6 +180,8 @@ export function deleteTable(view: EditorView, cell: ActiveCell): void {
             rebuildTableWidgetsEffect.of({ tableFrom: resolvedCell.tableFrom }),
         ],
     });
+
+    focusMainEditorWithoutScroll(view);
 }
 
 export function updateAlignment(
