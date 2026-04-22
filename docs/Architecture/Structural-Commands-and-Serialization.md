@@ -64,8 +64,8 @@ define paragraph-splitting behavior.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
 6. **Dispatch**:
-   - `runStructuralMutation()` replaces the table range and updates active-cell state.
-   - `runStructuralMutationAndReopen()` does the same work, then also sets the main-editor selection,
+    - `runStructuralMutation()` replaces the table range and updates active-cell state.
+    - `runStructuralMutationAndReopen()` does the same work, then also sets the main-editor selection,
       registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, forces a widget rebuild,
       and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
@@ -77,8 +77,8 @@ define paragraph-splitting behavior.
 - It owns shared reopen defaults such as main-editor focus handoff.
 - Row-insert helpers extend those defaults with `initialCursorPos: 'start'`.
 
-All active-cell-preserving structural mutations now use `runStructuralMutationAndReopen()`: row/column insert,
-delete, move, clear, and alignment updates. That means command-driven structural edits no longer rely on lifecycle
+All active-cell-preserving structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
+delete, move, clear, and alignment updates. That means command-driven structural edits don't rely on lifecycle
 inferring reopen intent from a rebuild-only transaction. Lifecycle rebuild fallback remains for recovery and
 rebuild-only transitions, not as the normal command path.
 
