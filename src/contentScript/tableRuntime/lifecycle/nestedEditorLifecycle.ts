@@ -4,6 +4,7 @@ import {
     getActiveCell,
     isSameActiveCell,
     setActiveCellEffect,
+    type ActiveCell,
 } from '../../tableState/activeCellState';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
@@ -77,6 +78,22 @@ function getResolvedActiveCellFromStateOrExplicit(
     }
 
     return resolveActiveCell(state, activeCell);
+}
+
+function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell | null): ActiveCell | null {
+    if (!activeCell) {
+        return null;
+    }
+
+    const mappedTableFrom = update.changes.mapPos(activeCell.tableFrom, 1);
+    if (!Number.isFinite(mappedTableFrom) || mappedTableFrom < 0) {
+        return null;
+    }
+
+    return {
+        ...activeCell,
+        tableFrom: mappedTableFrom,
+    };
 }
 
 function normalizeTableBeforeOpen(params: {
@@ -203,6 +220,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     case 'scheduleActivateCellAtCursor': {
                         const cursorPos = update.state.selection.main.head;
+                        const preferredActiveCell = mapActiveCellThroughUpdate(
+                            update,
+                            getActiveCell(update.startState)
+                        );
                         requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) return;
                             if (!action.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
@@ -210,7 +231,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 clearIfOutside: action.clearIfOutside,
                                 normalizeIfNeeded: action.normalizeIfNeeded,
                                 preserveMainSelection: action.preserveMainSelection,
-                                preferredActiveCell: getActiveCell(update.startState),
+                                preferredActiveCell,
                             });
                             if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);

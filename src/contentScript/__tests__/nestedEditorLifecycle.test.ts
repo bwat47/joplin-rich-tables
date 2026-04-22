@@ -225,6 +225,57 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('maps the fallback hint when undo or redo shifts the table start before reactivation', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
+        const insertedPrefix = 'abc\n';
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'body',
+            row: 1,
+            col: 1,
+        };
+
+        let state = EditorState.create({
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                activeCellField,
+                searchForceSourceModeField,
+                sourceModeField,
+                nestedEditorLifecyclePlugin,
+            ],
+        });
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        view.dispatch({
+            changes: { from: 0, to: 0, insert: insertedPrefix },
+            effects: clearActiveCellEffect.of(undefined),
+            annotations: Transaction.userEvent.of('redo'),
+            selection: { anchor: insertedPrefix.length + doc.indexOf('| a2') },
+        });
+        flushAnimationFrames();
+
+        expect(activateCellAtPositionMock).toHaveBeenCalledWith(
+            view,
+            insertedPrefix.length + doc.indexOf('| a2'),
+            expect.objectContaining({
+                clearIfOutside: true,
+                normalizeIfNeeded: false,
+                preserveMainSelection: false,
+                preferredActiveCell: {
+                    ...activeCell,
+                    tableFrom: insertedPrefix.length,
+                },
+            })
+        );
+
+        view.destroy();
+    });
+
     it('does not pass a resolved range when force rebuild closes the nested editor', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
