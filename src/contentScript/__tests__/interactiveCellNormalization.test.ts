@@ -232,6 +232,29 @@ describe('interactive cell normalization', () => {
         expect(openRequest?.value).toMatchObject({ normalizeIfNeeded: false });
     });
 
+    it('clamps a preferred fallback cell instead of reopening the first cell on structural punctuation', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const { view } = createViewHarness({ doc });
+
+        expect(
+            activateCellAtPosition(view, doc.indexOf('| a2'), {
+                normalizeIfNeeded: false,
+                preferredActiveCell: {
+                    tableFrom: 0,
+                    section: 'body',
+                    row: 1,
+                    col: 1,
+                },
+            })
+        ).toBe(true);
+
+        expect(getActiveCell(view.state)).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+    });
+
     it('normalizes on keyboard navigation before reopening the target cell', () => {
         const { view } = createViewHarness({
             activeCell: {

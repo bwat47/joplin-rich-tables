@@ -210,6 +210,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 clearIfOutside: action.clearIfOutside,
                                 normalizeIfNeeded: action.normalizeIfNeeded,
                                 preserveMainSelection: action.preserveMainSelection,
+                                preferredActiveCell: getActiveCell(update.startState),
                             });
                             if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);

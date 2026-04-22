@@ -3,11 +3,12 @@
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
 import { findTableRanges } from '../tablePositioning';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../../tableModel/tableContext';
+import { createActiveCellFromRanges } from './activeCellFactory';
 import { createResolvedActiveCell } from './activeCellResolver';
 import { selectAndRequestOpenResolvedActiveCell } from './activeCellOpen';
 import { requestViewAnimationFrame } from '../../shared/domContext';
@@ -19,6 +20,8 @@ export interface ActivateCellOptions {
     normalizeIfNeeded?: boolean;
     /** If true, preserve the current main-editor selection when requesting the nested editor open */
     preserveMainSelection?: boolean;
+    /** Optional fallback identity used when the cursor lands on table structure during lifecycle-driven reactivation */
+    preferredActiveCell?: ActiveCell | null;
 }
 
 export function resolveActivationTargetCell(params: {
@@ -87,12 +90,24 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         tableFrom: ctx.from,
         relativePos,
         cellRanges: ctx.cellRanges,
-        activeCell: getActiveCell(view.state),
+        activeCell: options?.preferredActiveCell ?? getActiveCell(view.state),
     });
+
+    const nextActiveCell = createActiveCellFromRanges({
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
+        target: targetCell,
+    });
+    if (!nextActiveCell) {
+        if (options?.clearIfOutside) {
+            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        }
+        return false;
+    }
 
     const resolvedCell = createResolvedActiveCell({
         ctx,
-        coords: targetCell,
+        coords: nextActiveCell.activeCell,
     });
 
     if (!resolvedCell) {
