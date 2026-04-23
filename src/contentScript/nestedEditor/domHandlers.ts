@@ -253,6 +253,14 @@ export function createNestedEditorDomHandlers(
                 if (mouseEvent.button === 2) {
                     options.syncSelectionToMain(view, mouseEvent);
                 }
+                // The nested editor is mounted inside the main editor DOM. If this bubbles,
+                // the outer CodeMirror instance can treat clicks on selection layers as
+                // outside-widget interactions and move the root cursor out of the table.
+                e.stopPropagation();
+                return false;
+            },
+            click: (e) => {
+                e.stopPropagation();
                 return false;
             },
             contextmenu: (e, view) => {
@@ -260,6 +268,7 @@ export function createNestedEditorDomHandlers(
                 if (mouseEvent.button === 2) {
                     options.syncSelectionToMain(view, mouseEvent);
                 }
+                e.stopPropagation();
                 return false;
             },
         }),
