@@ -193,7 +193,11 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         // Cell activation logic
         const cell = target.closest('td, th') as HTMLElement | null;
         if (!cell) {
-            return false;
+            // Consume the event to prevent CodeMirror's internal mousedown handler from
+            // repositioning the cursor. Without this, clicking the widget's horizontal
+            // scrollbar maps to a document position at or after the table, which clears
+            // the active cell state and closes the nested editor.
+            return true;
         }
 
         const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
