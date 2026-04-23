@@ -167,10 +167,10 @@ export const clearColumn = createReopeningStructuralOperation(
     (cell) => sameCell(cell)
 );
 
-export function deleteTable(view: EditorView, cell: ActiveCell): void {
+export function deleteTable(view: EditorView, cell: ActiveCell): boolean {
     const resolvedCell = resolveActiveCell(view.state, cell);
     if (!resolvedCell) {
-        return;
+        return false;
     }
 
     view.dispatch({
@@ -182,6 +182,8 @@ export function deleteTable(view: EditorView, cell: ActiveCell): void {
     });
 
     focusMainEditorWithoutScroll(view);
+
+    return true;
 }
 
 export function updateAlignment(

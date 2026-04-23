@@ -32,12 +32,11 @@ interface EditorControl {
 
 export function registerTableCommands(editorControl: EditorControl): void {
     // Wrapper to reduce boilerplate for commands requiring an active cell
-    const registerCellCommand = (name: string, action: (view: EditorView, cell: ActiveCell) => void) => {
+    const registerCellCommand = (name: string, action: (view: EditorView, cell: ActiveCell) => boolean) => {
         editorControl.registerCommand(name, () => {
             const cell = getActiveCell(editorControl.cm6.state);
             if (!cell) return false;
-            action(editorControl.cm6, cell);
-            return true;
+            return action(editorControl.cm6, cell);
         });
     };
 

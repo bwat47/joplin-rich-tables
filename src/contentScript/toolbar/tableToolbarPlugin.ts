@@ -118,7 +118,7 @@ export class TableToolbarPlugin {
         const doc = getViewDocument(this.view);
         this.dom.replaceChildren();
 
-        const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => boolean | void) => {
+        const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => boolean) => {
             const btn = doc.createElement('button');
             btn.title = title;
             btn.className = 'cm-table-toolbar-btn';
@@ -156,10 +156,10 @@ export class TableToolbarPlugin {
         );
     }
 
-    private getActionHandler(actionId: ToolbarActionId): () => boolean | void {
+    private getActionHandler(actionId: ToolbarActionId): () => boolean {
         return () => {
             if (!this.currentActiveCell) {
-                return;
+                return false;
             }
 
             switch (actionId) {
