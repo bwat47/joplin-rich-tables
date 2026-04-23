@@ -1,6 +1,6 @@
 {
     "name": "joplin-plugin-rich-tables",
-    "version": "1.7.14",
+    "version": "1.7.15",
     "scripts": {
         "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
         "prepare": "npm run dist",
@@ -30,7 +30,7 @@
         "@floating-ui/dom": "^1.7.4",
         "@joplin/fork-uslug": "^2.0.3",
         "@lezer/markdown": "^1.6.2",
-        "dompurify": "^3.3.1"
+        "dompurify": "^3.4.1"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.5",
