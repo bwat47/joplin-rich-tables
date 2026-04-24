@@ -87,15 +87,17 @@ function scanRawModeEffects(transactions: readonly Transaction[]): RawModeEffect
 }
 
 function extractOpenRequestId(update: ViewUpdate): string | null {
+    let requestId: string | null = null;
+
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
             if (effect.is(requestOpenActiveCellEffect)) {
-                return effect.value.requestId;
+                requestId = effect.value.requestId;
             }
         }
     }
 
-    return null;
+    return requestId;
 }
 
 export function buildTableRuntimeSnapshot(params: {

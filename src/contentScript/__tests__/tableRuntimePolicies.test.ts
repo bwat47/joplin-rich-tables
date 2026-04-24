@@ -457,6 +457,36 @@ describe('tableRuntimePolicies', () => {
         ]);
     });
 
+    it('uses the latest open request when an update contains multiple open signals', () => {
+        const activeCell = getHeaderCell();
+        const startState = createState({ activeCell });
+        const { event } = createViewUpdate(startState, {
+            effects: [
+                requestOpenActiveCellEffect.of({
+                    requestId: 'stale-request',
+                }),
+                requestOpenActiveCellEffect.of({
+                    requestId: 'latest-request',
+                }),
+            ],
+        });
+        const snapshot: TableRuntimeSnapshot = {
+            activeCell,
+            prevActiveCell: activeCell,
+            resolvedActiveCell: requireResolvedActiveCell(startState),
+            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
+            effectiveRawMode: false,
+            nestedEditorOpen: true,
+            hadActiveCell: true,
+            pendingFullReplaceRebuild: false,
+        };
+
+        expect(event.openRequestId).toBe('latest-request');
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+            { type: 'openRequestedCell', requestId: 'latest-request' },
+        ]);
+    });
+
     it('uses the resolved update range when undo or redo repositions the active cell', () => {
         const activeCell = getHeaderCell();
         const startState = createState({ activeCell });
