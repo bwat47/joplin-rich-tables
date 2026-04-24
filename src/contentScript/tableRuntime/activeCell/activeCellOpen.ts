@@ -40,7 +40,6 @@ export function prepareOpenActiveCellTransaction(
         normalizeIfNeeded,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: params.suppressKeys ?? false,
-        createdAt: Date.now(),
     };
 
     return {

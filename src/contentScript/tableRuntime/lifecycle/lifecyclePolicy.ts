@@ -48,7 +48,6 @@ export interface RawModeEffects {
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
-    | { type: 'openNestedEditor'; activeCell: ActiveCell; normalizeIfNeeded: boolean }
     | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
     | { type: 'syncMainDocToNested' }
     | { type: 'syncMainSelectionToNested' }
@@ -201,20 +200,6 @@ export function planTableLifecycleActions(
             ensureCursorVisibleIfNotActivated: false,
             normalizeIfNeeded: false,
             preserveMainSelection: false,
-        });
-        return actions;
-    }
-
-    if (event.forceRebuild && snapshot.activeCell && !event.isSync) {
-        // Fallback for rebuild-only transitions such as recovery and
-        // non-command table state restoration.
-        if (snapshot.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
-        }
-        actions.push({
-            type: 'openNestedEditor',
-            activeCell: snapshot.activeCell,
-            normalizeIfNeeded: false,
         });
         return actions;
     }

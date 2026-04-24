@@ -335,7 +335,7 @@ describe('tableRuntimePolicies', () => {
         ]);
     });
 
-    it('treats normalize-before-edit full table replacement as a controlled reopen', () => {
+    it('treats normalize-before-edit full table replacement as a controlled requested reopen', () => {
         const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
         let startState = createMarkdownState(nonCanonicalDoc, [
             activeCellField,
@@ -367,6 +367,9 @@ describe('tableRuntimePolicies', () => {
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
                 rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
+                requestOpenActiveCellEffect.of({
+                    requestId: 'normalize-request',
+                }),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
@@ -396,15 +399,23 @@ describe('tableRuntimePolicies', () => {
             planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
                 cursorInsideTableAfterUndoRedo: false,
             })
-        ).toEqual([{ type: 'openNestedEditor', activeCell: nextActiveCell.activeCell, normalizeIfNeeded: false }]);
+        ).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
     });
 
-    it('plans force rebuild as close and reopen of the nested editor', () => {
+    it('does not plan a generic reopen for rebuild-only transactions', () => {
         const activeCell = getHeaderCell();
         const startState = createState({ activeCell });
-        const { event } = createViewUpdate(startState, {
+        const tr = startState.update({
             effects: rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
         });
+        const update = {
+            startState,
+            state: tr.state,
+            transactions: [tr],
+            docChanged: tr.docChanged,
+            selectionSet: false,
+        } as unknown as TableRuntimeEvent['update'];
+        const event = buildTableRuntimeEvent(update, false);
         const snapshot: TableRuntimeSnapshot = {
             activeCell,
             prevActiveCell: activeCell,
@@ -416,10 +427,7 @@ describe('tableRuntimePolicies', () => {
             pendingFullReplaceRebuild: false,
         };
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
-            { type: 'closeNestedEditor', useResolvedRangeFromUpdate: false },
-            { type: 'openNestedEditor', activeCell, normalizeIfNeeded: false },
-        ]);
+        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([]);
     });
 
     it('prefers an explicit open request over the generic force-rebuild branch', () => {

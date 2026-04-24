@@ -102,7 +102,7 @@ function normalizeTableBeforeOpen(params: {
     view: EditorView;
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
     normalizeIfNeeded: boolean;
-    requestId?: string;
+    requestId: string;
 }): NormalizeBeforeOpenResult {
     if (!params.normalizeIfNeeded) {
         return 'not-needed';
@@ -127,10 +127,7 @@ function normalizeTableBeforeOpen(params: {
         return 'aborted';
     }
 
-    const currentRequest = params.requestId ? getOpenCellRequestById(params.view.state, params.requestId) : null;
-    if (params.requestId && !currentRequest) {
-        return 'aborted';
-    }
+    const currentRequest = getOpenCellRequestById(params.view.state, params.requestId);
     if (!currentRequest) {
         return 'aborted';
     }
@@ -266,23 +263,15 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         }
                         break;
                     case 'openRequestedCell':
-                    case 'openNestedEditor':
                         requestViewAnimationFrame(this.view, () => {
-                            const request =
-                                action.type === 'openRequestedCell'
-                                    ? getOpenCellRequestById(this.view.state, action.requestId)
-                                    : null;
-                            if (action.type === 'openRequestedCell' && !request) {
+                            const request = getOpenCellRequestById(this.view.state, action.requestId);
+                            if (!request) {
                                 return;
                             }
 
-                            const requestId = action.type === 'openRequestedCell' ? action.requestId : undefined;
-                            const targetActiveCell =
-                                action.type === 'openRequestedCell' ? request!.activeCell : action.activeCell;
-                            const normalizeIfNeeded =
-                                action.type === 'openRequestedCell'
-                                    ? request!.normalizeIfNeeded
-                                    : action.normalizeIfNeeded;
+                            const requestId = action.requestId;
+                            const targetActiveCell = request.activeCell;
+                            const normalizeIfNeeded = request.normalizeIfNeeded;
                             if (!this.view.dom.isConnected) {
                                 failOpenRequest(requestId);
                                 return;
@@ -330,19 +319,17 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
                                 featureSettings: getNestedEditorFeatureSettings(),
-                                initialCursorPos: request?.initialCursorPos,
+                                initialCursorPos: request.initialCursorPos,
                             });
                             if (!opened) {
                                 failOpenRequest(requestId);
                                 return;
                             }
-                            if (requestId) {
-                                requestViewAnimationFrame(this.view, () => {
-                                    this.view.dispatch({
-                                        effects: completeOpenCellRequestEffect.of({ requestId }),
-                                    });
+                            requestViewAnimationFrame(this.view, () => {
+                                this.view.dispatch({
+                                    effects: completeOpenCellRequestEffect.of({ requestId }),
                                 });
-                            }
+                            });
                         });
                         break;
                     case 'syncMainDocToNested':

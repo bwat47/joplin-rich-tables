@@ -1,7 +1,7 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
-import { isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { type ActiveCell } from '../tableState/activeCellState';
 
 const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 
@@ -11,7 +11,6 @@ export interface OpenCellRequest {
     normalizeIfNeeded: boolean;
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     suppressKeys: boolean;
-    createdAt: number;
 }
 
 export interface FinishOpenCellRequest {
@@ -99,23 +98,6 @@ export function getPendingOpenCellRequest(state: EditorState): OpenCellRequest |
 export function getOpenCellRequestById(state: EditorState, requestId: string): OpenCellRequest | null {
     const request = getPendingOpenCellRequest(state);
     if (!request || request.requestId !== requestId) {
-        return null;
-    }
-
-    return request;
-}
-
-export function getMatchingOpenCellRequest(
-    state: EditorState,
-    requestId: string,
-    activeCell?: ActiveCell
-): OpenCellRequest | null {
-    const request = getOpenCellRequestById(state, requestId);
-    if (!request) {
-        return null;
-    }
-
-    if (activeCell && !isSameActiveCell(request.activeCell, activeCell)) {
         return null;
     }
 

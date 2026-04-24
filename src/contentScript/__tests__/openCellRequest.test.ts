@@ -45,7 +45,6 @@ describe('openCellRequestField', () => {
                 activeCell,
                 normalizeIfNeeded: true,
                 suppressKeys: params?.suppressKeys ?? true,
-                createdAt: 1,
             }),
         }).state;
 
@@ -133,7 +132,6 @@ describe('openCellRequestField', () => {
                 activeCell,
                 normalizeIfNeeded: true,
                 suppressKeys: true,
-                createdAt: 1,
             }),
         });
 

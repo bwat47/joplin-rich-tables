@@ -57,7 +57,6 @@ function openRequestEffects(params: {
         normalizeIfNeeded: params.normalizeIfNeeded,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: false,
-        createdAt: 1,
     };
 
     return [
@@ -309,7 +308,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('does not pass a resolved range when force rebuild closes the nested editor', () => {
+    it('does not close the nested editor for rebuild-only active-cell changes without an explicit request', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -351,7 +350,8 @@ describe('nestedEditorLifecycle', () => {
             ],
         });
 
-        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
+        expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
+        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
 
         view.destroy();
     });
@@ -752,7 +752,15 @@ describe('nestedEditorLifecycle', () => {
 
         view.dispatch({
             changes: { from: tableFrom, to: tableTo, insert: updatedTable },
-            effects: [setActiveCellEffect.of(nextCell), rebuildTableWidgetsEffect.of({ tableFrom })],
+            effects: [
+                setActiveCellEffect.of(nextCell),
+                rebuildTableWidgetsEffect.of({ tableFrom }),
+                ...openRequestEffects({
+                    requestId: 'request-structural-reopen',
+                    activeCell: nextCell,
+                    normalizeIfNeeded: false,
+                }),
+            ],
         });
 
         view.dispatch({
