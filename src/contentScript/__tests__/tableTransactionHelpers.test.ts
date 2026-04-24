@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
@@ -9,11 +9,11 @@ import {
 } from '../tableRuntime/operations/runStructuralMutation';
 import { setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
-jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
+jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     resolveActiveCell: jest.fn(),
 }));
 
@@ -141,7 +141,7 @@ describe('tableTransactionHelpers', () => {
             effects.some((effect: { is?: (value: unknown) => boolean }) => effect.is?.(rebuildTableWidgetsEffect))
         ).toBe(true);
         const openRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
-            effect.is?.(requestOpenActiveCellEffect)
+            effect.is?.(requestOpenCellEffect)
         );
         const beginRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
             effect.is?.(beginOpenCellRequestEffect)
@@ -203,7 +203,7 @@ describe('tableTransactionHelpers', () => {
             effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
         };
         expect(dispatched.changes?.insert).toBe(updatedTableText);
-        expect(dispatched.effects.some((effect) => effect.is?.(requestOpenActiveCellEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
     });
 });

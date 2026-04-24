@@ -4,7 +4,7 @@ import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/source
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';

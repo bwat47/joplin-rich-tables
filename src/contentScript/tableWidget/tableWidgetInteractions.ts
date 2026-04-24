@@ -6,8 +6,8 @@ import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cell
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { openLink } from '../services/markdownRenderer';
 import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
-import { selectAndRequestOpenResolvedActiveCell } from '../tableRuntime/activeCell/activeCellOpen';
-import { createResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { requestOpenCell } from '../tableRuntime/openCellRequest';
+import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest('a');
@@ -242,8 +242,8 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
             }
         }
 
-        selectAndRequestOpenResolvedActiveCell(view, {
-            resolvedCell,
+        requestOpenCell(view, {
+            target: { resolvedCell },
             clearCellSelection: hasSelection,
             normalizeIfNeeded: true,
         });

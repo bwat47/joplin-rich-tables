@@ -1,5 +1,5 @@
 import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
-import { type ResolvedActiveCell } from './activeCell/activeCellResolver';
+import { type ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 import { isStructuralTableChange } from './lifecycle/structuralChangeDetection';
 
 export function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {

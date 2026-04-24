@@ -8,7 +8,7 @@ import { resolveTableAtPos } from '../tablePositioning';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
-import { selectAndRequestOpenActiveCell } from '../activeCell/activeCellOpen';
+import { requestOpenCell } from '../openCellRequest';
 
 function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
     if (getCellSelection(view.state)) {
@@ -56,11 +56,13 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    selectAndRequestOpenActiveCell(view, {
-        activeCell: nextActiveCell.activeCell,
+    requestOpenCell(view, {
+        target: {
+            activeCell: nextActiveCell.activeCell,
+            selectionAnchor: nextActiveCell.selectionAnchor,
+        },
         clearCellSelection: true,
         normalizeIfNeeded: true,
-        selectionAnchor: nextActiveCell.selectionAnchor,
         scrollIntoView: false,
     });
 

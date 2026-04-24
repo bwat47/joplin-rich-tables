@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
     runStructuralMutation,
     runStructuralMutationAndReopen,
@@ -32,7 +32,7 @@ jest.mock('../tableRuntime/operations/runStructuralMutation', () => ({
     runStructuralMutation: jest.fn(),
     runStructuralMutationAndReopen: jest.fn(),
 }));
-jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
+jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     resolveActiveCell: jest.fn(),
 }));
 

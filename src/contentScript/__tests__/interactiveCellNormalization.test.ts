@@ -9,7 +9,7 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 import {
     beginOpenCellRequestEffect,
     getPendingOpenCellRequest,
@@ -47,7 +47,7 @@ function getLastDispatchSpec(view: MutableTestView): TransactionSpec {
 
 function findOpenRequest(spec: TransactionSpec) {
     const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
-    return effects.find((effect) => effect?.is?.(requestOpenActiveCellEffect)) ?? null;
+    return effects.find((effect) => effect?.is?.(requestOpenCellEffect)) ?? null;
 }
 
 function findBeginOpenRequest(spec: TransactionSpec) {

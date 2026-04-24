@@ -16,7 +16,7 @@ import {
 } from '../editorBridge/cellTextCodec';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { ensureCellWrapper } from './mounting';
-import { resolveActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { resolveActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';

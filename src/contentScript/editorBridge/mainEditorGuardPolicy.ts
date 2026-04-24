@@ -4,7 +4,7 @@ import { getCellSelection } from '../tableState/cellSelectionState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import {

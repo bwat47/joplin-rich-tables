@@ -2,17 +2,17 @@ import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { resolveActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 
 import * as activeCellState from '../tableState/activeCellState';
 import { setActiveCellEffect } from '../tableState/activeCellState';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperations';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
-jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
+jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     resolveActiveCell: jest.fn(),
     retargetResolvedActiveCell: jest.fn(),
 }));
@@ -63,7 +63,7 @@ describe('navigateCell', () => {
     };
 
     const getSetActiveCellValue = () => getEffects().find((effect) => effect.is?.(setActiveCellEffect))?.value;
-    const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(requestOpenActiveCellEffect))?.value;
+    const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(requestOpenCellEffect))?.value;
     const getBeginRequestValue = () => getEffects().find((effect) => effect.is?.(beginOpenCellRequestEffect))?.value;
 
     const setupTable = (rows: number, cols: number) => {

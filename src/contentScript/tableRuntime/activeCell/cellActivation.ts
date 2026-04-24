@@ -9,8 +9,8 @@ import { findTableRanges } from '../tablePositioning';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
-import { createResolvedActiveCell } from './activeCellResolver';
-import { selectAndRequestOpenResolvedActiveCell } from './activeCellOpen';
+import { createResolvedActiveCell } from './resolvedActiveCell';
+import { requestOpenCell } from '../openCellRequest';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 
 export interface ActivateCellOptions {
@@ -117,8 +117,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    selectAndRequestOpenResolvedActiveCell(view, {
-        resolvedCell,
+    requestOpenCell(view, {
+        target: { resolvedCell },
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,
     });
@@ -157,8 +157,8 @@ export function activateTableCell(
 
         if (!resolvedCell) return;
 
-        selectAndRequestOpenResolvedActiveCell(view, {
-            resolvedCell,
+        requestOpenCell(view, {
+            target: { resolvedCell },
             normalizeIfNeeded: true,
         });
     });

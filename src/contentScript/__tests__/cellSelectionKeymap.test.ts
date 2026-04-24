@@ -13,7 +13,7 @@ import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 
 const markdownExtension = markdown({
     extensions: [GFM],
@@ -274,7 +274,7 @@ describe('cellSelectionKeymap', () => {
         });
         const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
         const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
-        expect(effects.some((effect) => effect?.is?.(requestOpenActiveCellEffect))).toBe(true);
+        expect(effects.some((effect) => effect?.is?.(requestOpenCellEffect))).toBe(true);
 
         view.destroy();
     });

@@ -8,7 +8,7 @@ import {
     type ActiveCell,
 } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
+import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
@@ -25,7 +25,7 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -367,7 +367,7 @@ describe('tableRuntimePolicies', () => {
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
                 rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
-                requestOpenActiveCellEffect.of({
+                requestOpenCellEffect.of({
                     requestId: 'normalize-request',
                 }),
             ],
@@ -435,7 +435,7 @@ describe('tableRuntimePolicies', () => {
         const startState = createState({ activeCell });
         const { event } = createViewUpdate(startState, {
             effects: [
-                requestOpenActiveCellEffect.of({
+                requestOpenCellEffect.of({
                     requestId: 'explicit-request',
                 }),
                 rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
@@ -462,10 +462,10 @@ describe('tableRuntimePolicies', () => {
         const startState = createState({ activeCell });
         const { event } = createViewUpdate(startState, {
             effects: [
-                requestOpenActiveCellEffect.of({
+                requestOpenCellEffect.of({
                     requestId: 'stale-request',
                 }),
-                requestOpenActiveCellEffect.of({
+                requestOpenCellEffect.of({
                     requestId: 'latest-request',
                 }),
             ],

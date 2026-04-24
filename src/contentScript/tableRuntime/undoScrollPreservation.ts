@@ -1,7 +1,7 @@
 import { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../tableState/activeCellState';
-import { getResolvedActiveCell } from './activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 import { transactionRequiresTableRebuild } from './tableTransactionHelpers';
 

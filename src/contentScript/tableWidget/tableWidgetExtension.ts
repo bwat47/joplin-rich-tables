@@ -7,7 +7,7 @@ import { initToolbarSettings } from '../services/toolbarSettings';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';

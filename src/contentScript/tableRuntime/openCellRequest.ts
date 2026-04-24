@@ -1,7 +1,9 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
-import { type ActiveCell } from '../tableState/activeCellState';
+import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
+import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
 const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 
@@ -15,6 +17,35 @@ export interface OpenCellRequest {
 
 export interface FinishOpenCellRequest {
     requestId: string;
+}
+
+export interface OpenCellRequestSignal {
+    requestId: string;
+}
+
+export type OpenCellRequestTarget =
+    | {
+          activeCell: ActiveCell;
+          selectionAnchor?: number;
+      }
+    | {
+          resolvedCell: ResolvedActiveCell;
+      };
+
+export interface RequestOpenCellParams {
+    target: OpenCellRequestTarget;
+    clearCellSelection?: boolean;
+    normalizeIfNeeded?: boolean;
+    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+    requestId?: string;
+    suppressKeys?: boolean;
+    scrollIntoView?: boolean;
+    preserveMainSelection?: boolean;
+}
+
+export interface PreparedOpenCellRequestTransaction {
+    selection?: { anchor: number };
+    effects: StateEffect<unknown>[];
 }
 
 let nextOpenCellRequestId = 1;
@@ -56,6 +87,53 @@ export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
 
 export const completeOpenCellRequestEffect = StateEffect.define<FinishOpenCellRequest>();
 export const failOpenCellRequestEffect = StateEffect.define<FinishOpenCellRequest>();
+export const requestOpenCellEffect = StateEffect.define<OpenCellRequestSignal>();
+
+function resolveOpenCellRequestTarget(target: OpenCellRequestTarget): {
+    activeCell: ActiveCell;
+    selectionAnchor?: number;
+} {
+    if ('resolvedCell' in target) {
+        return {
+            activeCell: target.resolvedCell.activeCell,
+            selectionAnchor: target.resolvedCell.editableFrom,
+        };
+    }
+
+    return target;
+}
+
+export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams): PreparedOpenCellRequestTransaction {
+    const requestId = params.requestId ?? createOpenCellRequestId();
+    const normalizeIfNeeded = params.normalizeIfNeeded ?? true;
+    const { activeCell, selectionAnchor } = resolveOpenCellRequestTarget(params.target);
+    const request: OpenCellRequest = {
+        requestId,
+        activeCell,
+        normalizeIfNeeded,
+        initialCursorPos: params.initialCursorPos,
+        suppressKeys: params.suppressKeys ?? false,
+    };
+
+    return {
+        ...(!params.preserveMainSelection && selectionAnchor != null ? { selection: { anchor: selectionAnchor } } : {}),
+        effects: [
+            ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+            setActiveCellEffect.of(activeCell),
+            beginOpenCellRequestEffect.of(request),
+            requestOpenCellEffect.of({
+                requestId,
+            }),
+        ],
+    };
+}
+
+export function requestOpenCell(view: EditorView, params: RequestOpenCellParams): void {
+    view.dispatch({
+        ...prepareOpenCellRequestTransaction(params),
+        scrollIntoView: params.scrollIntoView ?? false,
+    });
+}
 
 export const openCellRequestField = StateField.define<OpenCellRequest | null>({
     create() {

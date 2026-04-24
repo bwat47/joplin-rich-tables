@@ -9,8 +9,7 @@ import {
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { resolveActiveCell } from '../activeCell/activeCellResolver';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell, resolveActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -22,12 +21,12 @@ import { makeTableId } from '../../tableModel/types';
 import { findTableRanges } from '../tablePositioning';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
-import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
 import {
     beginOpenCellRequestEffect,
     completeOpenCellRequestEffect,
     failOpenCellRequestEffect,
     getOpenCellRequestById,
+    requestOpenCellEffect,
 } from '../openCellRequest';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
@@ -146,7 +145,7 @@ function normalizeTableBeforeOpen(params: {
                 activeCell: nextActiveCell.activeCell,
                 normalizeIfNeeded: false,
             }),
-            requestOpenActiveCellEffect.of({ requestId: currentRequest.requestId }),
+            requestOpenCellEffect.of({ requestId: currentRequest.requestId }),
             rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
         ],
         annotations: normalizeBeforeEditAnnotation.of(true),

@@ -9,11 +9,10 @@ import {
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { syncAnnotation } from '../../editorBridge/syncAnnotation';
-import { type ResolvedActiveCell } from '../activeCell/activeCellResolver';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
-import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../openCellRequest';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 
 export interface TableRuntimeSnapshot {
@@ -91,7 +90,7 @@ function extractOpenRequestId(update: ViewUpdate): string | null {
 
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
-            if (effect.is(requestOpenActiveCellEffect)) {
+            if (effect.is(requestOpenCellEffect)) {
                 requestId = effect.value.requestId;
             }
         }

@@ -1,11 +1,10 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/activeCellResolver';
+import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
-import { shouldSuppressNavigationKeys } from '../openCellRequest';
-import { selectAndRequestOpenResolvedActiveCell } from '../activeCell/activeCellOpen';
+import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 
 function insertRowFromKeyboardNavigation(
     view: EditorView,
@@ -123,8 +122,8 @@ export function navigateCell(
         return false;
     }
 
-    selectAndRequestOpenResolvedActiveCell(view, {
-        resolvedCell: nextResolvedCell,
+    requestOpenCell(view, {
+        target: { resolvedCell: nextResolvedCell },
         normalizeIfNeeded: true,
         initialCursorPos: options.cursorPos,
         suppressKeys: true,

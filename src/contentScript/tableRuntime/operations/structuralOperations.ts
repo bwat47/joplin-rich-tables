@@ -3,7 +3,7 @@ import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeC
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import type { TargetCell } from '../../tableModel/activeCellForTableText';
-import { resolveActiveCell } from '../activeCell/activeCellResolver';
+import { resolveActiveCell } from '../activeCell/resolvedActiveCell';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
