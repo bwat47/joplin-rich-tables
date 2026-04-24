@@ -525,6 +525,64 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('opens using the remapped request state when the document shifts before the RAF callback', () => {
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+        const insertedPrefix = 'before\n\n';
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc: CANONICAL_DOC,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    openCellRequestField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                ...openRequestEffects({
+                    requestId: 'request-remapped-before-open',
+                    activeCell,
+                    normalizeIfNeeded: false,
+                }),
+            ],
+        });
+
+        view.dispatch({
+            changes: { from: 0, to: 0, insert: insertedPrefix },
+        });
+
+        flushAnimationFrames();
+
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                activeCell: {
+                    ...activeCell,
+                    tableFrom: insertedPrefix.length,
+                },
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
+            })
+        );
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
     it('preserves the raw-mode text selection when exiting source mode into a nested editor', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const selectionFrom = doc.indexOf('H1');

@@ -96,13 +96,22 @@ export function getPendingOpenCellRequest(state: EditorState): OpenCellRequest |
     return state.field(openCellRequestField, false) ?? null;
 }
 
+export function getOpenCellRequestById(state: EditorState, requestId: string): OpenCellRequest | null {
+    const request = getPendingOpenCellRequest(state);
+    if (!request || request.requestId !== requestId) {
+        return null;
+    }
+
+    return request;
+}
+
 export function getMatchingOpenCellRequest(
     state: EditorState,
     requestId: string,
     activeCell?: ActiveCell
 ): OpenCellRequest | null {
-    const request = getPendingOpenCellRequest(state);
-    if (!request || request.requestId !== requestId) {
+    const request = getOpenCellRequestById(state, requestId);
+    if (!request) {
         return null;
     }
 

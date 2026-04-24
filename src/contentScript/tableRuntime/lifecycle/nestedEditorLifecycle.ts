@@ -27,8 +27,7 @@ import {
     beginOpenCellRequestEffect,
     completeOpenCellRequestEffect,
     failOpenCellRequestEffect,
-    getMatchingOpenCellRequest,
-    type OpenCellRequest,
+    getOpenCellRequestById,
 } from '../openCellRequest';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
@@ -97,24 +96,26 @@ function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell |
     };
 }
 
+type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
+
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
     normalizeIfNeeded: boolean;
-    request: OpenCellRequest;
-}): boolean {
+    requestId?: string;
+}): NormalizeBeforeOpenResult {
     if (!params.normalizeIfNeeded) {
-        return false;
+        return 'not-needed';
     }
 
     const resolved = getResolvedActiveCellFromStateOrExplicit(params.view.state, params.activeCell);
     if (!resolved) {
-        return false;
+        return 'not-needed';
     }
 
     const canonicalText = getCanonicalTableTextIfChanged(resolved.ctx);
     if (!canonicalText) {
-        return false;
+        return 'not-needed';
     }
 
     const nextActiveCell = createActiveCellForTableText({
@@ -123,14 +124,13 @@ function normalizeTableBeforeOpen(params: {
         target: params.activeCell,
     });
     if (!nextActiveCell) {
-        return true;
+        return 'aborted';
     }
 
-    const nextRequest: OpenCellRequest = {
-        ...params.request,
-        activeCell: nextActiveCell.activeCell,
-        normalizeIfNeeded: false,
-    };
+    const currentRequest = params.requestId ? getOpenCellRequestById(params.view.state, params.requestId) : null;
+    if (params.requestId && !currentRequest) {
+        return 'aborted';
+    }
 
     params.view.dispatch({
         changes: {
@@ -141,9 +141,17 @@ function normalizeTableBeforeOpen(params: {
         selection: { anchor: nextActiveCell.selectionAnchor },
         effects: [
             setActiveCellEffect.of(nextActiveCell.activeCell),
-            beginOpenCellRequestEffect.of(nextRequest),
+            ...(currentRequest
+                ? [
+                      beginOpenCellRequestEffect.of({
+                          ...currentRequest,
+                          activeCell: nextActiveCell.activeCell,
+                          normalizeIfNeeded: false,
+                      }),
+                  ]
+                : []),
             requestOpenActiveCellEffect.of({
-                requestId: params.request.requestId,
+                requestId: params.requestId,
                 activeCell: nextActiveCell.activeCell,
                 normalizeIfNeeded: false,
             }),
@@ -153,7 +161,7 @@ function normalizeTableBeforeOpen(params: {
         scrollIntoView: false,
     });
 
-    return true;
+    return 'normalized';
 }
 
 // ============================================================================
@@ -264,17 +272,29 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                     case 'openNestedEditor':
                         requestViewAnimationFrame(this.view, () => {
+                            const request = action.requestId
+                                ? getOpenCellRequestById(this.view.state, action.requestId)
+                                : null;
+                            if (action.requestId && !request) {
+                                return;
+                            }
+
+                            const targetActiveCell = request?.activeCell ?? getActiveCell(this.view.state);
                             if (!this.view.dom.isConnected) {
                                 failOpenRequest(action.requestId);
                                 return;
                             }
-                            if (!isSameActiveCell(getActiveCell(this.view.state), action.activeCell)) {
+                            if (!targetActiveCell) {
+                                failOpenRequest(action.requestId);
+                                return;
+                            }
+                            if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
                                 failOpenRequest(action.requestId);
                                 return;
                             }
                             const resolvedActiveCell = getResolvedActiveCellFromStateOrExplicit(
                                 this.view.state,
-                                action.activeCell
+                                targetActiveCell
                             );
                             if (!resolvedActiveCell) {
                                 failOpenRequest(action.requestId);
@@ -283,8 +303,8 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             }
                             const cellElement = findCellElement(
                                 this.view,
-                                makeTableId(action.activeCell.tableFrom),
-                                action.activeCell
+                                makeTableId(targetActiveCell.tableFrom),
+                                targetActiveCell
                             );
                             if (!cellElement) {
                                 failOpenRequest(action.requestId);
@@ -292,27 +312,17 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 return;
                             }
 
-                            const request = action.requestId
-                                ? getMatchingOpenCellRequest(this.view.state, action.requestId, action.activeCell)
-                                : null;
-                            if (action.requestId && !request) {
+                            const normalizeResult = normalizeTableBeforeOpen({
+                                view: this.view,
+                                activeCell: resolvedActiveCell.activeCell,
+                                normalizeIfNeeded: action.normalizeIfNeeded,
+                                requestId: action.requestId,
+                            });
+                            if (normalizeResult === 'normalized') {
                                 return;
                             }
-
-                            if (
-                                normalizeTableBeforeOpen({
-                                    view: this.view,
-                                    activeCell: resolvedActiveCell.activeCell,
-                                    normalizeIfNeeded: action.normalizeIfNeeded,
-                                    request: request ?? {
-                                        requestId: 'implicit-open',
-                                        activeCell: resolvedActiveCell.activeCell,
-                                        normalizeIfNeeded: action.normalizeIfNeeded,
-                                        suppressKeys: false,
-                                        createdAt: Date.now(),
-                                    },
-                                })
-                            ) {
+                            if (normalizeResult === 'aborted') {
+                                failOpenRequest(action.requestId);
                                 return;
                             }
 
