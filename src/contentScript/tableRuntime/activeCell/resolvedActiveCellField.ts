@@ -4,12 +4,9 @@ import { resolveActiveCell, type ResolvedActiveCell } from './activeCellResolver
 import type { EditorState } from '@codemirror/state';
 
 /**
- * Caches the resolved active cell (Lezer tree lookup + cell range derivation) per editor state.
- * CodeMirror reuses this cached value for all readers of the same state, eliminating the
- * 4–5 redundant resolveActiveCell calls that otherwise occur on every keystroke.
- *
- * Resolution depends on the active cell identity and document content, so it is re-derived
- * whenever either changes.
+ * Caches the resolved active cell per EditorState so transaction filters,
+ * lifecycle handling, and decoration policy can share one resolution result
+ * instead of each re-running table lookup and cell range derivation.
  */
 export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | null>({
     create(state) {
