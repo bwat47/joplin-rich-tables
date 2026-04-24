@@ -3,7 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell } from './activeCell/resolvedActiveCellField';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
-import { transactionRequiresTableRebuild } from './lifecycle/lifecyclePolicy';
+import { transactionRequiresTableRebuild } from './tableTransactionHelpers';
 
 /**
  * Injects a scroll snapshot effect into undo/redo transactions while a nested

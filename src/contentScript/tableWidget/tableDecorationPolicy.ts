@@ -7,7 +7,7 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCellField';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
-import { transactionRequiresTableRebuild } from '../tableRuntime/lifecycle/lifecyclePolicy';
+import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 
 export type DecorationDecision =
     | { type: 'keepDecorations' }

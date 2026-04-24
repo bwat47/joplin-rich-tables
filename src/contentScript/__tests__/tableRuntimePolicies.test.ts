@@ -15,10 +15,10 @@ import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../t
 import {
     buildTableRuntimeEvent,
     planTableLifecycleActions,
-    transactionRequiresTableRebuild,
     type TableRuntimeEvent,
     type TableRuntimeSnapshot,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
+import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';

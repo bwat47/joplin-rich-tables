@@ -16,7 +16,7 @@ import {
     type RootTablePasteRewrite,
 } from '../tableRuntime/operations/pasteTableNormalizer';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
-import { mapSelectionRange } from '../tableRuntime/lifecycle/lifecyclePolicy';
+import { mapSelectionRange } from '../tableRuntime/tableTransactionHelpers';
 
 export type GuardDecision =
     | { type: 'allowTransaction' }

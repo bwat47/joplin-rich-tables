@@ -1,4 +1,4 @@
-import { ChangeSet, EditorSelection, SelectionRange, Transaction } from '@codemirror/state';
+import { Transaction } from '@codemirror/state';
 import { ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
@@ -12,9 +12,9 @@ import { syncAnnotation } from '../../editorBridge/syncAnnotation';
 import { type ResolvedActiveCell } from '../activeCell/activeCellResolver';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
-import { isStructuralTableChange } from './structuralChangeDetection';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
 import { requestOpenActiveCellEffect, type OpenActiveCellRequest } from '../activeCell/activeCellOpen';
+import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 
 export interface TableRuntimeSnapshot {
     activeCell: ActiveCell | null;
@@ -139,22 +139,6 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
         hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
         openRequest: extractOpenRequest(update),
     };
-}
-
-export function transactionRequiresTableRebuild(tr: Transaction, activeCell: ResolvedActiveCell | null): boolean {
-    if (!activeCell) {
-        return false;
-    }
-
-    if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) {
-        return false;
-    }
-
-    if (isStructuralTableChange(tr)) {
-        return true;
-    }
-
-    return transactionChangesOutsideCell(tr, activeCell);
 }
 
 export function planTableLifecycleActions(
@@ -321,21 +305,4 @@ function shouldClearActiveCellWhenSelectionLeavesTable(
 
 function isPositionInsideRange(pos: number, from: number, to: number): boolean {
     return pos >= from && pos <= to;
-}
-
-function transactionChangesOutsideCell(tr: Transaction, activeCell: ResolvedActiveCell): boolean {
-    let outsideCell = false;
-    tr.changes.iterChanges((fromA, toA) => {
-        if (outsideCell) {
-            return;
-        }
-        if (fromA < activeCell.editableFrom || toA > activeCell.editableTo) {
-            outsideCell = true;
-        }
-    });
-    return outsideCell;
-}
-
-export function mapSelectionRange(range: SelectionRange, changeSet: ChangeSet): SelectionRange {
-    return EditorSelection.range(changeSet.mapPos(range.anchor, 1), changeSet.mapPos(range.head, 1));
 }
