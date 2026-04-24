@@ -66,7 +66,7 @@ define paragraph-splitting behavior.
 6. **Dispatch**:
     - `runStructuralMutation()` replaces the table range and updates active-cell state.
     - `runStructuralMutationAndReopen()` does the same work, then also sets the main-editor selection,
-      registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, forces a widget rebuild,
+      registers an explicit open-cell request, dispatches `requestOpenActiveCellEffect`, forces a widget rebuild,
       and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.

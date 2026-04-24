@@ -47,7 +47,7 @@ export interface RawModeEffects {
 }
 
 export type TableRuntimeAction =
-    | { type: 'openNestedEditor'; activeCell: ActiveCell; normalizeIfNeeded: boolean }
+    | { type: 'openNestedEditor'; requestId?: string; activeCell: ActiveCell; normalizeIfNeeded: boolean }
     | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
     | { type: 'syncMainDocToNested' }
     | { type: 'syncMainSelectionToNested' }
@@ -157,6 +157,7 @@ export function planTableLifecycleActions(
         // dismiss and reopen the IME when switching cells by tap.
         actions.push({
             type: 'openNestedEditor',
+            requestId: event.openRequest.requestId,
             activeCell: event.openRequest.activeCell,
             normalizeIfNeeded: event.openRequest.normalizeIfNeeded,
         });

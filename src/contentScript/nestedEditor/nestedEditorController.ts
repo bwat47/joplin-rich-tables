@@ -15,7 +15,6 @@ import {
     unsanitizeRootText,
 } from '../editorBridge/cellTextCodec';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { consumePendingNavigationCallback } from '../tableRuntime/navigationLock';
 import { ensureCellWrapper } from './mounting';
 import { resolveActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
@@ -84,13 +83,12 @@ class NestedEditorController {
         activeCell: ActiveCell;
         featureSettings: NestedEditorFeatureSettings;
         initialCursorPos?: 'start' | 'end' | 'lastLineStart';
-        onFocused?: () => void;
-    }): void {
+    }): boolean {
         this.close();
 
         const resolved = resolveActiveCell(params.mainView.state, params.activeCell);
         if (!resolved) {
-            return;
+            return false;
         }
 
         this.mainView = params.mainView;
@@ -182,10 +180,7 @@ class NestedEditorController {
         this.flushSelectionToRoot();
         session.editor.contentDOM.focus();
 
-        requestViewAnimationFrame(params.mainView, () => {
-            params.onFocused?.();
-            consumePendingNavigationCallback()?.();
-        });
+        return true;
     }
 
     handleMainEditorUpdate(update: ViewUpdate): void {
@@ -506,9 +501,8 @@ export function openNestedEditor(params: {
     activeCell: ActiveCell;
     featureSettings: NestedEditorFeatureSettings;
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
-    onFocused?: () => void;
-}): void {
-    getController(params.mainView)?.open(params);
+}): boolean {
+    return getController(params.mainView)?.open(params) ?? false;
 }
 
 export function closeNestedEditor(view: EditorView, params?: { contentFrom?: number; contentTo?: number }): void {

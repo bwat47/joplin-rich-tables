@@ -21,7 +21,12 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
-import { rememberPendingCellOpen } from '../nestedEditor/pendingCellOpen';
+import {
+    beginOpenCellRequestEffect,
+    getPendingOpenCellRequest,
+    openCellRequestField,
+    type OpenCellRequest,
+} from '../tableRuntime/openCellRequest';
 import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 
@@ -39,6 +44,31 @@ const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEdito
 };
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+
+function openRequestEffects(params: {
+    requestId: string;
+    activeCell: ActiveCell;
+    normalizeIfNeeded: boolean;
+    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+}) {
+    const request: OpenCellRequest = {
+        requestId: params.requestId,
+        activeCell: params.activeCell,
+        normalizeIfNeeded: params.normalizeIfNeeded,
+        initialCursorPos: params.initialCursorPos,
+        suppressKeys: false,
+        createdAt: 1,
+    };
+
+    return [
+        beginOpenCellRequestEffect.of(request),
+        requestOpenActiveCellEffect.of({
+            requestId: params.requestId,
+            activeCell: params.activeCell,
+            normalizeIfNeeded: params.normalizeIfNeeded,
+        }),
+    ];
+}
 
 jest.mock('../tableRuntime/activeCell/cellActivation', () => ({
     activateCellAtPosition: (...args: unknown[]) => activateCellAtPositionMock(...args),
@@ -81,6 +111,7 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.closeNestedEditor.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReset();
+        nestedEditorControllerMock.openNestedEditor.mockReturnValue(true);
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
         animationFrameQueue = [];
         globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
@@ -105,6 +136,7 @@ describe('nestedEditorLifecycle', () => {
                 extensions: [
                     markdown({ extensions: [GFM] }),
                     activeCellField,
+                    openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
                     nestedEditorLifecyclePlugin,
@@ -145,6 +177,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,
@@ -188,6 +221,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,
@@ -240,6 +274,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,
@@ -292,6 +327,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,
@@ -340,6 +376,7 @@ describe('nestedEditorLifecycle', () => {
                 extensions: [
                     markdown({ extensions: [GFM] }),
                     activeCellField,
+                    openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
                     nestedEditorLifecyclePlugin,
@@ -347,14 +384,14 @@ describe('nestedEditorLifecycle', () => {
             }),
         });
 
-        rememberPendingCellOpen(view, activeCell, { initialCursorPos: 'end' });
-
         view.dispatch({
             effects: [
                 setActiveCellEffect.of(activeCell),
-                requestOpenActiveCellEffect.of({
+                ...openRequestEffects({
+                    requestId: 'request-direct',
                     activeCell,
                     normalizeIfNeeded: false,
+                    initialCursorPos: 'end',
                 }),
             ],
         });
@@ -369,6 +406,52 @@ describe('nestedEditorLifecycle', () => {
                 initialCursorPos: 'end',
             })
         );
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
+    it('fails the matching request when the cell element cannot be found', () => {
+        findCellElementMock.mockReturnValueOnce(null);
+        const doc = CANONICAL_DOC;
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    openCellRequestField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                ...openRequestEffects({
+                    requestId: 'request-missing-cell',
+                    activeCell,
+                    normalizeIfNeeded: false,
+                }),
+            ],
+        });
+        flushAnimationFrames();
+
+        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
         view.destroy();
     });
@@ -390,6 +473,7 @@ describe('nestedEditorLifecycle', () => {
                 extensions: [
                     markdown({ extensions: [GFM] }),
                     activeCellField,
+                    openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
                     nestedEditorLifecyclePlugin,
@@ -398,14 +482,14 @@ describe('nestedEditorLifecycle', () => {
         });
         const dispatchSpy = jest.spyOn(view, 'dispatch');
 
-        rememberPendingCellOpen(view, activeCell, { initialCursorPos: 'end' });
-
         view.dispatch({
             effects: [
                 setActiveCellEffect.of(activeCell),
-                requestOpenActiveCellEffect.of({
+                ...openRequestEffects({
+                    requestId: 'request-normalize',
                     activeCell,
                     normalizeIfNeeded: true,
+                    initialCursorPos: 'end',
                 }),
             ],
         });
@@ -436,6 +520,7 @@ describe('nestedEditorLifecycle', () => {
                 initialCursorPos: 'end',
             })
         );
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
         view.destroy();
     });
@@ -452,6 +537,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,
@@ -500,6 +586,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,
@@ -554,6 +641,7 @@ describe('nestedEditorLifecycle', () => {
             extensions: [
                 markdown({ extensions: [GFM] }),
                 activeCellField,
+                openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
                 nestedEditorLifecyclePlugin,

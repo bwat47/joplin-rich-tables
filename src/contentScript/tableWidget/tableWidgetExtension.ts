@@ -24,7 +24,11 @@ import { richTableThemeVars } from './richTableThemeVars';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelWatcherPlugin } from '../tableRuntime/searchPanelWatcher';
-import { navigationLockKeymap } from './navigationLockKeymap';
+import {
+    openCellRequestField,
+    openCellRequestKeymap,
+    openCellRequestTimeoutPlugin,
+} from '../tableRuntime/openCellRequest';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import {
@@ -80,9 +84,11 @@ export default function (context: ContentScriptContext) {
                 nestedEditorPlugin,
                 activeCellField,
                 resolvedActiveCellField,
+                openCellRequestField,
                 cellSelectionField,
                 createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
-                navigationLockKeymap, // Block Tab/Enter during row creation rebuild
+                openCellRequestKeymap,
+                openCellRequestTimeoutPlugin,
 
                 tableWidgetInteractionHandlers,
                 closeOnOutsideMouseDown,

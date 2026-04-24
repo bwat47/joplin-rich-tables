@@ -4,12 +4,12 @@ import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { resolveActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/activeCellResolver';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
-import { isNavigationLocked, resetNavigationLock } from '../tableRuntime/navigationLock';
 
 import * as activeCellState from '../tableState/activeCellState';
 import { setActiveCellEffect } from '../tableState/activeCellState';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperations';
+import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
 jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
@@ -28,9 +28,6 @@ describe('navigateCell', () => {
     let getActiveCellSpy: jest.SpyInstance;
 
     beforeEach(() => {
-        // Reset navigation lock to ensure clean state between tests
-        resetNavigationLock();
-
         mockDispatch = jest.fn();
         mockState = {
             field: jest.fn(),
@@ -59,10 +56,6 @@ describe('navigateCell', () => {
         (insertRowAtBottom as jest.Mock).mockReset();
     });
 
-    afterEach(() => {
-        resetNavigationLock();
-    });
-
     const getEffects = () => {
         const spec = mockDispatch.mock.calls[0]?.[0];
         const effects = spec?.effects;
@@ -71,6 +64,7 @@ describe('navigateCell', () => {
 
     const getSetActiveCellValue = () => getEffects().find((effect) => effect.is?.(setActiveCellEffect))?.value;
     const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(requestOpenActiveCellEffect))?.value;
+    const getBeginRequestValue = () => getEffects().find((effect) => effect.is?.(beginOpenCellRequestEffect))?.value;
 
     const setupTable = (rows: number, cols: number) => {
         const headers = Array(cols).fill({});
@@ -139,6 +133,10 @@ describe('navigateCell', () => {
         expect(getOpenRequestValue()).toMatchObject({
             normalizeIfNeeded: true,
         });
+        expect(getOpenRequestValue().requestId).toBe(getBeginRequestValue().requestId);
+        expect(getBeginRequestValue()).toMatchObject({
+            suppressKeys: true,
+        });
         expect(mockDispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 selection: { anchor: 10 },
@@ -197,12 +195,10 @@ describe('navigateCell', () => {
             expect.anything(),
             0,
             expect.objectContaining({
-                onFocused: expect.any(Function),
+                suppressKeys: true,
             })
         );
-        expect(isNavigationLocked()).toBe(true);
-        openOptions.onFocused();
-        expect(isNavigationLocked()).toBe(false);
+        expect(openOptions).toEqual(expect.objectContaining({ suppressKeys: true }));
     });
 
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
@@ -211,20 +207,15 @@ describe('navigateCell', () => {
         (insertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
-        const openOptions = (insertRowAtBottom as jest.Mock).mock.calls[0][3];
-
         expect(result).toBe(true);
         expect(insertRowAtBottom).toHaveBeenCalledWith(
             mockView,
             expect.anything(),
             1,
             expect.objectContaining({
-                onFocused: expect.any(Function),
+                suppressKeys: true,
             })
         );
-        expect(isNavigationLocked()).toBe(true);
-        openOptions.onFocused();
-        expect(isNavigationLocked()).toBe(false);
     });
 
     it('should NOT add row at end of table if allowRowCreation is false', () => {
@@ -237,7 +228,7 @@ describe('navigateCell', () => {
         expect(insertRowAtBottom).not.toHaveBeenCalled();
     });
 
-    it('should not hand off focus and should release navigation lock when row creation fails', () => {
+    it('should not hand off focus when row creation fails', () => {
         setupTable(1, 2);
         setupActiveCell(SECTION_BODY, 0, 1);
         (insertRowAtBottom as jest.Mock).mockReturnValue(false);
@@ -246,7 +237,6 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
-        expect(isNavigationLocked()).toBe(false);
     });
 
     it('should navigate previous from body start to header end', () => {

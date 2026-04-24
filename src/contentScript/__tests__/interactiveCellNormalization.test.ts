@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
@@ -9,9 +9,8 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEditor/pendingCellOpen';
-import { resetNavigationLock } from '../tableRuntime/navigationLock';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 
@@ -60,6 +59,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
         activeCellField,
         cellSelectionField,
         sourceModeField,
+        openCellRequestField,
     ]);
     if (params?.activeCell) {
         currentState = currentState.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
@@ -128,14 +128,6 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
 }
 
 describe('interactive cell normalization', () => {
-    beforeEach(() => {
-        resetNavigationLock();
-    });
-
-    afterEach(() => {
-        resetNavigationLock();
-    });
-
     it('normalizes on mousedown cell activation before opening the nested editor', () => {
         const { view, cells } = createViewHarness();
         const event = {
@@ -275,10 +267,9 @@ describe('interactive cell normalization', () => {
             col: 1,
         });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
-        expect(consumePendingCellOpenOptions(view, activeCell!)).toEqual({
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            activeCell,
             initialCursorPos: 'end',
         });
-
-        clearPendingCellOpen(view);
     });
 });

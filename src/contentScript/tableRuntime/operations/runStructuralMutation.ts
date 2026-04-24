@@ -22,9 +22,9 @@ export interface RunStructuralMutationParams {
 
 export interface StructuralReopenOptions {
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
-    onFocused?: () => void;
     afterDispatch?: () => void;
     clearCellSelection?: boolean;
+    suppressKeys?: boolean;
 }
 
 export interface RunStructuralMutationAndReopenParams
@@ -112,8 +112,8 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
         selectionAnchor: prepared.nextActiveCell.selectionAnchor,
         normalizeIfNeeded: false,
         initialCursorPos: params.initialCursorPos,
-        onFocused: params.onFocused,
         clearCellSelection: params.clearCellSelection,
+        suppressKeys: params.suppressKeys,
     });
 
     params.view.dispatch({
