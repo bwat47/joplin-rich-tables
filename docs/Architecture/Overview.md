@@ -6,7 +6,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 - `tableModel/`: pure table parsing, serialization, and table math.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions and selectors.
-- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
+- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/`, `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.
@@ -33,18 +33,18 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Core Components
 
-| Component     | File                                                            | Purpose                                                    |
-| :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`             | Main entry point; connects plugins, styles, commands.      |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering, click-to-cell coordinate mapping.          |
-| **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.  |
-| **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                           |
-| **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                   |
-| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, parsing, serialization, mutations. |
-| **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.            |
-| **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.               |
-| **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Table mutation orchestration and target-cell rebasing.     |
-| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row/column/alignment actions.              |
+| Component     | File                                                            | Purpose                                                          |
+| :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------------- |
+| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`             | Main entry point; initializes services and assembles extensions. |
+| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering, click-to-cell coordinate mapping.                |
+| **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.        |
+| **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                                 |
+| **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                         |
+| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, parsing, serialization, mutations.       |
+| **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.                  |
+| **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
+| **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Table mutation orchestration and target-cell rebasing.           |
+| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row/column/alignment actions.                    |
 
 ## Data Flow
 
