@@ -130,10 +130,10 @@ describe('navigateCell', () => {
             row: 0,
             col: 1,
         });
-        expect(getOpenRequestValue()).toMatchObject({
+        expect(getBeginRequestValue()).toMatchObject({
             normalizeIfNeeded: true,
         });
-        expect(getOpenRequestValue().requestId).toBe(getBeginRequestValue().requestId);
+        expect(getOpenRequestValue()).toEqual({ requestId: getBeginRequestValue().requestId });
         expect(getBeginRequestValue()).toMatchObject({
             suppressKeys: true,
         });

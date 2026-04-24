@@ -321,7 +321,7 @@ describe('tableRuntimePolicies', () => {
             enteredRawMode: false,
             exitedRawMode: true,
             hasFullDocumentReplace: false,
-            openRequest: null,
+            openRequestId: null,
         } satisfies TableRuntimeEvent;
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
@@ -428,8 +428,7 @@ describe('tableRuntimePolicies', () => {
         const { event } = createViewUpdate(startState, {
             effects: [
                 requestOpenActiveCellEffect.of({
-                    activeCell,
-                    normalizeIfNeeded: false,
+                    requestId: 'explicit-request',
                 }),
                 rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
             ],
@@ -446,7 +445,7 @@ describe('tableRuntimePolicies', () => {
         };
 
         expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
-            { type: 'openNestedEditor', activeCell, normalizeIfNeeded: false },
+            { type: 'openRequestedCell', requestId: 'explicit-request' },
         ]);
     });
 

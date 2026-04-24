@@ -11,6 +11,7 @@ import { setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 jest.mock('../tableRuntime/activeCell/activeCellResolver', () => ({
     resolveActiveCell: jest.fn(),
@@ -142,10 +143,14 @@ describe('tableTransactionHelpers', () => {
         const openRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
             effect.is?.(requestOpenActiveCellEffect)
         );
-        expect(openRequest?.value).toMatchObject({
+        const beginRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
+            effect.is?.(beginOpenCellRequestEffect)
+        );
+        expect(beginRequest?.value).toMatchObject({
             activeCell: { section: 'body', row: 1, col: 1 },
             normalizeIfNeeded: false,
         });
+        expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
     });
 
     it('does not run the post-dispatch callback when row insertion is a no-op', () => {

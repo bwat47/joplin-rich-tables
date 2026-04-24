@@ -5,10 +5,8 @@ import { clearCellSelectionEffect } from '../../tableState/cellSelectionState';
 import type { ResolvedActiveCell } from './activeCellResolver';
 import { beginOpenCellRequestEffect, createOpenCellRequestId, type OpenCellRequest } from '../openCellRequest';
 
-export interface OpenActiveCellRequest {
-    requestId?: string;
-    activeCell: ActiveCell;
-    normalizeIfNeeded: boolean;
+export interface OpenActiveCellRequestSignal {
+    requestId: string;
 }
 
 export interface SelectAndRequestOpenActiveCellParams {
@@ -28,7 +26,7 @@ export interface PreparedOpenActiveCellTransaction {
     effects: StateEffect<unknown>[];
 }
 
-export const requestOpenActiveCellEffect = StateEffect.define<OpenActiveCellRequest>();
+export const requestOpenActiveCellEffect = StateEffect.define<OpenActiveCellRequestSignal>();
 
 export function prepareOpenActiveCellTransaction(
     _view: EditorView,
@@ -55,8 +53,6 @@ export function prepareOpenActiveCellTransaction(
             beginOpenCellRequestEffect.of(request),
             requestOpenActiveCellEffect.of({
                 requestId,
-                activeCell: params.activeCell,
-                normalizeIfNeeded,
             }),
         ],
     };

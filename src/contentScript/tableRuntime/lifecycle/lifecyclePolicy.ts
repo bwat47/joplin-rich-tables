@@ -13,7 +13,7 @@ import { type ResolvedActiveCell } from '../activeCell/activeCellResolver';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
-import { requestOpenActiveCellEffect, type OpenActiveCellRequest } from '../activeCell/activeCellOpen';
+import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 
 export interface TableRuntimeSnapshot {
@@ -37,7 +37,7 @@ export interface TableRuntimeEvent {
     enteredRawMode: boolean;
     exitedRawMode: boolean;
     hasFullDocumentReplace: boolean;
-    openRequest: OpenActiveCellRequest | null;
+    openRequestId: string | null;
 }
 
 export interface RawModeEffects {
@@ -47,7 +47,8 @@ export interface RawModeEffects {
 }
 
 export type TableRuntimeAction =
-    | { type: 'openNestedEditor'; requestId?: string; activeCell: ActiveCell; normalizeIfNeeded: boolean }
+    | { type: 'openRequestedCell'; requestId: string }
+    | { type: 'openNestedEditor'; activeCell: ActiveCell; normalizeIfNeeded: boolean }
     | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
     | { type: 'syncMainDocToNested' }
     | { type: 'syncMainSelectionToNested' }
@@ -86,11 +87,11 @@ function scanRawModeEffects(transactions: readonly Transaction[]): RawModeEffect
     return { exitedSourceMode, exitedSearchForce, hadRawModeToggle };
 }
 
-function extractOpenRequest(update: ViewUpdate): OpenActiveCellRequest | null {
+function extractOpenRequestId(update: ViewUpdate): string | null {
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
             if (effect.is(requestOpenActiveCellEffect)) {
-                return effect.value;
+                return effect.value.requestId;
             }
         }
     }
@@ -137,7 +138,7 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
             rawModeEffects.hadRawModeToggle && !previousEffectiveRawMode && isEffectiveRawMode(update.state),
         exitedRawMode: rawModeEffects.hadRawModeToggle && previousEffectiveRawMode && !isEffectiveRawMode(update.state),
         hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
-        openRequest: extractOpenRequest(update),
+        openRequestId: extractOpenRequestId(update),
     };
 }
 
@@ -149,17 +150,15 @@ export function planTableLifecycleActions(
     const { update, rawModeEffects } = event;
     const actions: TableRuntimeAction[] = [];
 
-    if (event.openRequest) {
+    if (event.openRequestId) {
         // Command-driven structural mutations and direct cell activations
         // route through the explicit open path. The session controller still
         // closes the previous editor before mounting the next one, but doing
         // both in one path avoids the blur/focus gap that makes Android
         // dismiss and reopen the IME when switching cells by tap.
         actions.push({
-            type: 'openNestedEditor',
-            requestId: event.openRequest.requestId,
-            activeCell: event.openRequest.activeCell,
-            normalizeIfNeeded: event.openRequest.normalizeIfNeeded,
+            type: 'openRequestedCell',
+            requestId: event.openRequestId,
         });
         return actions;
     }

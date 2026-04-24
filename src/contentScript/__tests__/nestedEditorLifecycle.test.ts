@@ -64,8 +64,6 @@ function openRequestEffects(params: {
         beginOpenCellRequestEffect.of(request),
         requestOpenActiveCellEffect.of({
             requestId: params.requestId,
-            activeCell: params.activeCell,
-            normalizeIfNeeded: params.normalizeIfNeeded,
         }),
     ];
 }
@@ -456,6 +454,35 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('ignores a request-open signal when the pending request is missing', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc: CANONICAL_DOC,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    openCellRequestField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: requestOpenActiveCellEffect.of({ requestId: 'missing-request' }),
+        });
+        flushAnimationFrames();
+
+        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
     it('normalizes before opening and preserves pending cursor placement', () => {
         const activeCell: ActiveCell = {
             tableFrom: 0,
@@ -501,8 +528,17 @@ describe('nestedEditorLifecycle', () => {
             .map((call) => call[0])
             .find((spec) => {
                 const effects = Array.isArray(spec?.effects) ? spec.effects : [spec?.effects];
-                return effects.some(
-                    (effect) => effect?.is?.(requestOpenActiveCellEffect) && effect.value?.normalizeIfNeeded === false
+                return (
+                    effects.some(
+                        (effect) =>
+                            effect?.is?.(beginOpenCellRequestEffect) &&
+                            effect.value?.requestId === 'request-normalize' &&
+                            effect.value?.normalizeIfNeeded === false
+                    ) &&
+                    effects.some(
+                        (effect) =>
+                            effect?.is?.(requestOpenActiveCellEffect) && effect.value?.requestId === 'request-normalize'
+                    )
                 );
             });
 

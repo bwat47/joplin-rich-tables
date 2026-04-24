@@ -131,6 +131,9 @@ function normalizeTableBeforeOpen(params: {
     if (params.requestId && !currentRequest) {
         return 'aborted';
     }
+    if (!currentRequest) {
+        return 'aborted';
+    }
 
     params.view.dispatch({
         changes: {
@@ -141,20 +144,12 @@ function normalizeTableBeforeOpen(params: {
         selection: { anchor: nextActiveCell.selectionAnchor },
         effects: [
             setActiveCellEffect.of(nextActiveCell.activeCell),
-            ...(currentRequest
-                ? [
-                      beginOpenCellRequestEffect.of({
-                          ...currentRequest,
-                          activeCell: nextActiveCell.activeCell,
-                          normalizeIfNeeded: false,
-                      }),
-                  ]
-                : []),
-            requestOpenActiveCellEffect.of({
-                requestId: params.requestId,
+            beginOpenCellRequestEffect.of({
+                ...currentRequest,
                 activeCell: nextActiveCell.activeCell,
                 normalizeIfNeeded: false,
             }),
+            requestOpenActiveCellEffect.of({ requestId: currentRequest.requestId }),
             rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
         ],
         annotations: normalizeBeforeEditAnnotation.of(true),
@@ -270,26 +265,30 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             closeNestedEditor(this.view);
                         }
                         break;
+                    case 'openRequestedCell':
                     case 'openNestedEditor':
                         requestViewAnimationFrame(this.view, () => {
-                            const request = action.requestId
-                                ? getOpenCellRequestById(this.view.state, action.requestId)
-                                : null;
-                            if (action.requestId && !request) {
+                            const request =
+                                action.type === 'openRequestedCell'
+                                    ? getOpenCellRequestById(this.view.state, action.requestId)
+                                    : null;
+                            if (action.type === 'openRequestedCell' && !request) {
                                 return;
                             }
 
-                            const targetActiveCell = request?.activeCell ?? getActiveCell(this.view.state);
+                            const requestId = action.type === 'openRequestedCell' ? action.requestId : undefined;
+                            const targetActiveCell =
+                                action.type === 'openRequestedCell' ? request!.activeCell : action.activeCell;
+                            const normalizeIfNeeded =
+                                action.type === 'openRequestedCell'
+                                    ? request!.normalizeIfNeeded
+                                    : action.normalizeIfNeeded;
                             if (!this.view.dom.isConnected) {
-                                failOpenRequest(action.requestId);
-                                return;
-                            }
-                            if (!targetActiveCell) {
-                                failOpenRequest(action.requestId);
+                                failOpenRequest(requestId);
                                 return;
                             }
                             if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
-                                failOpenRequest(action.requestId);
+                                failOpenRequest(requestId);
                                 return;
                             }
                             const resolvedActiveCell = getResolvedActiveCellFromStateOrExplicit(
@@ -297,7 +296,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 targetActiveCell
                             );
                             if (!resolvedActiveCell) {
-                                failOpenRequest(action.requestId);
+                                failOpenRequest(requestId);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
@@ -307,7 +306,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 targetActiveCell
                             );
                             if (!cellElement) {
-                                failOpenRequest(action.requestId);
+                                failOpenRequest(requestId);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
@@ -315,14 +314,14 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             const normalizeResult = normalizeTableBeforeOpen({
                                 view: this.view,
                                 activeCell: resolvedActiveCell.activeCell,
-                                normalizeIfNeeded: action.normalizeIfNeeded,
-                                requestId: action.requestId,
+                                normalizeIfNeeded,
+                                requestId,
                             });
                             if (normalizeResult === 'normalized') {
                                 return;
                             }
                             if (normalizeResult === 'aborted') {
-                                failOpenRequest(action.requestId);
+                                failOpenRequest(requestId);
                                 return;
                             }
 
@@ -334,13 +333,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 initialCursorPos: request?.initialCursorPos,
                             });
                             if (!opened) {
-                                failOpenRequest(action.requestId);
+                                failOpenRequest(requestId);
                                 return;
                             }
-                            if (action.requestId) {
+                            if (requestId) {
                                 requestViewAnimationFrame(this.view, () => {
                                     this.view.dispatch({
-                                        effects: completeOpenCellRequestEffect.of({ requestId: action.requestId! }),
+                                        effects: completeOpenCellRequestEffect.of({ requestId }),
                                     });
                                 });
                             }

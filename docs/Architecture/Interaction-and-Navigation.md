@@ -21,8 +21,9 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 Rapid navigation can cause race conditions (new request before previous cell mounts).
 
 Open-cell transitions are tracked by a CodeMirror `StateField` in `tableRuntime/openCellRequest.ts`.
-Keyboard navigation dispatches an explicit request with a request id and key-suppression flag. Lifecycle completes
-that same request after the nested editor opens and focus has been handed off, or fails it when the open path aborts.
+Keyboard navigation dispatches an explicit request with target cell, cursor placement, normalization intent, and
+key-suppression state. The lifecycle trigger carries only the request id; lifecycle re-reads the pending request,
+then completes it after the nested editor opens and focus has been handed off, or fails it when the open path aborts.
 A watchdog ViewPlugin fails stuck requests after 1 second.
 
 Row creation uses the same explicit reopen path as other command-driven structural operations.
