@@ -16,21 +16,20 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 
 `scrollIntoView` is called automatically when target cell is outside viewport.
 
-### Navigation Lock
+### Open-Cell Request State
 
 Rapid navigation can cause race conditions (new request before previous cell mounts).
 
-The `tableRuntime/navigationLock.ts` module:
-
-1. `acquireNavigationLock()` before navigating; rejects if locked.
-2. Lock held while state dispatches, nested editor mounts, focus transfers.
-3. `releaseNavigationLock()` called via `onFocused` callback.
-4. Auto-releases after 1 second to prevent deadlock.
+Open-cell transitions are tracked by a CodeMirror `StateField` in `tableRuntime/openCellRequest.ts`.
+Keyboard navigation dispatches an explicit request with target cell, cursor placement, normalization intent, and
+key-suppression state. The lifecycle trigger carries only the request id; lifecycle re-reads the pending request,
+then completes it after the nested editor opens and focus has been handed off, or fails it when the open path aborts.
+A watchdog ViewPlugin fails stuck requests after 1 second.
 
 Row creation uses the same explicit reopen path as other command-driven structural operations.
 The row-insert transaction updates table text, main-editor selection, active-cell state, and open intent together.
-Lifecycle then reopens the replacement nested editor, and the navigation lock is released through `onFocused`
-after focus lands on that editor.
+Lifecycle then reopens the replacement nested editor, and Tab/Enter suppression reads the pending request state rather
+than a module-global lock.
 
 ## Selection Sync
 

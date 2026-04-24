@@ -9,26 +9,25 @@ import {
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { resolveActiveCell } from '../activeCell/activeCellResolver';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell, resolveActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
     isNestedEditorOpen,
     openNestedEditor,
 } from '../../nestedEditor/nestedEditorController';
-import {
-    clearPendingCellOpen,
-    consumePendingCellOpenOptions,
-    rememberPendingCellOpen,
-} from '../../nestedEditor/pendingCellOpen';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { makeTableId } from '../../tableModel/types';
 import { findTableRanges } from '../tablePositioning';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
-import { releasePendingNavigationCallback } from '../navigationLock';
-import { requestOpenActiveCellEffect } from '../activeCell/activeCellOpen';
+import {
+    beginOpenCellRequestEffect,
+    completeOpenCellRequestEffect,
+    failOpenCellRequestEffect,
+    getOpenCellRequestById,
+    requestOpenCellEffect,
+} from '../openCellRequest';
 import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
 import {
@@ -96,24 +95,26 @@ function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell |
     };
 }
 
+type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
+
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
     normalizeIfNeeded: boolean;
-    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
-}): boolean {
+    requestId: string;
+}): NormalizeBeforeOpenResult {
     if (!params.normalizeIfNeeded) {
-        return false;
+        return 'not-needed';
     }
 
     const resolved = getResolvedActiveCellFromStateOrExplicit(params.view.state, params.activeCell);
     if (!resolved) {
-        return false;
+        return 'not-needed';
     }
 
     const canonicalText = getCanonicalTableTextIfChanged(resolved.ctx);
     if (!canonicalText) {
-        return false;
+        return 'not-needed';
     }
 
     const nextActiveCell = createActiveCellForTableText({
@@ -122,13 +123,12 @@ function normalizeTableBeforeOpen(params: {
         target: params.activeCell,
     });
     if (!nextActiveCell) {
-        return true;
+        return 'aborted';
     }
 
-    if (params.initialCursorPos) {
-        rememberPendingCellOpen(params.view, nextActiveCell.activeCell, {
-            initialCursorPos: params.initialCursorPos,
-        });
+    const currentRequest = getOpenCellRequestById(params.view.state, params.requestId);
+    if (!currentRequest) {
+        return 'aborted';
     }
 
     params.view.dispatch({
@@ -140,17 +140,19 @@ function normalizeTableBeforeOpen(params: {
         selection: { anchor: nextActiveCell.selectionAnchor },
         effects: [
             setActiveCellEffect.of(nextActiveCell.activeCell),
-            requestOpenActiveCellEffect.of({
+            beginOpenCellRequestEffect.of({
+                ...currentRequest,
                 activeCell: nextActiveCell.activeCell,
                 normalizeIfNeeded: false,
             }),
+            requestOpenCellEffect.of({ requestId: currentRequest.requestId }),
             rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
         ],
         annotations: normalizeBeforeEditAnnotation.of(true),
         scrollIntoView: false,
     });
 
-    return true;
+    return 'normalized';
 }
 
 // ============================================================================
@@ -203,9 +205,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
-            const abortPendingOpen = (): void => {
-                clearPendingCellOpen(this.view);
-                releasePendingNavigationCallback();
+            const failOpenRequest = (requestId: string | undefined): void => {
+                if (!requestId) return;
+                this.view.dispatch({ effects: failOpenCellRequestEffect.of({ requestId }) });
             };
 
             for (const action of actions) {
@@ -259,55 +261,73 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             closeNestedEditor(this.view);
                         }
                         break;
-                    case 'openNestedEditor':
+                    case 'openRequestedCell':
                         requestViewAnimationFrame(this.view, () => {
-                            if (!this.view.dom.isConnected) {
-                                abortPendingOpen();
+                            const request = getOpenCellRequestById(this.view.state, action.requestId);
+                            if (!request) {
                                 return;
                             }
-                            if (!isSameActiveCell(getActiveCell(this.view.state), action.activeCell)) {
-                                abortPendingOpen();
+
+                            const requestId = action.requestId;
+                            const targetActiveCell = request.activeCell;
+                            const normalizeIfNeeded = request.normalizeIfNeeded;
+                            if (!this.view.dom.isConnected) {
+                                failOpenRequest(requestId);
+                                return;
+                            }
+                            if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
+                                failOpenRequest(requestId);
                                 return;
                             }
                             const resolvedActiveCell = getResolvedActiveCellFromStateOrExplicit(
                                 this.view.state,
-                                action.activeCell
+                                targetActiveCell
                             );
                             if (!resolvedActiveCell) {
-                                abortPendingOpen();
+                                failOpenRequest(requestId);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
                             const cellElement = findCellElement(
                                 this.view,
-                                makeTableId(action.activeCell.tableFrom),
-                                action.activeCell
+                                makeTableId(targetActiveCell.tableFrom),
+                                targetActiveCell
                             );
                             if (!cellElement) {
-                                abortPendingOpen();
+                                failOpenRequest(requestId);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                                 return;
                             }
 
-                            const pendingOptions = consumePendingCellOpenOptions(this.view, action.activeCell);
-
-                            if (
-                                normalizeTableBeforeOpen({
-                                    view: this.view,
-                                    activeCell: resolvedActiveCell.activeCell,
-                                    normalizeIfNeeded: action.normalizeIfNeeded,
-                                    initialCursorPos: pendingOptions?.initialCursorPos,
-                                })
-                            ) {
+                            const normalizeResult = normalizeTableBeforeOpen({
+                                view: this.view,
+                                activeCell: resolvedActiveCell.activeCell,
+                                normalizeIfNeeded,
+                                requestId,
+                            });
+                            if (normalizeResult === 'normalized') {
+                                return;
+                            }
+                            if (normalizeResult === 'aborted') {
+                                failOpenRequest(requestId);
                                 return;
                             }
 
-                            openNestedEditor({
+                            const opened = openNestedEditor({
                                 mainView: this.view,
                                 cellElement,
                                 activeCell: resolvedActiveCell.activeCell,
                                 featureSettings: getNestedEditorFeatureSettings(),
-                                initialCursorPos: pendingOptions?.initialCursorPos,
+                                initialCursorPos: request.initialCursorPos,
+                            });
+                            if (!opened) {
+                                failOpenRequest(requestId);
+                                return;
+                            }
+                            requestViewAnimationFrame(this.view, () => {
+                                this.view.dispatch({
+                                    effects: completeOpenCellRequestEffect.of({ requestId }),
+                                });
                             });
                         });
                         break;
@@ -318,7 +338,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         handleMainEditorUpdate(this.view, update);
                         break;
                     case 'clearActiveCell':
-                        clearPendingCellOpen(this.view);
                         requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) return;
                             this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
@@ -329,7 +348,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         destroy(): void {
-            clearPendingCellOpen(this.view);
             closeNestedEditor(this.view);
         }
     }

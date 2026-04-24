@@ -4,9 +4,9 @@ import { setActiveCellEffect, type ActiveCell } from '../../tableState/activeCel
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { MarkdownTable } from '../../tableModel/MarkdownTable';
 import type { TargetCell } from '../../tableModel/activeCellForTableText';
-import { prepareOpenActiveCellTransaction } from '../activeCell/activeCellOpen';
+import { prepareOpenCellRequestTransaction } from '../openCellRequest';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
-import { resolveActiveCell } from '../activeCell/activeCellResolver';
+import { resolveActiveCell } from '../activeCell/resolvedActiveCell';
 
 function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
@@ -22,9 +22,9 @@ export interface RunStructuralMutationParams {
 
 export interface StructuralReopenOptions {
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
-    onFocused?: () => void;
     afterDispatch?: () => void;
     clearCellSelection?: boolean;
+    suppressKeys?: boolean;
 }
 
 export interface RunStructuralMutationAndReopenParams
@@ -107,13 +107,15 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
         return false;
     }
 
-    const openTransaction = prepareOpenActiveCellTransaction(params.view, {
-        activeCell: prepared.nextActiveCell.activeCell,
-        selectionAnchor: prepared.nextActiveCell.selectionAnchor,
+    const openTransaction = prepareOpenCellRequestTransaction({
+        target: {
+            activeCell: prepared.nextActiveCell.activeCell,
+            selectionAnchor: prepared.nextActiveCell.selectionAnchor,
+        },
         normalizeIfNeeded: false,
         initialCursorPos: params.initialCursorPos,
-        onFocused: params.onFocused,
         clearCellSelection: params.clearCellSelection,
+        suppressKeys: params.suppressKeys,
     });
 
     params.view.dispatch({

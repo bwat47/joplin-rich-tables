@@ -55,7 +55,7 @@ StateField scans syntax tree → detects table blocks → replaces with `TableWi
 ### 2. Interaction
 
 Cell click / navigation / selection focus → widget/runtime logic resolves row/column → dispatches
-`setActiveCellEffect` plus an open-intent effect → `tableRuntime/lifecycle/nestedEditorLifecycle` mounts the nested editor.
+`setActiveCellEffect` plus an open request and id-only open signal → `tableRuntime/lifecycle/nestedEditorLifecycle` mounts the nested editor.
 
 `ActiveCell` is logical-first state: it persists `tableFrom` plus `section/row/col`. Cursor placement such as
 the main-editor selection anchor is transient request data, not part of persisted active-cell identity. Raw offsets

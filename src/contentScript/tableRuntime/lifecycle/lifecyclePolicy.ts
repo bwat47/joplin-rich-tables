@@ -9,11 +9,10 @@ import {
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { syncAnnotation } from '../../editorBridge/syncAnnotation';
-import { type ResolvedActiveCell } from '../activeCell/activeCellResolver';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCellField';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
-import { requestOpenActiveCellEffect, type OpenActiveCellRequest } from '../activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../openCellRequest';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 
 export interface TableRuntimeSnapshot {
@@ -37,7 +36,7 @@ export interface TableRuntimeEvent {
     enteredRawMode: boolean;
     exitedRawMode: boolean;
     hasFullDocumentReplace: boolean;
-    openRequest: OpenActiveCellRequest | null;
+    openRequestId: string | null;
 }
 
 export interface RawModeEffects {
@@ -47,7 +46,7 @@ export interface RawModeEffects {
 }
 
 export type TableRuntimeAction =
-    | { type: 'openNestedEditor'; activeCell: ActiveCell; normalizeIfNeeded: boolean }
+    | { type: 'openRequestedCell'; requestId: string }
     | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
     | { type: 'syncMainDocToNested' }
     | { type: 'syncMainSelectionToNested' }
@@ -86,16 +85,18 @@ function scanRawModeEffects(transactions: readonly Transaction[]): RawModeEffect
     return { exitedSourceMode, exitedSearchForce, hadRawModeToggle };
 }
 
-function extractOpenRequest(update: ViewUpdate): OpenActiveCellRequest | null {
+function extractOpenRequestId(update: ViewUpdate): string | null {
+    let requestId: string | null = null;
+
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
-            if (effect.is(requestOpenActiveCellEffect)) {
-                return effect.value;
+            if (effect.is(requestOpenCellEffect)) {
+                requestId = effect.value.requestId;
             }
         }
     }
 
-    return null;
+    return requestId;
 }
 
 export function buildTableRuntimeSnapshot(params: {
@@ -137,7 +138,7 @@ export function buildTableRuntimeEvent(update: ViewUpdate, previousEffectiveRawM
             rawModeEffects.hadRawModeToggle && !previousEffectiveRawMode && isEffectiveRawMode(update.state),
         exitedRawMode: rawModeEffects.hadRawModeToggle && previousEffectiveRawMode && !isEffectiveRawMode(update.state),
         hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
-        openRequest: extractOpenRequest(update),
+        openRequestId: extractOpenRequestId(update),
     };
 }
 
@@ -149,16 +150,15 @@ export function planTableLifecycleActions(
     const { update, rawModeEffects } = event;
     const actions: TableRuntimeAction[] = [];
 
-    if (event.openRequest) {
+    if (event.openRequestId) {
         // Command-driven structural mutations and direct cell activations
         // route through the explicit open path. The session controller still
         // closes the previous editor before mounting the next one, but doing
         // both in one path avoids the blur/focus gap that makes Android
         // dismiss and reopen the IME when switching cells by tap.
         actions.push({
-            type: 'openNestedEditor',
-            activeCell: event.openRequest.activeCell,
-            normalizeIfNeeded: event.openRequest.normalizeIfNeeded,
+            type: 'openRequestedCell',
+            requestId: event.openRequestId,
         });
         return actions;
     }
@@ -201,20 +201,6 @@ export function planTableLifecycleActions(
             ensureCursorVisibleIfNotActivated: false,
             normalizeIfNeeded: false,
             preserveMainSelection: false,
-        });
-        return actions;
-    }
-
-    if (event.forceRebuild && snapshot.activeCell && !event.isSync) {
-        // Fallback for rebuild-only transitions such as recovery and
-        // non-command table state restoration.
-        if (snapshot.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
-        }
-        actions.push({
-            type: 'openNestedEditor',
-            activeCell: snapshot.activeCell,
-            normalizeIfNeeded: false,
         });
         return actions;
     }

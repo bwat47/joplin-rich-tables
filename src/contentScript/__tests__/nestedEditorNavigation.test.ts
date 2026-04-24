@@ -8,7 +8,7 @@ import { GFM } from '@lezer/markdown';
 import { defaultNestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 
 const markdownExtension = markdown({

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
@@ -9,9 +9,12 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { consumePendingCellOpenOptions, clearPendingCellOpen } from '../nestedEditor/pendingCellOpen';
-import { resetNavigationLock } from '../tableRuntime/navigationLock';
-import { requestOpenActiveCellEffect } from '../tableRuntime/activeCell/activeCellOpen';
+import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
+import {
+    beginOpenCellRequestEffect,
+    getPendingOpenCellRequest,
+    openCellRequestField,
+} from '../tableRuntime/openCellRequest';
 
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 
@@ -44,7 +47,12 @@ function getLastDispatchSpec(view: MutableTestView): TransactionSpec {
 
 function findOpenRequest(spec: TransactionSpec) {
     const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
-    return effects.find((effect) => effect?.is?.(requestOpenActiveCellEffect)) ?? null;
+    return effects.find((effect) => effect?.is?.(requestOpenCellEffect)) ?? null;
+}
+
+function findBeginOpenRequest(spec: TransactionSpec) {
+    const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
+    return effects.find((effect) => effect?.is?.(beginOpenCellRequestEffect)) ?? null;
 }
 
 function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): {
@@ -60,6 +68,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
         activeCellField,
         cellSelectionField,
         sourceModeField,
+        openCellRequestField,
     ]);
     if (params?.activeCell) {
         currentState = currentState.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
@@ -128,14 +137,6 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
 }
 
 describe('interactive cell normalization', () => {
-    beforeEach(() => {
-        resetNavigationLock();
-    });
-
-    afterEach(() => {
-        resetNavigationLock();
-    });
-
     it('normalizes on mousedown cell activation before opening the nested editor', () => {
         const { view, cells } = createViewHarness();
         const event = {
@@ -229,7 +230,9 @@ describe('interactive cell normalization', () => {
         expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'), { normalizeIfNeeded: false })).toBe(true);
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(openRequest?.value).toMatchObject({ normalizeIfNeeded: false });
+        const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
+        expect(beginRequest?.value).toMatchObject({ normalizeIfNeeded: false });
+        expect(openRequest?.value).toEqual({ requestId: beginRequest?.value?.requestId });
     });
 
     it('clamps a preferred fallback cell instead of reopening the first cell on structural punctuation', () => {
@@ -275,10 +278,9 @@ describe('interactive cell normalization', () => {
             col: 1,
         });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
-        expect(consumePendingCellOpenOptions(view, activeCell!)).toEqual({
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            activeCell,
             initialCursorPos: 'end',
         });
-
-        clearPendingCellOpen(view);
     });
 });

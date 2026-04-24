@@ -1,28 +1,23 @@
 import { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/activeCellResolver';
+import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
-import { isNavigationLocked, acquireNavigationLock, releaseNavigationLock } from '../navigationLock';
-import { selectAndRequestOpenResolvedActiveCell } from '../activeCell/activeCellOpen';
+import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 
 function insertRowFromKeyboardNavigation(
     view: EditorView,
     activeCell: NonNullable<ReturnType<typeof getActiveCell>>,
     targetCol: number
 ): boolean {
-    if (!acquireNavigationLock()) {
+    if (shouldSuppressNavigationKeys(view.state)) {
         return true; // Already locked
     }
 
-    const success = insertRowAtBottom(view, activeCell, targetCol, {
-        onFocused: releaseNavigationLock,
+    insertRowAtBottom(view, activeCell, targetCol, {
+        suppressKeys: true,
     });
-    if (!success) {
-        releaseNavigationLock();
-        return true;
-    }
 
     return true;
 }
@@ -33,7 +28,7 @@ export function navigateCell(
     options: { cursorPos?: 'start' | 'end' | 'lastLineStart'; allowRowCreation?: boolean } = {}
 ): boolean {
     // Prevent race conditions from rapid key-holding
-    if (isNavigationLocked()) {
+    if (shouldSuppressNavigationKeys(view.state)) {
         return true; // Swallow keypress, navigation already in progress
     }
 
@@ -127,16 +122,11 @@ export function navigateCell(
         return false;
     }
 
-    // Acquire lock before dispatching state changes
-    if (!acquireNavigationLock()) {
-        return true; // Already locked
-    }
-
-    selectAndRequestOpenResolvedActiveCell(view, {
-        resolvedCell: nextResolvedCell,
+    requestOpenCell(view, {
+        target: { resolvedCell: nextResolvedCell },
         normalizeIfNeeded: true,
         initialCursorPos: options.cursorPos,
-        onFocused: releaseNavigationLock,
+        suppressKeys: true,
     });
 
     return true;

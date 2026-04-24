@@ -4,8 +4,8 @@ import {
     createResolvedActiveCell,
     resolveActiveCell,
     retargetResolvedActiveCell,
-} from '../tableRuntime/activeCell/activeCellResolver';
-import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCellField';
+} from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { buildTableContext } from '../tableModel/tableContext';
 
@@ -19,7 +19,7 @@ function createState(doc: string, activeCell?: ActiveCell) {
     return state;
 }
 
-describe('activeCellResolver', () => {
+describe('resolvedActiveCell', () => {
     it('resolves header cells from logical active-cell state', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const state = createState(doc, {

@@ -66,7 +66,7 @@ define paragraph-splitting behavior.
 6. **Dispatch**:
     - `runStructuralMutation()` replaces the table range and updates active-cell state.
     - `runStructuralMutationAndReopen()` does the same work, then also sets the main-editor selection,
-      registers pending open/focus state, dispatches `requestOpenActiveCellEffect`, forces a widget rebuild,
+      registers an explicit open-cell request, dispatches its id-only open signal, forces a widget rebuild,
       and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
@@ -79,8 +79,8 @@ define paragraph-splitting behavior.
 
 All active-cell-preserving structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
 delete, move, clear, and alignment updates. That means command-driven structural edits don't rely on lifecycle
-inferring reopen intent from a rebuild-only transaction. Lifecycle rebuild fallback remains for recovery and
-rebuild-only transitions, not as the normal command path.
+inferring reopen intent from a rebuild-only transaction. Reopen intent is explicit: if a transition should reopen,
+it must dispatch an open-cell request alongside the rebuild.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 
@@ -113,9 +113,6 @@ clipboard alignments are only applied to newly created columns.
 ## Rebuild Trigger
 
 Command-driven structural mutations dispatch both `rebuildTableWidgetsEffect` and an explicit open request, so
-lifecycle follows the open-request path instead of the generic rebuild fallback.
-
-Rebuild-only fallback still exists for recovery flows, undo/redo repositioning, and other transitions that do not
-carry an explicit reopen request.
+lifecycle follows the open-request path. Rebuild-only transitions do not implicitly reopen a nested editor.
 
 Full table rebuild; no row/column DOM diffing.
