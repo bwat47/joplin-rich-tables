@@ -99,9 +99,10 @@ export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | nu
 /**
  * Returns the resolved active cell for `state`.
  *
- * When `resolvedActiveCellField` is registered (production), this is a free cached read.
- * Falls back to a fresh computation for states that do not include the field (e.g. isolated
- * test states), so callers remain correct without needing to register the field everywhere.
+ * When `resolvedActiveCellField` is registered, this is a cached read.
+ * Falls back to a fresh computation for states that do not include the field
+ * (for example isolated test states or other partial editor states), so
+ * callers remain correct without needing to register the field everywhere.
  */
 export function getResolvedActiveCell(state: EditorState): ResolvedActiveCell | null {
     const cached = state.field(resolvedActiveCellField, false);
