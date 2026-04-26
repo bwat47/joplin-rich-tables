@@ -1,11 +1,9 @@
 import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { getActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 
-import * as activeCellState from '../tableState/activeCellState';
 import { setActiveCellEffect } from '../tableState/activeCellState';
 import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperations';
@@ -13,7 +11,7 @@ import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
 jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
-    resolveActiveCell: jest.fn(),
+    getResolvedActiveCell: jest.fn(),
     retargetResolvedActiveCell: jest.fn(),
 }));
 jest.mock('../tableRuntime/operations/structuralOperations', () => ({
@@ -25,10 +23,20 @@ describe('navigateCell', () => {
     let mockView: EditorView;
     let mockState: EditorState;
     let mockDispatch: jest.Mock;
-    let getActiveCellSpy: jest.SpyInstance;
+    let currentCtx: {
+        from: number;
+        to: number;
+        text: string;
+        table: Record<string, never>;
+        cellRanges: {
+            headers: Array<Record<string, never>>;
+            rows: Array<Array<Record<string, never>>>;
+        };
+    } | null;
 
     beforeEach(() => {
         mockDispatch = jest.fn();
+        currentCtx = null;
         mockState = {
             field: jest.fn(),
             doc: { length: 100 },
@@ -49,9 +57,7 @@ describe('navigateCell', () => {
         } as unknown as EditorView;
 
         // Reset mocks
-        getActiveCellSpy = jest.spyOn(activeCellState, 'getActiveCell');
-        getActiveCellSpy.mockReset();
-        (resolveActiveCell as jest.Mock).mockReset();
+        (getResolvedActiveCell as jest.Mock).mockReset();
         (retargetResolvedActiveCell as jest.Mock).mockReset();
         (insertRowAtBottom as jest.Mock).mockReset();
     });
@@ -69,7 +75,7 @@ describe('navigateCell', () => {
     const setupTable = (rows: number, cols: number) => {
         const headers = Array(cols).fill({});
         const bodyRows = Array(rows).fill(Array(cols).fill({}));
-        const ctx = {
+        currentCtx = {
             from: 0,
             to: 100,
             text: '| header |\n| --- |\n| body |',
@@ -90,26 +96,34 @@ describe('navigateCell', () => {
             editableFrom: 10,
             editableTo: 20,
         }));
-        (resolveActiveCell as jest.Mock).mockReturnValue({
-            contentFrom: 10,
-            contentTo: 20,
-            editableFrom: 10,
-            editableTo: 20,
-            ctx,
-        });
+
+        return currentCtx;
     };
 
     const setupActiveCell = (section: 'header' | 'body', row: number, col: number) => {
-        getActiveCellSpy.mockReturnValue({
+        if (!currentCtx) {
+            throw new Error('setupTable must be called before setupActiveCell');
+        }
+
+        const activeCell = {
             tableFrom: 0,
             section,
             row,
             col,
+        };
+
+        (getResolvedActiveCell as jest.Mock).mockReturnValue({
+            activeCell,
+            contentFrom: 10,
+            contentTo: 20,
+            editableFrom: 10,
+            editableTo: 20,
+            ctx: currentCtx,
         });
     };
 
     it('should return false if no active cell', () => {
-        (getActiveCell as jest.Mock).mockReturnValue(null);
+        (getResolvedActiveCell as jest.Mock).mockReturnValue(null);
         expect(navigateCell(mockView, 'next')).toBe(false);
     });
 
