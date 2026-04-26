@@ -3,7 +3,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } 
 import {
     createResolvedActiveCell,
     resolveActiveCell,
-    retargetResolvedActiveCell,
+    resolveCellWithinResolvedTable,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
@@ -140,7 +140,7 @@ describe('resolvedActiveCell', () => {
         expect(resolved?.editableTo).toBe(doc.indexOf('a2') + 2);
     });
 
-    it('retargets within the same resolved table context without reparsing', () => {
+    it('resolves a cell within the same resolved table context without reparsing', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const state = createState(doc, {
             tableFrom: 0,
@@ -155,22 +155,22 @@ describe('resolvedActiveCell', () => {
             throw new Error('Expected resolved cell');
         }
 
-        const retargeted = retargetResolvedActiveCell(resolved, {
+        const resolvedCell = resolveCellWithinResolvedTable(resolved, {
             section: 'body',
             row: 0,
             col: 1,
         });
 
-        expect(retargeted).not.toBeNull();
-        expect(retargeted?.ctx).toBe(resolved.ctx);
-        expect(retargeted?.activeCell).toEqual({
+        expect(resolvedCell).not.toBeNull();
+        expect(resolvedCell?.ctx).toBe(resolved.ctx);
+        expect(resolvedCell?.activeCell).toEqual({
             tableFrom: 0,
             section: 'body',
             row: 0,
             col: 1,
         });
-        expect(retargeted?.editableFrom).toBe(doc.indexOf('a2'));
-        expect(retargeted?.editableTo).toBe(doc.indexOf('a2') + 2);
+        expect(resolvedCell?.editableFrom).toBe(doc.indexOf('a2'));
+        expect(resolvedCell?.editableTo).toBe(doc.indexOf('a2') + 2);
     });
 
     it('returns null when creating a resolved active cell for invalid coordinates', () => {

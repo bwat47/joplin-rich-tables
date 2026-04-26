@@ -1,16 +1,12 @@
 import { EditorView } from '@codemirror/view';
-import { getActiveCell } from '../../tableState/activeCellState';
-import { resolveActiveCell, retargetResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ActiveCell } from '../../tableState/activeCellState';
+import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
 import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 
-function insertRowFromKeyboardNavigation(
-    view: EditorView,
-    activeCell: NonNullable<ReturnType<typeof getActiveCell>>,
-    targetCol: number
-): boolean {
+function insertRowFromKeyboardNavigation(view: EditorView, activeCell: ActiveCell, targetCol: number): boolean {
     if (shouldSuppressNavigationKeys(view.state)) {
         return true; // Already locked
     }
@@ -33,17 +29,11 @@ export function navigateCell(
     }
 
     const state = view.state;
-    const activeCell = getActiveCell(state);
-
-    if (!activeCell) {
-        return false;
-    }
-
-    // Resolve the table structure to know valid rows/cols
-    const resolvedActiveCell = resolveActiveCell(state, activeCell);
+    const resolvedActiveCell = getResolvedActiveCell(state);
     if (!resolvedActiveCell) {
         return false;
     }
+    const activeCell = resolvedActiveCell.activeCell;
     const ctx = resolvedActiveCell.ctx;
 
     const numBodyRows = ctx.cellRanges.rows.length;
@@ -117,7 +107,7 @@ export function navigateCell(
     };
 
     // Activate target cell
-    const nextResolvedCell = retargetResolvedActiveCell(resolvedActiveCell, target);
+    const nextResolvedCell = resolveCellWithinResolvedTable(resolvedActiveCell, target);
     if (!nextResolvedCell) {
         return false;
     }
