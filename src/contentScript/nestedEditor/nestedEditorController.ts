@@ -16,8 +16,12 @@ import {
 } from '../editorBridge/cellTextCodec';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { ensureCellWrapper } from './mounting';
-import { resolveActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import {
+    getResolvedActiveCell,
+    resolveActiveCell,
+    type ResolvedActiveCell,
+} from '../tableRuntime/activeCell/resolvedActiveCell';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
@@ -80,13 +84,12 @@ class NestedEditorController {
     open(params: {
         mainView: EditorView;
         cellElement: HTMLElement;
-        activeCell: ActiveCell;
         featureSettings: NestedEditorFeatureSettings;
         initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     }): boolean {
         this.close();
 
-        const resolved = resolveActiveCell(params.mainView.state, params.activeCell);
+        const resolved = getResolvedActiveCell(params.mainView.state);
         if (!resolved) {
             return false;
         }
@@ -498,7 +501,6 @@ function getController(view: EditorView): NestedEditorController | null {
 export function openNestedEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
-    activeCell: ActiveCell;
     featureSettings: NestedEditorFeatureSettings;
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
 }): boolean {

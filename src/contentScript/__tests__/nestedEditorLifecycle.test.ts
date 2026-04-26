@@ -399,7 +399,6 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                activeCell,
                 featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
@@ -546,12 +545,6 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                activeCell: {
-                    tableFrom: 0,
-                    section: 'header',
-                    row: 0,
-                    col: 1,
-                },
                 featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
@@ -607,10 +600,6 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                activeCell: {
-                    ...activeCell,
-                    tableFrom: insertedPrefix.length,
-                },
                 featureSettings: DEFAULT_FEATURE_SETTINGS,
             })
         );
@@ -773,7 +762,6 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                activeCell: nextCell,
                 featureSettings: DEFAULT_FEATURE_SETTINGS,
             })
         );

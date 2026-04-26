@@ -44,15 +44,13 @@ describe('nested editor navigation', () => {
         const cellElement = document.createElement('td');
         document.body.appendChild(cellElement);
 
-        const activeCell = getActiveCell(mainView.state);
-        if (!activeCell) {
+        if (!getActiveCell(mainView.state)) {
             throw new Error('Expected active cell to be set');
         }
 
         openNestedEditor({
             mainView,
             cellElement,
-            activeCell,
             featureSettings: defaultNestedEditorFeatureSettings(),
         });
 
@@ -91,6 +89,30 @@ describe('nested editor navigation', () => {
             row: 1,
             col: 0,
         });
+
+        mainView.destroy();
+    });
+
+    it('does not open when no current active cell resolves', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+
+        const mainView = new EditorView({
+            parent,
+            extensions: [markdownExtension, activeCellField, resolvedActiveCellField, nestedEditorPlugin],
+            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
+        });
+
+        const cellElement = document.createElement('td');
+        document.body.appendChild(cellElement);
+
+        expect(
+            openNestedEditor({
+                mainView,
+                cellElement,
+                featureSettings: defaultNestedEditorFeatureSettings(),
+            })
+        ).toBe(false);
 
         mainView.destroy();
     });

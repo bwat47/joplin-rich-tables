@@ -316,7 +316,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             const opened = openNestedEditor({
                                 mainView: this.view,
                                 cellElement,
-                                activeCell: resolvedActiveCell.activeCell,
                                 featureSettings: getNestedEditorFeatureSettings(),
                                 initialCursorPos: request.initialCursorPos,
                             });
