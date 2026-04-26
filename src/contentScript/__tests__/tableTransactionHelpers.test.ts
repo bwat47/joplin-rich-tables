@@ -3,10 +3,7 @@ import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
-import {
-    runStructuralMutation,
-    runStructuralMutationAndReopen,
-} from '../tableRuntime/operations/runStructuralMutation';
+import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
@@ -61,35 +58,6 @@ describe('tableTransactionHelpers', () => {
                 },
             };
         });
-    });
-
-    it('dispatches an effect-only transaction when markdown is unchanged but target cell moves', () => {
-        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | a |', '| a | a |'].join('\n');
-        const view = createView(tableText);
-        const cell = createCell(tableText, 1, 0);
-
-        const result = runStructuralMutation({
-            view: view as never,
-            cell,
-            operation: (table) => table.moveRow('body', 1, 'up'),
-            computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
-            forceWidgetRebuild: true,
-        });
-
-        expect(result).toBe(true);
-        expect(view.dispatch).toHaveBeenCalledTimes(1);
-
-        const dispatched = view.dispatch.mock.calls[0][0] as {
-            changes?: unknown;
-            effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
-        };
-        expect(dispatched.changes).toBeUndefined();
-        expect(dispatched.effects).toHaveLength(2);
-        expect(dispatched.effects).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ value: expect.objectContaining({ section: 'body', row: 0, col: 0 }) }),
-            ])
-        );
     });
 
     it('dispatches an explicit reopen transaction for row insertion', () => {
@@ -170,6 +138,35 @@ describe('tableTransactionHelpers', () => {
         expect(result).toBe(false);
         expect(view.dispatch).not.toHaveBeenCalled();
         expect(afterDispatch).not.toHaveBeenCalled();
+    });
+
+    it('dispatches reopen effects when markdown is unchanged but target cell moves', () => {
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | a |', '| a | a |'].join('\n');
+        const view = createView(tableText);
+        const cell = createCell(tableText, 1, 0);
+
+        const result = runStructuralMutationAndReopen({
+            view: view as never,
+            cell,
+            operation: (table) => table.moveRow('body', 1, 'up'),
+            computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
+        });
+
+        expect(result).toBe(true);
+        expect(view.dispatch).toHaveBeenCalledTimes(1);
+
+        const dispatched = view.dispatch.mock.calls[0][0] as {
+            changes?: unknown;
+            selection?: { anchor: number };
+            effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
+        };
+        expect(dispatched.changes).toBeUndefined();
+        expect(dispatched.selection).toEqual(expect.objectContaining({ anchor: expect.any(Number) }));
+
+        const effects = dispatched.effects;
+        expect(effects.some((effect) => effect.is?.(setActiveCellEffect))).toBe(true);
+        expect(effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(true);
+        expect(effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
     });
 
     it('dispatches explicit reopen effects for non-row structural mutations too', () => {

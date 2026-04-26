@@ -1,10 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import {
-    runStructuralMutation,
-    runStructuralMutationAndReopen,
-} from '../tableRuntime/operations/runStructuralMutation';
+import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import type { TargetCell } from '../tableModel/activeCellForTableText';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import {
@@ -29,7 +26,6 @@ import {
 
 // Mock dependencies
 jest.mock('../tableRuntime/operations/runStructuralMutation', () => ({
-    runStructuralMutation: jest.fn(),
     runStructuralMutationAndReopen: jest.fn(),
 }));
 jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
@@ -38,7 +34,6 @@ jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
 
 describe('tableCommands (computTargetCell)', () => {
     let mockView: EditorView;
-    let mockRunStructuralMutation: jest.Mock;
     let mockRunStructuralMutationAndReopen: jest.Mock;
     let mockResolveActiveCell: jest.Mock;
 
@@ -48,8 +43,6 @@ describe('tableCommands (computTargetCell)', () => {
                 focus: jest.fn(),
             },
         } as unknown as EditorView;
-        mockRunStructuralMutation = runStructuralMutation as jest.Mock;
-        mockRunStructuralMutation.mockClear();
         mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as jest.Mock;
         mockRunStructuralMutationAndReopen.mockClear();
         mockResolveActiveCell = resolveActiveCell as jest.Mock;
@@ -63,14 +56,12 @@ describe('tableCommands (computTargetCell)', () => {
         expectedTarget: TargetCell,
         // Optional mocks for old/new table data if logic depends on it (usually doesn't for simple moves)
         mockOldTable: MarkdownTable = {} as MarkdownTable,
-        mockNewTable: MarkdownTable = {} as MarkdownTable,
-        runner: 'plain' | 'open' = 'plain'
+        mockNewTable: MarkdownTable = {} as MarkdownTable
     ) => {
         command(mockView, startCell);
 
-        const mockRunner = runner === 'open' ? mockRunStructuralMutationAndReopen : mockRunStructuralMutation;
-        expect(mockRunner).toHaveBeenCalledTimes(1);
-        const params = mockRunner.mock.calls[0][0];
+        expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledTimes(1);
+        const params = mockRunStructuralMutationAndReopen.mock.calls[0][0];
 
         // Isolate the target computation function
         const computeTargetCell = params.computeTargetCell;
@@ -93,8 +84,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('header', 0, 1),
                 { section: 'header', row: 0, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -104,8 +94,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 5, 1),
                 { section: 'body', row: 5, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -115,8 +104,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('header', 0, 1),
                 { section: 'body', row: 0, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -126,8 +114,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 5, 1),
                 { section: 'body', row: 6, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -147,7 +134,6 @@ describe('tableCommands (computTargetCell)', () => {
             const afterDispatch = mockRunStructuralMutationAndReopen.mock.calls[0][0].afterDispatch as () => void;
             afterDispatch();
             expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
-            expect(mockRunStructuralMutation).not.toHaveBeenCalled();
         });
     });
 
@@ -158,8 +144,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 3),
                 { section: 'body', row: 2, col: 3 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -169,8 +154,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 3),
                 { section: 'body', row: 2, col: 4 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -197,8 +181,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('header', 0, 2),
                 { section: 'header', row: 0, col: 2 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -208,8 +191,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 0, 2),
                 { section: 'body', row: 0, col: 2 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -219,8 +201,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 5, 2),
                 { section: 'body', row: 4, col: 2 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
     });
@@ -232,8 +213,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 1, 0),
                 { section: 'body', row: 1, col: 0 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -243,8 +223,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 1, 5),
                 { section: 'body', row: 1, col: 4 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
     });
@@ -256,8 +235,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 0, 1),
                 { section: 'header', row: 0, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -267,8 +245,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 5, 1),
                 { section: 'body', row: 4, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -278,8 +255,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('header', 0, 1),
                 { section: 'body', row: 0, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -289,8 +265,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 5, 1),
                 { section: 'body', row: 6, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
     });
@@ -302,8 +277,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 3),
                 { section: 'body', row: 2, col: 2 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -313,8 +287,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 3),
                 { section: 'body', row: 2, col: 4 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
     });
@@ -326,8 +299,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 1),
                 { section: 'body', row: 2, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -337,8 +309,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 1),
                 { section: 'body', row: 2, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -348,8 +319,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('body', 2, 1),
                 { section: 'body', row: 2, col: 1 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 
@@ -359,8 +329,7 @@ describe('tableCommands (computTargetCell)', () => {
                 createCell('header', 0, 0),
                 { section: 'header', row: 0, col: 0 },
                 {} as MarkdownTable,
-                {} as MarkdownTable,
-                'open'
+                {} as MarkdownTable
             );
         });
 

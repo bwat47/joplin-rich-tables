@@ -63,13 +63,9 @@ define paragraph-splitting behavior.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
-6. **Dispatch**:
-    - `runStructuralMutation()` replaces the table range and updates active-cell state.
-    - `runStructuralMutationAndReopen()` does the same work, then also sets the main-editor selection,
-      registers an explicit open-cell request, dispatches its id-only open signal, forces a widget rebuild,
-      and can run an immediate post-dispatch callback such as main-editor focus handoff.
-
-`forceWidgetRebuild` dispatches `rebuildTableWidgetsEffect`.
+6. **Dispatch**: `runStructuralMutationAndReopen()` replaces the table range when needed, sets the
+   main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
+   forces a widget rebuild, and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `structuralOperations.ts` is the intent layer on top of the runner:
 

@@ -1,6 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import type { StateEffect } from '@codemirror/state';
-import { setActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
+import { type ActiveCell } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { MarkdownTable } from '../../tableModel/MarkdownTable';
 import type { TargetCell } from '../../tableModel/activeCellForTableText';
@@ -12,12 +11,11 @@ function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
 }
 
-export interface RunStructuralMutationParams {
+interface StructuralMutationPreparationParams {
     view: EditorView;
     cell: ActiveCell;
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable;
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell;
-    forceWidgetRebuild: boolean;
 }
 
 export interface StructuralReopenOptions {
@@ -28,7 +26,7 @@ export interface StructuralReopenOptions {
 }
 
 export interface RunStructuralMutationAndReopenParams
-    extends Omit<RunStructuralMutationParams, 'forceWidgetRebuild'>, StructuralReopenOptions {}
+    extends StructuralMutationPreparationParams, StructuralReopenOptions {}
 
 interface PreparedStructuralMutation {
     tableFrom: number;
@@ -38,7 +36,7 @@ interface PreparedStructuralMutation {
     nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTableText>>;
 }
 
-function prepareStructuralMutation(params: RunStructuralMutationParams): PreparedStructuralMutation | null {
+function prepareStructuralMutation(params: StructuralMutationPreparationParams): PreparedStructuralMutation | null {
     const { view, cell, operation, computeTargetCell } = params;
     const resolvedCell = resolveActiveCell(view.state, cell);
     if (!resolvedCell) return null;
@@ -71,38 +69,8 @@ function prepareStructuralMutation(params: RunStructuralMutationParams): Prepare
     };
 }
 
-export function runStructuralMutation(params: RunStructuralMutationParams): boolean {
-    const prepared = prepareStructuralMutation(params);
-    if (!prepared) {
-        return false;
-    }
-
-    const effects: StateEffect<unknown>[] = [setActiveCellEffect.of(prepared.nextActiveCell.activeCell)];
-    if (params.forceWidgetRebuild) {
-        effects.push(rebuildTableWidgetsEffect.of({ tableFrom: prepared.tableFrom }));
-    }
-
-    if (prepared.hasDocumentChange) {
-        params.view.dispatch({
-            changes: {
-                from: prepared.tableFrom,
-                to: prepared.tableTo,
-                insert: prepared.newText,
-            },
-            effects,
-        });
-    } else {
-        params.view.dispatch({ effects });
-    }
-
-    return true;
-}
-
 export function runStructuralMutationAndReopen(params: RunStructuralMutationAndReopenParams): boolean {
-    const prepared = prepareStructuralMutation({
-        ...params,
-        forceWidgetRebuild: true,
-    });
+    const prepared = prepareStructuralMutation(params);
     if (!prepared) {
         return false;
     }
