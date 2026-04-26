@@ -3,7 +3,7 @@ import { StateField } from '@codemirror/state';
 import { activeCellField, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
-import { resolveCellDocRange, resolveTableForActiveCell } from '../tablePositioning';
+import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;
@@ -52,6 +52,47 @@ export function resolveCellWithinResolvedTable(
         ctx: resolved.ctx,
         coords,
     });
+}
+
+function clampDocPos(state: EditorState, pos: number): number {
+    return Math.min(Math.max(pos, 0), state.doc.length);
+}
+
+export function resolveTableForActiveCell(
+    state: EditorState,
+    activeCell: ActiveCell
+): {
+    ctx: TableContext;
+    tableFrom: number;
+    tableTo: number;
+    contentFrom: number;
+    contentTo: number;
+    editableFrom: number;
+    editableTo: number;
+} | null {
+    const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
+    if (!ctx) {
+        return null;
+    }
+
+    const range = resolveCellDocRange({
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
+        coords: activeCell,
+    });
+    if (!range) {
+        return null;
+    }
+
+    return {
+        ctx,
+        tableFrom: ctx.from,
+        tableTo: ctx.to,
+        contentFrom: range.contentFrom,
+        contentTo: range.contentTo,
+        editableFrom: range.editableFrom,
+        editableTo: range.editableTo,
+    };
 }
 
 export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {

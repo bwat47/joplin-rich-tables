@@ -4,7 +4,7 @@ import { logger } from '../../logger';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { hashTableText } from '../shared/hashUtils';
 import { buildTableContext } from '../tableModel/tableContext';
-import { findTableRanges } from '../tableRuntime/tablePositioning';
+import { findTableRanges } from '../tableRuntime/tableResolution';
 import { TableWidget } from './TableWidget';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 

@@ -12,7 +12,7 @@ import {
     type CellSelection,
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
-import { resolveCellDocRange, resolveTableContextAtPos } from '../tablePositioning';
+import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 import { makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 

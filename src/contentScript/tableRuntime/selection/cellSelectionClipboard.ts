@@ -13,7 +13,7 @@ import {
     type CellSelection,
 } from '../../tableState/cellSelectionState';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
-import { resolveTableContextAtPos } from '../tablePositioning';
+import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';

@@ -4,7 +4,7 @@ import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cel
 import { getActiveCell } from '../../tableState/activeCellState';
 import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
-import { resolveTableAtPos } from '../tablePositioning';
+import { resolveTableAtPos } from '../tableResolution';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
