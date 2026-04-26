@@ -58,7 +58,7 @@ function clampDocPos(state: EditorState, pos: number): number {
     return Math.min(Math.max(pos, 0), state.doc.length);
 }
 
-export function resolveTableForActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {
+function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {
     const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
     if (!ctx) {
         return null;
@@ -75,7 +75,7 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         return null;
     }
 
-    return resolveTableForActiveCell(state, activeCell);
+    return resolveAnchoredActiveCell(state, activeCell);
 }
 
 /**
