@@ -202,6 +202,33 @@ describe('createMainEditorActiveCellGuard', () => {
         });
     });
 
+    it('does not rewrite nested-editor table paste when the active cell no longer resolves', () => {
+        const doc = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a | b | c |', '| d | e | f |'].join('\n');
+        let state = createState({ doc, nestedOpen: true });
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 99,
+            }),
+        }).state;
+
+        const pasteText = ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n');
+        const tr = state.update({
+            changes: {
+                from: 0,
+                to: 0,
+                insert: pasteText,
+            },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(`${pasteText}${doc}`);
+        expect(getActiveCell(tr.state)).toBeNull();
+        expect(getCellSelection(tr.state)).toBeNull();
+    });
+
     it('rewrites plain root markdown-table paste into canonical table text and activation effect', () => {
         const state = createState({
             doc: ['before', '', 'after'].join('\n'),

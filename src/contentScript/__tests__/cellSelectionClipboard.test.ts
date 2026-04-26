@@ -168,6 +168,20 @@ describe('cellSelectionClipboard', () => {
         });
     });
 
+    it('returns no active-cell paste anchor when the nested editor cell no longer resolves', () => {
+        let state = createMarkdownState(doc, [activeCellField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 99,
+            }),
+        }).state;
+
+        expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toBeNull();
+    });
+
     it('returns no anchor when neither a selection nor open nested editor is available', () => {
         const state = createMarkdownState(doc, [activeCellField]);
 

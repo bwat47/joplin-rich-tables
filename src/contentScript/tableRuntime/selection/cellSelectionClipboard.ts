@@ -1,7 +1,7 @@
 import { EditorSelection } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
-import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
@@ -13,6 +13,7 @@ import {
     type CellSelection,
 } from '../../tableState/cellSelectionState';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../../tableModel/types';
@@ -120,13 +121,14 @@ export function resolveTableClipboardTarget(
         return null;
     }
 
-    const activeCell = getActiveCell(state);
-    if (!activeCell) {
+    const resolvedActiveCell = getResolvedActiveCell(state);
+    if (!resolvedActiveCell) {
         return null;
     }
 
+    const activeCell = resolvedActiveCell.activeCell;
     return {
-        tableFrom: activeCell.tableFrom,
+        tableFrom: resolvedActiveCell.tableFrom,
         anchor: {
             section: activeCell.section,
             row: activeCell.row,

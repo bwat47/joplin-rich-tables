@@ -91,25 +91,28 @@ export function decideMainEditorGuardTransaction(
         const pastedText = extractSingleInsertedText(tr);
 
         if (pastedText) {
-            const activeCell = getActiveCell(tr.startState);
+            if (params.nestedEditorOpen) {
+                const resolvedActiveCell = getResolvedActiveCell(tr.startState);
 
-            if (params.nestedEditorOpen && activeCell) {
-                const rewrite = buildMultiCellPasteRewrite(
-                    tr.startState,
-                    {
-                        tableFrom: activeCell.tableFrom,
-                        anchor: {
-                            section: activeCell.section,
-                            row: activeCell.row,
-                            col: activeCell.col,
+                if (resolvedActiveCell) {
+                    const activeCell = resolvedActiveCell.activeCell;
+                    const rewrite = buildMultiCellPasteRewrite(
+                        tr.startState,
+                        {
+                            tableFrom: resolvedActiveCell.tableFrom,
+                            anchor: {
+                                section: activeCell.section,
+                                row: activeCell.row,
+                                col: activeCell.col,
+                            },
+                            source: 'activeCell',
                         },
-                        source: 'activeCell',
-                    },
-                    pastedText
-                );
+                        pastedText
+                    );
 
-                if (rewrite) {
-                    return { type: 'rewriteTableClipboard', rewrite };
+                    if (rewrite) {
+                        return { type: 'rewriteTableClipboard', rewrite };
+                    }
                 }
             }
 

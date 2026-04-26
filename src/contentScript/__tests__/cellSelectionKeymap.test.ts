@@ -10,8 +10,9 @@ import { history } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { activeCellField, getActiveCell } from '../tableState/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
+import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 
@@ -275,6 +276,61 @@ describe('cellSelectionKeymap', () => {
         const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
         const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
         expect(effects.some((effect) => effect?.is?.(requestOpenCellEffect))).toBe(true);
+
+        view.destroy();
+    });
+
+    it('starts cell selection from a resolved active cell', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+
+        const view = new EditorView({
+            parent,
+            extensions: [markdownExtension, activeCellField, cellSelectionField],
+            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
+        });
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+
+        expect(startCellSelectionFromActiveCell(view, 'right')).toBe(true);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        });
+
+        view.destroy();
+    });
+
+    it('does not start cell selection from a stale active cell', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+
+        const view = new EditorView({
+            parent,
+            extensions: [markdownExtension, activeCellField, cellSelectionField],
+            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
+        });
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 99,
+            }),
+        });
+        const dispatchSpy = jest.spyOn(view, 'dispatch');
+
+        expect(startCellSelectionFromActiveCell(view, 'right')).toBe(false);
+        expect(dispatchSpy).not.toHaveBeenCalled();
+        expect(getCellSelection(view.state)).toBeNull();
 
         view.destroy();
     });
