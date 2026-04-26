@@ -1,22 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
-import {
-    insertRowAbove,
-    insertRowBelow,
-    insertColumnLeft,
-    insertColumnRight,
-    deleteRow,
-    deleteColumn,
-    updateAlignment,
-    clearRow,
-    clearColumn,
-    clearTable,
-    deleteTable,
-    moveRowUp,
-    moveRowDown,
-    moveColumnLeft,
-    moveColumnRight,
-} from '../tableRuntime/operations/structuralOperations';
 import { computePosition, autoUpdate, offset, shift, hide } from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
@@ -27,6 +10,8 @@ import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarS
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
 
 export class TableToolbarPlugin {
     dom: HTMLElement;
@@ -162,42 +147,12 @@ export class TableToolbarPlugin {
                 return false;
             }
 
-            switch (actionId) {
-                case 'insertRowBefore':
-                    return insertRowAbove(this.view, this.currentActiveCell);
-                case 'insertRowAfter':
-                    return insertRowBelow(this.view, this.currentActiveCell);
-                case 'deleteRow':
-                    return deleteRow(this.view, this.currentActiveCell);
-                case 'insertColumnBefore':
-                    return insertColumnLeft(this.view, this.currentActiveCell);
-                case 'insertColumnAfter':
-                    return insertColumnRight(this.view, this.currentActiveCell);
-                case 'deleteColumn':
-                    return deleteColumn(this.view, this.currentActiveCell);
-                case 'deleteTable':
-                    return deleteTable(this.view, this.currentActiveCell);
-                case 'moveRowUp':
-                    return moveRowUp(this.view, this.currentActiveCell);
-                case 'moveRowDown':
-                    return moveRowDown(this.view, this.currentActiveCell);
-                case 'moveColumnLeft':
-                    return moveColumnLeft(this.view, this.currentActiveCell);
-                case 'moveColumnRight':
-                    return moveColumnRight(this.view, this.currentActiveCell);
-                case 'clearRow':
-                    return clearRow(this.view, this.currentActiveCell);
-                case 'clearColumn':
-                    return clearColumn(this.view, this.currentActiveCell);
-                case 'clearTable':
-                    return clearTable(this.view, this.currentActiveCell);
-                case 'alignLeft':
-                    return updateAlignment(this.view, this.currentActiveCell, 'left');
-                case 'alignCenter':
-                    return updateAlignment(this.view, this.currentActiveCell, 'center');
-                case 'alignRight':
-                    return updateAlignment(this.view, this.currentActiveCell, 'right');
+            const resolvedCell = getResolvedActiveCell(this.view.state);
+            if (!resolvedCell) {
+                return false;
             }
+
+            return runStructuralAction(this.view, actionId, resolvedCell);
         };
     }
 

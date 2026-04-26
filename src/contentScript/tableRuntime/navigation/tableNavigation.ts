@@ -1,17 +1,24 @@
 import { EditorView } from '@codemirror/view';
-import type { ActiveCell } from '../../tableState/activeCellState';
-import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../activeCell/resolvedActiveCell';
+import {
+    getResolvedActiveCell,
+    resolveCellWithinResolvedTable,
+    type ResolvedActiveCell,
+} from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
 import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 
-function insertRowFromKeyboardNavigation(view: EditorView, activeCell: ActiveCell, targetCol: number): boolean {
+function insertRowFromKeyboardNavigation(
+    view: EditorView,
+    resolvedActiveCell: ResolvedActiveCell,
+    targetCol: number
+): boolean {
     if (shouldSuppressNavigationKeys(view.state)) {
         return true; // Already locked
     }
 
-    insertRowAtBottom(view, activeCell, targetCol, {
+    insertRowAtBottom(view, resolvedActiveCell, targetCol, {
         suppressKeys: true,
     });
 
@@ -81,7 +88,7 @@ export function navigateCell(
         if (options.allowRowCreation) {
             // Tab ('next') goes to first col, Enter/down stays in same col
             const targetCol = direction === 'next' ? 0 : activeCell.col;
-            return insertRowFromKeyboardNavigation(view, activeCell, targetCol);
+            return insertRowFromKeyboardNavigation(view, resolvedActiveCell, targetCol);
         }
         // Walked off end of table
         return true;

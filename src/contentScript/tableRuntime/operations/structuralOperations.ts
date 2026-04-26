@@ -3,7 +3,7 @@ import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeC
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import type { TargetCell } from '../../tableModel/activeCellForTableText';
-import { resolveActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
@@ -76,10 +76,10 @@ function createReopeningStructuralOperation(
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell
 ) {
-    return (view: EditorView, cell: ActiveCell, options?: StructuralReopenOptions): boolean =>
+    return (view: EditorView, resolvedCell: ResolvedActiveCell, options?: StructuralReopenOptions): boolean =>
         runStructuralMutationAndReopen({
             view,
-            cell,
+            resolvedCell,
             operation,
             computeTargetCell,
             ...getDefaultStructuralReopenOptions(view),
@@ -91,10 +91,10 @@ function createRowInsertOperation(
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell
 ) {
-    return (view: EditorView, cell: ActiveCell, options?: RowInsertOpenOptions): boolean =>
+    return (view: EditorView, resolvedCell: ResolvedActiveCell, options?: RowInsertOpenOptions): boolean =>
         runStructuralMutationAndReopen({
             view,
-            cell,
+            resolvedCell,
             operation,
             computeTargetCell,
             ...getDefaultRowInsertOpenOptions(view),
@@ -167,12 +167,7 @@ export const clearColumn = createReopeningStructuralOperation(
     (cell) => sameCell(cell)
 );
 
-export function deleteTable(view: EditorView, cell: ActiveCell): boolean {
-    const resolvedCell = resolveActiveCell(view.state, cell);
-    if (!resolvedCell) {
-        return false;
-    }
-
+export function deleteTable(view: EditorView, resolvedCell: ResolvedActiveCell): boolean {
     view.dispatch({
         changes: { from: resolvedCell.tableFrom, to: resolvedCell.tableTo, insert: '' },
         effects: [
@@ -188,13 +183,13 @@ export function deleteTable(view: EditorView, cell: ActiveCell): boolean {
 
 export function updateAlignment(
     view: EditorView,
-    cell: ActiveCell,
+    resolvedCell: ResolvedActiveCell,
     align: CommandColumnAlignment,
     options?: StructuralReopenOptions
 ): boolean {
     return runStructuralMutationAndReopen({
         view,
-        cell,
+        resolvedCell,
         operation: (table, currentCell) => table.updateColumnAlignment(currentCell.col, align),
         computeTargetCell: (currentCell) => sameCell(currentCell),
         ...getDefaultStructuralReopenOptions(view),
@@ -204,13 +199,13 @@ export function updateAlignment(
 
 export function insertRowAtBottom(
     view: EditorView,
-    cell: ActiveCell,
+    resolvedCell: ResolvedActiveCell,
     targetCol: number,
     options?: RowInsertOpenOptions
 ): boolean {
     return runStructuralMutationAndReopen({
         view,
-        cell,
+        resolvedCell,
         operation: (table, currentCell) => table.insertRowRelativeTo(currentCell.section, currentCell.row, 'after'),
         computeTargetCell: (currentCell) => targetInsertedRowAtBottom(currentCell, targetCol),
         ...getDefaultRowInsertOpenOptions(view),

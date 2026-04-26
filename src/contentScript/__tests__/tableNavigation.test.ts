@@ -112,14 +112,18 @@ describe('navigateCell', () => {
             col,
         };
 
-        (getResolvedActiveCell as jest.Mock).mockReturnValue({
+        const resolvedCell = {
             activeCell,
             contentFrom: 10,
             contentTo: 20,
             editableFrom: 10,
             editableTo: 20,
             ctx: currentCtx,
-        });
+        };
+
+        (getResolvedActiveCell as jest.Mock).mockReturnValue(resolvedCell);
+
+        return resolvedCell;
     };
 
     it('should return false if no active cell', () => {
@@ -197,7 +201,7 @@ describe('navigateCell', () => {
 
     it('should add row at end of table with col 0 when Tab (next) with allowRowCreation', () => {
         setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 1); // Last cell, col 1
+        const resolvedCell = setupActiveCell(SECTION_BODY, 0, 1); // Last cell, col 1
         (insertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'next', { allowRowCreation: true });
@@ -206,7 +210,7 @@ describe('navigateCell', () => {
         expect(result).toBe(true);
         expect(insertRowAtBottom).toHaveBeenCalledWith(
             mockView,
-            expect.anything(),
+            resolvedCell,
             0,
             expect.objectContaining({
                 suppressKeys: true,
@@ -217,14 +221,14 @@ describe('navigateCell', () => {
 
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
         setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 1); // Last row, col 1
+        const resolvedCell = setupActiveCell(SECTION_BODY, 0, 1); // Last row, col 1
         (insertRowAtBottom as jest.Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
         expect(result).toBe(true);
         expect(insertRowAtBottom).toHaveBeenCalledWith(
             mockView,
-            expect.anything(),
+            resolvedCell,
             1,
             expect.objectContaining({
                 suppressKeys: true,

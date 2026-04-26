@@ -1,9 +1,10 @@
 import { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
-import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import type { TargetCell } from '../tableModel/activeCellForTableText';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { registerTableCommands } from '../tableCommands/tableCommands';
 import {
     clearColumn,
     clearRow,
@@ -29,13 +30,13 @@ jest.mock('../tableRuntime/operations/runStructuralMutation', () => ({
     runStructuralMutationAndReopen: jest.fn(),
 }));
 jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
-    resolveActiveCell: jest.fn(),
+    getResolvedActiveCell: jest.fn(),
 }));
 
 describe('tableCommands (computTargetCell)', () => {
     let mockView: EditorView;
     let mockRunStructuralMutationAndReopen: jest.Mock;
-    let mockResolveActiveCell: jest.Mock;
+    let mockGetResolvedActiveCell: jest.Mock;
 
     beforeEach(() => {
         mockView = {
@@ -45,23 +46,26 @@ describe('tableCommands (computTargetCell)', () => {
         } as unknown as EditorView;
         mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as jest.Mock;
         mockRunStructuralMutationAndReopen.mockClear();
-        mockResolveActiveCell = resolveActiveCell as jest.Mock;
-        mockResolveActiveCell.mockReset();
+        mockGetResolvedActiveCell = getResolvedActiveCell as jest.Mock;
+        mockGetResolvedActiveCell.mockReset();
     });
 
     // Helper to invoke a command and check the computeTargetCell logic
     const testCommand = (
-        command: (view: EditorView, cell: ActiveCell) => void,
+        command: (view: EditorView, resolvedCell: ResolvedActiveCell) => void,
         startCell: ActiveCell,
         expectedTarget: TargetCell,
         // Optional mocks for old/new table data if logic depends on it (usually doesn't for simple moves)
         mockOldTable: MarkdownTable = {} as MarkdownTable,
         mockNewTable: MarkdownTable = {} as MarkdownTable
     ) => {
-        command(mockView, startCell);
+        const resolvedCell = createResolvedCell(startCell);
+
+        command(mockView, resolvedCell);
 
         expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledTimes(1);
         const params = mockRunStructuralMutationAndReopen.mock.calls[0][0];
+        expect(params.resolvedCell).toBe(resolvedCell);
 
         // Isolate the target computation function
         const computeTargetCell = params.computeTargetCell;
@@ -76,6 +80,24 @@ describe('tableCommands (computTargetCell)', () => {
         row,
         col,
     });
+
+    const createResolvedCell = (activeCell: ActiveCell): ResolvedActiveCell =>
+        ({
+            activeCell,
+            tableFrom: activeCell.tableFrom,
+            tableTo: 100,
+            contentFrom: 0,
+            contentTo: 0,
+            editableFrom: 0,
+            editableTo: 0,
+            ctx: {
+                from: activeCell.tableFrom,
+                to: 100,
+                text: '',
+                table: {} as MarkdownTable,
+                cellRanges: { headers: [], rows: [] },
+            },
+        }) satisfies ResolvedActiveCell;
 
     describe('insertRow', () => {
         it('insertRowAbove (header) -> stay in header', () => {
@@ -120,13 +142,14 @@ describe('tableCommands (computTargetCell)', () => {
 
         it('routes row insertion through runStructuralMutationAndReopen with row defaults', () => {
             const cell = createCell('body', 1, 1);
+            const resolvedCell = createResolvedCell(cell);
 
-            insertRowBelow(mockView, cell);
+            insertRowBelow(mockView, resolvedCell);
 
             expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
                 expect.objectContaining({
                     view: mockView,
-                    cell,
+                    resolvedCell,
                     initialCursorPos: 'start',
                     afterDispatch: expect.any(Function),
                 })
@@ -160,13 +183,14 @@ describe('tableCommands (computTargetCell)', () => {
 
         it('routes non-row structural operations through shared reopen defaults', () => {
             const cell = createCell('body', 2, 3);
+            const resolvedCell = createResolvedCell(cell);
 
-            insertColumnRight(mockView, cell);
+            insertColumnRight(mockView, resolvedCell);
 
             expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
                 expect.objectContaining({
                     view: mockView,
-                    cell,
+                    resolvedCell,
                     afterDispatch: expect.any(Function),
                 })
             );
@@ -335,8 +359,9 @@ describe('tableCommands (computTargetCell)', () => {
 
         it('updateAlignment keeps the same target cell and uses reopen dispatch', () => {
             const cell = createCell('body', 2, 1);
+            const resolvedCell = createResolvedCell(cell);
 
-            updateAlignment(mockView, cell, 'center');
+            updateAlignment(mockView, resolvedCell, 'center');
 
             expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledTimes(1);
             const params = mockRunStructuralMutationAndReopen.mock.calls[0][0];
@@ -372,17 +397,68 @@ describe('tableCommands (computTargetCell)', () => {
             } as unknown as EditorView;
             const cell = createCell('body', 1, 0);
             cell.tableFrom = 10;
-            mockResolveActiveCell.mockReturnValue({
-                tableFrom: 10,
-                tableTo: 100,
-            });
+            const resolvedCell = createResolvedCell(cell);
 
-            deleteTable(mockEditorView, cell);
+            deleteTable(mockEditorView, resolvedCell);
 
             expect(dispatchMock).toHaveBeenCalledTimes(1);
             const arg = dispatchMock.mock.calls[0][0];
             expect(arg.changes).toEqual({ from: 10, to: 100, insert: '' });
             expect(arg.effects).toHaveLength(2);
+        });
+    });
+
+    describe('registerTableCommands', () => {
+        function createEditorControl() {
+            const callbacks = new Map<string, (...args: unknown[]) => unknown>();
+            const cm6 = {
+                state: { doc: { length: 0 } },
+                contentDOM: { focus: jest.fn() },
+            } as unknown as EditorView;
+
+            return {
+                callbacks,
+                editorControl: {
+                    editor: cm6,
+                    cm6,
+                    addExtension: jest.fn(),
+                    registerCommand: jest.fn((name: string, callback: (...args: unknown[]) => unknown) => {
+                        callbacks.set(name, callback);
+                    }),
+                },
+            };
+        }
+
+        it('resolves the active cell once before running a structural command', () => {
+            const { callbacks, editorControl } = createEditorControl();
+            const cell = createCell('body', 1, 1);
+            const resolvedCell = createResolvedCell(cell);
+            mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
+            registerTableCommands(editorControl);
+
+            const result = callbacks.get('richTables.addRowBelow')?.();
+
+            expect(result).toBeUndefined();
+            expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(editorControl.cm6.state);
+            expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    view: editorControl.cm6,
+                    resolvedCell,
+                    initialCursorPos: 'start',
+                })
+            );
+        });
+
+        it('returns false and does not run an action when no active cell resolves', () => {
+            const { callbacks, editorControl } = createEditorControl();
+            mockGetResolvedActiveCell.mockReturnValue(null);
+            registerTableCommands(editorControl);
+
+            const result = callbacks.get('richTables.deleteColumn')?.();
+
+            expect(result).toBe(false);
+            expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(editorControl.cm6.state);
+            expect(mockRunStructuralMutationAndReopen).not.toHaveBeenCalled();
         });
     });
 });

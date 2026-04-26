@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { describe, expect, it, jest } from '@jest/globals';
+import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
@@ -9,10 +9,6 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-
-jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
-    resolveActiveCell: jest.fn(),
-}));
 
 describe('tableTransactionHelpers', () => {
     let currentTableText = '';
@@ -37,28 +33,30 @@ describe('tableTransactionHelpers', () => {
         } satisfies ActiveCell;
     }
 
-    beforeEach(() => {
-        (resolveActiveCell as jest.Mock).mockImplementation((...args: unknown[]) => {
-            const cell = args[1] as ActiveCell;
+    function createResolvedCell(cell: ActiveCell): ResolvedActiveCell {
+        const table = MarkdownTable.parse(currentTableText);
+        const cellRanges = computeMarkdownTableCellRanges(currentTableText);
+        if (!table || !cellRanges) {
+            throw new Error('Expected valid table fixture');
+        }
 
-            return {
-                activeCell: cell,
-                tableFrom: 0,
-                tableTo: currentTableText.length,
-                contentFrom: 0,
-                contentTo: 0,
-                editableFrom: 0,
-                editableTo: 0,
-                ctx: {
-                    from: 0,
-                    to: currentTableText.length,
-                    text: currentTableText,
-                    table: MarkdownTable.parse(currentTableText),
-                    cellRanges: computeMarkdownTableCellRanges(currentTableText),
-                },
-            };
-        });
-    });
+        return {
+            activeCell: cell,
+            tableFrom: 0,
+            tableTo: currentTableText.length,
+            contentFrom: 0,
+            contentTo: 0,
+            editableFrom: 0,
+            editableTo: 0,
+            ctx: {
+                from: 0,
+                to: currentTableText.length,
+                text: currentTableText,
+                table,
+                cellRanges,
+            },
+        };
+    }
 
     it('dispatches an explicit reopen transaction for row insertion', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
@@ -78,7 +76,7 @@ describe('tableTransactionHelpers', () => {
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
-            cell,
+            resolvedCell: createResolvedCell(cell),
             operation: (table) => table.insertRowRelativeTo('body', 0, 'after'),
             computeTargetCell: () => ({ section: 'body', row: 1, col: 1 }),
             initialCursorPos: 'start',
@@ -129,7 +127,7 @@ describe('tableTransactionHelpers', () => {
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
-            cell,
+            resolvedCell: createResolvedCell(cell),
             operation: (table) => table,
             computeTargetCell: () => ({ section: 'body', row: 0, col: 1 }),
             afterDispatch,
@@ -147,7 +145,7 @@ describe('tableTransactionHelpers', () => {
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
-            cell,
+            resolvedCell: createResolvedCell(cell),
             operation: (table) => table.moveRow('body', 1, 'up'),
             computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
         });
@@ -187,7 +185,7 @@ describe('tableTransactionHelpers', () => {
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
-            cell,
+            resolvedCell: createResolvedCell(cell),
             operation: (table, currentCell) => table.updateColumnAlignment(currentCell.col, 'center'),
             computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
         });
