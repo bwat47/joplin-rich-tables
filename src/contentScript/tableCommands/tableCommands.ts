@@ -1,24 +1,8 @@
 import { EditorView } from '@codemirror/view';
-import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { toggleSourceMode } from '../tableRuntime/sourceModeController';
-import {
-    clearColumn,
-    clearRow,
-    clearTable,
-    deleteColumn,
-    deleteRow,
-    deleteTable,
-    insertColumnLeft,
-    insertColumnRight,
-    insertRowAbove,
-    insertRowBelow,
-    moveColumnLeft,
-    moveColumnRight,
-    moveRowDown,
-    moveRowUp,
-    updateAlignment,
-    insertTableAndActivate,
-} from '../tableRuntime/operations/structuralOperations';
+import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
 /**
  * Editor control interface provided by Joplin
@@ -31,36 +15,35 @@ interface EditorControl {
 }
 
 export function registerTableCommands(editorControl: EditorControl): void {
-    // Wrapper to reduce boilerplate for commands requiring an active cell
-    const registerCellCommand = (name: string, action: (view: EditorView, cell: ActiveCell) => boolean) => {
+    const registerCellCommand = (name: string, actionId: StructuralActionId) => {
         editorControl.registerCommand(name, () => {
-            const cell = getActiveCell(editorControl.cm6.state);
-            if (!cell) return false;
-            return action(editorControl.cm6, cell);
+            const resolvedCell = getResolvedActiveCell(editorControl.cm6.state);
+            if (!resolvedCell) return false;
+            return runStructuralAction(editorControl.cm6, actionId, resolvedCell);
         });
     };
 
     // Register table manipulation commands
-    registerCellCommand('richTables.addRowAbove', insertRowAbove);
-    registerCellCommand('richTables.addRowBelow', insertRowBelow);
-    registerCellCommand('richTables.addColumnLeft', insertColumnLeft);
-    registerCellCommand('richTables.addColumnRight', insertColumnRight);
-    registerCellCommand('richTables.deleteRow', deleteRow);
-    registerCellCommand('richTables.deleteColumn', deleteColumn);
+    registerCellCommand('richTables.addRowAbove', 'insertRowBefore');
+    registerCellCommand('richTables.addRowBelow', 'insertRowAfter');
+    registerCellCommand('richTables.addColumnLeft', 'insertColumnBefore');
+    registerCellCommand('richTables.addColumnRight', 'insertColumnAfter');
+    registerCellCommand('richTables.deleteRow', 'deleteRow');
+    registerCellCommand('richTables.deleteColumn', 'deleteColumn');
 
-    registerCellCommand('richTables.alignLeft', (v, c) => updateAlignment(v, c, 'left'));
-    registerCellCommand('richTables.alignRight', (v, c) => updateAlignment(v, c, 'right'));
-    registerCellCommand('richTables.alignCenter', (v, c) => updateAlignment(v, c, 'center'));
+    registerCellCommand('richTables.alignLeft', 'alignLeft');
+    registerCellCommand('richTables.alignRight', 'alignRight');
+    registerCellCommand('richTables.alignCenter', 'alignCenter');
 
-    registerCellCommand('richTables.moveRowUp', moveRowUp);
-    registerCellCommand('richTables.moveRowDown', moveRowDown);
-    registerCellCommand('richTables.moveColumnLeft', moveColumnLeft);
-    registerCellCommand('richTables.moveColumnRight', moveColumnRight);
+    registerCellCommand('richTables.moveRowUp', 'moveRowUp');
+    registerCellCommand('richTables.moveRowDown', 'moveRowDown');
+    registerCellCommand('richTables.moveColumnLeft', 'moveColumnLeft');
+    registerCellCommand('richTables.moveColumnRight', 'moveColumnRight');
 
-    registerCellCommand('richTables.clearRow', clearRow);
-    registerCellCommand('richTables.clearColumn', clearColumn);
-    registerCellCommand('richTables.clearTable', clearTable);
-    registerCellCommand('richTables.deleteTable', deleteTable);
+    registerCellCommand('richTables.clearRow', 'clearRow');
+    registerCellCommand('richTables.clearColumn', 'clearColumn');
+    registerCellCommand('richTables.clearTable', 'clearTable');
+    registerCellCommand('richTables.deleteTable', 'deleteTable');
 
     // Register insert table command that activates the first cell
     editorControl.registerCommand('richTables.insertTableAndActivate', () => {

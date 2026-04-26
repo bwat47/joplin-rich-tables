@@ -5,7 +5,7 @@ import { MarkdownTable } from '../../tableModel/MarkdownTable';
 import type { TargetCell } from '../../tableModel/activeCellForTableText';
 import { prepareOpenCellRequestTransaction } from '../openCellRequest';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
-import { resolveActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
 function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
@@ -13,7 +13,7 @@ function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
 
 interface StructuralMutationPreparationParams {
     view: EditorView;
-    cell: ActiveCell;
+    resolvedCell: ResolvedActiveCell;
     operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable;
     computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell;
 }
@@ -37,10 +37,8 @@ interface PreparedStructuralMutation {
 }
 
 function prepareStructuralMutation(params: StructuralMutationPreparationParams): PreparedStructuralMutation | null {
-    const { view, cell, operation, computeTargetCell } = params;
-    const resolvedCell = resolveActiveCell(view.state, cell);
-    if (!resolvedCell) return null;
-
+    const { resolvedCell, operation, computeTargetCell } = params;
+    const cell = resolvedCell.activeCell;
     const { tableFrom, tableTo, ctx } = resolvedCell;
     const text = ctx.text;
 

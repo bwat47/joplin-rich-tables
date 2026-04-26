@@ -16,25 +16,9 @@ import {
     rowInsertTopIcon,
     rowRemoveIcon,
 } from './icons';
+import type { StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
-export type ToolbarActionId =
-    | 'insertRowBefore'
-    | 'insertRowAfter'
-    | 'deleteRow'
-    | 'insertColumnBefore'
-    | 'insertColumnAfter'
-    | 'deleteColumn'
-    | 'deleteTable'
-    | 'moveRowUp'
-    | 'moveRowDown'
-    | 'moveColumnLeft'
-    | 'moveColumnRight'
-    | 'clearRow'
-    | 'clearColumn'
-    | 'clearTable'
-    | 'alignLeft'
-    | 'alignCenter'
-    | 'alignRight';
+export type ToolbarActionId = StructuralActionId;
 
 export interface ToolbarButtonDescriptor {
     actionId: ToolbarActionId;

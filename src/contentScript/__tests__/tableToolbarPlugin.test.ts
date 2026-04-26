@@ -5,41 +5,19 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
+import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 
-const mockInsertRowAbove = jest.fn();
-const mockInsertRowBelow = jest.fn();
-const mockInsertColumnLeft = jest.fn();
-const mockInsertColumnRight = jest.fn();
-const mockDeleteRow = jest.fn();
-const mockDeleteColumn = jest.fn();
-const mockUpdateAlignment = jest.fn();
-const mockClearRow = jest.fn();
-const mockClearColumn = jest.fn();
-const mockClearTable = jest.fn();
-const mockDeleteTable = jest.fn();
-const mockMoveRowUp = jest.fn();
-const mockMoveRowDown = jest.fn();
-const mockMoveColumnLeft = jest.fn();
-const mockMoveColumnRight = jest.fn();
+const mockGetResolvedActiveCell = jest.fn();
+const mockRunStructuralAction = jest.fn();
 const mockIsNestedEditorOpen = jest.fn();
 const mockRefocusNestedEditor = jest.fn();
 
-jest.mock('../tableRuntime/operations/structuralOperations', () => ({
-    insertRowAbove: mockInsertRowAbove,
-    insertRowBelow: mockInsertRowBelow,
-    insertColumnLeft: mockInsertColumnLeft,
-    insertColumnRight: mockInsertColumnRight,
-    deleteRow: mockDeleteRow,
-    deleteColumn: mockDeleteColumn,
-    updateAlignment: mockUpdateAlignment,
-    clearRow: mockClearRow,
-    clearColumn: mockClearColumn,
-    clearTable: mockClearTable,
-    deleteTable: mockDeleteTable,
-    moveRowUp: mockMoveRowUp,
-    moveRowDown: mockMoveRowDown,
-    moveColumnLeft: mockMoveColumnLeft,
-    moveColumnRight: mockMoveColumnRight,
+jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
+    getResolvedActiveCell: mockGetResolvedActiveCell,
+}));
+
+jest.mock('../tableRuntime/operations/structuralActions', () => ({
+    runStructuralAction: mockRunStructuralAction,
 }));
 
 jest.mock('../nestedEditor/nestedEditorController', () => ({
@@ -61,7 +39,26 @@ function createCell(): ActiveCell {
 function createView(): EditorView {
     const dom = document.createElement('div');
     document.body.appendChild(dom);
-    return { dom } as unknown as EditorView;
+    return { dom, state: { doc: { length: 0 } } } as unknown as EditorView;
+}
+
+function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
+    return {
+        activeCell,
+        tableFrom: activeCell.tableFrom,
+        tableTo: 100,
+        contentFrom: 0,
+        contentTo: 0,
+        editableFrom: 0,
+        editableTo: 0,
+        ctx: {
+            from: activeCell.tableFrom,
+            to: 100,
+            text: '',
+            table: {},
+            cellRanges: { headers: [], rows: [] },
+        },
+    } as unknown as ResolvedActiveCell;
 }
 
 function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLButtonElement {
@@ -96,15 +93,18 @@ describe('tableToolbarPlugin', () => {
         const view = createView();
         const plugin = new TableToolbarPlugin(view);
         const cell = createCell();
+        const resolvedCell = createResolvedCell(cell);
 
         setCurrentActiveCell(plugin, cell);
         createToolbarButtons(plugin);
-        mockMoveRowUp.mockReturnValue(false);
+        mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
+        mockRunStructuralAction.mockReturnValue(false);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
         getToolbarButton(plugin, 'Move row up').click();
 
-        expect(mockMoveRowUp).toHaveBeenCalledWith(view, cell);
+        expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
+        expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
 
         plugin.destroy();
@@ -114,16 +114,36 @@ describe('tableToolbarPlugin', () => {
         const view = createView();
         const plugin = new TableToolbarPlugin(view);
         const cell = createCell();
+        const resolvedCell = createResolvedCell(cell);
 
         setCurrentActiveCell(plugin, cell);
         createToolbarButtons(plugin);
-        mockMoveRowUp.mockReturnValue(true);
+        mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
+        mockRunStructuralAction.mockReturnValue(true);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
         getToolbarButton(plugin, 'Move row up').click();
 
-        expect(mockMoveRowUp).toHaveBeenCalledWith(view, cell);
+        expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).not.toHaveBeenCalled();
+
+        plugin.destroy();
+    });
+
+    it('does not run a toolbar action when the active cell no longer resolves', () => {
+        const view = createView();
+        const plugin = new TableToolbarPlugin(view);
+
+        setCurrentActiveCell(plugin, createCell());
+        createToolbarButtons(plugin);
+        mockGetResolvedActiveCell.mockReturnValue(null);
+        mockIsNestedEditorOpen.mockReturnValue(true);
+
+        getToolbarButton(plugin, 'Move row up').click();
+
+        expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
+        expect(mockRunStructuralAction).not.toHaveBeenCalled();
+        expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
 
         plugin.destroy();
     });

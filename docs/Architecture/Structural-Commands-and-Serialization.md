@@ -10,9 +10,11 @@ Multi-cell clipboard writes use the same parse -> mutate -> serialize pattern, b
 ```
 User Action (keyboard/toolbar)
          ↓
-    tableCommands.ts           ← Command registration only
+    tableCommands.ts / tableToolbarPlugin.ts ← Resolve active cell once
          ↓
-   operations/structuralOperations.ts   ← Runtime entry points
+   operations/structuralActions.ts      ← Shared action registry
+         ↓
+   operations/structuralOperations.ts   ← Runtime intent entry points
           ↓
    operations/runStructuralMutation.ts ← Parse, mutate, serialize, dispatch
          ↓
@@ -24,8 +26,12 @@ User Action (keyboard/toolbar)
 ### 1. Entry Point (`tableCommands.ts`)
 
 - **Joplin Registration**: `richTables.insertRowBelow`, etc.
-- **Active Cell Validation**: Checks before executing.
-- **Delegation Only**: Dispatches into `tableRuntime/operations/structuralOperations.ts`.
+- **Active Cell Resolution**: Resolves the current active cell once with `getResolvedActiveCell()`.
+- **Delegation Only**: Dispatches through the shared structural action registry.
+
+The floating toolbar follows the same action path. It keeps plain `ActiveCell` state for visibility and positioning,
+but resolves fresh from the current editor state when a toolbar button is clicked so async toolbar layout work does
+not preserve stale table context.
 
 ### 1b. Selection Clipboard Entry (`tableRuntime/selection/cellSelectionClipboard.ts`)
 
@@ -56,9 +62,9 @@ define paragraph-splitting behavior.
 
 ### 2. Runtime Mutation Helpers (`tableRuntime/operations/runStructuralMutation.ts`)
 
-`runStructuralMutation.ts` has one shared preparation core that orchestrates:
+`runStructuralMutation.ts` has one shared preparation core that receives a `ResolvedActiveCell` and orchestrates:
 
-1. **Build Context**: Slice table text → `TableContext` (`MarkdownTable` + `cellRanges`).
+1. **Use Resolved Context**: Reuse the resolved table span, `TableContext`, and logical active cell.
 2. **Mutate**: Call operation function.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
@@ -66,6 +72,9 @@ define paragraph-splitting behavior.
 6. **Dispatch**: `runStructuralMutationAndReopen()` replaces the table range when needed, sets the
    main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
    forces a widget rebuild, and can run an immediate post-dispatch callback such as main-editor focus handoff.
+
+`structuralActions.ts` maps shared action IDs to runtime operations so keyboard commands and toolbar buttons do not
+maintain separate operation switchboards.
 
 `structuralOperations.ts` is the intent layer on top of the runner:
 
