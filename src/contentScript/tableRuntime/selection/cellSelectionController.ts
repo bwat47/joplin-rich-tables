@@ -114,7 +114,10 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
     }
 
     const activeCell = resolvedActiveCell.activeCell;
-    const clampedFocus = clampSelectionFocusWithinContext(resolvedActiveCell.ctx, moveCellCoords(activeCell, direction));
+    const clampedFocus = clampSelectionFocusWithinContext(
+        resolvedActiveCell.ctx,
+        moveCellCoords(activeCell, direction)
+    );
     if (!clampedFocus) {
         return false;
     }
