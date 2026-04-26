@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../../tableState/activeCellState';
-import { getResolvedActiveCell, retargetResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
@@ -107,7 +107,7 @@ export function navigateCell(
     };
 
     // Activate target cell
-    const nextResolvedCell = retargetResolvedActiveCell(resolvedActiveCell, target);
+    const nextResolvedCell = resolveCellWithinResolvedTable(resolvedActiveCell, target);
     if (!nextResolvedCell) {
         return false;
     }

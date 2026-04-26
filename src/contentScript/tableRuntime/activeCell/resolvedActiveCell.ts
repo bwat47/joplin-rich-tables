@@ -44,7 +44,7 @@ export function createResolvedActiveCell(params: { ctx: TableContext; coords: Ce
     };
 }
 
-export function retargetResolvedActiveCell(
+export function resolveCellWithinResolvedTable(
     resolved: ResolvedActiveCell,
     coords: CellCoords
 ): ResolvedActiveCell | null {

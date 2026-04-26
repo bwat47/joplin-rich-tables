@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { getResolvedActiveCell, retargetResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 
 import { setActiveCellEffect } from '../tableState/activeCellState';
@@ -12,7 +12,7 @@ import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
 jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     getResolvedActiveCell: jest.fn(),
-    retargetResolvedActiveCell: jest.fn(),
+    resolveCellWithinResolvedTable: jest.fn(),
 }));
 jest.mock('../tableRuntime/operations/structuralOperations', () => ({
     __esModule: true,
@@ -58,7 +58,7 @@ describe('navigateCell', () => {
 
         // Reset mocks
         (getResolvedActiveCell as jest.Mock).mockReset();
-        (retargetResolvedActiveCell as jest.Mock).mockReset();
+        (resolveCellWithinResolvedTable as jest.Mock).mockReset();
         (insertRowAtBottom as jest.Mock).mockReset();
     });
 
@@ -86,7 +86,7 @@ describe('navigateCell', () => {
             },
         };
 
-        (retargetResolvedActiveCell as jest.Mock).mockImplementation((_resolved, target) => ({
+        (resolveCellWithinResolvedTable as jest.Mock).mockImplementation((_resolved, target) => ({
             activeCell: {
                 tableFrom: 0,
                 section: target.section,
