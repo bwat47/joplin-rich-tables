@@ -1,157 +1,8 @@
-import { ensureSyntaxTree } from '@codemirror/language';
-import type { EditorState } from '@codemirror/state';
-import type { SyntaxNode } from '@lezer/common';
 import type { EditorView } from '@codemirror/view';
-import { getCellRange, type TableCellRanges, type CellRange } from '../tableModel/markdownTableCellRanges';
-import { buildTableContext, type TableContext } from '../tableModel/tableContext';
-import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import type { TableContext } from '../tableModel/tableContext';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
-import type { CellCoords, ResolvedTable } from '../tableModel/types';
-
-const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
-const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
-
-/**
- * Trims trailing non-table lines from a Lezer-reported table range.
- *
- * Lezer's Markdown parser treats any non-blank line after a table as part of
- * the table until a blank line separator. This function scans backward and
- * excludes lines that don't contain '|' (i.e., not valid table rows).
- *
- * @param text - The raw table text from Lezer's range
- * @returns The trimmed text containing only valid table rows
- */
-export function trimTrailingNonTableLines(text: string): string {
-    const lines = text.split('\n');
-
-    // Need at least header + separator (2 lines) for a valid table
-    while (lines.length > 2) {
-        const lastLine = lines[lines.length - 1];
-        // A valid table row must contain '|'
-        if (lastLine.includes('|')) {
-            break;
-        }
-        lines.pop();
-    }
-
-    return lines.join('\n');
-}
-
-/**
- * Resolve the Lezer `Table` node that contains `pos`.
- */
-export function resolveTableAtPos(
-    state: EditorState,
-    pos: number,
-    timeoutMs: number = TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS
-): ResolvedTable | null {
-    const tree = ensureSyntaxTree(state, pos, timeoutMs);
-    if (!tree) {
-        return null;
-    }
-
-    let node: SyntaxNode | null = tree.resolve(pos, 1);
-    while (node && node.name !== 'Table') {
-        node = node.parent;
-    }
-
-    if (!node || node.name !== 'Table') {
-        return null;
-    }
-
-    const rawText = state.doc.sliceString(node.from, node.to);
-    const text = trimTrailingNonTableLines(rawText);
-    const to = node.from + text.length;
-
-    return { from: node.from, to, text };
-}
-
-/**
- * Find all markdown table ranges in the document using the syntax tree.
- */
-export function findTableRanges(
-    state: EditorState,
-    timeoutMs: number = TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS
-): ResolvedTable[] {
-    const tables: ResolvedTable[] = [];
-    const doc = state.doc;
-
-    const tree = ensureSyntaxTree(state, state.doc.length, timeoutMs);
-    if (!tree) {
-        return tables;
-    }
-
-    tree.iterate({
-        enter: (node) => {
-            if (node.name === 'Table') {
-                const rawText = doc.sliceString(node.from, node.to);
-                const text = trimTrailingNonTableLines(rawText);
-                const to = node.from + text.length;
-                tables.push({ from: node.from, to, text });
-            }
-        },
-    });
-
-    return tables;
-}
-
-function resolveTableContextFromResolved(resolved: ResolvedTable | null): TableContext | null {
-    if (!resolved) {
-        return null;
-    }
-
-    return buildTableContext(resolved);
-}
-
-function clampDocPos(state: EditorState, pos: number): number {
-    return Math.min(Math.max(pos, 0), state.doc.length);
-}
-
-export function resolveTableForActiveCell(
-    state: EditorState,
-    activeCell: ActiveCell
-): {
-    ctx: TableContext;
-    tableFrom: number;
-    tableTo: number;
-    contentFrom: number;
-    contentTo: number;
-    editableFrom: number;
-    editableTo: number;
-} | null {
-    const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
-    if (!ctx) {
-        return null;
-    }
-
-    const range = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: activeCell,
-    });
-    if (!range) {
-        return null;
-    }
-
-    return {
-        ctx,
-        tableFrom: ctx.from,
-        tableTo: ctx.to,
-        contentFrom: range.contentFrom,
-        contentTo: range.contentTo,
-        editableFrom: range.editableFrom,
-        editableTo: range.editableTo,
-    };
-}
-
-function resolveActiveCellTableContext(state: EditorState): TableContext | null {
-    const activeCell = getActiveCell(state);
-    if (!activeCell) {
-        return null;
-    }
-
-    return resolveTableForActiveCell(state, activeCell)?.ctx ?? null;
-}
+import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
+import { resolveTableContextAtPos } from './tableResolution';
 
 /**
  * Resolve a table context from an event target, using a best-effort set of fallbacks.
@@ -165,7 +16,7 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
     // Best case: map DOM->doc position.
     try {
         const pos = view.posAtDOM(target, 0);
-        const context = resolveTableContextFromResolved(resolveTableAtPos(view.state, pos));
+        const context = resolveTableContextAtPos(view.state, pos);
         if (context) {
             return context;
         }
@@ -180,7 +31,7 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
     if (container) {
         try {
             const pos = view.posAtDOM(container, 0);
-            const context = resolveTableContextFromResolved(resolveTableAtPos(view.state, pos));
+            const context = resolveTableContextAtPos(view.state, pos);
             if (context) {
                 return context;
             }
@@ -191,41 +42,10 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
 
     // Fallback: use the persisted active cell identity when nested editing has
     // detached the event target from a reliable document position.
-    const activeCellContext = resolveActiveCellTableContext(view.state);
+    const activeCellContext = getResolvedActiveCell(view.state)?.ctx ?? null;
     if (activeCellContext) {
         return activeCellContext;
     }
 
     return null;
-}
-
-export function resolveCellDocRange(params: { tableFrom: number; ranges: TableCellRanges; coords: CellCoords }): {
-    contentFrom: number;
-    contentTo: number;
-    editableFrom: number;
-    editableTo: number;
-    relRange: CellRange;
-} | null {
-    const { tableFrom, ranges, coords } = params;
-
-    const relRange = getCellRange(ranges, coords);
-    if (!relRange) {
-        return null;
-    }
-
-    return {
-        contentFrom: tableFrom + relRange.from,
-        contentTo: tableFrom + relRange.to,
-        editableFrom: tableFrom + relRange.editableFrom,
-        editableTo: tableFrom + relRange.editableTo,
-        relRange,
-    };
-}
-
-/**
- * Resolve a table at `pos` and build a full TableContext (parsed table + cell ranges).
- * Convenience wrapper combining resolveTableAtPos + buildTableContext.
- */
-export function resolveTableContextAtPos(state: EditorState, pos: number, timeoutMs?: number): TableContext | null {
-    return resolveTableContextFromResolved(resolveTableAtPos(state, pos, timeoutMs));
 }

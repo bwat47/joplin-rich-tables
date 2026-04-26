@@ -2,7 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 import { EditorView } from '@codemirror/view';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { createMarkdownState } from './testMarkdownState';
-import { resolveTableContextFromEventTarget, trimTrailingNonTableLines } from '../tableRuntime/tablePositioning';
+import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
+import { trimTrailingNonTableLines } from '../tableRuntime/tableResolution';
 
 describe('trimTrailingNonTableLines', () => {
     it('returns unchanged text for valid table without trailing content', () => {

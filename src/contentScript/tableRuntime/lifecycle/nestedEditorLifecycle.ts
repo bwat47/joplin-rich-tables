@@ -18,7 +18,7 @@ import {
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { makeTableId } from '../../tableModel/types';
-import { findTableRanges } from '../tablePositioning';
+import { findTableRanges } from '../tableResolution';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
 import {

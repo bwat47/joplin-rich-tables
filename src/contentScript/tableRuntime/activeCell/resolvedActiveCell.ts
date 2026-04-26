@@ -3,7 +3,7 @@ import { StateField } from '@codemirror/state';
 import { activeCellField, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
-import { resolveCellDocRange, resolveTableForActiveCell } from '../tablePositioning';
+import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;
@@ -54,24 +54,28 @@ export function resolveCellWithinResolvedTable(
     });
 }
 
+function clampDocPos(state: EditorState, pos: number): number {
+    return Math.min(Math.max(pos, 0), state.doc.length);
+}
+
+function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {
+    const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
+    if (!ctx) {
+        return null;
+    }
+
+    return createResolvedActiveCell({
+        ctx,
+        coords: activeCell,
+    });
+}
+
 export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
     if (!activeCell) {
         return null;
     }
 
-    const resolved = resolveTableForActiveCell(state, activeCell);
-    if (!resolved) {
-        return null;
-    }
-
-    return createResolvedActiveCell({
-        ctx: resolved.ctx,
-        coords: {
-            section: activeCell.section,
-            row: activeCell.row,
-            col: activeCell.col,
-        },
-    });
+    return resolveAnchoredActiveCell(state, activeCell);
 }
 
 /**

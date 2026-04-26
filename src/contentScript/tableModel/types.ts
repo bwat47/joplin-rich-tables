@@ -6,7 +6,7 @@ export type TableSection = 'header' | 'body';
 
 /**
  * A table's document-level position and raw text.
- * Produced by Lezer syntax-tree resolution in tablePositioning.
+ * Produced by Lezer syntax-tree resolution in tableResolution.
  */
 export interface ResolvedTable {
     from: number;

@@ -5,7 +5,7 @@
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
-import { findTableRanges } from '../tablePositioning';
+import { findTableRanges } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';

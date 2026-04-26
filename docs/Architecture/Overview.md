@@ -99,6 +99,10 @@ This is the shared derived object used across widget rendering, table interactio
 navigation, and command helpers so the plugin does not repeatedly run separate
 resolve -> parse -> compute-ranges chains for the same table content.
 
+`tableRuntime/tableResolution.ts` owns generic syntax-tree table lookup and cell-range
+resolution. `tableRuntime/tablePositioning.ts` is limited to DOM/event target fallback
+resolution for widget interactions.
+
 The active-cell resolver builds on `TableContext` and is the only supported way to
 derive current table/cell offsets for the persisted logical active-cell state.
 Once current-state code has a concrete active cell, it should pass `ResolvedActiveCell`

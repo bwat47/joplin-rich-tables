@@ -1,6 +1,6 @@
 import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     fromUnifiedRow,
@@ -12,20 +12,34 @@ import {
     type CellSelection,
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
-import { resolveCellDocRange, resolveTableContextAtPos } from '../tablePositioning';
+import type { TableContext } from '../../tableModel/tableContext';
+import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 import { makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
-function getTableBounds(view: EditorView, tableFrom: number): { totalRows: number; totalCols: number } | null {
-    const ctx = resolveTableContextAtPos(view.state, tableFrom);
-    if (!ctx) {
-        return null;
-    }
-
+function getTableBoundsFromContext(ctx: TableContext): { totalRows: number; totalCols: number } {
     return {
         totalRows: 1 + ctx.cellRanges.rows.length,
         totalCols: ctx.cellRanges.headers.length,
     };
+}
+
+function getTableBounds(view: EditorView, tableFrom: number): { totalRows: number; totalCols: number } | null {
+    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    return ctx ? getTableBoundsFromContext(ctx) : null;
+}
+
+function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
+    const bounds = getTableBoundsFromContext(ctx);
+    if (bounds.totalCols <= 0) {
+        return null;
+    }
+
+    const unifiedRow = Math.max(0, Math.min(bounds.totalRows - 1, toUnifiedRow(focus)));
+    const col = Math.max(0, Math.min(bounds.totalCols - 1, focus.col));
+
+    return fromUnifiedRow(unifiedRow, col);
 }
 
 function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoords): CellCoords | null {
@@ -40,12 +54,12 @@ function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoo
     return fromUnifiedRow(unifiedRow, col);
 }
 
-function dispatchSelection(view: EditorView, selection: CellSelection, options: { clearActiveCell: boolean }): boolean {
-    const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
-    if (!ctx) {
-        return false;
-    }
-
+function dispatchSelectionWithContext(
+    view: EditorView,
+    ctx: TableContext,
+    selection: CellSelection,
+    options: { clearActiveCell: boolean }
+): boolean {
     const focusRange = resolveCellDocRange({
         tableFrom: ctx.from,
         ranges: ctx.cellRanges,
@@ -84,21 +98,35 @@ function dispatchSelection(view: EditorView, selection: CellSelection, options: 
     return true;
 }
 
-export function startCellSelectionFromActiveCell(view: EditorView, direction: CellSelectionDirection): boolean {
-    const activeCell = getActiveCell(view.state);
-    if (!activeCell) {
+function dispatchSelection(view: EditorView, selection: CellSelection, options: { clearActiveCell: boolean }): boolean {
+    const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+    if (!ctx) {
         return false;
     }
 
-    const clampedFocus = clampSelectionFocus(view, activeCell.tableFrom, moveCellCoords(activeCell, direction));
+    return dispatchSelectionWithContext(view, ctx, selection, options);
+}
+
+export function startCellSelectionFromActiveCell(view: EditorView, direction: CellSelectionDirection): boolean {
+    const resolvedActiveCell = getResolvedActiveCell(view.state);
+    if (!resolvedActiveCell) {
+        return false;
+    }
+
+    const activeCell = resolvedActiveCell.activeCell;
+    const clampedFocus = clampSelectionFocusWithinContext(
+        resolvedActiveCell.ctx,
+        moveCellCoords(activeCell, direction)
+    );
     if (!clampedFocus) {
         return false;
     }
 
-    return dispatchSelection(
+    return dispatchSelectionWithContext(
         view,
+        resolvedActiveCell.ctx,
         {
-            tableFrom: activeCell.tableFrom,
+            tableFrom: resolvedActiveCell.tableFrom,
             anchor: activeCell,
             focus: clampedFocus,
         },
@@ -147,17 +175,19 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
         );
     }
 
-    const activeCell = getActiveCell(view.state);
-    if (activeCell && activeCell.tableFrom === tableFrom) {
-        const clampedFocus = clampSelectionFocus(view, activeCell.tableFrom, focus);
+    const resolvedActiveCell = getResolvedActiveCell(view.state);
+    if (resolvedActiveCell && resolvedActiveCell.tableFrom === tableFrom) {
+        const activeCell = resolvedActiveCell.activeCell;
+        const clampedFocus = clampSelectionFocusWithinContext(resolvedActiveCell.ctx, focus);
         if (!clampedFocus) {
             return false;
         }
 
-        return dispatchSelection(
+        return dispatchSelectionWithContext(
             view,
+            resolvedActiveCell.ctx,
             {
-                tableFrom: activeCell.tableFrom,
+                tableFrom: resolvedActiveCell.tableFrom,
                 anchor: activeCell,
                 focus: clampedFocus,
             },

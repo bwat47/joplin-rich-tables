@@ -1,6 +1,5 @@
 import { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { getActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 import { transactionRequiresTableRebuild } from './tableTransactionHelpers';
@@ -24,10 +23,9 @@ export function createUndoScrollPreservation(getView: () => EditorView): Extensi
         const view = getView();
         if (!isNestedEditorOpen(view)) return null;
 
-        const activeCell = getActiveCell(tr.startState);
-        if (!activeCell) return null;
-
         const resolvedActiveCell = getResolvedActiveCell(tr.startState);
+        if (!resolvedActiveCell) return null;
+
         if (transactionRequiresTableRebuild(tr, resolvedActiveCell)) return null;
 
         return { effects: view.scrollSnapshot() };
