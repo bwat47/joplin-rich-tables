@@ -58,41 +58,16 @@ function clampDocPos(state: EditorState, pos: number): number {
     return Math.min(Math.max(pos, 0), state.doc.length);
 }
 
-export function resolveTableForActiveCell(
-    state: EditorState,
-    activeCell: ActiveCell
-): {
-    ctx: TableContext;
-    tableFrom: number;
-    tableTo: number;
-    contentFrom: number;
-    contentTo: number;
-    editableFrom: number;
-    editableTo: number;
-} | null {
+export function resolveTableForActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {
     const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
     if (!ctx) {
         return null;
     }
 
-    const range = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
+    return createResolvedActiveCell({
+        ctx,
         coords: activeCell,
     });
-    if (!range) {
-        return null;
-    }
-
-    return {
-        ctx,
-        tableFrom: ctx.from,
-        tableTo: ctx.to,
-        contentFrom: range.contentFrom,
-        contentTo: range.contentTo,
-        editableFrom: range.editableFrom,
-        editableTo: range.editableTo,
-    };
 }
 
 export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
@@ -100,19 +75,7 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         return null;
     }
 
-    const resolved = resolveTableForActiveCell(state, activeCell);
-    if (!resolved) {
-        return null;
-    }
-
-    return createResolvedActiveCell({
-        ctx: resolved.ctx,
-        coords: {
-            section: activeCell.section,
-            row: activeCell.row,
-            col: activeCell.col,
-        },
-    });
+    return resolveTableForActiveCell(state, activeCell);
 }
 
 /**
