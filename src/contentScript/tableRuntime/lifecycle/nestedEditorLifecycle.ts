@@ -9,7 +9,7 @@ import {
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -87,7 +87,7 @@ type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
 
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
-    activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
+    resolvedActiveCell: ResolvedActiveCell;
     normalizeIfNeeded: boolean;
     requestId: string;
 }): NormalizeBeforeOpenResult {
@@ -95,12 +95,7 @@ function normalizeTableBeforeOpen(params: {
         return 'not-needed';
     }
 
-    const resolved = getResolvedActiveCell(params.view.state);
-    if (!resolved) {
-        return 'not-needed';
-    }
-
-    const replacement = getNormalizedTableReplacementIfChanged(params.view.state, resolved.ctx);
+    const replacement = getNormalizedTableReplacementIfChanged(params.view.state, params.resolvedActiveCell.ctx);
     if (!replacement) {
         return 'not-needed';
     }
@@ -108,7 +103,7 @@ function normalizeTableBeforeOpen(params: {
     const nextActiveCell = createActiveCellForTableText({
         tableFrom: replacement.tableFrom,
         tableText: replacement.tableText,
-        target: params.activeCell,
+        target: params.resolvedActiveCell.activeCell,
     });
     if (!nextActiveCell) {
         return 'aborted';
@@ -121,8 +116,8 @@ function normalizeTableBeforeOpen(params: {
 
     params.view.dispatch({
         changes: {
-            from: resolved.tableFrom,
-            to: resolved.tableTo,
+            from: params.resolvedActiveCell.tableFrom,
+            to: params.resolvedActiveCell.tableTo,
             insert: replacement.insert,
         },
         selection: { anchor: nextActiveCell.selectionAnchor },
@@ -286,7 +281,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                             const normalizeResult = normalizeTableBeforeOpen({
                                 view: this.view,
-                                activeCell: resolvedActiveCell.activeCell,
+                                resolvedActiveCell,
                                 normalizeIfNeeded,
                                 requestId,
                             });
