@@ -9,7 +9,7 @@ import {
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { getResolvedActiveCell, resolveActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -67,18 +67,6 @@ function getInsertedTableActivationRequest(update: ViewUpdate) {
     return null;
 }
 
-function getResolvedActiveCellFromStateOrExplicit(
-    state: EditorView['state'],
-    activeCell: NonNullable<ReturnType<typeof getActiveCell>>
-) {
-    const resolvedFromState = getResolvedActiveCell(state);
-    if (resolvedFromState && isSameActiveCell(resolvedFromState.activeCell, activeCell)) {
-        return resolvedFromState;
-    }
-
-    return resolveActiveCell(state, activeCell);
-}
-
 function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell | null): ActiveCell | null {
     if (!activeCell) {
         return null;
@@ -107,7 +95,7 @@ function normalizeTableBeforeOpen(params: {
         return 'not-needed';
     }
 
-    const resolved = getResolvedActiveCellFromStateOrExplicit(params.view.state, params.activeCell);
+    const resolved = getResolvedActiveCell(params.view.state);
     if (!resolved) {
         return 'not-needed';
     }
@@ -279,10 +267,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 failOpenRequest(requestId);
                                 return;
                             }
-                            const resolvedActiveCell = getResolvedActiveCellFromStateOrExplicit(
-                                this.view.state,
-                                targetActiveCell
-                            );
+                            const resolvedActiveCell = getResolvedActiveCell(this.view.state);
                             if (!resolvedActiveCell) {
                                 failOpenRequest(requestId);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
