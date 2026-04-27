@@ -37,7 +37,6 @@ import {
 } from '../tableRuntime/interaction/outsideTableInteraction';
 import { createStartupCursorCorrection } from '../tableRuntime/startupCursorCorrection';
 import { tableDecorationField } from './tableDecorationField';
-import { rawTableLineWrappingField, rawTableLineWrappingTheme } from './rawTableLineWrapping';
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
@@ -100,11 +99,9 @@ export default function (context: ContentScriptContext) {
                 nestedEditorFocusGuard,
                 nestedEditorLifecyclePlugin,
                 tableDecorationField,
-                rawTableLineWrappingField,
                 documentDefinitionsField,
                 richTableThemeVars,
                 tableStyles,
-                rawTableLineWrappingTheme,
                 tableToolbarTheme,
                 tableToolbarPlugin,
             ]);
