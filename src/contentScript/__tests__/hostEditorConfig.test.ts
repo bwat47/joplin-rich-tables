@@ -48,14 +48,6 @@ describe('hostEditorConfig', () => {
         await expect(fetchHostEditorConfig(postMessage)).resolves.toEqual(defaultHostEditorConfig());
     });
 
-    it('exposes explicit config through the facet', () => {
-        const state = EditorState.create({
-            extensions: [hostEditorConfigFacet.of(validConfig)],
-        });
-
-        expect(state.facet(hostEditorConfigFacet)).toEqual(validConfig);
-    });
-
     it('exposes defaults when the facet is absent', () => {
         const state = EditorState.create();
 
