@@ -9,7 +9,7 @@ import {
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { getResolvedActiveCell, resolveActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -67,18 +67,6 @@ function getInsertedTableActivationRequest(update: ViewUpdate) {
     return null;
 }
 
-function getResolvedActiveCellFromStateOrExplicit(
-    state: EditorView['state'],
-    activeCell: NonNullable<ReturnType<typeof getActiveCell>>
-) {
-    const resolvedFromState = getResolvedActiveCell(state);
-    if (resolvedFromState && isSameActiveCell(resolvedFromState.activeCell, activeCell)) {
-        return resolvedFromState;
-    }
-
-    return resolveActiveCell(state, activeCell);
-}
-
 function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell | null): ActiveCell | null {
     if (!activeCell) {
         return null;
@@ -99,7 +87,7 @@ type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
 
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
-    activeCell: NonNullable<ReturnType<typeof getActiveCell>>;
+    resolvedActiveCell: ResolvedActiveCell;
     normalizeIfNeeded: boolean;
     requestId: string;
 }): NormalizeBeforeOpenResult {
@@ -107,12 +95,7 @@ function normalizeTableBeforeOpen(params: {
         return 'not-needed';
     }
 
-    const resolved = getResolvedActiveCellFromStateOrExplicit(params.view.state, params.activeCell);
-    if (!resolved) {
-        return 'not-needed';
-    }
-
-    const replacement = getNormalizedTableReplacementIfChanged(params.view.state, resolved.ctx);
+    const replacement = getNormalizedTableReplacementIfChanged(params.view.state, params.resolvedActiveCell.ctx);
     if (!replacement) {
         return 'not-needed';
     }
@@ -120,7 +103,7 @@ function normalizeTableBeforeOpen(params: {
     const nextActiveCell = createActiveCellForTableText({
         tableFrom: replacement.tableFrom,
         tableText: replacement.tableText,
-        target: params.activeCell,
+        target: params.resolvedActiveCell.activeCell,
     });
     if (!nextActiveCell) {
         return 'aborted';
@@ -133,8 +116,8 @@ function normalizeTableBeforeOpen(params: {
 
     params.view.dispatch({
         changes: {
-            from: resolved.tableFrom,
-            to: resolved.tableTo,
+            from: params.resolvedActiveCell.tableFrom,
+            to: params.resolvedActiveCell.tableTo,
             insert: replacement.insert,
         },
         selection: { anchor: nextActiveCell.selectionAnchor },
@@ -279,10 +262,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                                 failOpenRequest(requestId);
                                 return;
                             }
-                            const resolvedActiveCell = getResolvedActiveCellFromStateOrExplicit(
-                                this.view.state,
-                                targetActiveCell
-                            );
+                            const resolvedActiveCell = getResolvedActiveCell(this.view.state);
                             if (!resolvedActiveCell) {
                                 failOpenRequest(requestId);
                                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
@@ -301,7 +281,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                             const normalizeResult = normalizeTableBeforeOpen({
                                 view: this.view,
-                                activeCell: resolvedActiveCell.activeCell,
+                                resolvedActiveCell,
                                 normalizeIfNeeded,
                                 requestId,
                             });
