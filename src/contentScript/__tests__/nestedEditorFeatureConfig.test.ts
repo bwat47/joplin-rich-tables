@@ -1,17 +1,15 @@
+import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from '@jest/globals';
 import { createNestedEditorFeatureExtensions } from '../nestedEditor/nestedEditorFeatureConfig';
 
 describe('nestedEditorFeatureConfig', () => {
-    it('adds close-bracket extensions only when auto matching braces is enabled', () => {
-        expect(
-            createNestedEditorFeatureExtensions({
-                autoMatchingBraces: true,
-            })
-        ).toHaveLength(2);
-        expect(
-            createNestedEditorFeatureExtensions({
-                autoMatchingBraces: false,
-            })
-        ).toHaveLength(0);
+    it('returns valid close-bracket extensions when auto matching braces is enabled', () => {
+        const extensions = createNestedEditorFeatureExtensions({ autoMatchingBraces: true });
+        expect(extensions.length).toBeGreaterThan(0);
+        expect(() => EditorState.create({ extensions })).not.toThrow();
+    });
+
+    it('returns no extensions when auto matching braces is disabled', () => {
+        expect(createNestedEditorFeatureExtensions({ autoMatchingBraces: false })).toHaveLength(0);
     });
 });
