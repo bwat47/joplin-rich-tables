@@ -14,10 +14,12 @@ User Action (keyboard/toolbar)
          ↓
    operations/structuralActions.ts      ← Shared action registry
          ↓
-   operations/structuralOperations.ts   ← Runtime intent entry points
-          ↓
+   operations/structuralOperations.ts   ← Runtime command adapters
+           ↓
    operations/runStructuralMutation.ts ← Parse, mutate, serialize, dispatch
-         ↓
+          ↓
+     tableModel/structuralCommandSemantics.ts ← Pure command semantics
+          ↓
      MarkdownTable.ts          ← Runtime model + structural operations
 ```
 
@@ -65,7 +67,7 @@ define paragraph-splitting behavior.
 `runStructuralMutation.ts` has one shared preparation core that receives a `ResolvedActiveCell` and orchestrates:
 
 1. **Use Resolved Context**: Reuse the resolved table span, `TableContext`, and logical active cell.
-2. **Mutate**: Call operation function.
+2. **Mutate**: Call a pure model command semantic function.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
@@ -76,7 +78,12 @@ define paragraph-splitting behavior.
 `structuralActions.ts` maps shared action IDs to runtime operations so keyboard commands and toolbar buttons do not
 maintain separate operation switchboards.
 
-`structuralOperations.ts` is the intent layer on top of the runner:
+`structuralCommandSemantics.ts` owns editor-independent command semantics:
+
+- It maps table-local command IDs plus active cell coordinates to a new `MarkdownTable` and target-cell intent.
+- It does not import CodeMirror or runtime state.
+
+`structuralOperations.ts` is the runtime adapter on top of the runner:
 
 - It groups entry points into reopening structural-operation families rather than ad hoc wrappers.
 - It owns shared reopen defaults such as main-editor focus handoff.

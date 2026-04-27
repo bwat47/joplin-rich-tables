@@ -47,7 +47,7 @@ than calling back into Joplin or keeping module-level settings caches.
 | **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, parsing, serialization, mutations.       |
 | **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.                  |
 | **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
-| **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Table mutation orchestration and target-cell rebasing.           |
+| **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Editor transaction orchestration for structural table commands.  |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row/column/alignment actions.                    |
 
 ## Data Flow
@@ -89,6 +89,7 @@ Typing in the isolated cell editor goes through the `NestedEditorSession` bridge
 
 - Parses Markdown into normalized header/alignment/body state.
 - Owns serialization and structural row/column/alignment operations.
+- Owns editor-independent structural command semantics, including target-cell intent after table-local mutations.
 - Feeds command execution and widget rendering through `TableContext`.
 - Leaves source-coordinate computation to `markdownTableCellRanges.ts`.
 
