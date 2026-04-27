@@ -54,20 +54,8 @@ describe('contentScriptMessageHandler', () => {
         expect(result).toEqual({ success: true });
     });
 
-    it('reads nested editor feature settings', async () => {
+    it('reads the host editor config', async () => {
         globalValues.mockResolvedValueOnce([true]);
-
-        const result = await handler({
-            type: 'getNestedEditorFeatureSettings',
-        });
-
-        expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces']);
-        expect(result).toEqual({
-            autoMatchingBraces: true,
-        });
-    });
-
-    it('reads floating toolbar settings', async () => {
         values.mockResolvedValueOnce({
             'floatingToolbar.showMoveButtons': false,
             'floatingToolbar.showClearButtons': true,
@@ -75,18 +63,24 @@ describe('contentScriptMessageHandler', () => {
         });
 
         const result = await handler({
-            type: 'getToolbarSettings',
+            type: 'getHostEditorConfig',
         });
 
+        expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces']);
         expect(values).toHaveBeenCalledWith([
             'floatingToolbar.showMoveButtons',
             'floatingToolbar.showClearButtons',
             'floatingToolbar.showAlignmentButtons',
         ]);
         expect(result).toEqual({
-            showMoveButtons: false,
-            showClearButtons: true,
-            showAlignmentButtons: false,
+            nestedEditor: {
+                autoMatchingBraces: true,
+            },
+            toolbar: {
+                showMoveButtons: false,
+                showClearButtons: true,
+                showAlignmentButtons: false,
+            },
         });
     });
 

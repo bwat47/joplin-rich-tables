@@ -2,8 +2,7 @@ import { EditorView } from '@codemirror/view';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
 import { initRenderer } from '../services/markdownRenderer';
-import { initNestedEditorFeatureSettings } from '../services/nestedEditorFeatureSettings';
-import { initToolbarSettings } from '../services/toolbarSettings';
+import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
@@ -55,60 +54,69 @@ export default function (context: ContentScriptContext) {
 
     // Initialize the markdown renderer with postMessage function
     initRenderer(context.postMessage);
-    void initNestedEditorFeatureSettings(context.postMessage);
-    void initToolbarSettings(context.postMessage);
 
     return {
         plugin: (editorControl: CodeMirrorControl) => {
-            logger.info('Registering table widget extension');
-
-            // Check for CM6
-            if (!editorControl.cm6) {
-                logger.warn('CodeMirror 6 not available, skipping');
-                return;
-            }
-
-            // Cast for type safety - official types use `any`
-            const cm6View = editorControl.cm6 as EditorView;
-            const noteIdFacet = editorControl.joplinExtensions.noteIdFacet as Facet<string, string>;
-
-            editorControl.addExtension([
-                // Close nested editor on note switch (detected via noteIdFacet)
-                createNoteIdWatcher(noteIdFacet, () => cm6View),
-                createStartupCursorCorrection(() => cm6View),
-                createUndoScrollPreservation(() => cm6View),
-
-                searchPanelWatcherPlugin,
-                searchForceSourceModeField,
-                sourceModeField,
-                nestedEditorPlugin,
-                activeCellField,
-                resolvedActiveCellField,
-                openCellRequestField,
-                cellSelectionField,
-                createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
-                openCellRequestKeymap,
-                openCellRequestTimeoutPlugin,
-
-                tableWidgetInteractionHandlers,
-                closeOnOutsideMouseDown,
-                outsideInteractionCapturePlugin,
-                cellSelectionKeyCapturePlugin,
-                cellSelectionClipboardPlugin,
-                cellSelectionVisualsPlugin,
-                nestedEditorFocusGuard,
-                nestedEditorLifecyclePlugin,
-                tableDecorationField,
-                documentDefinitionsField,
-                richTableThemeVars,
-                tableStyles,
-                tableToolbarTheme,
-                tableToolbarPlugin,
-            ]);
-
-            registerTableCommands(editorControl);
-
-            logger.info('Table widget extension registered');
+            void registerTableWidgetExtension(editorControl, context);
         },
     };
+}
+
+async function registerTableWidgetExtension(
+    editorControl: CodeMirrorControl,
+    context: ContentScriptContext
+): Promise<void> {
+    logger.info('Registering table widget extension');
+
+    // Check for CM6
+    if (!editorControl.cm6) {
+        logger.warn('CodeMirror 6 not available, skipping');
+        return;
+    }
+
+    const hostEditorConfig = await fetchHostEditorConfig(context.postMessage);
+
+    // Cast for type safety - official types use `any`
+    const cm6View = editorControl.cm6 as EditorView;
+    const noteIdFacet = editorControl.joplinExtensions.noteIdFacet as Facet<string, string>;
+
+    editorControl.addExtension([
+        hostEditorConfigFacet.of(hostEditorConfig),
+
+        // Close nested editor on note switch (detected via noteIdFacet)
+        createNoteIdWatcher(noteIdFacet, () => cm6View),
+        createStartupCursorCorrection(() => cm6View),
+        createUndoScrollPreservation(() => cm6View),
+
+        searchPanelWatcherPlugin,
+        searchForceSourceModeField,
+        sourceModeField,
+        nestedEditorPlugin,
+        activeCellField,
+        resolvedActiveCellField,
+        openCellRequestField,
+        cellSelectionField,
+        createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
+        openCellRequestKeymap,
+        openCellRequestTimeoutPlugin,
+
+        tableWidgetInteractionHandlers,
+        closeOnOutsideMouseDown,
+        outsideInteractionCapturePlugin,
+        cellSelectionKeyCapturePlugin,
+        cellSelectionClipboardPlugin,
+        cellSelectionVisualsPlugin,
+        nestedEditorFocusGuard,
+        nestedEditorLifecyclePlugin,
+        tableDecorationField,
+        documentDefinitionsField,
+        richTableThemeVars,
+        tableStyles,
+        tableToolbarTheme,
+        tableToolbarPlugin,
+    ]);
+
+    registerTableCommands(editorControl);
+
+    logger.info('Table widget extension registered');
 }

@@ -6,12 +6,12 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
-import { getToolbarSettings, waitForToolbarSettings } from '../services/toolbarSettings';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 
 export class TableToolbarPlugin {
     dom: HTMLElement;
@@ -19,7 +19,6 @@ export class TableToolbarPlugin {
     private cleanupAutoUpdate: (() => void) | null = null;
     private cleanupViewportListeners: (() => void) | null = null;
     private buttonsInitialized = false;
-    private buttonsReadyPromise: Promise<void> | null = null;
     private destroyed = false;
 
     constructor(private view: EditorView) {
@@ -79,24 +78,17 @@ export class TableToolbarPlugin {
         this.dom.remove();
     }
 
-    private async ensureButtonsInitialized() {
+    private ensureButtonsInitialized() {
         if (this.buttonsInitialized) {
             return;
         }
 
-        if (!this.buttonsReadyPromise) {
-            this.buttonsReadyPromise = (async () => {
-                await waitForToolbarSettings();
-                if (this.destroyed || this.buttonsInitialized) {
-                    return;
-                }
-
-                this.createButtons();
-                this.buttonsInitialized = true;
-            })();
+        if (this.destroyed) {
+            return;
         }
 
-        await this.buttonsReadyPromise;
+        this.createButtons();
+        this.buttonsInitialized = true;
     }
 
     private createButtons() {
@@ -128,7 +120,7 @@ export class TableToolbarPlugin {
         };
 
         renderToolbarButtonGroups(
-            getToolbarButtonGroups(getToolbarSettings()),
+            getToolbarButtonGroups(this.view.state.facet(hostEditorConfigFacet).toolbar),
             (button) => {
                 createIconBtn(
                     button.title,
@@ -219,7 +211,7 @@ export class TableToolbarPlugin {
             return;
         }
 
-        await this.ensureButtonsInitialized();
+        this.ensureButtonsInitialized();
         if (this.destroyed || !this.currentActiveCell) {
             this.cleanupPositioning();
             this.hideToolbar();
