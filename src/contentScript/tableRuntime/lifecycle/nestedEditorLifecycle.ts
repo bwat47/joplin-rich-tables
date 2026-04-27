@@ -28,7 +28,7 @@ import {
     getOpenCellRequestById,
     requestOpenCellEffect,
 } from '../openCellRequest';
-import { getCanonicalTableTextIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
+import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
 import {
     buildTableRuntimeEvent,
@@ -112,14 +112,14 @@ function normalizeTableBeforeOpen(params: {
         return 'not-needed';
     }
 
-    const canonicalText = getCanonicalTableTextIfChanged(resolved.ctx);
-    if (!canonicalText) {
+    const replacement = getNormalizedTableReplacementIfChanged(params.view.state, resolved.ctx);
+    if (!replacement) {
         return 'not-needed';
     }
 
     const nextActiveCell = createActiveCellForTableText({
-        tableFrom: resolved.tableFrom,
-        tableText: canonicalText,
+        tableFrom: replacement.tableFrom,
+        tableText: replacement.tableText,
         target: params.activeCell,
     });
     if (!nextActiveCell) {
@@ -135,7 +135,7 @@ function normalizeTableBeforeOpen(params: {
         changes: {
             from: resolved.tableFrom,
             to: resolved.tableTo,
-            insert: canonicalText,
+            insert: replacement.insert,
         },
         selection: { anchor: nextActiveCell.selectionAnchor },
         effects: [
@@ -146,7 +146,7 @@ function normalizeTableBeforeOpen(params: {
                 normalizeIfNeeded: false,
             }),
             requestOpenCellEffect.of({ requestId: currentRequest.requestId }),
-            rebuildTableWidgetsEffect.of({ tableFrom: resolved.tableFrom }),
+            rebuildTableWidgetsEffect.of({ tableFrom: replacement.tableFrom }),
         ],
         annotations: normalizeBeforeEditAnnotation.of(true),
         scrollIntoView: false,
