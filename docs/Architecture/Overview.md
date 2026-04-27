@@ -62,9 +62,10 @@ the main-editor selection anchor is transient request data, not part of persiste
 such as `tableTo` plus semantic/editable cell spans are derived on demand through the shared active-cell resolver.
 
 Before lifecycle opens the nested editor for user-driven entry, `tableRuntime/lifecycle/nestedEditorLifecycle.ts` checks whether the table markdown
-is already in the plugin's canonical serialized form. If not, it rewrites the whole table once, preserves the logical
-target cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested editor. Lifecycle reopens
-used for undo/redo or UI restoration skip that normalization step. Passive parsing/rendering never mutates document text.
+is already in the plugin's canonical serialized form with blank-line document boundaries. If not, it rewrites the table
+once, preserves the logical target cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested
+editor. Lifecycle reopens used for undo/redo or UI restoration skip that normalization step. Passive parsing/rendering
+never mutates document text.
 
 ### 3. Synchronization
 

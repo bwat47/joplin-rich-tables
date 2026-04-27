@@ -521,7 +521,7 @@ describe('nestedEditorLifecycle', () => {
         });
         flushAnimationFrames();
 
-        expect(view.state.doc.toString()).toBe(CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(`\n${CANONICAL_DOC}\n`);
 
         const normalizedOpenDispatch = dispatchSpy.mock.calls
             .map((call) => call[0])
@@ -550,6 +550,64 @@ describe('nestedEditorLifecycle', () => {
             })
         );
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
+    it('adds missing blank lines around a normalized table and remaps the active cell', () => {
+        const doc = `before\n${NON_CANONICAL_DOC}\nafter`;
+        const initialTableFrom = 'before\n'.length;
+        const normalizedTableFrom = 'before\n\n'.length;
+        const activeCell: ActiveCell = {
+            tableFrom: initialTableFrom,
+            section: 'body',
+            row: 0,
+            col: 1,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    openCellRequestField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                ...openRequestEffects({
+                    requestId: 'request-normalize-boundaries',
+                    activeCell,
+                    normalizeIfNeeded: true,
+                    initialCursorPos: 'end',
+                }),
+            ],
+        });
+        flushAnimationFrames();
+
+        expect(view.state.doc.toString()).toBe(`before\n\n${CANONICAL_DOC}\n\nafter`);
+        expect(getActiveCell(view.state)).toMatchObject({
+            tableFrom: normalizedTableFrom,
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                initialCursorPos: 'end',
+            })
+        );
 
         view.destroy();
     });
