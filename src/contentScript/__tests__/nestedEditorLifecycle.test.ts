@@ -27,16 +27,24 @@ import {
     openCellRequestField,
     type OpenCellRequest,
 } from '../tableRuntime/openCellRequest';
-import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
+import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 
 const activateCellAtPositionMock = jest.fn();
 const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
 const DEFAULT_FEATURE_SETTINGS = {
     autoMatchingBraces: true,
-} satisfies NestedEditorFeatureSettings;
-const getNestedEditorFeatureSettingsMock = jest.fn(() => DEFAULT_FEATURE_SETTINGS);
+} satisfies HostEditorConfig['nestedEditor'];
+const TEST_HOST_CONFIG = {
+    nestedEditor: DEFAULT_FEATURE_SETTINGS,
+    toolbar: {
+        showMoveButtons: true,
+        showClearButtons: true,
+        showAlignmentButtons: true,
+    },
+} satisfies HostEditorConfig;
 const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
     closeNestedEditor: jest.Mock;
     isNestedEditorOpen: jest.Mock;
@@ -84,10 +92,6 @@ jest.mock('../nestedEditor/nestedEditorController', () => ({
     openNestedEditor: jest.fn(),
 }));
 
-jest.mock('../services/nestedEditorFeatureSettings', () => ({
-    getNestedEditorFeatureSettings: () => getNestedEditorFeatureSettingsMock(),
-}));
-
 describe('nestedEditorLifecycle', () => {
     const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
@@ -103,8 +107,6 @@ describe('nestedEditorLifecycle', () => {
         activateCellAtPositionMock.mockReset();
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
-        getNestedEditorFeatureSettingsMock.mockReset();
-        getNestedEditorFeatureSettingsMock.mockImplementation(() => DEFAULT_FEATURE_SETTINGS);
         nestedEditorControllerMock.closeNestedEditor.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReset();
@@ -136,6 +138,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -177,6 +180,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });
@@ -221,6 +225,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });
@@ -274,6 +279,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });
@@ -327,6 +333,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });
@@ -377,6 +384,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -430,6 +438,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -466,6 +475,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -502,6 +512,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -577,6 +588,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -633,6 +645,7 @@ describe('nestedEditorLifecycle', () => {
                     openCellRequestField,
                     searchForceSourceModeField,
                     sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     nestedEditorLifecyclePlugin,
                 ],
             }),
@@ -681,6 +694,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });
@@ -730,6 +744,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });
@@ -785,6 +800,7 @@ describe('nestedEditorLifecycle', () => {
                 openCellRequestField,
                 searchForceSourceModeField,
                 sourceModeField,
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                 nestedEditorLifecyclePlugin,
             ],
         });

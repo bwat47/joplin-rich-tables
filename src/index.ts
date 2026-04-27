@@ -6,7 +6,7 @@ import {
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
-} from './contentScriptBridge/toolbarSettingsBridge';
+} from './contentScriptBridge/hostEditorConfigBridge';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 const SETTINGS_SECTION = 'richTables';

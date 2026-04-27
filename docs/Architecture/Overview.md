@@ -13,6 +13,10 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 - `services/`: Joplin/external integration.
 - `shared/`: generic helpers with no table-feature ownership.
 
+Host/editor settings are startup-only. The content script fetches a normalized host config from Joplin before installing
+the CodeMirror extension, then exposes that snapshot through `hostEditorConfigFacet`; runtime code reads the facet rather
+than calling back into Joplin or keeping module-level settings caches.
+
 ## Documentation Index
 
 - [Table-Display.md](./Table-Display.md) - Rendering, optimizations, display modes.

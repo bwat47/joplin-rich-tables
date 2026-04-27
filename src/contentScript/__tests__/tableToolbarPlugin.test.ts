@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 
 const mockGetResolvedActiveCell = jest.fn();
 const mockRunStructuralAction = jest.fn();
@@ -39,7 +40,13 @@ function createCell(): ActiveCell {
 function createView(): EditorView {
     const dom = document.createElement('div');
     document.body.appendChild(dom);
-    return { dom, state: { doc: { length: 0 } } } as unknown as EditorView;
+    return {
+        dom,
+        state: {
+            doc: { length: 0 },
+            facet: () => defaultHostEditorConfig(),
+        },
+    } as unknown as EditorView;
 }
 
 function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {

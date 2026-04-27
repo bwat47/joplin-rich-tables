@@ -1,5 +1,4 @@
-import type { GetNestedEditorFeatureSettingsMessage } from './editorSettingsBridge';
-import type { GetToolbarSettingsMessage } from './toolbarSettingsBridge';
+import type { GetHostEditorConfigMessage } from './hostEditorConfigBridge';
 
 export interface RenderMarkupMessage {
     type: 'renderMarkup';
@@ -12,8 +11,4 @@ export interface OpenLinkMessage {
     href: string;
 }
 
-export type ContentScriptMessage =
-    | RenderMarkupMessage
-    | OpenLinkMessage
-    | GetNestedEditorFeatureSettingsMessage
-    | GetToolbarSettingsMessage;
+export type ContentScriptMessage = RenderMarkupMessage | OpenLinkMessage | GetHostEditorConfigMessage;

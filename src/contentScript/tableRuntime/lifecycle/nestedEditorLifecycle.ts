@@ -29,7 +29,7 @@ import {
     requestOpenCellEffect,
 } from '../openCellRequest';
 import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
-import { getNestedEditorFeatureSettings } from '../../services/nestedEditorFeatureSettings';
+import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import {
     buildTableRuntimeEvent,
     buildTableRuntimeSnapshot,
@@ -296,7 +296,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             const opened = openNestedEditor({
                                 mainView: this.view,
                                 cellElement,
-                                featureSettings: getNestedEditorFeatureSettings(),
+                                featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
                                 initialCursorPos: request.initialCursorPos,
                             });
                             if (!opened) {

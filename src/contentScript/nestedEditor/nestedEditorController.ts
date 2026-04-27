@@ -26,7 +26,7 @@ import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { renderer } from '../services/markdownRenderer';
-import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
+import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
 
@@ -84,7 +84,7 @@ class NestedEditorController {
     open(params: {
         mainView: EditorView;
         cellElement: HTMLElement;
-        featureSettings: NestedEditorFeatureSettings;
+        featureSettings: NestedEditorHostConfig;
         initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     }): boolean {
         this.close();
@@ -501,7 +501,7 @@ function getController(view: EditorView): NestedEditorController | null {
 export function openNestedEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
-    featureSettings: NestedEditorFeatureSettings;
+    featureSettings: NestedEditorHostConfig;
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
 }): boolean {
     return getController(params.mainView)?.open(params) ?? false;

@@ -5,7 +5,7 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { defaultNestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
+import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -51,7 +51,7 @@ describe('nested editor navigation', () => {
         openNestedEditor({
             mainView,
             cellElement,
-            featureSettings: defaultNestedEditorFeatureSettings(),
+            featureSettings: defaultHostEditorConfig().nestedEditor,
         });
 
         const controller = (mainView.plugin(nestedEditorPlugin) as { controller: unknown } | null)?.controller as
@@ -110,7 +110,7 @@ describe('nested editor navigation', () => {
             openNestedEditor({
                 mainView,
                 cellElement,
-                featureSettings: defaultNestedEditorFeatureSettings(),
+                featureSettings: defaultHostEditorConfig().nestedEditor,
             })
         ).toBe(false);
 

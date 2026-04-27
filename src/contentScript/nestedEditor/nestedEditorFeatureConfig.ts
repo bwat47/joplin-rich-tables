@@ -1,9 +1,9 @@
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
-import type { NestedEditorFeatureSettings } from '../../contentScriptBridge/editorSettingsBridge';
+import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 
-export function createNestedEditorFeatureExtensions(featureSettings: NestedEditorFeatureSettings): Extension[] {
+export function createNestedEditorFeatureExtensions(featureSettings: NestedEditorHostConfig): Extension[] {
     if (!featureSettings.autoMatchingBraces) {
         return [];
     }

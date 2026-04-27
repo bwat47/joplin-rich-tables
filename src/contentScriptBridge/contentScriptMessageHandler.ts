@@ -1,7 +1,6 @@
 import { logger } from '../logger';
 import type { ContentScriptMessage, OpenLinkMessage, RenderMarkupMessage } from './contentScriptMessages';
-import { readNestedEditorFeatureSettings, type NestedEditorFeatureSettingsDeps } from './editorSettingsBridge';
-import { readToolbarSettings, type ToolbarSettingsDeps } from './toolbarSettingsBridge';
+import { readHostEditorConfig, type HostEditorConfigDeps } from './hostEditorConfigBridge';
 
 // Joplin's internal MarkupLanguage enum values
 const MarkupLanguage = {
@@ -13,7 +12,7 @@ interface ContentScriptMessageHandlerDeps {
     commands: {
         execute(commandName: string, ...args: unknown[]): Promise<unknown>;
     };
-    settings: NestedEditorFeatureSettingsDeps['settings'] & ToolbarSettingsDeps['settings'];
+    settings: HostEditorConfigDeps['settings'];
 }
 
 function isContentScriptMessage(message: unknown): message is ContentScriptMessage {
@@ -59,10 +58,8 @@ export function createContentScriptMessageHandler(deps: ContentScriptMessageHand
                     return { success: false, error: String(error) };
                 }
             }
-            case 'getNestedEditorFeatureSettings':
-                return readNestedEditorFeatureSettings(deps);
-            case 'getToolbarSettings':
-                return readToolbarSettings(deps);
+            case 'getHostEditorConfig':
+                return readHostEditorConfig(deps);
             default:
                 return null;
         }

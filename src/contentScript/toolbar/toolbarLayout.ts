@@ -1,4 +1,4 @@
-import type { ToolbarSettings } from '../../contentScriptBridge/toolbarSettingsBridge';
+import type { ToolbarHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import {
     alignCenterIcon,
     alignLeftIcon,
@@ -150,7 +150,7 @@ const deleteTableButtons: ToolbarButtonDescriptor[] = [
     },
 ];
 
-export function getToolbarButtonGroups(settings: ToolbarSettings): ToolbarButtonDescriptor[][] {
+export function getToolbarButtonGroups(settings: ToolbarHostConfig): ToolbarButtonDescriptor[][] {
     const rowButtons = [...baseRowButtons];
     const columnButtons = [...baseColumnButtons];
 
