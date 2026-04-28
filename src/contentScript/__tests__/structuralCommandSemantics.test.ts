@@ -111,6 +111,19 @@ describe('structuralCommandSemantics', () => {
     );
 
     it.each([
+        ['moveRowUp', { section: 'header', row: 0, col: 1 }],
+        ['moveRowDown', { section: 'body', row: 1, col: 1 }],
+    ] satisfies Array<[StructuralTableCommandId, CellCoords]>)(
+        'preserves target and table for no-op row boundaries %s',
+        (type, activeCell) => {
+            const result = apply(tableMarkdown, activeCell, { type });
+
+            expect(result.targetCell).toEqual(activeCell);
+            expect(result.table.serialize()).toEqual(tableMarkdown);
+        }
+    );
+
+    it.each([
         ['moveRowUp', { section: 'body', row: 0, col: 1 }, { section: 'header', row: 0, col: 1 }],
         ['moveRowUp', { section: 'body', row: 1, col: 1 }, { section: 'body', row: 0, col: 1 }],
         ['moveRowDown', { section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 1 }],
@@ -132,6 +145,16 @@ describe('structuralCommandSemantics', () => {
         const result = apply(tableMarkdown, activeCell, { type });
 
         expect(result.targetCell).toEqual(activeCell);
+    });
+
+    it('preserves target and table when header delete is blocked by table invariants', () => {
+        const headerOnlyTableMarkdown = ['| H1 | H2 |', '| --- | --- |'].join('\n');
+        const activeCell = { section: 'header', row: 0, col: 1 } satisfies CellCoords;
+
+        const result = apply(headerOnlyTableMarkdown, activeCell, { type: 'deleteRow' });
+
+        expect(result.targetCell).toEqual(activeCell);
+        expect(result.table.serialize()).toEqual(headerOnlyTableMarkdown);
     });
 
     it.each(['left', 'center', 'right', null] satisfies TableAlignment[])(
