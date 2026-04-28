@@ -16,9 +16,9 @@ User Action (keyboard/toolbar)
           ↓
    operations/structuralOperations.ts   ← Choose StructuralTableCommand + reopen defaults
             ↓
-   operations/runStructuralMutation.ts ← Invoke model semantics, serialize, dispatch
+   operations/runStructuralMutation.ts ← Requires command object (no mutation callbacks)
            ↓
-      tableModel/structuralCommandSemantics.ts ← Return { table, targetCell }
+      tableModel/structuralCommandSemantics.ts ← Apply command, return { table, targetCell }
            ↓
       MarkdownTable.ts          ← Runtime model + structural operations
 ```
