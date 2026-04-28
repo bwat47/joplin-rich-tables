@@ -43,6 +43,9 @@ export type StructuralTableCommandById = {
     clearTable: {
         type: 'clearTable';
     };
+    deleteTable: {
+        type: 'deleteTable';
+    };
 };
 
 export type StructuralTableCommandId = keyof StructuralTableCommandById;
@@ -54,10 +57,17 @@ export type StructuralTableCommand =
           alignment: TableAlignment;
       };
 
-export interface StructuralTableCommandResult {
+export interface StructuralTableMutationResult {
+    kind: 'table';
     table: MarkdownTable;
     targetCell: TargetCell;
 }
+
+export interface StructuralTableDeleteResult {
+    kind: 'deleteTable';
+}
+
+export type StructuralTableCommandResult = StructuralTableMutationResult | StructuralTableDeleteResult;
 
 function sameCell(cell: CellCoords): TargetCell {
     return cell;
@@ -68,8 +78,9 @@ function commandResult(
     activeCell: CellCoords,
     table: MarkdownTable,
     targetCell: TargetCell
-): StructuralTableCommandResult {
+): StructuralTableMutationResult {
     return {
+        kind: 'table',
         table,
         targetCell: table === originalTable ? sameCell(activeCell) : targetCell,
     };
@@ -138,6 +149,15 @@ export function applyStructuralTableCommand(
                 col: activeCell.col + 1,
             });
         case 'deleteRow':
+            if (
+                (activeCell.section === 'header' && table.rowCount === 1) ||
+                (activeCell.section === 'body' &&
+                    activeCell.row >= 0 &&
+                    activeCell.row < table.bodyRows.length &&
+                    table.rowCount === 1)
+            ) {
+                return { kind: 'deleteTable' };
+            }
             return commandResult(
                 table,
                 activeCell,
@@ -145,6 +165,12 @@ export function applyStructuralTableCommand(
                 targetDeletedRow(activeCell)
             );
         case 'deleteColumn':
+            if (activeCell.col < 0 || activeCell.col >= table.columnCount) {
+                return commandResult(table, activeCell, table, sameCell(activeCell));
+            }
+            if (table.columnCount === 1) {
+                return { kind: 'deleteTable' };
+            }
             return commandResult(
                 table,
                 activeCell,
@@ -193,5 +219,7 @@ export function applyStructuralTableCommand(
                 table.updateColumnAlignment(activeCell.col, command.alignment),
                 sameCell(activeCell)
             );
+        case 'deleteTable':
+            return { kind: 'deleteTable' };
     }
 }

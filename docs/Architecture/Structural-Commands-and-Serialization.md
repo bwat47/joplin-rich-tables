@@ -16,9 +16,9 @@ User Action (keyboard/toolbar)
           ↓
    operations/structuralOperations.ts   ← Run StructuralTableCommand + reopen defaults
             ↓
-     operations/runStructuralMutation.ts ← Prepares and Dispatches (accepts StructuralTableCommand; no callback mutations)
+     operations/runStructuralMutation.ts ← Prepares and Dispatches surviving-table or table-deletion results
            ↓
-      tableModel/structuralCommandSemantics.ts ← Apply command, return { table, targetCell }
+      tableModel/structuralCommandSemantics.ts ← Apply command, return surviving table or table deletion
            ↓
       MarkdownTable.ts          ← Runtime model + structural operations
 ```
@@ -77,12 +77,12 @@ define paragraph-splitting behavior.
    forces a widget rebuild, and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
-toolbar buttons do not maintain separate switchboards. Runtime-only actions, such as full table deletion, stay explicit
-in this adapter.
+toolbar buttons do not maintain separate switchboards.
 
 `structuralCommandSemantics.ts` owns editor-independent command semantics:
 
-- It maps table-local command IDs plus active cell coordinates to a new `MarkdownTable` and target-cell intent.
+- It maps table-local command IDs plus active cell coordinates to either a new `MarkdownTable` plus target-cell intent,
+  or a table-deletion result.
 - It does not import CodeMirror or runtime state.
 
 `structuralOperations.ts` is the runtime adapter on top of the runner:
@@ -92,8 +92,9 @@ in this adapter.
 - Row-insert helpers extend those defaults with `initialCursorPos: 'start'`.
 - It passes command objects to `runStructuralMutationAndReopen()`; callers cannot provide arbitrary mutation callbacks.
 
-All active-cell-preserving structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
-delete, move, clear, and alignment updates. That means command-driven structural edits don't rely on lifecycle
+All surviving-table structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
+delete, move, clear, and alignment updates. Whole-table deletion uses the same runner but clears active-cell state
+instead of reopening a cell. That means command-driven structural edits don't rely on lifecycle
 inferring reopen intent from a rebuild-only transaction. Reopen intent is explicit: if a transition should reopen,
 it must dispatch an open-cell request alongside the rebuild.
 

@@ -174,6 +174,16 @@ function buildTableRewrite(params: {
     };
 }
 
+function buildTableDeletionRewrite(tableFrom: number): TableClipboardRewrite {
+    return {
+        tableFrom,
+        tableText: '',
+        selection: null,
+        clearActiveCell: true,
+        selectionAnchorPos: tableFrom,
+    };
+}
+
 function clampIndex(value: number, max: number): number {
     return Math.max(0, Math.min(value, max));
 }
@@ -226,17 +236,11 @@ export function buildSelectionRemovalRewrite(
     const spansAllRows = rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1;
     const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
 
-    if (isEmptySelection && spansAllRows && spansAllCols) {
-        return {
-            tableFrom: ctx.from,
-            tableText: '',
-            selection: null,
-            clearActiveCell: true,
-            selectionAnchorPos: ctx.from,
-        };
-    }
-
     if (isEmptySelection && spansAllCols) {
+        if (rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1) {
+            return buildTableDeletionRewrite(ctx.from);
+        }
+
         const nextTable = ctx.table.deleteUnifiedRowRange(rect.minRow, rect.maxRow);
         if (nextTable !== ctx.table) {
             return buildTableRewrite({
@@ -249,6 +253,10 @@ export function buildSelectionRemovalRewrite(
     }
 
     if (isEmptySelection && spansAllRows) {
+        if (rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1) {
+            return buildTableDeletionRewrite(ctx.from);
+        }
+
         const nextTable = ctx.table.deleteColumnRange(rect.minCol, rect.maxCol);
         if (nextTable !== ctx.table) {
             return buildTableRewrite({

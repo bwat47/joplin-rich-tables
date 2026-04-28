@@ -2,17 +2,13 @@ import type { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommandById } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { deleteTable, runStructuralCommand } from './structuralOperations';
+import { runStructuralCommand } from './structuralOperations';
 
 type ModelBackedStructuralActionId = keyof StructuralTableCommandById;
 type CommandForId<Id extends ModelBackedStructuralActionId> = StructuralTableCommandById[Id];
 type AlignmentStructuralActionId = 'alignLeft' | 'alignCenter' | 'alignRight';
-type RuntimeOnlyStructuralActionId = 'deleteTable';
 
-export type StructuralActionId =
-    | ModelBackedStructuralActionId
-    | AlignmentStructuralActionId
-    | RuntimeOnlyStructuralActionId;
+export type StructuralActionId = ModelBackedStructuralActionId | AlignmentStructuralActionId;
 
 const modelBackedCommands = {
     insertRowBefore: { type: 'insertRowBefore' },
@@ -28,6 +24,7 @@ const modelBackedCommands = {
     clearRow: { type: 'clearRow' },
     clearColumn: { type: 'clearColumn' },
     clearTable: { type: 'clearTable' },
+    deleteTable: { type: 'deleteTable' },
 } satisfies { [Id in ModelBackedStructuralActionId]: CommandForId<Id> };
 
 const alignmentCommands = {
@@ -48,23 +45,6 @@ function assertNeverAction(actionId: never): never {
     throw new Error(`Unhandled structural action: ${actionId}`);
 }
 
-const runtimeOnlyActions = {
-    deleteTable,
-} satisfies Record<RuntimeOnlyStructuralActionId, typeof deleteTable>;
-
-function runRuntimeOnlyAction(
-    view: EditorView,
-    actionId: RuntimeOnlyStructuralActionId,
-    resolvedCell: ResolvedActiveCell
-): boolean {
-    switch (actionId) {
-        case 'deleteTable':
-            return runtimeOnlyActions.deleteTable(view, resolvedCell);
-        default:
-            return assertNeverAction(actionId);
-    }
-}
-
 export function runStructuralAction(
     view: EditorView,
     actionId: StructuralActionId,
@@ -81,5 +61,5 @@ export function runStructuralAction(
         });
     }
 
-    return runRuntimeOnlyAction(view, actionId, resolvedCell);
+    return assertNeverAction(actionId);
 }

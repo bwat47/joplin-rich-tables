@@ -263,6 +263,66 @@ describe('cellSelectionClipboard', () => {
         expect(rewrite?.selectionAnchorPos).toBe(0);
     });
 
+    it('deletes the whole table when an empty full-row selection exhausts all rows', () => {
+        const emptyHeaderOnlyDoc = ['|  |  |', '| --- | --- |'].join('\n');
+        const state = createMarkdownState(emptyHeaderOnlyDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe('');
+        expect(rewrite?.selection).toBeNull();
+        expect(rewrite?.clearActiveCell).toBe(true);
+    });
+
+    it('deletes the whole table when an empty full-column selection exhausts all columns', () => {
+        const emptySingleColumnDoc = ['|  |', '| --- |', '|  |'].join('\n');
+        const state = createMarkdownState(emptySingleColumnDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe('');
+        expect(rewrite?.selection).toBeNull();
+        expect(rewrite?.clearActiveCell).toBe(true);
+    });
+
+    it('clears non-empty final row selections before deleting structurally', () => {
+        const headerOnlyDoc = ['| H1 | H2 |', '| --- | --- |'].join('\n');
+        const state = createMarkdownState(headerOnlyDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe(['|  |  |', '| --- | --- |'].join('\n'));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+        );
+        expect(rewrite?.clearActiveCell).toBe(false);
+    });
+
+    it('clears non-empty final column selections before deleting structurally', () => {
+        const singleColumnDoc = ['| H1 |', '| --- |', '| A1 |'].join('\n');
+        const state = createMarkdownState(singleColumnDoc);
+        const rewrite = buildSelectionRemovalRewrite(
+            state,
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
+        );
+
+        expect(rewrite).not.toBeNull();
+        expect(rewrite?.tableText).toBe(['|  |', '| --- |', '|  |'].join('\n'));
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
+        );
+        expect(rewrite?.clearActiveCell).toBe(false);
+    });
+
     it('uses the structural empty-row deletion path for Ctrl+X too', () => {
         const emptyRowDoc = ['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '|  |  |', '| B1 | B2 |'].join('\n');
         const state = createMarkdownState(emptyRowDoc);

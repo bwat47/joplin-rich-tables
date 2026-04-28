@@ -1,6 +1,7 @@
 import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import {
     applyStructuralTableCommand,
+    type StructuralTableCommandResult,
     type StructuralTableCommand,
     type StructuralTableCommandId,
 } from '../tableModel/structuralCommandSemantics';
@@ -18,6 +19,15 @@ function apply(markdown: string, activeCell: CellCoords, command: StructuralTabl
     return applyStructuralTableCommand(parseTable(markdown), activeCell, command);
 }
 
+function expectTableResult(result: StructuralTableCommandResult) {
+    expect(result.kind).toBe('table');
+    if (result.kind !== 'table') {
+        throw new Error('Expected table result');
+    }
+
+    return result;
+}
+
 describe('structuralCommandSemantics', () => {
     const tableMarkdown = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 
@@ -32,9 +42,10 @@ describe('structuralCommandSemantics', () => {
         ],
     ] satisfies Array<[CellCoords, CellCoords]>)('targets inserted row before %#', (activeCell, targetCell) => {
         const result = apply(tableMarkdown, activeCell, { type: 'insertRowBefore' });
+        const tableResult = expectTableResult(result);
 
-        expect(result.table.serialize()).toContain('|  |  |');
-        expect(result.targetCell).toEqual(targetCell);
+        expect(tableResult.table.serialize()).toContain('|  |  |');
+        expect(tableResult.targetCell).toEqual(targetCell);
     });
 
     it.each([
@@ -48,9 +59,10 @@ describe('structuralCommandSemantics', () => {
         ],
     ] satisfies Array<[CellCoords, CellCoords]>)('targets inserted row after %#', (activeCell, targetCell) => {
         const result = apply(tableMarkdown, activeCell, { type: 'insertRowAfter' });
+        const tableResult = expectTableResult(result);
 
-        expect(result.table.serialize()).toContain('|  |  |');
-        expect(result.targetCell).toEqual(targetCell);
+        expect(tableResult.table.serialize()).toContain('|  |  |');
+        expect(tableResult.targetCell).toEqual(targetCell);
     });
 
     it('supports a caller-provided target column for inserted rows', () => {
@@ -59,8 +71,9 @@ describe('structuralCommandSemantics', () => {
             { section: 'body', row: 1, col: 1 },
             { type: 'insertRowAfter', targetCol: 0 }
         );
+        const tableResult = expectTableResult(result);
 
-        expect(result.targetCell).toEqual({ section: 'body', row: 2, col: 0 });
+        expect(tableResult.targetCell).toEqual({ section: 'body', row: 2, col: 0 });
     });
 
     it.each([
@@ -78,8 +91,9 @@ describe('structuralCommandSemantics', () => {
         ],
     ] satisfies Array<[CellCoords, CellCoords]>)('targets deleted row %#', (activeCell, targetCell) => {
         const result = apply(tableMarkdown, activeCell, { type: 'deleteRow' });
+        const tableResult = expectTableResult(result);
 
-        expect(result.targetCell).toEqual(targetCell);
+        expect(tableResult.targetCell).toEqual(targetCell);
     });
 
     it.each([
@@ -93,8 +107,9 @@ describe('structuralCommandSemantics', () => {
         'targets column command %s',
         (type, activeCell, targetCell) => {
             const result = apply(tableMarkdown, activeCell, { type });
+            const tableResult = expectTableResult(result);
 
-            expect(result.targetCell).toEqual(targetCell);
+            expect(tableResult.targetCell).toEqual(targetCell);
         }
     );
 
@@ -105,8 +120,9 @@ describe('structuralCommandSemantics', () => {
         'preserves the active target for no-op column moves %s',
         (type, activeCell) => {
             const result = apply(tableMarkdown, activeCell, { type });
+            const tableResult = expectTableResult(result);
 
-            expect(result.targetCell).toEqual(activeCell);
+            expect(tableResult.targetCell).toEqual(activeCell);
         }
     );
 
@@ -117,9 +133,10 @@ describe('structuralCommandSemantics', () => {
         'preserves target and table for no-op row boundaries %s',
         (type, activeCell) => {
             const result = apply(tableMarkdown, activeCell, { type });
+            const tableResult = expectTableResult(result);
 
-            expect(result.targetCell).toEqual(activeCell);
-            expect(result.table.serialize()).toEqual(tableMarkdown);
+            expect(tableResult.targetCell).toEqual(activeCell);
+            expect(tableResult.table.serialize()).toEqual(tableMarkdown);
         }
     );
 
@@ -132,8 +149,9 @@ describe('structuralCommandSemantics', () => {
         'targets row command %s',
         (type, activeCell, targetCell) => {
             const result = apply(tableMarkdown, activeCell, { type });
+            const tableResult = expectTableResult(result);
 
-            expect(result.targetCell).toEqual(targetCell);
+            expect(tableResult.targetCell).toEqual(targetCell);
         }
     );
 
@@ -143,18 +161,33 @@ describe('structuralCommandSemantics', () => {
         ['clearColumn', { section: 'body', row: 0, col: 1 }],
     ] satisfies Array<[StructuralTableCommandId, CellCoords]>)('preserves target cell for %s', (type, activeCell) => {
         const result = apply(tableMarkdown, activeCell, { type });
+        const tableResult = expectTableResult(result);
 
-        expect(result.targetCell).toEqual(activeCell);
+        expect(tableResult.targetCell).toEqual(activeCell);
     });
 
-    it('preserves target and table when header delete is blocked by table invariants', () => {
+    it('deletes the table when deleting the only header row', () => {
         const headerOnlyTableMarkdown = ['| H1 | H2 |', '| --- | --- |'].join('\n');
         const activeCell = { section: 'header', row: 0, col: 1 } satisfies CellCoords;
 
         const result = apply(headerOnlyTableMarkdown, activeCell, { type: 'deleteRow' });
 
-        expect(result.targetCell).toEqual(activeCell);
-        expect(result.table.serialize()).toEqual(headerOnlyTableMarkdown);
+        expect(result).toEqual({ kind: 'deleteTable' });
+    });
+
+    it('deletes the table when deleting the only column', () => {
+        const singleColumnTableMarkdown = ['| H1 |', '| --- |', '| A1 |'].join('\n');
+        const activeCell = { section: 'body', row: 0, col: 0 } satisfies CellCoords;
+
+        const result = apply(singleColumnTableMarkdown, activeCell, { type: 'deleteColumn' });
+
+        expect(result).toEqual({ kind: 'deleteTable' });
+    });
+
+    it('deletes the table for an explicit deleteTable command', () => {
+        const result = apply(tableMarkdown, { section: 'body', row: 0, col: 0 }, { type: 'deleteTable' });
+
+        expect(result).toEqual({ kind: 'deleteTable' });
     });
 
     it.each(['left', 'center', 'right', null] satisfies TableAlignment[])(
@@ -162,8 +195,9 @@ describe('structuralCommandSemantics', () => {
         (alignment) => {
             const activeCell = { section: 'body', row: 0, col: 1 } satisfies CellCoords;
             const result = apply(tableMarkdown, activeCell, { type: 'alignColumn', alignment });
+            const tableResult = expectTableResult(result);
 
-            expect(result.targetCell).toEqual(activeCell);
+            expect(tableResult.targetCell).toEqual(activeCell);
         }
     );
 });
