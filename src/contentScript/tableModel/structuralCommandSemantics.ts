@@ -99,9 +99,10 @@ function targetInsertedRowAfter(cell: CellCoords, targetCol: number = cell.col):
 }
 
 function targetDeletedRow(cell: CellCoords): TargetCell {
-    return cell.section === 'header'
-        ? { section: 'header', row: 0, col: cell.col }
-        : { section: 'body', row: Math.max(0, cell.row - 1), col: cell.col };
+    if (cell.section === 'body' && cell.row > 0) {
+        return { section: 'body', row: cell.row - 1, col: cell.col };
+    }
+    return { section: 'header', row: 0, col: cell.col };
 }
 
 function targetDeletedColumn(cell: CellCoords): TargetCell {

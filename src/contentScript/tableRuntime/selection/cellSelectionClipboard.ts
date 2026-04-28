@@ -236,11 +236,11 @@ export function buildSelectionRemovalRewrite(
     const spansAllRows = rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1;
     const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
 
-    if (isEmptySelection && spansAllCols) {
-        if (rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1) {
-            return buildTableDeletionRewrite(ctx.from);
-        }
+    if (isEmptySelection && spansAllRows && spansAllCols) {
+        return buildTableDeletionRewrite(ctx.from);
+    }
 
+    if (isEmptySelection && spansAllCols) {
         const nextTable = ctx.table.deleteUnifiedRowRange(rect.minRow, rect.maxRow);
         if (nextTable !== ctx.table) {
             return buildTableRewrite({
@@ -253,10 +253,6 @@ export function buildSelectionRemovalRewrite(
     }
 
     if (isEmptySelection && spansAllRows) {
-        if (rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1) {
-            return buildTableDeletionRewrite(ctx.from);
-        }
-
         const nextTable = ctx.table.deleteColumnRange(rect.minCol, rect.maxCol);
         if (nextTable !== ctx.table) {
             return buildTableRewrite({

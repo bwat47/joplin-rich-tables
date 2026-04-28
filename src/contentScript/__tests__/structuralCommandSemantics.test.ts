@@ -83,7 +83,7 @@ describe('structuralCommandSemantics', () => {
         ],
         [
             { section: 'body', row: 0, col: 1 },
-            { section: 'body', row: 0, col: 1 },
+            { section: 'header', row: 0, col: 1 },
         ],
         [
             { section: 'body', row: 1, col: 1 },
@@ -173,6 +173,17 @@ describe('structuralCommandSemantics', () => {
         const result = apply(headerOnlyTableMarkdown, activeCell, { type: 'deleteRow' });
 
         expect(result).toEqual({ kind: 'deleteTable' });
+    });
+
+    it('preserves target and table when deleting an invalid body row in a header-only table', () => {
+        const headerOnlyTableMarkdown = ['| H1 | H2 |', '| --- | --- |'].join('\n');
+        const activeCell = { section: 'body', row: 0, col: 1 } satisfies CellCoords;
+
+        const result = apply(headerOnlyTableMarkdown, activeCell, { type: 'deleteRow' });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual(activeCell);
+        expect(tableResult.table.serialize()).toEqual(headerOnlyTableMarkdown);
     });
 
     it('deletes the table when deleting the only column', () => {
