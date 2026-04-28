@@ -2,29 +2,53 @@ import { MarkdownTable, type TableAlignment } from './MarkdownTable';
 import type { TargetCell } from './activeCellForTableText';
 import type { CellCoords } from './types';
 
-export type StructuralTableCommandId =
-    | 'insertRowBefore'
-    | 'insertRowAfter'
-    | 'insertColumnBefore'
-    | 'insertColumnAfter'
-    | 'deleteRow'
-    | 'deleteColumn'
-    | 'moveRowUp'
-    | 'moveRowDown'
-    | 'moveColumnLeft'
-    | 'moveColumnRight'
-    | 'clearRow'
-    | 'clearColumn'
-    | 'clearTable';
+export type StructuralTableCommandById = {
+    insertRowBefore: {
+        type: 'insertRowBefore';
+    };
+    insertRowAfter: {
+        type: 'insertRowAfter';
+        targetCol?: number;
+    };
+    insertColumnBefore: {
+        type: 'insertColumnBefore';
+    };
+    insertColumnAfter: {
+        type: 'insertColumnAfter';
+    };
+    deleteRow: {
+        type: 'deleteRow';
+    };
+    deleteColumn: {
+        type: 'deleteColumn';
+    };
+    moveRowUp: {
+        type: 'moveRowUp';
+    };
+    moveRowDown: {
+        type: 'moveRowDown';
+    };
+    moveColumnLeft: {
+        type: 'moveColumnLeft';
+    };
+    moveColumnRight: {
+        type: 'moveColumnRight';
+    };
+    clearRow: {
+        type: 'clearRow';
+    };
+    clearColumn: {
+        type: 'clearColumn';
+    };
+    clearTable: {
+        type: 'clearTable';
+    };
+};
+
+export type StructuralTableCommandId = keyof StructuralTableCommandById;
 
 export type StructuralTableCommand =
-    | {
-          type: Exclude<StructuralTableCommandId, 'insertRowAfter'>;
-      }
-    | {
-          type: 'insertRowAfter';
-          targetCol?: number;
-      }
+    | StructuralTableCommandById[StructuralTableCommandId]
     | {
           type: 'alignColumn';
           alignment: TableAlignment;

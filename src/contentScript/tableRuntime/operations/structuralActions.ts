@@ -1,68 +1,85 @@
 import type { EditorView } from '@codemirror/view';
+import type { TableAlignment } from '../../tableModel/MarkdownTable';
+import type { StructuralTableCommandById } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import {
-    clearColumn,
-    clearRow,
-    clearTable,
-    deleteColumn,
-    deleteRow,
-    deleteTable,
-    insertColumnLeft,
-    insertColumnRight,
-    insertRowAbove,
-    insertRowBelow,
-    moveColumnLeft,
-    moveColumnRight,
-    moveRowDown,
-    moveRowUp,
-    updateAlignment,
-} from './structuralOperations';
+import { deleteTable, runStructuralCommand } from './structuralOperations';
+
+type ModelBackedStructuralActionId = keyof StructuralTableCommandById;
+type CommandForId<Id extends ModelBackedStructuralActionId> = StructuralTableCommandById[Id];
+type AlignmentStructuralActionId = 'alignLeft' | 'alignCenter' | 'alignRight';
+type RuntimeOnlyStructuralActionId = 'deleteTable';
 
 export type StructuralActionId =
-    | 'insertRowBefore'
-    | 'insertRowAfter'
-    | 'deleteRow'
-    | 'insertColumnBefore'
-    | 'insertColumnAfter'
-    | 'deleteColumn'
-    | 'deleteTable'
-    | 'moveRowUp'
-    | 'moveRowDown'
-    | 'moveColumnLeft'
-    | 'moveColumnRight'
-    | 'clearRow'
-    | 'clearColumn'
-    | 'clearTable'
-    | 'alignLeft'
-    | 'alignCenter'
-    | 'alignRight';
+    | ModelBackedStructuralActionId
+    | AlignmentStructuralActionId
+    | RuntimeOnlyStructuralActionId;
 
-type StructuralActionHandler = (view: EditorView, resolvedCell: ResolvedActiveCell) => boolean;
+const modelBackedCommands = {
+    insertRowBefore: { type: 'insertRowBefore' },
+    insertRowAfter: { type: 'insertRowAfter' },
+    insertColumnBefore: { type: 'insertColumnBefore' },
+    insertColumnAfter: { type: 'insertColumnAfter' },
+    deleteRow: { type: 'deleteRow' },
+    deleteColumn: { type: 'deleteColumn' },
+    moveRowUp: { type: 'moveRowUp' },
+    moveRowDown: { type: 'moveRowDown' },
+    moveColumnLeft: { type: 'moveColumnLeft' },
+    moveColumnRight: { type: 'moveColumnRight' },
+    clearRow: { type: 'clearRow' },
+    clearColumn: { type: 'clearColumn' },
+    clearTable: { type: 'clearTable' },
+} satisfies { [Id in ModelBackedStructuralActionId]: CommandForId<Id> };
 
-export const structuralActions: Record<StructuralActionId, StructuralActionHandler> = {
-    insertRowBefore: insertRowAbove,
-    insertRowAfter: insertRowBelow,
-    deleteRow,
-    insertColumnBefore: insertColumnLeft,
-    insertColumnAfter: insertColumnRight,
-    deleteColumn,
+const alignmentCommands = {
+    alignLeft: 'left',
+    alignCenter: 'center',
+    alignRight: 'right',
+} satisfies Record<AlignmentStructuralActionId, TableAlignment>;
+
+function isModelBackedAction(actionId: StructuralActionId): actionId is ModelBackedStructuralActionId {
+    return Object.prototype.hasOwnProperty.call(modelBackedCommands, actionId);
+}
+
+function isAlignmentAction(actionId: StructuralActionId): actionId is AlignmentStructuralActionId {
+    return Object.prototype.hasOwnProperty.call(alignmentCommands, actionId);
+}
+
+function assertNeverAction(actionId: never): never {
+    throw new Error(`Unhandled structural action: ${actionId}`);
+}
+
+const runtimeOnlyActions = {
     deleteTable,
-    moveRowUp,
-    moveRowDown,
-    moveColumnLeft,
-    moveColumnRight,
-    clearRow,
-    clearColumn,
-    clearTable,
-    alignLeft: (view, resolvedCell) => updateAlignment(view, resolvedCell, 'left'),
-    alignCenter: (view, resolvedCell) => updateAlignment(view, resolvedCell, 'center'),
-    alignRight: (view, resolvedCell) => updateAlignment(view, resolvedCell, 'right'),
-};
+} satisfies Record<RuntimeOnlyStructuralActionId, typeof deleteTable>;
+
+function runRuntimeOnlyAction(
+    view: EditorView,
+    actionId: RuntimeOnlyStructuralActionId,
+    resolvedCell: ResolvedActiveCell
+): boolean {
+    switch (actionId) {
+        case 'deleteTable':
+            return runtimeOnlyActions.deleteTable(view, resolvedCell);
+        default:
+            return assertNeverAction(actionId);
+    }
+}
 
 export function runStructuralAction(
     view: EditorView,
     actionId: StructuralActionId,
     resolvedCell: ResolvedActiveCell
 ): boolean {
-    return structuralActions[actionId](view, resolvedCell);
+    if (isModelBackedAction(actionId)) {
+        return runStructuralCommand(view, resolvedCell, modelBackedCommands[actionId]);
+    }
+
+    if (isAlignmentAction(actionId)) {
+        return runStructuralCommand(view, resolvedCell, {
+            type: 'alignColumn',
+            alignment: alignmentCommands[actionId],
+        });
+    }
+
+    return runRuntimeOnlyAction(view, actionId, resolvedCell);
 }
