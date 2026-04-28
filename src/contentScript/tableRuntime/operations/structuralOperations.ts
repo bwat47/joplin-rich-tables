@@ -1,8 +1,8 @@
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
-import type { TargetCell } from '../../tableModel/activeCellForTableText';
+import type { TableAlignment } from '../../tableModel/MarkdownTable';
+import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
@@ -14,50 +14,6 @@ export type RowInsertOpenOptions = StructuralReopenOptions;
 
 const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
 const DEFAULT_INSERTED_TABLE_SELECTION_OFFSET = 2;
-
-function sameCell(cell: ActiveCell): TargetCell {
-    return cell;
-}
-
-function targetInsertedRowBefore(cell: ActiveCell): TargetCell {
-    return cell.section === 'header'
-        ? { section: 'header', row: 0, col: cell.col }
-        : { section: 'body', row: cell.row, col: cell.col };
-}
-
-function targetInsertedRowAfter(cell: ActiveCell): TargetCell {
-    return cell.section === 'header'
-        ? { section: 'body', row: 0, col: cell.col }
-        : { section: 'body', row: cell.row + 1, col: cell.col };
-}
-
-function targetInsertedRowAtBottom(cell: ActiveCell, targetCol: number): TargetCell {
-    return cell.section === 'header'
-        ? { section: 'body', row: 0, col: targetCol }
-        : { section: 'body', row: cell.row + 1, col: targetCol };
-}
-
-function targetDeletedRow(cell: ActiveCell): TargetCell {
-    return cell.section === 'header'
-        ? { section: 'header', row: 0, col: cell.col }
-        : { section: 'body', row: Math.max(0, cell.row - 1), col: cell.col };
-}
-
-function targetDeletedColumn(cell: ActiveCell): TargetCell {
-    return { section: cell.section, row: cell.row, col: Math.max(0, cell.col - 1) };
-}
-
-function targetMovedRowUp(cell: ActiveCell): TargetCell {
-    return cell.row === 0
-        ? { section: 'header', row: 0, col: cell.col }
-        : { section: 'body', row: cell.row - 1, col: cell.col };
-}
-
-function targetMovedRowDown(cell: ActiveCell): TargetCell {
-    return cell.section === 'header'
-        ? { section: 'body', row: 0, col: cell.col }
-        : { section: 'body', row: cell.row + 1, col: cell.col };
-}
 
 export function getDefaultStructuralReopenOptions(view: EditorView): StructuralReopenOptions {
     return {
@@ -72,100 +28,53 @@ export function getDefaultRowInsertOpenOptions(view: EditorView): RowInsertOpenO
     };
 }
 
-function createReopeningStructuralOperation(
-    operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
-    computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell
-) {
+function createReopeningStructuralOperation(command: StructuralTableCommand) {
     return (view: EditorView, resolvedCell: ResolvedActiveCell, options?: StructuralReopenOptions): boolean =>
         runStructuralMutationAndReopen({
             view,
             resolvedCell,
-            operation,
-            computeTargetCell,
+            command,
             ...getDefaultStructuralReopenOptions(view),
             ...options,
         });
 }
 
-function createRowInsertOperation(
-    operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable,
-    computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell
-) {
+function createRowInsertOperation(command: StructuralTableCommand) {
     return (view: EditorView, resolvedCell: ResolvedActiveCell, options?: RowInsertOpenOptions): boolean =>
         runStructuralMutationAndReopen({
             view,
             resolvedCell,
-            operation,
-            computeTargetCell,
+            command,
             ...getDefaultRowInsertOpenOptions(view),
             ...options,
         });
 }
 
-export const insertRowAbove = createRowInsertOperation(
-    (table, cell) => table.insertRowRelativeTo(cell.section, cell.row, 'before'),
-    (cell) => targetInsertedRowBefore(cell)
-);
+export const insertRowAbove = createRowInsertOperation({ type: 'insertRowBefore' });
 
-export const insertRowBelow = createRowInsertOperation(
-    (table, cell) => table.insertRowRelativeTo(cell.section, cell.row, 'after'),
-    (cell) => targetInsertedRowAfter(cell)
-);
+export const insertRowBelow = createRowInsertOperation({ type: 'insertRowAfter' });
 
-export const insertColumnLeft = createReopeningStructuralOperation(
-    (table, cell) => table.insertColumn(cell.col, 'before'),
-    (cell) => sameCell(cell)
-);
+export const insertColumnLeft = createReopeningStructuralOperation({ type: 'insertColumnBefore' });
 
-export const insertColumnRight = createReopeningStructuralOperation(
-    (table, cell) => table.insertColumn(cell.col, 'after'),
-    (cell) => ({ section: cell.section, row: cell.row, col: cell.col + 1 })
-);
+export const insertColumnRight = createReopeningStructuralOperation({ type: 'insertColumnAfter' });
 
-export const deleteRow = createReopeningStructuralOperation(
-    (table, cell) => table.deleteRowAt(cell.section, cell.row),
-    (cell) => targetDeletedRow(cell)
-);
+export const deleteRow = createReopeningStructuralOperation({ type: 'deleteRow' });
 
-export const deleteColumn = createReopeningStructuralOperation(
-    (table, cell) => table.deleteColumn(cell.col),
-    (cell) => targetDeletedColumn(cell)
-);
+export const deleteColumn = createReopeningStructuralOperation({ type: 'deleteColumn' });
 
-export const moveRowUp = createReopeningStructuralOperation(
-    (table, cell) => table.moveRow(cell.section, cell.row, 'up'),
-    (cell) => targetMovedRowUp(cell)
-);
+export const moveRowUp = createReopeningStructuralOperation({ type: 'moveRowUp' });
 
-export const moveRowDown = createReopeningStructuralOperation(
-    (table, cell) => table.moveRow(cell.section, cell.row, 'down'),
-    (cell) => targetMovedRowDown(cell)
-);
+export const moveRowDown = createReopeningStructuralOperation({ type: 'moveRowDown' });
 
-export const moveColumnLeft = createReopeningStructuralOperation(
-    (table, cell) => table.swapColumns(cell.col, cell.col - 1),
-    (cell) => ({ ...cell, col: cell.col - 1 })
-);
+export const moveColumnLeft = createReopeningStructuralOperation({ type: 'moveColumnLeft' });
 
-export const moveColumnRight = createReopeningStructuralOperation(
-    (table, cell) => table.swapColumns(cell.col, cell.col + 1),
-    (cell) => ({ ...cell, col: cell.col + 1 })
-);
+export const moveColumnRight = createReopeningStructuralOperation({ type: 'moveColumnRight' });
 
-export const clearTable = createReopeningStructuralOperation(
-    (table) => table.clearAllCells(),
-    (cell) => sameCell(cell)
-);
+export const clearTable = createReopeningStructuralOperation({ type: 'clearTable' });
 
-export const clearRow = createReopeningStructuralOperation(
-    (table, cell) => table.clearRow(cell.section, cell.row),
-    (cell) => sameCell(cell)
-);
+export const clearRow = createReopeningStructuralOperation({ type: 'clearRow' });
 
-export const clearColumn = createReopeningStructuralOperation(
-    (table, cell) => table.clearColumn(cell.col),
-    (cell) => sameCell(cell)
-);
+export const clearColumn = createReopeningStructuralOperation({ type: 'clearColumn' });
 
 export function deleteTable(view: EditorView, resolvedCell: ResolvedActiveCell): boolean {
     view.dispatch({
@@ -190,8 +99,7 @@ export function updateAlignment(
     return runStructuralMutationAndReopen({
         view,
         resolvedCell,
-        operation: (table, currentCell) => table.updateColumnAlignment(currentCell.col, align),
-        computeTargetCell: (currentCell) => sameCell(currentCell),
+        command: { type: 'alignColumn', alignment: align },
         ...getDefaultStructuralReopenOptions(view),
         ...options,
     });
@@ -206,8 +114,7 @@ export function insertRowAtBottom(
     return runStructuralMutationAndReopen({
         view,
         resolvedCell,
-        operation: (table, currentCell) => table.insertRowRelativeTo(currentCell.section, currentCell.row, 'after'),
-        computeTargetCell: (currentCell) => targetInsertedRowAtBottom(currentCell, targetCol),
+        command: { type: 'insertRowAfter', targetCol },
         ...getDefaultRowInsertOpenOptions(view),
         ...options,
     });

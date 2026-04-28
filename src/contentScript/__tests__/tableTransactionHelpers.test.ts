@@ -77,8 +77,7 @@ describe('tableTransactionHelpers', () => {
         const result = runStructuralMutationAndReopen({
             view: view as never,
             resolvedCell: createResolvedCell(cell),
-            operation: (table) => table.insertRowRelativeTo('body', 0, 'after'),
-            computeTargetCell: () => ({ section: 'body', row: 1, col: 1 }),
+            command: { type: 'insertRowAfter' },
             initialCursorPos: 'start',
             afterDispatch,
         });
@@ -119,17 +118,16 @@ describe('tableTransactionHelpers', () => {
         expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
     });
 
-    it('does not run the post-dispatch callback when row insertion is a no-op', () => {
+    it('does not run the post-dispatch callback when the structural command is a no-op', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const view = createView(tableText);
-        const cell = createCell(tableText, 0, 1);
+        const cell = createCell(tableText, 0, 0);
         const afterDispatch = jest.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
             resolvedCell: createResolvedCell(cell),
-            operation: (table) => table,
-            computeTargetCell: () => ({ section: 'body', row: 0, col: 1 }),
+            command: { type: 'moveColumnLeft' },
             afterDispatch,
         });
 
@@ -146,8 +144,7 @@ describe('tableTransactionHelpers', () => {
         const result = runStructuralMutationAndReopen({
             view: view as never,
             resolvedCell: createResolvedCell(cell),
-            operation: (table) => table.moveRow('body', 1, 'up'),
-            computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
+            command: { type: 'moveRowUp' },
         });
 
         expect(result).toBe(true);
@@ -186,8 +183,7 @@ describe('tableTransactionHelpers', () => {
         const result = runStructuralMutationAndReopen({
             view: view as never,
             resolvedCell: createResolvedCell(cell),
-            operation: (table, currentCell) => table.updateColumnAlignment(currentCell.col, 'center'),
-            computeTargetCell: () => ({ section: 'body', row: 0, col: 0 }),
+            command: { type: 'alignColumn', alignment: 'center' },
         });
 
         expect(result).toBe(true);
