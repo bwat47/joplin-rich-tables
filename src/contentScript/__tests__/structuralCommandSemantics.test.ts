@@ -83,7 +83,7 @@ describe('structuralCommandSemantics', () => {
         ],
         [
             { section: 'body', row: 0, col: 1 },
-            { section: 'header', row: 0, col: 1 },
+            { section: 'body', row: 0, col: 1 },
         ],
         [
             { section: 'body', row: 1, col: 1 },
@@ -193,6 +193,28 @@ describe('structuralCommandSemantics', () => {
         const result = apply(singleColumnTableMarkdown, activeCell, { type: 'deleteColumn' });
 
         expect(result).toEqual({ kind: 'deleteTable' });
+    });
+
+    it('targets the column that shifts into the deleted column visual space', () => {
+        const activeCell = { section: 'body', row: 0, col: 1 } satisfies CellCoords;
+
+        const result = apply(['| H1 | H2 | H3 |', '| --- | --- | --- |', '| A1 | A2 | A3 |'].join('\n'), activeCell, {
+            type: 'deleteColumn',
+        });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual({ section: 'body', row: 0, col: 1 });
+    });
+
+    it('targets the column to the left when deleting the last column', () => {
+        const activeCell = { section: 'body', row: 0, col: 1 } satisfies CellCoords;
+
+        const result = apply(['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |'].join('\n'), activeCell, {
+            type: 'deleteColumn',
+        });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual({ section: 'body', row: 0, col: 0 });
     });
 
     it('deletes the table for an explicit deleteTable command', () => {

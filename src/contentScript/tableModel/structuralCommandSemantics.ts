@@ -98,15 +98,28 @@ function targetInsertedRowAfter(cell: CellCoords, targetCol: number = cell.col):
         : { section: 'body', row: cell.row + 1, col: targetCol };
 }
 
-function targetDeletedRow(cell: CellCoords): TargetCell {
-    if (cell.section === 'body' && cell.row > 0) {
+function targetDeletedRow(cell: CellCoords, table: MarkdownTable): TargetCell {
+    if (cell.section === 'header') {
+        return { section: 'header', row: 0, col: cell.col };
+    }
+
+    if (cell.row < table.bodyRows.length - 1) {
+        return { section: 'body', row: cell.row, col: cell.col };
+    }
+
+    if (cell.row > 0) {
         return { section: 'body', row: cell.row - 1, col: cell.col };
     }
+
     return { section: 'header', row: 0, col: cell.col };
 }
 
-function targetDeletedColumn(cell: CellCoords): TargetCell {
-    return { section: cell.section, row: cell.row, col: Math.max(0, cell.col - 1) };
+function targetDeletedColumn(cell: CellCoords, table: MarkdownTable): TargetCell {
+    return {
+        section: cell.section,
+        row: cell.row,
+        col: cell.col < table.columnCount - 1 ? cell.col : cell.col - 1,
+    };
 }
 
 function targetMovedRowUp(cell: CellCoords): TargetCell {
@@ -163,7 +176,7 @@ export function applyStructuralTableCommand(
                 table,
                 activeCell,
                 table.deleteRowAt(activeCell.section, activeCell.row),
-                targetDeletedRow(activeCell)
+                targetDeletedRow(activeCell, table)
             );
         case 'deleteColumn':
             if (activeCell.col < 0 || activeCell.col >= table.columnCount) {
@@ -176,7 +189,7 @@ export function applyStructuralTableCommand(
                 table,
                 activeCell,
                 table.deleteColumn(activeCell.col),
-                targetDeletedColumn(activeCell)
+                targetDeletedColumn(activeCell, table)
             );
         case 'moveRowUp':
             return commandResult(
