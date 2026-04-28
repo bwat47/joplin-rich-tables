@@ -186,6 +186,17 @@ describe('structuralCommandSemantics', () => {
         expect(tableResult.table.serialize()).toEqual(headerOnlyTableMarkdown);
     });
 
+    it.each([
+        { section: 'body', row: -1, col: 1 },
+        { section: 'body', row: 5, col: 1 },
+    ] satisfies CellCoords[])('preserves target and table when deleting an invalid body row %#', (activeCell) => {
+        const result = apply(tableMarkdown, activeCell, { type: 'deleteRow' });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual(activeCell);
+        expect(tableResult.table.serialize()).toEqual(tableMarkdown);
+    });
+
     it('deletes the table when deleting the only column', () => {
         const singleColumnTableMarkdown = ['| H1 |', '| --- |', '| A1 |'].join('\n');
         const activeCell = { section: 'body', row: 0, col: 0 } satisfies CellCoords;
@@ -215,6 +226,17 @@ describe('structuralCommandSemantics', () => {
         const tableResult = expectTableResult(result);
 
         expect(tableResult.targetCell).toEqual({ section: 'body', row: 0, col: 0 });
+    });
+
+    it.each([
+        { section: 'body', row: 0, col: -1 },
+        { section: 'body', row: 0, col: 5 },
+    ] satisfies CellCoords[])('preserves target and table when deleting an invalid column %#', (activeCell) => {
+        const result = apply(tableMarkdown, activeCell, { type: 'deleteColumn' });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual(activeCell);
+        expect(tableResult.table.serialize()).toEqual(tableMarkdown);
     });
 
     it('deletes the table for an explicit deleteTable command', () => {

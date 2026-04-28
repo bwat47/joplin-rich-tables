@@ -122,6 +122,46 @@ function targetDeletedColumn(cell: CellCoords, table: MarkdownTable): TargetCell
     };
 }
 
+function isValidBodyRow(table: MarkdownTable, row: number): boolean {
+    return row >= 0 && row < table.bodyRows.length;
+}
+
+function isValidColumn(table: MarkdownTable, col: number): boolean {
+    return col >= 0 && col < table.columnCount;
+}
+
+function shouldDeleteWholeTableFromRow(table: MarkdownTable, activeCell: CellCoords): boolean {
+    return (
+        table.rowCount === 1 &&
+        (activeCell.section === 'header' || (activeCell.section === 'body' && isValidBodyRow(table, activeCell.row)))
+    );
+}
+
+function deleteRowResult(table: MarkdownTable, activeCell: CellCoords): StructuralTableCommandResult {
+    if (shouldDeleteWholeTableFromRow(table, activeCell)) {
+        return { kind: 'deleteTable' };
+    }
+
+    return commandResult(
+        table,
+        activeCell,
+        table.deleteRowAt(activeCell.section, activeCell.row),
+        targetDeletedRow(activeCell, table)
+    );
+}
+
+function deleteColumnResult(table: MarkdownTable, activeCell: CellCoords): StructuralTableCommandResult {
+    if (!isValidColumn(table, activeCell.col)) {
+        return commandResult(table, activeCell, table, sameCell(activeCell));
+    }
+
+    if (table.columnCount === 1) {
+        return { kind: 'deleteTable' };
+    }
+
+    return commandResult(table, activeCell, table.deleteColumn(activeCell.col), targetDeletedColumn(activeCell, table));
+}
+
 function targetMovedRowUp(cell: CellCoords): TargetCell {
     return cell.row === 0
         ? { section: 'header', row: 0, col: cell.col }
@@ -163,34 +203,9 @@ export function applyStructuralTableCommand(
                 col: activeCell.col + 1,
             });
         case 'deleteRow':
-            if (
-                (activeCell.section === 'header' && table.rowCount === 1) ||
-                (activeCell.section === 'body' &&
-                    activeCell.row >= 0 &&
-                    activeCell.row < table.bodyRows.length &&
-                    table.rowCount === 1)
-            ) {
-                return { kind: 'deleteTable' };
-            }
-            return commandResult(
-                table,
-                activeCell,
-                table.deleteRowAt(activeCell.section, activeCell.row),
-                targetDeletedRow(activeCell, table)
-            );
+            return deleteRowResult(table, activeCell);
         case 'deleteColumn':
-            if (activeCell.col < 0 || activeCell.col >= table.columnCount) {
-                return commandResult(table, activeCell, table, sameCell(activeCell));
-            }
-            if (table.columnCount === 1) {
-                return { kind: 'deleteTable' };
-            }
-            return commandResult(
-                table,
-                activeCell,
-                table.deleteColumn(activeCell.col),
-                targetDeletedColumn(activeCell, table)
-            );
+            return deleteColumnResult(table, activeCell);
         case 'moveRowUp':
             return commandResult(
                 table,
