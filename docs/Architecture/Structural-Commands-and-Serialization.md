@@ -16,7 +16,7 @@ User Action (keyboard/toolbar)
           ↓
    operations/structuralOperations.ts   ← Run StructuralTableCommand + reopen defaults
             ↓
-   operations/runStructuralMutation.ts ← Requires command object (no mutation callbacks)
+     operations/runStructuralMutation.ts ← Prepares and Dispatches (accepts StructuralTableCommand; no callback mutations)
            ↓
       tableModel/structuralCommandSemantics.ts ← Apply command, return { table, targetCell }
            ↓
