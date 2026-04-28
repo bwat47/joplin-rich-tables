@@ -12,9 +12,9 @@ User Action (keyboard/toolbar)
          ↓
     tableCommands.ts / tableToolbarPlugin.ts ← Resolve active cell once
          ↓
-   operations/structuralActions.ts      ← Shared action registry
+   operations/structuralActions.ts      ← Shared action-to-command adapter
           ↓
-   operations/structuralOperations.ts   ← Choose StructuralTableCommand + reopen defaults
+   operations/structuralOperations.ts   ← Run StructuralTableCommand + reopen defaults
             ↓
    operations/runStructuralMutation.ts ← Requires command object (no mutation callbacks)
            ↓
@@ -76,8 +76,9 @@ define paragraph-splitting behavior.
    main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
    forces a widget rebuild, and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
-`structuralActions.ts` maps shared action IDs to runtime operations so keyboard commands and toolbar buttons do not
-maintain separate operation switchboards.
+`structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
+toolbar buttons do not maintain separate switchboards. Runtime-only actions, such as full table deletion, stay explicit
+in this adapter.
 
 `structuralCommandSemantics.ts` owns editor-independent command semantics:
 
@@ -86,7 +87,7 @@ maintain separate operation switchboards.
 
 `structuralOperations.ts` is the runtime adapter on top of the runner:
 
-- It groups entry points into reopening structural-operation families rather than ad hoc wrappers.
+- It applies shared reopen defaults for canonical `StructuralTableCommand` objects.
 - It owns shared reopen defaults such as main-editor focus handoff.
 - Row-insert helpers extend those defaults with `initialCursorPos: 'start'`.
 - It passes command objects to `runStructuralMutationAndReopen()`; callers cannot provide arbitrary mutation callbacks.

@@ -28,53 +28,28 @@ export function getDefaultRowInsertOpenOptions(view: EditorView): RowInsertOpenO
     };
 }
 
-function createReopeningStructuralOperation(command: StructuralTableCommand) {
-    return (view: EditorView, resolvedCell: ResolvedActiveCell, options?: StructuralReopenOptions): boolean =>
-        runStructuralMutationAndReopen({
-            view,
-            resolvedCell,
-            command,
-            ...getDefaultStructuralReopenOptions(view),
-            ...options,
-        });
+function commandUsesRowInsertDefaults(command: StructuralTableCommand): boolean {
+    return command.type === 'insertRowBefore' || command.type === 'insertRowAfter';
 }
 
-function createRowInsertOperation(command: StructuralTableCommand) {
-    return (view: EditorView, resolvedCell: ResolvedActiveCell, options?: RowInsertOpenOptions): boolean =>
-        runStructuralMutationAndReopen({
-            view,
-            resolvedCell,
-            command,
-            ...getDefaultRowInsertOpenOptions(view),
-            ...options,
-        });
+export function runStructuralCommand(
+    view: EditorView,
+    resolvedCell: ResolvedActiveCell,
+    command: StructuralTableCommand,
+    options?: StructuralReopenOptions
+): boolean {
+    const defaults = commandUsesRowInsertDefaults(command)
+        ? getDefaultRowInsertOpenOptions(view)
+        : getDefaultStructuralReopenOptions(view);
+
+    return runStructuralMutationAndReopen({
+        view,
+        resolvedCell,
+        command,
+        ...defaults,
+        ...options,
+    });
 }
-
-export const insertRowAbove = createRowInsertOperation({ type: 'insertRowBefore' });
-
-export const insertRowBelow = createRowInsertOperation({ type: 'insertRowAfter' });
-
-export const insertColumnLeft = createReopeningStructuralOperation({ type: 'insertColumnBefore' });
-
-export const insertColumnRight = createReopeningStructuralOperation({ type: 'insertColumnAfter' });
-
-export const deleteRow = createReopeningStructuralOperation({ type: 'deleteRow' });
-
-export const deleteColumn = createReopeningStructuralOperation({ type: 'deleteColumn' });
-
-export const moveRowUp = createReopeningStructuralOperation({ type: 'moveRowUp' });
-
-export const moveRowDown = createReopeningStructuralOperation({ type: 'moveRowDown' });
-
-export const moveColumnLeft = createReopeningStructuralOperation({ type: 'moveColumnLeft' });
-
-export const moveColumnRight = createReopeningStructuralOperation({ type: 'moveColumnRight' });
-
-export const clearTable = createReopeningStructuralOperation({ type: 'clearTable' });
-
-export const clearRow = createReopeningStructuralOperation({ type: 'clearRow' });
-
-export const clearColumn = createReopeningStructuralOperation({ type: 'clearColumn' });
 
 export function deleteTable(view: EditorView, resolvedCell: ResolvedActiveCell): boolean {
     view.dispatch({
@@ -96,13 +71,7 @@ export function updateAlignment(
     align: CommandColumnAlignment,
     options?: StructuralReopenOptions
 ): boolean {
-    return runStructuralMutationAndReopen({
-        view,
-        resolvedCell,
-        command: { type: 'alignColumn', alignment: align },
-        ...getDefaultStructuralReopenOptions(view),
-        ...options,
-    });
+    return runStructuralCommand(view, resolvedCell, { type: 'alignColumn', alignment: align }, options);
 }
 
 export function insertRowAtBottom(
@@ -111,13 +80,7 @@ export function insertRowAtBottom(
     targetCol: number,
     options?: RowInsertOpenOptions
 ): boolean {
-    return runStructuralMutationAndReopen({
-        view,
-        resolvedCell,
-        command: { type: 'insertRowAfter', targetCol },
-        ...getDefaultRowInsertOpenOptions(view),
-        ...options,
-    });
+    return runStructuralCommand(view, resolvedCell, { type: 'insertRowAfter', targetCol }, options);
 }
 
 export function insertTableAndActivate(view: EditorView): boolean {

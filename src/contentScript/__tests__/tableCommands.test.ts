@@ -8,8 +8,7 @@ import {
     deleteTable,
     getDefaultRowInsertOpenOptions,
     getDefaultStructuralReopenOptions,
-    insertColumnRight,
-    insertRowBelow,
+    runStructuralCommand,
     updateAlignment,
 } from '../tableRuntime/operations/structuralOperations';
 
@@ -68,7 +67,7 @@ describe('tableCommands', () => {
             const cell = createCell('body', 1, 1);
             const resolvedCell = createResolvedCell(cell);
 
-            insertRowBelow(mockView, resolvedCell);
+            runStructuralCommand(mockView, resolvedCell, { type: 'insertRowAfter' });
 
             expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -88,7 +87,7 @@ describe('tableCommands', () => {
             const cell = createCell('body', 2, 3);
             const resolvedCell = createResolvedCell(cell);
 
-            insertColumnRight(mockView, resolvedCell);
+            runStructuralCommand(mockView, resolvedCell, { type: 'insertColumnAfter' });
 
             expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
                 expect.objectContaining({
