@@ -4,6 +4,7 @@ export const AUTO_MATCHING_BRACES_SETTING_KEY = 'editor.autoMatchingBraces';
 export const TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY = 'floatingToolbar.showMoveButtons';
 export const TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY = 'floatingToolbar.showClearButtons';
 export const TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY = 'floatingToolbar.showAlignmentButtons';
+export const TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY = 'floatingToolbar.showDeleteTableButton';
 
 export interface HostEditorConfig {
     nestedEditor: {
@@ -13,6 +14,7 @@ export interface HostEditorConfig {
         showMoveButtons: boolean;
         showClearButtons: boolean;
         showAlignmentButtons: boolean;
+        showDeleteTableButton: boolean;
     };
 }
 
@@ -39,6 +41,7 @@ export function defaultHostEditorConfig(): HostEditorConfig {
             showMoveButtons: true,
             showClearButtons: true,
             showAlignmentButtons: true,
+            showDeleteTableButton: true,
         },
     };
 }
@@ -60,7 +63,8 @@ export function isHostEditorConfig(value: unknown): value is HostEditorConfig {
         toolbar !== null &&
         typeof toolbar.showMoveButtons === 'boolean' &&
         typeof toolbar.showClearButtons === 'boolean' &&
-        typeof toolbar.showAlignmentButtons === 'boolean'
+        typeof toolbar.showAlignmentButtons === 'boolean' &&
+        typeof toolbar.showDeleteTableButton === 'boolean'
     );
 }
 
@@ -94,6 +98,7 @@ async function readToolbarConfig(deps: HostEditorConfigDeps): Promise<ToolbarHos
             TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
+            TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
         ]);
 
         return {
@@ -111,6 +116,11 @@ async function readToolbarConfig(deps: HostEditorConfigDeps): Promise<ToolbarHos
                 values,
                 TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
                 defaults.showAlignmentButtons
+            ),
+            showDeleteTableButton: readBooleanSetting(
+                values,
+                TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
+                defaults.showDeleteTableButton
             ),
         };
     } catch (error) {

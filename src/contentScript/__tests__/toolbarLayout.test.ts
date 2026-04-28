@@ -32,6 +32,7 @@ describe('toolbarLayout', () => {
                 showMoveButtons: true,
                 showClearButtons: true,
                 showAlignmentButtons: true,
+                showDeleteTableButton: true,
             })
         );
 
@@ -63,6 +64,7 @@ describe('toolbarLayout', () => {
                 showMoveButtons: false,
                 showClearButtons: true,
                 showAlignmentButtons: true,
+                showDeleteTableButton: true,
             })
         );
 
@@ -78,6 +80,7 @@ describe('toolbarLayout', () => {
                 showMoveButtons: true,
                 showClearButtons: false,
                 showAlignmentButtons: true,
+                showDeleteTableButton: true,
             })
         );
 
@@ -94,6 +97,7 @@ describe('toolbarLayout', () => {
                 showMoveButtons: true,
                 showClearButtons: true,
                 showAlignmentButtons: false,
+                showDeleteTableButton: true,
             })
         );
 
@@ -109,6 +113,7 @@ describe('toolbarLayout', () => {
                 showMoveButtons: false,
                 showClearButtons: false,
                 showAlignmentButtons: false,
+                showDeleteTableButton: true,
             })
         );
 
@@ -122,5 +127,41 @@ describe('toolbarLayout', () => {
             'Delete table',
         ]);
         expect(layout.separatorCount).toBe(2);
+    });
+
+    it('hides the delete table button when disabled', () => {
+        const layout = renderLayout(
+            getToolbarButtonGroups({
+                showMoveButtons: true,
+                showClearButtons: true,
+                showAlignmentButtons: true,
+                showDeleteTableButton: false,
+            })
+        );
+
+        expect(layout.labels).toContain('Clear table');
+        expect(layout.labels).not.toContain('Delete table');
+        expect(layout.separatorCount).toBe(3);
+    });
+
+    it('omits the table group when clear and delete table buttons are both disabled', () => {
+        const layout = renderLayout(
+            getToolbarButtonGroups({
+                showMoveButtons: false,
+                showClearButtons: false,
+                showAlignmentButtons: false,
+                showDeleteTableButton: false,
+            })
+        );
+
+        expect(layout.labels).toEqual([
+            'Insert row before',
+            'Insert row after',
+            'Delete row',
+            'Insert column before',
+            'Insert column after',
+            'Delete column',
+        ]);
+        expect(layout.separatorCount).toBe(1);
     });
 });

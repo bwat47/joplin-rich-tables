@@ -60,6 +60,7 @@ describe('contentScriptMessageHandler', () => {
             'floatingToolbar.showMoveButtons': false,
             'floatingToolbar.showClearButtons': true,
             'floatingToolbar.showAlignmentButtons': false,
+            'floatingToolbar.showDeleteTableButton': true,
         });
 
         const result = await handler({
@@ -71,6 +72,7 @@ describe('contentScriptMessageHandler', () => {
             'floatingToolbar.showMoveButtons',
             'floatingToolbar.showClearButtons',
             'floatingToolbar.showAlignmentButtons',
+            'floatingToolbar.showDeleteTableButton',
         ]);
         expect(result).toEqual({
             nestedEditor: {
@@ -80,6 +82,7 @@ describe('contentScriptMessageHandler', () => {
                 showMoveButtons: false,
                 showClearButtons: true,
                 showAlignmentButtons: false,
+                showDeleteTableButton: true,
             },
         });
     });

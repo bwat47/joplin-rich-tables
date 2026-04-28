@@ -6,6 +6,7 @@ import {
     readHostEditorConfig,
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
+    TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
     TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
 } from '../contentScriptBridge/hostEditorConfigBridge';
 
@@ -37,6 +38,7 @@ describe('hostEditorConfigBridge', () => {
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: true,
             [TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY]: false,
+            [TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY]: true,
         });
 
         const result = await readHostEditorConfig(deps);
@@ -46,6 +48,7 @@ describe('hostEditorConfigBridge', () => {
             TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
+            TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
         ]);
         expect(result).toEqual({
             nestedEditor: {
@@ -55,6 +58,7 @@ describe('hostEditorConfigBridge', () => {
                 showMoveButtons: false,
                 showClearButtons: true,
                 showAlignmentButtons: false,
+                showDeleteTableButton: true,
             },
         });
     });
@@ -74,6 +78,7 @@ describe('hostEditorConfigBridge', () => {
                 showMoveButtons: false,
                 showClearButtons: true,
                 showAlignmentButtons: true,
+                showDeleteTableButton: true,
             },
         });
     });
@@ -84,6 +89,7 @@ describe('hostEditorConfigBridge', () => {
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY]: false,
+            [TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY]: false,
         });
 
         await expect(readHostEditorConfig(deps)).resolves.toEqual({
@@ -92,6 +98,7 @@ describe('hostEditorConfigBridge', () => {
                 showMoveButtons: false,
                 showClearButtons: false,
                 showAlignmentButtons: false,
+                showDeleteTableButton: false,
             },
         });
     });

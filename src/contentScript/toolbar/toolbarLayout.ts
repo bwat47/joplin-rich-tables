@@ -141,14 +141,12 @@ const alignmentButtons: ToolbarButtonDescriptor[] = [
     },
 ];
 
-const deleteTableButtons: ToolbarButtonDescriptor[] = [
-    {
-        actionId: 'deleteTable',
-        title: 'Delete table',
-        ariaLabel: 'Delete table',
-        iconFactory: deleteTableIcon,
-    },
-];
+const deleteTableButton: ToolbarButtonDescriptor = {
+    actionId: 'deleteTable',
+    title: 'Delete table',
+    ariaLabel: 'Delete table',
+    iconFactory: deleteTableIcon,
+};
 
 export function getToolbarButtonGroups(settings: ToolbarHostConfig): ToolbarButtonDescriptor[][] {
     const rowButtons = [...baseRowButtons];
@@ -164,16 +162,19 @@ export function getToolbarButtonGroups(settings: ToolbarHostConfig): ToolbarButt
         columnButtons.push(clearColumnButton);
     }
 
-    const tableButtons = settings.showClearButtons
-        ? [clearTableButton, ...deleteTableButtons]
-        : [...deleteTableButtons];
+    const tableButtons = [
+        ...(settings.showClearButtons ? [clearTableButton] : []),
+        ...(settings.showDeleteTableButton ? [deleteTableButton] : []),
+    ];
     const groups: ToolbarButtonDescriptor[][] = [rowButtons, columnButtons];
 
     if (settings.showAlignmentButtons) {
         groups.push(alignmentButtons);
     }
 
-    groups.push(tableButtons);
+    if (tableButtons.length > 0) {
+        groups.push(tableButtons);
+    }
 
     return groups;
 }
