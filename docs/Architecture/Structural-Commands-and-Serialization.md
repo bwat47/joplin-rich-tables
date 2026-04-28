@@ -13,14 +13,14 @@ User Action (keyboard/toolbar)
     tableCommands.ts / tableToolbarPlugin.ts ← Resolve active cell once
          ↓
    operations/structuralActions.ts      ← Shared action registry
-         ↓
-   operations/structuralOperations.ts   ← Runtime command adapters
+          ↓
+   operations/structuralOperations.ts   ← Choose StructuralTableCommand + reopen defaults
+            ↓
+   operations/runStructuralMutation.ts ← Invoke model semantics, serialize, dispatch
            ↓
-   operations/runStructuralMutation.ts ← Parse, mutate, serialize, dispatch
-          ↓
-     tableModel/structuralCommandSemantics.ts ← Pure command semantics
-          ↓
-     MarkdownTable.ts          ← Runtime model + structural operations
+      tableModel/structuralCommandSemantics.ts ← Return { table, targetCell }
+           ↓
+      MarkdownTable.ts          ← Runtime model + structural operations
 ```
 
 ## Layers
@@ -64,10 +64,11 @@ define paragraph-splitting behavior.
 
 ### 2. Runtime Mutation Helpers (`tableRuntime/operations/runStructuralMutation.ts`)
 
-`runStructuralMutation.ts` has one shared preparation core that receives a `ResolvedActiveCell` and orchestrates:
+`runStructuralMutation.ts` has one shared preparation core that receives a `ResolvedActiveCell` plus a
+`StructuralTableCommand` and orchestrates:
 
 1. **Use Resolved Context**: Reuse the resolved table span, `TableContext`, and logical active cell.
-2. **Mutate**: Call a pure model command semantic function.
+2. **Apply Command Semantics**: Call `structuralCommandSemantics.ts` to obtain `{ table, targetCell }`.
 3. **Short-circuit**: Exit on no-op.
 4. **Serialize**: `table.serialize()` → Markdown.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
@@ -88,6 +89,7 @@ maintain separate operation switchboards.
 - It groups entry points into reopening structural-operation families rather than ad hoc wrappers.
 - It owns shared reopen defaults such as main-editor focus handoff.
 - Row-insert helpers extend those defaults with `initialCursorPos: 'start'`.
+- It passes command objects to `runStructuralMutationAndReopen()`; callers cannot provide arbitrary mutation callbacks.
 
 All active-cell-preserving structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
 delete, move, clear, and alignment updates. That means command-driven structural edits don't rely on lifecycle

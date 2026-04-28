@@ -74,7 +74,7 @@ describe('tableCommands', () => {
                 expect.objectContaining({
                     view: mockView,
                     resolvedCell,
-                    prepareMutation: expect.any(Function),
+                    command: { type: 'insertRowAfter' },
                     initialCursorPos: 'start',
                     afterDispatch: expect.any(Function),
                 })
@@ -94,13 +94,13 @@ describe('tableCommands', () => {
                 expect.objectContaining({
                     view: mockView,
                     resolvedCell,
-                    prepareMutation: expect.any(Function),
+                    command: { type: 'insertColumnAfter' },
                     afterDispatch: expect.any(Function),
                 })
             );
             expect(mockRunStructuralMutationAndReopen.mock.calls[0][0].initialCursorPos).toBeUndefined();
         });
-        it('routes alignment updates through the prepared mutation path', () => {
+        it('routes alignment updates through the command path', () => {
             const cell = createCell('body', 2, 1);
             const resolvedCell = createResolvedCell(cell);
 
@@ -108,7 +108,7 @@ describe('tableCommands', () => {
 
             expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledTimes(1);
             const params = mockRunStructuralMutationAndReopen.mock.calls[0][0];
-            expect(params.prepareMutation).toEqual(expect.any(Function));
+            expect(params.command).toEqual({ type: 'alignColumn', alignment: 'center' });
         });
     });
 

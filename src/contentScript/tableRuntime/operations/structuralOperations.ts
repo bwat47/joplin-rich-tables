@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
-import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
+import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
@@ -33,7 +33,7 @@ function createReopeningStructuralOperation(command: StructuralTableCommand) {
         runStructuralMutationAndReopen({
             view,
             resolvedCell,
-            prepareMutation: (table, cell) => applyStructuralTableCommand(table, cell, command),
+            command,
             ...getDefaultStructuralReopenOptions(view),
             ...options,
         });
@@ -44,7 +44,7 @@ function createRowInsertOperation(command: StructuralTableCommand) {
         runStructuralMutationAndReopen({
             view,
             resolvedCell,
-            prepareMutation: (table, cell) => applyStructuralTableCommand(table, cell, command),
+            command,
             ...getDefaultRowInsertOpenOptions(view),
             ...options,
         });
@@ -99,8 +99,7 @@ export function updateAlignment(
     return runStructuralMutationAndReopen({
         view,
         resolvedCell,
-        prepareMutation: (table, currentCell) =>
-            applyStructuralTableCommand(table, currentCell, { type: 'alignColumn', alignment: align }),
+        command: { type: 'alignColumn', alignment: align },
         ...getDefaultStructuralReopenOptions(view),
         ...options,
     });
@@ -115,8 +114,7 @@ export function insertRowAtBottom(
     return runStructuralMutationAndReopen({
         view,
         resolvedCell,
-        prepareMutation: (table, currentCell) =>
-            applyStructuralTableCommand(table, currentCell, { type: 'insertRowAfter', targetCol }),
+        command: { type: 'insertRowAfter', targetCol },
         ...getDefaultRowInsertOpenOptions(view),
         ...options,
     });

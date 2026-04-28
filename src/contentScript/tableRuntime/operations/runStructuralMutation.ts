@@ -1,9 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { type ActiveCell } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { MarkdownTable } from '../../tableModel/MarkdownTable';
-import type { TargetCell } from '../../tableModel/activeCellForTableText';
-import type { StructuralTableCommandResult } from '../../tableModel/structuralCommandSemantics';
+import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestTransaction } from '../openCellRequest';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -12,21 +10,6 @@ function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
     return a.section === b.section && a.row === b.row && a.col === b.col;
 }
 
-interface StructuralMutationCallbackParams {
-    view: EditorView;
-    resolvedCell: ResolvedActiveCell;
-    operation: (table: MarkdownTable, cell: ActiveCell) => MarkdownTable;
-    computeTargetCell: (cell: ActiveCell, oldTable: MarkdownTable, newTable: MarkdownTable) => TargetCell;
-}
-
-interface PreparedStructuralMutationParams {
-    view: EditorView;
-    resolvedCell: ResolvedActiveCell;
-    prepareMutation: (table: MarkdownTable, cell: ActiveCell) => StructuralTableCommandResult;
-}
-
-type StructuralMutationPreparationParams = StructuralMutationCallbackParams | PreparedStructuralMutationParams;
-
 export interface StructuralReopenOptions {
     initialCursorPos?: 'start' | 'end' | 'lastLineStart';
     afterDispatch?: () => void;
@@ -34,7 +17,11 @@ export interface StructuralReopenOptions {
     suppressKeys?: boolean;
 }
 
-export type RunStructuralMutationAndReopenParams = StructuralMutationPreparationParams & StructuralReopenOptions;
+export interface RunStructuralMutationAndReopenParams extends StructuralReopenOptions {
+    view: EditorView;
+    resolvedCell: ResolvedActiveCell;
+    command: StructuralTableCommand;
+}
 
 interface PreparedStructuralMutation {
     tableFrom: number;
@@ -44,23 +31,13 @@ interface PreparedStructuralMutation {
     nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTableText>>;
 }
 
-function prepareStructuralMutation(params: StructuralMutationPreparationParams): PreparedStructuralMutation | null {
+function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams): PreparedStructuralMutation | null {
     const { resolvedCell } = params;
     const cell = resolvedCell.activeCell;
     const { tableFrom, tableTo, ctx } = resolvedCell;
     const text = ctx.text;
 
-    const mutationResult = (() => {
-        if ('prepareMutation' in params) {
-            return params.prepareMutation(ctx.table, cell);
-        }
-
-        const table = params.operation(ctx.table, cell);
-        return {
-            table,
-            targetCell: params.computeTargetCell(cell, ctx.table, table),
-        };
-    })();
+    const mutationResult = applyStructuralTableCommand(ctx.table, cell, params.command);
     const newTableData = mutationResult.table;
     if (newTableData === ctx.table) {
         return null;
