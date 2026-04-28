@@ -5,6 +5,7 @@ import { createContentScriptMessageHandler } from './contentScriptBridge/content
 import {
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
+    TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
     TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
 } from './contentScriptBridge/hostEditorConfigBridge';
 
@@ -47,6 +48,14 @@ joplin.plugins.register({
                 section: SETTINGS_SECTION,
                 label: 'Show alignment buttons',
                 description: 'Display align left, center, and right actions in the floating table toolbar.',
+            },
+            [TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY]: {
+                value: true,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Show delete table button',
+                description: 'Display the delete table action in the floating table toolbar.',
             },
         });
 

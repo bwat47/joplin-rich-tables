@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { type ActiveCell } from '../../tableState/activeCellState';
+import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestTransaction } from '../openCellRequest';
@@ -23,13 +23,22 @@ export interface RunStructuralMutationAndReopenParams extends StructuralReopenOp
     command: StructuralTableCommand;
 }
 
-interface PreparedStructuralMutation {
+interface PreparedTableMutation {
+    kind: 'table';
     tableFrom: number;
     tableTo: number;
     newText: string;
     hasDocumentChange: boolean;
     nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTableText>>;
 }
+
+interface PreparedTableDeletion {
+    kind: 'deleteTable';
+    tableFrom: number;
+    tableTo: number;
+}
+
+type PreparedStructuralMutation = PreparedTableMutation | PreparedTableDeletion;
 
 function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams): PreparedStructuralMutation | null {
     const { resolvedCell } = params;
@@ -38,6 +47,14 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
     const text = ctx.text;
 
     const mutationResult = applyStructuralTableCommand(ctx.table, cell, params.command);
+    if (mutationResult.kind === 'deleteTable') {
+        return {
+            kind: 'deleteTable',
+            tableFrom,
+            tableTo,
+        };
+    }
+
     const newTableData = mutationResult.table;
     if (newTableData === ctx.table) {
         return null;
@@ -58,6 +75,7 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
     }
 
     return {
+        kind: 'table',
         tableFrom,
         tableTo,
         newText,
@@ -70,6 +88,19 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
     const prepared = prepareStructuralMutation(params);
     if (!prepared) {
         return false;
+    }
+
+    if (prepared.kind === 'deleteTable') {
+        params.view.dispatch({
+            changes: { from: prepared.tableFrom, to: prepared.tableTo, insert: '' },
+            effects: [
+                clearActiveCellEffect.of(undefined),
+                rebuildTableWidgetsEffect.of({ tableFrom: prepared.tableFrom }),
+            ],
+        });
+        params.afterDispatch?.();
+
+        return true;
     }
 
     const openTransaction = prepareOpenCellRequestTransaction({

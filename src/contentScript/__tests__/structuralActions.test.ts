@@ -68,6 +68,7 @@ describe('structuralActions', () => {
         ['clearRow', { type: 'clearRow' }],
         ['clearColumn', { type: 'clearColumn' }],
         ['clearTable', { type: 'clearTable' }],
+        ['deleteTable', { type: 'deleteTable' }],
     ] satisfies Array<[StructuralActionId, StructuralTableCommand]>)(
         'maps model-backed action %s to its canonical command',
         (actionId, command) => {
@@ -101,15 +102,4 @@ describe('structuralActions', () => {
             );
         }
     );
-
-    it('keeps deleteTable as a runtime-only action', () => {
-        expect(runStructuralAction(view, 'deleteTable', resolvedCell)).toBe(true);
-
-        expect(mockRunStructuralMutationAndReopen).not.toHaveBeenCalled();
-        expect(view.dispatch).toHaveBeenCalledWith(
-            expect.objectContaining({
-                changes: { from: 10, to: 100, insert: '' },
-            })
-        );
-    });
 });

@@ -4,7 +4,7 @@ import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
-import { setActiveCellEffect } from '../tableState/activeCellState';
+import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
@@ -196,5 +196,44 @@ describe('tableTransactionHelpers', () => {
         expect(dispatched.changes?.insert).toBe(updatedTableText);
         expect(dispatched.effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
+    });
+
+    it.each([
+        ['deleteTable', '| H1 | H2 |\n| --- | --- |\n| a | b |', { section: 'body', row: 0, col: 0 }],
+        ['deleteRow', '| H1 | H2 |\n| --- | --- |', { section: 'header', row: 0, col: 0 }],
+        ['deleteColumn', '| H1 |\n| --- |\n| a |', { section: 'body', row: 0, col: 0 }],
+    ] as const)('dispatches table deletion for %s without reopen effects', (commandType, tableText, activeCell) => {
+        const view = createView(tableText);
+        const afterDispatch = jest.fn();
+
+        const result = runStructuralMutationAndReopen({
+            view: view as never,
+            resolvedCell: createResolvedCell({
+                tableFrom: 0,
+                ...activeCell,
+            }),
+            command: { type: commandType },
+            afterDispatch,
+        });
+
+        expect(result).toBe(true);
+        expect(view.dispatch).toHaveBeenCalledTimes(1);
+        expect(afterDispatch).toHaveBeenCalledTimes(1);
+
+        const dispatched = view.dispatch.mock.calls[0][0] as {
+            changes?: unknown;
+            selection?: unknown;
+            effects: Array<{ is?: (value: unknown) => boolean }>;
+        };
+        expect(dispatched.changes).toEqual({
+            from: 0,
+            to: tableText.length,
+            insert: '',
+        });
+        expect(dispatched.selection).toBeUndefined();
+        expect(dispatched.effects.some((effect) => effect.is?.(clearActiveCellEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(false);
+        expect(dispatched.effects.some((effect) => effect.is?.(beginOpenCellRequestEffect))).toBe(false);
     });
 });

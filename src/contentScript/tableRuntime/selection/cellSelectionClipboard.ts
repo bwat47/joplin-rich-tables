@@ -174,6 +174,16 @@ function buildTableRewrite(params: {
     };
 }
 
+function buildTableDeletionRewrite(tableFrom: number): TableClipboardRewrite {
+    return {
+        tableFrom,
+        tableText: '',
+        selection: null,
+        clearActiveCell: true,
+        selectionAnchorPos: tableFrom,
+    };
+}
+
 function clampIndex(value: number, max: number): number {
     return Math.max(0, Math.min(value, max));
 }
@@ -227,13 +237,7 @@ export function buildSelectionRemovalRewrite(
     const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
 
     if (isEmptySelection && spansAllRows && spansAllCols) {
-        return {
-            tableFrom: ctx.from,
-            tableText: '',
-            selection: null,
-            clearActiveCell: true,
-            selectionAnchorPos: ctx.from,
-        };
+        return buildTableDeletionRewrite(ctx.from);
     }
 
     if (isEmptySelection && spansAllCols) {

@@ -1,6 +1,4 @@
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect } from '../../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -49,20 +47,6 @@ export function runStructuralCommand(
         ...defaults,
         ...options,
     });
-}
-
-export function deleteTable(view: EditorView, resolvedCell: ResolvedActiveCell): boolean {
-    view.dispatch({
-        changes: { from: resolvedCell.tableFrom, to: resolvedCell.tableTo, insert: '' },
-        effects: [
-            clearActiveCellEffect.of(undefined),
-            rebuildTableWidgetsEffect.of({ tableFrom: resolvedCell.tableFrom }),
-        ],
-    });
-
-    focusMainEditorWithoutScroll(view);
-
-    return true;
 }
 
 export function updateAlignment(

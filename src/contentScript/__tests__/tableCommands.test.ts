@@ -5,7 +5,6 @@ import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runSt
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import {
-    deleteTable,
     getDefaultRowInsertOpenOptions,
     getDefaultStructuralReopenOptions,
     runStructuralCommand,
@@ -126,27 +125,6 @@ describe('tableCommands', () => {
             expect(options.initialCursorPos).toBe('start');
             options.afterDispatch?.();
             expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
-        });
-    });
-
-    describe('deleteTable', () => {
-        it('deleteTable dispatches deletion with clearActiveCellEffect', () => {
-            const dispatchMock = jest.fn();
-            const mockEditorView = {
-                dispatch: dispatchMock,
-                state: {},
-                contentDOM: { focus: jest.fn() },
-            } as unknown as EditorView;
-            const cell = createCell('body', 1, 0);
-            cell.tableFrom = 10;
-            const resolvedCell = createResolvedCell(cell);
-
-            deleteTable(mockEditorView, resolvedCell);
-
-            expect(dispatchMock).toHaveBeenCalledTimes(1);
-            const arg = dispatchMock.mock.calls[0][0];
-            expect(arg.changes).toEqual({ from: 10, to: 100, insert: '' });
-            expect(arg.effects).toHaveLength(2);
         });
     });
 

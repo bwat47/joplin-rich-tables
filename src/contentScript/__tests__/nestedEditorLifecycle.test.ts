@@ -43,6 +43,7 @@ const TEST_HOST_CONFIG = {
         showMoveButtons: true,
         showClearButtons: true,
         showAlignmentButtons: true,
+        showDeleteTableButton: true,
     },
 } satisfies HostEditorConfig;
 const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
