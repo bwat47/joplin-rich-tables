@@ -11,6 +11,10 @@ function siblingGroups(folderNames) {
     return folderNames.flatMap((name) => [`../${name}`, `../${name}/*`, `../${name}/**`]);
 }
 
+function anyDepthFolderGroups(folderNames) {
+    return folderNames.flatMap((name) => [`**/${name}`, `**/${name}/*`, `**/${name}/**`]);
+}
+
 export default [
     {
         ignores: ['api/**', 'dist/**'],
@@ -114,6 +118,33 @@ export default [
                                 'toolbar',
                             ]),
                             message: 'tableModel must not depend on higher-level editor layers.',
+                        },
+                        {
+                            group: anyDepthFolderGroups([
+                                'tableState',
+                                'tableRuntime',
+                                'tableWidget',
+                                'tableCommands',
+                                'nestedEditor',
+                                'services',
+                                'toolbar',
+                            ]),
+                            message:
+                                'tableModel must not depend on higher-level editor layers, even via deep relative paths.',
+                        },
+                    ],
+                    paths: [
+                        {
+                            name: '@codemirror/view',
+                            message: 'tableModel must not depend on editor/runtime packages.',
+                        },
+                        {
+                            name: '@codemirror/state',
+                            message: 'tableModel must not depend on editor/runtime packages.',
+                        },
+                        {
+                            name: '@codemirror/language',
+                            message: 'tableModel must not depend on editor/runtime packages.',
                         },
                     ],
                 },
