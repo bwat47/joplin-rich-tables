@@ -152,7 +152,7 @@ function cursorInsideAnyTable(update: ViewUpdate): boolean {
     return findTableRanges(update.state).some((table) => cursorPos >= table.from && cursorPos <= table.to);
 }
 
-function updateRequiresUndoRedoReposition(params: {
+function updateRequiresCellReposition(params: {
     update: ViewUpdate;
     effectiveRawMode: boolean;
     hadActiveCell: boolean;
@@ -217,8 +217,8 @@ function collectLifecyclePlannerInput(params: {
             rawModeTransition: scanRawModeTransitionFacts(params.update, params.previousEffectiveRawMode),
             hasFullDocumentReplace: params.update.transactions.some((tr) => isFullDocumentReplace(tr)),
             openRequestId: extractOpenRequestId(params.update),
-            selectionOutsideActiveTable: isSelectionOutsideResolvedTable(params.update, resolvedActiveCell),
-            undoRedoRequiresCellReposition: updateRequiresUndoRedoReposition({
+            selectionLeftActiveTable: isSelectionOutsideResolvedTable(params.update, resolvedActiveCell),
+            requiresCellReposition: updateRequiresCellReposition({
                 update: params.update,
                 effectiveRawMode,
                 hadActiveCell: params.hadActiveCell,
@@ -453,10 +453,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             });
                         });
                         break;
-                    case 'syncMainDocToNested':
-                        handleMainEditorUpdate(this.view, update);
-                        break;
-                    case 'syncMainSelectionToNested':
+                    case 'syncMainToNested':
                         handleMainEditorUpdate(this.view, update);
                         break;
                     case 'clearActiveCell':

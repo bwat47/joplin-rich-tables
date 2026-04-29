@@ -86,8 +86,8 @@ function defaultPolicyEvent(overrides: Partial<TableLifecyclePolicyEvent> = {}):
         },
         hasFullDocumentReplace: false,
         openRequestId: null,
-        selectionOutsideActiveTable: false,
-        undoRedoRequiresCellReposition: false,
+        selectionLeftActiveTable: false,
+        requiresCellReposition: false,
         syncIntent: 'none',
         ...overrides,
     };
@@ -414,10 +414,10 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(planTableLifecycleActions(state, defaultPolicyEvent({ syncIntent: 'doc' }))).toContainEqual({
-            type: 'syncMainDocToNested',
+            type: 'syncMainToNested',
         });
         expect(planTableLifecycleActions(state, defaultPolicyEvent({ syncIntent: 'selection' }))).toContainEqual({
-            type: 'syncMainSelectionToNested',
+            type: 'syncMainToNested',
         });
         expect(planTableLifecycleActions(state, defaultPolicyEvent({ syncIntent: 'none' }))).toEqual([]);
     });
@@ -434,9 +434,9 @@ describe('tableRuntimePolicies', () => {
             docChanged: true,
             hasFullDocumentReplace: true,
             openRequestId: 'explicit-request',
-            undoRedoRequiresCellReposition: true,
+            requiresCellReposition: true,
             selectionChanged: true,
-            selectionOutsideActiveTable: true,
+            selectionLeftActiveTable: true,
             syncIntent: 'doc',
         });
 
@@ -474,7 +474,7 @@ describe('tableRuntimePolicies', () => {
                 state,
                 defaultPolicyEvent({
                     docChanged: true,
-                    undoRedoRequiresCellReposition: true,
+                    requiresCellReposition: true,
                 })
             )
         ).toEqual([
@@ -503,10 +503,44 @@ describe('tableRuntimePolicies', () => {
                 state,
                 defaultPolicyEvent({
                     selectionChanged: true,
-                    selectionOutsideActiveTable: true,
+                    selectionLeftActiveTable: true,
                 })
             )
         ).toEqual([{ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false }, { type: 'clearActiveCell' }]);
+    });
+
+    it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {
+        const activeCell = getHeaderCell();
+        const state = defaultPolicyState({
+            activeCell,
+            currentActiveCellResolved: true,
+            nestedEditorOpen: true,
+            hadActiveCell: true,
+        });
+        const event = defaultPolicyEvent({
+            selectionChanged: true,
+            selectionLeftActiveTable: true,
+        });
+
+        expect(planTableLifecycleActions(defaultPolicyState({ ...state, effectiveRawMode: true }), event)).toEqual([]);
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    ...event,
+                    isCellSelectionTransition: true,
+                })
+            )
+        ).toEqual([]);
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    ...event,
+                    isSync: true,
+                })
+            )
+        ).toEqual([]);
     });
 
     it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
@@ -523,7 +557,7 @@ describe('tableRuntimePolicies', () => {
                 state,
                 defaultPolicyEvent({
                     selectionChanged: true,
-                    selectionOutsideActiveTable: true,
+                    selectionLeftActiveTable: true,
                 })
             )
         ).toEqual([]);

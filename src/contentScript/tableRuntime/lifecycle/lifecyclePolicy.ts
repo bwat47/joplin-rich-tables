@@ -18,8 +18,8 @@ export interface TableLifecyclePolicyEvent {
     rawModeTransition: RawModeTransitionFacts;
     hasFullDocumentReplace: boolean;
     openRequestId: string | null;
-    selectionOutsideActiveTable: boolean;
-    undoRedoRequiresCellReposition: boolean;
+    selectionLeftActiveTable: boolean;
+    requiresCellReposition: boolean;
     syncIntent: NestedEditorSyncIntent;
 }
 
@@ -35,8 +35,7 @@ export interface RawModeTransitionFacts {
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
     | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
-    | { type: 'syncMainDocToNested' }
-    | { type: 'syncMainSelectionToNested' }
+    | { type: 'syncMainToNested' }
     | { type: 'clearActiveCell' }
     | {
           type: 'scheduleActivateCellAtCursor';
@@ -95,7 +94,7 @@ export function planTableLifecycleActions(
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 
-    if (event.undoRedoRequiresCellReposition) {
+    if (event.requiresCellReposition) {
         if (state.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: true });
         }
@@ -121,10 +120,8 @@ export function planTableLifecycleActions(
         actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
     }
 
-    if (event.syncIntent === 'doc') {
-        actions.push({ type: 'syncMainDocToNested' });
-    } else if (event.syncIntent === 'selection') {
-        actions.push({ type: 'syncMainSelectionToNested' });
+    if (event.syncIntent === 'doc' || event.syncIntent === 'selection') {
+        actions.push({ type: 'syncMainToNested' });
     }
 
     if (event.docChanged && state.activeCell && !state.currentActiveCellResolved && !event.isSync) {
@@ -148,7 +145,6 @@ function shouldClearActiveCellWhenSelectionLeavesTable(
         !event.isCellSelectionTransition &&
         !state.effectiveRawMode &&
         state.nestedEditorOpen &&
-        state.currentActiveCellResolved &&
-        event.selectionOutsideActiveTable
+        event.selectionLeftActiveTable
     );
 }
