@@ -14,7 +14,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 const markdownExtension = markdown({
     extensions: [GFM],
@@ -275,7 +275,7 @@ describe('cellSelectionKeymap', () => {
         });
         const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
         const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
-        expect(effects.some((effect) => effect?.is?.(requestOpenCellEffect))).toBe(true);
+        expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
 
         view.destroy();
     });

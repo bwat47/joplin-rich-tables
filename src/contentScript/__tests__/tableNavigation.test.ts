@@ -5,7 +5,7 @@ import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../tableR
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 
 import { setActiveCellEffect } from '../tableState/activeCellState';
-import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperations';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
@@ -69,7 +69,7 @@ describe('navigateCell', () => {
     };
 
     const getSetActiveCellValue = () => getEffects().find((effect) => effect.is?.(setActiveCellEffect))?.value;
-    const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(requestOpenCellEffect))?.value;
+    const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(triggerOpenCellRequestEffect))?.value;
     const getBeginRequestValue = () => getEffects().find((effect) => effect.is?.(beginOpenCellRequestEffect))?.value;
 
     const setupTable = (rows: number, cols: number) => {

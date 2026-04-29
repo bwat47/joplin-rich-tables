@@ -12,7 +12,7 @@ import { syncAnnotation } from '../../editorBridge/syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
-import { requestOpenCellEffect } from '../openCellRequest';
+import { triggerOpenCellRequestEffect } from '../openCellRequest';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 
 export interface TableRuntimeSnapshot {
@@ -90,7 +90,7 @@ function extractOpenRequestId(update: ViewUpdate): string | null {
 
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
-            if (effect.is(requestOpenCellEffect)) {
+            if (effect.is(triggerOpenCellRequestEffect)) {
                 requestId = effect.value.requestId;
             }
         }
