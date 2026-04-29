@@ -6,8 +6,14 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../../tableState/activeCellState';
+import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
-import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { syncAnnotation } from '../../editorBridge/syncAnnotation';
+import {
+    exitSearchForceSourceModeEffect,
+    setSearchForceSourceModeEffect,
+} from '../../tableState/searchForceSourceMode';
+import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
@@ -29,13 +35,11 @@ import {
 } from '../openCellRequest';
 import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
-import {
-    buildTableRuntimeEvent,
-    buildTableRuntimeSnapshot,
-    planTableLifecycleActions,
-    type TableRuntimeAction,
-} from './lifecyclePolicy';
+import { planTableLifecycleActions, type ActivateCellAtCursorReason, type TableRuntimeAction } from './lifecyclePolicy';
 import { requestViewAnimationFrame } from '../../shared/domContext';
+import { isFullDocumentReplace } from '../../shared/transactionUtils';
+import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
+import type { TableLifecyclePolicyEvent, TableLifecyclePolicyState } from './lifecyclePolicy';
 
 // ============================================================================
 // Utilities
@@ -82,7 +86,175 @@ function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell |
     };
 }
 
+function scanRawModeTransitionFacts(update: ViewUpdate, previousEffectiveRawMode: boolean) {
+    let exitedSourceMode = false;
+    let exitedSearchForce = false;
+    let hadRawModeToggle = false;
+
+    for (const tr of update.transactions) {
+        for (const effect of tr.effects) {
+            if (effect.is(exitSourceModeEffect)) {
+                exitedSourceMode = true;
+                hadRawModeToggle = true;
+            }
+            if (effect.is(exitSearchForceSourceModeEffect)) {
+                exitedSearchForce = true;
+                hadRawModeToggle = true;
+            }
+            if (effect.is(toggleSourceModeEffect) || effect.is(setSearchForceSourceModeEffect)) {
+                hadRawModeToggle = true;
+            }
+        }
+    }
+
+    const effectiveRawMode = isEffectiveRawMode(update.state);
+
+    return {
+        enteredRawMode: hadRawModeToggle && !previousEffectiveRawMode && effectiveRawMode,
+        exitedRawMode: hadRawModeToggle && previousEffectiveRawMode && !effectiveRawMode,
+        exitedSourceMode,
+        exitedSearchForce,
+    };
+}
+
+function extractOpenRequestId(update: ViewUpdate): string | null {
+    let requestId: string | null = null;
+
+    for (const tr of update.transactions) {
+        for (const effect of tr.effects) {
+            if (effect.is(triggerOpenCellRequestEffect)) {
+                requestId = effect.value.requestId;
+            }
+        }
+    }
+
+    return requestId;
+}
+
+function isPositionInsideRange(pos: number, from: number, to: number): boolean {
+    return pos >= from && pos <= to;
+}
+
+function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell: ResolvedActiveCell | null): boolean {
+    if (!resolvedActiveCell) {
+        return false;
+    }
+
+    const { main } = update.state.selection;
+    return (
+        !isPositionInsideRange(main.anchor, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo) ||
+        !isPositionInsideRange(main.head, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)
+    );
+}
+
+function cursorInsideAnyTable(update: ViewUpdate): boolean {
+    const cursorPos = update.state.selection.main.head;
+    return findTableRanges(update.state).some((table) => cursorPos >= table.from && cursorPos <= table.to);
+}
+
+function updateRequiresCellReposition(params: {
+    update: ViewUpdate;
+    effectiveRawMode: boolean;
+    hadActiveCellBeforeUpdate: boolean;
+    resolvedPrevActiveCell: ResolvedActiveCell | null;
+    isSync: boolean;
+}): boolean {
+    if (!params.update.docChanged || params.isSync || params.effectiveRawMode) {
+        return false;
+    }
+
+    if (params.hadActiveCellBeforeUpdate && params.resolvedPrevActiveCell) {
+        return params.update.transactions.some((tr) =>
+            transactionRequiresTableRebuild(tr, params.resolvedPrevActiveCell)
+        );
+    }
+
+    const isUndoRedo = params.update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
+    return isUndoRedo && cursorInsideAnyTable(params.update);
+}
+
+function collectLifecyclePlannerInput(params: {
+    update: ViewUpdate;
+    nestedEditorOpen: boolean;
+    hadActiveCellBeforeUpdate: boolean;
+    pendingFullReplaceRebuild: boolean;
+    previousEffectiveRawMode: boolean;
+}): { state: TableLifecyclePolicyState; event: TableLifecyclePolicyEvent } {
+    const activeCell = getActiveCell(params.update.state);
+    const prevActiveCell = getActiveCell(params.update.startState);
+    const resolvedActiveCell = getResolvedActiveCell(params.update.state);
+    const resolvedPrevActiveCell = getResolvedActiveCell(params.update.startState);
+    const effectiveRawMode = isEffectiveRawMode(params.update.state);
+    const isSync = params.update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+    const shouldSyncDoc = params.update.docChanged && Boolean(resolvedActiveCell) && params.nestedEditorOpen && !isSync;
+    const shouldSyncSelection =
+        params.update.selectionSet &&
+        isSameActiveCell(prevActiveCell, activeCell) &&
+        Boolean(resolvedActiveCell) &&
+        params.nestedEditorOpen &&
+        !isSync;
+
+    return {
+        state: {
+            hasActiveCell: Boolean(activeCell),
+            currentActiveCellResolved: Boolean(resolvedActiveCell),
+            effectiveRawMode,
+            nestedEditorOpen: params.nestedEditorOpen,
+            hadActiveCellBeforeUpdate: params.hadActiveCellBeforeUpdate,
+            pendingFullReplaceRebuild: params.pendingFullReplaceRebuild,
+        },
+        event: {
+            docChanged: params.update.docChanged,
+            selectionChanged: params.update.selectionSet,
+            isSync,
+            isNormalizeBeforeEdit: params.update.transactions.some((tr) =>
+                Boolean(tr.annotation(normalizeBeforeEditAnnotation))
+            ),
+            isCellSelectionTransition: params.update.transactions.some((tr) =>
+                Boolean(tr.annotation(cellSelectionTransitionAnnotation))
+            ),
+            rawModeTransition: scanRawModeTransitionFacts(params.update, params.previousEffectiveRawMode),
+            hasFullDocumentReplace: params.update.transactions.some((tr) => isFullDocumentReplace(tr)),
+            openRequestId: extractOpenRequestId(params.update),
+            selectionLeftActiveTable: isSelectionOutsideResolvedTable(params.update, resolvedActiveCell),
+            requiresCellReposition: updateRequiresCellReposition({
+                update: params.update,
+                effectiveRawMode,
+                hadActiveCellBeforeUpdate: params.hadActiveCellBeforeUpdate,
+                resolvedPrevActiveCell,
+                isSync,
+            }),
+            shouldSyncMainToNested: shouldSyncDoc || shouldSyncSelection,
+        },
+    };
+}
+
 type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
+
+interface ActivateCellAtCursorOptions {
+    clearIfOutside: boolean;
+    ensureCursorVisibleIfNotActivated: boolean;
+    normalizeIfNeeded: boolean;
+    preserveMainSelection: boolean;
+}
+
+function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {
+    if (reason === 'rawModeExit') {
+        return {
+            clearIfOutside: false,
+            ensureCursorVisibleIfNotActivated: true,
+            normalizeIfNeeded: false,
+            preserveMainSelection: true,
+        };
+    }
+
+    return {
+        clearIfOutside: true,
+        ensureCursorVisibleIfNotActivated: false,
+        normalizeIfNeeded: false,
+        preserveMainSelection: false,
+    };
+}
 
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
@@ -143,33 +315,29 @@ function normalizeTableBeforeOpen(params: {
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
-        private hadActiveCell: boolean;
+        private hadActiveCellBeforeUpdate: boolean;
         private wasEffectiveRawMode: boolean;
         private pendingFullReplaceRebuild: boolean;
 
         constructor(private view: EditorView) {
-            this.hadActiveCell = Boolean(getActiveCell(view.state));
+            this.hadActiveCellBeforeUpdate = Boolean(getActiveCell(view.state));
             this.wasEffectiveRawMode = isEffectiveRawMode(view.state);
             this.pendingFullReplaceRebuild = false;
         }
 
         update(update: ViewUpdate): void {
-            const snapshot = buildTableRuntimeSnapshot({
+            const { state, event } = collectLifecyclePlannerInput({
                 update,
                 nestedEditorOpen: isNestedEditorOpen(this.view),
-                hadActiveCell: this.hadActiveCell,
+                hadActiveCellBeforeUpdate: this.hadActiveCellBeforeUpdate,
                 pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
+                previousEffectiveRawMode: this.wasEffectiveRawMode,
             });
-            const event = buildTableRuntimeEvent(update, this.wasEffectiveRawMode);
-            const cursorPos = update.state.selection.main.head;
-            const cursorInsideTableAfterUndoRedo = findTableRanges(update.state).some(
-                (table) => cursorPos >= table.from && cursorPos <= table.to
-            );
-            const actions = planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo });
+            const actions = planTableLifecycleActions(state, event);
 
             this.executeActions(actions, update);
             this.scheduleInsertedTableActivation(update);
-            this.hadActiveCell = Boolean(getActiveCell(update.state));
+            this.hadActiveCellBeforeUpdate = Boolean(getActiveCell(update.state));
             this.wasEffectiveRawMode = isEffectiveRawMode(update.state);
         }
 
@@ -187,132 +355,27 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
-            const failOpenRequest = (requestId: string | undefined): void => {
-                if (!requestId) return;
-                this.view.dispatch({ effects: clearOpenCellRequestEffect.of({ requestId }) });
-            };
-
             for (const action of actions) {
                 switch (action.type) {
                     case 'scheduleRebuildAllAfterFullReplace':
-                        this.pendingFullReplaceRebuild = true;
-                        requestViewAnimationFrame(this.view, () => {
-                            this.pendingFullReplaceRebuild = false;
-                            if (!this.view.dom.isConnected) return;
-                            this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
-                        });
+                        this.scheduleRebuildAllAfterFullReplace();
                         break;
-                    case 'scheduleActivateCellAtCursor': {
-                        const cursorPos = update.state.selection.main.head;
-                        const preferredActiveCell = mapActiveCellThroughUpdate(
-                            update,
-                            getActiveCell(update.startState)
-                        );
-                        requestViewAnimationFrame(this.view, () => {
-                            if (!this.view.dom.isConnected) return;
-                            if (!action.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
-                            activateCellAtPosition(this.view, cursorPos, {
-                                clearIfOutside: action.clearIfOutside,
-                                normalizeIfNeeded: action.normalizeIfNeeded,
-                                preserveMainSelection: action.preserveMainSelection,
-                                preferredActiveCell,
-                            });
-                            if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
-                                ensureCursorVisible(this.view);
-                            }
-                        });
+                    case 'scheduleActivateCellAtCursor':
+                        this.scheduleActivateCellAtCursor(update, action.reason);
                         break;
-                    }
                     case 'scheduleEnsureCursorVisible':
-                        requestViewAnimationFrame(this.view, () => {
-                            if (!this.view.dom.isConnected) return;
-                            if (action.mode === 'enteredRawMode' && !isEffectiveRawMode(this.view.state)) return;
-                            if (
-                                action.mode === 'exitedRawModeWithoutActiveCell' &&
-                                isEffectiveRawMode(this.view.state)
-                            ) {
-                                return;
-                            }
-                            ensureCursorVisible(this.view);
-                        });
+                        this.scheduleEnsureCursorVisible(action.mode);
                         break;
                     case 'closeNestedEditor':
-                        if (action.useResolvedRangeFromUpdate) {
-                            closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
-                        } else {
-                            closeNestedEditor(this.view);
-                        }
+                        closeNestedEditor(this.view);
+                        break;
+                    case 'closeNestedEditorUsingResolvedUpdateRange':
+                        closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
                         break;
                     case 'openRequestedCell':
-                        requestViewAnimationFrame(this.view, () => {
-                            const request = getOpenCellRequestById(this.view.state, action.requestId);
-                            if (!request) {
-                                return;
-                            }
-
-                            const requestId = action.requestId;
-                            const targetActiveCell = request.activeCell;
-                            const normalizeIfNeeded = request.normalizeIfNeeded;
-                            if (!this.view.dom.isConnected) {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-                            if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-                            const resolvedActiveCell = getResolvedActiveCell(this.view.state);
-                            if (!resolvedActiveCell) {
-                                failOpenRequest(requestId);
-                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                                return;
-                            }
-                            const cellElement = findCellElement(
-                                this.view,
-                                makeTableId(targetActiveCell.tableFrom),
-                                targetActiveCell
-                            );
-                            if (!cellElement) {
-                                failOpenRequest(requestId);
-                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                                return;
-                            }
-
-                            const normalizeResult = normalizeTableBeforeOpen({
-                                view: this.view,
-                                resolvedActiveCell,
-                                normalizeIfNeeded,
-                                requestId,
-                            });
-                            if (normalizeResult === 'normalized') {
-                                return;
-                            }
-                            if (normalizeResult === 'aborted') {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-
-                            const opened = openNestedEditor({
-                                mainView: this.view,
-                                cellElement,
-                                featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
-                                initialCursorPos: request.initialCursorPos,
-                            });
-                            if (!opened) {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-                            requestViewAnimationFrame(this.view, () => {
-                                this.view.dispatch({
-                                    effects: clearOpenCellRequestEffect.of({ requestId }),
-                                });
-                            });
-                        });
+                        this.scheduleOpenRequestedCell(action.requestId);
                         break;
-                    case 'syncMainDocToNested':
-                        handleMainEditorUpdate(this.view, update);
-                        break;
-                    case 'syncMainSelectionToNested':
+                    case 'syncMainToNested':
                         handleMainEditorUpdate(this.view, update);
                         break;
                     case 'clearActiveCell':
@@ -323,6 +386,116 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                 }
             }
+        }
+
+        private scheduleRebuildAllAfterFullReplace(): void {
+            this.pendingFullReplaceRebuild = true;
+            requestViewAnimationFrame(this.view, () => {
+                this.pendingFullReplaceRebuild = false;
+                if (!this.view.dom.isConnected) return;
+                this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
+            });
+        }
+
+        private scheduleActivateCellAtCursor(update: ViewUpdate, reason: ActivateCellAtCursorReason): void {
+            const cursorPos = update.state.selection.main.head;
+            const preferredActiveCell = mapActiveCellThroughUpdate(update, getActiveCell(update.startState));
+            const activateOptions = getActivateCellAtCursorOptions(reason);
+
+            requestViewAnimationFrame(this.view, () => {
+                if (!this.view.dom.isConnected) return;
+                if (!activateOptions.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
+                activateCellAtPosition(this.view, cursorPos, {
+                    clearIfOutside: activateOptions.clearIfOutside,
+                    normalizeIfNeeded: activateOptions.normalizeIfNeeded,
+                    preserveMainSelection: activateOptions.preserveMainSelection,
+                    preferredActiveCell,
+                });
+                if (activateOptions.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
+                    ensureCursorVisible(this.view);
+                }
+            });
+        }
+
+        private scheduleEnsureCursorVisible(mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell'): void {
+            requestViewAnimationFrame(this.view, () => {
+                if (!this.view.dom.isConnected) return;
+                if (mode === 'enteredRawMode' && !isEffectiveRawMode(this.view.state)) return;
+                if (mode === 'exitedRawModeWithoutActiveCell' && isEffectiveRawMode(this.view.state)) {
+                    return;
+                }
+                ensureCursorVisible(this.view);
+            });
+        }
+
+        private scheduleOpenRequestedCell(requestId: string): void {
+            requestViewAnimationFrame(this.view, () => {
+                const request = getOpenCellRequestById(this.view.state, requestId);
+                if (!request) {
+                    return;
+                }
+
+                const targetActiveCell = request.activeCell;
+                const normalizeIfNeeded = request.normalizeIfNeeded;
+                if (!this.view.dom.isConnected) {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+                if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+                const resolvedActiveCell = getResolvedActiveCell(this.view.state);
+                if (!resolvedActiveCell) {
+                    this.failOpenRequest(requestId);
+                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    return;
+                }
+                const cellElement = findCellElement(
+                    this.view,
+                    makeTableId(targetActiveCell.tableFrom),
+                    targetActiveCell
+                );
+                if (!cellElement) {
+                    this.failOpenRequest(requestId);
+                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    return;
+                }
+
+                const normalizeResult = normalizeTableBeforeOpen({
+                    view: this.view,
+                    resolvedActiveCell,
+                    normalizeIfNeeded,
+                    requestId,
+                });
+                if (normalizeResult === 'normalized') {
+                    return;
+                }
+                if (normalizeResult === 'aborted') {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+
+                const opened = openNestedEditor({
+                    mainView: this.view,
+                    cellElement,
+                    featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
+                    initialCursorPos: request.initialCursorPos,
+                });
+                if (!opened) {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+                requestViewAnimationFrame(this.view, () => {
+                    this.view.dispatch({
+                        effects: clearOpenCellRequestEffect.of({ requestId }),
+                    });
+                });
+            });
+        }
+
+        private failOpenRequest(requestId: string): void {
+            this.view.dispatch({ effects: clearOpenCellRequestEffect.of({ requestId }) });
         }
 
         destroy(): void {

@@ -27,11 +27,17 @@ Mounting: ensureSyntaxTree (with timeout) prevents FOUC → editor mounted into 
 
 Policy is split by concern:
 
-- `tableRuntime/lifecycle/lifecyclePolicy.ts` decides when to reopen, remap, rebuild, or clear active-cell state.
+- `tableRuntime/lifecycle/lifecyclePolicy.ts` plans lifecycle actions from compact facts only: active-cell identity,
+  resolution booleans, raw-mode transition facts, open-request IDs, sync flags, and selection/table-exit facts. It does
+  not consume `ViewUpdate`, transactions, resolved geometry, or table scans.
+- `tableRuntime/lifecycle/nestedEditorLifecycle.ts` adapts CodeMirror updates into those facts by scanning transactions,
+  resolving active-cell geometry, checking table ranges, mapping fallback hints, and then executing the planned side
+  effects.
 - `editorBridge/mainEditorGuardPolicy.ts` decides whether main-editor transactions are allowed, rewritten, or sanitized.
 - `tableWidget/tableDecorationPolicy.ts` decides whether table decorations are kept, mapped, removed, or rebuilt.
 
-The lifecycle plugin remains responsible only for executing nested-editor side effects.
+The lifecycle plugin remains responsible for CodeMirror adaptation and nested-editor side effects; the lifecycle policy
+owns action ordering and precedence.
 
 ## Synchronization
 

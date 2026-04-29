@@ -417,6 +417,63 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('uses the latest open request when one dispatch contains multiple trigger effects', () => {
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        };
+
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc: CANONICAL_DOC,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    openCellRequestField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                ...openRequestEffects({
+                    requestId: 'request-stale',
+                    activeCell,
+                    normalizeIfNeeded: false,
+                    initialCursorPos: 'start',
+                }),
+                ...openRequestEffects({
+                    requestId: 'request-latest',
+                    activeCell,
+                    normalizeIfNeeded: false,
+                    initialCursorPos: 'end',
+                }),
+            ],
+        });
+        flushAnimationFrames();
+
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mainView: view,
+                featureSettings: DEFAULT_FEATURE_SETTINGS,
+                initialCursorPos: 'end',
+            })
+        );
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
     it('fails the matching request when the cell element cannot be found', () => {
         findCellElementMock.mockReturnValueOnce(null);
         const doc = CANONICAL_DOC;

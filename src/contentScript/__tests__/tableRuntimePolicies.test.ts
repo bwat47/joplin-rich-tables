@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { EditorState, Transaction, type TransactionSpec } from '@codemirror/state';
+import { EditorState, Transaction } from '@codemirror/state';
 import {
     activeCellField,
     clearActiveCellEffect,
@@ -13,10 +13,9 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
-    buildTableRuntimeEvent,
     planTableLifecycleActions,
-    type TableRuntimeEvent,
-    type TableRuntimeSnapshot,
+    type TableLifecyclePolicyEvent,
+    type TableLifecyclePolicyState,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
@@ -25,7 +24,6 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -61,23 +59,37 @@ function requireResolvedActiveCell(state: EditorState) {
     return resolved;
 }
 
-function createViewUpdate(
-    startState: EditorState,
-    spec: TransactionSpec
-): { state: EditorState; event: TableRuntimeEvent; update: TableRuntimeEvent['update'] } {
-    const tr = startState.update(spec);
-    const update = {
-        startState,
-        state: tr.state,
-        transactions: [tr],
-        docChanged: tr.docChanged,
-        selectionSet: tr.selection !== startState.selection,
-    } as unknown as TableRuntimeEvent['update'];
-
+function defaultPolicyState(overrides: Partial<TableLifecyclePolicyState> = {}): TableLifecyclePolicyState {
     return {
-        state: tr.state,
-        update,
-        event: buildTableRuntimeEvent(update, false),
+        hasActiveCell: false,
+        currentActiveCellResolved: false,
+        effectiveRawMode: false,
+        nestedEditorOpen: false,
+        hadActiveCellBeforeUpdate: false,
+        pendingFullReplaceRebuild: false,
+        ...overrides,
+    };
+}
+
+function defaultPolicyEvent(overrides: Partial<TableLifecyclePolicyEvent> = {}): TableLifecyclePolicyEvent {
+    return {
+        docChanged: false,
+        selectionChanged: false,
+        isSync: false,
+        isNormalizeBeforeEdit: false,
+        isCellSelectionTransition: false,
+        rawModeTransition: {
+            enteredRawMode: false,
+            exitedRawMode: false,
+            exitedSourceMode: false,
+            exitedSearchForce: false,
+        },
+        hasFullDocumentReplace: false,
+        openRequestId: null,
+        selectionLeftActiveTable: false,
+        requiresCellReposition: false,
+        shouldSyncMainToNested: false,
+        ...overrides,
     };
 }
 
@@ -296,41 +308,23 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('plans raw mode exit as cursor reactivation', () => {
-        const activeCell = getHeaderCell();
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: null,
-            resolvedPrevActiveCell: null,
-            effectiveRawMode: false,
-            nestedEditorOpen: false,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
-        const event = {
-            update: {} as TableRuntimeEvent['update'],
-            isSync: false,
-            isNormalizeBeforeEdit: false,
-            isCellSelectionTransition: false,
-            forceRebuild: false,
-            rawModeEffects: {
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
+        });
+        const event = defaultPolicyEvent({
+            rawModeTransition: {
+                enteredRawMode: false,
+                exitedRawMode: true,
                 exitedSourceMode: true,
                 exitedSearchForce: false,
-                hadRawModeToggle: true,
             },
-            enteredRawMode: false,
-            exitedRawMode: true,
-            hasFullDocumentReplace: false,
-            openRequestId: null,
-        } satisfies TableRuntimeEvent;
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+        expect(planTableLifecycleActions(state, event)).toEqual([
             {
                 type: 'scheduleActivateCellAtCursor',
-                clearIfOutside: false,
-                ensureCursorVisibleIfNotActivated: true,
-                normalizeIfNeeded: false,
-                preserveMainSelection: true,
+                reason: 'rawModeExit',
             },
         ]);
     });
@@ -367,252 +361,206 @@ describe('tableRuntimePolicies', () => {
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
                 rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
-                triggerOpenCellRequestEffect.of({
-                    requestId: 'normalize-request',
-                }),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
-        const update = {
-            startState,
-            state: tr.state,
-            transactions: [tr],
-            docChanged: tr.docChanged,
-            selectionSet: tr.selection !== startState.selection,
-        } as unknown as TableRuntimeEvent['update'];
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell: nextActiveCell.activeCell,
-            prevActiveCell: startActiveCell,
-            resolvedActiveCell: requireResolvedActiveCell(tr.state),
-            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
-            effectiveRawMode: false,
-            nestedEditorOpen: false,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
+            hadActiveCellBeforeUpdate: true,
+        });
 
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
         expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
             type: 'allowTransaction',
         });
         expect(
-            planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
-                cursorInsideTableAfterUndoRedo: false,
-            })
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    docChanged: true,
+                    selectionChanged: true,
+                    isNormalizeBeforeEdit: true,
+                    hasFullDocumentReplace: true,
+                    openRequestId: 'normalize-request',
+                })
+            )
         ).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
     });
 
     it('does not plan a generic reopen for rebuild-only transactions', () => {
-        const activeCell = getHeaderCell();
-        const startState = createState({ activeCell });
-        const tr = startState.update({
-            effects: rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
-        });
-        const update = {
-            startState,
-            state: tr.state,
-            transactions: [tr],
-            docChanged: tr.docChanged,
-            selectionSet: false,
-        } as unknown as TableRuntimeEvent['update'];
-        const event = buildTableRuntimeEvent(update, false);
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: requireResolvedActiveCell(createState({ activeCell })),
-            resolvedPrevActiveCell: requireResolvedActiveCell(createState({ activeCell })),
-            effectiveRawMode: false,
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([]);
+        expect(planTableLifecycleActions(state, defaultPolicyEvent())).toEqual([]);
     });
 
-    it('prefers an explicit open request over the generic force-rebuild branch', () => {
-        const activeCell = getHeaderCell();
-        const startState = createState({ activeCell });
-        const { event } = createViewUpdate(startState, {
-            effects: [
-                triggerOpenCellRequestEffect.of({
-                    requestId: 'explicit-request',
-                }),
-                rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
-            ],
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: requireResolvedActiveCell(startState),
-            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
-            effectiveRawMode: false,
+    it('plans nested editor sync from a single sync fact', () => {
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+        expect(planTableLifecycleActions(state, defaultPolicyEvent({ shouldSyncMainToNested: true }))).toContainEqual({
+            type: 'syncMainToNested',
+        });
+        expect(planTableLifecycleActions(state, defaultPolicyEvent({ shouldSyncMainToNested: false }))).toEqual([]);
+    });
+
+    it('prefers an explicit open request over generic branches', () => {
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
+            nestedEditorOpen: true,
+            hadActiveCellBeforeUpdate: true,
+        });
+        const event = defaultPolicyEvent({
+            docChanged: true,
+            hasFullDocumentReplace: true,
+            openRequestId: 'explicit-request',
+            requiresCellReposition: true,
+            selectionChanged: true,
+            selectionLeftActiveTable: true,
+            shouldSyncMainToNested: true,
+        });
+
+        expect(planTableLifecycleActions(state, event)).toEqual([
             { type: 'openRequestedCell', requestId: 'explicit-request' },
         ]);
     });
 
-    it('uses the latest open request when an update contains multiple open signals', () => {
-        const activeCell = getHeaderCell();
-        const startState = createState({ activeCell });
-        const { event } = createViewUpdate(startState, {
-            effects: [
-                triggerOpenCellRequestEffect.of({
-                    requestId: 'stale-request',
-                }),
-                triggerOpenCellRequestEffect.of({
-                    requestId: 'latest-request',
-                }),
-            ],
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: requireResolvedActiveCell(startState),
-            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
-            effectiveRawMode: false,
+    it('uses the compact open request id selected by the adapter', () => {
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
+        const event = defaultPolicyEvent({ openRequestId: 'latest-request' });
 
-        expect(event.openRequestId).toBe('latest-request');
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
+        expect(planTableLifecycleActions(state, event)).toEqual([
             { type: 'openRequestedCell', requestId: 'latest-request' },
         ]);
     });
 
     it('uses the resolved update range when undo or redo repositions the active cell', () => {
-        const activeCell = getHeaderCell();
-        const startState = createState({ activeCell });
-        const { event } = createViewUpdate(startState, {
-            changes: { from: 0, to: 0, insert: 'abc\n' },
-            annotations: Transaction.userEvent.of('redo'),
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell: getActiveCell(event.update.state),
-            prevActiveCell: activeCell,
-            resolvedActiveCell: resolveActiveCell(event.update.state, getActiveCell(event.update.state)),
-            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
-            effectiveRawMode: false,
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: true })).toEqual([
-            { type: 'closeNestedEditor', useResolvedRangeFromUpdate: true },
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    docChanged: true,
+                    requiresCellReposition: true,
+                })
+            )
+        ).toEqual([
+            { type: 'closeNestedEditorUsingResolvedUpdateRange' },
             {
                 type: 'scheduleActivateCellAtCursor',
-                clearIfOutside: true,
-                ensureCursorVisibleIfNotActivated: false,
-                normalizeIfNeeded: false,
-                preserveMainSelection: false,
+                reason: 'cellReposition',
             },
         ]);
     });
 
     it('closes and clears the active cell when selection moves outside the active table', () => {
-        const prefixedDoc = ['before', '', doc, '', 'after'].join('\n');
-        const tableFrom = 'before\n\n'.length;
-        const activeCell: ActiveCell = {
-            tableFrom,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-        let startState = createMarkdownState(prefixedDoc, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            searchForceSourceModeField,
-        ]);
-        startState = startState.update({
-            effects: setActiveCellEffect.of(activeCell),
-            selection: { anchor: tableFrom + 2 },
-        }).state;
-
-        const { event } = createViewUpdate(startState, {
-            selection: { anchor: 0 },
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: requireResolvedActiveCell(startState),
-            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
-            effectiveRawMode: false,
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([
-            { type: 'closeNestedEditor', useResolvedRangeFromUpdate: false },
-            { type: 'clearActiveCell' },
-        ]);
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    selectionChanged: true,
+                    selectionLeftActiveTable: true,
+                })
+            )
+        ).toEqual([{ type: 'closeNestedEditor' }, { type: 'clearActiveCell' }]);
+    });
+
+    it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
+            nestedEditorOpen: true,
+            hadActiveCellBeforeUpdate: true,
+        });
+        const event = defaultPolicyEvent({
+            selectionChanged: true,
+            selectionLeftActiveTable: true,
+        });
+
+        expect(planTableLifecycleActions(defaultPolicyState({ ...state, effectiveRawMode: true }), event)).toEqual([]);
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    ...event,
+                    isCellSelectionTransition: true,
+                })
+            )
+        ).toEqual([]);
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    ...event,
+                    isSync: true,
+                })
+            )
+        ).toEqual([]);
     });
 
     it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
-        const prefixedDoc = ['before', '', doc, '', 'after'].join('\n');
-        const tableFrom = 'before\n\n'.length;
-        const activeCell: ActiveCell = {
-            tableFrom,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-        let startState = createMarkdownState(prefixedDoc, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            searchForceSourceModeField,
-        ]);
-        startState = startState.update({
-            effects: setActiveCellEffect.of(activeCell),
-            selection: { anchor: tableFrom + 2 },
-        }).state;
-
-        const { event } = createViewUpdate(startState, {
-            selection: { anchor: 0 },
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: requireResolvedActiveCell(startState),
-            resolvedPrevActiveCell: requireResolvedActiveCell(startState),
-            effectiveRawMode: false,
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: false,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toEqual([]);
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    selectionChanged: true,
+                    selectionLeftActiveTable: true,
+                })
+            )
+        ).toEqual([]);
     });
 
     it('plans stale active cell cleanup when the nested editor is gone', () => {
-        const activeCell = getHeaderCell();
-        const startState = createState({ activeCell });
-        const resolved = requireResolvedActiveCell(startState);
-        const { event } = createViewUpdate(startState, {
-            changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'x' },
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell,
-            prevActiveCell: activeCell,
-            resolvedActiveCell: requireResolvedActiveCell(event.update.state),
-            resolvedPrevActiveCell: resolved,
-            effectiveRawMode: false,
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
             nestedEditorOpen: false,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
+            hadActiveCellBeforeUpdate: true,
+        });
 
-        expect(planTableLifecycleActions(snapshot, event, { cursorInsideTableAfterUndoRedo: false })).toContainEqual({
+        expect(
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    docChanged: true,
+                })
+            )
+        ).toContainEqual({
             type: 'clearActiveCell',
         });
     });
@@ -637,34 +585,20 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('clears stale active cell when the resolver cannot find the table', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const tr = state.update({
-            changes: { from: 0, to: doc.length, insert: '# replaced' },
-            annotations: Transaction.userEvent.of('input'),
-        });
-        const snapshot: TableRuntimeSnapshot = {
-            activeCell: getHeaderCell(),
-            prevActiveCell: getHeaderCell(),
-            resolvedActiveCell: null,
-            resolvedPrevActiveCell: requireResolvedActiveCell(state),
-            effectiveRawMode: false,
+        const state = defaultPolicyState({
+            hasActiveCell: true,
+            currentActiveCellResolved: false,
             nestedEditorOpen: false,
-            hadActiveCell: true,
-            pendingFullReplaceRebuild: false,
-        };
-        const update = {
-            startState: state,
-            state: tr.state,
-            transactions: [tr],
-            docChanged: tr.docChanged,
-            selectionSet: tr.selection !== state.selection,
-        } as unknown as TableRuntimeEvent['update'];
+            hadActiveCellBeforeUpdate: true,
+        });
 
         expect(
-            planTableLifecycleActions(snapshot, buildTableRuntimeEvent(update, false), {
-                cursorInsideTableAfterUndoRedo: false,
-            })
+            planTableLifecycleActions(
+                state,
+                defaultPolicyEvent({
+                    docChanged: true,
+                })
+            )
         ).toContainEqual({
             type: 'clearActiveCell',
         });
