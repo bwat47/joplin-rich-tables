@@ -25,7 +25,7 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
-import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -367,7 +367,7 @@ describe('tableRuntimePolicies', () => {
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
                 rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
-                requestOpenCellEffect.of({
+                triggerOpenCellRequestEffect.of({
                     requestId: 'normalize-request',
                 }),
             ],
@@ -435,7 +435,7 @@ describe('tableRuntimePolicies', () => {
         const startState = createState({ activeCell });
         const { event } = createViewUpdate(startState, {
             effects: [
-                requestOpenCellEffect.of({
+                triggerOpenCellRequestEffect.of({
                     requestId: 'explicit-request',
                 }),
                 rebuildTableWidgetsEffect.of({ tableFrom: activeCell.tableFrom }),
@@ -462,10 +462,10 @@ describe('tableRuntimePolicies', () => {
         const startState = createState({ activeCell });
         const { event } = createViewUpdate(startState, {
             effects: [
-                requestOpenCellEffect.of({
+                triggerOpenCellRequestEffect.of({
                     requestId: 'stale-request',
                 }),
-                requestOpenCellEffect.of({
+                triggerOpenCellRequestEffect.of({
                     requestId: 'latest-request',
                 }),
             ],

@@ -23,10 +23,9 @@ import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
 import {
     beginOpenCellRequestEffect,
-    completeOpenCellRequestEffect,
-    failOpenCellRequestEffect,
+    clearOpenCellRequestEffect,
     getOpenCellRequestById,
-    requestOpenCellEffect,
+    triggerOpenCellRequestEffect,
 } from '../openCellRequest';
 import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
@@ -128,7 +127,7 @@ function normalizeTableBeforeOpen(params: {
                 activeCell: nextActiveCell.activeCell,
                 normalizeIfNeeded: false,
             }),
-            requestOpenCellEffect.of({ requestId: currentRequest.requestId }),
+            triggerOpenCellRequestEffect.of({ requestId: currentRequest.requestId }),
             rebuildTableWidgetsEffect.of({ tableFrom: replacement.tableFrom }),
         ],
         annotations: normalizeBeforeEditAnnotation.of(true),
@@ -190,7 +189,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
             const failOpenRequest = (requestId: string | undefined): void => {
                 if (!requestId) return;
-                this.view.dispatch({ effects: failOpenCellRequestEffect.of({ requestId }) });
+                this.view.dispatch({ effects: clearOpenCellRequestEffect.of({ requestId }) });
             };
 
             for (const action of actions) {
@@ -305,7 +304,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             }
                             requestViewAnimationFrame(this.view, () => {
                                 this.view.dispatch({
-                                    effects: completeOpenCellRequestEffect.of({ requestId }),
+                                    effects: clearOpenCellRequestEffect.of({ requestId }),
                                 });
                             });
                         });

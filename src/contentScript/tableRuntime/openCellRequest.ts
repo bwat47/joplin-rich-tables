@@ -5,6 +5,8 @@ import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellSt
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
+// Explicit open requests are single-flight, may survive normalization/rebuilds,
+// and temporarily suppress navigation until settled.
 const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 
 export interface OpenCellRequest {
@@ -15,7 +17,7 @@ export interface OpenCellRequest {
     suppressKeys: boolean;
 }
 
-export interface FinishOpenCellRequest {
+export interface ClearOpenCellRequest {
     requestId: string;
 }
 
@@ -85,9 +87,8 @@ export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
     },
 });
 
-export const completeOpenCellRequestEffect = StateEffect.define<FinishOpenCellRequest>();
-export const failOpenCellRequestEffect = StateEffect.define<FinishOpenCellRequest>();
-export const requestOpenCellEffect = StateEffect.define<OpenCellRequestSignal>();
+export const clearOpenCellRequestEffect = StateEffect.define<ClearOpenCellRequest>();
+export const triggerOpenCellRequestEffect = StateEffect.define<OpenCellRequestSignal>();
 
 function resolveOpenCellRequestTarget(target: OpenCellRequestTarget): {
     activeCell: ActiveCell;
@@ -121,7 +122,7 @@ export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams)
             ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
             setActiveCellEffect.of(activeCell),
             beginOpenCellRequestEffect.of(request),
-            requestOpenCellEffect.of({
+            triggerOpenCellRequestEffect.of({
                 requestId,
             }),
         ],
@@ -151,11 +152,7 @@ export const openCellRequestField = StateField.define<OpenCellRequest | null>({
                 continue;
             }
 
-            if (
-                nextValue &&
-                (effect.is(completeOpenCellRequestEffect) || effect.is(failOpenCellRequestEffect)) &&
-                effect.value.requestId === nextValue.requestId
-            ) {
+            if (nextValue && effect.is(clearOpenCellRequestEffect) && effect.value.requestId === nextValue.requestId) {
                 nextValue = null;
             }
         }
@@ -243,7 +240,7 @@ export const openCellRequestTimeoutPlugin = ViewPlugin.fromClass(
 
                 logger.warn('Open-cell request timed out - forcing release');
                 this.view.dispatch({
-                    effects: failOpenCellRequestEffect.of({ requestId: request.requestId }),
+                    effects: clearOpenCellRequestEffect.of({ requestId: request.requestId }),
                 });
             }, OPEN_CELL_REQUEST_TIMEOUT_MS);
         }

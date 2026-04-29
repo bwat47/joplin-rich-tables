@@ -6,7 +6,7 @@ import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellR
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
@@ -106,7 +106,7 @@ describe('tableTransactionHelpers', () => {
             effects.some((effect: { is?: (value: unknown) => boolean }) => effect.is?.(rebuildTableWidgetsEffect))
         ).toBe(true);
         const openRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
-            effect.is?.(requestOpenCellEffect)
+            effect.is?.(triggerOpenCellRequestEffect)
         );
         const beginRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
             effect.is?.(beginOpenCellRequestEffect)
@@ -160,7 +160,7 @@ describe('tableTransactionHelpers', () => {
 
         const effects = dispatched.effects;
         expect(effects.some((effect) => effect.is?.(setActiveCellEffect))).toBe(true);
-        expect(effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(true);
+        expect(effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
         expect(effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
     });
 
@@ -194,7 +194,7 @@ describe('tableTransactionHelpers', () => {
             effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
         };
         expect(dispatched.changes?.insert).toBe(updatedTableText);
-        expect(dispatched.effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
     });
 
@@ -233,7 +233,7 @@ describe('tableTransactionHelpers', () => {
         expect(dispatched.selection).toBeUndefined();
         expect(dispatched.effects.some((effect) => effect.is?.(clearActiveCellEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
-        expect(dispatched.effects.some((effect) => effect.is?.(requestOpenCellEffect))).toBe(false);
+        expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(false);
         expect(dispatched.effects.some((effect) => effect.is?.(beginOpenCellRequestEffect))).toBe(false);
     });
 });

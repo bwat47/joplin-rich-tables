@@ -7,8 +7,7 @@ import { EditorView } from '@codemirror/view';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
     beginOpenCellRequestEffect,
-    completeOpenCellRequestEffect,
-    failOpenCellRequestEffect,
+    clearOpenCellRequestEffect,
     getPendingOpenCellRequest,
     openCellRequestField,
     openCellRequestTimeoutPlugin,
@@ -58,29 +57,29 @@ describe('openCellRequestField', () => {
         });
     });
 
-    it('clears only the matching request on completion', () => {
+    it('clears only the matching request', () => {
         const state = beginRequest(createState());
 
-        const staleComplete = state.update({
-            effects: completeOpenCellRequestEffect.of({ requestId: 'stale' }),
+        const staleClear = state.update({
+            effects: clearOpenCellRequestEffect.of({ requestId: 'stale' }),
         }).state;
-        expect(getPendingOpenCellRequest(staleComplete)?.requestId).toBe('request-1');
+        expect(getPendingOpenCellRequest(staleClear)?.requestId).toBe('request-1');
 
-        const complete = staleComplete.update({
-            effects: completeOpenCellRequestEffect.of({ requestId: 'request-1' }),
+        const cleared = staleClear.update({
+            effects: clearOpenCellRequestEffect.of({ requestId: 'request-1' }),
         }).state;
-        expect(getPendingOpenCellRequest(complete)).toBeNull();
+        expect(getPendingOpenCellRequest(cleared)).toBeNull();
     });
 
-    it('does not let stale failure clear a newer request', () => {
+    it('does not let stale clear remove a newer request', () => {
         const first = beginRequest(createState(), { requestId: 'request-1' });
         const second = beginRequest(first, { requestId: 'request-2' });
 
-        const failed = second.update({
-            effects: failOpenCellRequestEffect.of({ requestId: 'request-1' }),
+        const cleared = second.update({
+            effects: clearOpenCellRequestEffect.of({ requestId: 'request-1' }),
         }).state;
 
-        expect(getPendingOpenCellRequest(failed)?.requestId).toBe('request-2');
+        expect(getPendingOpenCellRequest(cleared)?.requestId).toBe('request-2');
     });
 
     it('maps active cell table start through document changes', () => {

@@ -20,7 +20,7 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { requestOpenCellEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
     beginOpenCellRequestEffect,
     getPendingOpenCellRequest,
@@ -70,7 +70,7 @@ function openRequestEffects(params: {
 
     return [
         beginOpenCellRequestEffect.of(request),
-        requestOpenCellEffect.of({
+        triggerOpenCellRequestEffect.of({
             requestId: params.requestId,
         }),
     ];
@@ -483,7 +483,7 @@ describe('nestedEditorLifecycle', () => {
         });
 
         view.dispatch({
-            effects: requestOpenCellEffect.of({ requestId: 'missing-request' }),
+            effects: triggerOpenCellRequestEffect.of({ requestId: 'missing-request' }),
         });
         flushAnimationFrames();
 
@@ -548,7 +548,8 @@ describe('nestedEditorLifecycle', () => {
                     ) &&
                     effects.some(
                         (effect) =>
-                            effect?.is?.(requestOpenCellEffect) && effect.value?.requestId === 'request-normalize'
+                            effect?.is?.(triggerOpenCellRequestEffect) &&
+                            effect.value?.requestId === 'request-normalize'
                     )
                 );
             });
