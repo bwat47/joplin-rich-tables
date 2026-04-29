@@ -1,7 +1,5 @@
-import { type ActiveCell } from '../../tableState/activeCellState';
-
 export interface TableLifecyclePolicyState {
-    activeCell: ActiveCell | null;
+    hasActiveCell: boolean;
     currentActiveCellResolved: boolean;
     effectiveRawMode: boolean;
     nestedEditorOpen: boolean;
@@ -18,12 +16,14 @@ export interface TableLifecyclePolicyEvent {
     rawModeTransition: RawModeTransitionFacts;
     hasFullDocumentReplace: boolean;
     openRequestId: string | null;
+    /**
+     * True only when the current active cell resolved and either main
+     * selection endpoint is outside that resolved table.
+     */
     selectionLeftActiveTable: boolean;
     requiresCellReposition: boolean;
-    syncIntent: NestedEditorSyncIntent;
+    shouldSyncMainToNested: boolean;
 }
-
-export type NestedEditorSyncIntent = 'none' | 'doc' | 'selection';
 
 export interface RawModeTransitionFacts {
     enteredRawMode: boolean;
@@ -34,15 +34,13 @@ export interface RawModeTransitionFacts {
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
-    | { type: 'closeNestedEditor'; useResolvedRangeFromUpdate: boolean }
+    | { type: 'closeNestedEditor' }
+    | { type: 'closeNestedEditorUsingResolvedUpdateRange' }
     | { type: 'syncMainToNested' }
     | { type: 'clearActiveCell' }
     | {
           type: 'scheduleActivateCellAtCursor';
-          clearIfOutside: boolean;
-          ensureCursorVisibleIfNotActivated: boolean;
-          normalizeIfNeeded: boolean;
-          preserveMainSelection: boolean;
+          reason: 'rawModeExit' | 'cellReposition';
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
     | { type: 'scheduleRebuildAllAfterFullReplace' };
@@ -78,10 +76,7 @@ export function planTableLifecycleActions(
     if (event.rawModeTransition.exitedSourceMode || event.rawModeTransition.exitedSearchForce) {
         actions.push({
             type: 'scheduleActivateCellAtCursor',
-            clearIfOutside: false,
-            ensureCursorVisibleIfNotActivated: true,
-            normalizeIfNeeded: false,
-            preserveMainSelection: true,
+            reason: 'rawModeExit',
         });
         return actions;
     }
@@ -90,41 +85,38 @@ export function planTableLifecycleActions(
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' });
     }
 
-    if (event.rawModeTransition.exitedRawMode && !state.activeCell && !event.isCellSelectionTransition) {
+    if (event.rawModeTransition.exitedRawMode && !state.hasActiveCell && !event.isCellSelectionTransition) {
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 
     if (event.requiresCellReposition) {
         if (state.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: true });
+            actions.push({ type: 'closeNestedEditorUsingResolvedUpdateRange' });
         }
         actions.push({
             type: 'scheduleActivateCellAtCursor',
-            clearIfOutside: true,
-            ensureCursorVisibleIfNotActivated: false,
-            normalizeIfNeeded: false,
-            preserveMainSelection: false,
+            reason: 'cellReposition',
         });
         return actions;
     }
 
     if (shouldClearActiveCellWhenSelectionLeavesTable(state, event)) {
         if (state.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
+            actions.push({ type: 'closeNestedEditor' });
         }
         actions.push({ type: 'clearActiveCell' });
         return actions;
     }
 
-    if (!state.activeCell && state.hadActiveCell) {
-        actions.push({ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false });
+    if (!state.hasActiveCell && state.hadActiveCell) {
+        actions.push({ type: 'closeNestedEditor' });
     }
 
-    if (event.syncIntent === 'doc' || event.syncIntent === 'selection') {
+    if (event.shouldSyncMainToNested) {
         actions.push({ type: 'syncMainToNested' });
     }
 
-    if (event.docChanged && state.activeCell && !state.currentActiveCellResolved && !event.isSync) {
+    if (event.docChanged && state.hasActiveCell && !state.currentActiveCellResolved && !event.isSync) {
         actions.push({ type: 'clearActiveCell' });
     }
 

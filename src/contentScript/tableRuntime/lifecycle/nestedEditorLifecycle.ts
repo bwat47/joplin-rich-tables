@@ -39,7 +39,7 @@ import { planTableLifecycleActions, type TableRuntimeAction } from './lifecycleP
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
-import type { NestedEditorSyncIntent, TableLifecyclePolicyEvent, TableLifecyclePolicyState } from './lifecyclePolicy';
+import type { TableLifecyclePolicyEvent, TableLifecyclePolicyState } from './lifecyclePolicy';
 
 // ============================================================================
 // Utilities
@@ -193,11 +193,10 @@ function collectLifecyclePlannerInput(params: {
         Boolean(resolvedActiveCell) &&
         params.nestedEditorOpen &&
         !isSync;
-    const syncIntent: NestedEditorSyncIntent = shouldSyncDoc ? 'doc' : shouldSyncSelection ? 'selection' : 'none';
 
     return {
         state: {
-            activeCell,
+            hasActiveCell: Boolean(activeCell),
             currentActiveCellResolved: Boolean(resolvedActiveCell),
             effectiveRawMode,
             nestedEditorOpen: params.nestedEditorOpen,
@@ -225,12 +224,30 @@ function collectLifecyclePlannerInput(params: {
                 resolvedPrevActiveCell,
                 isSync,
             }),
-            syncIntent,
+            shouldSyncMainToNested: shouldSyncDoc || shouldSyncSelection,
         },
     };
 }
 
 type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
+
+function getActivateCellAtCursorOptions(reason: 'rawModeExit' | 'cellReposition') {
+    if (reason === 'rawModeExit') {
+        return {
+            clearIfOutside: false,
+            ensureCursorVisibleIfNotActivated: true,
+            normalizeIfNeeded: false,
+            preserveMainSelection: true,
+        };
+    }
+
+    return {
+        clearIfOutside: true,
+        ensureCursorVisibleIfNotActivated: false,
+        normalizeIfNeeded: false,
+        preserveMainSelection: false,
+    };
+}
 
 function normalizeTableBeforeOpen(params: {
     view: EditorView;
@@ -331,11 +348,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
-            const failOpenRequest = (requestId: string | undefined): void => {
-                if (!requestId) return;
-                this.view.dispatch({ effects: clearOpenCellRequestEffect.of({ requestId }) });
-            };
-
             for (const action of actions) {
                 switch (action.type) {
                     case 'scheduleRebuildAllAfterFullReplace':
@@ -352,16 +364,17 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             update,
                             getActiveCell(update.startState)
                         );
+                        const activateOptions = getActivateCellAtCursorOptions(action.reason);
                         requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) return;
-                            if (!action.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
+                            if (!activateOptions.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
                             activateCellAtPosition(this.view, cursorPos, {
-                                clearIfOutside: action.clearIfOutside,
-                                normalizeIfNeeded: action.normalizeIfNeeded,
-                                preserveMainSelection: action.preserveMainSelection,
+                                clearIfOutside: activateOptions.clearIfOutside,
+                                normalizeIfNeeded: activateOptions.normalizeIfNeeded,
+                                preserveMainSelection: activateOptions.preserveMainSelection,
                                 preferredActiveCell,
                             });
-                            if (action.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
+                            if (activateOptions.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
                                 ensureCursorVisible(this.view);
                             }
                         });
@@ -381,77 +394,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'closeNestedEditor':
-                        if (action.useResolvedRangeFromUpdate) {
-                            closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
-                        } else {
-                            closeNestedEditor(this.view);
-                        }
+                        closeNestedEditor(this.view);
+                        break;
+                    case 'closeNestedEditorUsingResolvedUpdateRange':
+                        closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
                         break;
                     case 'openRequestedCell':
-                        requestViewAnimationFrame(this.view, () => {
-                            const request = getOpenCellRequestById(this.view.state, action.requestId);
-                            if (!request) {
-                                return;
-                            }
-
-                            const requestId = action.requestId;
-                            const targetActiveCell = request.activeCell;
-                            const normalizeIfNeeded = request.normalizeIfNeeded;
-                            if (!this.view.dom.isConnected) {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-                            if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-                            const resolvedActiveCell = getResolvedActiveCell(this.view.state);
-                            if (!resolvedActiveCell) {
-                                failOpenRequest(requestId);
-                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                                return;
-                            }
-                            const cellElement = findCellElement(
-                                this.view,
-                                makeTableId(targetActiveCell.tableFrom),
-                                targetActiveCell
-                            );
-                            if (!cellElement) {
-                                failOpenRequest(requestId);
-                                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                                return;
-                            }
-
-                            const normalizeResult = normalizeTableBeforeOpen({
-                                view: this.view,
-                                resolvedActiveCell,
-                                normalizeIfNeeded,
-                                requestId,
-                            });
-                            if (normalizeResult === 'normalized') {
-                                return;
-                            }
-                            if (normalizeResult === 'aborted') {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-
-                            const opened = openNestedEditor({
-                                mainView: this.view,
-                                cellElement,
-                                featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
-                                initialCursorPos: request.initialCursorPos,
-                            });
-                            if (!opened) {
-                                failOpenRequest(requestId);
-                                return;
-                            }
-                            requestViewAnimationFrame(this.view, () => {
-                                this.view.dispatch({
-                                    effects: clearOpenCellRequestEffect.of({ requestId }),
-                                });
-                            });
-                        });
+                        this.scheduleOpenRequestedCell(action.requestId);
                         break;
                     case 'syncMainToNested':
                         handleMainEditorUpdate(this.view, update);
@@ -464,6 +413,76 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                 }
             }
+        }
+
+        private scheduleOpenRequestedCell(requestId: string): void {
+            requestViewAnimationFrame(this.view, () => {
+                const request = getOpenCellRequestById(this.view.state, requestId);
+                if (!request) {
+                    return;
+                }
+
+                const targetActiveCell = request.activeCell;
+                const normalizeIfNeeded = request.normalizeIfNeeded;
+                if (!this.view.dom.isConnected) {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+                if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+                const resolvedActiveCell = getResolvedActiveCell(this.view.state);
+                if (!resolvedActiveCell) {
+                    this.failOpenRequest(requestId);
+                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    return;
+                }
+                const cellElement = findCellElement(
+                    this.view,
+                    makeTableId(targetActiveCell.tableFrom),
+                    targetActiveCell
+                );
+                if (!cellElement) {
+                    this.failOpenRequest(requestId);
+                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    return;
+                }
+
+                const normalizeResult = normalizeTableBeforeOpen({
+                    view: this.view,
+                    resolvedActiveCell,
+                    normalizeIfNeeded,
+                    requestId,
+                });
+                if (normalizeResult === 'normalized') {
+                    return;
+                }
+                if (normalizeResult === 'aborted') {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+
+                const opened = openNestedEditor({
+                    mainView: this.view,
+                    cellElement,
+                    featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
+                    initialCursorPos: request.initialCursorPos,
+                });
+                if (!opened) {
+                    this.failOpenRequest(requestId);
+                    return;
+                }
+                requestViewAnimationFrame(this.view, () => {
+                    this.view.dispatch({
+                        effects: clearOpenCellRequestEffect.of({ requestId }),
+                    });
+                });
+            });
+        }
+
+        private failOpenRequest(requestId: string): void {
+            this.view.dispatch({ effects: clearOpenCellRequestEffect.of({ requestId }) });
         }
 
         destroy(): void {

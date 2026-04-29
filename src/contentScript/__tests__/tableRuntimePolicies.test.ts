@@ -61,7 +61,7 @@ function requireResolvedActiveCell(state: EditorState) {
 
 function defaultPolicyState(overrides: Partial<TableLifecyclePolicyState> = {}): TableLifecyclePolicyState {
     return {
-        activeCell: null,
+        hasActiveCell: false,
         currentActiveCellResolved: false,
         effectiveRawMode: false,
         nestedEditorOpen: false,
@@ -88,7 +88,7 @@ function defaultPolicyEvent(overrides: Partial<TableLifecyclePolicyEvent> = {}):
         openRequestId: null,
         selectionLeftActiveTable: false,
         requiresCellReposition: false,
-        syncIntent: 'none',
+        shouldSyncMainToNested: false,
         ...overrides,
     };
 }
@@ -308,9 +308,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('plans raw mode exit as cursor reactivation', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             hadActiveCell: true,
         });
         const event = defaultPolicyEvent({
@@ -325,10 +324,7 @@ describe('tableRuntimePolicies', () => {
         expect(planTableLifecycleActions(state, event)).toEqual([
             {
                 type: 'scheduleActivateCellAtCursor',
-                clearIfOutside: false,
-                ensureCursorVisibleIfNotActivated: true,
-                normalizeIfNeeded: false,
-                preserveMainSelection: true,
+                reason: 'rawModeExit',
             },
         ]);
     });
@@ -369,7 +365,7 @@ describe('tableRuntimePolicies', () => {
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const state = defaultPolicyState({
-            activeCell: nextActiveCell.activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             hadActiveCell: true,
         });
@@ -393,9 +389,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('does not plan a generic reopen for rebuild-only transactions', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -404,28 +399,23 @@ describe('tableRuntimePolicies', () => {
         expect(planTableLifecycleActions(state, defaultPolicyEvent())).toEqual([]);
     });
 
-    it('plans nested editor sync from a single sync intent fact', () => {
-        const activeCell = getHeaderCell();
+    it('plans nested editor sync from a single sync fact', () => {
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
         });
 
-        expect(planTableLifecycleActions(state, defaultPolicyEvent({ syncIntent: 'doc' }))).toContainEqual({
+        expect(planTableLifecycleActions(state, defaultPolicyEvent({ shouldSyncMainToNested: true }))).toContainEqual({
             type: 'syncMainToNested',
         });
-        expect(planTableLifecycleActions(state, defaultPolicyEvent({ syncIntent: 'selection' }))).toContainEqual({
-            type: 'syncMainToNested',
-        });
-        expect(planTableLifecycleActions(state, defaultPolicyEvent({ syncIntent: 'none' }))).toEqual([]);
+        expect(planTableLifecycleActions(state, defaultPolicyEvent({ shouldSyncMainToNested: false }))).toEqual([]);
     });
 
     it('prefers an explicit open request over generic branches', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -437,7 +427,7 @@ describe('tableRuntimePolicies', () => {
             requiresCellReposition: true,
             selectionChanged: true,
             selectionLeftActiveTable: true,
-            syncIntent: 'doc',
+            shouldSyncMainToNested: true,
         });
 
         expect(planTableLifecycleActions(state, event)).toEqual([
@@ -446,9 +436,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('uses the compact open request id selected by the adapter', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -461,9 +450,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('uses the resolved update range when undo or redo repositions the active cell', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -478,21 +466,17 @@ describe('tableRuntimePolicies', () => {
                 })
             )
         ).toEqual([
-            { type: 'closeNestedEditor', useResolvedRangeFromUpdate: true },
+            { type: 'closeNestedEditorUsingResolvedUpdateRange' },
             {
                 type: 'scheduleActivateCellAtCursor',
-                clearIfOutside: true,
-                ensureCursorVisibleIfNotActivated: false,
-                normalizeIfNeeded: false,
-                preserveMainSelection: false,
+                reason: 'cellReposition',
             },
         ]);
     });
 
     it('closes and clears the active cell when selection moves outside the active table', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -506,13 +490,12 @@ describe('tableRuntimePolicies', () => {
                     selectionLeftActiveTable: true,
                 })
             )
-        ).toEqual([{ type: 'closeNestedEditor', useResolvedRangeFromUpdate: false }, { type: 'clearActiveCell' }]);
+        ).toEqual([{ type: 'closeNestedEditor' }, { type: 'clearActiveCell' }]);
     });
 
     it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
             hadActiveCell: true,
@@ -544,9 +527,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: false,
             hadActiveCell: true,
@@ -564,9 +546,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('plans stale active cell cleanup when the nested editor is gone', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: false,
             hadActiveCell: true,
@@ -604,9 +585,8 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('clears stale active cell when the resolver cannot find the table', () => {
-        const activeCell = getHeaderCell();
         const state = defaultPolicyState({
-            activeCell,
+            hasActiveCell: true,
             currentActiveCellResolved: false,
             nestedEditorOpen: false,
             hadActiveCell: true,
