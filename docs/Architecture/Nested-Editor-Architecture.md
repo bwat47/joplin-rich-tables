@@ -2,9 +2,9 @@
 
 In-cell editing uses a transient CodeMirror instance inside the active `<td>`.
 
-## Concept
+The decision to use a nested CodeMirror editor instead of `contenteditable` is covered in [ADR-002](../ADR/002-nested-codemirror-subview.md). The decision to keep the editor cell-local and live-patch the main document is covered in [ADR-003](../ADR/003-cell-local-nested-editor.md) and [ADR-005](../ADR/005-live-patch-nested-editing.md).
 
-Overlay a real editor rather than using contenteditable (for full syntax highlighting, better multi-line handling, better integration/synchronization with the main editor).
+## Model
 
 - **Scope**: Contains only the active cell text in isolated local coordinates.
 - **Effect**: User edits a true cell-local editor while the root document remains authoritative.

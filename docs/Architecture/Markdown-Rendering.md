@@ -1,6 +1,6 @@
 # Markdown Rendering
 
-Table cells are rendered as isolated Markdown fragments, but Joplin’s renderer requires full-document context for certain functionality (reference style links, footnotes). The plugin bridges that gap with a rendering service plus document-context injection.
+Table cells render Markdown through Joplin's `renderMarkup` command. The decision rationale and alternatives are covered in [ADR-006](../ADR/006-render-markup-cell-rendering.md); this document describes the implementation path.
 
 ## Rendering Service
 
@@ -12,7 +12,7 @@ Table cells are rendered as isolated Markdown fragments, but Joplin’s renderer
 
 ### Cache + De-dupe
 
-To avoid exessive rendering requests to the main plugin, the following optimizations are used:
+To avoid excessive rendering requests to the main plugin:
 
 - FIFO cache (`MAX_CACHE_SIZE = 500`) for rendered HTML keyed by the Markdown payload.
 - In-flight de-dupe (`pendingRequests`) so identical content only triggers one render request.
@@ -28,19 +28,14 @@ Cells are stored inside a GFM table row, so `|` must be escaped (`\|`) to avoid 
 - Optionally appends the document-level link definition block (below) to the render payload.
 - Skips definition injection when the cell itself looks like a reference definition (`[label]: url`), to avoid rendering issues and unstable caching.
 
-## Document Context Injection (Reference Links)
-
-Reference-style links inside a cell (e.g. `[text][id]`) require definitions that usually live elsewhere in the note (e.g. `[id]: https://example.com`).
+## Document Context
 
 `documentDefinitionsField` (`src/contentScript/services/documentDefinitions.ts`) tracks reference link definitions for the whole document:
 
 - Extracts `LinkReference` nodes from the syntax tree.
 - Builds a Markdown `definitionBlock` that is appended to cell Markdown before rendering when needed.
 
-**Note:** Footnotes are currently handled during post-processing because the context injection approach has issues with footnotes:
-
-- markdown-it-footnote's auto-numbering doesn't work due to cells being rendered in isolation (even if we inject the footnote definitions, it's not aware of footnote links in other table cells, so each footnote link is numbered as #1).
-- markdown-it-footnote renders the footnote definitions inside the table cell.
+Footnotes are not injected into render payloads. They are handled during post-processing because isolated cell renders cannot preserve document-wide footnote numbering.
 
 ## Sanitization + Post-processing
 

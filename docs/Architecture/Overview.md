@@ -52,110 +52,46 @@ than calling back into Joplin or keeping module-level settings caches.
 
 ## Data Flow
 
-### 1. Detection
+### 1. Detection and Display
 
-StateField scans syntax tree → detects table blocks → replaces with `TableWidget`.
+Lezer identifies table blocks. `tableDecorationField` builds shared `TableContext` objects and replaces table source ranges with `TableWidget` block decorations.
 
-### 2. Interaction
+See [Table-Parsing.md](./Table-Parsing.md) and [Table-Display.md](./Table-Display.md).
 
-Cell click / navigation / selection focus → widget/runtime logic resolves row/column → dispatches
-`setActiveCellEffect` plus an open request and id-only open signal → `tableRuntime/lifecycle/nestedEditorLifecycle` mounts the nested editor.
+### 2. Cell Interaction
 
-`ActiveCell` is logical-first state: it persists `tableFrom` plus `section/row/col`. Cursor placement such as
-the main-editor selection anchor is transient request data, not part of persisted active-cell identity. Raw offsets
-such as `tableTo` plus semantic/editable cell spans are derived on demand through the shared active-cell resolver.
+Cell clicks, keyboard navigation, and selection-mode actions resolve table/cell coordinates from widget DOM plus `TableContext`.
 
-Before lifecycle opens the nested editor for user-driven entry, `tableRuntime/lifecycle/nestedEditorLifecycle.ts` checks whether the table markdown
-is already in the plugin's canonical serialized form with blank-line document boundaries. If not, it rewrites the table
-once, preserves the logical target cell, dispatches a reopen intent, rebuilds the widget, and only then opens the nested
-editor. Lifecycle reopens used for undo/redo or UI restoration skip that normalization step. Passive parsing/rendering
-never mutates document text.
+Interactive cell entry dispatches logical active-cell state plus an explicit open request. `nestedEditorLifecycle.ts` resolves current document offsets and mounts the nested editor.
 
-### 3. Synchronization
+See [Interaction-and-Navigation.md](./Interaction-and-Navigation.md) and [Nested-Editor-Architecture.md](./Nested-Editor-Architecture.md).
 
-Typing in the isolated cell editor goes through the `NestedEditorSession` bridge:
+### 3. Nested Editing
 
-- `editorBridge/cellTextCodec.ts` sanitizes local display text and selection into authoritative root cell text and selection.
-- The main editor applies the change with `editorBridge/syncAnnotation.ts`.
-- Non-sync root changes re-resolve the logical cell from the persisted active-cell identity and rebase the isolated editor.
-- `cellRanges` expose both trimmed semantic bounds and editable bounds; nested-editor sync and Joplin formatting-command
-  selection mirroring use the editable span so user-entered edge whitespace stays addressable without exposing canonical
-  delimiter padding in the local editor.
-- The nested editor is cell-local, not a clipped whole-document subview.
+The nested editor contains only the active cell text. `nestedEditorController.ts` translates text and selections between local cell coordinates and root document coordinates through `cellTextCodec.ts`, using `syncAnnotation` for cross-editor transactions.
 
-### 4. Table Runtime Model
+The main editor remains authoritative for document state and history.
 
-`MarkdownTable` is the canonical runtime representation for parsed tables:
+See [Nested-Editor-Architecture.md](./Nested-Editor-Architecture.md).
 
-- Parses Markdown into normalized header/alignment/body state.
-- Owns serialization and structural row/column/alignment operations.
-- Owns editor-independent structural command semantics, including target-cell intent after table-local mutations.
-- Feeds command execution and widget rendering through `TableContext`.
-- Leaves source-coordinate computation to `markdownTableCellRanges.ts`.
+### 4. Structural Mutations
 
-### 5. Shared Derived Table Context
+Structural commands resolve the current active cell, run table-model command semantics, serialize the resulting `MarkdownTable`, replace the source table range, and dispatch explicit reopen intent when a cell should remain active.
 
-`TableContext` bundles:
+See [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md).
 
-- The resolved table span in the document (`from`, `to`, `text`).
-- The parsed `MarkdownTable`.
-- The computed `cellRanges` used for activation and navigation.
+### 5. Markdown Rendering
 
-This is the shared derived object used across widget rendering, table interactions,
-navigation, and command helpers so the plugin does not repeatedly run separate
-resolve -> parse -> compute-ranges chains for the same table content.
+Inactive cells render Markdown through the `MarkdownRenderService`, which calls Joplin's `renderMarkup`, sanitizes and post-processes HTML, caches rendered payloads, and upgrades Markdown-looking cells asynchronously.
 
-`tableRuntime/tableResolution.ts` owns generic syntax-tree table lookup and cell-range
-resolution. `tableRuntime/tablePositioning.ts` is limited to DOM/event target fallback
-resolution for widget interactions.
+See [Markdown-Rendering.md](./Markdown-Rendering.md).
 
-The active-cell resolver builds on `TableContext` and is the only supported way to
-derive current table/cell offsets for the persisted logical active-cell state.
-Once current-state code has a concrete active cell, it should pass `ResolvedActiveCell`
-through the runtime instead of re-threading table context and raw offsets separately.
+## Runtime Ownership
 
-### 6. Shared Transition Policy
+Common ownership boundaries:
 
-Table editing transition logic is split by responsibility:
-
-- `tableRuntime/lifecycle/lifecyclePolicy.ts` is pure lifecycle policy: it inspects `ViewUpdate` state and returns declarative lifecycle actions.
-- `tableRuntime/lifecycle/nestedEditorLifecycle.ts` executes lifecycle side effects such as open/close and RAF scheduling.
-- `editorBridge/mainEditorGuardPolicy.ts` owns main-editor transaction filtering and paste rewrite decisions while nested editing is active.
-- `tableWidget/tableDecorationPolicy.ts` owns block-decoration rebuild decisions.
-- `nestedEditor/nestedEditorController.ts` owns nested editor mount, local/root synchronization, selection mirroring, and session invalidation.
-- `editorBridge/cellTextCodec.ts` and `editorBridge/syncAnnotation.ts` own the cross-editor text/selection protocol.
-
-Non-lifecycle modules should request nested-editor opening via effects, and
-`nestedEditorLifecycle.ts` decides whether to normalize before delegating mount/sync/close behavior to
-`nestedEditor/nestedEditorController.ts`.
-
-**Sync Flow Diagram**:
-
-```mermaid
-flowchart TB
-    subgraph User["User Input"]
-        K["Keyboard/Mouse"]
-    end
-
-    subgraph Nested["Nested Editor (isolated cell editor)"]
-        NE["nestedEditorController.ts"]
-        DH["domHandlers.ts"]
-    end
-
-    subgraph Main["Main Editor"]
-        ME["Main EditorView"]
-        LC["tableRuntime/lifecycle/nestedEditorLifecycle.ts"]
-    end
-
-    K --> DH
-    DH -->|"keymap: Tab/Enter/Arrows"| NE
-    DH -->|"undo/redo passthrough"| ME
-    DH -->|"event bubbling prevention"| NE
-
-    NE -->|"cellTextCodec + syncAnnotation"| ME
-    NE -->|"selection mirror"| ME
-
-    ME -->|"external changes (undo/redo, Joplin commands)"| LC
-    LC -->|"forward root update"| NE
-    LC -->|"detect structural changes → reopen cell"| NE
-```
+- `tableModel/` owns editor-independent table parsing, ranges, serialization, and command semantics.
+- `tableRuntime/` owns editor-bound orchestration and active-cell lifecycle.
+- `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
+- `editorBridge/` owns cross-editor text/selection conversion and main-editor guard policy.
+- `tableWidget/` owns widget DOM, visual styling, display-mode behavior, and decoration policy.

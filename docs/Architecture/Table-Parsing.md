@@ -1,10 +1,6 @@
 # Table Parsing
 
-The plugin needs precise, stable character ranges for each cell to support click mapping, nested editing, and structural edits. Lezer is used to locate table blocks, but the plugin does its own per-cell parsing.
-
-## Why Not Just Lezer?
-
-Lezer’s Markdown table support identifies table blocks/rows, but it doesn’t provide reliable per-cell nodes/ranges in all cases (notably for empty cells). The plugin therefore treats Lezer as a “table block detector” and performs its own cell-boundary scanning.
+Lezer locates table blocks; plugin-owned parsing computes cell boundaries, source ranges, and table semantics. The decision rationale is covered in [ADR-001](../ADR/001-table-row-scanner.md); this document describes the implementation path.
 
 ## Single Source of Truth: Row Scanning
 

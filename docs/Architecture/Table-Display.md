@@ -70,6 +70,8 @@ Prevents scroll jumping via multi-layered approach:
 
 `Ctrl+Shift+/` or toolbar toggle. Disables decoration field, reveals raw Markdown. Auto-closes active nested editor.
 
+See [ADR-004](../ADR/004-global-source-mode.md) for the rationale behind global source mode.
+
 ### Search Override
 
 `Ctrl+F` forces raw Markdown mode so native search highlighting works on hidden table text.
