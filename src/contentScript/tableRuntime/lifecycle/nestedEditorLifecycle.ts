@@ -35,7 +35,7 @@ import {
 } from '../openCellRequest';
 import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
-import { planTableLifecycleActions, type TableRuntimeAction } from './lifecyclePolicy';
+import { planTableLifecycleActions, type ActivateCellAtCursorReason, type TableRuntimeAction } from './lifecyclePolicy';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
@@ -155,7 +155,7 @@ function cursorInsideAnyTable(update: ViewUpdate): boolean {
 function updateRequiresCellReposition(params: {
     update: ViewUpdate;
     effectiveRawMode: boolean;
-    hadActiveCell: boolean;
+    hadActiveCellBeforeUpdate: boolean;
     resolvedPrevActiveCell: ResolvedActiveCell | null;
     isSync: boolean;
 }): boolean {
@@ -163,7 +163,7 @@ function updateRequiresCellReposition(params: {
         return false;
     }
 
-    if (params.hadActiveCell && params.resolvedPrevActiveCell) {
+    if (params.hadActiveCellBeforeUpdate && params.resolvedPrevActiveCell) {
         return params.update.transactions.some((tr) =>
             transactionRequiresTableRebuild(tr, params.resolvedPrevActiveCell)
         );
@@ -176,7 +176,7 @@ function updateRequiresCellReposition(params: {
 function collectLifecyclePlannerInput(params: {
     update: ViewUpdate;
     nestedEditorOpen: boolean;
-    hadActiveCell: boolean;
+    hadActiveCellBeforeUpdate: boolean;
     pendingFullReplaceRebuild: boolean;
     previousEffectiveRawMode: boolean;
 }): { state: TableLifecyclePolicyState; event: TableLifecyclePolicyEvent } {
@@ -200,7 +200,7 @@ function collectLifecyclePlannerInput(params: {
             currentActiveCellResolved: Boolean(resolvedActiveCell),
             effectiveRawMode,
             nestedEditorOpen: params.nestedEditorOpen,
-            hadActiveCell: params.hadActiveCell,
+            hadActiveCellBeforeUpdate: params.hadActiveCellBeforeUpdate,
             pendingFullReplaceRebuild: params.pendingFullReplaceRebuild,
         },
         event: {
@@ -220,7 +220,7 @@ function collectLifecyclePlannerInput(params: {
             requiresCellReposition: updateRequiresCellReposition({
                 update: params.update,
                 effectiveRawMode,
-                hadActiveCell: params.hadActiveCell,
+                hadActiveCellBeforeUpdate: params.hadActiveCellBeforeUpdate,
                 resolvedPrevActiveCell,
                 isSync,
             }),
@@ -231,7 +231,14 @@ function collectLifecyclePlannerInput(params: {
 
 type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
 
-function getActivateCellAtCursorOptions(reason: 'rawModeExit' | 'cellReposition') {
+interface ActivateCellAtCursorOptions {
+    clearIfOutside: boolean;
+    ensureCursorVisibleIfNotActivated: boolean;
+    normalizeIfNeeded: boolean;
+    preserveMainSelection: boolean;
+}
+
+function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {
     if (reason === 'rawModeExit') {
         return {
             clearIfOutside: false,
@@ -308,12 +315,12 @@ function normalizeTableBeforeOpen(params: {
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
-        private hadActiveCell: boolean;
+        private hadActiveCellBeforeUpdate: boolean;
         private wasEffectiveRawMode: boolean;
         private pendingFullReplaceRebuild: boolean;
 
         constructor(private view: EditorView) {
-            this.hadActiveCell = Boolean(getActiveCell(view.state));
+            this.hadActiveCellBeforeUpdate = Boolean(getActiveCell(view.state));
             this.wasEffectiveRawMode = isEffectiveRawMode(view.state);
             this.pendingFullReplaceRebuild = false;
         }
@@ -322,7 +329,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const { state, event } = collectLifecyclePlannerInput({
                 update,
                 nestedEditorOpen: isNestedEditorOpen(this.view),
-                hadActiveCell: this.hadActiveCell,
+                hadActiveCellBeforeUpdate: this.hadActiveCellBeforeUpdate,
                 pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
                 previousEffectiveRawMode: this.wasEffectiveRawMode,
             });
@@ -330,7 +337,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             this.executeActions(actions, update);
             this.scheduleInsertedTableActivation(update);
-            this.hadActiveCell = Boolean(getActiveCell(update.state));
+            this.hadActiveCellBeforeUpdate = Boolean(getActiveCell(update.state));
             this.wasEffectiveRawMode = isEffectiveRawMode(update.state);
         }
 
@@ -351,47 +358,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             for (const action of actions) {
                 switch (action.type) {
                     case 'scheduleRebuildAllAfterFullReplace':
-                        this.pendingFullReplaceRebuild = true;
-                        requestViewAnimationFrame(this.view, () => {
-                            this.pendingFullReplaceRebuild = false;
-                            if (!this.view.dom.isConnected) return;
-                            this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
-                        });
+                        this.scheduleRebuildAllAfterFullReplace();
                         break;
-                    case 'scheduleActivateCellAtCursor': {
-                        const cursorPos = update.state.selection.main.head;
-                        const preferredActiveCell = mapActiveCellThroughUpdate(
-                            update,
-                            getActiveCell(update.startState)
-                        );
-                        const activateOptions = getActivateCellAtCursorOptions(action.reason);
-                        requestViewAnimationFrame(this.view, () => {
-                            if (!this.view.dom.isConnected) return;
-                            if (!activateOptions.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
-                            activateCellAtPosition(this.view, cursorPos, {
-                                clearIfOutside: activateOptions.clearIfOutside,
-                                normalizeIfNeeded: activateOptions.normalizeIfNeeded,
-                                preserveMainSelection: activateOptions.preserveMainSelection,
-                                preferredActiveCell,
-                            });
-                            if (activateOptions.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
-                                ensureCursorVisible(this.view);
-                            }
-                        });
+                    case 'scheduleActivateCellAtCursor':
+                        this.scheduleActivateCellAtCursor(update, action.reason);
                         break;
-                    }
                     case 'scheduleEnsureCursorVisible':
-                        requestViewAnimationFrame(this.view, () => {
-                            if (!this.view.dom.isConnected) return;
-                            if (action.mode === 'enteredRawMode' && !isEffectiveRawMode(this.view.state)) return;
-                            if (
-                                action.mode === 'exitedRawModeWithoutActiveCell' &&
-                                isEffectiveRawMode(this.view.state)
-                            ) {
-                                return;
-                            }
-                            ensureCursorVisible(this.view);
-                        });
+                        this.scheduleEnsureCursorVisible(action.mode);
                         break;
                     case 'closeNestedEditor':
                         closeNestedEditor(this.view);
@@ -413,6 +386,46 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                 }
             }
+        }
+
+        private scheduleRebuildAllAfterFullReplace(): void {
+            this.pendingFullReplaceRebuild = true;
+            requestViewAnimationFrame(this.view, () => {
+                this.pendingFullReplaceRebuild = false;
+                if (!this.view.dom.isConnected) return;
+                this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
+            });
+        }
+
+        private scheduleActivateCellAtCursor(update: ViewUpdate, reason: ActivateCellAtCursorReason): void {
+            const cursorPos = update.state.selection.main.head;
+            const preferredActiveCell = mapActiveCellThroughUpdate(update, getActiveCell(update.startState));
+            const activateOptions = getActivateCellAtCursorOptions(reason);
+
+            requestViewAnimationFrame(this.view, () => {
+                if (!this.view.dom.isConnected) return;
+                if (!activateOptions.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
+                activateCellAtPosition(this.view, cursorPos, {
+                    clearIfOutside: activateOptions.clearIfOutside,
+                    normalizeIfNeeded: activateOptions.normalizeIfNeeded,
+                    preserveMainSelection: activateOptions.preserveMainSelection,
+                    preferredActiveCell,
+                });
+                if (activateOptions.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
+                    ensureCursorVisible(this.view);
+                }
+            });
+        }
+
+        private scheduleEnsureCursorVisible(mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell'): void {
+            requestViewAnimationFrame(this.view, () => {
+                if (!this.view.dom.isConnected) return;
+                if (mode === 'enteredRawMode' && !isEffectiveRawMode(this.view.state)) return;
+                if (mode === 'exitedRawModeWithoutActiveCell' && isEffectiveRawMode(this.view.state)) {
+                    return;
+                }
+                ensureCursorVisible(this.view);
+            });
         }
 
         private scheduleOpenRequestedCell(requestId: string): void {

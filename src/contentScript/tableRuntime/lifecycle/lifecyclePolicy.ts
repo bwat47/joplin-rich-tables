@@ -3,7 +3,7 @@ export interface TableLifecyclePolicyState {
     currentActiveCellResolved: boolean;
     effectiveRawMode: boolean;
     nestedEditorOpen: boolean;
-    hadActiveCell: boolean;
+    hadActiveCellBeforeUpdate: boolean;
     pendingFullReplaceRebuild: boolean;
 }
 
@@ -32,6 +32,8 @@ export interface RawModeTransitionFacts {
     exitedSearchForce: boolean;
 }
 
+export type ActivateCellAtCursorReason = 'rawModeExit' | 'cellReposition';
+
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
     | { type: 'closeNestedEditor' }
@@ -40,7 +42,7 @@ export type TableRuntimeAction =
     | { type: 'clearActiveCell' }
     | {
           type: 'scheduleActivateCellAtCursor';
-          reason: 'rawModeExit' | 'cellReposition';
+          reason: ActivateCellAtCursorReason;
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
     | { type: 'scheduleRebuildAllAfterFullReplace' };
@@ -65,7 +67,7 @@ export function planTableLifecycleActions(
     }
 
     if (
-        state.hadActiveCell &&
+        state.hadActiveCellBeforeUpdate &&
         event.hasFullDocumentReplace &&
         !event.isNormalizeBeforeEdit &&
         !state.pendingFullReplaceRebuild
@@ -108,7 +110,7 @@ export function planTableLifecycleActions(
         return actions;
     }
 
-    if (!state.hasActiveCell && state.hadActiveCell) {
+    if (!state.hasActiveCell && state.hadActiveCellBeforeUpdate) {
         actions.push({ type: 'closeNestedEditor' });
     }
 

@@ -65,7 +65,7 @@ function defaultPolicyState(overrides: Partial<TableLifecyclePolicyState> = {}):
         currentActiveCellResolved: false,
         effectiveRawMode: false,
         nestedEditorOpen: false,
-        hadActiveCell: false,
+        hadActiveCellBeforeUpdate: false,
         pendingFullReplaceRebuild: false,
         ...overrides,
     };
@@ -310,7 +310,7 @@ describe('tableRuntimePolicies', () => {
     it('plans raw mode exit as cursor reactivation', () => {
         const state = defaultPolicyState({
             hasActiveCell: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
         const event = defaultPolicyEvent({
             rawModeTransition: {
@@ -367,7 +367,7 @@ describe('tableRuntimePolicies', () => {
         const state = defaultPolicyState({
             hasActiveCell: true,
             currentActiveCellResolved: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
@@ -393,7 +393,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(planTableLifecycleActions(state, defaultPolicyEvent())).toEqual([]);
@@ -404,7 +404,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(planTableLifecycleActions(state, defaultPolicyEvent({ shouldSyncMainToNested: true }))).toContainEqual({
@@ -418,7 +418,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
         const event = defaultPolicyEvent({
             docChanged: true,
@@ -440,7 +440,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
         const event = defaultPolicyEvent({ openRequestId: 'latest-request' });
 
@@ -454,7 +454,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(
@@ -479,7 +479,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(
@@ -498,7 +498,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: true,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
         const event = defaultPolicyEvent({
             selectionChanged: true,
@@ -531,7 +531,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: false,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(
@@ -550,7 +550,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: true,
             nestedEditorOpen: false,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(
@@ -589,7 +589,7 @@ describe('tableRuntimePolicies', () => {
             hasActiveCell: true,
             currentActiveCellResolved: false,
             nestedEditorOpen: false,
-            hadActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
         });
 
         expect(
