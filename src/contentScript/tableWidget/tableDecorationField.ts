@@ -1,4 +1,4 @@
-import { EditorState, Range, StateField } from '@codemirror/state';
+import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
 import { documentDefinitionsField } from '../services/documentDefinitions';
@@ -13,11 +13,12 @@ import { decideTableDecorationUpdate } from './tableDecorationPolicy';
  * Tables are always rendered as widgets - editing happens via nested cell editors.
  */
 function buildTableDecorations(state: EditorState): DecorationSet {
-    const decorations: Range<Decoration>[] = [];
+    const decorations = new RangeSetBuilder<Decoration>();
     const tables = findTableRanges(state);
     const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
+        // RangeSetBuilder requires ranges in ascending document order.
         const ctx = buildTableContext(table);
         if (!ctx) {
             continue;
@@ -40,10 +41,10 @@ function buildTableDecorations(state: EditorState): DecorationSet {
             block: true,
         });
 
-        decorations.push(decoration.range(table.from, table.to));
+        decorations.add(table.from, table.to, decoration);
     }
 
-    return Decoration.set(decorations);
+    return decorations.finish();
 }
 
 /**
