@@ -1,8 +1,6 @@
 import { Decoration, DecorationSet, EditorView, MatchDecorator, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { ensureSyntaxTree } from '@codemirror/language';
+import { syntaxTree } from '@codemirror/language';
 import { Range } from '@codemirror/state';
-
-const SYNTAX_TREE_TIMEOUT = 100;
 
 /**
  * Decorates the entire `InlineCode` syntax node (including backticks) with a unified class.
@@ -25,16 +23,7 @@ export const inlineCodePlugin = ViewPlugin.fromClass(
         computeDecorations(view: EditorView): DecorationSet {
             const widgets: Range<Decoration>[] = [];
             for (const { from, to } of view.visibleRanges) {
-                // InlineCode decorator relies on the parser identifying specific nodes.
-                // In large documents, the syntax tree might not be fully parsed up to the
-                // visible cell (especially since the nested editor uses the FULL document).
-                //
-                // ensureSyntaxTree(view.state, to, timeout) attempts to parse up to `to`
-                // within the timeout.
-                const tree = ensureSyntaxTree(view.state, to, SYNTAX_TREE_TIMEOUT);
-                if (!tree) {
-                    continue;
-                }
+                const tree = syntaxTree(view.state);
 
                 tree.iterate({
                     from,
