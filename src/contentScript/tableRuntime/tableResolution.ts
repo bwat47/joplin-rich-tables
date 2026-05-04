@@ -5,8 +5,7 @@ import { getCellRange, type CellRange, type TableCellRanges } from '../tableMode
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 import type { CellCoords, ResolvedTable } from '../tableModel/types';
 
-const TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS = 1500;
-const TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS = 500;
+const TABLE_SYNTAX_TREE_TIMEOUT_MS = 1000;
 
 /**
  * Trims trailing non-table lines from a Lezer-reported table range.
@@ -40,7 +39,7 @@ export function trimTrailingNonTableLines(text: string): string {
 export function resolveTableAtPos(
     state: EditorState,
     pos: number,
-    timeoutMs: number = TABLE_SYNTAX_TREE_RESOLVE_TIMEOUT_MS
+    timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS
 ): ResolvedTable | null {
     const tree = ensureSyntaxTree(state, pos, timeoutMs);
     if (!tree) {
@@ -66,10 +65,7 @@ export function resolveTableAtPos(
 /**
  * Find all markdown table ranges in the document using the syntax tree.
  */
-export function findTableRanges(
-    state: EditorState,
-    timeoutMs: number = TABLE_SYNTAX_TREE_SCAN_TIMEOUT_MS
-): ResolvedTable[] {
+export function findTableRanges(state: EditorState, timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS): ResolvedTable[] {
     const tables: ResolvedTable[] = [];
     const doc = state.doc;
 
