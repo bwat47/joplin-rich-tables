@@ -30,7 +30,7 @@ import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEdito
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
 
-const SYNTAX_TREE_PARSE_TIMEOUT = 500;
+const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
 export interface NestedEditorLocalState {
     text: string;
@@ -171,7 +171,7 @@ class NestedEditorController {
                 createNestedEditorTheme(isDarkTheme),
             ],
         });
-
+        // Warm the nested editor parse tree before mount to reduce first-paint decoration lag
         ensureSyntaxTree(state, state.doc.length, SYNTAX_TREE_PARSE_TIMEOUT);
 
         session.editor = new EditorView({
