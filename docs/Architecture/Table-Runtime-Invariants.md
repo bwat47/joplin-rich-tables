@@ -1,6 +1,6 @@
 # Table Runtime Invariants
 
-The table runtime is a cross-file state machine. These invariants define the rules that must stay true across active-cell state, widget decorations, nested editing, structural commands, selection, and focus handling.
+The table runtime behaves like a cross-file state machine. These invariants define the rules that must stay true across active-cell state, widget decorations, nested editing, structural commands, selection, and focus handling.
 
 ## Source of Truth
 
