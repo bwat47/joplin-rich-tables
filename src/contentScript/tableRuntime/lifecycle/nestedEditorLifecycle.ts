@@ -79,6 +79,12 @@ function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell |
 
 type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
 
+interface OpenRequestExecutionGuardResult {
+    request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
+    resolvedActiveCell: ResolvedActiveCell;
+    cellElement: HTMLElement;
+}
+
 interface ActivateCellAtCursorOptions {
     clearIfOutside: boolean;
     ensureCursorVisibleIfNotActivated: boolean;
@@ -279,42 +285,15 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         private scheduleOpenRequestedCell(requestId: string): void {
             requestViewAnimationFrame(this.view, () => {
-                const request = getOpenCellRequestById(this.view.state, requestId);
-                if (!request) {
-                    return;
-                }
-
-                const targetActiveCell = request.activeCell;
-                const normalizeIfNeeded = request.normalizeIfNeeded;
-                if (!this.view.dom.isConnected) {
-                    this.failOpenRequest(requestId);
-                    return;
-                }
-                if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
-                    this.failOpenRequest(requestId);
-                    return;
-                }
-                const resolvedActiveCell = getResolvedActiveCell(this.view.state);
-                if (!resolvedActiveCell) {
-                    this.failOpenRequest(requestId);
-                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                    return;
-                }
-                const cellElement = findCellElement(
-                    this.view,
-                    makeTableId(targetActiveCell.tableFrom),
-                    targetActiveCell
-                );
-                if (!cellElement) {
-                    this.failOpenRequest(requestId);
-                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                const guardResult = this.validateOpenRequestForExecution(requestId);
+                if (!guardResult) {
                     return;
                 }
 
                 const normalizeResult = normalizeTableBeforeOpen({
                     view: this.view,
-                    resolvedActiveCell,
-                    normalizeIfNeeded,
+                    resolvedActiveCell: guardResult.resolvedActiveCell,
+                    normalizeIfNeeded: guardResult.request.normalizeIfNeeded,
                     requestId,
                 });
                 if (normalizeResult === 'normalized') {
@@ -327,9 +306,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                 const opened = openNestedEditor({
                     mainView: this.view,
-                    cellElement,
+                    cellElement: guardResult.cellElement,
                     featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
-                    initialCursorPos: request.initialCursorPos,
+                    initialCursorPos: guardResult.request.initialCursorPos,
                 });
                 if (!opened) {
                     this.failOpenRequest(requestId);
@@ -341,6 +320,44 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     });
                 });
             });
+        }
+
+        private validateOpenRequestForExecution(requestId: string): OpenRequestExecutionGuardResult | null {
+            const request = getOpenCellRequestById(this.view.state, requestId);
+            if (!request) {
+                return null;
+            }
+
+            const targetActiveCell = request.activeCell;
+            if (!this.view.dom.isConnected) {
+                this.failOpenRequest(requestId);
+                return null;
+            }
+
+            if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
+                this.failOpenRequest(requestId);
+                return null;
+            }
+
+            const resolvedActiveCell = getResolvedActiveCell(this.view.state);
+            if (!resolvedActiveCell) {
+                this.failOpenRequest(requestId);
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return null;
+            }
+
+            const cellElement = findCellElement(this.view, makeTableId(targetActiveCell.tableFrom), targetActiveCell);
+            if (!cellElement) {
+                this.failOpenRequest(requestId);
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return null;
+            }
+
+            return {
+                request,
+                resolvedActiveCell,
+                cellElement,
+            };
         }
 
         private failOpenRequest(requestId: string): void {
