@@ -27,17 +27,20 @@ Mounting: ensureSyntaxTree (with timeout) prevents FOUC → editor mounted into 
 
 Policy is split by concern:
 
-- `tableRuntime/lifecycle/lifecyclePolicy.ts` plans lifecycle actions from compact facts only: active-cell identity,
-  resolution booleans, raw-mode transition facts, open-request IDs, sync flags, and selection/table-exit facts. It does
-  not consume `ViewUpdate`, transactions, resolved geometry, or table scans.
-- `tableRuntime/lifecycle/nestedEditorLifecycle.ts` adapts CodeMirror updates into those facts by scanning transactions,
-  resolving active-cell geometry, checking table ranges, mapping fallback hints, and then executing the planned side
-  effects.
+- `tableRuntime/lifecycle/runtimeEventClassifier.ts` adapts CodeMirror updates into compact runtime facts by scanning
+  transactions, resolving active-cell geometry, checking table ranges, and classifying raw-mode/open-request/sync
+  conditions.
+- `tableRuntime/lifecycle/lifecyclePolicy.ts` reduces those facts into ordered lifecycle actions. It owns action
+  precedence, including explicit open-request priority, and does not consume `ViewUpdate`, transactions, resolved
+  geometry, or table scans.
+- `tableRuntime/lifecycle/nestedEditorLifecycle.ts` stores plugin-local previous-state flags, calls the classifier and
+  reducer, maps fallback hints, and executes the planned CodeMirror/nested-editor side effects. Execution-time guards
+  revalidate delayed open requests before touching DOM or mounting the nested editor.
 - `editorBridge/mainEditorGuardPolicy.ts` decides whether main-editor transactions are allowed, rewritten, or sanitized.
 - `tableWidget/tableDecorationPolicy.ts` decides whether table decorations are kept, mapped, removed, or rebuilt.
 
-The lifecycle plugin remains responsible for CodeMirror adaptation and nested-editor side effects; the lifecycle policy
-owns action ordering and precedence.
+The lifecycle classifier owns CodeMirror adaptation, the lifecycle policy owns action ordering and precedence, and the
+lifecycle plugin owns nested-editor side effects.
 
 ## Synchronization
 
