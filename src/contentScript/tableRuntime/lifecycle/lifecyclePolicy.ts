@@ -1,4 +1,4 @@
-export interface TableLifecyclePolicyState {
+export interface TableRuntimeSnapshot {
     hasActiveCell: boolean;
     currentActiveCellResolved: boolean;
     effectiveRawMode: boolean;
@@ -7,7 +7,7 @@ export interface TableLifecyclePolicyState {
     pendingFullReplaceRebuild: boolean;
 }
 
-export interface TableLifecyclePolicyEvent {
+export interface TableRuntimeEvent {
     docChanged: boolean;
     selectionChanged: boolean;
     isSync: boolean;
@@ -47,10 +47,7 @@ export type TableRuntimeAction =
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
     | { type: 'scheduleRebuildAllAfterFullReplace' };
 
-export function planTableLifecycleActions(
-    state: TableLifecyclePolicyState,
-    event: TableLifecyclePolicyEvent
-): TableRuntimeAction[] {
+export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRuntimeEvent): TableRuntimeAction[] {
     const actions: TableRuntimeAction[] = [];
 
     if (event.openRequestId) {
@@ -67,10 +64,10 @@ export function planTableLifecycleActions(
     }
 
     if (
-        state.hadActiveCellBeforeUpdate &&
+        snapshot.hadActiveCellBeforeUpdate &&
         event.hasFullDocumentReplace &&
         !event.isNormalizeBeforeEdit &&
-        !state.pendingFullReplaceRebuild
+        !snapshot.pendingFullReplaceRebuild
     ) {
         actions.push({ type: 'scheduleRebuildAllAfterFullReplace' });
     }
@@ -87,12 +84,12 @@ export function planTableLifecycleActions(
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' });
     }
 
-    if (event.rawModeTransition.exitedRawMode && !state.hasActiveCell && !event.isCellSelectionTransition) {
+    if (event.rawModeTransition.exitedRawMode && !snapshot.hasActiveCell && !event.isCellSelectionTransition) {
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 
     if (event.requiresCellReposition) {
-        if (state.nestedEditorOpen) {
+        if (snapshot.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditorUsingResolvedUpdateRange' });
         }
         actions.push({
@@ -102,15 +99,15 @@ export function planTableLifecycleActions(
         return actions;
     }
 
-    if (shouldClearActiveCellWhenSelectionLeavesTable(state, event)) {
-        if (state.nestedEditorOpen) {
+    if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event)) {
+        if (snapshot.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor' });
         }
         actions.push({ type: 'clearActiveCell' });
         return actions;
     }
 
-    if (!state.hasActiveCell && state.hadActiveCellBeforeUpdate) {
+    if (!snapshot.hasActiveCell && snapshot.hadActiveCellBeforeUpdate) {
         actions.push({ type: 'closeNestedEditor' });
     }
 
@@ -118,21 +115,18 @@ export function planTableLifecycleActions(
         actions.push({ type: 'syncMainToNested' });
     }
 
-    if (event.docChanged && state.hasActiveCell && !state.currentActiveCellResolved && !event.isSync) {
+    if (event.docChanged && snapshot.hasActiveCell && !snapshot.currentActiveCellResolved && !event.isSync) {
         actions.push({ type: 'clearActiveCell' });
     }
 
-    if (event.docChanged && state.currentActiveCellResolved && !state.nestedEditorOpen && !event.isSync) {
+    if (event.docChanged && snapshot.currentActiveCellResolved && !snapshot.nestedEditorOpen && !event.isSync) {
         actions.push({ type: 'clearActiveCell' });
     }
 
     return actions;
 }
 
-function shouldClearActiveCellWhenSelectionLeavesTable(
-    state: TableLifecyclePolicyState,
-    event: TableLifecyclePolicyEvent
-): boolean {
+function shouldClearActiveCellWhenSelectionLeavesTable(state: TableRuntimeSnapshot, event: TableRuntimeEvent): boolean {
     return (
         event.selectionChanged &&
         !event.isSync &&
