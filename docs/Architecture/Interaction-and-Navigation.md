@@ -14,7 +14,11 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 
 ### Scrolling
 
-`scrollIntoView` is called automatically when target cell is outside viewport.
+Primary cell navigation opens the target nested editor, then focuses its `contentDOM`. The browser scrolls that focused
+cell into view as needed, which works more reliably on mobile than explicitely calling `scrollIntoView`.
+
+The plugin still uses explicit `scrollIntoView` for other paths such as anchor jumps, source/raw-mode cursor
+visibility, and multi-cell selection focus.
 
 ### Open-Cell Request State
 
