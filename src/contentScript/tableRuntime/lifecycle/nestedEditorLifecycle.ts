@@ -6,14 +6,8 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../../tableState/activeCellState';
-import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
-import { syncAnnotation } from '../../editorBridge/syncAnnotation';
-import {
-    exitSearchForceSourceModeEffect,
-    setSearchForceSourceModeEffect,
-} from '../../tableState/searchForceSourceMode';
-import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
@@ -24,7 +18,6 @@ import {
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { makeTableId } from '../../tableModel/types';
-import { findTableRanges } from '../tableResolution';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
 import {
@@ -35,11 +28,9 @@ import {
 } from '../openCellRequest';
 import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
-import { planTableLifecycleActions, type ActivateCellAtCursorReason, type TableRuntimeAction } from './lifecyclePolicy';
+import { reduceTableRuntime, type ActivateCellAtCursorReason, type TableRuntimeAction } from './lifecyclePolicy';
+import { classifyTableRuntimeEvent, createTableRuntimeSnapshot } from './runtimeEventClassifier';
 import { requestViewAnimationFrame } from '../../shared/domContext';
-import { isFullDocumentReplace } from '../../shared/transactionUtils';
-import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
-import type { TableLifecyclePolicyEvent, TableLifecyclePolicyState } from './lifecyclePolicy';
 
 // ============================================================================
 // Utilities
@@ -86,150 +77,13 @@ function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell |
     };
 }
 
-function scanRawModeTransitionFacts(update: ViewUpdate, previousEffectiveRawMode: boolean) {
-    let exitedSourceMode = false;
-    let exitedSearchForce = false;
-    let hadRawModeToggle = false;
-
-    for (const tr of update.transactions) {
-        for (const effect of tr.effects) {
-            if (effect.is(exitSourceModeEffect)) {
-                exitedSourceMode = true;
-                hadRawModeToggle = true;
-            }
-            if (effect.is(exitSearchForceSourceModeEffect)) {
-                exitedSearchForce = true;
-                hadRawModeToggle = true;
-            }
-            if (effect.is(toggleSourceModeEffect) || effect.is(setSearchForceSourceModeEffect)) {
-                hadRawModeToggle = true;
-            }
-        }
-    }
-
-    const effectiveRawMode = isEffectiveRawMode(update.state);
-
-    return {
-        enteredRawMode: hadRawModeToggle && !previousEffectiveRawMode && effectiveRawMode,
-        exitedRawMode: hadRawModeToggle && previousEffectiveRawMode && !effectiveRawMode,
-        exitedSourceMode,
-        exitedSearchForce,
-    };
-}
-
-function extractOpenRequestId(update: ViewUpdate): string | null {
-    let requestId: string | null = null;
-
-    for (const tr of update.transactions) {
-        for (const effect of tr.effects) {
-            if (effect.is(triggerOpenCellRequestEffect)) {
-                requestId = effect.value.requestId;
-            }
-        }
-    }
-
-    return requestId;
-}
-
-function isPositionInsideRange(pos: number, from: number, to: number): boolean {
-    return pos >= from && pos <= to;
-}
-
-function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell: ResolvedActiveCell | null): boolean {
-    if (!resolvedActiveCell) {
-        return false;
-    }
-
-    const { main } = update.state.selection;
-    return (
-        !isPositionInsideRange(main.anchor, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo) ||
-        !isPositionInsideRange(main.head, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)
-    );
-}
-
-function cursorInsideAnyTable(update: ViewUpdate): boolean {
-    const cursorPos = update.state.selection.main.head;
-    return findTableRanges(update.state).some((table) => cursorPos >= table.from && cursorPos <= table.to);
-}
-
-function updateRequiresCellReposition(params: {
-    update: ViewUpdate;
-    effectiveRawMode: boolean;
-    hadActiveCellBeforeUpdate: boolean;
-    resolvedPrevActiveCell: ResolvedActiveCell | null;
-    isSync: boolean;
-}): boolean {
-    if (!params.update.docChanged || params.isSync || params.effectiveRawMode) {
-        return false;
-    }
-
-    if (params.hadActiveCellBeforeUpdate && params.resolvedPrevActiveCell) {
-        return params.update.transactions.some((tr) =>
-            transactionRequiresTableRebuild(tr, params.resolvedPrevActiveCell)
-        );
-    }
-
-    const isUndoRedo = params.update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
-    return isUndoRedo && cursorInsideAnyTable(params.update);
-}
-
-function collectLifecyclePlannerInput(params: {
-    update: ViewUpdate;
-    nestedEditorOpen: boolean;
-    hadActiveCellBeforeUpdate: boolean;
-    pendingFullReplaceRebuild: boolean;
-    previousEffectiveRawMode: boolean;
-}): { state: TableLifecyclePolicyState; event: TableLifecyclePolicyEvent } {
-    const activeCell = getActiveCell(params.update.state);
-    const prevActiveCell = getActiveCell(params.update.startState);
-    const resolvedActiveCell = getResolvedActiveCell(params.update.state);
-    const resolvedPrevActiveCell = getResolvedActiveCell(params.update.startState);
-    const effectiveRawMode = isEffectiveRawMode(params.update.state);
-    const isSync = params.update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
-    const shouldSyncDoc = params.update.docChanged && Boolean(resolvedActiveCell) && params.nestedEditorOpen && !isSync;
-    const shouldSyncSelection =
-        params.update.selectionSet &&
-        isSameActiveCell(prevActiveCell, activeCell) &&
-        Boolean(resolvedActiveCell) &&
-        params.nestedEditorOpen &&
-        !isSync;
-
-    return {
-        state: {
-            hasActiveCell: Boolean(activeCell),
-            currentActiveCellResolved: Boolean(resolvedActiveCell),
-            effectiveRawMode,
-            nestedEditorOpen: params.nestedEditorOpen,
-            hadActiveCellBeforeUpdate: params.hadActiveCellBeforeUpdate,
-            pendingFullReplaceRebuild: params.pendingFullReplaceRebuild,
-        },
-        event: {
-            docChanged: params.update.docChanged,
-            selectionChanged: params.update.selectionSet,
-            isSync,
-            isNormalizeBeforeEdit: params.update.transactions.some((tr) =>
-                Boolean(tr.annotation(normalizeBeforeEditAnnotation))
-            ),
-            isCellSelectionTransition: params.update.transactions.some((tr) =>
-                Boolean(tr.annotation(cellSelectionTransitionAnnotation))
-            ),
-            rawModeTransition: scanRawModeTransitionFacts(params.update, params.previousEffectiveRawMode),
-            hasFullDocumentReplace: params.update.transactions.some((tr) => isFullDocumentReplace(tr)),
-            openRequestId: extractOpenRequestId(params.update),
-            selectionLeftActiveTable: isSelectionOutsideResolvedTable(params.update, resolvedActiveCell),
-            requiresCellReposition: updateRequiresCellReposition({
-                update: params.update,
-                effectiveRawMode,
-                hadActiveCellBeforeUpdate: params.hadActiveCellBeforeUpdate,
-                resolvedPrevActiveCell,
-                isSync,
-            }),
-            shouldSyncMainToNested: shouldSyncDoc || shouldSyncSelection,
-        },
-    };
-}
-
 type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
+
+interface OpenRequestExecutionGuardResult {
+    request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
+    resolvedActiveCell: ResolvedActiveCell;
+    cellElement: HTMLElement;
+}
 
 interface ActivateCellAtCursorOptions {
     clearIfOutside: boolean;
@@ -326,14 +180,15 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         update(update: ViewUpdate): void {
-            const { state, event } = collectLifecyclePlannerInput({
-                update,
+            const previousRuntimeState = {
                 nestedEditorOpen: isNestedEditorOpen(this.view),
                 hadActiveCellBeforeUpdate: this.hadActiveCellBeforeUpdate,
                 pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
                 previousEffectiveRawMode: this.wasEffectiveRawMode,
-            });
-            const actions = planTableLifecycleActions(state, event);
+            };
+            const snapshot = createTableRuntimeSnapshot(update, previousRuntimeState);
+            const event = classifyTableRuntimeEvent(update, snapshot, previousRuntimeState);
+            const actions = reduceTableRuntime(snapshot, event);
 
             this.executeActions(actions, update);
             this.scheduleInsertedTableActivation(update);
@@ -430,42 +285,15 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         private scheduleOpenRequestedCell(requestId: string): void {
             requestViewAnimationFrame(this.view, () => {
-                const request = getOpenCellRequestById(this.view.state, requestId);
-                if (!request) {
-                    return;
-                }
-
-                const targetActiveCell = request.activeCell;
-                const normalizeIfNeeded = request.normalizeIfNeeded;
-                if (!this.view.dom.isConnected) {
-                    this.failOpenRequest(requestId);
-                    return;
-                }
-                if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
-                    this.failOpenRequest(requestId);
-                    return;
-                }
-                const resolvedActiveCell = getResolvedActiveCell(this.view.state);
-                if (!resolvedActiveCell) {
-                    this.failOpenRequest(requestId);
-                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                    return;
-                }
-                const cellElement = findCellElement(
-                    this.view,
-                    makeTableId(targetActiveCell.tableFrom),
-                    targetActiveCell
-                );
-                if (!cellElement) {
-                    this.failOpenRequest(requestId);
-                    this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                const guardResult = this.validateOpenRequestForExecution(requestId);
+                if (!guardResult) {
                     return;
                 }
 
                 const normalizeResult = normalizeTableBeforeOpen({
                     view: this.view,
-                    resolvedActiveCell,
-                    normalizeIfNeeded,
+                    resolvedActiveCell: guardResult.resolvedActiveCell,
+                    normalizeIfNeeded: guardResult.request.normalizeIfNeeded,
                     requestId,
                 });
                 if (normalizeResult === 'normalized') {
@@ -478,9 +306,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                 const opened = openNestedEditor({
                     mainView: this.view,
-                    cellElement,
+                    cellElement: guardResult.cellElement,
                     featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
-                    initialCursorPos: request.initialCursorPos,
+                    initialCursorPos: guardResult.request.initialCursorPos,
                 });
                 if (!opened) {
                     this.failOpenRequest(requestId);
@@ -492,6 +320,44 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     });
                 });
             });
+        }
+
+        private validateOpenRequestForExecution(requestId: string): OpenRequestExecutionGuardResult | null {
+            const request = getOpenCellRequestById(this.view.state, requestId);
+            if (!request) {
+                return null;
+            }
+
+            const targetActiveCell = request.activeCell;
+            if (!this.view.dom.isConnected) {
+                this.failOpenRequest(requestId);
+                return null;
+            }
+
+            if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
+                this.failOpenRequest(requestId);
+                return null;
+            }
+
+            const resolvedActiveCell = getResolvedActiveCell(this.view.state);
+            if (!resolvedActiveCell) {
+                this.failOpenRequest(requestId);
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return null;
+            }
+
+            const cellElement = findCellElement(this.view, makeTableId(targetActiveCell.tableFrom), targetActiveCell);
+            if (!cellElement) {
+                this.failOpenRequest(requestId);
+                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                return null;
+            }
+
+            return {
+                request,
+                resolvedActiveCell,
+                cellElement,
+            };
         }
 
         private failOpenRequest(requestId: string): void {

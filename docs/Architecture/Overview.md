@@ -20,6 +20,7 @@ than calling back into Joplin or keeping module-level settings caches.
 ## Documentation Index
 
 - [Table-Display.md](./Table-Display.md) - Rendering, optimizations, display modes.
+- [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md) - Cross-module runtime rules for active cells, sync, rebuilds, and focus.
 - [Nested-Editor-Architecture.md](./Nested-Editor-Architecture.md) - Synchronization, boundary enforcement, undo/redo.
 - [Interaction-and-Navigation.md](./Interaction-and-Navigation.md) - Keyboard navigation, selection logic.
 - [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md) - Command flow, serialization.
