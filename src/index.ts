@@ -1,5 +1,5 @@
 import joplin from 'api';
-import { ContentScriptType, MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, SettingItemType, ToastType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 import { createContentScriptMessageHandler } from './contentScriptBridge/contentScriptMessageHandler';
 import {
@@ -11,8 +11,28 @@ import {
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 const SETTINGS_SECTION = 'richTables';
+const JOPLIN_TABLE_EDITING_SETTING_KEY = 'editor.tableEditing';
+const TABLE_EDITOR_CONFLICT_MESSAGE =
+    "Rich Tables: Joplin's table editor is enabled. To use Rich Tables, disable Joplin's table editor under Joplin settings | Editor tab.";
 
 const INSERT_TABLE_COMMAND = 'richTables.insertTable';
+
+async function warnIfJoplinTableEditorEnabled(): Promise<void> {
+    try {
+        const [tableEditingEnabled] = await joplin.settings.globalValues([JOPLIN_TABLE_EDITING_SETTING_KEY]);
+
+        if (tableEditingEnabled !== true) {
+            return;
+        }
+
+        await joplin.views.dialogs.showToast({
+            message: TABLE_EDITOR_CONFLICT_MESSAGE,
+            type: ToastType.Info,
+        });
+    } catch (error) {
+        logger.warn('Failed to detect Joplin table editor setting', error);
+    }
+}
 
 joplin.plugins.register({
     onStart: async function () {
@@ -58,6 +78,8 @@ joplin.plugins.register({
                 description: 'Display the delete table action in the floating table toolbar.',
             },
         });
+
+        await warnIfJoplinTableEditorEnabled();
 
         await joplin.commands.register({
             name: INSERT_TABLE_COMMAND,
