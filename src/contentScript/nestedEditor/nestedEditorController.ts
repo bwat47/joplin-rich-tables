@@ -14,6 +14,7 @@ import {
     toRootSelection,
     unsanitizeRootText,
 } from '../editorBridge/cellTextCodec';
+import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { ensureCellWrapper } from './mounting';
 import {
@@ -210,6 +211,12 @@ class NestedEditorController {
 
         const rootText = update.state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
         const rootSelection = toRelativeSelection(update.state.selection, resolved.editableFrom, resolved.editableTo);
+        const mainSelection = update.state.selection.main;
+
+        forceRootDomSelection(this.mainView, {
+            anchor: mainSelection.anchor,
+            head: mainSelection.head,
+        });
 
         this.session.root = {
             text: rootText,
