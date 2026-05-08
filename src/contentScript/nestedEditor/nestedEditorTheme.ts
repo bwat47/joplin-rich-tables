@@ -11,26 +11,13 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             backgroundColor: 'transparent',
         },
 
-        // --- Selection conflict overrides ---
-        // The main Joplin CM editor applies `&.cm-focused ::selection { ... }` which
-        // targets ALL descendants, including the nested editor DOM. The nested editor
-        // uses CM's drawSelection(), which paints its own .cm-selectionBackground layer.
-        // If the browser's native ::selection overlay also fires, both paint simultaneously.
-        // Force ::selection to transparent here so the native overlay never wins.
+        // --- Selection rendering ---
+        // CM's drawSelection() paints .cm-selectionBackground; style its color here.
+        // Native ::selection suppression is handled on the root editor in
+        // rootEditorSelectionTheme.ts, which has higher specificity than Joplin's
+        // cascading `&.cm-focused ::selection` rule.
         '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
             backgroundColor: 'var(--rt-nested-selection-bg) !important',
-        },
-        // NOTE: `::selection` must be attached to an element selector.
-        // Joplin applies `&.cm-focused ::selection` on the *main* editor, and the
-        // nested editor lives inside the main editor DOM. Use higher specificity
-        // + !important so the browser's default blue overlay never wins here.
-        '&.cm-editor.cm-focused .cm-content::selection, &.cm-editor.cm-focused .cm-content *::selection': {
-            backgroundColor: 'transparent !important',
-            color: 'inherit !important',
-        },
-        '&.cm-editor .cm-content::selection, &.cm-editor .cm-content *::selection': {
-            backgroundColor: 'transparent !important',
-            color: 'inherit !important',
         },
 
         // --- Joplin/CM environment resets ---

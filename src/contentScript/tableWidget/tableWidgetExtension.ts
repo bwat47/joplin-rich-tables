@@ -36,6 +36,10 @@ import {
 } from '../tableRuntime/interaction/outsideTableInteraction';
 import { createStartupCursorCorrection } from '../tableRuntime/startupCursorCorrection';
 import { tableDecorationField } from './tableDecorationField';
+import {
+    rootEditorActiveCellAttribute,
+    rootEditorSelectionSuppression,
+} from '../nestedEditor/rootEditorSelectionTheme';
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     mousedown: (event, view) => {
@@ -112,6 +116,8 @@ async function registerTableWidgetExtension(
         documentDefinitionsField,
         richTableThemeVars,
         tableStyles,
+        rootEditorActiveCellAttribute,
+        rootEditorSelectionSuppression,
         tableToolbarTheme,
         tableToolbarPlugin,
     ]);
