@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const uslug = require('@joplin/fork-uslug');
+import uslug from '@joplin/fork-uslug';
 
 /**
  * Generate a slug for a heading text, matching Joplin's behavior.
