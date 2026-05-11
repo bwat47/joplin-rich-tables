@@ -35,6 +35,8 @@ function setForwardDomSelection(
  * Mirrors CodeMirror's state selection into the browser DOM selection even when
  * the root editor is blurred. This keeps host editor focus restoration from
  * reconciling against a stale DOM selection after command-driven root edits.
+ * Required since @codemirror/view 6.35.3, which no longer updates the DOM selection
+ * when the editor is unfocused but focusable, see: https://github.com/codemirror/view/commit/c946a84
  */
 export function forceRootDomSelection(view: EditorView, selection: { anchor: number; head: number }): boolean {
     const doc = getViewDocument(view);
