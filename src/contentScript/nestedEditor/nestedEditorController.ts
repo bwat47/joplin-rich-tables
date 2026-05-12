@@ -25,7 +25,6 @@ import {
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
-import { documentDefinitionsField } from '../services/documentDefinitions';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
@@ -247,8 +246,7 @@ class NestedEditorController {
         if (this.contentEl && mainView) {
             const renderer = mainView.state.facet(markdownRenderServiceFacet);
             const cellText = mainView.state.doc.sliceString(contentFrom, contentTo).trim();
-            const definitions = mainView.state.field(documentDefinitionsField);
-            const { displayText, cacheKey } = buildRenderableContent(cellText, definitions.definitionBlock);
+            const { displayText, cacheKey } = buildRenderableContent(cellText);
             const cached = renderer.getCached(cacheKey);
 
             if (cached !== undefined) {

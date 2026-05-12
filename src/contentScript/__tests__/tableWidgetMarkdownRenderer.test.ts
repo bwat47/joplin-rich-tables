@@ -49,7 +49,7 @@ describe('TableWidget markdown rendering', () => {
             requestMeasure: jest.fn(),
         } as unknown as EditorView;
 
-        const widget = new TableWidget(table, cellRanges, tableText, 0, tableText.length, '', 'hash');
+        const widget = new TableWidget(table, cellRanges, tableText, 0, tableText.length, 'hash');
         const dom = widget.toDOM(view);
         document.body.appendChild(dom);
         renderCallbacks[0]?.('<p><strong>rendered</strong></p>');

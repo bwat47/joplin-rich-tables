@@ -9,7 +9,6 @@ import {
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createJoplinBridge } from '../services/joplinBridge';
 import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/linkOpener';
-import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -129,7 +128,6 @@ async function registerTableWidgetExtension(
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
         tableDecorationField,
-        documentDefinitionsField,
         richTableThemeVars,
         tableStyles,
         rootEditorActiveCellAttribute,

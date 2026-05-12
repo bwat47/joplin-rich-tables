@@ -29,7 +29,7 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 ### 2. DOM Reuse (Content Hash)
 
-Each `TableWidget` has `contentHash` (FNV-1a of table text + reference definitions).
+Each `TableWidget` has `contentHash` (FNV-1a of table text).
 
 On `updateDOM()`:
 

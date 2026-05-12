@@ -61,11 +61,9 @@ export class TableWidget extends WidgetType {
         private tableText: string,
         private tableFrom: number,
         private tableTo: number,
-        private definitionBlock: string,
         contentHash: string
     ) {
         super();
-        // Content hash includes definition block so widgets rebuild when definitions change.
         // Hash is pre-computed by the extension to avoid redundant hashing.
         this.contentHash = contentHash;
         this.cellRanges = cellRanges;
@@ -211,7 +209,7 @@ export class TableWidget extends WidgetType {
         doc: Document,
         renderer: MarkdownRenderService
     ): void {
-        const { displayText, cacheKey } = buildRenderableContent(markdown, this.definitionBlock);
+        const { displayText, cacheKey } = buildRenderableContent(markdown);
 
         // Create a wrapper div for the content. This matches the structure ensureCellWrapper()
         // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.

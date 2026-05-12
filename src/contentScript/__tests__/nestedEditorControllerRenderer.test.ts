@@ -2,7 +2,6 @@
 
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, afterEach, jest } from '@jest/globals';
-import { documentDefinitionsField } from '../services/documentDefinitions';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { closeNestedEditor, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
@@ -22,7 +21,6 @@ describe('nestedEditorController markdown rendering', () => {
         };
         let state = createMarkdownState(tableText, [
             activeCellField,
-            documentDefinitionsField,
             markdownRenderServiceFacet.of(renderer),
             nestedEditorPlugin,
         ]);
