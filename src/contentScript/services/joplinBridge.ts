@@ -7,8 +7,8 @@ import type {
 type PostMessageFn = (message: unknown) => Promise<unknown>;
 
 export interface JoplinBridge {
-    renderMarkup(markdown: string, id: string): Promise<RenderMarkupResult | null>;
-    openLink(href: string): Promise<void>;
+    renderMarkup: (markdown: string, id: string) => Promise<RenderMarkupResult | null>;
+    openLink: (href: string) => Promise<void>;
 }
 
 export function createJoplinBridge(postMessage: PostMessageFn): JoplinBridge {

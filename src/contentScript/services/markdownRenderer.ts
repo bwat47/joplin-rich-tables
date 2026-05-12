@@ -55,7 +55,7 @@ export const markdownRenderServiceFacet = Facet.define<MarkdownRenderService, Ma
  */
 class DefaultMarkdownRenderer implements MarkdownRenderService {
     private readonly renderCache = new Map<string, string>();
-    private readonly pendingRequests = new Map<string, { promise?: Promise<string>; generation: number }>();
+    private readonly pendingRequests = new Map<string, { promise?: Promise<string> }>();
     private requestIdCounter = 0;
     private generation = 0;
 
@@ -116,7 +116,7 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
 
         const id = this.generateRequestId();
         const generation = this.generation;
-        const pendingRequest: { promise?: Promise<string>; generation: number } = { generation };
+        const pendingRequest: { promise?: Promise<string> } = {};
         const promise = (async () => {
             try {
                 const result = await this.renderMarkup(markdown, id);
