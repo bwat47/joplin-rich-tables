@@ -24,7 +24,7 @@ Supports syntax highlighting (while editing) and rendering (cells not being edit
 
 - Basic formatting: bold/italic/inline code/strikethrough/highlight(==mark==)/underline(++insert++).
 - Inline HTML (Joplin 3.6 and newer), e.g. `<sup></sup>`.
-- Links (markdown links, autolinks, reference style links).
+- Links (markdown links, autolinks).
 - Footnotes: Note that footnotes support is very basic. Table cells are rendered in isolation, which breaks markdown-it-footnote's footnote numbering, so the plugin just displays the exact footnote label that's defined in the footnote link (e.g. `[^1]`).
 - Embeds (markdown and html image embeds, video embeds when you have joplin's video plugin enabled, youtube links will be rendered as video embed in joplin 3.6.1 or newer).
 - Katex (math) - will be rendered, but not syntax highlighted when editing.
