@@ -1,5 +1,5 @@
 import { WidgetType, EditorView } from '@codemirror/view';
-import { renderer } from '../services/markdownRenderer';
+import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
@@ -118,6 +118,7 @@ export class TableWidget extends WidgetType {
     toDOM(view: EditorView): HTMLElement {
         const doc = getViewDocument(view);
         const ResizeObserverCtor = getViewResizeObserver(view);
+        const renderer = view.state.facet(markdownRenderServiceFacet);
         const container = doc.createElement('div');
         container.className = CLASS_TABLE_WIDGET;
 
@@ -144,7 +145,7 @@ export class TableWidget extends WidgetType {
             th.dataset[DATA_COL] = String(i);
 
             const content = headerCells[i];
-            this.renderCellContent(th, content, doc);
+            this.renderCellContent(th, content, doc, renderer);
 
             const align = alignments[i];
             if (align) {
@@ -168,7 +169,7 @@ export class TableWidget extends WidgetType {
                 td.dataset[DATA_COL] = String(c);
 
                 const content = row[c];
-                this.renderCellContent(td, content, doc);
+                this.renderCellContent(td, content, doc, renderer);
 
                 const align = alignments[c];
                 if (align) {
@@ -204,7 +205,12 @@ export class TableWidget extends WidgetType {
      * Render cell content with markdown support
      * Uses cached HTML if available, otherwise shows text and updates async
      */
-    private renderCellContent(cell: HTMLElement, markdown: string, doc: Document): void {
+    private renderCellContent(
+        cell: HTMLElement,
+        markdown: string,
+        doc: Document,
+        renderer: MarkdownRenderService
+    ): void {
         const { displayText, cacheKey } = buildRenderableContent(markdown, this.definitionBlock);
 
         // Create a wrapper div for the content. This matches the structure ensureCellWrapper()

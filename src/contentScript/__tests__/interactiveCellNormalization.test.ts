@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { EditorState, type TransactionSpec } from '@codemirror/state';
+import { EditorState, type Extension, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
@@ -8,6 +8,7 @@ import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '..
 import { sourceModeField } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
+import { linkOpenerFacet } from '../services/linkOpener';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
@@ -55,7 +56,7 @@ function findBeginOpenRequest(spec: TransactionSpec) {
     return effects.find((effect) => effect?.is?.(beginOpenCellRequestEffect)) ?? null;
 }
 
-function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): {
+function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell; extensions?: Extension[] }): {
     view: EditorView;
     cells: {
         header0: HTMLElement;
@@ -69,6 +70,7 @@ function createViewHarness(params?: { doc?: string; activeCell?: ActiveCell }): 
         cellSelectionField,
         sourceModeField,
         openCellRequestField,
+        ...(params?.extensions ?? []),
     ]);
     if (params?.activeCell) {
         currentState = currentState.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
@@ -209,6 +211,44 @@ describe('interactive cell normalization', () => {
             row: 0,
             col: 0,
         });
+    });
+
+    it('opens external rendered links through the link opener facet', () => {
+        const open = jest.fn();
+        const { view } = createViewHarness({
+            extensions: [
+                linkOpenerFacet.of({
+                    open,
+                }),
+            ],
+        });
+        const widget = {};
+        const link = {
+            getAttribute: jest.fn((name: string) => (name === 'href' ? 'https://example.com' : null)),
+        };
+        const target = {
+            closest: jest.fn((selector: string) => {
+                if (selector === 'a') {
+                    return link;
+                }
+                if (selector.includes('cm-table-widget')) {
+                    return widget;
+                }
+                return null;
+            }),
+        };
+        const event = {
+            type: 'click',
+            button: 0,
+            target,
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+        } as unknown as MouseEvent;
+
+        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(open).toHaveBeenCalledWith('https://example.com');
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(event.stopPropagation).toHaveBeenCalled();
     });
 
     it('normalizes on cursor activation before opening the nested editor', () => {

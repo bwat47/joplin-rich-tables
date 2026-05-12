@@ -1,4 +1,6 @@
+import { Facet } from '@codemirror/state';
 import { logger } from '../../logger';
+import { escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { sanitizeHtml } from './htmlSanitizer';
 import { postProcessHtml } from './htmlPostProcessor';
 
@@ -7,13 +9,13 @@ import { postProcessHtml } from './htmlPostProcessor';
  * to render markdown content using Joplin's renderMarkup command.
  */
 
-type PostMessageFn = (message: unknown) => Promise<unknown>;
-
-interface RenderResult {
+export interface RenderMarkupResult {
     id: string;
     html: string;
     error?: boolean;
 }
+
+export type RenderMarkupFn = (markdown: string, id: string) => Promise<RenderMarkupResult | null>;
 
 /**
  * Interface for markdown rendering service.
@@ -28,130 +30,127 @@ export interface MarkdownRenderService {
 // Cache for rendered markdown to avoid redundant rendering.
 // Limited to MAX_CACHE_SIZE entries with FIFO eviction to prevent unbounded memory growth.
 const MAX_CACHE_SIZE = 500;
-const renderCache = new Map<string, string>();
-
-function setCacheEntry(key: string, value: string): void {
-    if (renderCache.size >= MAX_CACHE_SIZE) {
-        // Delete oldest entry (Map maintains insertion order)
-        const firstKey = renderCache.keys().next().value;
-        if (firstKey !== undefined) {
-            renderCache.delete(firstKey);
-        }
-    }
-    renderCache.set(key, value);
-}
-
-// Pending render requests to avoid duplicate requests
-const pendingRequests = new Map<string, Promise<string>>();
-
-let postMessageFn: PostMessageFn | null = null;
-let requestIdCounter = 0;
 
 /**
- * Initialize the renderer with the postMessage function from content script context
+ * Default renderer used only when the extension wiring has not installed a real service.
+ * It returns escaped fallback HTML so callers can safely assign the result to innerHTML.
  */
-export function initRenderer(postMessage: PostMessageFn): void {
-    postMessageFn = postMessage;
-}
+const fallbackMarkdownRenderer: MarkdownRenderService = {
+    renderAsync(text, callback) {
+        logger.warn('Markdown renderer service missing, returning escaped markdown');
+        callback(escapeHtmlPreservingBr(text));
+    },
+    getCached() {
+        return undefined;
+    },
+    clear() {
+        // No-op fallback.
+    },
+};
 
 /**
- * Generate a unique request ID
+ * Facet that exposes the extension-owned markdown renderer to widgets and runtime code.
  */
-function generateRequestId(): string {
-    return `render-${++requestIdCounter}-${Date.now()}`;
-}
+export const markdownRenderServiceFacet = Facet.define<MarkdownRenderService, MarkdownRenderService>({
+    combine: (values) => values[0] ?? fallbackMarkdownRenderer,
+});
 
 /**
- * Render markdown to HTML asynchronously
- * Returns cached result if available, otherwise sends request to main plugin
- */
-async function renderMarkdown(markdown: string): Promise<string> {
-    // Return cached result if available
-    const cached = renderCache.get(markdown);
-    if (cached !== undefined) {
-        return cached;
-    }
-
-    // Return pending request if one exists for this markdown
-    const pending = pendingRequests.get(markdown);
-    if (pending) {
-        return pending;
-    }
-
-    if (!postMessageFn) {
-        logger.warn('Renderer not initialized, returning raw markdown');
-        return markdown;
-    }
-
-    // Create new render request
-    const id = generateRequestId();
-    const promise = (async () => {
-        try {
-            const result = (await postMessageFn({
-                type: 'renderMarkup',
-                markdown,
-                id,
-            })) as RenderResult | null;
-
-            if (result?.html) {
-                // Clean pipeline: sanitize → post-process
-                const html = postProcessHtml(sanitizeHtml(result.html));
-                setCacheEntry(markdown, html);
-                return html;
-            }
-
-            // Fallback to raw markdown if rendering failed
-            return markdown;
-        } catch (error) {
-            logger.error('Failed to render markdown:', error);
-            return markdown;
-        } finally {
-            pendingRequests.delete(markdown);
-        }
-    })();
-
-    pendingRequests.set(markdown, promise);
-    return promise;
-}
-
-/**
- * Default renderer implementation using internal cache and postMessage.
+ * Default renderer implementation using instance-local cache and render transport.
  */
 class DefaultMarkdownRenderer implements MarkdownRenderService {
+    private readonly renderCache = new Map<string, string>();
+    private readonly pendingRequests = new Map<string, { promise?: Promise<string>; generation: number }>();
+    private requestIdCounter = 0;
+    private generation = 0;
+
+    constructor(private readonly renderMarkup: RenderMarkupFn) {}
+
     renderAsync(text: string, callback: (html: string) => void): void {
-        const cached = renderCache.get(text);
+        const cached = this.renderCache.get(text);
         if (cached !== undefined) {
             callback(cached);
             return;
         }
-        renderMarkdown(text).then(callback);
+        this.renderMarkdown(text).then(callback);
     }
 
     getCached(text: string): string | undefined {
-        return renderCache.get(text);
+        return this.renderCache.get(text);
     }
 
     clear(): void {
-        renderCache.clear();
+        this.renderCache.clear();
+        this.pendingRequests.clear();
+        this.generation++;
+    }
+
+    private setCacheEntry(key: string, value: string): void {
+        if (this.renderCache.size >= MAX_CACHE_SIZE) {
+            // Delete oldest entry (Map maintains insertion order)
+            const firstKey = this.renderCache.keys().next().value;
+            if (firstKey !== undefined) {
+                this.renderCache.delete(firstKey);
+            }
+        }
+        this.renderCache.set(key, value);
+    }
+
+    /**
+     * Generate a unique request ID.
+     */
+    private generateRequestId(): string {
+        return `render-${++this.requestIdCounter}-${Date.now()}`;
+    }
+
+    /**
+     * Render markdown to HTML asynchronously.
+     * Returns cached result if available, otherwise sends request to main plugin.
+     */
+    private async renderMarkdown(markdown: string): Promise<string> {
+        const cached = this.renderCache.get(markdown);
+        if (cached !== undefined) {
+            return cached;
+        }
+
+        const pending = this.pendingRequests.get(markdown);
+        if (pending?.promise) {
+            return pending.promise;
+        }
+
+        const id = this.generateRequestId();
+        const generation = this.generation;
+        const pendingRequest: { promise?: Promise<string>; generation: number } = { generation };
+        const promise = (async () => {
+            try {
+                const result = await this.renderMarkup(markdown, id);
+
+                if (result && !result.error && typeof result.html === 'string') {
+                    // Clean pipeline: sanitize -> post-process
+                    const html = postProcessHtml(sanitizeHtml(result.html));
+                    if (this.generation === generation && this.pendingRequests.get(markdown) === pendingRequest) {
+                        this.setCacheEntry(markdown, html);
+                    }
+                    return html;
+                }
+
+                return escapeHtmlPreservingBr(markdown);
+            } catch (error) {
+                logger.error('Failed to render markdown:', error);
+                return escapeHtmlPreservingBr(markdown);
+            } finally {
+                if (this.pendingRequests.get(markdown) === pendingRequest) {
+                    this.pendingRequests.delete(markdown);
+                }
+            }
+        })();
+
+        pendingRequest.promise = promise;
+        this.pendingRequests.set(markdown, pendingRequest);
+        return promise;
     }
 }
 
-export const renderer: MarkdownRenderService = new DefaultMarkdownRenderer();
-
-/**
- * Open a link using Joplin's openItem command
- * Handles both internal Joplin links and external URLs
- */
-export function openLink(href: string): void {
-    if (!postMessageFn) {
-        logger.warn('Renderer not initialized, cannot open link');
-        return;
-    }
-
-    postMessageFn({
-        type: 'openLink',
-        href,
-    }).catch((error) => {
-        logger.error('Failed to open link:', error);
-    });
+export function createMarkdownRenderer(renderMarkup: RenderMarkupFn): MarkdownRenderService {
+    return new DefaultMarkdownRenderer(renderMarkup);
 }

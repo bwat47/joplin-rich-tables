@@ -4,7 +4,7 @@ import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '..
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
-import { openLink } from '../services/markdownRenderer';
+import { linkOpenerFacet } from '../services/linkOpener';
 import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -167,7 +167,7 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
                     return true;
                 }
 
-                openLink(href);
+                view.state.facet(linkOpenerFacet).open(href);
                 return true;
             }
         }
