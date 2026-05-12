@@ -6,7 +6,6 @@ import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import { documentDefinitionsField } from '../services/documentDefinitions';
 import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -22,13 +21,7 @@ describe('nested editor navigation', () => {
 
         const mainView = new EditorView({
             parent,
-            extensions: [
-                markdownExtension,
-                activeCellField,
-                resolvedActiveCellField,
-                documentDefinitionsField,
-                nestedEditorPlugin,
-            ],
+            extensions: [markdownExtension, activeCellField, resolvedActiveCellField, nestedEditorPlugin],
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 

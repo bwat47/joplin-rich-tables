@@ -63,33 +63,17 @@ export function escapeLeadingBlockMarkers(text: string): string {
 export interface RenderableContent {
     /** Unescaped cell text for raw display (fallback while rendering) */
     displayText: string;
-    /** Content with definitions appended, used for rendering and cache key */
+    /** Normalized content used for rendering and cache lookup */
     cacheKey: string;
 }
 
 /**
- * Check if text looks like a reference link definition.
- * Pattern: [label]: URL (with optional title)
- */
-function looksLikeDefinition(text: string): boolean {
-    return /^\s*\[[^\]]+\]:\s*\S/.test(text);
-}
-
-/**
  * Builds the content strings used for rendering and cache lookup.
- * Unescapes pipes and appends the definition block for reference link support.
- * Empty cells return empty string for both (no definition block appended).
- *
- * Definition block is NOT appended if:
- * - The cell content itself looks like a reference definition (causes rendering issues)
- * - The cell content has no brackets (can't contain reference links, improves cache stability)
+ * Unescapes pipes and escapes leading block markers for isolated cell rendering.
  */
-export function buildRenderableContent(cellText: string, definitionBlock: string): RenderableContent {
+export function buildRenderableContent(cellText: string): RenderableContent {
     const displayText = escapeLeadingBlockMarkers(unescapePipesForRendering(cellText));
-    const hasLinkSyntax = displayText.includes('[');
-    const shouldAppendDefinitions =
-        hasLinkSyntax && displayText && definitionBlock && !looksLikeDefinition(displayText);
-    const cacheKey = shouldAppendDefinitions ? `${displayText}\n\n${definitionBlock}` : displayText;
+    const cacheKey = displayText;
 
     return { displayText, cacheKey };
 }

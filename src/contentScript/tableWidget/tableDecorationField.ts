@@ -1,7 +1,6 @@
 import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { documentDefinitionsField } from '../services/documentDefinitions';
 import { hashTableText } from '../shared/hashUtils';
 import { buildTableContext } from '../tableModel/tableContext';
 import { findTableRanges } from '../tableRuntime/tableResolution';
@@ -15,7 +14,6 @@ import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 function buildTableDecorations(state: EditorState): DecorationSet {
     const decorations = new RangeSetBuilder<Decoration>();
     const tables = findTableRanges(state);
-    const definitions = state.field(documentDefinitionsField);
 
     for (const table of tables) {
         // RangeSetBuilder requires ranges in ascending document order.
@@ -24,18 +22,9 @@ function buildTableDecorations(state: EditorState): DecorationSet {
             continue;
         }
 
-        // Content hash includes definition block so widgets rebuild when definitions change.
-        const contentHash = hashTableText(table.text + definitions.definitionBlock);
+        const contentHash = hashTableText(table.text);
 
-        const widget = new TableWidget(
-            ctx.table,
-            ctx.cellRanges,
-            table.text,
-            table.from,
-            table.to,
-            definitions.definitionBlock,
-            contentHash
-        );
+        const widget = new TableWidget(ctx.table, ctx.cellRanges, table.text, table.from, table.to, contentHash);
         const decoration = Decoration.replace({
             widget,
             block: true,

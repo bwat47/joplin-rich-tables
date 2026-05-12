@@ -41,8 +41,20 @@ describe('escapeLeadingBlockMarkers', () => {
 
 describe('buildRenderableContent', () => {
     it('escapes leading block markers in displayText', () => {
-        const result = buildRenderableContent('# Heading', '');
+        const result = buildRenderableContent('# Heading');
         expect(result.displayText).toBe('\\# Heading');
+    });
+
+    it('uses the normalized display text as the cache key for reference-looking links', () => {
+        const result = buildRenderableContent('[ref]');
+        expect(result.displayText).toBe('[ref]');
+        expect(result.cacheKey).toBe(result.displayText);
+    });
+
+    it('unescapes pipes for display and cache lookup', () => {
+        const result = buildRenderableContent('a \\| b');
+        expect(result.displayText).toBe('a | b');
+        expect(result.cacheKey).toBe('a | b');
     });
 });
 

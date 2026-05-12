@@ -15,7 +15,7 @@ Important rendering requirements include:
 - images, math, and other renderer-supported rich content
 - behavior that follows Joplin renderer changes instead of diverging into a plugin-specific Markdown dialect
 
-Cells are rendered as isolated fragments, while some Markdown features expect document context. Reference-style links need definitions that may live elsewhere in the note. Footnotes are also document-scoped because numbering is based on the full render context.
+Cells are rendered as isolated fragments, while some Markdown features expect document context. Reference-style links can depend on definitions elsewhere in the note. Footnotes are also document-scoped because numbering is based on the full render context.
 
 ## Decision
 
@@ -31,7 +31,7 @@ Rendering is optimized around the cell display model:
 - Identical in-flight render requests are de-duplicated.
 - The active cell is edited through a nested CodeMirror editor; `renderMarkup` is used for display, not as the editing model.
 
-Reference-style links are handled by injecting document-level link definitions into the render payload only when a cell might need them. Footnotes are not handled through definition injection because isolated cell rendering breaks global footnote numbering and can render footnote definitions inside cells; they are handled during HTML post-processing instead.
+Document-scoped reference-style links are intentionally unsupported in table cells; cells render only their own normalized Markdown payload. Footnotes are handled during HTML post-processing because isolated cell rendering breaks global footnote numbering and can render footnote definitions inside cells.
 
 ## Consequences
 
@@ -47,9 +47,8 @@ Reference-style links are handled by injecting document-level link definitions i
 
 - Rendering is asynchronous because content scripts must call into the main plugin process.
 - Cell-level fragment rendering is not identical to full-document rendering.
-- Document-scoped features need explicit handling, and some behavior remains approximate.
+- Document-scoped features remain approximate; reference-style links whose definitions live outside the cell are not resolved.
 - Sanitization and post-processing are mandatory because renderer HTML is inserted into editor DOM (and to avoid breaking table cell layout, e.g. large elements like images).
-- Cache invalidation must account for document context such as reference definitions.
 
 ## Alternatives Considered
 

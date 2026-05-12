@@ -27,17 +27,10 @@ Cells are stored inside a GFM table row, so `|` must be escaped (`\|`) to avoid 
 `buildRenderableContent()` (`src/contentScript/shared/cellContentUtils.ts`):
 
 - Unescapes pipes for display/rendering (`\|` → `|`).
-- Optionally appends the document-level link definition block (below) to the render payload.
-- Skips definition injection when the cell itself looks like a reference definition (`[label]: url`), to avoid rendering issues and unstable caching.
+- Escapes leading block markers so isolated cells render as inline content instead of headings, lists, or blockquotes.
+- Uses the normalized cell text as both the render payload and cache key.
 
-## Document Context
-
-`documentDefinitionsField` (`src/contentScript/services/documentDefinitions.ts`) tracks reference link definitions for the whole document:
-
-- Extracts `LinkReference` nodes from the syntax tree.
-- Builds a Markdown `definitionBlock` that is appended to cell Markdown before rendering when needed.
-
-Footnotes are not injected into render payloads. They are handled during post-processing because isolated cell renders cannot preserve document-wide footnote numbering.
+Cells are rendered as isolated Markdown fragments. Document-scoped reference-style links are not resolved from definitions elsewhere in the note. Footnotes are handled during post-processing because isolated cell renders cannot preserve document-wide footnote numbering.
 
 ## Sanitization + Post-processing
 
