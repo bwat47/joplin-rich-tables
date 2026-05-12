@@ -1,10 +1,14 @@
 import { EditorView } from '@codemirror/view';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
-import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
+import {
+    createMarkdownRenderer,
+    markdownRenderServiceFacet,
+    type MarkdownRenderService,
+} from '../services/markdownRenderer';
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { createJoplinBridge, createLinkOpener } from '../services/joplinBridge';
-import { linkOpenerFacet } from '../services/linkOpener';
+import { createJoplinBridge } from '../services/joplinBridge';
+import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/linkOpener';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
@@ -76,8 +80,8 @@ async function registerTableWidgetExtension(
     editorControl: CodeMirrorControl,
     context: ContentScriptContext,
     services: {
-        markdownRenderer: ReturnType<typeof createMarkdownRenderer>;
-        linkOpener: ReturnType<typeof createLinkOpener>;
+        markdownRenderer: MarkdownRenderService;
+        linkOpener: LinkOpener;
     }
 ): Promise<void> {
     logger.info('Registering table widget extension');

@@ -80,6 +80,7 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
     }
 
     clear(): void {
+        // In-flight requests still resolve for existing callbacks, but their results are not cached.
         this.renderCache.clear();
         this.pendingRequests.clear();
         this.generation++;

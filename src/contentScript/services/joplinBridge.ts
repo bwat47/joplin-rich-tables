@@ -1,4 +1,3 @@
-import { logger } from '../../logger';
 import type { OpenLinkMessage, RenderMarkupMessage } from '../../contentScriptBridge/contentScriptMessages';
 import type { RenderMarkupResult } from './markdownRenderer';
 
@@ -28,20 +27,6 @@ export function createJoplinBridge(postMessage: PostMessageFn): JoplinBridge {
             };
 
             await postMessage(message);
-        },
-    };
-}
-
-export interface LinkOpener {
-    open(href: string): void;
-}
-
-export function createLinkOpener(openLink: (href: string) => Promise<void>): LinkOpener {
-    return {
-        open(href) {
-            openLink(href).catch((error) => {
-                logger.error('Failed to open link:', error);
-            });
         },
     };
 }

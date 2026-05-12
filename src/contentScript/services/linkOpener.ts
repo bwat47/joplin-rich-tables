@@ -1,6 +1,19 @@
 import { Facet } from '@codemirror/state';
 import { logger } from '../../logger';
-import type { LinkOpener } from './joplinBridge';
+
+export interface LinkOpener {
+    open(href: string): void;
+}
+
+export function createLinkOpener(openLink: (href: string) => Promise<void>): LinkOpener {
+    return {
+        open(href) {
+            openLink(href).catch((error) => {
+                logger.error('Failed to open link:', error);
+            });
+        },
+    };
+}
 
 const fallbackLinkOpener: LinkOpener = {
     open(href) {
@@ -11,5 +24,3 @@ const fallbackLinkOpener: LinkOpener = {
 export const linkOpenerFacet = Facet.define<LinkOpener, LinkOpener>({
     combine: (values) => values[0] ?? fallbackLinkOpener,
 });
-
-export type { LinkOpener };
