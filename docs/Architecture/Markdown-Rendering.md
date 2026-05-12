@@ -4,11 +4,13 @@ Table cells render Markdown through Joplin's `renderMarkup` command. The decisio
 
 ## Rendering Service
 
-`MarkdownRenderService` (`src/contentScript/services/markdownRenderer.ts`) renders Markdown to HTML via the main plugin:
+`MarkdownRenderService` (`src/contentScript/services/markdownRenderer.ts`) renders Markdown to HTML via an extension-owned Joplin bridge:
 
 - Content script calls `postMessage({ type: 'renderMarkup', markdown, id })`.
 - Main plugin executes Joplin’s `renderMarkup` and returns HTML.
 - The content script runs `sanitizeHtml()` → `postProcessHtml()` before using the HTML.
+
+The renderer is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
 
 ### Cache + De-dupe
 
@@ -50,4 +52,4 @@ Footnotes are not injected into render payloads. They are handled during post-pr
 
 ## Opening Links
 
-`openLink()` (`src/contentScript/services/markdownRenderer.ts`) forwards link opens to the main plugin (`postMessage({ type: 'openLink', href })`) so both internal Joplin links and external URLs resolve correctly.
+Link opening is a separate service exposed through `linkOpenerFacet`. It forwards link opens to the main plugin (`postMessage({ type: 'openLink', href })`) so both internal Joplin links and external URLs resolve correctly.

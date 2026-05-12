@@ -1,8 +1,14 @@
 import { EditorView } from '@codemirror/view';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
-import { initRenderer } from '../services/markdownRenderer';
+import {
+    createMarkdownRenderer,
+    markdownRenderServiceFacet,
+    type MarkdownRenderService,
+} from '../services/markdownRenderer';
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { createJoplinBridge } from '../services/joplinBridge';
+import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/linkOpener';
 import { documentDefinitionsField } from '../services/documentDefinitions';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
@@ -56,19 +62,27 @@ const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
 export default function (context: ContentScriptContext) {
     logger.info('Content script loaded');
 
-    // Initialize the markdown renderer with postMessage function
-    initRenderer(context.postMessage);
+    const joplinBridge = createJoplinBridge(context.postMessage);
+    const markdownRenderer = createMarkdownRenderer(joplinBridge.renderMarkup);
+    const linkOpener = createLinkOpener(joplinBridge.openLink);
 
     return {
         plugin: (editorControl: CodeMirrorControl) => {
-            void registerTableWidgetExtension(editorControl, context);
+            void registerTableWidgetExtension(editorControl, context, {
+                markdownRenderer,
+                linkOpener,
+            });
         },
     };
 }
 
 async function registerTableWidgetExtension(
     editorControl: CodeMirrorControl,
-    context: ContentScriptContext
+    context: ContentScriptContext,
+    services: {
+        markdownRenderer: MarkdownRenderService;
+        linkOpener: LinkOpener;
+    }
 ): Promise<void> {
     logger.info('Registering table widget extension');
 
@@ -86,6 +100,8 @@ async function registerTableWidgetExtension(
 
     editorControl.addExtension([
         hostEditorConfigFacet.of(hostEditorConfig),
+        markdownRenderServiceFacet.of(services.markdownRenderer),
+        linkOpenerFacet.of(services.linkOpener),
 
         // Close nested editor on note switch (detected via noteIdFacet)
         createNoteIdWatcher(noteIdFacet, () => cm6View),
