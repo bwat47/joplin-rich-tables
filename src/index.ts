@@ -126,7 +126,7 @@ joplin.plugins.register({
         const TOGGLE_SOURCE_MODE_COMMAND = 'richTables.toggleSourceMode';
         await joplin.commands.register({
             name: TOGGLE_SOURCE_MODE_COMMAND,
-            label: 'Toggle table source mode',
+            label: 'Rich Tables - Toggle table source mode',
             iconName: 'fas fa-file-code',
             execute: async () => {
                 await joplin.commands.execute('editor.execCommand', {
