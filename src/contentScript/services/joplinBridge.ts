@@ -1,5 +1,8 @@
-import type { OpenLinkMessage, RenderMarkupMessage } from '../../contentScriptBridge/contentScriptMessages';
-import type { RenderMarkupResult } from './markdownRenderer';
+import type {
+    OpenLinkMessage,
+    RenderMarkupMessage,
+    RenderMarkupResult,
+} from '../../contentScriptBridge/contentScriptMessages';
 
 type PostMessageFn = (message: unknown) => Promise<unknown>;
 

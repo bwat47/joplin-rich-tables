@@ -1,7 +1,8 @@
 /** @jest-environment jsdom */
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { createMarkdownRenderer, type RenderMarkupFn, type RenderMarkupResult } from '../services/markdownRenderer';
+import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
+import { createMarkdownRenderer, type RenderMarkupFn } from '../services/markdownRenderer';
 
 jest.mock('../../logger', () => ({
     logger: {

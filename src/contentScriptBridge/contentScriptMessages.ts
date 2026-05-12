@@ -6,6 +6,12 @@ export interface RenderMarkupMessage {
     id: string;
 }
 
+export interface RenderMarkupResult {
+    id: string;
+    html: string;
+    error?: boolean;
+}
+
 export interface OpenLinkMessage {
     type: 'openLink';
     href: string;

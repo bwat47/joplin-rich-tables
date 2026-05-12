@@ -1,5 +1,6 @@
 import { Facet } from '@codemirror/state';
 import { logger } from '../../logger';
+import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
 import { escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { sanitizeHtml } from './htmlSanitizer';
 import { postProcessHtml } from './htmlPostProcessor';
@@ -8,12 +9,6 @@ import { postProcessHtml } from './htmlPostProcessor';
  * Markdown rendering service that communicates with the main plugin
  * to render markdown content using Joplin's renderMarkup command.
  */
-
-export interface RenderMarkupResult {
-    id: string;
-    html: string;
-    error?: boolean;
-}
 
 export type RenderMarkupFn = (markdown: string, id: string) => Promise<RenderMarkupResult | null>;
 
