@@ -40,9 +40,10 @@ describe('escapeLeadingBlockMarkers', () => {
 });
 
 describe('buildRenderableContent', () => {
-    it('escapes leading block markers in displayText', () => {
+    it('keeps fallback display text unescaped while escaping the render cache key', () => {
         const result = buildRenderableContent('# Heading');
-        expect(result.displayText).toBe('\\# Heading');
+        expect(result.displayText).toBe('# Heading');
+        expect(result.cacheKey).toBe('\\# Heading');
     });
 
     it('uses the normalized display text as the cache key for reference-looking links', () => {

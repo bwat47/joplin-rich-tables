@@ -69,11 +69,11 @@ export interface RenderableContent {
 
 /**
  * Builds the content strings used for rendering and cache lookup.
- * Unescapes pipes and escapes leading block markers for isolated cell rendering.
+ * Unescapes pipes for display, then escapes leading block markers for isolated cell rendering.
  */
 export function buildRenderableContent(cellText: string): RenderableContent {
-    const displayText = escapeLeadingBlockMarkers(unescapePipesForRendering(cellText));
-    const cacheKey = displayText;
+    const displayText = unescapePipesForRendering(cellText);
+    const cacheKey = escapeLeadingBlockMarkers(displayText);
 
     return { displayText, cacheKey };
 }
