@@ -253,7 +253,7 @@ class NestedEditorController {
                 this.contentEl.innerHTML = cached;
             } else {
                 this.contentEl.innerHTML = escapeHtmlPreservingBr(displayText);
-                if (containsMarkdown(displayText)) {
+                if (containsMarkdown(cacheKey)) {
                     const contentEl = this.contentEl;
                     renderer.renderAsync(cacheKey, (html) => {
                         if (contentEl.isConnected) {
