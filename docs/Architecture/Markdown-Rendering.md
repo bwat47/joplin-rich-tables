@@ -26,9 +26,8 @@ Cells are stored inside a GFM table row, so `|` must be escaped (`\|`) to avoid 
 
 `buildRenderableContent()` (`src/contentScript/shared/cellContentUtils.ts`):
 
-- Unescapes pipes for display/rendering (`\|` → `|`).
-- Escapes leading block markers so isolated cells render as inline content instead of headings, lists, or blockquotes.
-- Uses the normalized cell text as both the render payload and cache key.
+- Unescapes pipes (`\|` → `|`) to produce `displayText`, used as the plain-text fallback.
+- Escapes leading block markers on `displayText` to produce `cacheKey`, the render payload and cache key, so isolated cells render as inline content instead of headings, lists, or blockquotes.
 
 Cells are rendered as isolated Markdown fragments. Document-scoped reference-style links are not resolved from definitions elsewhere in the note. Footnotes are handled during post-processing because isolated cell renders cannot preserve document-wide footnote numbering.
 

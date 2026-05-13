@@ -26,7 +26,7 @@ The content script sends Markdown render requests to the main plugin process, wh
 Rendering is optimized around the cell display model:
 
 - Plain cells render synchronously as escaped HTML.
-- Cells that look like Markdown render escaped fallback text first, then asynchronously upgrade to `renderMarkup` HTML.
+- Cells that look like Markdown render unescaped fallback text first, then asynchronously upgrade to `renderMarkup` HTML.
 - Rendered HTML is cached by the normalized render payload.
 - Identical in-flight render requests are de-duplicated.
 - The active cell is edited through a nested CodeMirror editor; `renderMarkup` is used for display, not as the editing model.
