@@ -21,7 +21,23 @@ function hasNonWhitespace(text: string): boolean {
     return text.trim().length > 0;
 }
 
-function buildRootTableInsertRewrite(
+function computeLeadingNewlines(beforeText: string): number {
+    if (!hasNonWhitespace(beforeText)) return 0;
+    const existingBlanks = countTrailingBlankLinesBeforeBoundary(beforeText);
+    if (existingBlanks >= REQUIRED_TABLE_BOUNDARY_BLANK_LINES) return 0;
+    const endsWithNewline = beforeText.endsWith('\n');
+    return (endsWithNewline ? 0 : 1) + (REQUIRED_TABLE_BOUNDARY_BLANK_LINES - existingBlanks);
+}
+
+function computeTrailingNewlines(afterText: string): number {
+    if (!hasNonWhitespace(afterText)) return 0;
+    const existingBlanks = countLeadingBlankLinesAfterBoundary(afterText);
+    if (existingBlanks >= REQUIRED_TABLE_BOUNDARY_BLANK_LINES) return 0;
+    const startsWithNewline = afterText.startsWith('\n');
+    return (startsWithNewline ? 0 : 1) + (REQUIRED_TABLE_BOUNDARY_BLANK_LINES - existingBlanks);
+}
+
+export function buildRootTableInsertRewrite(
     state: EditorState,
     replaceFrom: number,
     replaceTo: number,
@@ -30,18 +46,13 @@ function buildRootTableInsertRewrite(
     const beforeText = state.doc.sliceString(0, replaceFrom);
     const afterText = state.doc.sliceString(replaceTo);
     const insertsIntoEmptyDocument = state.doc.length === 0;
-    const needsLeadingSeparator =
-        insertsIntoEmptyDocument ||
-        (hasNonWhitespace(beforeText) &&
-            countTrailingBlankLinesBeforeBoundary(beforeText) < REQUIRED_TABLE_BOUNDARY_BLANK_LINES);
     const insertsAtDocumentEnd = replaceTo === state.doc.length && state.doc.length > 0;
-    const needsTrailingSeparator =
-        insertsIntoEmptyDocument ||
-        insertsAtDocumentEnd ||
-        (hasNonWhitespace(afterText) &&
-            countLeadingBlankLinesAfterBoundary(afterText) < REQUIRED_TABLE_BOUNDARY_BLANK_LINES);
-    const prefix = needsLeadingSeparator ? '\n' : '';
-    const suffix = needsTrailingSeparator ? '\n' : '';
+
+    const prefix = insertsIntoEmptyDocument ? '\n' : '\n'.repeat(computeLeadingNewlines(beforeText));
+    const suffix =
+        insertsIntoEmptyDocument || insertsAtDocumentEnd
+            ? '\n'
+            : '\n'.repeat(computeTrailingNewlines(afterText));
     const insert = prefix + tableText + suffix;
     const tableFrom = replaceFrom + prefix.length;
 

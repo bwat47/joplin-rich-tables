@@ -2,10 +2,10 @@ import { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { activateTableCell } from '../activeCell/cellActivation';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
-import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
+import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
+import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 
 export type CommandColumnAlignment = TableAlignment;
 export type RowInsertOpenOptions = StructuralReopenOptions;
@@ -69,25 +69,19 @@ export function insertRowAtBottom(
 
 export function insertTableAndActivate(view: EditorView): boolean {
     const cursorPos = view.state.selection.main.head;
-    const rewrite = buildIsolatedRootTableInsertRewrite(
-        view.state,
-        cursorPos,
-        cursorPos,
-        DEFAULT_INSERTED_TABLE_MARKDOWN
-    ) ?? {
-        changes: {
-            from: cursorPos,
-            to: cursorPos,
-            insert: `\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n`,
-        },
-        tableFrom: cursorPos + 1,
-    };
+    const rewrite = buildRootTableInsertRewrite(view.state, cursorPos, cursorPos, DEFAULT_INSERTED_TABLE_MARKDOWN);
 
     view.dispatch({
         changes: rewrite.changes,
         selection: { anchor: rewrite.tableFrom + DEFAULT_INSERTED_TABLE_SELECTION_OFFSET },
+        effects: [
+            activateInsertedTableEffect.of({
+                tableFrom: rewrite.tableFrom,
+                target: { section: 'header', row: 0, col: 0 },
+            }),
+        ],
+        scrollIntoView: false,
     });
 
-    activateTableCell(view, rewrite.tableFrom, { section: 'header', row: 0, col: 0 });
     return true;
 }

@@ -6,4 +6,10 @@ export interface InsertedTableActivationRequest {
     target: CellCoords;
 }
 
-export const activateInsertedTableEffect = StateEffect.define<InsertedTableActivationRequest>();
+export const activateInsertedTableEffect = StateEffect.define<InsertedTableActivationRequest>({
+    map(value, changes) {
+        const tableFrom = changes.mapPos(value.tableFrom, 1);
+        if (!Number.isFinite(tableFrom) || tableFrom < 0) return undefined;
+        return { ...value, tableFrom };
+    },
+});
