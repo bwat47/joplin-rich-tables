@@ -10,8 +10,12 @@ function clampPosition(view: EditorView, pos: number): number {
     return Math.max(0, Math.min(view.state.doc.length, pos));
 }
 
-function getDomSelectionEndpoint(view: EditorView, pos: number, side: -1 | 1): DomSelectionEndpoint {
-    return view.domAtPos(clampPosition(view, pos), side);
+function getDomSelectionEndpoint(view: EditorView, pos: number, side: -1 | 1): DomSelectionEndpoint | null {
+    try {
+        return view.domAtPos(clampPosition(view, pos), side);
+    } catch {
+        return null;
+    }
 }
 
 function isSelectionEndpointInView(view: EditorView, endpoint: DomSelectionEndpoint): boolean {
@@ -48,6 +52,9 @@ export function forceRootDomSelection(view: EditorView, selection: { anchor: num
     const forward = selection.anchor <= selection.head;
     const anchor = getDomSelectionEndpoint(view, selection.anchor, forward ? -1 : 1);
     const head = getDomSelectionEndpoint(view, selection.head, forward ? 1 : -1);
+    if (!anchor || !head) {
+        return false;
+    }
     if (!isSelectionEndpointInView(view, anchor) || !isSelectionEndpointInView(view, head)) {
         return false;
     }
