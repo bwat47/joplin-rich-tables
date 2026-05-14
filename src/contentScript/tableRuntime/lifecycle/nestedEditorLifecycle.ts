@@ -6,7 +6,11 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../../tableState/activeCellState';
-import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
+import {
+    activateInsertedTableEffect,
+    clearInsertedTableActivationEffect,
+    getPendingInsertedTableActivation,
+} from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -197,15 +201,18 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private scheduleInsertedTableActivation(update: ViewUpdate): void {
-            const activationRequest = getInsertedTableActivationRequest(update);
-            if (!activationRequest) {
+            if (!getInsertedTableActivationRequest(update)) {
                 return;
             }
 
             requestViewAnimationFrame(this.view, () => {
                 if (!this.view.dom.isConnected) return;
 
+                const activationRequest = getPendingInsertedTableActivation(this.view.state);
+                if (!activationRequest) return;
+
                 activateTableCell(this.view, activationRequest.tableFrom, activationRequest.target);
+                this.view.dispatch({ effects: clearInsertedTableActivationEffect.of(undefined) });
             });
         }
 

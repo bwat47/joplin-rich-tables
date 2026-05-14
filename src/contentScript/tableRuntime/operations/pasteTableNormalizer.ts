@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
 import { MarkdownTable } from '../../tableModel/MarkdownTable';
-import { buildIsolatedRootTableInsertRewrite } from './rootTableInsertRewrite';
+import { buildIsolatedRootTableInsertRewrite, buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 
 export interface RootTablePasteRewrite {
     changes: {
@@ -62,10 +62,9 @@ export function buildRootTablePasteRewrite(
         return null;
     }
     const canonicalTableText = table.serialize();
-    const rewrite = buildIsolatedRootTableInsertRewrite(state, from, to, canonicalTableText);
-    if (!rewrite) {
-        return null;
-    }
+    const rewrite =
+        buildIsolatedRootTableInsertRewrite(state, from, to, canonicalTableText) ??
+        buildRootTableInsertRewrite(state, from, to, canonicalTableText);
 
     return {
         ...rewrite,

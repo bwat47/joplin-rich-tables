@@ -85,22 +85,35 @@ describe('pasteTableNormalizer', () => {
             expect(nextDoc).toBe(['before', '', ...CANONICAL_TABLE.split('\n'), ''].join('\n'));
         });
 
-        it('rejects paste when caret is mid-line inside text', () => {
+        it('adds canonical spacing when pasting a table mid-line inside text', () => {
             const doc = 'before after';
             const state = createMarkdownState(doc);
+            const insertionPos = doc.indexOf(' ');
+            const rewrite = buildRootTablePasteRewrite(state, insertionPos, insertionPos, NON_CANONICAL_TABLE);
 
-            expect(
-                buildRootTablePasteRewrite(state, doc.indexOf(' '), doc.indexOf(' '), NON_CANONICAL_TABLE)
-            ).toBeNull();
+            expect(rewrite).toEqual({
+                changes: {
+                    from: insertionPos,
+                    to: insertionPos,
+                    insert: `\n\n${CANONICAL_TABLE}\n\n`,
+                },
+                selectionAnchor: insertionPos + 2,
+                tableFrom: insertionPos + 2,
+            });
         });
 
-        it('rejects paste when the touched boundary line keeps non-whitespace content', () => {
+        it('adds canonical spacing when replacing whitespace after line content', () => {
             const doc = ['before', 'abc   ', 'after'].join('\n');
             const state = createMarkdownState(doc);
             const from = doc.indexOf('   ');
             const to = from + 3;
+            const rewrite = buildRootTablePasteRewrite(state, from, to, NON_CANONICAL_TABLE);
 
-            expect(buildRootTablePasteRewrite(state, from, to, NON_CANONICAL_TABLE)).toBeNull();
+            expect(rewrite).not.toBeNull();
+            const nextDoc = state.update({ changes: rewrite!.changes }).state.doc.toString();
+
+            expect(nextDoc).toBe(['before', 'abc', '', ...CANONICAL_TABLE.split('\n'), '', 'after'].join('\n'));
+            expect(rewrite?.tableFrom).toBe(from + 2);
         });
 
         it('returns an absolute table start in the post-change document', () => {

@@ -6,7 +6,11 @@ import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
-import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
+import {
+    activateInsertedTableEffect,
+    getPendingInsertedTableActivation,
+    insertedTableActivationField,
+} from '../tableState/insertedTableActivation';
 import {
     activeCellField,
     clearActiveCellEffect,
@@ -137,6 +141,7 @@ describe('nestedEditorLifecycle', () => {
                     markdown({ extensions: [GFM] }),
                     activeCellField,
                     openCellRequestField,
+                    insertedTableActivationField,
                     searchForceSourceModeField,
                     sourceModeField,
                     hostEditorConfigFacet.of(TEST_HOST_CONFIG),
@@ -158,6 +163,49 @@ describe('nestedEditorLifecycle', () => {
             row: 0,
             col: 0,
         });
+
+        view.destroy();
+    });
+
+    it('uses the mapped pending inserted-table activation when text shifts before the scheduled frame', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+
+        const doc = ['before', '', CANONICAL_DOC].join('\n');
+        const tableFrom = 'before\n\n'.length;
+        const insertedText = 'top\n';
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    activeCellField,
+                    openCellRequestField,
+                    insertedTableActivationField,
+                    searchForceSourceModeField,
+                    sourceModeField,
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                    nestedEditorLifecyclePlugin,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            effects: activateInsertedTableEffect.of({
+                tableFrom,
+                target: { section: 'header', row: 0, col: 0 },
+            }),
+        });
+        view.dispatch({ changes: { from: 0, to: 0, insert: insertedText } });
+        flushAnimationFrames();
+
+        expect(activateTableCellMock).toHaveBeenCalledWith(view, tableFrom + insertedText.length, {
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+        expect(getPendingInsertedTableActivation(view.state)).toBeNull();
 
         view.destroy();
     });
