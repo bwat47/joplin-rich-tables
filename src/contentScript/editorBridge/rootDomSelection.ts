@@ -1,5 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { getViewDocument } from '../shared/domContext';
+import { logger } from '../../logger';
 
 interface DomSelectionEndpoint {
     node: Node;
@@ -13,7 +14,8 @@ function clampPosition(view: EditorView, pos: number): number {
 function getDomSelectionEndpoint(view: EditorView, pos: number, side: -1 | 1): DomSelectionEndpoint | null {
     try {
         return view.domAtPos(clampPosition(view, pos), side);
-    } catch {
+    } catch (e) {
+        logger.debug('domAtPos threw resolving position', pos, e);
         return null;
     }
 }

@@ -23,6 +23,7 @@ import { makeTableId } from '../tableModel/types';
 
 class ResizeObserverMock {
     observe(): void {}
+    unobserve(): void {}
     disconnect(): void {}
 }
 
