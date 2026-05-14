@@ -53,16 +53,16 @@ function ensureCursorVisible(view: EditorView): void {
     view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
 }
 
-function getInsertedTableActivationRequest(update: ViewUpdate) {
+function hasInsertedTableActivationEffect(update: ViewUpdate): boolean {
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
             if (effect.is(activateInsertedTableEffect)) {
-                return effect.value;
+                return true;
             }
         }
     }
 
-    return null;
+    return false;
 }
 
 function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell | null): ActiveCell | null {
@@ -201,7 +201,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private scheduleInsertedTableActivation(update: ViewUpdate): void {
-            if (!getInsertedTableActivationRequest(update)) {
+            if (!hasInsertedTableActivationEffect(update)) {
                 return;
             }
 

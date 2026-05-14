@@ -39,6 +39,8 @@ export const insertedTableActivationField = StateField.define<InsertedTableActiv
     update(value, tr) {
         let nextValue = value;
 
+        // Map only the already-pending request. New activation effects carry
+        // post-change positions from their originating transaction.
         if (tr.docChanged && nextValue) {
             nextValue = mapInsertedTableActivation(nextValue, tr.changes);
         }
