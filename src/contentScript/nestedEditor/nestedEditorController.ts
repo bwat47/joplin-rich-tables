@@ -241,10 +241,11 @@ class NestedEditorController {
             this.cellElement.classList.remove(CLASS_CELL_ACTIVE);
         }
 
-        const { contentFrom, contentTo } = this.resolveCellRangeForClose(params, session, mainView);
+        const cellRange = this.resolveCellRangeForClose(params, session, mainView);
 
-        if (this.contentEl && mainView) {
+        if (this.contentEl && mainView && cellRange) {
             const renderer = mainView.state.facet(markdownRenderServiceFacet);
+            const { contentFrom, contentTo } = cellRange;
             const cellText = mainView.state.doc.sliceString(contentFrom, contentTo).trim();
             const { displayText, cacheKey } = buildRenderableContent(cellText);
             const cached = renderer.getCached(cacheKey);
@@ -287,7 +288,7 @@ class NestedEditorController {
         params: { contentFrom?: number; contentTo?: number } | undefined,
         session: NestedEditorSession | null,
         mainView: EditorView | null
-    ): { contentFrom: number; contentTo: number } {
+    ): { contentFrom: number; contentTo: number } | null {
         if (params?.contentFrom != null && params?.contentTo != null) {
             return { contentFrom: params.contentFrom, contentTo: params.contentTo };
         }
@@ -299,10 +300,7 @@ class NestedEditorController {
             }
         }
 
-        return {
-            contentFrom: session?.resolvedCell.contentFrom ?? 0,
-            contentTo: session?.resolvedCell.contentTo ?? 0,
-        };
+        return null;
     }
 
     isOpen(): boolean {
