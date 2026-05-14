@@ -50,9 +50,7 @@ export function buildRootTableInsertRewrite(
 
     const prefix = insertsIntoEmptyDocument ? '\n' : '\n'.repeat(computeLeadingNewlines(beforeText));
     const suffix =
-        insertsIntoEmptyDocument || insertsAtDocumentEnd
-            ? '\n'
-            : '\n'.repeat(computeTrailingNewlines(afterText));
+        insertsIntoEmptyDocument || insertsAtDocumentEnd ? '\n' : '\n'.repeat(computeTrailingNewlines(afterText));
     const insert = prefix + tableText + suffix;
     const tableFrom = replaceFrom + prefix.length;
 

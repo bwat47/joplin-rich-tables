@@ -72,9 +72,7 @@ describe('insertTableAndActivate', () => {
 
         insertTableAndActivate(view);
 
-        expect(view.state.doc.toString()).toBe(
-            `before\n\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n\n after`
-        );
+        expect(view.state.doc.toString()).toBe(`before\n\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n\n after`);
         expect(view.state.selection.main.head).toBe(10);
 
         const activationEffect = getActivateInsertedTableEffect(view);
