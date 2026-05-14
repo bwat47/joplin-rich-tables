@@ -15,6 +15,7 @@ import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActi
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
+import { insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
@@ -114,6 +115,7 @@ async function registerTableWidgetExtension(
         activeCellField,
         resolvedActiveCellField,
         openCellRequestField,
+        insertedTableActivationField,
         cellSelectionField,
         createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
         openCellRequestKeymap,

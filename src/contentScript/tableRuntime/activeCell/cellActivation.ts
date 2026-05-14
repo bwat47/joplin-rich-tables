@@ -11,7 +11,6 @@ import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
-import { requestViewAnimationFrame } from '../../shared/domContext';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -125,36 +124,34 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
 /**
  * Activates a specific cell by table position and coordinates.
- * Waits for widget mount via requestAnimationFrame before activating.
- * Used after table insertion to activate the first cell.
+ * Callers that depend on newly mounted widgets should schedule this after the
+ * relevant DOM update has had a chance to render.
  */
 export function activateTableCell(
     view: EditorView,
     tableFrom: number,
     coords: { section: 'header' | 'body'; row: number; col: number }
 ): void {
-    requestViewAnimationFrame(view, () => {
-        if (!view.dom.isConnected) return;
+    if (!view.dom.isConnected) return;
 
-        // Don't activate cells in source mode (no widgets exist)
-        if (isSourceModeEnabled(view.state)) return;
+    // Don't activate cells in source mode (no widgets exist)
+    if (isSourceModeEnabled(view.state)) return;
 
-        const table = resolveTableAtPos(view.state, tableFrom);
-        if (!table) return;
+    const table = resolveTableAtPos(view.state, tableFrom);
+    if (!table) return;
 
-        const ctx = buildTableContext(table);
-        if (!ctx) return;
+    const ctx = buildTableContext(table);
+    if (!ctx) return;
 
-        const resolvedCell = createResolvedActiveCell({
-            ctx,
-            coords,
-        });
+    const resolvedCell = createResolvedActiveCell({
+        ctx,
+        coords,
+    });
 
-        if (!resolvedCell) return;
+    if (!resolvedCell) return;
 
-        requestOpenCell(view, {
-            target: { resolvedCell },
-            normalizeIfNeeded: true,
-        });
+    requestOpenCell(view, {
+        target: { resolvedCell },
+        normalizeIfNeeded: true,
     });
 }

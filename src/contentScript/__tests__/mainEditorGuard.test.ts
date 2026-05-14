@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
+import { activateInsertedTableEffect, insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
@@ -15,6 +15,7 @@ function createState(params: { doc: string; nestedOpen: boolean }) {
         cellSelectionField,
         searchForceSourceModeField,
         sourceModeField,
+        insertedTableActivationField,
         createMainEditorActiveCellGuard(() => params.nestedOpen),
     ]);
 }
@@ -282,7 +283,7 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
     });
 
-    it('leaves mid-line table paste unchanged in the plain root editor', () => {
+    it('rewrites mid-line table paste with canonical spacing and activation effect', () => {
         const doc = 'before after';
         const state = createState({ doc, nestedOpen: false });
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
@@ -293,8 +294,11 @@ describe('createMainEditorActiveCellGuard', () => {
             userEvent: 'input.paste',
         });
 
-        expect(tr.state.doc.toString()).toBe(`before${pasteText} after`);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+        expect(tr.state.doc.toString()).toBe(
+            `before\n\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n\n after`
+        );
+        expect(tr.state.selection.main.head).toBe(pastePos + 2);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
     });
 
     it('leaves table paste unchanged in source mode', () => {
