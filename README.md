@@ -1,5 +1,5 @@
 > [!note]
-> This plugin was created entirely with AI tools, and I may be limited in my ability to fix any issues.
+> This plugin was created entirely with AI tools.
 
 > [!note]
 > Joplin 3.7 (pre-release) now includes a basic table editor which can be enabled/disabled under Joplin Settings | Editor tab. Rich Tables will only work when the built-in table editor is disabled.
@@ -23,7 +23,7 @@ Table rendering includes rendering of inline markdown and image embeds.
 
 #### Markdown Rendering
 
-Supports syntax highlighting (while editing) and rendering (cells not being edited) most markdown syntax supported by Joplin:
+Supports syntax highlighting (while editing a cell) and rendering (cells not being edited) most markdown syntax supported by Joplin:
 
 - Basic formatting: bold/italic/inline code/strikethrough/highlight(==mark==)/underline(++insert++).
 - Inline HTML (Joplin 3.6 and newer), e.g. `<sup></sup>`.
@@ -45,6 +45,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Moving columns (left/right)
 - Changing column alignment (left/center/right)
 - Clear table
+- Delete table
 - Select multiple table cells and cut/copy/paste/clear/delete (desktop only).
 
 > [!note]
@@ -53,17 +54,34 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 
 ### Formatting commands
 
-The cell editor syncs cursor position/selection with the main editor, so Joplin's native formatting toolbar buttons/shortcuts work while editing tables (Bold Text, Italic Text, Inline Code, Insert Link).
+The cell editor updates the table cell text in realtime, and syncs cursor position/ selection with the main editor, so Joplin's native formatting toolbar buttons/shortcuts work while editing tables (Bold Text, Italic Text, Inline Code, Insert Link).
+
+Editor commands provided by plugins also work (as long as they don't touch content outside of the table cell being edited).
 
 ### Undo/Redo
 
-Properly supports undo/redo while editing tables (integrated with main editor's undo/redo history).
+Fully supports undo/redo while editing tables (using the main editor's Undo/Redo history).
 
 ### Search integration
 
 Table markdown is revealed while joplin search panel is active. When closing the search panel (and if current search result selection is inside a table), closing search will activate that table cell with the current search result selected.
 
-### Keyboard Shortcuts
+### Interaction
+
+The table editor provides a Context-aware toolbar with table manipulation controls. The toolbar will appear above/below the table being edited (automatically repositioning as needed). If the top/bottom of the table isn't visible, the toolbar will be pinned to the top/bottom of the visible viewport.
+
+### Keyboard
+
+General keyboard controls for navigation/editing:
+
+- **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
+- **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
+- **Enter Key:** Moves to next row, or creates new row on last row.
+- **Shift + Enter:** Insert `<br>` (line break).
+- **Shift + Click:** Select multiple table cells.
+- **Shift + Arrow:** Select multiple table cells.
+
+All table editing commands can be assigned keyboard shortcuts, the defaults are below:
 
 | Action                       | Shortcut                       |
 | :--------------------------- | :----------------------------- |
@@ -79,13 +97,6 @@ Table markdown is revealed while joplin search panel is active. When closing the
 | **Align Left/Center/Right**  | `Alt + Shift + Q` / `W` / `E`  |
 | **Source Mode**              | `Ctrl + Shift + /`             |
 
-- **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
-- **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
-- **Enter Key:** Moves to next row, or creates new row on last row.
-- **Shift + Enter:** Insert `<br>` (line break).
-- **Shift + Click:** Select multiple table cells.
-- **Shift + Arrow:** Select multiple table cells.
-
 ### Settings
 
 - Show move row/column buttons
@@ -97,8 +108,9 @@ Table markdown is revealed while joplin search panel is active. When closing the
 - Show alignment buttons
     - Display align left, center, and right actions in the floating table toolbar.
 
-### Important Notes/Limitations
+### Limitations
 
 - The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
 - Multi-cell selection is keyboard only.
+- Does not support pretty formatting (full padding) for markdown tables. The plugin enforces a minimal format (one space padding around table cell content, similar to the output of the rich text editor). This is an architectural limitation to support the realtime sync between the cell editor and the main editor (allowing joplin's formatting commands to work smoothly).

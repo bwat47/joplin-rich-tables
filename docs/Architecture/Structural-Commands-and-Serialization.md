@@ -54,13 +54,13 @@ Selection removal is resolved in this order:
 When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `editorBridge/mainEditorGuard.ts`
 has two `input.paste` upgrade paths:
 
-- With a nested editor open, it upgrades valid markdown table fragments into the same multi-cell table rewrite before the normal single-cell sanitation path can flatten the fragment into text.
+- With a nested editor open, if the pasted text is a valid markdown table fragment it is intercepted and routed through `buildMultiCellPasteRewrite` (using the active cell as the anchor) — the same path as Ctrl+V in selection mode. Without this interception the guard's normal sanitization path would treat the fragment as plain text and paste it into the single active cell.
 - With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and schedule activation of header cell `(0,0)`.
 
-The explicit "insert table" command reuses the same isolated root-table insertion rewrite for block-boundary
-insertions, so paste and command creation share the same blank-line separation rules. Mid-line command
-insertion still falls back to the legacy direct insert path because the paste rewrite intentionally does not
-define paragraph-splitting behavior.
+The explicit "insert table" command always uses `buildRootTableInsertRewrite` directly, regardless of cursor
+position — it handles blank-line padding for both block-boundary and mid-line cases. The paste normalizer
+tries `buildIsolatedRootTableInsertRewrite` first (returns null if the cursor is not at a block boundary) and
+falls back to `buildRootTableInsertRewrite`, so both paths share the same blank-line separation rules.
 
 ### 2. Runtime Mutation Helpers (`tableRuntime/operations/runStructuralMutation.ts`)
 
