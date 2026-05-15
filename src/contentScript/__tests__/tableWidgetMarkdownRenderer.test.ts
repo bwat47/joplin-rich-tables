@@ -7,22 +7,11 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { TableWidget } from '../tableWidget/TableWidget';
+import { deferred } from './testUtils';
 
 class ResizeObserverMock {
     observe = jest.fn();
     disconnect = jest.fn();
-}
-
-function deferred<T>(): {
-    promise: Promise<T>;
-    resolve: (value: T) => void;
-} {
-    let resolve!: (value: T) => void;
-    const promise = new Promise<T>((promiseResolve) => {
-        resolve = promiseResolve;
-    });
-
-    return { promise, resolve };
 }
 
 describe('TableWidget markdown rendering', () => {

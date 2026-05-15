@@ -3,6 +3,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
 import { createMarkdownRenderer, type RenderMarkupFn } from '../services/markdownRenderer';
+import { deferred } from './testUtils';
 
 jest.mock('../../logger', () => ({
     logger: {
@@ -11,21 +12,6 @@ jest.mock('../../logger', () => ({
         warn: jest.fn(),
     },
 }));
-
-function deferred<T>(): {
-    promise: Promise<T>;
-    resolve: (value: T) => void;
-    reject: (reason?: unknown) => void;
-} {
-    let resolve!: (value: T) => void;
-    let reject!: (reason?: unknown) => void;
-    const promise = new Promise<T>((promiseResolve, promiseReject) => {
-        resolve = promiseResolve;
-        reject = promiseReject;
-    });
-
-    return { promise, resolve, reject };
-}
 
 describe('createMarkdownRenderer', () => {
     it('sanitizes, post-processes, and caches rendered HTML', async () => {
