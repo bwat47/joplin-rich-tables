@@ -19,6 +19,7 @@ import {
 import { estimateTableHeight } from './tableHeightEstimation';
 import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { getViewDocument, getViewWindow } from '../shared/domContext';
+import { logger } from '../../logger';
 
 /** Associates widget DOM elements with their EditorView for cleanup during destroy. */
 const widgetViews = new WeakMap<HTMLElement, EditorView>();
@@ -230,13 +231,18 @@ export class TableWidget extends WidgetType {
         // Check if content likely contains markdown (optimization)
         if (containsMarkdown(cacheKey)) {
             // Request async rendering and update when ready
-            void renderer.render(cacheKey).then((html) => {
-                // Only update if the wrapper is still in the DOM.
-                // Note: Height re-measurement is handled automatically by ResizeObserver.
-                if (contentWrapper.isConnected) {
-                    contentWrapper.innerHTML = html;
-                }
-            });
+            void renderer
+                .render(cacheKey)
+                .then((html) => {
+                    // Only update if the wrapper is still in the DOM.
+                    // Note: Height re-measurement is handled automatically by ResizeObserver.
+                    if (contentWrapper.isConnected) {
+                        contentWrapper.innerHTML = html;
+                    }
+                })
+                .catch((error) => {
+                    logger.error('Failed to render table cell markdown:', error);
+                });
         }
     }
 

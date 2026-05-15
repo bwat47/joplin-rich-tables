@@ -29,6 +29,7 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
+import { logger } from '../../logger';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
@@ -256,11 +257,16 @@ class NestedEditorController {
                 this.contentEl.innerHTML = escapeHtmlPreservingBr(displayText);
                 if (containsMarkdown(cacheKey)) {
                     const contentEl = this.contentEl;
-                    void renderer.render(cacheKey).then((html) => {
-                        if (contentEl.isConnected) {
-                            contentEl.innerHTML = html;
-                        }
-                    });
+                    void renderer
+                        .render(cacheKey)
+                        .then((html) => {
+                            if (contentEl.isConnected) {
+                                contentEl.innerHTML = html;
+                            }
+                        })
+                        .catch((error) => {
+                            logger.error('Failed to render nested editor markdown:', error);
+                        });
                 }
             }
         }
