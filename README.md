@@ -1,6 +1,9 @@
 > [!note]
 > This plugin was created entirely with AI tools, and I may be limited in my ability to fix any issues.
 
+> [!note]
+> Joplin 3.7 (pre-release) now includes a basic table editor which can be enabled/disabled under Joplin Settings | Editor tab. Rich Tables will only work when the built-in table editor is disabled.
+
 # Rich Tables
 
 A Joplin plugin to provide table rendering & table editing in the Markdown editor.
