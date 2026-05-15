@@ -114,7 +114,6 @@ export function containsMarkdown(text: string): boolean {
         text.includes('\\') || // Escaped Text
         text.includes('mailto:') || // Mailto links
         text.includes('http') || // bare links
-        text.includes('#') || // Headings
         hasMathDelimiterPair // KaTeX inline/display math delimiters ($...$ / $$...$$)
     );
 }
