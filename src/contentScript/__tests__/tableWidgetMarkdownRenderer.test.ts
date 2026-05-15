@@ -7,6 +7,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { TableWidget } from '../tableWidget/TableWidget';
+import { deferred } from './testUtils';
 
 class ResizeObserverMock {
     observe = jest.fn();
@@ -24,8 +25,8 @@ describe('TableWidget markdown rendering', () => {
         window.ResizeObserver = originalResizeObserver;
     });
 
-    it('uses the markdown renderer supplied by the editor state facet', () => {
-        const renderCallbacks: Array<(html: string) => void> = [];
+    it('uses the markdown renderer supplied by the editor state facet', async () => {
+        const rendered = deferred<string>();
         const tableText = ['| H1 |', '| --- |', '| **body** |'].join('\n');
         const table = MarkdownTable.parse(tableText);
         const cellRanges = computeMarkdownTableCellRanges(tableText);
@@ -35,9 +36,7 @@ describe('TableWidget markdown rendering', () => {
 
         const renderer: MarkdownRenderService = {
             getCached: jest.fn(() => undefined),
-            renderAsync: jest.fn((_text: string, callback: (html: string) => void) => {
-                renderCallbacks.push(callback);
-            }),
+            render: jest.fn(() => rendered.promise),
             clear: jest.fn(),
         };
         const state = EditorState.create({
@@ -52,9 +51,13 @@ describe('TableWidget markdown rendering', () => {
         const widget = new TableWidget(table, cellRanges, tableText, 0, tableText.length, 'hash');
         const dom = widget.toDOM(view);
         document.body.appendChild(dom);
-        renderCallbacks[0]?.('<p><strong>rendered</strong></p>');
+        rendered.resolve('<p><strong>rendered</strong></p>');
+        await rendered.promise;
+        // The widget attaches its DOM update in a .then() on the same promise.
+        // Let that chained microtask run before asserting the rendered HTML.
+        await Promise.resolve();
 
-        expect(renderer.renderAsync).toHaveBeenCalledWith('**body**', expect.any(Function));
+        expect(renderer.render).toHaveBeenCalledWith('**body**');
         expect(dom.querySelector('tbody td div')?.innerHTML).toBe('<p><strong>rendered</strong></p>');
         dom.remove();
     });

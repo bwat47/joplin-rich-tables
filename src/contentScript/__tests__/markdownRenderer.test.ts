@@ -3,6 +3,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
 import { createMarkdownRenderer, type RenderMarkupFn } from '../services/markdownRenderer';
+import { deferred } from './testUtils';
 
 jest.mock('../../logger', () => ({
     logger: {
@@ -12,27 +13,6 @@ jest.mock('../../logger', () => ({
     },
 }));
 
-function deferred<T>(): {
-    promise: Promise<T>;
-    resolve: (value: T) => void;
-    reject: (reason?: unknown) => void;
-} {
-    let resolve!: (value: T) => void;
-    let reject!: (reason?: unknown) => void;
-    const promise = new Promise<T>((promiseResolve, promiseReject) => {
-        resolve = promiseResolve;
-        reject = promiseReject;
-    });
-
-    return { promise, resolve, reject };
-}
-
-function render(renderer: ReturnType<typeof createMarkdownRenderer>, markdown: string): Promise<string> {
-    return new Promise((resolve) => {
-        renderer.renderAsync(markdown, resolve);
-    });
-}
-
 describe('createMarkdownRenderer', () => {
     it('sanitizes, post-processes, and caches rendered HTML', async () => {
         const renderMarkup = jest.fn<RenderMarkupFn>(async (_markdown, id) => ({
@@ -41,8 +21,8 @@ describe('createMarkdownRenderer', () => {
         }));
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        const first = await render(renderer, '**ok**');
-        const second = await render(renderer, '**ok**');
+        const first = await renderer.render('**ok**');
+        const second = await renderer.render('**ok**');
 
         expect(first).toContain('<strong>ok</strong>');
         expect(first).not.toContain('joplin-source');
@@ -56,8 +36,8 @@ describe('createMarkdownRenderer', () => {
         const renderMarkup = jest.fn<RenderMarkupFn>(() => pending.promise);
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        const first = render(renderer, '`x`');
-        const second = render(renderer, '`x`');
+        const first = renderer.render('`x`');
+        const second = renderer.render('`x`');
         pending.resolve({ id: 'render-1', html: '<p><code>x</code></p>' });
 
         await expect(first).resolves.toContain('<code>x</code>');
@@ -73,7 +53,7 @@ describe('createMarkdownRenderer', () => {
         const renderer = createMarkdownRenderer(renderMarkup);
 
         for (let index = 0; index < 501; index++) {
-            await render(renderer, `value-${index}`);
+            await renderer.render(`value-${index}`);
         }
 
         expect(renderer.getCached('value-0')).toBeUndefined();
@@ -88,8 +68,8 @@ describe('createMarkdownRenderer', () => {
             .mockResolvedValueOnce({ id: 'render-2', html: '<img src=x onerror=alert(1)>', error: true });
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        await expect(render(renderer, '<b>unsafe</b>')).resolves.toBe('&lt;b&gt;unsafe&lt;/b&gt;');
-        await expect(render(renderer, '<i>bad</i>')).resolves.toBe('&lt;i&gt;bad&lt;/i&gt;');
+        await expect(renderer.render('<b>unsafe</b>')).resolves.toBe('&lt;b&gt;unsafe&lt;/b&gt;');
+        await expect(renderer.render('<i>bad</i>')).resolves.toBe('&lt;i&gt;bad&lt;/i&gt;');
     });
 
     it('clear removes cached entries and pending request state', async () => {
@@ -101,9 +81,9 @@ describe('createMarkdownRenderer', () => {
             .mockReturnValueOnce(second.promise);
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        const staleRender = render(renderer, '**x**');
+        const staleRender = renderer.render('**x**');
         renderer.clear();
-        const currentRender = render(renderer, '**x**');
+        const currentRender = renderer.render('**x**');
 
         first.resolve({ id: 'render-1', html: '<p>stale</p>' });
         second.resolve({ id: 'render-2', html: '<p>current</p>' });
