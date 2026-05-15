@@ -54,7 +54,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 
 ### Formatting commands
 
-The cell editor updates the table cell text in realtime, and syncs cursor position/ selection with the main editor, so Joplin's native formatting toolbar buttons/shortcuts work while editing tables (Bold Text, Italic Text, Inline Code, Insert Link).
+The cell editor updates the table cell text in realtime, and syncs cursor position/selection with the main editor, so Joplin's native formatting toolbar buttons/shortcuts work while editing tables (Bold Text, Italic Text, Inline Code, Insert Link).
 
 Editor commands provided by plugins also work (as long as they don't touch content outside of the table cell being edited).
 
@@ -70,7 +70,7 @@ Table markdown is revealed while joplin search panel is active. When closing the
 
 The table editor provides a Context-aware toolbar with table manipulation controls. The toolbar will appear above/below the table being edited (automatically repositioning as needed). If the top/bottom of the table isn't visible, the toolbar will be pinned to the top/bottom of the visible viewport.
 
-### Keyboard
+#### Keyboard
 
 General keyboard controls for navigation/editing:
 
