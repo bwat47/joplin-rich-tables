@@ -16,7 +16,7 @@ describe('nestedEditorController markdown rendering', () => {
         const tableText = ['| H1 |', '| --- |', '| **body** |'].join('\n');
         const renderer: MarkdownRenderService = {
             getCached: jest.fn(() => '<p><strong>cached</strong></p>'),
-            renderAsync: jest.fn(),
+            render: jest.fn(async () => ''),
             clear: jest.fn(),
         };
         let state = createMarkdownState(tableText, [
@@ -71,7 +71,7 @@ describe('nestedEditorController markdown rendering', () => {
         const doc = `${intro}${insertedTableWithSpacing}${middle}${tableText}`;
         const renderer: MarkdownRenderService = {
             getCached: jest.fn(() => undefined),
-            renderAsync: jest.fn(),
+            render: jest.fn(async () => ''),
             clear: jest.fn(),
         };
         let state = createMarkdownState(doc, [

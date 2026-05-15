@@ -17,7 +17,7 @@ export type RenderMarkupFn = (markdown: string, id: string) => Promise<RenderMar
  * Allows decoupling widgets/editors from the specific caching/rendering implementation.
  */
 export interface MarkdownRenderService {
-    renderAsync(text: string, callback: (html: string) => void): void;
+    render(text: string): Promise<string>;
     getCached(text: string): string | undefined;
     clear(): void;
 }
@@ -31,9 +31,9 @@ const MAX_CACHE_SIZE = 500;
  * It returns escaped fallback HTML so callers can safely assign the result to innerHTML.
  */
 const fallbackMarkdownRenderer: MarkdownRenderService = {
-    renderAsync(text, callback) {
+    render(text) {
         logger.warn('Markdown renderer service missing, returning escaped markdown');
-        callback(escapeHtmlPreservingBr(text));
+        return Promise.resolve(escapeHtmlPreservingBr(text));
     },
     getCached() {
         return undefined;
@@ -61,21 +61,12 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
 
     constructor(private readonly renderMarkup: RenderMarkupFn) {}
 
-    renderAsync(text: string, callback: (html: string) => void): void {
-        const cached = this.renderCache.get(text);
-        if (cached !== undefined) {
-            callback(cached);
-            return;
-        }
-        this.renderMarkdown(text).then(callback);
-    }
-
     getCached(text: string): string | undefined {
         return this.renderCache.get(text);
     }
 
     clear(): void {
-        // In-flight requests still resolve for existing callbacks, but their results are not cached.
+        // In-flight requests still resolve for existing callers, but their results are not cached.
         this.renderCache.clear();
         this.pendingRequests.clear();
         this.generation++;
@@ -103,7 +94,7 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
      * Render markdown to HTML asynchronously.
      * Returns cached result if available, otherwise sends request to main plugin.
      */
-    private async renderMarkdown(markdown: string): Promise<string> {
+    async render(markdown: string): Promise<string> {
         const cached = this.renderCache.get(markdown);
         if (cached !== undefined) {
             return cached;

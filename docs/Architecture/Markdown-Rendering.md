@@ -10,7 +10,7 @@ Table cells render Markdown through Joplin's `renderMarkup` command. The decisio
 - Main plugin executes Joplin’s `renderMarkup` and returns HTML.
 - The content script runs `sanitizeHtml()` → `postProcessHtml()` before using the HTML.
 
-The renderer is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
+The renderer exposes `render(text): Promise<string>` plus cache helpers. It is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
 
 ### Cache + De-dupe
 

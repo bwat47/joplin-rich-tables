@@ -230,7 +230,7 @@ export class TableWidget extends WidgetType {
         // Check if content likely contains markdown (optimization)
         if (containsMarkdown(cacheKey)) {
             // Request async rendering and update when ready
-            renderer.renderAsync(cacheKey, (html) => {
+            void renderer.render(cacheKey).then((html) => {
                 // Only update if the wrapper is still in the DOM.
                 // Note: Height re-measurement is handled automatically by ResizeObserver.
                 if (contentWrapper.isConnected) {
