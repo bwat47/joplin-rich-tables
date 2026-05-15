@@ -53,6 +53,8 @@ describe('TableWidget markdown rendering', () => {
         document.body.appendChild(dom);
         rendered.resolve('<p><strong>rendered</strong></p>');
         await rendered.promise;
+        // The widget attaches its DOM update in a .then() on the same promise.
+        // Let that chained microtask run before asserting the rendered HTML.
         await Promise.resolve();
 
         expect(renderer.render).toHaveBeenCalledWith('**body**');
