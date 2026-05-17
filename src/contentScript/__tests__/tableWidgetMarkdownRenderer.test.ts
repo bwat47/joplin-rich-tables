@@ -58,4 +58,42 @@ describe('TableWidget markdown rendering', () => {
         expect(dom.querySelector('tbody td div')?.innerHTML).toBe('<p><strong>rendered</strong></p>');
         dom.remove();
     });
+
+    it('resolves coordinates from widget-relative positions when the table starts after document offset 0', () => {
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| body 1 | body 2 |'].join('\n');
+        const table = MarkdownTable.parse(tableText);
+        const cellRanges = computeMarkdownTableCellRanges(tableText);
+        if (!table || !cellRanges) {
+            throw new Error('Expected test table to parse');
+        }
+
+        const state = EditorState.create({
+            extensions: [
+                markdownRenderServiceFacet.of({
+                    getCached: jest.fn(() => ''),
+                    renderAsync: jest.fn(),
+                    clear: jest.fn(),
+                }),
+            ],
+        });
+        const view = {
+            state,
+            dom: document.createElement('div'),
+            requestMeasure: jest.fn(),
+        } as unknown as EditorView;
+
+        const tableFrom = 50;
+        const widget = new TableWidget(table, cellRanges, tableText, tableFrom, tableFrom + tableText.length, 'hash');
+        const dom = widget.toDOM(view);
+        const targetCell = dom.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
+        if (!targetCell) {
+            throw new Error('Expected second body cell to render');
+        }
+
+        const rect = { top: 10, bottom: 20, left: 30, right: 40 } as DOMRect;
+        jest.spyOn(targetCell, 'getBoundingClientRect').mockReturnValue(rect);
+
+        expect(widget.coordsAt(dom, cellRanges.rows[0][1].from, 1)).toBe(rect);
+        expect(widget.coordsAt(dom, tableFrom + cellRanges.rows[0][1].from, 1)).toBeNull();
+    });
 });
