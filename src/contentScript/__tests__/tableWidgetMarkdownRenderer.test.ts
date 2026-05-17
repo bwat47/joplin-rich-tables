@@ -74,7 +74,7 @@ describe('TableWidget markdown rendering', () => {
             extensions: [
                 markdownRenderServiceFacet.of({
                     getCached: jest.fn(() => ''),
-                    renderAsync: jest.fn(),
+                    render: jest.fn(async () => ''),
                     clear: jest.fn(),
                 }),
             ],
