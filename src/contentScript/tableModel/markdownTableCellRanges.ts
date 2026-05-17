@@ -203,7 +203,7 @@ export function computeMarkdownTableCellRanges(text: string): TableCellRanges | 
  * This is the inverse of resolveCellDocRange - given a position, find which cell contains it.
  *
  * @param ranges - The computed cell ranges for the table
- * @param relativePos - Position relative to the table start (i.e., pos - tableFrom)
+ * @param relativePos - Position relative to the start of the table text
  * @returns Cell coordinates if position is within a cell, null otherwise
  */
 export function findCellForPos(ranges: TableCellRanges, relativePos: number): CellCoords | null {
