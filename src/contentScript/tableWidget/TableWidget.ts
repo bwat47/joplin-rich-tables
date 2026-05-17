@@ -261,16 +261,18 @@ export class TableWidget extends WidgetType {
     }
 
     /**
-     * Returns the bounding rectangle of the cell containing the given document position.
+     * Returns the bounding rectangle of the cell containing the given widget-relative position.
      * This helps CodeMirror scroll precisely to specific cells rather than just the table bounds.
+     *
+     * CodeMirror subtracts the widget's document start offset before calling this, so `pos` is
+     * already relative to the widget — do not subtract `tableFrom` here.
      */
     coordsAt(
         dom: HTMLElement,
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        const relativePos = pos - this.tableFrom;
-        const coords = findCellForPos(this.cellRanges, relativePos);
+        const coords = findCellForPos(this.cellRanges, pos);
         if (!coords) {
             return null;
         }
