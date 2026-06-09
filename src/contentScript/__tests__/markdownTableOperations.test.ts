@@ -129,7 +129,7 @@ describe('markdownTableOperations', () => {
     describe('swapRows', () => {
         it('should swap two adjacent body rows', () => {
             const table = parseTable(basicTable);
-            const next = table.swapRows(0, 1);
+            const next = table.swapRows(1, 2);
 
             expect(next.headerCells).toEqual(['Header 1', 'Header 2']);
             expect(next.bodyRows.length).toBe(2);
@@ -137,9 +137,9 @@ describe('markdownTableOperations', () => {
             expect(next.bodyRows[1]).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
         });
 
-        it('should swap header with first body row (row index -1 with 0)', () => {
+        it('should swap header with first body row', () => {
             const table = parseTable(basicTable);
-            const next = table.swapRows(-1, 0);
+            const next = table.swapRows(0, 1);
 
             expect(next.headerCells).toEqual(['Row 1 Col 1', 'Row 1 Col 2']);
             expect(next.alignments).toEqual(['left', 'right']);
@@ -155,16 +155,23 @@ describe('markdownTableOperations', () => {
             expect(next).toBe(table);
         });
 
-        it('should return same table for invalid negative index (not -1)', () => {
+        it('should return same table for a negative index', () => {
             const table = parseTable(basicTable);
-            const next = table.swapRows(-2, 0);
+            const next = table.swapRows(-1, 0);
+
+            expect(next).toBe(table);
+        });
+
+        it('should return same table when swapping a row with itself', () => {
+            const table = parseTable(basicTable);
+            const next = table.swapRows(1, 1);
 
             expect(next).toBe(table);
         });
 
         it('should handle swapping in a table with different column counts', () => {
             const table = parseTable(['| H1 | H2 |', '| --- | --- |', '| A | B | C |', '| D | E |'].join('\n'));
-            const next = table.swapRows(0, 1);
+            const next = table.swapRows(1, 2);
 
             expect(next.bodyRows[0]).toEqual(['D', 'E', '']);
             expect(next.bodyRows[1]).toEqual(['A', 'B', 'C']);

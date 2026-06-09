@@ -66,6 +66,7 @@ describe('MarkdownTable', () => {
         expect(table.updateColumnAlignment(0, null)).toBe(table);
         expect(table.clearRow('body', 2)).toBe(table);
         expect(table.clearColumn(9)).toBe(table);
+        expect(table.clearRect({ minRow: -1, maxRow: 0, minCol: 0, maxCol: 1 })).toBe(table);
         expect(table.moveRow('header', 0, 'up')).toBe(table);
     });
 
@@ -90,6 +91,10 @@ describe('MarkdownTable', () => {
         const movedHeaderDown = table.moveRow('header', 0, 'down');
         expect(movedHeaderDown.headerCells).toEqual(['A1', 'A2']);
         expect(movedHeaderDown.bodyRows[0]).toEqual(['H1', 'H2']);
+
+        const movedFirstBodyUp = table.moveRow('body', 0, 'up');
+        expect(movedFirstBodyUp.headerCells).toEqual(['A1', 'A2']);
+        expect(movedFirstBodyUp.bodyRows[0]).toEqual(['H1', 'H2']);
     });
 
     it('swapColumns preserves alignments', () => {
@@ -178,6 +183,14 @@ describe('MarkdownTable', () => {
             table.isRectEmpty({
                 minRow: 1,
                 maxRow: 2,
+                minCol: 0,
+                maxCol: 1,
+            })
+        ).toBe(false);
+        expect(
+            table.isRectEmpty({
+                minRow: -1,
+                maxRow: 1,
                 minCol: 0,
                 maxCol: 1,
             })
