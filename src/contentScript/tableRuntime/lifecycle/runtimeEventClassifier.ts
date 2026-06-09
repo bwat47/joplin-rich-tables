@@ -7,6 +7,7 @@ import {
     setSearchForceSourceModeEffect,
 } from '../../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
+import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { findTableRanges } from '../tableResolution';
 import { isFullDocumentReplace } from '../../shared/transactionUtils';
@@ -63,6 +64,7 @@ export function classifyTableRuntimeEvent(update: ViewUpdate, snapshot: TableRun
         ),
         rawModeTransition: scanRawModeTransitionFacts(update),
         hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
+        hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
         selectionLeftActiveTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
         requiresCellReposition: updateRequiresCellReposition({
@@ -74,6 +76,10 @@ export function classifyTableRuntimeEvent(update: ViewUpdate, snapshot: TableRun
         }),
         shouldSyncMainToNested: shouldSyncDoc || shouldSyncSelection,
     };
+}
+
+function hasInsertedTableActivationEffect(update: ViewUpdate): boolean {
+    return update.transactions.some((tr) => tr.effects.some((effect) => effect.is(activateInsertedTableEffect)));
 }
 
 function scanRawModeTransitionFacts(update: ViewUpdate): RawModeTransitionFacts {

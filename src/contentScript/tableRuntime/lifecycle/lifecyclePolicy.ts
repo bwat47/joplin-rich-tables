@@ -15,6 +15,7 @@ export interface TableRuntimeEvent {
     isCellSelectionTransition: boolean;
     rawModeTransition: RawModeTransitionFacts;
     hasFullDocumentReplace: boolean;
+    hasInsertedTableActivation: boolean;
     openRequestId: string | null;
     /**
      * True only when the current active cell resolved and either main
@@ -32,7 +33,14 @@ export interface RawModeTransitionFacts {
     exitedSearchForce: boolean;
 }
 
-export type ActivateCellAtCursorReason = 'rawModeExit' | 'cellReposition';
+type ActivateCellAtCursorReason = 'rawModeExit' | 'cellReposition';
+
+export interface ActivateCellAtCursorOptions {
+    clearIfOutside: boolean;
+    ensureCursorVisibleIfNotActivated: boolean;
+    normalizeIfNeeded: boolean;
+    preserveMainSelection: boolean;
+}
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
@@ -42,10 +50,11 @@ export type TableRuntimeAction =
     | { type: 'clearActiveCell' }
     | {
           type: 'scheduleActivateCellAtCursor';
-          reason: ActivateCellAtCursorReason;
+          options: ActivateCellAtCursorOptions;
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
-    | { type: 'scheduleRebuildAllAfterFullReplace' };
+    | { type: 'scheduleRebuildAllAfterFullReplace' }
+    | { type: 'scheduleInsertedTableActivation' };
 
 export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRuntimeEvent): TableRuntimeAction[] {
     const actions: TableRuntimeAction[] = [];
@@ -60,7 +69,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
             type: 'openRequestedCell',
             requestId: event.openRequestId,
         });
-        return actions;
+        return appendInsertedTableActivationAction(actions, event);
     }
 
     if (
@@ -75,9 +84,9 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
     if (event.rawModeTransition.exitedSourceMode || event.rawModeTransition.exitedSearchForce) {
         actions.push({
             type: 'scheduleActivateCellAtCursor',
-            reason: 'rawModeExit',
+            options: getActivateCellAtCursorOptions('rawModeExit'),
         });
-        return actions;
+        return appendInsertedTableActivationAction(actions, event);
     }
 
     if (event.rawModeTransition.enteredRawMode && !event.isCellSelectionTransition) {
@@ -94,9 +103,9 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
         }
         actions.push({
             type: 'scheduleActivateCellAtCursor',
-            reason: 'cellReposition',
+            options: getActivateCellAtCursorOptions('cellReposition'),
         });
-        return actions;
+        return appendInsertedTableActivationAction(actions, event);
     }
 
     if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event)) {
@@ -104,7 +113,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
             actions.push({ type: 'closeNestedEditor' });
         }
         actions.push({ type: 'clearActiveCell' });
-        return actions;
+        return appendInsertedTableActivationAction(actions, event);
     }
 
     if (!snapshot.hasActiveCell && snapshot.hadActiveCellBeforeUpdate) {
@@ -123,7 +132,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
         actions.push({ type: 'clearActiveCell' });
     }
 
-    return actions;
+    return appendInsertedTableActivationAction(actions, event);
 }
 
 function shouldClearActiveCellWhenSelectionLeavesTable(state: TableRuntimeSnapshot, event: TableRuntimeEvent): boolean {
@@ -135,4 +144,33 @@ function shouldClearActiveCellWhenSelectionLeavesTable(state: TableRuntimeSnapsh
         state.nestedEditorOpen &&
         event.selectionLeftActiveTable
     );
+}
+
+function appendInsertedTableActivationAction(
+    actions: TableRuntimeAction[],
+    event: TableRuntimeEvent
+): TableRuntimeAction[] {
+    if (event.hasInsertedTableActivation) {
+        actions.push({ type: 'scheduleInsertedTableActivation' });
+    }
+
+    return actions;
+}
+
+function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {
+    if (reason === 'rawModeExit') {
+        return {
+            clearIfOutside: false,
+            ensureCursorVisibleIfNotActivated: true,
+            normalizeIfNeeded: false,
+            preserveMainSelection: true,
+        };
+    }
+
+    return {
+        clearIfOutside: true,
+        ensureCursorVisibleIfNotActivated: false,
+        normalizeIfNeeded: false,
+        preserveMainSelection: false,
+    };
 }

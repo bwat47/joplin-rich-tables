@@ -22,8 +22,16 @@ import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuar
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import {
+    normalizeBeforeEditAnnotation,
+    planNormalizeTableBeforeOpen,
+} from '../tableRuntime/lifecycle/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import {
+    beginOpenCellRequestEffect,
+    triggerOpenCellRequestEffect,
+    type OpenCellRequest,
+} from '../tableRuntime/openCellRequest';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -48,6 +56,16 @@ function getHeaderCell(): ActiveCell {
         section: 'header',
         row: 0,
         col: 0,
+    };
+}
+
+function createOpenRequest(params: { activeCell: ActiveCell; normalizeIfNeeded: boolean }): OpenCellRequest {
+    return {
+        requestId: 'test-open-request',
+        activeCell: params.activeCell,
+        normalizeIfNeeded: params.normalizeIfNeeded,
+        initialCursorPos: 'end',
+        suppressKeys: false,
     };
 }
 
@@ -85,6 +103,7 @@ function defaultRuntimeEvent(overrides: Partial<TableRuntimeEvent> = {}): TableR
             exitedSearchForce: false,
         },
         hasFullDocumentReplace: false,
+        hasInsertedTableActivation: false,
         openRequestId: null,
         selectionLeftActiveTable: false,
         requiresCellReposition: false,
@@ -324,9 +343,76 @@ describe('tableRuntimePolicies', () => {
         expect(reduceTableRuntime(state, event)).toEqual([
             {
                 type: 'scheduleActivateCellAtCursor',
-                reason: 'rawModeExit',
+                options: {
+                    clearIfOutside: false,
+                    ensureCursorVisibleIfNotActivated: true,
+                    normalizeIfNeeded: false,
+                    preserveMainSelection: true,
+                },
             },
         ]);
+    });
+
+    it('appends inserted-table activation after explicit open requests', () => {
+        const state = defaultRuntimeSnapshot({
+            hasActiveCell: true,
+            currentActiveCellResolved: true,
+            nestedEditorOpen: true,
+            hadActiveCellBeforeUpdate: true,
+        });
+
+        expect(
+            reduceTableRuntime(
+                state,
+                defaultRuntimeEvent({
+                    hasInsertedTableActivation: true,
+                    openRequestId: 'explicit-request',
+                    requiresCellReposition: true,
+                })
+            )
+        ).toEqual([
+            { type: 'openRequestedCell', requestId: 'explicit-request' },
+            { type: 'scheduleInsertedTableActivation' },
+        ]);
+    });
+
+    it('appends inserted-table activation after raw-mode exit actions', () => {
+        const state = defaultRuntimeSnapshot({
+            hasActiveCell: true,
+            hadActiveCellBeforeUpdate: true,
+        });
+
+        expect(
+            reduceTableRuntime(
+                state,
+                defaultRuntimeEvent({
+                    hasInsertedTableActivation: true,
+                    rawModeTransition: {
+                        enteredRawMode: false,
+                        exitedRawMode: true,
+                        exitedSourceMode: true,
+                        exitedSearchForce: false,
+                    },
+                })
+            )
+        ).toEqual([
+            {
+                type: 'scheduleActivateCellAtCursor',
+                options: {
+                    clearIfOutside: false,
+                    ensureCursorVisibleIfNotActivated: true,
+                    normalizeIfNeeded: false,
+                    preserveMainSelection: true,
+                },
+            },
+            { type: 'scheduleInsertedTableActivation' },
+        ]);
+    });
+
+    it('plans inserted-table activation when no other lifecycle work is needed', () => {
+        expect(
+            reduceTableRuntime(defaultRuntimeSnapshot(), defaultRuntimeEvent({ hasInsertedTableActivation: true }))
+        ).toEqual([{ type: 'scheduleInsertedTableActivation' }]);
     });
 
     it('treats normalize-before-edit full table replacement as a controlled requested reopen', () => {
@@ -386,6 +472,108 @@ describe('tableRuntimePolicies', () => {
                 })
             )
         ).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
+    });
+
+    it('does not plan normalization when disabled or already canonical', () => {
+        const activeCell = getHeaderCell();
+        const nonCanonicalState = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [
+            activeCellField,
+        ]).update({ effects: setActiveCellEffect.of(activeCell) }).state;
+        const nonCanonicalResolved = requireResolvedActiveCell(nonCanonicalState);
+
+        expect(
+            planNormalizeTableBeforeOpen({
+                state: nonCanonicalState,
+                resolvedActiveCell: nonCanonicalResolved,
+                request: createOpenRequest({ activeCell, normalizeIfNeeded: false }),
+            })
+        ).toEqual({ type: 'not-needed' });
+
+        const canonicalActiveCell = { ...activeCell, tableFrom: 1 };
+        let canonicalState = createMarkdownState(`\n${doc}\n`, [activeCellField]);
+        canonicalState = canonicalState.update({ effects: setActiveCellEffect.of(canonicalActiveCell) }).state;
+        const canonicalResolved = requireResolvedActiveCell(canonicalState);
+
+        expect(
+            planNormalizeTableBeforeOpen({
+                state: canonicalState,
+                resolvedActiveCell: canonicalResolved,
+                request: createOpenRequest({ activeCell: canonicalActiveCell, normalizeIfNeeded: true }),
+            })
+        ).toEqual({ type: 'not-needed' });
+    });
+
+    it('plans a normalization dispatch that remaps active cell and retriggers open request', () => {
+        const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: 1,
+        };
+        let state = createMarkdownState(nonCanonicalDoc, [activeCellField]);
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+        const resolved = requireResolvedActiveCell(state);
+
+        const plan = planNormalizeTableBeforeOpen({
+            state,
+            resolvedActiveCell: resolved,
+            request: createOpenRequest({ activeCell, normalizeIfNeeded: true }),
+        });
+
+        expect(plan.type).toBe('dispatch');
+        if (plan.type !== 'dispatch') {
+            throw new Error('Expected normalization dispatch plan');
+        }
+
+        const tr = state.update(plan.spec);
+        expect(tr.state.doc.toString()).toBe(`\n${doc}\n`);
+        expect(getActiveCell(tr.state)).toEqual({
+            tableFrom: 1,
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+        expect(tr.state.selection.main.anchor).toBeGreaterThan(0);
+        expect(tr.annotation(normalizeBeforeEditAnnotation)).toBe(true);
+        expect(tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))).toBe(true);
+        expect(
+            tr.effects.some(
+                (effect) =>
+                    effect.is(beginOpenCellRequestEffect) &&
+                    effect.value.requestId === 'test-open-request' &&
+                    effect.value.normalizeIfNeeded === false &&
+                    effect.value.activeCell.tableFrom === 1
+            )
+        ).toBe(true);
+        expect(
+            tr.effects.some(
+                (effect) => effect.is(triggerOpenCellRequestEffect) && effect.value.requestId === 'test-open-request'
+            )
+        ).toBe(true);
+    });
+
+    it('aborts normalization when the active cell cannot be remapped', () => {
+        const activeCell = getHeaderCell();
+        let state = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [activeCellField]);
+        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+        const resolved = requireResolvedActiveCell(state);
+        const malformedTable = Object.create(resolved.ctx.table) as typeof resolved.ctx.table;
+        malformedTable.serialize = () => 'not a table';
+
+        expect(
+            planNormalizeTableBeforeOpen({
+                state,
+                resolvedActiveCell: {
+                    ...resolved,
+                    ctx: {
+                        ...resolved.ctx,
+                        table: malformedTable,
+                    },
+                },
+                request: createOpenRequest({ activeCell, normalizeIfNeeded: true }),
+            })
+        ).toEqual({ type: 'aborted' });
     });
 
     it('does not plan a generic reopen for rebuild-only transactions', () => {
@@ -467,7 +655,12 @@ describe('tableRuntimePolicies', () => {
             { type: 'closeNestedEditorUsingResolvedUpdateRange' },
             {
                 type: 'scheduleActivateCellAtCursor',
-                reason: 'cellReposition',
+                options: {
+                    clearIfOutside: true,
+                    ensureCursorVisibleIfNotActivated: false,
+                    normalizeIfNeeded: false,
+                    preserveMainSelection: false,
+                },
             },
         ]);
     });

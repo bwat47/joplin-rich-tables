@@ -3,16 +3,14 @@ import {
     clearActiveCellEffect,
     getActiveCell,
     isSameActiveCell,
-    setActiveCellEffect,
     type ActiveCell,
 } from '../../tableState/activeCellState';
 import {
-    activateInsertedTableEffect,
     clearInsertedTableActivationEffect,
     getPendingInsertedTableActivation,
 } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { rebuildAllTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
@@ -22,17 +20,11 @@ import {
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { makeTableId } from '../../tableModel/types';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
-import {
-    beginOpenCellRequestEffect,
-    clearOpenCellRequestEffect,
-    getOpenCellRequestById,
-    triggerOpenCellRequestEffect,
-} from '../openCellRequest';
-import { getNormalizedTableReplacementIfChanged, normalizeBeforeEditAnnotation } from './tableNormalization';
+import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
+import { planNormalizeTableBeforeOpen } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
-import { reduceTableRuntime, type ActivateCellAtCursorReason, type TableRuntimeAction } from './lifecyclePolicy';
+import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeEvent, createTableRuntimeSnapshot } from './runtimeEventClassifier';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 
@@ -53,18 +45,6 @@ function ensureCursorVisible(view: EditorView): void {
     view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
 }
 
-function hasInsertedTableActivationEffect(update: ViewUpdate): boolean {
-    for (const tr of update.transactions) {
-        for (const effect of tr.effects) {
-            if (effect.is(activateInsertedTableEffect)) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell | null): ActiveCell | null {
     if (!activeCell) {
         return null;
@@ -81,90 +61,10 @@ function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell |
     };
 }
 
-type NormalizeBeforeOpenResult = 'not-needed' | 'normalized' | 'aborted';
-
 interface OpenRequestExecutionGuardResult {
     request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
     resolvedActiveCell: ResolvedActiveCell;
     cellElement: HTMLElement;
-}
-
-interface ActivateCellAtCursorOptions {
-    clearIfOutside: boolean;
-    ensureCursorVisibleIfNotActivated: boolean;
-    normalizeIfNeeded: boolean;
-    preserveMainSelection: boolean;
-}
-
-function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {
-    if (reason === 'rawModeExit') {
-        return {
-            clearIfOutside: false,
-            ensureCursorVisibleIfNotActivated: true,
-            normalizeIfNeeded: false,
-            preserveMainSelection: true,
-        };
-    }
-
-    return {
-        clearIfOutside: true,
-        ensureCursorVisibleIfNotActivated: false,
-        normalizeIfNeeded: false,
-        preserveMainSelection: false,
-    };
-}
-
-function normalizeTableBeforeOpen(params: {
-    view: EditorView;
-    resolvedActiveCell: ResolvedActiveCell;
-    normalizeIfNeeded: boolean;
-    requestId: string;
-}): NormalizeBeforeOpenResult {
-    if (!params.normalizeIfNeeded) {
-        return 'not-needed';
-    }
-
-    const replacement = getNormalizedTableReplacementIfChanged(params.view.state, params.resolvedActiveCell.ctx);
-    if (!replacement) {
-        return 'not-needed';
-    }
-
-    const nextActiveCell = createActiveCellForTableText({
-        tableFrom: replacement.tableFrom,
-        tableText: replacement.tableText,
-        target: params.resolvedActiveCell.activeCell,
-    });
-    if (!nextActiveCell) {
-        return 'aborted';
-    }
-
-    const currentRequest = getOpenCellRequestById(params.view.state, params.requestId);
-    if (!currentRequest) {
-        return 'aborted';
-    }
-
-    params.view.dispatch({
-        changes: {
-            from: params.resolvedActiveCell.tableFrom,
-            to: params.resolvedActiveCell.tableTo,
-            insert: replacement.insert,
-        },
-        selection: { anchor: nextActiveCell.selectionAnchor },
-        effects: [
-            setActiveCellEffect.of(nextActiveCell.activeCell),
-            beginOpenCellRequestEffect.of({
-                ...currentRequest,
-                activeCell: nextActiveCell.activeCell,
-                normalizeIfNeeded: false,
-            }),
-            triggerOpenCellRequestEffect.of({ requestId: currentRequest.requestId }),
-            rebuildTableWidgetsEffect.of({ tableFrom: replacement.tableFrom }),
-        ],
-        annotations: normalizeBeforeEditAnnotation.of(true),
-        scrollIntoView: false,
-    });
-
-    return 'normalized';
 }
 
 // ============================================================================
@@ -189,14 +89,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const actions = reduceTableRuntime(snapshot, event);
 
             this.executeActions(actions, update);
-            this.scheduleInsertedTableActivation(update);
         }
 
-        private scheduleInsertedTableActivation(update: ViewUpdate): void {
-            if (!hasInsertedTableActivationEffect(update)) {
-                return;
-            }
-
+        private scheduleInsertedTableActivation(): void {
             requestViewAnimationFrame(this.view, () => {
                 if (!this.view.dom.isConnected) return;
 
@@ -215,7 +110,10 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.scheduleRebuildAllAfterFullReplace();
                         break;
                     case 'scheduleActivateCellAtCursor':
-                        this.scheduleActivateCellAtCursor(update, action.reason);
+                        this.scheduleActivateCellAtCursor(update, action.options);
+                        break;
+                    case 'scheduleInsertedTableActivation':
+                        this.scheduleInsertedTableActivation();
                         break;
                     case 'scheduleEnsureCursorVisible':
                         this.scheduleEnsureCursorVisible(action.mode);
@@ -251,10 +149,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             });
         }
 
-        private scheduleActivateCellAtCursor(update: ViewUpdate, reason: ActivateCellAtCursorReason): void {
+        private scheduleActivateCellAtCursor(update: ViewUpdate, activateOptions: ActivateCellAtCursorOptions): void {
             const cursorPos = update.state.selection.main.head;
             const preferredActiveCell = mapActiveCellThroughUpdate(update, getActiveCell(update.startState));
-            const activateOptions = getActivateCellAtCursorOptions(reason);
 
             requestViewAnimationFrame(this.view, () => {
                 if (!this.view.dom.isConnected) return;
@@ -289,16 +186,16 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     return;
                 }
 
-                const normalizeResult = normalizeTableBeforeOpen({
-                    view: this.view,
+                const normalizePlan = planNormalizeTableBeforeOpen({
+                    state: this.view.state,
                     resolvedActiveCell: guardResult.resolvedActiveCell,
-                    normalizeIfNeeded: guardResult.request.normalizeIfNeeded,
-                    requestId,
+                    request: guardResult.request,
                 });
-                if (normalizeResult === 'normalized') {
+                if (normalizePlan.type === 'dispatch') {
+                    this.view.dispatch(normalizePlan.spec);
                     return;
                 }
-                if (normalizeResult === 'aborted') {
+                if (normalizePlan.type === 'aborted') {
                     this.failOpenRequest(requestId);
                     return;
                 }
