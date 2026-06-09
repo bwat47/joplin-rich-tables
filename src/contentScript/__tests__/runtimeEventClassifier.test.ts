@@ -10,7 +10,7 @@ import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
     classifyTableRuntimeEvent,
     createTableRuntimeSnapshot,
-    type PreviousTableRuntimeState,
+    type TableRuntimeExternalFacts,
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
@@ -23,11 +23,9 @@ const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC_WITH_SURROUNDING_TEXT = ['before', '', TABLE_DOC, '', 'after'].join('\n');
 const SURROUNDING_TABLE_FROM = 'before\n\n'.length;
 
-const DEFAULT_PREVIOUS: PreviousTableRuntimeState = {
+const DEFAULT_EXTERNAL_FACTS: TableRuntimeExternalFacts = {
     nestedEditorOpen: false,
-    hadActiveCellBeforeUpdate: false,
     pendingFullReplaceRebuild: false,
-    previousEffectiveRawMode: false,
 };
 
 function getHeaderCell(tableFrom = 0): ActiveCell {
@@ -81,10 +79,9 @@ function dispatchAndCaptureUpdate(params: {
 
 describe('runtimeEventClassifier', () => {
     it('creates a runtime snapshot from current state and previous runtime flags', () => {
-        const previous: PreviousTableRuntimeState = {
-            ...DEFAULT_PREVIOUS,
+        const externalFacts: TableRuntimeExternalFacts = {
+            ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
             pendingFullReplaceRebuild: true,
         };
         const update = dispatchAndCaptureUpdate({
@@ -94,7 +91,7 @@ describe('runtimeEventClassifier', () => {
             },
         });
 
-        expect(createTableRuntimeSnapshot(update, previous)).toEqual({
+        expect(createTableRuntimeSnapshot(update, externalFacts)).toEqual({
             hasActiveCell: true,
             currentActiveCellResolved: true,
             effectiveRawMode: false,
@@ -119,8 +116,8 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_PREVIOUS);
-        const event = classifyTableRuntimeEvent(update, snapshot, DEFAULT_PREVIOUS);
+        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
+        const event = classifyTableRuntimeEvent(update, snapshot);
 
         expect(event.isNormalizeBeforeEdit).toBe(true);
         expect(event.isCellSelectionTransition).toBe(true);
@@ -133,11 +130,28 @@ describe('runtimeEventClassifier', () => {
         });
     });
 
+    it('classifies raw mode exit from the update start state', () => {
+        const update = dispatchAndCaptureUpdate({
+            dispatch(view) {
+                view.dispatch({ effects: toggleSourceModeEffect.of(true) });
+                view.dispatch({ effects: toggleSourceModeEffect.of(false) });
+            },
+        });
+        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
+        const event = classifyTableRuntimeEvent(update, snapshot);
+
+        expect(event.rawModeTransition).toEqual({
+            enteredRawMode: false,
+            exitedRawMode: true,
+            exitedSourceMode: false,
+            exitedSearchForce: false,
+        });
+    });
+
     it('classifies same-cell selection updates as nested sync work', () => {
-        const previous: PreviousTableRuntimeState = {
-            ...DEFAULT_PREVIOUS,
+        const externalFacts: TableRuntimeExternalFacts = {
+            ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
         };
         const update = dispatchAndCaptureUpdate({
             activeCell: getHeaderCell(),
@@ -145,8 +159,8 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({ selection: { anchor: 4 } });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, previous);
-        const event = classifyTableRuntimeEvent(update, snapshot, previous);
+        const snapshot = createTableRuntimeSnapshot(update, externalFacts);
+        const event = classifyTableRuntimeEvent(update, snapshot);
 
         expect(event.selectionChanged).toBe(true);
         expect(event.isSync).toBe(false);
@@ -154,10 +168,9 @@ describe('runtimeEventClassifier', () => {
     });
 
     it('does not request nested sync for sync-annotated selection updates', () => {
-        const previous: PreviousTableRuntimeState = {
-            ...DEFAULT_PREVIOUS,
+        const externalFacts: TableRuntimeExternalFacts = {
+            ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
         };
         const update = dispatchAndCaptureUpdate({
             activeCell: getHeaderCell(),
@@ -168,18 +181,17 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, previous);
-        const event = classifyTableRuntimeEvent(update, snapshot, previous);
+        const snapshot = createTableRuntimeSnapshot(update, externalFacts);
+        const event = classifyTableRuntimeEvent(update, snapshot);
 
         expect(event.isSync).toBe(true);
         expect(event.shouldSyncMainToNested).toBe(false);
     });
 
     it('detects when selection leaves the resolved active table', () => {
-        const previous: PreviousTableRuntimeState = {
-            ...DEFAULT_PREVIOUS,
+        const externalFacts: TableRuntimeExternalFacts = {
+            ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
         };
         const update = dispatchAndCaptureUpdate({
             doc: DOC_WITH_SURROUNDING_TEXT,
@@ -188,17 +200,13 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({ selection: { anchor: 0 } });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, previous);
-        const event = classifyTableRuntimeEvent(update, snapshot, previous);
+        const snapshot = createTableRuntimeSnapshot(update, externalFacts);
+        const event = classifyTableRuntimeEvent(update, snapshot);
 
         expect(event.selectionLeftActiveTable).toBe(true);
     });
 
     it('detects redo edits outside the active cell as reposition events', () => {
-        const previous: PreviousTableRuntimeState = {
-            ...DEFAULT_PREVIOUS,
-            hadActiveCellBeforeUpdate: true,
-        };
         const update = dispatchAndCaptureUpdate({
             activeCell: getHeaderCell(),
             dispatch(view) {
@@ -208,8 +216,8 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, previous);
-        const event = classifyTableRuntimeEvent(update, snapshot, previous);
+        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
+        const event = classifyTableRuntimeEvent(update, snapshot);
 
         expect(event.docChanged).toBe(true);
         expect(event.requiresCellReposition).toBe(true);

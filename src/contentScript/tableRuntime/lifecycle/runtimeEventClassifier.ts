@@ -15,18 +15,17 @@ import { triggerOpenCellRequestEffect } from '../openCellRequest';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
 import type { RawModeTransitionFacts, TableRuntimeEvent, TableRuntimeSnapshot } from './lifecyclePolicy';
 
-export interface PreviousTableRuntimeState {
+export interface TableRuntimeExternalFacts {
     nestedEditorOpen: boolean;
-    hadActiveCellBeforeUpdate: boolean;
     pendingFullReplaceRebuild: boolean;
-    previousEffectiveRawMode: boolean;
 }
 
 export function createTableRuntimeSnapshot(
     update: ViewUpdate,
-    previous: PreviousTableRuntimeState
+    externalFacts: TableRuntimeExternalFacts
 ): TableRuntimeSnapshot {
     const activeCell = getActiveCell(update.state);
+    const prevActiveCell = getActiveCell(update.startState);
     const resolvedActiveCell = getResolvedActiveCell(update.state);
     const effectiveRawMode = isEffectiveRawMode(update.state);
 
@@ -34,17 +33,13 @@ export function createTableRuntimeSnapshot(
         hasActiveCell: Boolean(activeCell),
         currentActiveCellResolved: Boolean(resolvedActiveCell),
         effectiveRawMode,
-        nestedEditorOpen: previous.nestedEditorOpen,
-        hadActiveCellBeforeUpdate: previous.hadActiveCellBeforeUpdate,
-        pendingFullReplaceRebuild: previous.pendingFullReplaceRebuild,
+        nestedEditorOpen: externalFacts.nestedEditorOpen,
+        hadActiveCellBeforeUpdate: Boolean(prevActiveCell),
+        pendingFullReplaceRebuild: externalFacts.pendingFullReplaceRebuild,
     };
 }
 
-export function classifyTableRuntimeEvent(
-    update: ViewUpdate,
-    snapshot: TableRuntimeSnapshot,
-    previous: PreviousTableRuntimeState
-): TableRuntimeEvent {
+export function classifyTableRuntimeEvent(update: ViewUpdate, snapshot: TableRuntimeSnapshot): TableRuntimeEvent {
     const activeCell = getActiveCell(update.state);
     const prevActiveCell = getActiveCell(update.startState);
     const resolvedActiveCell = getResolvedActiveCell(update.state);
@@ -66,7 +61,7 @@ export function classifyTableRuntimeEvent(
         isCellSelectionTransition: update.transactions.some((tr) =>
             Boolean(tr.annotation(cellSelectionTransitionAnnotation))
         ),
-        rawModeTransition: scanRawModeTransitionFacts(update, previous.previousEffectiveRawMode),
+        rawModeTransition: scanRawModeTransitionFacts(update),
         hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
         openRequestId: extractOpenRequestId(update),
         selectionLeftActiveTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
@@ -81,7 +76,7 @@ export function classifyTableRuntimeEvent(
     };
 }
 
-function scanRawModeTransitionFacts(update: ViewUpdate, previousEffectiveRawMode: boolean): RawModeTransitionFacts {
+function scanRawModeTransitionFacts(update: ViewUpdate): RawModeTransitionFacts {
     let exitedSourceMode = false;
     let exitedSearchForce = false;
     let hadRawModeToggle = false;
@@ -102,6 +97,7 @@ function scanRawModeTransitionFacts(update: ViewUpdate, previousEffectiveRawMode
         }
     }
 
+    const previousEffectiveRawMode = isEffectiveRawMode(update.startState);
     const effectiveRawMode = isEffectiveRawMode(update.state);
 
     return {

@@ -173,31 +173,23 @@ function normalizeTableBeforeOpen(params: {
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
-        private hadActiveCellBeforeUpdate: boolean;
-        private wasEffectiveRawMode: boolean;
         private pendingFullReplaceRebuild: boolean;
 
         constructor(private view: EditorView) {
-            this.hadActiveCellBeforeUpdate = Boolean(getActiveCell(view.state));
-            this.wasEffectiveRawMode = isEffectiveRawMode(view.state);
             this.pendingFullReplaceRebuild = false;
         }
 
         update(update: ViewUpdate): void {
-            const previousRuntimeState = {
+            const externalRuntimeFacts = {
                 nestedEditorOpen: isNestedEditorOpen(this.view),
-                hadActiveCellBeforeUpdate: this.hadActiveCellBeforeUpdate,
                 pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
-                previousEffectiveRawMode: this.wasEffectiveRawMode,
             };
-            const snapshot = createTableRuntimeSnapshot(update, previousRuntimeState);
-            const event = classifyTableRuntimeEvent(update, snapshot, previousRuntimeState);
+            const snapshot = createTableRuntimeSnapshot(update, externalRuntimeFacts);
+            const event = classifyTableRuntimeEvent(update, snapshot);
             const actions = reduceTableRuntime(snapshot, event);
 
             this.executeActions(actions, update);
             this.scheduleInsertedTableActivation(update);
-            this.hadActiveCellBeforeUpdate = Boolean(getActiveCell(update.state));
-            this.wasEffectiveRawMode = isEffectiveRawMode(update.state);
         }
 
         private scheduleInsertedTableActivation(update: ViewUpdate): void {
