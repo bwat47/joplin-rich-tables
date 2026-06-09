@@ -31,6 +31,10 @@ export interface TableRect {
     maxCol: number;
 }
 
+export function toUnifiedRowIndex(section: TableSection, row: number): number {
+    return section === 'header' ? 0 : row + 1;
+}
+
 /**
  * Branded type for table identity.
  * Currently based on the table's starting document position (tableFrom),

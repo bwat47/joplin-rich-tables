@@ -1,7 +1,7 @@
 import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
-import type { CellCoords, TableRect, TableSection } from './types';
+import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
 export interface MarkdownTableParts {
@@ -104,10 +104,6 @@ function cloneUnifiedRows(headers: readonly string[], rows: readonly (readonly s
     return [[...headers], ...cloneRows(rows)];
 }
 
-function toUnifiedRow(coords: CellCoords): number {
-    return coords.section === 'header' ? 0 : coords.row + 1;
-}
-
 function createFromUnifiedRows(
     allRows: readonly (readonly string[])[],
     alignments: readonly TableAlignment[]
@@ -186,6 +182,26 @@ export class MarkdownTable {
 
     get rowCount(): number {
         return 1 + this.rowsData.length;
+    }
+
+    private getUnifiedRow(rowIndex: number): readonly string[] | null {
+        if (rowIndex === 0) {
+            return this.headersData;
+        }
+
+        const bodyRowIndex = rowIndex - 1;
+        return bodyRowIndex >= 0 && bodyRowIndex < this.rowsData.length ? this.rowsData[bodyRowIndex] : null;
+    }
+
+    private isValidRect(rect: TableRect): boolean {
+        return (
+            rect.minRow >= 0 &&
+            rect.minCol >= 0 &&
+            rect.maxRow < this.rowCount &&
+            rect.maxCol < this.columnCount &&
+            rect.minRow <= rect.maxRow &&
+            rect.minCol <= rect.maxCol
+        );
     }
 
     serialize(): string {
@@ -357,14 +373,7 @@ export class MarkdownTable {
     }
 
     clearRect(rect: TableRect): MarkdownTable {
-        if (
-            rect.minRow < 0 ||
-            rect.minCol < 0 ||
-            rect.maxRow >= this.rowCount ||
-            rect.maxCol >= this.columnCount ||
-            rect.minRow > rect.maxRow ||
-            rect.minCol > rect.maxCol
-        ) {
+        if (!this.isValidRect(rect)) {
             return this;
         }
 
@@ -388,21 +397,15 @@ export class MarkdownTable {
     }
 
     isRectEmpty(rect: TableRect): boolean {
-        if (
-            rect.minRow < 0 ||
-            rect.minCol < 0 ||
-            rect.maxRow >= this.rowCount ||
-            rect.maxCol >= this.columnCount ||
-            rect.minRow > rect.maxRow ||
-            rect.minCol > rect.maxCol
-        ) {
+        if (!this.isValidRect(rect)) {
             return false;
         }
 
-        const rows = cloneUnifiedRows(this.headersData, this.rowsData);
         for (let row = rect.minRow; row <= rect.maxRow; row++) {
+            const rowCells = this.getUnifiedRow(row)!;
+
             for (let col = rect.minCol; col <= rect.maxCol; col++) {
-                if (rows[row][col] !== '') {
+                if (rowCells[col] !== '') {
                     return false;
                 }
             }
@@ -448,7 +451,7 @@ export class MarkdownTable {
     pasteFragmentAt(anchor: CellCoords, fragment: ClipboardTableFragment): PasteRectResult | null {
         const pastedRowCount = fragment.cells.length;
         const pastedColCount = fragment.cells[0]?.length ?? 0;
-        const anchorRow = toUnifiedRow(anchor);
+        const anchorRow = toUnifiedRowIndex(anchor.section, anchor.row);
 
         if (
             anchor.col < 0 ||
@@ -593,16 +596,23 @@ export class MarkdownTable {
             return this;
         }
 
-        const currentRowIndex = section === 'header' ? -1 : rowIndex;
+        if (section === 'header' && rowIndex !== 0) {
+            return this;
+        }
+        if (section === 'body' && (rowIndex < 0 || rowIndex >= this.rowsData.length)) {
+            return this;
+        }
+
+        const currentRowIndex = toUnifiedRowIndex(section, rowIndex);
         let targetRowIndex: number;
 
         if (direction === 'up') {
-            if (currentRowIndex === -1) {
+            if (currentRowIndex === 0) {
                 return this;
             }
             targetRowIndex = currentRowIndex - 1;
         } else {
-            if (currentRowIndex === this.rowsData.length - 1) {
+            if (currentRowIndex === this.rowCount - 1) {
                 return this;
             }
             targetRowIndex = currentRowIndex + 1;
@@ -612,19 +622,17 @@ export class MarkdownTable {
     }
 
     /**
-     * Swaps rows using the legacy row indexing convention: `-1` addresses the header
-     * and `0..n-1` address body rows.
+     * Swaps rows using unified row indexes: `0` addresses the header and `1..n`
+     * address body rows.
      */
     swapRows(row1: number, row2: number): MarkdownTable {
-        const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
-        const idx1 = row1 + 1;
-        const idx2 = row2 + 1;
-
-        if (idx1 < 0 || idx1 >= allRows.length || idx2 < 0 || idx2 >= allRows.length || idx1 === idx2) {
+        if (row1 < 0 || row1 >= this.rowCount || row2 < 0 || row2 >= this.rowCount || row1 === row2) {
             return this;
         }
 
-        [allRows[idx1], allRows[idx2]] = [allRows[idx2], allRows[idx1]];
+        const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
+
+        [allRows[row1], allRows[row2]] = [allRows[row2], allRows[row1]];
 
         return MarkdownTable.create({
             headerCells: allRows[0],
