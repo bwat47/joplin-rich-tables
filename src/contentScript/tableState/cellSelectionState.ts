@@ -1,6 +1,6 @@
 import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/state';
 import { setActiveCellEffect } from './activeCellState';
-import type { CellCoords, TableRect } from '../tableModel/types';
+import { toUnifiedRowIndex, type CellCoords, type TableRect } from '../tableModel/types';
 
 export interface CellSelection {
     tableFrom: number;
@@ -16,7 +16,7 @@ export const setCellSelectionEffect = StateEffect.define<CellSelection>();
 export const clearCellSelectionEffect = StateEffect.define<void>();
 
 export function toUnifiedRow(coords: CellCoords): number {
-    return coords.section === 'header' ? 0 : coords.row + 1;
+    return toUnifiedRowIndex(coords.section, coords.row);
 }
 
 export function fromUnifiedRow(row: number, col: number): CellCoords {

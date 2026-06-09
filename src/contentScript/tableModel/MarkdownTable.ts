@@ -1,7 +1,7 @@
 import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
-import type { CellCoords, TableRect, TableSection } from './types';
+import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
 export interface MarkdownTableParts {
@@ -102,10 +102,6 @@ function createEmptyRow(columnCount: number): string[] {
 
 function cloneUnifiedRows(headers: readonly string[], rows: readonly (readonly string[])[]): string[][] {
     return [[...headers], ...cloneRows(rows)];
-}
-
-function toUnifiedRow(coords: CellCoords): number {
-    return coords.section === 'header' ? 0 : coords.row + 1;
 }
 
 function createFromUnifiedRows(
@@ -406,10 +402,7 @@ export class MarkdownTable {
         }
 
         for (let row = rect.minRow; row <= rect.maxRow; row++) {
-            const rowCells = this.getUnifiedRow(row);
-            if (!rowCells) {
-                return false;
-            }
+            const rowCells = this.getUnifiedRow(row)!;
 
             for (let col = rect.minCol; col <= rect.maxCol; col++) {
                 if (rowCells[col] !== '') {
@@ -458,7 +451,7 @@ export class MarkdownTable {
     pasteFragmentAt(anchor: CellCoords, fragment: ClipboardTableFragment): PasteRectResult | null {
         const pastedRowCount = fragment.cells.length;
         const pastedColCount = fragment.cells[0]?.length ?? 0;
-        const anchorRow = toUnifiedRow(anchor);
+        const anchorRow = toUnifiedRowIndex(anchor.section, anchor.row);
 
         if (
             anchor.col < 0 ||
@@ -610,7 +603,7 @@ export class MarkdownTable {
             return this;
         }
 
-        const currentRowIndex = section === 'header' ? 0 : rowIndex + 1;
+        const currentRowIndex = toUnifiedRowIndex(section, rowIndex);
         let targetRowIndex: number;
 
         if (direction === 'up') {
@@ -633,11 +626,11 @@ export class MarkdownTable {
      * address body rows.
      */
     swapRows(row1: number, row2: number): MarkdownTable {
-        const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
-
-        if (row1 < 0 || row1 >= allRows.length || row2 < 0 || row2 >= allRows.length || row1 === row2) {
+        if (row1 < 0 || row1 >= this.rowCount || row2 < 0 || row2 >= this.rowCount || row1 === row2) {
             return this;
         }
+
+        const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
 
         [allRows[row1], allRows[row2]] = [allRows[row2], allRows[row1]];
 
