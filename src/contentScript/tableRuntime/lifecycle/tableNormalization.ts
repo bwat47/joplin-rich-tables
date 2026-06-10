@@ -64,6 +64,11 @@ export function planNormalizeTableBeforeOpen(params: {
     resolvedActiveCell: ResolvedActiveCell;
     request: OpenCellRequest;
 }): NormalizeTableBeforeOpenPlan {
+    const currentRequest = getOpenCellRequestById(params.state, params.request.requestId);
+    if (!currentRequest) {
+        return { type: 'aborted' };
+    }
+
     if (!params.request.normalizeIfNeeded) {
         return { type: 'not-needed' };
     }
@@ -71,11 +76,6 @@ export function planNormalizeTableBeforeOpen(params: {
     const replacement = getNormalizedTableReplacementIfChanged(params.state, params.resolvedActiveCell.ctx);
     if (!replacement) {
         return { type: 'not-needed' };
-    }
-
-    const currentRequest = getOpenCellRequestById(params.state, params.request.requestId);
-    if (!currentRequest) {
-        return { type: 'aborted' };
     }
 
     const nextActiveCell = createActiveCellForTableText({

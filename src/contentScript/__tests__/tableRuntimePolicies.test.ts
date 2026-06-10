@@ -485,26 +485,30 @@ describe('tableRuntimePolicies', () => {
             activeCellField,
             openCellRequestField,
         ]).update({ effects: setActiveCellEffect.of(activeCell) }).state;
-        const nonCanonicalResolved = requireResolvedActiveCell(nonCanonicalState);
+        const disabledRequest = createOpenRequest({ activeCell, normalizeIfNeeded: false });
+        const nonCanonicalStateWithRequest = addPendingOpenRequest(nonCanonicalState, disabledRequest);
+        const nonCanonicalResolved = requireResolvedActiveCell(nonCanonicalStateWithRequest);
 
         expect(
             planNormalizeTableBeforeOpen({
-                state: nonCanonicalState,
+                state: nonCanonicalStateWithRequest,
                 resolvedActiveCell: nonCanonicalResolved,
-                request: createOpenRequest({ activeCell, normalizeIfNeeded: false }),
+                request: disabledRequest,
             })
         ).toEqual({ type: 'not-needed' });
 
         const canonicalActiveCell = { ...activeCell, tableFrom: 1 };
         let canonicalState = createMarkdownState(`\n${doc}\n`, [activeCellField, openCellRequestField]);
         canonicalState = canonicalState.update({ effects: setActiveCellEffect.of(canonicalActiveCell) }).state;
+        const canonicalRequest = createOpenRequest({ activeCell: canonicalActiveCell, normalizeIfNeeded: true });
+        canonicalState = addPendingOpenRequest(canonicalState, canonicalRequest);
         const canonicalResolved = requireResolvedActiveCell(canonicalState);
 
         expect(
             planNormalizeTableBeforeOpen({
                 state: canonicalState,
                 resolvedActiveCell: canonicalResolved,
-                request: createOpenRequest({ activeCell: canonicalActiveCell, normalizeIfNeeded: true }),
+                request: canonicalRequest,
             })
         ).toEqual({ type: 'not-needed' });
     });
@@ -563,7 +567,10 @@ describe('tableRuntimePolicies', () => {
 
     it('aborts normalization when the open request is stale', () => {
         const activeCell = getHeaderCell();
-        let state = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [activeCellField]);
+        let state = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [
+            activeCellField,
+            openCellRequestField,
+        ]);
         state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
         const resolved = requireResolvedActiveCell(state);
 
