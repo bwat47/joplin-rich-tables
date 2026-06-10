@@ -29,6 +29,7 @@ import {
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import {
     beginOpenCellRequestEffect,
+    openCellRequestField,
     triggerOpenCellRequestEffect,
     type OpenCellRequest,
 } from '../tableRuntime/openCellRequest';
@@ -67,6 +68,10 @@ function createOpenRequest(params: { activeCell: ActiveCell; normalizeIfNeeded: 
         initialCursorPos: 'end',
         suppressKeys: false,
     };
+}
+
+function addPendingOpenRequest(state: EditorState, request: OpenCellRequest): EditorState {
+    return state.update({ effects: beginOpenCellRequestEffect.of(request) }).state;
 }
 
 function requireResolvedActiveCell(state: EditorState) {
@@ -478,6 +483,7 @@ describe('tableRuntimePolicies', () => {
         const activeCell = getHeaderCell();
         const nonCanonicalState = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [
             activeCellField,
+            openCellRequestField,
         ]).update({ effects: setActiveCellEffect.of(activeCell) }).state;
         const nonCanonicalResolved = requireResolvedActiveCell(nonCanonicalState);
 
@@ -490,7 +496,7 @@ describe('tableRuntimePolicies', () => {
         ).toEqual({ type: 'not-needed' });
 
         const canonicalActiveCell = { ...activeCell, tableFrom: 1 };
-        let canonicalState = createMarkdownState(`\n${doc}\n`, [activeCellField]);
+        let canonicalState = createMarkdownState(`\n${doc}\n`, [activeCellField, openCellRequestField]);
         canonicalState = canonicalState.update({ effects: setActiveCellEffect.of(canonicalActiveCell) }).state;
         const canonicalResolved = requireResolvedActiveCell(canonicalState);
 
@@ -511,14 +517,16 @@ describe('tableRuntimePolicies', () => {
             row: 0,
             col: 1,
         };
-        let state = createMarkdownState(nonCanonicalDoc, [activeCellField]);
+        let state = createMarkdownState(nonCanonicalDoc, [activeCellField, openCellRequestField]);
         state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+        const request = createOpenRequest({ activeCell, normalizeIfNeeded: true });
+        state = addPendingOpenRequest(state, request);
         const resolved = requireResolvedActiveCell(state);
 
         const plan = planNormalizeTableBeforeOpen({
             state,
             resolvedActiveCell: resolved,
-            request: createOpenRequest({ activeCell, normalizeIfNeeded: true }),
+            request,
         });
 
         expect(plan.type).toBe('dispatch');
@@ -553,24 +561,16 @@ describe('tableRuntimePolicies', () => {
         ).toBe(true);
     });
 
-    it('aborts normalization when the active cell cannot be remapped', () => {
+    it('aborts normalization when the open request is stale', () => {
         const activeCell = getHeaderCell();
         let state = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [activeCellField]);
         state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
         const resolved = requireResolvedActiveCell(state);
-        const malformedTable = Object.create(resolved.ctx.table) as typeof resolved.ctx.table;
-        malformedTable.serialize = () => 'not a table';
 
         expect(
             planNormalizeTableBeforeOpen({
                 state,
-                resolvedActiveCell: {
-                    ...resolved,
-                    ctx: {
-                        ...resolved.ctx,
-                        table: malformedTable,
-                    },
-                },
+                resolvedActiveCell: resolved,
                 request: createOpenRequest({ activeCell, normalizeIfNeeded: true }),
             })
         ).toEqual({ type: 'aborted' });

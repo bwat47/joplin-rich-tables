@@ -57,6 +57,15 @@ export type TableRuntimeAction =
     | { type: 'scheduleInsertedTableActivation' };
 
 export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRuntimeEvent): TableRuntimeAction[] {
+    const actions = reduceCoreTableRuntime(snapshot, event);
+    if (event.hasInsertedTableActivation) {
+        return [...actions, { type: 'scheduleInsertedTableActivation' }];
+    }
+
+    return actions;
+}
+
+function reduceCoreTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRuntimeEvent): TableRuntimeAction[] {
     const actions: TableRuntimeAction[] = [];
 
     if (event.openRequestId) {
@@ -69,7 +78,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
             type: 'openRequestedCell',
             requestId: event.openRequestId,
         });
-        return appendInsertedTableActivationAction(actions, event);
+        return actions;
     }
 
     if (
@@ -86,7 +95,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
             type: 'scheduleActivateCellAtCursor',
             options: getActivateCellAtCursorOptions('rawModeExit'),
         });
-        return appendInsertedTableActivationAction(actions, event);
+        return actions;
     }
 
     if (event.rawModeTransition.enteredRawMode && !event.isCellSelectionTransition) {
@@ -105,7 +114,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
             type: 'scheduleActivateCellAtCursor',
             options: getActivateCellAtCursorOptions('cellReposition'),
         });
-        return appendInsertedTableActivationAction(actions, event);
+        return actions;
     }
 
     if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event)) {
@@ -113,7 +122,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
             actions.push({ type: 'closeNestedEditor' });
         }
         actions.push({ type: 'clearActiveCell' });
-        return appendInsertedTableActivationAction(actions, event);
+        return actions;
     }
 
     if (!snapshot.hasActiveCell && snapshot.hadActiveCellBeforeUpdate) {
@@ -132,7 +141,7 @@ export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableR
         actions.push({ type: 'clearActiveCell' });
     }
 
-    return appendInsertedTableActivationAction(actions, event);
+    return actions;
 }
 
 function shouldClearActiveCellWhenSelectionLeavesTable(state: TableRuntimeSnapshot, event: TableRuntimeEvent): boolean {
@@ -144,17 +153,6 @@ function shouldClearActiveCellWhenSelectionLeavesTable(state: TableRuntimeSnapsh
         state.nestedEditorOpen &&
         event.selectionLeftActiveTable
     );
-}
-
-function appendInsertedTableActivationAction(
-    actions: TableRuntimeAction[],
-    event: TableRuntimeEvent
-): TableRuntimeAction[] {
-    if (event.hasInsertedTableActivation) {
-        actions.push({ type: 'scheduleInsertedTableActivation' });
-    }
-
-    return actions;
 }
 
 function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {

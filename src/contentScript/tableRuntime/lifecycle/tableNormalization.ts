@@ -5,7 +5,12 @@ import { setActiveCellEffect } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { beginOpenCellRequestEffect, triggerOpenCellRequestEffect, type OpenCellRequest } from '../openCellRequest';
+import {
+    beginOpenCellRequestEffect,
+    getOpenCellRequestById,
+    triggerOpenCellRequestEffect,
+    type OpenCellRequest,
+} from '../openCellRequest';
 import {
     countLeadingBlankLinesAfterBoundary,
     countTrailingBlankLinesBeforeBoundary,
@@ -68,6 +73,11 @@ export function planNormalizeTableBeforeOpen(params: {
         return { type: 'not-needed' };
     }
 
+    const currentRequest = getOpenCellRequestById(params.state, params.request.requestId);
+    if (!currentRequest) {
+        return { type: 'aborted' };
+    }
+
     const nextActiveCell = createActiveCellForTableText({
         tableFrom: replacement.tableFrom,
         tableText: replacement.tableText,
@@ -89,11 +99,11 @@ export function planNormalizeTableBeforeOpen(params: {
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
                 beginOpenCellRequestEffect.of({
-                    ...params.request,
+                    ...currentRequest,
                     activeCell: nextActiveCell.activeCell,
                     normalizeIfNeeded: false,
                 }),
-                triggerOpenCellRequestEffect.of({ requestId: params.request.requestId }),
+                triggerOpenCellRequestEffect.of({ requestId: currentRequest.requestId }),
                 rebuildTableWidgetsEffect.of({ tableFrom: replacement.tableFrom }),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
