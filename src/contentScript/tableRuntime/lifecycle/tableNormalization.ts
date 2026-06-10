@@ -69,7 +69,7 @@ export function planNormalizeTableBeforeOpen(params: {
         return { type: 'aborted' };
     }
 
-    if (!params.request.normalizeIfNeeded) {
+    if (!currentRequest.normalizeIfNeeded) {
         return { type: 'not-needed' };
     }
 
