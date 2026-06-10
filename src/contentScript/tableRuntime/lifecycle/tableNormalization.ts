@@ -1,6 +1,16 @@
 import { Annotation } from '@codemirror/state';
-import type { EditorState } from '@codemirror/state';
+import type { EditorState, TransactionSpec } from '@codemirror/state';
 import type { TableContext } from '../../tableModel/tableContext';
+import { setActiveCellEffect } from '../../tableState/activeCellState';
+import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import {
+    beginOpenCellRequestEffect,
+    getOpenCellRequestById,
+    triggerOpenCellRequestEffect,
+    type OpenCellRequest,
+} from '../openCellRequest';
 import {
     countLeadingBlankLinesAfterBoundary,
     countTrailingBlankLinesBeforeBoundary,
@@ -14,6 +24,11 @@ export interface NormalizedTableReplacement {
     tableText: string;
     tableFrom: number;
 }
+
+export type NormalizeTableBeforeOpenPlan =
+    | { type: 'not-needed' }
+    | { type: 'aborted' }
+    | { type: 'dispatch'; spec: TransactionSpec };
 
 /**
  * Returns canonical table markdown plus missing blank-line boundaries when needed.
@@ -41,5 +56,58 @@ export function getNormalizedTableReplacementIfChanged(
         insert,
         tableText,
         tableFrom: ctx.from + prefix.length,
+    };
+}
+
+export function planNormalizeTableBeforeOpen(params: {
+    state: EditorState;
+    resolvedActiveCell: ResolvedActiveCell;
+    request: OpenCellRequest;
+}): NormalizeTableBeforeOpenPlan {
+    const currentRequest = getOpenCellRequestById(params.state, params.request.requestId);
+    if (!currentRequest) {
+        return { type: 'aborted' };
+    }
+
+    if (!currentRequest.normalizeIfNeeded) {
+        return { type: 'not-needed' };
+    }
+
+    const replacement = getNormalizedTableReplacementIfChanged(params.state, params.resolvedActiveCell.ctx);
+    if (!replacement) {
+        return { type: 'not-needed' };
+    }
+
+    const nextActiveCell = createActiveCellForTableText({
+        tableFrom: replacement.tableFrom,
+        tableText: replacement.tableText,
+        target: params.resolvedActiveCell.activeCell,
+    });
+    if (!nextActiveCell) {
+        return { type: 'aborted' };
+    }
+
+    return {
+        type: 'dispatch',
+        spec: {
+            changes: {
+                from: params.resolvedActiveCell.tableFrom,
+                to: params.resolvedActiveCell.tableTo,
+                insert: replacement.insert,
+            },
+            selection: { anchor: nextActiveCell.selectionAnchor },
+            effects: [
+                setActiveCellEffect.of(nextActiveCell.activeCell),
+                beginOpenCellRequestEffect.of({
+                    ...currentRequest,
+                    activeCell: nextActiveCell.activeCell,
+                    normalizeIfNeeded: false,
+                }),
+                triggerOpenCellRequestEffect.of({ requestId: currentRequest.requestId }),
+                rebuildTableWidgetsEffect.of({ tableFrom: replacement.tableFrom }),
+            ],
+            annotations: normalizeBeforeEditAnnotation.of(true),
+            scrollIntoView: false,
+        },
     };
 }

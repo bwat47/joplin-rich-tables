@@ -15,6 +15,7 @@ import {
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
+import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
@@ -121,6 +122,7 @@ describe('runtimeEventClassifier', () => {
 
         expect(event.isNormalizeBeforeEdit).toBe(true);
         expect(event.isCellSelectionTransition).toBe(true);
+        expect(event.hasInsertedTableActivation).toBe(false);
         expect(event.openRequestId).toBe('latest-request');
         expect(event.rawModeTransition).toEqual({
             enteredRawMode: true,
@@ -128,6 +130,23 @@ describe('runtimeEventClassifier', () => {
             exitedSourceMode: false,
             exitedSearchForce: false,
         });
+    });
+
+    it('classifies inserted-table activation effects', () => {
+        const update = dispatchAndCaptureUpdate({
+            dispatch(view) {
+                view.dispatch({
+                    effects: activateInsertedTableEffect.of({
+                        tableFrom: 0,
+                        target: { section: 'header', row: 0, col: 0 },
+                    }),
+                });
+            },
+        });
+        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
+        const event = classifyTableRuntimeEvent(update, snapshot);
+
+        expect(event.hasInsertedTableActivation).toBe(true);
     });
 
     it('classifies raw mode exit from the update start state', () => {
