@@ -30,7 +30,7 @@
         "@floating-ui/dom": "^1.7.6",
         "@joplin/fork-uslug": "^2.0.6",
         "@lezer/markdown": "^1.6.2",
-        "dompurify": "^3.4.2"
+        "dompurify": "^3.4.9"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.5",
