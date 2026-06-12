@@ -25,7 +25,7 @@ mutable state.
 - [Nested-Editor-Architecture.md](./Nested-Editor-Architecture.md) - Synchronization, boundary enforcement, undo/redo.
 - [Interaction-and-Navigation.md](./Interaction-and-Navigation.md) - Keyboard navigation, selection logic.
 - [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md) - Command flow, serialization.
-- [Markdown-Rendering.md](./Markdown-Rendering.md) - Cell Markdown rendering, context injection.
+- [Markdown-Rendering.md](./Markdown-Rendering.md) - Cell Markdown rendering.
 - [Table-Parsing.md](./Table-Parsing.md) - Table parsing and cell-range computation.
 - [ADR/](../ADR/) - Architecture Decision Records.
 
