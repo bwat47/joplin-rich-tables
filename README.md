@@ -108,6 +108,9 @@ All table editing commands can be assigned keyboard shortcuts, the defaults are 
 - Show alignment buttons
     - Display align left, center, and right actions in the floating table toolbar.
 
+- Show delete table button
+    - Display the delete table action in the floating table toolbar.
+
 ### Limitations
 
 - The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
