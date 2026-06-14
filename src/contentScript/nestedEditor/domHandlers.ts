@@ -250,6 +250,10 @@ export function createNestedEditorDomHandlers(
             },
             mousedown: (e, view) => {
                 const mouseEvent = e as MouseEvent;
+                // Mirror the right-click position to the main editor so context-menu plugins that
+                // read the main cursor (e.g. link actions) target the clicked location. This only
+                // moves the main editor's selection, never the nested editor's, so Chromium's
+                // native selection of a misspelled word survives and spelling suggestions appear.
                 if (mouseEvent.button === 2) {
                     options.syncSelectionToMain(view, mouseEvent);
                 }

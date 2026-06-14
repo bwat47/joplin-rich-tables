@@ -55,7 +55,7 @@ describe('contentScriptMessageHandler', () => {
     });
 
     it('reads the host editor config', async () => {
-        globalValues.mockResolvedValueOnce([true]);
+        globalValues.mockResolvedValueOnce([true, true]);
         values.mockResolvedValueOnce({
             'floatingToolbar.showMoveButtons': false,
             'floatingToolbar.showClearButtons': true,
@@ -67,7 +67,7 @@ describe('contentScriptMessageHandler', () => {
             type: 'getHostEditorConfig',
         });
 
-        expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces']);
+        expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces', 'spellChecker.enabled']);
         expect(values).toHaveBeenCalledWith([
             'floatingToolbar.showMoveButtons',
             'floatingToolbar.showClearButtons',
@@ -77,6 +77,7 @@ describe('contentScriptMessageHandler', () => {
         expect(result).toEqual({
             nestedEditor: {
                 autoMatchingBraces: true,
+                spellcheck: true,
             },
             toolbar: {
                 showMoveButtons: false,

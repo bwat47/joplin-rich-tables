@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { HostEditorConfigDeps } from '../contentScriptBridge/hostEditorConfigBridge';
 import {
     AUTO_MATCHING_BRACES_SETTING_KEY,
+    SPELLCHECK_ENABLED_SETTING_KEY,
     defaultHostEditorConfig,
     readHostEditorConfig,
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
@@ -33,7 +34,7 @@ describe('hostEditorConfigBridge', () => {
     });
 
     it('reads and normalizes the combined host editor config', async () => {
-        globalValuesMock.mockResolvedValue([true]);
+        globalValuesMock.mockResolvedValue([true, true]);
         valuesMock.mockResolvedValue({
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: true,
@@ -43,7 +44,10 @@ describe('hostEditorConfigBridge', () => {
 
         const result = await readHostEditorConfig(deps);
 
-        expect(globalValuesMock).toHaveBeenCalledWith([AUTO_MATCHING_BRACES_SETTING_KEY]);
+        expect(globalValuesMock).toHaveBeenCalledWith([
+            AUTO_MATCHING_BRACES_SETTING_KEY,
+            SPELLCHECK_ENABLED_SETTING_KEY,
+        ]);
         expect(valuesMock).toHaveBeenCalledWith([
             TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
@@ -53,6 +57,7 @@ describe('hostEditorConfigBridge', () => {
         expect(result).toEqual({
             nestedEditor: {
                 autoMatchingBraces: true,
+                spellcheck: true,
             },
             toolbar: {
                 showMoveButtons: false,
@@ -64,7 +69,7 @@ describe('hostEditorConfigBridge', () => {
     });
 
     it('uses defaults for missing and non-boolean values', async () => {
-        globalValuesMock.mockResolvedValue(['true']);
+        globalValuesMock.mockResolvedValue(['true', 'true']);
         valuesMock.mockResolvedValue({
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: 'true',
@@ -73,6 +78,7 @@ describe('hostEditorConfigBridge', () => {
         await expect(readHostEditorConfig(deps)).resolves.toEqual({
             nestedEditor: {
                 autoMatchingBraces: false,
+                spellcheck: false,
             },
             toolbar: {
                 showMoveButtons: false,
@@ -104,12 +110,13 @@ describe('hostEditorConfigBridge', () => {
     });
 
     it('defaults only the toolbar config when plugin settings fail', async () => {
-        globalValuesMock.mockResolvedValue([true]);
+        globalValuesMock.mockResolvedValue([true, true]);
         valuesMock.mockRejectedValue(new Error('plugin boom'));
 
         await expect(readHostEditorConfig(deps)).resolves.toEqual({
             nestedEditor: {
                 autoMatchingBraces: true,
+                spellcheck: true,
             },
             toolbar: defaultHostEditorConfig().toolbar,
         });

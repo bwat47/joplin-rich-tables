@@ -17,6 +17,7 @@ describe('hostEditorConfig', () => {
     const validConfig: HostEditorConfig = {
         nestedEditor: {
             autoMatchingBraces: true,
+            spellcheck: true,
         },
         toolbar: {
             showMoveButtons: false,

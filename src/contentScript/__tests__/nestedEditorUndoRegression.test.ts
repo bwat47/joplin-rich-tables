@@ -52,6 +52,7 @@ if (!Range.prototype.getClientRects) {
 const TEST_HOST_CONFIG = {
     nestedEditor: {
         autoMatchingBraces: true,
+        spellcheck: false,
     },
     toolbar: {
         showMoveButtons: true,

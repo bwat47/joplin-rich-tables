@@ -44,7 +44,7 @@ describe('nestedEditorController markdown rendering', () => {
             openNestedEditor({
                 mainView: view,
                 cellElement,
-                featureSettings: { autoMatchingBraces: true },
+                featureSettings: { autoMatchingBraces: true, spellcheck: false },
             })
         ).toBe(true);
 
@@ -99,7 +99,7 @@ describe('nestedEditorController markdown rendering', () => {
             openNestedEditor({
                 mainView: view,
                 cellElement,
-                featureSettings: { autoMatchingBraces: true },
+                featureSettings: { autoMatchingBraces: true, spellcheck: false },
             })
         ).toBe(true);
 

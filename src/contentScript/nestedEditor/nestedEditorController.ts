@@ -406,25 +406,27 @@ class NestedEditorController {
             return;
         }
 
+        let localSelection: LocalSelection = {
+            anchor: nestedView.state.selection.main.anchor,
+            head: nestedView.state.selection.main.head,
+        };
+
+        // For a right-click with no active selection, derive the cursor position from the click
+        // coordinates so the main editor — and any context-menu plugins that read it (e.g. link
+        // actions) — point at the clicked location. We mirror this position to the main editor
+        // WITHOUT moving the nested editor's own selection: collapsing it here would override
+        // Chromium's native selection of a misspelled word on right-click and suppress the host's
+        // spelling suggestions. The browser positions the nested caret natively on right-click.
         if (event && nestedView.state.selection.main.empty) {
             const clickedPos = nestedView.posAtCoords({ x: event.clientX, y: event.clientY });
             if (clickedPos != null) {
                 const clamped = Math.max(0, Math.min(nestedView.state.doc.length, clickedPos));
-                if (clamped !== nestedView.state.selection.main.head) {
-                    nestedView.dispatch({
-                        selection: EditorSelection.single(clamped, clamped),
-                        annotations: Transaction.addToHistory.of(false),
-                        scrollIntoView: false,
-                    });
-                }
+                localSelection = { anchor: clamped, head: clamped };
             }
         }
 
-        this.session.local.selection = {
-            anchor: nestedView.state.selection.main.anchor,
-            head: nestedView.state.selection.main.head,
-        };
-        const rootSelection = toRootSelection(this.session.local.selection, this.session.local.text);
+        this.session.local.selection = localSelection;
+        const rootSelection = toRootSelection(localSelection, this.session.local.text);
         mirrorLocalSelectionToMain({
             nestedView,
             mainView: this.mainView,
