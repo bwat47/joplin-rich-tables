@@ -115,5 +115,6 @@ Nested editor requires its own extensions for parity with main editor:
 - **Inline Code**: Styled border around backticked code.
 - **Mark**: `==text==` highlighting.
 - **Insert**: `++text++` underline.
-- **Editor Features**: Close-bracket behavior is sourced from a one-time content-script-startup snapshot of the Joplin
-  `editor.autoMatchingBraces` setting fetched through the plugin process.
+- **Editor Features**: Close-bracket behavior and native spellcheck are sourced from a one-time
+  content-script-startup snapshot of the Joplin `editor.autoMatchingBraces` and `spellChecker.enabled` settings
+  fetched through the plugin process. Spellcheck adds a `spellcheck="true"` content attribute to the nested editor.

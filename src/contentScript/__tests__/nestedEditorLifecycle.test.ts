@@ -40,6 +40,7 @@ const activateTableCellMock = jest.fn();
 const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
 const DEFAULT_FEATURE_SETTINGS = {
     autoMatchingBraces: true,
+    spellcheck: false,
 } satisfies HostEditorConfig['nestedEditor'];
 const TEST_HOST_CONFIG = {
     nestedEditor: DEFAULT_FEATURE_SETTINGS,

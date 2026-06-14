@@ -1,6 +1,7 @@
 import { logger } from '../logger';
 
 export const AUTO_MATCHING_BRACES_SETTING_KEY = 'editor.autoMatchingBraces';
+export const SPELLCHECK_ENABLED_SETTING_KEY = 'spellChecker.enabled';
 export const TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY = 'floatingToolbar.showMoveButtons';
 export const TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY = 'floatingToolbar.showClearButtons';
 export const TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY = 'floatingToolbar.showAlignmentButtons';
@@ -9,6 +10,7 @@ export const TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY = 'floatingToolbar.sho
 export interface HostEditorConfig {
     nestedEditor: {
         autoMatchingBraces: boolean;
+        spellcheck: boolean;
     };
     toolbar: {
         showMoveButtons: boolean;
@@ -36,6 +38,7 @@ export function defaultHostEditorConfig(): HostEditorConfig {
     return {
         nestedEditor: {
             autoMatchingBraces: false,
+            spellcheck: false,
         },
         toolbar: {
             showMoveButtons: true,
@@ -59,6 +62,7 @@ export function isHostEditorConfig(value: unknown): value is HostEditorConfig {
         typeof nestedEditor === 'object' &&
         nestedEditor !== null &&
         typeof nestedEditor.autoMatchingBraces === 'boolean' &&
+        typeof nestedEditor.spellcheck === 'boolean' &&
         typeof toolbar === 'object' &&
         toolbar !== null &&
         typeof toolbar.showMoveButtons === 'boolean' &&
@@ -78,11 +82,15 @@ async function readNestedEditorConfig(deps: HostEditorConfigDeps): Promise<Neste
     const defaults = defaultHostEditorConfig().nestedEditor;
 
     try {
-        const [autoMatchingBraces] = await deps.settings.globalValues([AUTO_MATCHING_BRACES_SETTING_KEY]);
+        const [autoMatchingBraces, spellcheck] = await deps.settings.globalValues([
+            AUTO_MATCHING_BRACES_SETTING_KEY,
+            SPELLCHECK_ENABLED_SETTING_KEY,
+        ]);
 
         return {
             autoMatchingBraces:
                 typeof autoMatchingBraces === 'boolean' ? autoMatchingBraces : defaults.autoMatchingBraces,
+            spellcheck: typeof spellcheck === 'boolean' ? spellcheck : defaults.spellcheck,
         };
     } catch (error) {
         logger.warn('Failed to read nested editor host config, using defaults', error);
