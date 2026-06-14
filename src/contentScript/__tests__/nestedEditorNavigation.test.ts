@@ -15,6 +15,10 @@ const markdownExtension = markdown({
 });
 
 describe('nested editor navigation', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
     it('flushes pending nested-editor text before Tab inserts a new row from the last cell', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
@@ -82,6 +86,73 @@ describe('nested editor navigation', () => {
             row: 1,
             col: 0,
         });
+
+        mainView.destroy();
+    });
+
+    it('mirrors right-click position to the main editor without moving the nested selection', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+
+        const mainView = new EditorView({
+            parent,
+            extensions: [markdownExtension, activeCellField, resolvedActiveCellField, nestedEditorPlugin],
+            doc: ['| H1 | H2 |', '| --- | --- |', '| misspelled | other |'].join('\n'),
+        });
+
+        mainView.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+
+        const cellElement = document.createElement('td');
+        document.body.appendChild(cellElement);
+
+        openNestedEditor({
+            mainView,
+            cellElement,
+            featureSettings: defaultHostEditorConfig().nestedEditor,
+        });
+
+        const controller = (mainView.plugin(nestedEditorPlugin) as { controller: unknown } | null)?.controller as
+            | {
+                  session: {
+                      resolvedCell: { editableFrom: number };
+                      editor: EditorView;
+                  } | null;
+                  syncSelectionToMain: (nestedView: EditorView, event?: MouseEvent) => void;
+              }
+            | undefined;
+
+        const nestedView = controller?.session?.editor;
+        if (!controller?.session || !nestedView) {
+            throw new Error('Expected nested editor session to be open');
+        }
+
+        const initialNestedSelection = nestedView.state.selection.main;
+        const clickedLocalPos = 4;
+        const nestedDispatchSpy = jest.spyOn(nestedView, 'dispatch');
+        jest.spyOn(nestedView, 'posAtCoords').mockReturnValue(clickedLocalPos);
+
+        controller.syncSelectionToMain(
+            nestedView,
+            new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                button: 2,
+                clientX: 24,
+                clientY: 12,
+            })
+        );
+
+        expect(nestedDispatchSpy).not.toHaveBeenCalled();
+        expect(nestedView.state.selection.main).toEqual(initialNestedSelection);
+        expect(mainView.state.selection.main.anchor).toBe(controller.session.resolvedCell.editableFrom + clickedLocalPos);
+        expect(mainView.state.selection.main.head).toBe(controller.session.resolvedCell.editableFrom + clickedLocalPos);
 
         mainView.destroy();
     });
