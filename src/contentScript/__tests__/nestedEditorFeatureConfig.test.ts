@@ -11,9 +11,7 @@ describe('nestedEditorFeatureConfig', () => {
     });
 
     it('returns no extensions when all features are disabled', () => {
-        expect(
-            createNestedEditorFeatureExtensions({ autoMatchingBraces: false, spellcheck: false })
-        ).toHaveLength(0);
+        expect(createNestedEditorFeatureExtensions({ autoMatchingBraces: false, spellcheck: false })).toHaveLength(0);
     });
 
     it('enables the spellcheck content attribute when spellcheck is enabled', () => {

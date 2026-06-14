@@ -151,7 +151,9 @@ describe('nested editor navigation', () => {
 
         expect(nestedDispatchSpy).not.toHaveBeenCalled();
         expect(nestedView.state.selection.main).toEqual(initialNestedSelection);
-        expect(mainView.state.selection.main.anchor).toBe(controller.session.resolvedCell.editableFrom + clickedLocalPos);
+        expect(mainView.state.selection.main.anchor).toBe(
+            controller.session.resolvedCell.editableFrom + clickedLocalPos
+        );
         expect(mainView.state.selection.main.head).toBe(controller.session.resolvedCell.editableFrom + clickedLocalPos);
 
         mainView.destroy();
