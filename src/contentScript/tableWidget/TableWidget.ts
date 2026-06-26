@@ -218,7 +218,7 @@ export class TableWidget extends WidgetType {
         contentWrapper.className = CLASS_CELL_CONTENT;
         cell.appendChild(contentWrapper);
 
-        // Check if we have cached rendered HTML (keyed by content WITH context)
+        // Check if we have cached rendered HTML for the normalized cell content
         const cached = renderer.getCached(cacheKey);
         if (cached !== undefined) {
             contentWrapper.innerHTML = cached;
