@@ -25,12 +25,12 @@ Architecture overview: docs/Architecture/Overview.md
 
 Start here when exploring the codebase:
 
-| File                                                     | Purpose                                    |
-| -------------------------------------------------------- | ------------------------------------------ |
-| `src/contentScript/tableWidget/tableWidgetExtension.ts`  | Main wiring; connects all plugins/styles.  |
+| File                                                                | Purpose                                    |
+| ------------------------------------------------------------------- | ------------------------------------------ |
+| `src/contentScript/tableWidget/tableWidgetExtension.ts`             | Main wiring; connects all plugins/styles.  |
 | `src/contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor state, sync triggers.        |
-| `src/contentScript/tableWidget/TableWidget.ts`           | Widget rendering, cell coordinate mapping. |
-| `src/contentScript/nestedEditor/nestedEditorController.ts` | Nested editor mount/sync/close logic.      |
+| `src/contentScript/tableWidget/TableWidget.ts`                      | Widget rendering, cell coordinate mapping. |
+| `src/contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close logic.      |
 
 ## Common Pitfalls
 
@@ -46,6 +46,7 @@ Start here when exploring the codebase:
 - `npm run lint` Lint TypeScript with ESLint.
 - `npm run lint:fix` Auto-fix lint issues.
 - `npm run format` Format code with Prettier.
+- `npm run knip` Find unused dependencies, exports and files.
 - `npm run updateVersion` Sync plugin version metadata.
 
 ## Design Principles
