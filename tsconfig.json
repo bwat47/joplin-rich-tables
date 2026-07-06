@@ -1,11 +1,12 @@
 {
     "compilerOptions": {
         "outDir": "./dist/",
-        "module": "commonjs",
+        "module": "ESNext",
         "target": "es2020",
         "jsx": "react",
         "allowJs": true,
         "esModuleInterop": true,
+        "moduleResolution": "bundler",
         "types": ["node", "vitest/globals"],
         "paths": {
             "api": ["./api/index.ts"],
