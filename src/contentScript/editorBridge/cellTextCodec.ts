@@ -7,7 +7,7 @@ export interface LocalSelection {
 }
 
 /** A simple change spec for building sanitized transactions. */
-export type SimpleChange = { from: number; to: number; insert: string };
+type SimpleChange = { from: number; to: number; insert: string };
 
 /** Result of sanitizing cell changes. */
 export interface SanitizeChangesResult {
@@ -119,7 +119,7 @@ function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], po
     return count;
 }
 
-export function clamp(n: number, min: number, max: number): number {
+function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
 }
 

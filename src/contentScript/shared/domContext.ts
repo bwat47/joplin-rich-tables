@@ -1,6 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 
-export function getNodeDocument(node: Node): Document {
+function getNodeDocument(node: Node): Document {
     return node.ownerDocument ?? document;
 }
 

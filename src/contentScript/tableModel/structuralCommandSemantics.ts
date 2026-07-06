@@ -57,13 +57,13 @@ export type StructuralTableCommand =
           alignment: TableAlignment;
       };
 
-export interface StructuralTableMutationResult {
+interface StructuralTableMutationResult {
     kind: 'table';
     table: MarkdownTable;
     targetCell: TargetCell;
 }
 
-export interface StructuralTableDeleteResult {
+interface StructuralTableDeleteResult {
     kind: 'deleteTable';
 }
 

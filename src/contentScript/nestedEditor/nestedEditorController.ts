@@ -33,17 +33,17 @@ import { logger } from '../../logger';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
-export interface NestedEditorLocalState {
+interface NestedEditorLocalState {
     text: string;
     selection: LocalSelection;
 }
 
-export interface NestedEditorRootState {
+interface NestedEditorRootState {
     text: string;
     selection: LocalSelection;
 }
 
-export interface NestedEditorSession {
+interface NestedEditorSession {
     resolvedCell: ResolvedActiveCell;
     local: NestedEditorLocalState;
     root: NestedEditorRootState;

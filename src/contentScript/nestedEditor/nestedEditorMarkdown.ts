@@ -17,7 +17,7 @@ const nestedEditorRemovedBlockParsers = [
     'TaskList',
 ] as const;
 
-export const nestedEditorInlineMarkdownConfig: MarkdownConfig = {
+const nestedEditorInlineMarkdownConfig: MarkdownConfig = {
     remove: nestedEditorRemovedBlockParsers,
 };
 

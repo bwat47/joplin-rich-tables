@@ -19,7 +19,7 @@ import {
 
 export const normalizeBeforeEditAnnotation = Annotation.define<boolean>();
 
-export interface NormalizedTableReplacement {
+interface NormalizedTableReplacement {
     insert: string;
     tableText: string;
     tableFrom: number;
@@ -34,7 +34,7 @@ export type NormalizeTableBeforeOpenPlan =
  * Returns canonical table markdown plus missing blank-line boundaries when needed.
  * The table serializer stays table-only; boundary spacing depends on document context.
  */
-export function getNormalizedTableReplacementIfChanged(
+function getNormalizedTableReplacementIfChanged(
     state: EditorState,
     ctx: Pick<TableContext, 'from' | 'to' | 'table' | 'text'>
 ): NormalizedTableReplacement | null {

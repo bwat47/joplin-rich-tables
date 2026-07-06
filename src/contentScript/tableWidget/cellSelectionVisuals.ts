@@ -42,7 +42,7 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
     return selectedCells;
 }
 
-export class CellSelectionVisualsController {
+class CellSelectionVisualsController {
     private selectedCells = new Set<HTMLElement>();
     private destroyed = false;
 

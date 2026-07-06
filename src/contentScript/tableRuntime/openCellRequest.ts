@@ -25,7 +25,7 @@ export interface OpenCellRequestSignal {
     requestId: string;
 }
 
-export type OpenCellRequestTarget =
+type OpenCellRequestTarget =
     | {
           activeCell: ActiveCell;
           selectionAnchor?: number;
@@ -74,7 +74,7 @@ function mapActiveCell(activeCell: ActiveCell, changes: ChangeDesc): ActiveCell 
     };
 }
 
-export function createOpenCellRequestId(): string {
+function createOpenCellRequestId(): string {
     const requestId = `open-cell-${nextOpenCellRequestId}`;
     nextOpenCellRequestId += 1;
     return requestId;
