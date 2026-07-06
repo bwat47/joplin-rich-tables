@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+import { vi, type Mock } from 'vitest';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
@@ -12,27 +13,27 @@ import {
 } from '../tableRuntime/operations/structuralOperations';
 
 // Mock dependencies
-jest.mock('../tableRuntime/operations/runStructuralMutation', () => ({
-    runStructuralMutationAndReopen: jest.fn(),
+vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
+    runStructuralMutationAndReopen: vi.fn(),
 }));
-jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
-    getResolvedActiveCell: jest.fn(),
+vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
+    getResolvedActiveCell: vi.fn(),
 }));
 
 describe('tableCommands', () => {
     let mockView: EditorView;
-    let mockRunStructuralMutationAndReopen: jest.Mock;
-    let mockGetResolvedActiveCell: jest.Mock;
+    let mockRunStructuralMutationAndReopen: Mock;
+    let mockGetResolvedActiveCell: Mock;
 
     beforeEach(() => {
         mockView = {
             contentDOM: {
-                focus: jest.fn(),
+                focus: vi.fn(),
             },
         } as unknown as EditorView;
-        mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as jest.Mock;
+        mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as Mock;
         mockRunStructuralMutationAndReopen.mockClear();
-        mockGetResolvedActiveCell = getResolvedActiveCell as jest.Mock;
+        mockGetResolvedActiveCell = getResolvedActiveCell as Mock;
         mockGetResolvedActiveCell.mockReset();
     });
 
@@ -133,7 +134,7 @@ describe('tableCommands', () => {
             const callbacks = new Map<string, (...args: unknown[]) => unknown>();
             const cm6 = {
                 state: { doc: { length: 0 } },
-                contentDOM: { focus: jest.fn() },
+                contentDOM: { focus: vi.fn() },
             } as unknown as EditorView;
 
             return {
@@ -141,8 +142,8 @@ describe('tableCommands', () => {
                 editorControl: {
                     editor: cm6,
                     cm6,
-                    addExtension: jest.fn(),
-                    registerCommand: jest.fn((name: string, callback: (...args: unknown[]) => unknown) => {
+                    addExtension: vi.fn(),
+                    registerCommand: vi.fn((name: string, callback: (...args: unknown[]) => unknown) => {
                         callbacks.set(name, callback);
                     }),
                 },

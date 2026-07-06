@@ -1,7 +1,7 @@
-/** @jest-environment jsdom */
+/** @vitest-environment jsdom */
 
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, afterEach, jest } from '@jest/globals';
+import { describe, expect, it, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { closeNestedEditor, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
@@ -15,9 +15,9 @@ describe('nestedEditorController markdown rendering', () => {
     it('uses the markdown renderer supplied by the editor state facet when closing', () => {
         const tableText = ['| H1 |', '| --- |', '| **body** |'].join('\n');
         const renderer: MarkdownRenderService = {
-            getCached: jest.fn(() => '<p><strong>cached</strong></p>'),
-            render: jest.fn(async () => ''),
-            clear: jest.fn(),
+            getCached: vi.fn(() => '<p><strong>cached</strong></p>'),
+            render: vi.fn(async () => ''),
+            clear: vi.fn(),
         };
         let state = createMarkdownState(tableText, [
             activeCellField,
@@ -70,9 +70,9 @@ describe('nestedEditorController markdown rendering', () => {
         const insertedTableWithSpacing = `${tableText}\n\n`;
         const doc = `${intro}${insertedTableWithSpacing}${middle}${tableText}`;
         const renderer: MarkdownRenderService = {
-            getCached: jest.fn(() => undefined),
-            render: jest.fn(async () => ''),
-            clear: jest.fn(),
+            getCached: vi.fn(() => undefined),
+            render: vi.fn(async () => ''),
+            clear: vi.fn(),
         };
         let state = createMarkdownState(doc, [
             activeCellField,

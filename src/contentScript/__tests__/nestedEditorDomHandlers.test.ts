@@ -1,8 +1,8 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
-import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
@@ -21,7 +21,7 @@ if (!Range.prototype.getBoundingClientRect) {
     });
 }
 
-function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: jest.Mock }) {
+function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mock }) {
     return new EditorView({
         parent: params.parent,
         state: EditorState.create({
@@ -31,8 +31,8 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: je
                 drawSelection(),
                 ...createNestedEditorDomHandlers({} as EditorView, {
                     syncSelectionToMain: params.syncSelectionToMain,
-                    closeEditor: jest.fn(),
-                    ensureRootSelectionForCommand: jest.fn(),
+                    closeEditor: vi.fn(),
+                    ensureRootSelectionForCommand: vi.fn(),
                 }),
             ],
         }),
@@ -48,10 +48,10 @@ describe('nestedEditor dom handlers', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
 
-        const parentMouseDown = jest.fn();
+        const parentMouseDown = vi.fn();
         parent.addEventListener('mousedown', parentMouseDown);
 
-        const syncSelectionToMain = jest.fn();
+        const syncSelectionToMain = vi.fn();
         const nestedView = createNestedView({ parent, syncSelectionToMain });
         const selectionTarget = nestedView.dom.querySelector('.cm-selectionBackground') as HTMLElement | null;
 
@@ -73,10 +73,10 @@ describe('nestedEditor dom handlers', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
 
-        const parentMouseDown = jest.fn();
+        const parentMouseDown = vi.fn();
         parent.addEventListener('mousedown', parentMouseDown);
 
-        const syncSelectionToMain = jest.fn();
+        const syncSelectionToMain = vi.fn();
         const nestedView = createNestedView({ parent, syncSelectionToMain });
         const selectionTarget = nestedView.dom.querySelector('.cm-selectionBackground') as HTMLElement | null;
 

@@ -1,18 +1,18 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createContentScriptMessageHandler } from '../contentScriptBridge/contentScriptMessageHandler';
 
-jest.mock('../logger', () => ({
+vi.mock('../logger', () => ({
     logger: {
-        debug: jest.fn(),
-        error: jest.fn(),
-        warn: jest.fn(),
+        debug: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
     },
 }));
 
 describe('contentScriptMessageHandler', () => {
-    const globalValues = jest.fn(async (_keys: string[]) => [true]);
-    const values = jest.fn(async (_keys: string[] | string) => ({}));
-    const execute = jest.fn(
+    const globalValues = vi.fn(async (_keys: string[]) => [true]);
+    const values = vi.fn(async (_keys: string[] | string) => ({}));
+    const execute = vi.fn(
         async (_commandName: string, ..._args: unknown[]): Promise<unknown> => ({
             html: '<p>ok</p>',
         })

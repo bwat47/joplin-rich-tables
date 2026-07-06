@@ -1,15 +1,15 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { EditorState } from '@codemirror/state';
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import { defaultHostEditorConfig, type HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
 
-jest.mock('../../logger', () => ({
+vi.mock('../../logger', () => ({
     logger: {
-        warn: jest.fn(),
+        warn: vi.fn(),
     },
 }));
 
@@ -28,7 +28,7 @@ describe('hostEditorConfig', () => {
     };
 
     it('fetches a valid host editor config', async () => {
-        const postMessage = jest.fn<(message: unknown) => Promise<HostEditorConfig>>(async () => validConfig);
+        const postMessage = vi.fn<(message: unknown) => Promise<HostEditorConfig>>(async () => validConfig);
 
         await expect(fetchHostEditorConfig(postMessage)).resolves.toEqual(validConfig);
         expect(postMessage).toHaveBeenCalledWith({
@@ -37,13 +37,13 @@ describe('hostEditorConfig', () => {
     });
 
     it('returns defaults when the startup response is malformed', async () => {
-        const postMessage = jest.fn(async () => ({ invalid: true }));
+        const postMessage = vi.fn(async () => ({ invalid: true }));
 
         await expect(fetchHostEditorConfig(postMessage)).resolves.toEqual(defaultHostEditorConfig());
     });
 
     it('returns defaults when the startup request rejects', async () => {
-        const postMessage = jest.fn(async () => {
+        const postMessage = vi.fn(async () => {
             throw new Error('boom');
         });
 

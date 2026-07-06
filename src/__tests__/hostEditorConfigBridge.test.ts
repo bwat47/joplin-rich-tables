@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
 import type { HostEditorConfigDeps } from '../contentScriptBridge/hostEditorConfigBridge';
 import {
     AUTO_MATCHING_BRACES_SETTING_KEY,
@@ -11,20 +11,20 @@ import {
     TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
 } from '../contentScriptBridge/hostEditorConfigBridge';
 
-jest.mock('../logger', () => ({
+vi.mock('../logger', () => ({
     logger: {
-        warn: jest.fn(),
+        warn: vi.fn(),
     },
 }));
 
 describe('hostEditorConfigBridge', () => {
     let deps: HostEditorConfigDeps;
-    let globalValuesMock: jest.MockedFunction<HostEditorConfigDeps['settings']['globalValues']>;
-    let valuesMock: jest.MockedFunction<HostEditorConfigDeps['settings']['values']>;
+    let globalValuesMock: MockedFunction<HostEditorConfigDeps['settings']['globalValues']>;
+    let valuesMock: MockedFunction<HostEditorConfigDeps['settings']['values']>;
 
     beforeEach(() => {
-        globalValuesMock = jest.fn(async () => []);
-        valuesMock = jest.fn(async () => ({}));
+        globalValuesMock = vi.fn(async () => []);
+        valuesMock = vi.fn(async () => ({}));
         deps = {
             settings: {
                 globalValues: globalValuesMock,

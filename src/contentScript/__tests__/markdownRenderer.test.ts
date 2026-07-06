@@ -1,21 +1,21 @@
-/** @jest-environment jsdom */
+/** @vitest-environment jsdom */
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
 import { createMarkdownRenderer, type RenderMarkupFn } from '../services/markdownRenderer';
 import { deferred } from './testUtils';
 
-jest.mock('../../logger', () => ({
+vi.mock('../../logger', () => ({
     logger: {
-        debug: jest.fn(),
-        error: jest.fn(),
-        warn: jest.fn(),
+        debug: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
     },
 }));
 
 describe('createMarkdownRenderer', () => {
     it('sanitizes, post-processes, and caches rendered HTML', async () => {
-        const renderMarkup = jest.fn<RenderMarkupFn>(async (_markdown, id) => ({
+        const renderMarkup = vi.fn<RenderMarkupFn>(async (_markdown, id) => ({
             id,
             html: '<p><strong>ok</strong><span class="joplin-source">raw</span></p>',
         }));
@@ -33,7 +33,7 @@ describe('createMarkdownRenderer', () => {
 
     it('de-dupes concurrent identical render requests', async () => {
         const pending = deferred<RenderMarkupResult>();
-        const renderMarkup = jest.fn<RenderMarkupFn>(() => pending.promise);
+        const renderMarkup = vi.fn<RenderMarkupFn>(() => pending.promise);
         const renderer = createMarkdownRenderer(renderMarkup);
 
         const first = renderer.render('`x`');
@@ -46,7 +46,7 @@ describe('createMarkdownRenderer', () => {
     });
 
     it('evicts the oldest cache entry after the cache limit', async () => {
-        const renderMarkup = jest.fn<RenderMarkupFn>(async (markdown, id) => ({
+        const renderMarkup = vi.fn<RenderMarkupFn>(async (markdown, id) => ({
             id,
             html: `<p>${markdown}</p>`,
         }));
@@ -62,7 +62,7 @@ describe('createMarkdownRenderer', () => {
     });
 
     it('returns escaped fallback HTML when rendering rejects or returns an error', async () => {
-        const renderMarkup = jest
+        const renderMarkup = vi
             .fn<RenderMarkupFn>()
             .mockRejectedValueOnce(new Error('boom'))
             .mockResolvedValueOnce({ id: 'render-2', html: '<img src=x onerror=alert(1)>', error: true });
@@ -75,7 +75,7 @@ describe('createMarkdownRenderer', () => {
     it('clear removes cached entries and pending request state', async () => {
         const first = deferred<RenderMarkupResult>();
         const second = deferred<RenderMarkupResult>();
-        const renderMarkup = jest
+        const renderMarkup = vi
             .fn<RenderMarkupFn>()
             .mockReturnValueOnce(first.promise)
             .mockReturnValueOnce(second.promise);

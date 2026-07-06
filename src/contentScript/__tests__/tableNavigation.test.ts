@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
+import { vi, type Mock } from 'vitest';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
@@ -10,19 +11,19 @@ import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperatio
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 // Mock dependencies (not activeCellState - we need the real StateEffect identity)
-jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
-    getResolvedActiveCell: jest.fn(),
-    resolveCellWithinResolvedTable: jest.fn(),
+vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
+    getResolvedActiveCell: vi.fn(),
+    resolveCellWithinResolvedTable: vi.fn(),
 }));
-jest.mock('../tableRuntime/operations/structuralOperations', () => ({
+vi.mock('../tableRuntime/operations/structuralOperations', () => ({
     __esModule: true,
-    insertRowAtBottom: jest.fn(),
+    insertRowAtBottom: vi.fn(),
 }));
 
 describe('navigateCell', () => {
     let mockView: EditorView;
     let mockState: EditorState;
-    let mockDispatch: jest.Mock;
+    let mockDispatch: Mock;
     let currentCtx: {
         from: number;
         to: number;
@@ -35,10 +36,10 @@ describe('navigateCell', () => {
     } | null;
 
     beforeEach(() => {
-        mockDispatch = jest.fn();
+        mockDispatch = vi.fn();
         currentCtx = null;
         mockState = {
-            field: jest.fn(),
+            field: vi.fn(),
             doc: { length: 100 },
         } as unknown as EditorState;
 
@@ -46,20 +47,20 @@ describe('navigateCell', () => {
             state: mockState,
             dispatch: mockDispatch,
             contentDOM: {
-                focus: jest.fn(),
-                querySelectorAll: jest.fn().mockReturnValue([]),
+                focus: vi.fn(),
+                querySelectorAll: vi.fn().mockReturnValue([]),
             },
             dom: {
-                querySelector: jest.fn(),
-                querySelectorAll: jest.fn().mockReturnValue([]),
+                querySelector: vi.fn(),
+                querySelectorAll: vi.fn().mockReturnValue([]),
             },
-            posAtDOM: jest.fn().mockReturnValue(0), // Mock for findCellElement
+            posAtDOM: vi.fn().mockReturnValue(0), // Mock for findCellElement
         } as unknown as EditorView;
 
         // Reset mocks
-        (getResolvedActiveCell as jest.Mock).mockReset();
-        (resolveCellWithinResolvedTable as jest.Mock).mockReset();
-        (insertRowAtBottom as jest.Mock).mockReset();
+        (getResolvedActiveCell as Mock).mockReset();
+        (resolveCellWithinResolvedTable as Mock).mockReset();
+        (insertRowAtBottom as Mock).mockReset();
     });
 
     const getEffects = () => {
@@ -86,16 +87,18 @@ describe('navigateCell', () => {
             },
         };
 
-        (resolveCellWithinResolvedTable as jest.Mock).mockImplementation((_resolved, target) => ({
-            activeCell: {
-                tableFrom: 0,
-                section: target.section,
-                row: target.row,
-                col: target.col,
-            },
-            editableFrom: 10,
-            editableTo: 20,
-        }));
+        (resolveCellWithinResolvedTable as Mock).mockImplementation(
+            (_resolved: unknown, target: { section: 'header' | 'body'; row: number; col: number }) => ({
+                activeCell: {
+                    tableFrom: 0,
+                    section: target.section,
+                    row: target.row,
+                    col: target.col,
+                },
+                editableFrom: 10,
+                editableTo: 20,
+            })
+        );
 
         return currentCtx;
     };
@@ -121,13 +124,13 @@ describe('navigateCell', () => {
             ctx: currentCtx,
         };
 
-        (getResolvedActiveCell as jest.Mock).mockReturnValue(resolvedCell);
+        (getResolvedActiveCell as Mock).mockReturnValue(resolvedCell);
 
         return resolvedCell;
     };
 
     it('should return false if no active cell', () => {
-        (getResolvedActiveCell as jest.Mock).mockReturnValue(null);
+        (getResolvedActiveCell as Mock).mockReturnValue(null);
         expect(navigateCell(mockView, 'next')).toBe(false);
     });
 
@@ -202,10 +205,10 @@ describe('navigateCell', () => {
     it('should add row at end of table with col 0 when Tab (next) with allowRowCreation', () => {
         setupTable(1, 2);
         const resolvedCell = setupActiveCell(SECTION_BODY, 0, 1); // Last cell, col 1
-        (insertRowAtBottom as jest.Mock).mockReturnValue(true);
+        (insertRowAtBottom as Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'next', { allowRowCreation: true });
-        const openOptions = (insertRowAtBottom as jest.Mock).mock.calls[0][3];
+        const openOptions = (insertRowAtBottom as Mock).mock.calls[0][3];
 
         expect(result).toBe(true);
         expect(insertRowAtBottom).toHaveBeenCalledWith(
@@ -222,7 +225,7 @@ describe('navigateCell', () => {
     it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
         setupTable(1, 2);
         const resolvedCell = setupActiveCell(SECTION_BODY, 0, 1); // Last row, col 1
-        (insertRowAtBottom as jest.Mock).mockReturnValue(true);
+        (insertRowAtBottom as Mock).mockReturnValue(true);
 
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
         expect(result).toBe(true);
@@ -249,7 +252,7 @@ describe('navigateCell', () => {
     it('should not hand off focus when row creation fails', () => {
         setupTable(1, 2);
         setupActiveCell(SECTION_BODY, 0, 1);
-        (insertRowAtBottom as jest.Mock).mockReturnValue(false);
+        (insertRowAtBottom as Mock).mockReturnValue(false);
 
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
 

@@ -1,8 +1,8 @@
-/** @jest-environment jsdom */
+/** @vitest-environment jsdom */
 
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
@@ -10,8 +10,8 @@ import { TableWidget } from '../tableWidget/TableWidget';
 import { deferred } from './testUtils';
 
 class ResizeObserverMock {
-    observe = jest.fn();
-    disconnect = jest.fn();
+    observe = vi.fn();
+    disconnect = vi.fn();
 }
 
 describe('TableWidget markdown rendering', () => {
@@ -35,9 +35,9 @@ describe('TableWidget markdown rendering', () => {
         }
 
         const renderer: MarkdownRenderService = {
-            getCached: jest.fn(() => undefined),
-            render: jest.fn(() => rendered.promise),
-            clear: jest.fn(),
+            getCached: vi.fn(() => undefined),
+            render: vi.fn(() => rendered.promise),
+            clear: vi.fn(),
         };
         const state = EditorState.create({
             extensions: [markdownRenderServiceFacet.of(renderer)],
@@ -45,7 +45,7 @@ describe('TableWidget markdown rendering', () => {
         const view = {
             state,
             dom: document.createElement('div'),
-            requestMeasure: jest.fn(),
+            requestMeasure: vi.fn(),
         } as unknown as EditorView;
 
         const widget = new TableWidget(table, cellRanges, tableText, 0, tableText.length, 'hash');
@@ -73,16 +73,16 @@ describe('TableWidget markdown rendering', () => {
         const state = EditorState.create({
             extensions: [
                 markdownRenderServiceFacet.of({
-                    getCached: jest.fn(() => ''),
-                    render: jest.fn(async () => ''),
-                    clear: jest.fn(),
+                    getCached: vi.fn(() => ''),
+                    render: vi.fn(async () => ''),
+                    clear: vi.fn(),
                 }),
             ],
         });
         const view = {
             state,
             dom: document.createElement('div'),
-            requestMeasure: jest.fn(),
+            requestMeasure: vi.fn(),
         } as unknown as EditorView;
 
         const tableFrom = 50;
@@ -94,7 +94,7 @@ describe('TableWidget markdown rendering', () => {
         }
 
         const rect = { top: 10, bottom: 20, left: 30, right: 40 } as DOMRect;
-        jest.spyOn(targetCell, 'getBoundingClientRect').mockReturnValue(rect);
+        vi.spyOn(targetCell, 'getBoundingClientRect').mockReturnValue(rect);
 
         expect(widget.coordsAt(dom, cellRanges.rows[0][1].from, 1)).toBe(rect);
         expect(widget.coordsAt(dom, tableFrom + cellRanges.rows[0][1].from, 1)).toBeNull();

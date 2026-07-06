@@ -1,23 +1,24 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
+import { vi, type Mock } from 'vitest';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 
-jest.mock('../nestedEditor/nestedEditorController', () => ({
-    isNestedEditorOpen: jest.fn(),
+vi.mock('../nestedEditor/nestedEditorController', () => ({
+    isNestedEditorOpen: vi.fn(),
 }));
 
 const markdownExtension = markdown({
     extensions: [GFM],
 });
 
-const mockIsNestedEditorOpen = isNestedEditorOpen as jest.Mock;
+const mockIsNestedEditorOpen = isNestedEditorOpen as Mock;
 
 describe('createUndoScrollPreservation', () => {
     beforeEach(() => {
@@ -43,7 +44,7 @@ describe('createUndoScrollPreservation', () => {
                 col: 0,
             }),
         });
-        const scrollSnapshotSpy = jest.spyOn(view, 'scrollSnapshot');
+        const scrollSnapshotSpy = vi.spyOn(view, 'scrollSnapshot');
 
         view.dispatch({
             changes: {
@@ -77,7 +78,7 @@ describe('createUndoScrollPreservation', () => {
                 col: 99,
             }),
         });
-        const scrollSnapshotSpy = jest.spyOn(view, 'scrollSnapshot');
+        const scrollSnapshotSpy = vi.spyOn(view, 'scrollSnapshot');
 
         view.dispatch({
             changes: {

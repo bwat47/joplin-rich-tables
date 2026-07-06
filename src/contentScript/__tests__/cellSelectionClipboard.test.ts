@@ -1,8 +1,9 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { EditorView } from '@codemirror/view';
+import { vi, type Mock } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import {
     cellSelectionField,
@@ -33,8 +34,8 @@ function selection(anchor: CellSelection['anchor'], focus: CellSelection['focus'
 
 interface MutableClipboardTestView {
     state: ReturnType<typeof createMarkdownState>;
-    dispatch: jest.Mock;
-    focus: jest.Mock;
+    dispatch: Mock;
+    focus: Mock;
     dom: HTMLElement;
     contentDOM: HTMLElement;
     scrollDOM: HTMLElement;
@@ -437,11 +438,11 @@ describe('cellSelectionClipboard', () => {
 
         const mutableView: MutableClipboardTestView = {
             state: currentState,
-            dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+            dispatch: vi.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
                 currentState = currentState.update(spec).state;
                 mutableView.state = currentState;
             }),
-            focus: jest.fn(),
+            focus: vi.fn(),
             dom: root,
             contentDOM: root,
             scrollDOM: root,
@@ -450,9 +451,9 @@ describe('cellSelectionClipboard', () => {
 
         const event = {
             clipboardData: {
-                getData: jest.fn(() => ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n')),
+                getData: vi.fn(() => ['| P1 | P2 |', '| :--- | ---: |', '| Q1 | Q2 |'].join('\n')),
             },
-            preventDefault: jest.fn(),
+            preventDefault: vi.fn(),
         } as unknown as ClipboardEvent;
 
         expect(
@@ -489,11 +490,11 @@ describe('cellSelectionClipboard', () => {
 
         const mutableView: MutableClipboardTestView = {
             state: currentState,
-            dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+            dispatch: vi.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
                 currentState = currentState.update(spec).state;
                 mutableView.state = currentState;
             }),
-            focus: jest.fn(),
+            focus: vi.fn(),
             dom: root,
             contentDOM: root,
             scrollDOM: root,
@@ -531,11 +532,11 @@ describe('cellSelectionClipboard', () => {
 
         const mutableView: MutableClipboardTestView = {
             state: currentState,
-            dispatch: jest.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
+            dispatch: vi.fn((spec: Parameters<EditorView['dispatch']>[0]) => {
                 currentState = currentState.update(spec).state;
                 mutableView.state = currentState;
             }),
-            focus: jest.fn(),
+            focus: vi.fn(),
             dom: root,
             contentDOM: root,
             scrollDOM: root,

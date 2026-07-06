@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
@@ -15,7 +15,7 @@ describe('tableTransactionHelpers', () => {
 
     function createView(tableText: string) {
         currentTableText = tableText;
-        const dispatch = jest.fn();
+        const dispatch = vi.fn();
         return {
             state: {
                 doc: { length: tableText.length },
@@ -72,7 +72,7 @@ describe('tableTransactionHelpers', () => {
         }
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 1);
-        const afterDispatch = jest.fn();
+        const afterDispatch = vi.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
@@ -122,7 +122,7 @@ describe('tableTransactionHelpers', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 0);
-        const afterDispatch = jest.fn();
+        const afterDispatch = vi.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
@@ -204,7 +204,7 @@ describe('tableTransactionHelpers', () => {
         ['deleteColumn', '| H1 |\n| --- |\n| a |', { section: 'body', row: 0, col: 0 }],
     ] as const)('dispatches table deletion for %s without reopen effects', (commandType, tableText, activeCell) => {
         const view = createView(tableText);
-        const afterDispatch = jest.fn();
+        const afterDispatch = vi.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,

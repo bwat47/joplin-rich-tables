@@ -1,11 +1,11 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@codemirror/view';
 import { getDocumentWindow, requestViewAnimationFrame } from '../shared/domContext';
 
 describe('domContext', () => {
     it('prefers the document defaultView over the ambient window', () => {
-        const callback = jest.fn();
-        const rafSpy = jest.fn((frameCallback: FrameRequestCallback) => {
+        const callback = vi.fn();
+        const rafSpy = vi.fn((frameCallback: FrameRequestCallback) => {
             void frameCallback;
             return 42;
         });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';

@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import { type TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
@@ -33,8 +33,8 @@ describe('interactive open-cell requests', () => {
             type: 'mousedown',
             button: 0,
             target: cells.header0,
-            preventDefault: jest.fn(),
-            stopPropagation: jest.fn(),
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
         expect(handleTableInteraction(view, event)).toBe(true);

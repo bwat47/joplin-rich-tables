@@ -1,9 +1,10 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { vi, type Mock } from 'vitest';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
     beginOpenCellRequestEffect,
@@ -14,14 +15,14 @@ import {
     shouldSuppressNavigationKeys,
 } from '../tableRuntime/openCellRequest';
 
-jest.mock('../../logger', () => ({
+vi.mock('../../logger', () => ({
     logger: {
-        warn: jest.fn(),
+        warn: vi.fn(),
     },
 }));
 
 import { logger } from '../../logger';
-const mockLoggerWarn = logger.warn as jest.Mock;
+const mockLoggerWarn = logger.warn as Mock;
 
 describe('openCellRequestField', () => {
     const activeCell: ActiveCell = {
@@ -112,7 +113,7 @@ describe('openCellRequestField', () => {
     });
 
     it('fails a stuck request after the watchdog timeout', () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         mockLoggerWarn.mockClear();
 
         const parent = document.createElement('div');
@@ -134,12 +135,12 @@ describe('openCellRequestField', () => {
             }),
         });
 
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
 
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
         expect(mockLoggerWarn).toHaveBeenCalledWith('Open-cell request timed out - forcing release');
 
         view.destroy();
-        jest.useRealTimers();
+        vi.useRealTimers();
     });
 });

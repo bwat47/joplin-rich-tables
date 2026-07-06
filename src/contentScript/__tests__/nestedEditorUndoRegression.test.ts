@@ -1,5 +1,5 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { undo } from '@codemirror/commands';
@@ -8,7 +8,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';

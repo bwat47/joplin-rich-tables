@@ -1,5 +1,5 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { EditorView } from '@codemirror/view';
@@ -48,7 +48,7 @@ function createViewHarness() {
         dom: root,
         scrollDOM,
         contentDOM,
-        posAtDOM: jest.fn((node: Node) => (node === selectedWidget ? 0 : 1)),
+        posAtDOM: vi.fn((node: Node) => (node === selectedWidget ? 0 : 1)),
     } as unknown as EditorView;
 
     return { view, root, scrollDOM, contentDOM, selectedWidget, selectedWidgetChild };

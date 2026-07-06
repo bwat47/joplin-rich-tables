@@ -1,4 +1,4 @@
-/** @jest-environment jsdom */
+/** @vitest-environment jsdom */
 
 import { postProcessHtml } from '../services/htmlPostProcessor';
 

@@ -1,5 +1,5 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { markdown } from '@codemirror/lang-markdown';
@@ -135,8 +135,8 @@ describe('nested editor navigation', () => {
 
         const initialNestedSelection = nestedView.state.selection.main;
         const clickedLocalPos = 4;
-        const nestedDispatchSpy = jest.spyOn(nestedView, 'dispatch');
-        jest.spyOn(nestedView, 'posAtCoords').mockReturnValue(clickedLocalPos);
+        const nestedDispatchSpy = vi.spyOn(nestedView, 'dispatch');
+        vi.spyOn(nestedView, 'posAtCoords').mockReturnValue(clickedLocalPos);
 
         controller.syncSelectionToMain(
             nestedView,

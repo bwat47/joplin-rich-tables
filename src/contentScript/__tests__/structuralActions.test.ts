@@ -1,3 +1,4 @@
+import { vi, type Mock } from 'vitest';
 import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
@@ -6,14 +7,14 @@ import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActi
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
-jest.mock('../tableRuntime/operations/runStructuralMutation', () => ({
-    runStructuralMutationAndReopen: jest.fn(),
+vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
+    runStructuralMutationAndReopen: vi.fn(),
 }));
 
 describe('structuralActions', () => {
     let view: EditorView;
     let resolvedCell: ResolvedActiveCell;
-    let mockRunStructuralMutationAndReopen: jest.Mock;
+    let mockRunStructuralMutationAndReopen: Mock;
 
     const createResolvedCell = (): ResolvedActiveCell => {
         const activeCell: ActiveCell = {
@@ -43,13 +44,13 @@ describe('structuralActions', () => {
 
     beforeEach(() => {
         view = {
-            dispatch: jest.fn(),
+            dispatch: vi.fn(),
             contentDOM: {
-                focus: jest.fn(),
+                focus: vi.fn(),
             },
         } as unknown as EditorView;
         resolvedCell = createResolvedCell();
-        mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as jest.Mock;
+        mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as Mock;
         mockRunStructuralMutationAndReopen.mockReset();
         mockRunStructuralMutationAndReopen.mockReturnValue(true);
     });

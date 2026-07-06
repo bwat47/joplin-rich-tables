@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
@@ -20,8 +20,8 @@ describe('table widget interactions', () => {
             button: 0,
             shiftKey: true,
             target: cells.body1,
-            preventDefault: jest.fn(),
-            stopPropagation: jest.fn(),
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
         expect(handleTableInteraction(view, event)).toBe(true);
@@ -47,8 +47,8 @@ describe('table widget interactions', () => {
             type: 'mousedown',
             button: 0,
             target: cells.body0,
-            preventDefault: jest.fn(),
-            stopPropagation: jest.fn(),
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
         expect(handleTableInteraction(view, event)).toBe(true);
@@ -61,7 +61,7 @@ describe('table widget interactions', () => {
     });
 
     it('opens external rendered links through the link opener facet', () => {
-        const open = jest.fn();
+        const open = vi.fn();
         const { view } = createInteractiveTableHarness({
             extensions: [
                 linkOpenerFacet.of({
@@ -71,10 +71,10 @@ describe('table widget interactions', () => {
         });
         const widget = {};
         const link = {
-            getAttribute: jest.fn((name: string) => (name === 'href' ? 'https://example.com' : null)),
+            getAttribute: vi.fn((name: string) => (name === 'href' ? 'https://example.com' : null)),
         };
         const target = {
-            closest: jest.fn((selector: string) => {
+            closest: vi.fn((selector: string) => {
                 if (selector === 'a') {
                     return link;
                 }
@@ -88,8 +88,8 @@ describe('table widget interactions', () => {
             type: 'click',
             button: 0,
             target,
-            preventDefault: jest.fn(),
-            stopPropagation: jest.fn(),
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
         expect(handleTableInteraction(view, event)).toBe(true);

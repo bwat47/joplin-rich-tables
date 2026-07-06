@@ -1,9 +1,10 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
-jest.mock('../tableWidget/domHelpers', () => ({
-    findCellElement: jest.fn(() => ({})),
+vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../tableWidget/domHelpers')>()),
+    findCellElement: vi.fn(() => ({})),
 }));
 
 import { history } from '@codemirror/commands';
@@ -167,7 +168,7 @@ describe('cellSelectionKeymap', () => {
             ],
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
-        const focusSpy = jest.spyOn(view, 'focus');
+        const focusSpy = vi.spyOn(view, 'focus');
 
         view.dispatch({
             effects: setCellSelectionEffect.of({
@@ -250,7 +251,7 @@ describe('cellSelectionKeymap', () => {
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 
-        const dispatchSpy = jest.spyOn(view, 'dispatch');
+        const dispatchSpy = vi.spyOn(view, 'dispatch');
         view.dispatch({
             effects: setCellSelectionEffect.of({
                 tableFrom: 0,
@@ -326,7 +327,7 @@ describe('cellSelectionKeymap', () => {
                 col: 99,
             }),
         });
-        const dispatchSpy = jest.spyOn(view, 'dispatch');
+        const dispatchSpy = vi.spyOn(view, 'dispatch');
 
         expect(startCellSelectionFromActiveCell(view, 'right')).toBe(false);
         expect(dispatchSpy).not.toHaveBeenCalled();

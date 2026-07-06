@@ -1,27 +1,30 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 
-const mockGetResolvedActiveCell = jest.fn();
-const mockRunStructuralAction = jest.fn();
-const mockIsNestedEditorOpen = jest.fn();
-const mockRefocusNestedEditor = jest.fn();
+const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOpen, mockRefocusNestedEditor } =
+    vi.hoisted(() => ({
+        mockGetResolvedActiveCell: vi.fn(),
+        mockRunStructuralAction: vi.fn(),
+        mockIsNestedEditorOpen: vi.fn(),
+        mockRefocusNestedEditor: vi.fn(),
+    }));
 
-jest.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
+vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     getResolvedActiveCell: mockGetResolvedActiveCell,
 }));
 
-jest.mock('../tableRuntime/operations/structuralActions', () => ({
+vi.mock('../tableRuntime/operations/structuralActions', () => ({
     runStructuralAction: mockRunStructuralAction,
 }));
 
-jest.mock('../nestedEditor/nestedEditorController', () => ({
+vi.mock('../nestedEditor/nestedEditorController', () => ({
     isNestedEditorOpen: mockIsNestedEditorOpen,
     refocusNestedEditor: mockRefocusNestedEditor,
 }));
@@ -93,7 +96,7 @@ function createToolbarButtons(plugin: TableToolbarPlugin): void {
 describe('tableToolbarPlugin', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('refocuses the nested editor when a toolbar action is a no-op', () => {

@@ -1,10 +1,10 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
 import { EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, expect, it, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import {
     activateInsertedTableEffect,
@@ -34,10 +34,13 @@ import {
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import * as nestedEditorController from '../nestedEditor/nestedEditorController';
 
-const activateCellAtPositionMock = jest.fn();
-const activateTableCellMock = jest.fn();
-const findCellElementMock: jest.Mock = jest.fn(() => document.createElement('td'));
+const { activateCellAtPositionMock, activateTableCellMock, findCellElementMock } = vi.hoisted(() => ({
+    activateCellAtPositionMock: vi.fn(),
+    activateTableCellMock: vi.fn(),
+    findCellElementMock: vi.fn<(...args: unknown[]) => HTMLTableCellElement | null>(() => document.createElement('td')),
+}));
 const DEFAULT_FEATURE_SETTINGS = {
     autoMatchingBraces: true,
     spellcheck: false,
@@ -51,10 +54,10 @@ const TEST_HOST_CONFIG = {
         showDeleteTableButton: true,
     },
 } satisfies HostEditorConfig;
-const nestedEditorControllerMock = jest.requireMock('../nestedEditor/nestedEditorController') as {
-    closeNestedEditor: jest.Mock;
-    isNestedEditorOpen: jest.Mock;
-    openNestedEditor: jest.Mock;
+const nestedEditorControllerMock = nestedEditorController as unknown as {
+    closeNestedEditor: Mock;
+    isNestedEditorOpen: Mock;
+    openNestedEditor: Mock;
 };
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
@@ -81,21 +84,21 @@ function openRequestEffects(params: {
     ];
 }
 
-jest.mock('../tableRuntime/activeCell/cellActivation', () => ({
+vi.mock('../tableRuntime/activeCell/cellActivation', () => ({
     activateCellAtPosition: (...args: unknown[]) => activateCellAtPositionMock(...args),
     activateTableCell: (...args: unknown[]) => activateTableCellMock(...args),
 }));
 
-jest.mock('../tableWidget/domHelpers', () => ({
+vi.mock('../tableWidget/domHelpers', () => ({
     findCellElement: (view: unknown, tableId: unknown, activeCell: unknown) =>
         findCellElementMock(view, tableId, activeCell),
 }));
 
-jest.mock('../nestedEditor/nestedEditorController', () => ({
-    closeNestedEditor: jest.fn(),
-    handleMainEditorUpdate: jest.fn(),
-    isNestedEditorOpen: jest.fn(() => false),
-    openNestedEditor: jest.fn(),
+vi.mock('../nestedEditor/nestedEditorController', () => ({
+    closeNestedEditor: vi.fn(),
+    handleMainEditorUpdate: vi.fn(),
+    isNestedEditorOpen: vi.fn(() => false),
+    openNestedEditor: vi.fn(),
 }));
 
 describe('nestedEditorLifecycle', () => {
@@ -624,7 +627,7 @@ describe('nestedEditorLifecycle', () => {
                 ],
             }),
         });
-        const dispatchSpy = jest.spyOn(view, 'dispatch');
+        const dispatchSpy = vi.spyOn(view, 'dispatch');
 
         view.dispatch({
             effects: [
@@ -814,7 +817,7 @@ describe('nestedEditorLifecycle', () => {
             parent,
             state,
         });
-        jest.spyOn(view, 'coordsAtPos').mockReturnValue({
+        vi.spyOn(view, 'coordsAtPos').mockReturnValue({
             top: 0,
             bottom: 0,
             left: 0,

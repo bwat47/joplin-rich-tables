@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi, type Mock } from 'vitest';
 import { EditorState, type Extension, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
@@ -17,12 +17,12 @@ interface CellStub {
 
 export interface MutableTestView {
     state: EditorState;
-    dispatch: jest.Mock<(spec: TransactionSpec) => void>;
-    focus: jest.Mock;
-    posAtDOM: jest.Mock;
-    requestMeasure: jest.Mock;
+    dispatch: Mock<(spec: TransactionSpec) => void>;
+    focus: Mock;
+    posAtDOM: Mock;
+    requestMeasure: Mock;
     contentDOM: {
-        querySelectorAll: jest.Mock;
+        querySelectorAll: Mock;
     };
     dom: {
         isConnected: boolean;
@@ -62,7 +62,7 @@ export function createInteractiveTableHarness(params?: {
     }
 
     const widget = {
-        querySelector: jest.fn((selector: string) => cellMap.get(selector) ?? null),
+        querySelector: vi.fn((selector: string) => cellMap.get(selector) ?? null),
     };
 
     const createCellStub = (section: 'header' | 'body', row: number, col: number): HTMLElement => {
@@ -105,15 +105,15 @@ export function createInteractiveTableHarness(params?: {
 
     const view: MutableTestView = {
         state: currentState,
-        dispatch: jest.fn((spec: TransactionSpec) => {
+        dispatch: vi.fn((spec: TransactionSpec) => {
             currentState = currentState.update(spec).state;
             view.state = currentState;
         }),
-        focus: jest.fn(),
-        posAtDOM: jest.fn(() => 0),
-        requestMeasure: jest.fn(),
+        focus: vi.fn(),
+        posAtDOM: vi.fn(() => 0),
+        requestMeasure: vi.fn(),
         contentDOM: {
-            querySelectorAll: jest.fn(() => [widget]),
+            querySelectorAll: vi.fn(() => [widget]),
         },
         dom: {
             isConnected: true,
