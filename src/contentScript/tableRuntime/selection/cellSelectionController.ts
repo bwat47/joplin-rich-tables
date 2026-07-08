@@ -25,11 +25,6 @@ function getTableBoundsFromContext(ctx: TableContext): { totalRows: number; tota
     };
 }
 
-function getTableBounds(view: EditorView, tableFrom: number): { totalRows: number; totalCols: number } | null {
-    const ctx = resolveTableContextAtPos(view.state, tableFrom);
-    return ctx ? getTableBoundsFromContext(ctx) : null;
-}
-
 function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
     const bounds = getTableBoundsFromContext(ctx);
     if (bounds.totalCols <= 0) {
@@ -43,15 +38,12 @@ function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords):
 }
 
 function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoords): CellCoords | null {
-    const bounds = getTableBounds(view, tableFrom);
-    if (!bounds || bounds.totalCols <= 0) {
+    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    if (!ctx) {
         return null;
     }
 
-    const unifiedRow = Math.max(0, Math.min(bounds.totalRows - 1, toUnifiedRow(focus)));
-    const col = Math.max(0, Math.min(bounds.totalCols - 1, focus.col));
-
-    return fromUnifiedRow(unifiedRow, col);
+    return clampSelectionFocusWithinContext(ctx, focus);
 }
 
 function dispatchSelectionWithContext(
