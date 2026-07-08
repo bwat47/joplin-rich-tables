@@ -13,6 +13,7 @@ import {
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
 import type { TableContext } from '../../tableModel/tableContext';
+import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 import { makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
@@ -31,8 +32,8 @@ function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords):
         return null;
     }
 
-    const unifiedRow = Math.max(0, Math.min(bounds.totalRows - 1, toUnifiedRow(focus)));
-    const col = Math.max(0, Math.min(bounds.totalCols - 1, focus.col));
+    const unifiedRow = clamp(toUnifiedRow(focus), 0, bounds.totalRows - 1);
+    const col = clamp(focus.col, 0, bounds.totalCols - 1);
 
     return fromUnifiedRow(unifiedRow, col);
 }

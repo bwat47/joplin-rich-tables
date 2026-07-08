@@ -1,5 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { getViewDocument } from '../shared/domContext';
+import { clamp } from '../shared/numberUtils';
 import { logger } from '../../logger';
 
 interface DomSelectionEndpoint {
@@ -8,7 +9,7 @@ interface DomSelectionEndpoint {
 }
 
 function clampPosition(view: EditorView, pos: number): number {
-    return Math.max(0, Math.min(view.state.doc.length, pos));
+    return clamp(pos, 0, view.state.doc.length);
 }
 
 function getDomSelectionEndpoint(view: EditorView, pos: number, side: -1 | 1): DomSelectionEndpoint | null {

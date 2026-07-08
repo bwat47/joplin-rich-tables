@@ -3,6 +3,7 @@ import { StateField } from '@codemirror/state';
 import { activeCellField, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
+import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 
 export interface ResolvedActiveCell {
@@ -55,7 +56,7 @@ export function resolveCellWithinResolvedTable(
 }
 
 function clampDocPos(state: EditorState, pos: number): number {
-    return Math.min(Math.max(pos, 0), state.doc.length);
+    return clamp(pos, 0, state.doc.length);
 }
 
 function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {

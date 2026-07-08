@@ -1,6 +1,7 @@
 import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
 import { scanMarkdownTableRow } from './markdownTableRowScanner';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
+import { clamp } from '../shared/numberUtils';
 import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
@@ -225,7 +226,7 @@ export class MarkdownTable {
 
     insertColumn(colIndex: number, where: 'before' | 'after'): MarkdownTable {
         const targetIndex = where === 'before' ? colIndex : colIndex + 1;
-        const actualIndex = Math.max(0, Math.min(targetIndex, this.columnCount));
+        const actualIndex = clamp(targetIndex, 0, this.columnCount);
 
         const headers = [...this.headersData];
         headers.splice(actualIndex, 0, '');
@@ -543,7 +544,7 @@ export class MarkdownTable {
         }
 
         const targetIndex = where === 'before' ? rowIndex : rowIndex + 1;
-        const actualIndex = Math.max(0, Math.min(targetIndex, this.rowsData.length));
+        const actualIndex = clamp(targetIndex, 0, this.rowsData.length);
         const rows = cloneRows(this.rowsData);
         rows.splice(actualIndex, 0, createEmptyRow(this.columnCount));
 

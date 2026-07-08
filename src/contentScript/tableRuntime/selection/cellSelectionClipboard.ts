@@ -19,6 +19,7 @@ import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
+import { clamp } from '../../shared/numberUtils';
 
 export interface TableClipboardTarget {
     tableFrom: number;
@@ -185,7 +186,7 @@ function buildTableDeletionRewrite(tableFrom: number): TableClipboardRewrite {
 }
 
 function clampIndex(value: number, max: number): number {
-    return Math.max(0, Math.min(value, max));
+    return clamp(value, 0, max);
 }
 
 function remapSelectionAfterRowDelete(
