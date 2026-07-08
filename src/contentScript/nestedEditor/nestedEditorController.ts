@@ -29,6 +29,7 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
+import { clamp } from '../shared/numberUtils';
 import { logger } from '../../logger';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
@@ -60,10 +61,9 @@ function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): L
 
 function toRelativeSelection(selection: EditorSelection, editableFrom: number, editableTo: number): LocalSelection {
     const main = selection.main;
-    const clamp = (pos: number) => Math.max(editableFrom, Math.min(editableTo, pos));
     return {
-        anchor: clamp(main.anchor) - editableFrom,
-        head: clamp(main.head) - editableFrom,
+        anchor: clamp(main.anchor, editableFrom, editableTo) - editableFrom,
+        head: clamp(main.head, editableFrom, editableTo) - editableFrom,
     };
 }
 
@@ -420,7 +420,7 @@ class NestedEditorController {
         if (event && nestedView.state.selection.main.empty) {
             const clickedPos = nestedView.posAtCoords({ x: event.clientX, y: event.clientY });
             if (clickedPos != null) {
-                const clamped = Math.max(0, Math.min(nestedView.state.doc.length, clickedPos));
+                const clamped = clamp(clickedPos, 0, nestedView.state.doc.length);
                 localSelection = { anchor: clamped, head: clamped };
             }
         }

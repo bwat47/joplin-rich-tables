@@ -1,5 +1,6 @@
 import { Transaction } from '@codemirror/state';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
+import { clamp } from '../shared/numberUtils';
 
 export interface LocalSelection {
     anchor: number;
@@ -117,10 +118,6 @@ function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], po
         count++;
     }
     return count;
-}
-
-function clamp(n: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, n));
 }
 
 /**

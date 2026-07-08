@@ -1,13 +1,10 @@
 import { computeMarkdownTableCellRanges, getCellRange, type TableCellRanges } from './markdownTableCellRanges';
 import type { CellCoords } from './types';
+import { clamp } from '../shared/numberUtils';
 
 export type TargetCell = CellCoords;
 export interface TableCellAnchor extends TargetCell {
     anchorOffset: number;
-}
-
-function clamp(n: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, n));
 }
 
 function clampTargetToRanges(target: TargetCell, ranges: TableCellRanges): TargetCell {

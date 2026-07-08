@@ -8,6 +8,7 @@ import { findTableWidgetElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
+import { clamp } from '../shared/numberUtils';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
@@ -313,7 +314,7 @@ export class TableToolbarPlugin {
                             TOOLBAR_VIEWPORT_PADDING_PX,
                             viewRect.width - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
                         );
-                        const x = Math.min(Math.max(tableRect.left - viewRect.left, minX), maxX);
+                        const x = clamp(tableRect.left - viewRect.left, minX, maxX);
 
                         const topInParent = viewportTop - offsetParentRect.top + TOOLBAR_VIEWPORT_PADDING_PX;
                         const bottomInParent =
@@ -330,7 +331,7 @@ export class TableToolbarPlugin {
                             TOOLBAR_VIEWPORT_PADDING_PX,
                             viewportWidth - toolbarRect.width - TOOLBAR_VIEWPORT_PADDING_PX
                         );
-                        const x = Math.min(Math.max(tableRect.left, minX), maxX);
+                        const x = clamp(tableRect.left, minX, maxX);
 
                         const y = placeAbove
                             ? viewportTop + TOOLBAR_VIEWPORT_PADDING_PX
