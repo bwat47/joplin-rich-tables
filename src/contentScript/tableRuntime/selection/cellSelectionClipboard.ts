@@ -273,13 +273,6 @@ export function buildSelectionRemovalRewrite(
     });
 }
 
-export function buildSelectionCutRewrite(
-    state: Parameters<typeof getCellSelection>[0],
-    selection: CellSelection
-): TableClipboardRewrite | null {
-    return buildSelectionRemovalRewrite(state, selection);
-}
-
 export function buildMultiCellPasteRewrite(
     state: Parameters<typeof getCellSelection>[0],
     target: TableClipboardTarget,
@@ -409,7 +402,8 @@ function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
         return false;
     }
 
-    const rewrite = buildSelectionCutRewrite(view.state, selection);
+    // Cutting copies the selection, then applies the same table rewrite as Delete.
+    const rewrite = buildSelectionRemovalRewrite(view.state, selection);
     if (!rewrite) {
         return false;
     }
