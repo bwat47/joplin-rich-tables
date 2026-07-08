@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { activateInsertedTableEffect, insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
@@ -8,6 +8,8 @@ import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../t
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
+
+const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 function createState(params: { doc: string; nestedOpen: boolean }) {
     return createMarkdownState(params.doc, [
@@ -20,19 +22,34 @@ function createState(params: { doc: string; nestedOpen: boolean }) {
     ]);
 }
 
+function headerCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
+    return {
+        tableFrom: 0,
+        section: 'header',
+        row: 0,
+        col: 0,
+        ...overrides,
+    };
+}
+
+function createActiveHeaderState(params?: {
+    doc?: string;
+    activeCell?: ActiveCell;
+    selection?: { anchor: number; head?: number };
+}) {
+    let state = createState({ doc: params?.doc ?? TABLE_DOC, nestedOpen: true });
+    state = state.update({
+        effects: setActiveCellEffect.of(params?.activeCell ?? headerCell()),
+        selection: params?.selection,
+    }).state;
+
+    return state;
+}
+
 describe('createMainEditorActiveCellGuard', () => {
     it('blocks deleting a delimiter pipe outside the active cell when nested editor is open', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
-        }).state;
+        const doc = TABLE_DOC;
+        const state = createActiveHeaderState();
 
         // Find the delimiter pipe between H1 and H2 on the first line.
         const firstLine = '| H1 | H2 |';
@@ -50,17 +67,8 @@ describe('createMainEditorActiveCellGuard', () => {
     });
 
     it('allows deleting within the active cell when nested editor is open', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
-        }).state;
+        const doc = TABLE_DOC;
+        const state = createActiveHeaderState();
 
         // Delete the "1" in "H1" (this is inside the trimmed cell range).
         const deleteFrom = doc.indexOf('1');
@@ -74,20 +82,12 @@ describe('createMainEditorActiveCellGuard', () => {
     });
 
     it('allows structural table edits that force rebuild', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const doc = TABLE_DOC;
 
         const tableRanges = computeMarkdownTableCellRanges(doc);
         expect(tableRanges).not.toBeNull();
 
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
-        }).state;
+        const state = createActiveHeaderState();
 
         // Replace the first line (outside cell range) but mark as rebuild, like toolbar does.
         const firstLineEnd = doc.indexOf('\n');
@@ -102,21 +102,13 @@ describe('createMainEditorActiveCellGuard', () => {
     });
 
     it('sanitizes pasted content (newlines/pipes) inside active cell instead of rejecting', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const doc = TABLE_DOC;
 
         const tableRanges = computeMarkdownTableCellRanges(doc);
         expect(tableRanges).not.toBeNull();
 
         const cellFrom = tableRanges!.headers[0].from;
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
-        }).state;
+        const state = createActiveHeaderState();
 
         // Simulate pasting "Line1\nLine2|Val" into H1
         const pasteContent = 'Line1\nLine2|Val';
@@ -136,16 +128,10 @@ describe('createMainEditorActiveCellGuard', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |'].join('\n');
         const tableRanges = computeMarkdownTableCellRanges(doc);
         const cellFrom = tableRanges!.headers[0].from;
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
+        const state = createActiveHeaderState({
+            doc,
             selection: { anchor: cellFrom, head: cellFrom },
-        }).state;
+        });
 
         // Paste "a\nb" (length 3). Sanitized "a<br>b" (length 6).
         const pasteContent = 'a\nb';
@@ -172,16 +158,15 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(tableRanges).not.toBeNull();
 
         const bodyCell = tableRanges!.rows[0][1];
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
+        const state = createActiveHeaderState({
+            doc,
+            activeCell: headerCell({
                 section: 'body',
                 row: 0,
                 col: 1,
             }),
             selection: { anchor: bodyCell.from, head: bodyCell.from },
-        }).state;
+        });
 
         const tr = state.update({
             changes: {
@@ -205,15 +190,14 @@ describe('createMainEditorActiveCellGuard', () => {
 
     it('does not rewrite nested-editor table paste when the active cell no longer resolves', () => {
         const doc = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a | b | c |', '| d | e | f |'].join('\n');
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
+        const state = createActiveHeaderState({
+            doc,
+            activeCell: headerCell({
                 section: 'body',
                 row: 0,
                 col: 99,
             }),
-        }).state;
+        });
 
         const pasteText = ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n');
         const tr = state.update({
@@ -334,19 +318,11 @@ describe('createMainEditorActiveCellGuard', () => {
     });
 
     it('allows full document replacement and clears active cell', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const doc = TABLE_DOC;
         const tableRanges = computeMarkdownTableCellRanges(doc);
         expect(tableRanges).not.toBeNull();
 
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
-        }).state;
+        const state = createActiveHeaderState();
 
         const newDoc = '# Updated\n\nNo tables here.';
 
@@ -359,16 +335,12 @@ describe('createMainEditorActiveCellGuard', () => {
     });
 
     it('clears stale active cell when the resolver cannot find the anchored table', () => {
-        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        let state = createState({ doc, nestedOpen: true });
-        state = state.update({
-            effects: setActiveCellEffect.of({
+        const doc = TABLE_DOC;
+        const state = createActiveHeaderState({
+            activeCell: headerCell({
                 tableFrom: doc.length + 10,
-                section: 'header',
-                row: 0,
-                col: 0,
             }),
-        }).state;
+        });
 
         const tr = state.update({
             changes: { from: 0, to: 0, insert: 'x' },

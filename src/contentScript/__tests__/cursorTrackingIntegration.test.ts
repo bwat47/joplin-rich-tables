@@ -3,6 +3,11 @@ import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/mark
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import type { ActiveCell } from '../tableState/activeCellState';
 
+const BASE_MARKDOWN = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
+const TABLE_FROM = 0;
+
+type CellTarget = Pick<ActiveCell, 'section' | 'row' | 'col'>;
+
 function sliceCellText(tableText: string, activeCell: ActiveCell): string {
     const ranges = computeMarkdownTableCellRanges(tableText);
     if (!ranges) {
@@ -17,167 +22,115 @@ function sliceCellText(tableText: string, activeCell: ActiveCell): string {
     return tableText.slice(range.from, range.to);
 }
 
+function requireActiveCell(tableText: string, target: CellTarget): ActiveCell {
+    const activeCell = createActiveCellForTableText({
+        tableFrom: TABLE_FROM,
+        tableText,
+        target,
+    })?.activeCell;
+
+    if (!activeCell) {
+        throw new Error('Expected active cell');
+    }
+
+    return activeCell;
+}
+
+function parseTable(tableText: string): MarkdownTable {
+    const table = MarkdownTable.parse(tableText);
+    if (!table) {
+        throw new Error('Expected parsed table');
+    }
+
+    return table;
+}
+
+function runCursorScenario(params: {
+    tableText?: string;
+    activeTarget: CellTarget;
+    mutate: (table: MarkdownTable, activeCell: ActiveCell) => MarkdownTable;
+    nextTarget: CellTarget;
+}): { newText: string; next: ActiveCell } {
+    const tableText = params.tableText ?? BASE_MARKDOWN;
+    const activeCell = requireActiveCell(tableText, params.activeTarget);
+    const newText = params.mutate(parseTable(tableText), activeCell).serialize();
+
+    return {
+        newText,
+        next: requireActiveCell(newText, params.nextTarget),
+    };
+}
+
 describe('cursorTrackingIntegration', () => {
-    const baseMarkdown = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
-
     test('insert row after moves to new row cell', () => {
-        const tableFrom = 0;
-        const active = createActiveCellForTableText({
-            tableFrom,
-            tableText: baseMarkdown,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-        expect(active).not.toBeNull();
+        const { newText, next } = runCursorScenario({
+            activeTarget: { section: 'body', row: 0, col: 1 },
+            mutate: (table, activeCell) => table.insertRowRelativeTo(activeCell.section, activeCell.row, 'after'),
+            nextTarget: { section: 'body', row: 1, col: 1 },
+        });
 
-        const table = MarkdownTable.parse(baseMarkdown);
-        expect(table).not.toBeNull();
-
-        const newTable = table!.insertRowRelativeTo(active!.section, active!.row, 'after');
-        const newText = newTable.serialize();
-
-        const next = createActiveCellForTableText({
-            tableFrom,
-            tableText: newText,
-            target: { section: 'body', row: 1, col: 1 },
-        })?.activeCell;
-
-        expect(next).not.toBeNull();
-        expect(next!.section).toBe('body');
-        expect(next!.row).toBe(1);
-        expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!)).toBe('');
+        expect(next.section).toBe('body');
+        expect(next.row).toBe(1);
+        expect(next.col).toBe(1);
+        expect(sliceCellText(newText, next)).toBe('');
     });
 
     test('delete row moves to next row (same index)', () => {
-        const tableFrom = 0;
-        const active = createActiveCellForTableText({
-            tableFrom,
-            tableText: baseMarkdown,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-        expect(active).not.toBeNull();
+        const { newText, next } = runCursorScenario({
+            activeTarget: { section: 'body', row: 0, col: 1 },
+            mutate: (table, activeCell) => table.deleteRowAt(activeCell.section, activeCell.row),
+            nextTarget: { section: 'body', row: 0, col: 1 },
+        });
 
-        const table = MarkdownTable.parse(baseMarkdown);
-        expect(table).not.toBeNull();
-
-        const newTable = table!.deleteRowAt(active!.section, active!.row);
-        const newText = newTable.serialize();
-
-        const next = createActiveCellForTableText({
-            tableFrom,
-            tableText: newText,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-
-        expect(next).not.toBeNull();
-        expect(sliceCellText(newText, next!)).toBe('b2');
+        expect(sliceCellText(newText, next)).toBe('b2');
     });
 
     test('delete last remaining body row falls back to the header cell', () => {
-        const tableFrom = 0;
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const active = createActiveCellForTableText({
-            tableFrom,
+        const { newText, next } = runCursorScenario({
             tableText,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-        expect(active).not.toBeNull();
+            activeTarget: { section: 'body', row: 0, col: 1 },
+            mutate: (table, activeCell) => table.deleteRowAt(activeCell.section, activeCell.row),
+            nextTarget: { section: 'body', row: 0, col: 1 },
+        });
 
-        const table = MarkdownTable.parse(tableText);
-        expect(table).not.toBeNull();
-
-        const newTable = table!.deleteRowAt(active!.section, active!.row);
-        const newText = newTable.serialize();
-
-        const next = createActiveCellForTableText({
-            tableFrom,
-            tableText: newText,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-
-        expect(next).not.toBeNull();
-        expect(next!.section).toBe('header');
-        expect(next!.row).toBe(0);
-        expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!)).toBe('H2');
+        expect(next.section).toBe('header');
+        expect(next.row).toBe(0);
+        expect(next.col).toBe(1);
+        expect(sliceCellText(newText, next)).toBe('H2');
     });
 
     test('insert column before moves to new column cell', () => {
-        const tableFrom = 0;
-        const active = createActiveCellForTableText({
-            tableFrom,
-            tableText: baseMarkdown,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-        expect(active).not.toBeNull();
+        const { newText, next } = runCursorScenario({
+            activeTarget: { section: 'body', row: 0, col: 1 },
+            mutate: (table, activeCell) => table.insertColumn(activeCell.col, 'before'),
+            nextTarget: { section: 'body', row: 0, col: 1 },
+        });
 
-        const table = MarkdownTable.parse(baseMarkdown);
-        expect(table).not.toBeNull();
-
-        const newTable = table!.insertColumn(active!.col, 'before');
-        const newText = newTable.serialize();
-
-        const next = createActiveCellForTableText({
-            tableFrom,
-            tableText: newText,
-            target: { section: 'body', row: 0, col: 1 },
-        })?.activeCell;
-
-        expect(next).not.toBeNull();
-        expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!)).toBe('');
+        expect(next.col).toBe(1);
+        expect(sliceCellText(newText, next)).toBe('');
     });
 
     test('delete column moves to next column (same index)', () => {
-        const tableFrom = 0;
-        const active = createActiveCellForTableText({
-            tableFrom,
-            tableText: baseMarkdown,
-            target: { section: 'body', row: 0, col: 0 },
-        })?.activeCell;
-        expect(active).not.toBeNull();
+        const { newText, next } = runCursorScenario({
+            activeTarget: { section: 'body', row: 0, col: 0 },
+            mutate: (table, activeCell) => table.deleteColumn(activeCell.col),
+            nextTarget: { section: 'body', row: 0, col: 0 },
+        });
 
-        const table = MarkdownTable.parse(baseMarkdown);
-        expect(table).not.toBeNull();
-
-        const newTable = table!.deleteColumn(active!.col);
-        const newText = newTable.serialize();
-
-        const next = createActiveCellForTableText({
-            tableFrom,
-            tableText: newText,
-            target: { section: 'body', row: 0, col: 0 },
-        })?.activeCell;
-
-        expect(next).not.toBeNull();
-        expect(sliceCellText(newText, next!)).toBe('a2');
+        expect(sliceCellText(newText, next)).toBe('a2');
     });
 
     test('alignment change keeps current cell', () => {
-        const tableFrom = 0;
-        const active = createActiveCellForTableText({
-            tableFrom,
-            tableText: baseMarkdown,
-            target: { section: 'body', row: 1, col: 1 },
-        })?.activeCell;
-        expect(active).not.toBeNull();
+        const { newText, next } = runCursorScenario({
+            activeTarget: { section: 'body', row: 1, col: 1 },
+            mutate: (table, activeCell) => table.updateColumnAlignment(activeCell.col, 'right'),
+            nextTarget: { section: 'body', row: 1, col: 1 },
+        });
 
-        const table = MarkdownTable.parse(baseMarkdown);
-        expect(table).not.toBeNull();
-
-        const newTable = table!.updateColumnAlignment(active!.col, 'right');
-        const newText = newTable.serialize();
-
-        const next = createActiveCellForTableText({
-            tableFrom,
-            tableText: newText,
-            target: { section: 'body', row: 1, col: 1 },
-        })?.activeCell;
-
-        expect(next).not.toBeNull();
-        expect(next!.section).toBe('body');
-        expect(next!.row).toBe(1);
-        expect(next!.col).toBe(1);
-        expect(sliceCellText(newText, next!)).toBe('b2');
+        expect(next.section).toBe('body');
+        expect(next.row).toBe(1);
+        expect(next.col).toBe(1);
+        expect(sliceCellText(newText, next)).toBe('b2');
     });
 });

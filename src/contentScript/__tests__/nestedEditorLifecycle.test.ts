@@ -62,6 +62,54 @@ const nestedEditorControllerMock = nestedEditorController as unknown as {
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 
+function headerCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
+    return {
+        tableFrom: 0,
+        section: 'header',
+        row: 0,
+        col: 0,
+        ...overrides,
+    };
+}
+
+function createLifecycleState(params: {
+    doc: string;
+    activeCell?: ActiveCell;
+    includeInsertedTableActivation?: boolean;
+    selection?: { anchor: number; head?: number };
+}): EditorState {
+    let state = EditorState.create({
+        doc: params.doc,
+        selection: params.selection,
+        extensions: [
+            markdown({ extensions: [GFM] }),
+            activeCellField,
+            openCellRequestField,
+            ...(params.includeInsertedTableActivation ? [insertedTableActivationField] : []),
+            searchForceSourceModeField,
+            sourceModeField,
+            hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+            nestedEditorLifecyclePlugin,
+        ],
+    });
+
+    if (params.activeCell) {
+        state = state.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
+    }
+
+    return state;
+}
+
+function createLifecycleView(params: Parameters<typeof createLifecycleState>[0]): EditorView {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    return new EditorView({
+        parent,
+        state: createLifecycleState(params),
+    });
+}
+
 function openRequestEffects(params: {
     requestId: string;
     activeCell: ActiveCell;
@@ -134,24 +182,9 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('schedules inserted-table activation from the effect payload', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc: '',
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    insertedTableActivationField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const view = createLifecycleView({
+            doc: '',
+            includeInsertedTableActivation: true,
         });
 
         view.dispatch({
@@ -172,27 +205,12 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('uses the mapped pending inserted-table activation when text shifts before the scheduled frame', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
         const doc = ['before', '', CANONICAL_DOC].join('\n');
         const tableFrom = 'before\n\n'.length;
         const insertedText = 'top\n';
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    insertedTableActivationField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const view = createLifecycleView({
+            doc,
+            includeInsertedTableActivation: true,
         });
 
         view.dispatch({
@@ -218,29 +236,11 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-
-        let state = EditorState.create({
+        const activeCell = headerCell();
+        const view = createLifecycleView({
             doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
+            activeCell,
         });
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
-
-        const parent = document.createElement('div');
-        const view = new EditorView({ parent, state });
 
         view.dispatch({
             changes: { from: 0, to: 0, insert: 'abc\n' },
@@ -263,30 +263,15 @@ describe('nestedEditorLifecycle', () => {
 
     it('passes the pre-undo active cell as a fallback hint during undo or redo reactivation', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
+        const activeCell = headerCell({
             section: 'body',
             row: 1,
             col: 1,
-        };
-
-        let state = EditorState.create({
-            doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
         });
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({ parent, state });
+        const view = createLifecycleView({
+            doc,
+            activeCell,
+        });
 
         view.dispatch({
             changes: {
@@ -317,30 +302,15 @@ describe('nestedEditorLifecycle', () => {
     it('maps the fallback hint when undo or redo shifts the table start before reactivation', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
         const insertedPrefix = 'abc\n';
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
+        const activeCell = headerCell({
             section: 'body',
             row: 1,
             col: 1,
-        };
-
-        let state = EditorState.create({
-            doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
         });
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({ parent, state });
+        const view = createLifecycleView({
+            doc,
+            activeCell,
+        });
 
         view.dispatch({
             changes: { from: 0, to: 0, insert: insertedPrefix },
@@ -371,30 +341,11 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-
-        let state = EditorState.create({
+        const activeCell = headerCell();
+        const view = createLifecycleView({
             doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
+            activeCell,
         });
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({ parent, state });
 
         const nextActiveCell: ActiveCell = {
             tableFrom: 0,
@@ -418,29 +369,9 @@ describe('nestedEditorLifecycle', () => {
 
     it('opens the nested editor directly when no normalization is requested', () => {
         const doc = NON_CANONICAL_DOC;
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const activeCell = headerCell();
+        const view = createLifecycleView({
+            doc,
         });
 
         view.dispatch({
@@ -470,29 +401,9 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('uses the latest open request when one dispatch contains multiple trigger effects', () => {
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc: CANONICAL_DOC,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const activeCell = headerCell();
+        const view = createLifecycleView({
+            doc: CANONICAL_DOC,
         });
 
         view.dispatch({
@@ -529,29 +440,9 @@ describe('nestedEditorLifecycle', () => {
     it('fails the matching request when the cell element cannot be found', () => {
         findCellElementMock.mockReturnValueOnce(null);
         const doc = CANONICAL_DOC;
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const activeCell = headerCell();
+        const view = createLifecycleView({
+            doc,
         });
 
         view.dispatch({
@@ -573,22 +464,8 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('ignores a request-open signal when the pending request is missing', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc: CANONICAL_DOC,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const view = createLifecycleView({
+            doc: CANONICAL_DOC,
         });
 
         view.dispatch({
@@ -603,29 +480,13 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('normalizes before opening and preserves pending cursor placement', () => {
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
+        const activeCell = headerCell({
             section: 'header',
             row: 0,
             col: 1,
-        };
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc: NON_CANONICAL_DOC,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        });
+        const view = createLifecycleView({
+            doc: NON_CANONICAL_DOC,
         });
         const dispatchSpy = vi.spyOn(view, 'dispatch');
 
@@ -680,29 +541,14 @@ describe('nestedEditorLifecycle', () => {
         const doc = `before\n${NON_CANONICAL_DOC}\nafter`;
         const initialTableFrom = 'before\n'.length;
         const normalizedTableFrom = 'before\n\n'.length;
-        const activeCell: ActiveCell = {
+        const activeCell = headerCell({
             tableFrom: initialTableFrom,
             section: 'body',
             row: 0,
             col: 1,
-        };
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        });
+        const view = createLifecycleView({
+            doc,
         });
 
         view.dispatch({
@@ -736,30 +582,11 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('opens using the remapped request state when the document shifts before the RAF callback', () => {
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
+        const activeCell = headerCell();
         const insertedPrefix = 'before\n\n';
 
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
-            state: EditorState.create({
-                doc: CANONICAL_DOC,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    activeCellField,
-                    openCellRequestField,
-                    searchForceSourceModeField,
-                    sourceModeField,
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    nestedEditorLifecyclePlugin,
-                ],
-            }),
+        const view = createLifecycleView({
+            doc: CANONICAL_DOC,
         });
 
         view.dispatch({
@@ -795,28 +622,16 @@ describe('nestedEditorLifecycle', () => {
         const selectionFrom = doc.indexOf('H1');
         const selectionTo = selectionFrom + 'H1'.length;
 
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        let state = EditorState.create({
+        let state = createLifecycleState({
             doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
         });
         state = state.update({
             effects: toggleSourceModeEffect.of(true),
             selection: { anchor: selectionFrom, head: selectionTo },
         }).state;
-        const view = new EditorView({
-            parent,
-            state,
-        });
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
         vi.spyOn(view, 'coordsAtPos').mockReturnValue({
             top: 0,
             bottom: 0,
@@ -840,33 +655,14 @@ describe('nestedEditorLifecycle', () => {
 
         const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
         const tableFrom = 'before\n\n'.length;
-        const activeCell: ActiveCell = {
+        const activeCell = headerCell({
             tableFrom,
-            section: 'header',
-            row: 0,
-            col: 0,
-        };
-
-        let state = EditorState.create({
-            doc: prefixedDoc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
         });
-        state = state.update({
-            effects: setActiveCellEffect.of(activeCell),
+        const view = createLifecycleView({
+            doc: prefixedDoc,
             selection: { anchor: tableFrom + 2 },
-        }).state;
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({ parent, state });
+            activeCell,
+        });
 
         view.dispatch({
             selection: { anchor: 0 },
@@ -887,12 +683,12 @@ describe('nestedEditorLifecycle', () => {
         const prefixedDoc = ['before', '', originalTable, '', 'after'].join('\n');
         const tableFrom = 'before\n\n'.length;
         const tableTo = tableFrom + originalTable.length;
-        const currentCell: ActiveCell = {
+        const currentCell = headerCell({
             tableFrom,
             section: 'body',
             row: 0,
             col: 1,
-        };
+        });
         const nextCell = createActiveCellForTableText({
             tableFrom,
             tableText: updatedTable,
@@ -903,26 +699,11 @@ describe('nestedEditorLifecycle', () => {
             throw new Error('Expected next active cell after structural edit');
         }
 
-        let state = EditorState.create({
+        const view = createLifecycleView({
             doc: prefixedDoc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                activeCellField,
-                openCellRequestField,
-                searchForceSourceModeField,
-                sourceModeField,
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                nestedEditorLifecyclePlugin,
-            ],
-        });
-        state = state.update({
-            effects: setActiveCellEffect.of(currentCell),
             selection: { anchor: tableFrom + originalTable.indexOf('a2') },
-        }).state;
-
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({ parent, state });
+            activeCell: currentCell,
+        });
 
         view.dispatch({
             changes: { from: tableFrom, to: tableTo, insert: updatedTable },
