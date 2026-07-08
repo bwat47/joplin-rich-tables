@@ -14,7 +14,6 @@ import {
 import { createMarkdownState } from './testMarkdownState';
 import {
     buildMultiCellPasteRewrite,
-    buildSelectionCutRewrite,
     buildSelectionRemovalRewrite,
     copySelectionAsMarkdown,
     extractSelectedCellContents,
@@ -189,9 +188,9 @@ describe('cellSelectionClipboard', () => {
         expect(resolveTableClipboardTarget(state, { nestedEditorOpen: false })).toBeNull();
     });
 
-    it('builds a cut rewrite that preserves the selected rectangle', () => {
+    it('builds a removal rewrite that preserves the selected rectangle', () => {
         const state = createMarkdownState(doc);
-        const rewrite = buildSelectionCutRewrite(
+        const rewrite = buildSelectionRemovalRewrite(
             state,
             selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
         );
@@ -322,17 +321,6 @@ describe('cellSelectionClipboard', () => {
             selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
         );
         expect(rewrite?.clearActiveCell).toBe(false);
-    });
-
-    it('uses the structural empty-row deletion path for Ctrl+X too', () => {
-        const emptyRowDoc = ['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '|  |  |', '| B1 | B2 |'].join('\n');
-        const state = createMarkdownState(emptyRowDoc);
-        const rewrite = buildSelectionCutRewrite(
-            state,
-            selection({ section: 'body', row: 1, col: 0 }, { section: 'body', row: 1, col: 1 })
-        );
-
-        expect(rewrite?.tableText).toBe(['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '| B1 | B2 |'].join('\n'));
     });
 
     it('deletes the final empty body row and remaps the selection to the header row', () => {
