@@ -65,6 +65,12 @@ export type TableRuntimeAction =
     | { type: 'scheduleRebuildAllAfterFullReplace' }
     | { type: 'scheduleInsertedTableActivation' };
 
+// Precedence:
+// 1. Explicit open requests short-circuit all but inserted-table activation.
+// 2. Accumulating full-replace rebuild and visibility work precedes terminal raw-mode
+//    exit, reposition, or selection-departure transitions (the first match returns).
+// 3. Continuing close, sync, and stale-clear actions follow; inserted-table activation
+//    is independently appended.
 export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
     const actions = reduceCoreTableRuntime(facts);
     if (facts.hasInsertedTableActivation) {
