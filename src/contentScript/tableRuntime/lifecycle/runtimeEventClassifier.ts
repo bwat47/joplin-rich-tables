@@ -35,8 +35,7 @@ export function classifyTableRuntimeFacts(
     const activeCellBeforeStatus = getActiveCellStatus(activeCellBefore, resolvedCellBefore);
     const isSync = hasSyncAnnotation(update.transactions);
     const activeCell = getActiveCellFacts(update, activeCellAfter, resolvedCellAfter);
-    const isUndoRedoInsideTable =
-        update.docChanged && !isSync && !effectiveRawMode && isUndoRedo(update) && cursorInsideAnyTable(update);
+    const isUndoRedoInsideTable = isUndoRedo(update) && cursorInsideAnyTable(update);
 
     return {
         activeCell,

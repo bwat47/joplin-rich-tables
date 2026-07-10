@@ -257,6 +257,22 @@ describe('runtimeEventClassifier', () => {
         expect(facts.isUndoRedoInsideTable).toBe(false);
     });
 
+    it('classifies undo or redo inside a table independently of policy gates', () => {
+        const update = dispatchAndCaptureUpdate({
+            dispatch(view) {
+                view.dispatch({
+                    changes: { from: 3, to: 3, insert: 'x' },
+                    annotations: [Transaction.userEvent.of('undo'), syncAnnotation.of(true)],
+                });
+            },
+        });
+        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
+
+        expect(facts.docChanged).toBe(true);
+        expect(facts.isSync).toBe(true);
+        expect(facts.isUndoRedoInsideTable).toBe(true);
+    });
+
     it('produces coherent facts when a sync update carries several signals', () => {
         const update = dispatchAndCaptureUpdate({
             activeCell: getHeaderCell(),
