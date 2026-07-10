@@ -346,7 +346,7 @@ describe('tableRuntimePolicies', () => {
 
     it('appends inserted-table activation after explicit open requests', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
             hasInsertedTableActivation: true,
@@ -429,7 +429,7 @@ describe('tableRuntimePolicies', () => {
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             hadActiveCellBeforeUpdate: true,
             docChanged: true,
             selectionChanged: true,
@@ -551,7 +551,7 @@ describe('tableRuntimePolicies', () => {
 
     it('does not plan a generic reopen for rebuild-only transactions', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
         });
@@ -561,7 +561,7 @@ describe('tableRuntimePolicies', () => {
 
     it('plans nested editor sync from a single sync fact', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
         });
@@ -574,7 +574,7 @@ describe('tableRuntimePolicies', () => {
 
     it('prefers an explicit open request over generic branches', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: true },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
             docChanged: true,
@@ -590,7 +590,7 @@ describe('tableRuntimePolicies', () => {
 
     it('uses the classified open request id', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
             openRequestId: 'latest-request',
@@ -601,7 +601,7 @@ describe('tableRuntimePolicies', () => {
 
     it('uses the resolved update range when undo or redo repositions the active cell', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
             docChanged: true,
@@ -609,7 +609,7 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditorUsingResolvedUpdateRange' },
+            { type: 'closeNestedEditor', reason: 'cellReposition' },
             {
                 type: 'scheduleActivateCellAtCursor',
                 options: {
@@ -624,18 +624,31 @@ describe('tableRuntimePolicies', () => {
 
     it('closes and clears the active cell when selection moves outside the active table', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: true },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
             selectionChanged: true,
         });
 
-        expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor' }, { type: 'clearActiveCell' }]);
+        expect(reduceTableRuntime(facts)).toEqual([
+            { type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' },
+            { type: 'clearActiveCell' },
+        ]);
+    });
+
+    it('closes the nested editor when the active cell disappears', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'absent' },
+            nestedEditorOpen: true,
+            hadActiveCellBeforeUpdate: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor', reason: 'activeCellRemoved' }]);
     });
 
     it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: true },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
             selectionChanged: true,
@@ -648,7 +661,7 @@ describe('tableRuntimePolicies', () => {
 
     it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: true },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: false,
             hadActiveCellBeforeUpdate: true,
             selectionChanged: true,
@@ -659,7 +672,7 @@ describe('tableRuntimePolicies', () => {
 
     it('plans stale active cell cleanup when the nested editor is gone', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: false,
             hadActiveCellBeforeUpdate: true,
             docChanged: true,

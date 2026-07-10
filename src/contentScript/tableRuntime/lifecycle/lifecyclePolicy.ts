@@ -1,7 +1,7 @@
 export type ActiveCellFacts =
     | { status: 'absent' }
     | { status: 'unresolved' }
-    | { status: 'resolved'; selectionLeftTable: boolean };
+    | { status: 'resolved'; selectionLeftActiveTable: boolean };
 
 export interface TableRuntimeFacts {
     // Post-update editor state
@@ -47,10 +47,11 @@ export interface ActivateCellAtCursorOptions {
     preserveMainSelection: boolean;
 }
 
+export type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved';
+
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
-    | { type: 'closeNestedEditor' }
-    | { type: 'closeNestedEditorUsingResolvedUpdateRange' }
+    | { type: 'closeNestedEditor'; reason: NestedEditorCloseReason }
     | { type: 'syncMainToNested' }
     | { type: 'clearActiveCell' }
     | {
@@ -117,7 +118,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
 
     if (facts.requiresCellReposition) {
         if (facts.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditorUsingResolvedUpdateRange' });
+            actions.push({ type: 'closeNestedEditor', reason: 'cellReposition' });
         }
         actions.push({
             type: 'scheduleActivateCellAtCursor',
@@ -128,14 +129,14 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
 
     if (shouldClearActiveCellWhenSelectionLeavesTable(facts)) {
         if (facts.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor' });
+            actions.push({ type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' });
         }
         actions.push({ type: 'clearActiveCell' });
         return actions;
     }
 
     if (facts.activeCell.status === 'absent' && facts.hadActiveCellBeforeUpdate) {
-        actions.push({ type: 'closeNestedEditor' });
+        actions.push({ type: 'closeNestedEditor', reason: 'activeCellRemoved' });
     }
 
     if (facts.shouldSyncMainToNested) {
@@ -160,12 +161,9 @@ function shouldClearActiveCellWhenSelectionLeavesTable(facts: TableRuntimeFacts)
         !facts.isCellSelectionTransition &&
         !facts.effectiveRawMode &&
         facts.nestedEditorOpen &&
-        selectionLeftActiveTable(facts)
+        facts.activeCell.status === 'resolved' &&
+        facts.activeCell.selectionLeftActiveTable
     );
-}
-
-function selectionLeftActiveTable(facts: TableRuntimeFacts): boolean {
-    return facts.activeCell.status === 'resolved' && facts.activeCell.selectionLeftTable;
 }
 
 function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {

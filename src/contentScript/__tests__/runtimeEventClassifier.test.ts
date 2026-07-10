@@ -113,7 +113,7 @@ describe('runtimeEventClassifier', () => {
         });
 
         expect(classifyTableRuntimeFacts(update, externalFacts)).toMatchObject({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             effectiveRawMode: false,
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
@@ -235,7 +235,7 @@ describe('runtimeEventClassifier', () => {
         });
         const facts = classifyTableRuntimeFacts(update, externalFacts);
 
-        expect(facts.activeCell).toEqual({ status: 'resolved', selectionLeftTable: true });
+        expect(facts.activeCell).toEqual({ status: 'resolved', selectionLeftActiveTable: true });
     });
 
     it('detects redo edits outside the active cell as reposition events', () => {
@@ -275,7 +275,7 @@ describe('runtimeEventClassifier', () => {
         });
 
         expect(facts).toMatchObject({
-            activeCell: { status: 'resolved', selectionLeftTable: false },
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
             pendingFullReplaceRebuild: true,
             selectionChanged: true,
