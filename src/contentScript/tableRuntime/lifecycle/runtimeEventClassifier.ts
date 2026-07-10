@@ -49,7 +49,7 @@ export function classifyTableRuntimeFacts(
         isSync,
         isNormalizeBeforeEdit: hasNormalizeBeforeEditAnnotation(update.transactions),
         isCellSelectionTransition: hasCellSelectionTransitionAnnotation(update.transactions),
-        rawModeTransition: scanRawModeTransitionFacts(update),
+        rawModeTransition: scanRawModeTransitionFacts(update, effectiveRawMode),
         hasFullDocumentReplace: hasFullDocumentReplace(update.transactions),
         hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
@@ -90,7 +90,7 @@ function hasInsertedTableActivationEffect(update: ViewUpdate): boolean {
     return update.transactions.some((tr) => tr.effects.some((effect) => effect.is(activateInsertedTableEffect)));
 }
 
-function scanRawModeTransitionFacts(update: ViewUpdate): RawModeTransitionFacts {
+function scanRawModeTransitionFacts(update: ViewUpdate, effectiveRawMode: boolean): RawModeTransitionFacts {
     let exitedSourceMode = false;
     let exitedSearchForce = false;
     let hadRawModeToggle = false;
@@ -112,7 +112,6 @@ function scanRawModeTransitionFacts(update: ViewUpdate): RawModeTransitionFacts 
     }
 
     const previousEffectiveRawMode = isEffectiveRawMode(update.startState);
-    const effectiveRawMode = isEffectiveRawMode(update.state);
 
     return {
         enteredRawMode: hadRawModeToggle && !previousEffectiveRawMode && effectiveRawMode,
