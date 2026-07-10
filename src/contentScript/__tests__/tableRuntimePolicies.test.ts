@@ -12,7 +12,11 @@ import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import { reduceTableRuntime, type TableRuntimeFacts } from '../tableRuntime/lifecycle/lifecyclePolicy';
+import {
+    reduceTableRuntime,
+    type TableRuntimeAction,
+    type TableRuntimeFacts,
+} from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
@@ -107,6 +111,181 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
 }
 
 describe('tableRuntimePolicies', () => {
+    it.each<{
+        name: string;
+        overrides: Partial<TableRuntimeFacts>;
+        expected: TableRuntimeAction[];
+    }>([
+        {
+            name: 'explicit open suppresses other lifecycle work but keeps inserted-table activation',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                docChanged: true,
+                selectionChanged: true,
+                hasFullDocumentReplace: true,
+                rebuildTouchesPreviousActiveTable: true,
+                rawModeTransition: {
+                    enteredRawMode: true,
+                    exitedRawMode: false,
+                    exitedSourceMode: false,
+                    exitedSearchForce: false,
+                },
+                openRequestId: 'explicit-request',
+                hasInsertedTableActivation: true,
+            },
+            expected: [
+                { type: 'openRequestedCell', requestId: 'explicit-request' },
+                { type: 'scheduleInsertedTableActivation' },
+            ],
+        },
+        {
+            name: 'inserted-table activation is appended after a reposition terminal branch',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                docChanged: true,
+                rebuildTouchesPreviousActiveTable: true,
+                hasInsertedTableActivation: true,
+            },
+            expected: [
+                { type: 'closeNestedEditor', reason: 'cellReposition' },
+                {
+                    type: 'scheduleActivateCellAtCursor',
+                    options: {
+                        clearIfOutside: true,
+                        ensureCursorVisibleIfNotActivated: false,
+                        normalizeIfNeeded: false,
+                        preserveMainSelection: false,
+                    },
+                },
+                { type: 'scheduleInsertedTableActivation' },
+            ],
+        },
+        {
+            name: 'full-replace rebuild precedes raw-mode exit activation',
+            overrides: {
+                activeCellBefore: 'resolved',
+                hasFullDocumentReplace: true,
+                rawModeTransition: {
+                    enteredRawMode: false,
+                    exitedRawMode: true,
+                    exitedSourceMode: true,
+                    exitedSearchForce: false,
+                },
+            },
+            expected: [
+                { type: 'scheduleRebuildAllAfterFullReplace' },
+                {
+                    type: 'scheduleActivateCellAtCursor',
+                    options: {
+                        clearIfOutside: false,
+                        ensureCursorVisibleIfNotActivated: true,
+                        normalizeIfNeeded: false,
+                        preserveMainSelection: true,
+                    },
+                },
+            ],
+        },
+        {
+            name: 'source-mode exit suppresses visibility, reposition, selection cleanup, and continuing work',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                docChanged: true,
+                selectionChanged: true,
+                rebuildTouchesPreviousActiveTable: true,
+                rawModeTransition: {
+                    enteredRawMode: true,
+                    exitedRawMode: false,
+                    exitedSourceMode: true,
+                    exitedSearchForce: false,
+                },
+            },
+            expected: [
+                {
+                    type: 'scheduleActivateCellAtCursor',
+                    options: {
+                        clearIfOutside: false,
+                        ensureCursorVisibleIfNotActivated: true,
+                        normalizeIfNeeded: false,
+                        preserveMainSelection: true,
+                    },
+                },
+            ],
+        },
+        {
+            name: 'visibility work precedes reposition',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                docChanged: true,
+                selectionChanged: true,
+                rebuildTouchesPreviousActiveTable: true,
+                rawModeTransition: {
+                    enteredRawMode: true,
+                    exitedRawMode: false,
+                    exitedSourceMode: false,
+                    exitedSearchForce: false,
+                },
+            },
+            expected: [
+                { type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' },
+                { type: 'closeNestedEditor', reason: 'cellReposition' },
+                {
+                    type: 'scheduleActivateCellAtCursor',
+                    options: {
+                        clearIfOutside: true,
+                        ensureCursorVisibleIfNotActivated: false,
+                        normalizeIfNeeded: false,
+                        preserveMainSelection: false,
+                    },
+                },
+            ],
+        },
+        {
+            name: 'selection cleanup wins over sync and stale cleanup',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                docChanged: true,
+                selectionChanged: true,
+                activeCellIdentityUnchanged: true,
+            },
+            expected: [{ type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' }, { type: 'clearActiveCell' }],
+        },
+        {
+            name: 'continuing active-cell removal follows accumulated full-replace rebuild work',
+            overrides: {
+                activeCell: { status: 'absent' },
+                activeCellBefore: 'resolved',
+                docChanged: true,
+                hasFullDocumentReplace: true,
+            },
+            expected: [
+                { type: 'scheduleRebuildAllAfterFullReplace' },
+                { type: 'closeNestedEditor', reason: 'activeCellRemoved' },
+            ],
+        },
+        {
+            name: 'continuing stale cleanup follows accumulated full-replace rebuild work',
+            overrides: {
+                activeCell: { status: 'unresolved' },
+                activeCellBefore: 'resolved',
+                docChanged: true,
+                hasFullDocumentReplace: true,
+            },
+            expected: [{ type: 'scheduleRebuildAllAfterFullReplace' }, { type: 'clearActiveCell' }],
+        },
+    ])('$name', ({ overrides, expected }) => {
+        expect(reduceTableRuntime(defaultRuntimeFacts(overrides))).toEqual(expected);
+    });
+
     it('maps decorations for in-cell edits while active', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });

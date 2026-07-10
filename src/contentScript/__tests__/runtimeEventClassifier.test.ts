@@ -112,13 +112,29 @@ describe('runtimeEventClassifier', () => {
             },
         });
 
-        expect(classifyTableRuntimeFacts(update, externalFacts)).toMatchObject({
+        expect(classifyTableRuntimeFacts(update, externalFacts)).toEqual({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
-            effectiveRawMode: false,
-            nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             activeCellIdentityUnchanged: true,
+            effectiveRawMode: false,
+            nestedEditorOpen: true,
             pendingFullReplaceRebuild: true,
+            docChanged: false,
+            selectionChanged: true,
+            isSync: false,
+            isNormalizeBeforeEdit: false,
+            isCellSelectionTransition: false,
+            rawModeTransition: {
+                enteredRawMode: false,
+                exitedRawMode: false,
+                exitedSourceMode: false,
+                exitedSearchForce: false,
+            },
+            hasFullDocumentReplace: false,
+            rebuildTouchesPreviousActiveTable: false,
+            isUndoRedoInsideTable: false,
+            hasInsertedTableActivation: false,
+            openRequestId: null,
         });
     });
 
