@@ -25,7 +25,7 @@ import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellR
 import { planNormalizeTableBeforeOpen } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
-import { classifyTableRuntimeEvent, createTableRuntimeSnapshot } from './runtimeEventClassifier';
+import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 
 // ============================================================================
@@ -80,13 +80,11 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         update(update: ViewUpdate): void {
-            const externalRuntimeFacts = {
+            const facts = classifyTableRuntimeFacts(update, {
                 nestedEditorOpen: isNestedEditorOpen(this.view),
                 pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
-            };
-            const snapshot = createTableRuntimeSnapshot(update, externalRuntimeFacts);
-            const event = classifyTableRuntimeEvent(update, snapshot);
-            const actions = reduceTableRuntime(snapshot, event);
+            });
+            const actions = reduceTableRuntime(facts);
 
             this.executeActions(actions, update);
         }

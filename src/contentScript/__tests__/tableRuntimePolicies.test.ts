@@ -13,9 +13,8 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
-    reduceTableRuntime,
-    type TableRuntimeEvent,
-    type TableRuntimeSnapshot,
+    reduceTableRuntime as reduceTableRuntimePolicy,
+    type TableRuntimeFacts,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
@@ -82,20 +81,13 @@ function requireResolvedActiveCell(state: EditorState) {
     return resolved;
 }
 
-function defaultRuntimeSnapshot(overrides: Partial<TableRuntimeSnapshot> = {}): TableRuntimeSnapshot {
+function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableRuntimeFacts {
     return {
-        hasActiveCell: false,
-        currentActiveCellResolved: false,
+        activeCell: { status: 'absent' },
+        hadActiveCellBeforeUpdate: false,
         effectiveRawMode: false,
         nestedEditorOpen: false,
-        hadActiveCellBeforeUpdate: false,
         pendingFullReplaceRebuild: false,
-        ...overrides,
-    };
-}
-
-function defaultRuntimeEvent(overrides: Partial<TableRuntimeEvent> = {}): TableRuntimeEvent {
-    return {
         docChanged: false,
         selectionChanged: false,
         isSync: false,
@@ -110,11 +102,50 @@ function defaultRuntimeEvent(overrides: Partial<TableRuntimeEvent> = {}): TableR
         hasFullDocumentReplace: false,
         hasInsertedTableActivation: false,
         openRequestId: null,
-        selectionLeftActiveTable: false,
         requiresCellReposition: false,
         shouldSyncMainToNested: false,
         ...overrides,
     };
+}
+
+interface RuntimeStateFixture {
+    hasActiveCell?: boolean;
+    currentActiveCellResolved?: boolean;
+    effectiveRawMode?: boolean;
+    nestedEditorOpen?: boolean;
+    hadActiveCellBeforeUpdate?: boolean;
+    pendingFullReplaceRebuild?: boolean;
+}
+
+interface RuntimeEventFixture extends Omit<Partial<TableRuntimeFacts>, 'activeCell'> {
+    selectionLeftActiveTable?: boolean;
+}
+
+function defaultRuntimeSnapshot(overrides: RuntimeStateFixture = {}): RuntimeStateFixture {
+    return overrides;
+}
+
+function defaultRuntimeEvent(overrides: RuntimeEventFixture = {}): RuntimeEventFixture {
+    return overrides;
+}
+
+function reduceTableRuntime(state: RuntimeStateFixture, event: RuntimeEventFixture = {}) {
+    const activeCell = event.selectionLeftActiveTable
+        ? { status: 'resolved' as const, selectionLeftTable: true }
+        : state.currentActiveCellResolved
+          ? { status: 'resolved' as const, selectionLeftTable: false }
+          : state.hasActiveCell
+            ? { status: 'unresolved' as const }
+            : { status: 'absent' as const };
+    const { selectionLeftActiveTable: _selectionLeftActiveTable, ...eventFacts } = event;
+
+    return reduceTableRuntimePolicy(
+        defaultRuntimeFacts({
+            ...state,
+            ...eventFacts,
+            activeCell,
+        })
+    );
 }
 
 describe('tableRuntimePolicies', () => {

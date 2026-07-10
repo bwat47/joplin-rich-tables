@@ -1,13 +1,19 @@
-export interface TableRuntimeSnapshot {
-    hasActiveCell: boolean;
-    currentActiveCellResolved: boolean;
-    effectiveRawMode: boolean;
-    nestedEditorOpen: boolean;
-    hadActiveCellBeforeUpdate: boolean;
-    pendingFullReplaceRebuild: boolean;
-}
+export type ActiveCellFacts =
+    | { status: 'absent' }
+    | { status: 'unresolved' }
+    | { status: 'resolved'; selectionLeftTable: boolean };
 
-export interface TableRuntimeEvent {
+export interface TableRuntimeFacts {
+    // Post-update editor state
+    activeCell: ActiveCellFacts;
+    hadActiveCellBeforeUpdate: boolean;
+    effectiveRawMode: boolean;
+
+    // External facts supplied by the lifecycle plugin
+    nestedEditorOpen: boolean;
+    pendingFullReplaceRebuild: boolean;
+
+    // Transaction facts
     docChanged: boolean;
     selectionChanged: boolean;
     isSync: boolean;
@@ -15,13 +21,12 @@ export interface TableRuntimeEvent {
     isCellSelectionTransition: boolean;
     rawModeTransition: RawModeTransitionFacts;
     hasFullDocumentReplace: boolean;
+
+    // Requests
     hasInsertedTableActivation: boolean;
     openRequestId: string | null;
-    /**
-     * True only when the current active cell resolved and either main
-     * selection endpoint is outside that resolved table.
-     */
-    selectionLeftActiveTable: boolean;
+
+    // Derived policy inputs
     requiresCellReposition: boolean;
     shouldSyncMainToNested: boolean;
 }
@@ -56,19 +61,19 @@ export type TableRuntimeAction =
     | { type: 'scheduleRebuildAllAfterFullReplace' }
     | { type: 'scheduleInsertedTableActivation' };
 
-export function reduceTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRuntimeEvent): TableRuntimeAction[] {
-    const actions = reduceCoreTableRuntime(snapshot, event);
-    if (event.hasInsertedTableActivation) {
+export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
+    const actions = reduceCoreTableRuntime(facts);
+    if (facts.hasInsertedTableActivation) {
         return [...actions, { type: 'scheduleInsertedTableActivation' }];
     }
 
     return actions;
 }
 
-function reduceCoreTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRuntimeEvent): TableRuntimeAction[] {
+function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
     const actions: TableRuntimeAction[] = [];
 
-    if (event.openRequestId) {
+    if (facts.openRequestId) {
         // Command-driven structural mutations and direct cell activations
         // route through the explicit open path. The session controller still
         // closes the previous editor before mounting the next one, but doing
@@ -76,21 +81,21 @@ function reduceCoreTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRunt
         // dismiss and reopen the IME when switching cells by tap.
         actions.push({
             type: 'openRequestedCell',
-            requestId: event.openRequestId,
+            requestId: facts.openRequestId,
         });
         return actions;
     }
 
     if (
-        snapshot.hadActiveCellBeforeUpdate &&
-        event.hasFullDocumentReplace &&
-        !event.isNormalizeBeforeEdit &&
-        !snapshot.pendingFullReplaceRebuild
+        facts.hadActiveCellBeforeUpdate &&
+        facts.hasFullDocumentReplace &&
+        !facts.isNormalizeBeforeEdit &&
+        !facts.pendingFullReplaceRebuild
     ) {
         actions.push({ type: 'scheduleRebuildAllAfterFullReplace' });
     }
 
-    if (event.rawModeTransition.exitedSourceMode || event.rawModeTransition.exitedSearchForce) {
+    if (facts.rawModeTransition.exitedSourceMode || facts.rawModeTransition.exitedSearchForce) {
         actions.push({
             type: 'scheduleActivateCellAtCursor',
             options: getActivateCellAtCursorOptions('rawModeExit'),
@@ -98,16 +103,20 @@ function reduceCoreTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRunt
         return actions;
     }
 
-    if (event.rawModeTransition.enteredRawMode && !event.isCellSelectionTransition) {
+    if (facts.rawModeTransition.enteredRawMode && !facts.isCellSelectionTransition) {
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' });
     }
 
-    if (event.rawModeTransition.exitedRawMode && !snapshot.hasActiveCell && !event.isCellSelectionTransition) {
+    if (
+        facts.rawModeTransition.exitedRawMode &&
+        facts.activeCell.status === 'absent' &&
+        !facts.isCellSelectionTransition
+    ) {
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 
-    if (event.requiresCellReposition) {
-        if (snapshot.nestedEditorOpen) {
+    if (facts.requiresCellReposition) {
+        if (facts.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditorUsingResolvedUpdateRange' });
         }
         actions.push({
@@ -117,42 +126,46 @@ function reduceCoreTableRuntime(snapshot: TableRuntimeSnapshot, event: TableRunt
         return actions;
     }
 
-    if (shouldClearActiveCellWhenSelectionLeavesTable(snapshot, event)) {
-        if (snapshot.nestedEditorOpen) {
+    if (shouldClearActiveCellWhenSelectionLeavesTable(facts)) {
+        if (facts.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor' });
         }
         actions.push({ type: 'clearActiveCell' });
         return actions;
     }
 
-    if (!snapshot.hasActiveCell && snapshot.hadActiveCellBeforeUpdate) {
+    if (facts.activeCell.status === 'absent' && facts.hadActiveCellBeforeUpdate) {
         actions.push({ type: 'closeNestedEditor' });
     }
 
-    if (event.shouldSyncMainToNested) {
+    if (facts.shouldSyncMainToNested) {
         actions.push({ type: 'syncMainToNested' });
     }
 
-    if (event.docChanged && snapshot.hasActiveCell && !snapshot.currentActiveCellResolved && !event.isSync) {
+    if (facts.docChanged && facts.activeCell.status === 'unresolved' && !facts.isSync) {
         actions.push({ type: 'clearActiveCell' });
     }
 
-    if (event.docChanged && snapshot.currentActiveCellResolved && !snapshot.nestedEditorOpen && !event.isSync) {
+    if (facts.docChanged && facts.activeCell.status === 'resolved' && !facts.nestedEditorOpen && !facts.isSync) {
         actions.push({ type: 'clearActiveCell' });
     }
 
     return actions;
 }
 
-function shouldClearActiveCellWhenSelectionLeavesTable(state: TableRuntimeSnapshot, event: TableRuntimeEvent): boolean {
+function shouldClearActiveCellWhenSelectionLeavesTable(facts: TableRuntimeFacts): boolean {
     return (
-        event.selectionChanged &&
-        !event.isSync &&
-        !event.isCellSelectionTransition &&
-        !state.effectiveRawMode &&
-        state.nestedEditorOpen &&
-        event.selectionLeftActiveTable
+        facts.selectionChanged &&
+        !facts.isSync &&
+        !facts.isCellSelectionTransition &&
+        !facts.effectiveRawMode &&
+        facts.nestedEditorOpen &&
+        selectionLeftActiveTable(facts)
     );
+}
+
+function selectionLeftActiveTable(facts: TableRuntimeFacts): boolean {
+    return facts.activeCell.status === 'resolved' && facts.activeCell.selectionLeftTable;
 }
 
 function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): ActivateCellAtCursorOptions {
