@@ -8,8 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
-    classifyTableRuntimeEvent,
-    createTableRuntimeSnapshot,
+    classifyTableRuntimeFacts,
     type TableRuntimeExternalFacts,
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
@@ -79,7 +78,28 @@ function dispatchAndCaptureUpdate(params: {
 }
 
 describe('runtimeEventClassifier', () => {
-    it('creates a runtime snapshot from current state and previous runtime flags', () => {
+    it('distinguishes absent and unresolved active cells', () => {
+        const absentUpdate = dispatchAndCaptureUpdate({
+            dispatch(view) {
+                view.dispatch({ selection: { anchor: 1 } });
+            },
+        });
+        const unresolvedUpdate = dispatchAndCaptureUpdate({
+            activeCell: { ...getHeaderCell(), tableFrom: 999 },
+            dispatch(view) {
+                view.dispatch({ selection: { anchor: 1 } });
+            },
+        });
+
+        expect(classifyTableRuntimeFacts(absentUpdate, DEFAULT_EXTERNAL_FACTS).activeCell).toEqual({
+            status: 'absent',
+        });
+        expect(classifyTableRuntimeFacts(unresolvedUpdate, DEFAULT_EXTERNAL_FACTS).activeCell).toEqual({
+            status: 'unresolved',
+        });
+    });
+
+    it('classifies current state and external runtime flags', () => {
         const externalFacts: TableRuntimeExternalFacts = {
             ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
@@ -92,9 +112,8 @@ describe('runtimeEventClassifier', () => {
             },
         });
 
-        expect(createTableRuntimeSnapshot(update, externalFacts)).toEqual({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        expect(classifyTableRuntimeFacts(update, externalFacts)).toMatchObject({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             effectiveRawMode: false,
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
@@ -117,14 +136,13 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
-        expect(event.isNormalizeBeforeEdit).toBe(true);
-        expect(event.isCellSelectionTransition).toBe(true);
-        expect(event.hasInsertedTableActivation).toBe(false);
-        expect(event.openRequestId).toBe('latest-request');
-        expect(event.rawModeTransition).toEqual({
+        expect(facts.isNormalizeBeforeEdit).toBe(true);
+        expect(facts.isCellSelectionTransition).toBe(true);
+        expect(facts.hasInsertedTableActivation).toBe(false);
+        expect(facts.openRequestId).toBe('latest-request');
+        expect(facts.rawModeTransition).toEqual({
             enteredRawMode: true,
             exitedRawMode: false,
             exitedSourceMode: false,
@@ -143,10 +161,9 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
-        expect(event.hasInsertedTableActivation).toBe(true);
+        expect(facts.hasInsertedTableActivation).toBe(true);
     });
 
     it('classifies raw mode exit from the update start state', () => {
@@ -156,10 +173,9 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({ effects: toggleSourceModeEffect.of(false) });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
-        expect(event.rawModeTransition).toEqual({
+        expect(facts.rawModeTransition).toEqual({
             enteredRawMode: false,
             exitedRawMode: true,
             exitedSourceMode: false,
@@ -178,12 +194,11 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({ selection: { anchor: 4 } });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, externalFacts);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, externalFacts);
 
-        expect(event.selectionChanged).toBe(true);
-        expect(event.isSync).toBe(false);
-        expect(event.shouldSyncMainToNested).toBe(true);
+        expect(facts.selectionChanged).toBe(true);
+        expect(facts.isSync).toBe(false);
+        expect(facts.shouldSyncMainToNested).toBe(true);
     });
 
     it('does not request nested sync for sync-annotated selection updates', () => {
@@ -200,11 +215,10 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, externalFacts);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, externalFacts);
 
-        expect(event.isSync).toBe(true);
-        expect(event.shouldSyncMainToNested).toBe(false);
+        expect(facts.isSync).toBe(true);
+        expect(facts.shouldSyncMainToNested).toBe(false);
     });
 
     it('detects when selection leaves the resolved active table', () => {
@@ -219,10 +233,9 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({ selection: { anchor: 0 } });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, externalFacts);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, externalFacts);
 
-        expect(event.selectionLeftActiveTable).toBe(true);
+        expect(facts.activeCell).toEqual({ status: 'resolved', selectionLeftTable: true });
     });
 
     it('detects redo edits outside the active cell as reposition events', () => {
@@ -235,10 +248,41 @@ describe('runtimeEventClassifier', () => {
                 });
             },
         });
-        const snapshot = createTableRuntimeSnapshot(update, DEFAULT_EXTERNAL_FACTS);
-        const event = classifyTableRuntimeEvent(update, snapshot);
+        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
-        expect(event.docChanged).toBe(true);
-        expect(event.requiresCellReposition).toBe(true);
+        expect(facts.docChanged).toBe(true);
+        expect(facts.requiresCellReposition).toBe(true);
+    });
+
+    it('produces coherent facts when a sync update carries several signals', () => {
+        const update = dispatchAndCaptureUpdate({
+            activeCell: getHeaderCell(),
+            dispatch(view) {
+                view.dispatch({
+                    selection: { anchor: 4 },
+                    effects: activateInsertedTableEffect.of({
+                        tableFrom: 0,
+                        target: { section: 'header', row: 0, col: 0 },
+                    }),
+                    annotations: [syncAnnotation.of(true), cellSelectionTransitionAnnotation.of(true)],
+                });
+            },
+        });
+
+        const facts = classifyTableRuntimeFacts(update, {
+            nestedEditorOpen: true,
+            pendingFullReplaceRebuild: true,
+        });
+
+        expect(facts).toMatchObject({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
+            nestedEditorOpen: true,
+            pendingFullReplaceRebuild: true,
+            selectionChanged: true,
+            isSync: true,
+            isCellSelectionTransition: true,
+            hasInsertedTableActivation: true,
+            shouldSyncMainToNested: false,
+        });
     });
 });

@@ -12,11 +12,7 @@ import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import {
-    reduceTableRuntime,
-    type TableRuntimeEvent,
-    type TableRuntimeSnapshot,
-} from '../tableRuntime/lifecycle/lifecyclePolicy';
+import { reduceTableRuntime, type TableRuntimeFacts } from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
@@ -82,20 +78,13 @@ function requireResolvedActiveCell(state: EditorState) {
     return resolved;
 }
 
-function defaultRuntimeSnapshot(overrides: Partial<TableRuntimeSnapshot> = {}): TableRuntimeSnapshot {
+function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableRuntimeFacts {
     return {
-        hasActiveCell: false,
-        currentActiveCellResolved: false,
+        activeCell: { status: 'absent' },
+        hadActiveCellBeforeUpdate: false,
         effectiveRawMode: false,
         nestedEditorOpen: false,
-        hadActiveCellBeforeUpdate: false,
         pendingFullReplaceRebuild: false,
-        ...overrides,
-    };
-}
-
-function defaultRuntimeEvent(overrides: Partial<TableRuntimeEvent> = {}): TableRuntimeEvent {
-    return {
         docChanged: false,
         selectionChanged: false,
         isSync: false,
@@ -110,7 +99,6 @@ function defaultRuntimeEvent(overrides: Partial<TableRuntimeEvent> = {}): TableR
         hasFullDocumentReplace: false,
         hasInsertedTableActivation: false,
         openRequestId: null,
-        selectionLeftActiveTable: false,
         requiresCellReposition: false,
         shouldSyncMainToNested: false,
         ...overrides,
@@ -332,11 +320,9 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('plans raw mode exit as cursor reactivation', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'unresolved' },
             hadActiveCellBeforeUpdate: true,
-        });
-        const event = defaultRuntimeEvent({
             rawModeTransition: {
                 enteredRawMode: false,
                 exitedRawMode: true,
@@ -345,7 +331,7 @@ describe('tableRuntimePolicies', () => {
             },
         });
 
-        expect(reduceTableRuntime(state, event)).toEqual([
+        expect(reduceTableRuntime(facts)).toEqual([
             {
                 type: 'scheduleActivateCellAtCursor',
                 options: {
@@ -359,48 +345,35 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('appends inserted-table activation after explicit open requests', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
+            hasInsertedTableActivation: true,
+            openRequestId: 'explicit-request',
+            requiresCellReposition: true,
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    hasInsertedTableActivation: true,
-                    openRequestId: 'explicit-request',
-                    requiresCellReposition: true,
-                })
-            )
-        ).toEqual([
+        expect(reduceTableRuntime(facts)).toEqual([
             { type: 'openRequestedCell', requestId: 'explicit-request' },
             { type: 'scheduleInsertedTableActivation' },
         ]);
     });
 
     it('appends inserted-table activation after raw-mode exit actions', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'unresolved' },
             hadActiveCellBeforeUpdate: true,
+            hasInsertedTableActivation: true,
+            rawModeTransition: {
+                enteredRawMode: false,
+                exitedRawMode: true,
+                exitedSourceMode: true,
+                exitedSearchForce: false,
+            },
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    hasInsertedTableActivation: true,
-                    rawModeTransition: {
-                        enteredRawMode: false,
-                        exitedRawMode: true,
-                        exitedSourceMode: true,
-                        exitedSearchForce: false,
-                    },
-                })
-            )
-        ).toEqual([
+        expect(reduceTableRuntime(facts)).toEqual([
             {
                 type: 'scheduleActivateCellAtCursor',
                 options: {
@@ -415,9 +388,9 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('plans inserted-table activation when no other lifecycle work is needed', () => {
-        expect(
-            reduceTableRuntime(defaultRuntimeSnapshot(), defaultRuntimeEvent({ hasInsertedTableActivation: true }))
-        ).toEqual([{ type: 'scheduleInsertedTableActivation' }]);
+        expect(reduceTableRuntime(defaultRuntimeFacts({ hasInsertedTableActivation: true }))).toEqual([
+            { type: 'scheduleInsertedTableActivation' },
+        ]);
     });
 
     it('treats normalize-before-edit full table replacement as a controlled requested reopen', () => {
@@ -455,28 +428,21 @@ describe('tableRuntimePolicies', () => {
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             hadActiveCellBeforeUpdate: true,
+            docChanged: true,
+            selectionChanged: true,
+            isNormalizeBeforeEdit: true,
+            hasFullDocumentReplace: true,
+            openRequestId: 'normalize-request',
         });
 
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
         expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
             type: 'allowTransaction',
         });
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    docChanged: true,
-                    selectionChanged: true,
-                    isNormalizeBeforeEdit: true,
-                    hasFullDocumentReplace: true,
-                    openRequestId: 'normalize-request',
-                })
-            )
-        ).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
     });
 
     it('does not plan normalization when disabled or already canonical', () => {
@@ -584,81 +550,65 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('does not plan a generic reopen for rebuild-only transactions', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
         });
 
-        expect(reduceTableRuntime(state, defaultRuntimeEvent())).toEqual([]);
+        expect(reduceTableRuntime(facts)).toEqual([]);
     });
 
     it('plans nested editor sync from a single sync fact', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
         });
 
-        expect(reduceTableRuntime(state, defaultRuntimeEvent({ shouldSyncMainToNested: true }))).toContainEqual({
+        expect(reduceTableRuntime({ ...facts, shouldSyncMainToNested: true })).toContainEqual({
             type: 'syncMainToNested',
         });
-        expect(reduceTableRuntime(state, defaultRuntimeEvent({ shouldSyncMainToNested: false }))).toEqual([]);
+        expect(reduceTableRuntime({ ...facts, shouldSyncMainToNested: false })).toEqual([]);
     });
 
     it('prefers an explicit open request over generic branches', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: true },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
-        });
-        const event = defaultRuntimeEvent({
             docChanged: true,
             hasFullDocumentReplace: true,
             openRequestId: 'explicit-request',
             requiresCellReposition: true,
             selectionChanged: true,
-            selectionLeftActiveTable: true,
             shouldSyncMainToNested: true,
         });
 
-        expect(reduceTableRuntime(state, event)).toEqual([
-            { type: 'openRequestedCell', requestId: 'explicit-request' },
-        ]);
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'explicit-request' }]);
     });
 
-    it('uses the compact open request id selected by the adapter', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+    it('uses the classified open request id', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
+            openRequestId: 'latest-request',
         });
-        const event = defaultRuntimeEvent({ openRequestId: 'latest-request' });
 
-        expect(reduceTableRuntime(state, event)).toEqual([{ type: 'openRequestedCell', requestId: 'latest-request' }]);
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'latest-request' }]);
     });
 
     it('uses the resolved update range when undo or redo repositions the active cell', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
+            docChanged: true,
+            requiresCellReposition: true,
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    docChanged: true,
-                    requiresCellReposition: true,
-                })
-            )
-        ).toEqual([
+        expect(reduceTableRuntime(facts)).toEqual([
             { type: 'closeNestedEditorUsingResolvedUpdateRange' },
             {
                 type: 'scheduleActivateCellAtCursor',
@@ -673,92 +623,49 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('closes and clears the active cell when selection moves outside the active table', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: true },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
+            selectionChanged: true,
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    selectionChanged: true,
-                    selectionLeftActiveTable: true,
-                })
-            )
-        ).toEqual([{ type: 'closeNestedEditor' }, { type: 'clearActiveCell' }]);
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor' }, { type: 'clearActiveCell' }]);
     });
 
     it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: true },
             nestedEditorOpen: true,
             hadActiveCellBeforeUpdate: true,
-        });
-        const event = defaultRuntimeEvent({
             selectionChanged: true,
-            selectionLeftActiveTable: true,
         });
 
-        expect(reduceTableRuntime(defaultRuntimeSnapshot({ ...state, effectiveRawMode: true }), event)).toEqual([]);
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    ...event,
-                    isCellSelectionTransition: true,
-                })
-            )
-        ).toEqual([]);
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    ...event,
-                    isSync: true,
-                })
-            )
-        ).toEqual([]);
+        expect(reduceTableRuntime({ ...facts, effectiveRawMode: true })).toEqual([]);
+        expect(reduceTableRuntime({ ...facts, isCellSelectionTransition: true })).toEqual([]);
+        expect(reduceTableRuntime({ ...facts, isSync: true })).toEqual([]);
     });
 
     it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: true },
             nestedEditorOpen: false,
             hadActiveCellBeforeUpdate: true,
+            selectionChanged: true,
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    selectionChanged: true,
-                    selectionLeftActiveTable: true,
-                })
-            )
-        ).toEqual([]);
+        expect(reduceTableRuntime(facts)).toEqual([]);
     });
 
     it('plans stale active cell cleanup when the nested editor is gone', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: true,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftTable: false },
             nestedEditorOpen: false,
             hadActiveCellBeforeUpdate: true,
+            docChanged: true,
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    docChanged: true,
-                })
-            )
-        ).toContainEqual({
+        expect(reduceTableRuntime(facts)).toContainEqual({
             type: 'clearActiveCell',
         });
     });
@@ -783,21 +690,14 @@ describe('tableRuntimePolicies', () => {
     });
 
     it('clears stale active cell when the resolver cannot find the table', () => {
-        const state = defaultRuntimeSnapshot({
-            hasActiveCell: true,
-            currentActiveCellResolved: false,
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'unresolved' },
             nestedEditorOpen: false,
             hadActiveCellBeforeUpdate: true,
+            docChanged: true,
         });
 
-        expect(
-            reduceTableRuntime(
-                state,
-                defaultRuntimeEvent({
-                    docChanged: true,
-                })
-            )
-        ).toContainEqual({
+        expect(reduceTableRuntime(facts)).toContainEqual({
             type: 'clearActiveCell',
         });
     });

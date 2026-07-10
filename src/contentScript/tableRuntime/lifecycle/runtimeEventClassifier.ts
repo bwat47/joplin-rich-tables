@@ -14,47 +14,38 @@ import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
-import type { RawModeTransitionFacts, TableRuntimeEvent, TableRuntimeSnapshot } from './lifecyclePolicy';
+import type { ActiveCellFacts, RawModeTransitionFacts, TableRuntimeFacts } from './lifecyclePolicy';
 
 export interface TableRuntimeExternalFacts {
     nestedEditorOpen: boolean;
     pendingFullReplaceRebuild: boolean;
 }
 
-export function createTableRuntimeSnapshot(
+export function classifyTableRuntimeFacts(
     update: ViewUpdate,
     externalFacts: TableRuntimeExternalFacts
-): TableRuntimeSnapshot {
-    const activeCell = getActiveCell(update.state);
-    const prevActiveCell = getActiveCell(update.startState);
-    const resolvedActiveCell = getResolvedActiveCell(update.state);
+): TableRuntimeFacts {
+    const activeCellBefore = getActiveCell(update.startState);
+    const activeCellAfter = getActiveCell(update.state);
+    const resolvedCellBefore = getResolvedActiveCell(update.startState);
+    const resolvedCellAfter = getResolvedActiveCell(update.state);
     const effectiveRawMode = isEffectiveRawMode(update.state);
-
-    return {
-        hasActiveCell: Boolean(activeCell),
-        currentActiveCellResolved: Boolean(resolvedActiveCell),
-        effectiveRawMode,
-        nestedEditorOpen: externalFacts.nestedEditorOpen,
-        hadActiveCellBeforeUpdate: Boolean(prevActiveCell),
-        pendingFullReplaceRebuild: externalFacts.pendingFullReplaceRebuild,
-    };
-}
-
-export function classifyTableRuntimeEvent(update: ViewUpdate, snapshot: TableRuntimeSnapshot): TableRuntimeEvent {
-    const activeCell = getActiveCell(update.state);
-    const prevActiveCell = getActiveCell(update.startState);
-    const resolvedActiveCell = getResolvedActiveCell(update.state);
-    const resolvedPrevActiveCell = getResolvedActiveCell(update.startState);
-    const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
-    const shouldSyncDoc = update.docChanged && Boolean(resolvedActiveCell) && snapshot.nestedEditorOpen && !isSync;
+    const isSync = hasSyncAnnotation(update);
+    const activeCell = getActiveCellFacts(update, activeCellAfter, resolvedCellAfter);
+    const shouldSyncDoc = update.docChanged && Boolean(resolvedCellAfter) && externalFacts.nestedEditorOpen && !isSync;
     const shouldSyncSelection =
         update.selectionSet &&
-        isSameActiveCell(prevActiveCell, activeCell) &&
-        Boolean(resolvedActiveCell) &&
-        snapshot.nestedEditorOpen &&
+        isSameActiveCell(activeCellBefore, activeCellAfter) &&
+        Boolean(resolvedCellAfter) &&
+        externalFacts.nestedEditorOpen &&
         !isSync;
 
     return {
+        activeCell,
+        hadActiveCellBeforeUpdate: Boolean(activeCellBefore),
+        effectiveRawMode,
+        nestedEditorOpen: externalFacts.nestedEditorOpen,
+        pendingFullReplaceRebuild: externalFacts.pendingFullReplaceRebuild,
         docChanged: update.docChanged,
         selectionChanged: update.selectionSet,
         isSync,
@@ -66,15 +57,35 @@ export function classifyTableRuntimeEvent(update: ViewUpdate, snapshot: TableRun
         hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
         hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
-        selectionLeftActiveTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
         requiresCellReposition: updateRequiresCellReposition({
             update,
-            effectiveRawMode: snapshot.effectiveRawMode,
-            hadActiveCellBeforeUpdate: snapshot.hadActiveCellBeforeUpdate,
-            resolvedPrevActiveCell,
+            effectiveRawMode,
+            hadActiveCellBeforeUpdate: Boolean(activeCellBefore),
+            resolvedActiveCellBefore: resolvedCellBefore,
             isSync,
         }),
         shouldSyncMainToNested: shouldSyncDoc || shouldSyncSelection,
+    };
+}
+
+function hasSyncAnnotation(update: ViewUpdate): boolean {
+    return update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+}
+
+function getActiveCellFacts(
+    update: ViewUpdate,
+    activeCell: ReturnType<typeof getActiveCell>,
+    resolvedActiveCell: ResolvedActiveCell | null
+): ActiveCellFacts {
+    if (!activeCell) {
+        return { status: 'absent' };
+    }
+    if (!resolvedActiveCell) {
+        return { status: 'unresolved' };
+    }
+    return {
+        status: 'resolved',
+        selectionLeftTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
     };
 }
 
@@ -153,16 +164,16 @@ function updateRequiresCellReposition(params: {
     update: ViewUpdate;
     effectiveRawMode: boolean;
     hadActiveCellBeforeUpdate: boolean;
-    resolvedPrevActiveCell: ResolvedActiveCell | null;
+    resolvedActiveCellBefore: ResolvedActiveCell | null;
     isSync: boolean;
 }): boolean {
     if (!params.update.docChanged || params.isSync || params.effectiveRawMode) {
         return false;
     }
 
-    if (params.hadActiveCellBeforeUpdate && params.resolvedPrevActiveCell) {
+    if (params.hadActiveCellBeforeUpdate && params.resolvedActiveCellBefore) {
         return params.update.transactions.some((tr) =>
-            transactionRequiresTableRebuild(tr, params.resolvedPrevActiveCell)
+            transactionRequiresTableRebuild(tr, params.resolvedActiveCellBefore)
         );
     }
 
