@@ -16,6 +16,7 @@ import {
 } from '../editorBridge/cellTextCodec';
 import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { hasSyncAnnotation } from '../shared/transactionUtils';
 import { ensureCellWrapper } from './mounting';
 import {
     getResolvedActiveCell,
@@ -338,7 +339,7 @@ class NestedEditorController {
             return;
         }
 
-        const isSync = update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+        const isSync = hasSyncAnnotation(update.transactions);
         if (isSync || this.session.applyingRootToLocal) {
             return;
         }

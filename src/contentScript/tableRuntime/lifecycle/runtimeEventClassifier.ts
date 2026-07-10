@@ -1,7 +1,5 @@
 import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
-import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
-import { syncAnnotation } from '../../editorBridge/syncAnnotation';
 import {
     exitSearchForceSourceModeEffect,
     setSearchForceSourceModeEffect,
@@ -10,10 +8,14 @@ import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { findTableRanges } from '../tableResolution';
-import { isFullDocumentReplace } from '../../shared/transactionUtils';
+import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
-import { normalizeBeforeEditAnnotation } from './tableNormalization';
+import {
+    hasCellSelectionTransitionAnnotation,
+    hasFullDocumentReplace,
+    hasNormalizeBeforeEditAnnotation,
+} from './transactionFactPredicates';
 import type { ActiveCellFacts, RawModeTransitionFacts, TableRuntimeFacts } from './lifecyclePolicy';
 
 export interface TableRuntimeExternalFacts {
@@ -30,46 +32,44 @@ export function classifyTableRuntimeFacts(
     const resolvedCellBefore = getResolvedActiveCell(update.startState);
     const resolvedCellAfter = getResolvedActiveCell(update.state);
     const effectiveRawMode = isEffectiveRawMode(update.state);
-    const isSync = hasSyncAnnotation(update);
+    const activeCellBeforeStatus = getActiveCellStatus(activeCellBefore, resolvedCellBefore);
+    const isSync = hasSyncAnnotation(update.transactions);
     const activeCell = getActiveCellFacts(update, activeCellAfter, resolvedCellAfter);
-    const shouldSyncDoc = update.docChanged && Boolean(resolvedCellAfter) && externalFacts.nestedEditorOpen && !isSync;
-    const shouldSyncSelection =
-        update.selectionSet &&
-        isSameActiveCell(activeCellBefore, activeCellAfter) &&
-        Boolean(resolvedCellAfter) &&
-        externalFacts.nestedEditorOpen &&
-        !isSync;
+    const isUndoRedoInsideTable =
+        update.docChanged && !isSync && !effectiveRawMode && isUndoRedo(update) && cursorInsideAnyTable(update);
 
     return {
         activeCell,
-        hadActiveCellBeforeUpdate: Boolean(activeCellBefore),
+        activeCellBefore: activeCellBeforeStatus,
+        activeCellIdentityUnchanged: isSameActiveCell(activeCellBefore, activeCellAfter),
         effectiveRawMode,
         nestedEditorOpen: externalFacts.nestedEditorOpen,
         pendingFullReplaceRebuild: externalFacts.pendingFullReplaceRebuild,
         docChanged: update.docChanged,
         selectionChanged: update.selectionSet,
         isSync,
-        isNormalizeBeforeEdit: update.transactions.some((tr) => Boolean(tr.annotation(normalizeBeforeEditAnnotation))),
-        isCellSelectionTransition: update.transactions.some((tr) =>
-            Boolean(tr.annotation(cellSelectionTransitionAnnotation))
-        ),
+        isNormalizeBeforeEdit: hasNormalizeBeforeEditAnnotation(update.transactions),
+        isCellSelectionTransition: hasCellSelectionTransitionAnnotation(update.transactions),
         rawModeTransition: scanRawModeTransitionFacts(update),
-        hasFullDocumentReplace: update.transactions.some((tr) => isFullDocumentReplace(tr)),
+        hasFullDocumentReplace: hasFullDocumentReplace(update.transactions),
         hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
-        requiresCellReposition: updateRequiresCellReposition({
-            update,
-            effectiveRawMode,
-            hadActiveCellBeforeUpdate: Boolean(activeCellBefore),
-            resolvedActiveCellBefore: resolvedCellBefore,
-            isSync,
-        }),
-        shouldSyncMainToNested: shouldSyncDoc || shouldSyncSelection,
+        rebuildTouchesPreviousActiveTable:
+            update.docChanged && activeCellBeforeStatus === 'resolved'
+                ? update.transactions.some((tr) => transactionRequiresTableRebuild(tr, resolvedCellBefore))
+                : false,
+        isUndoRedoInsideTable,
     };
 }
 
-function hasSyncAnnotation(update: ViewUpdate): boolean {
-    return update.transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+function getActiveCellStatus(
+    activeCell: ReturnType<typeof getActiveCell>,
+    resolvedActiveCell: ResolvedActiveCell | null
+): ActiveCellFacts['status'] {
+    if (!activeCell) {
+        return 'absent';
+    }
+    return resolvedActiveCell ? 'resolved' : 'unresolved';
 }
 
 function getActiveCellFacts(
@@ -77,11 +77,9 @@ function getActiveCellFacts(
     activeCell: ReturnType<typeof getActiveCell>,
     resolvedActiveCell: ResolvedActiveCell | null
 ): ActiveCellFacts {
-    if (!activeCell) {
-        return { status: 'absent' };
-    }
-    if (!resolvedActiveCell) {
-        return { status: 'unresolved' };
+    const status = getActiveCellStatus(activeCell, resolvedActiveCell);
+    if (status !== 'resolved') {
+        return { status };
     }
     return {
         status: 'resolved',
@@ -160,23 +158,6 @@ function cursorInsideAnyTable(update: ViewUpdate): boolean {
     return findTableRanges(update.state).some((table) => cursorPos >= table.from && cursorPos <= table.to);
 }
 
-function updateRequiresCellReposition(params: {
-    update: ViewUpdate;
-    effectiveRawMode: boolean;
-    hadActiveCellBeforeUpdate: boolean;
-    resolvedActiveCellBefore: ResolvedActiveCell | null;
-    isSync: boolean;
-}): boolean {
-    if (!params.update.docChanged || params.isSync || params.effectiveRawMode) {
-        return false;
-    }
-
-    if (params.hadActiveCellBeforeUpdate && params.resolvedActiveCellBefore) {
-        return params.update.transactions.some((tr) =>
-            transactionRequiresTableRebuild(tr, params.resolvedActiveCellBefore)
-        );
-    }
-
-    const isUndoRedo = params.update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
-    return isUndoRedo && cursorInsideAnyTable(params.update);
+function isUndoRedo(update: ViewUpdate): boolean {
+    return update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
 }

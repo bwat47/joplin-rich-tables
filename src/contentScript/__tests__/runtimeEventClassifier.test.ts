@@ -116,7 +116,8 @@ describe('runtimeEventClassifier', () => {
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             effectiveRawMode: false,
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
+            activeCellIdentityUnchanged: true,
             pendingFullReplaceRebuild: true,
         });
     });
@@ -183,7 +184,7 @@ describe('runtimeEventClassifier', () => {
         });
     });
 
-    it('classifies same-cell selection updates as nested sync work', () => {
+    it('classifies same-cell selection facts needed for nested sync work', () => {
         const externalFacts: TableRuntimeExternalFacts = {
             ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
@@ -198,10 +199,10 @@ describe('runtimeEventClassifier', () => {
 
         expect(facts.selectionChanged).toBe(true);
         expect(facts.isSync).toBe(false);
-        expect(facts.shouldSyncMainToNested).toBe(true);
+        expect(facts.activeCellIdentityUnchanged).toBe(true);
     });
 
-    it('does not request nested sync for sync-annotated selection updates', () => {
+    it('classifies sync-annotated selection updates as sync updates', () => {
         const externalFacts: TableRuntimeExternalFacts = {
             ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
@@ -218,7 +219,7 @@ describe('runtimeEventClassifier', () => {
         const facts = classifyTableRuntimeFacts(update, externalFacts);
 
         expect(facts.isSync).toBe(true);
-        expect(facts.shouldSyncMainToNested).toBe(false);
+        expect(facts.activeCellIdentityUnchanged).toBe(true);
     });
 
     it('detects when selection leaves the resolved active table', () => {
@@ -251,7 +252,9 @@ describe('runtimeEventClassifier', () => {
         const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
         expect(facts.docChanged).toBe(true);
-        expect(facts.requiresCellReposition).toBe(true);
+        expect(facts.activeCellBefore).toBe('resolved');
+        expect(facts.rebuildTouchesPreviousActiveTable).toBe(true);
+        expect(facts.isUndoRedoInsideTable).toBe(false);
     });
 
     it('produces coherent facts when a sync update carries several signals', () => {
@@ -282,7 +285,7 @@ describe('runtimeEventClassifier', () => {
             isSync: true,
             isCellSelectionTransition: true,
             hasInsertedTableActivation: true,
-            shouldSyncMainToNested: false,
+            activeCellIdentityUnchanged: true,
         });
     });
 });

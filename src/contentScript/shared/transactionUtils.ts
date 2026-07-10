@@ -1,4 +1,9 @@
 import { Transaction } from '@codemirror/state';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
+
+export function hasSyncAnnotation(transactions: readonly Transaction[]): boolean {
+    return transactions.some((tr) => Boolean(tr.annotation(syncAnnotation)));
+}
 
 /**
  * Detects a full document replacement transaction (e.g., external sync update).
