@@ -117,10 +117,11 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.scheduleEnsureCursorVisible(action.mode);
                         break;
                     case 'closeNestedEditor':
-                        closeNestedEditor(this.view);
-                        break;
-                    case 'closeNestedEditorUsingResolvedUpdateRange':
-                        closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
+                        if (action.reason === 'cellReposition') {
+                            closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
+                        } else {
+                            closeNestedEditor(this.view);
+                        }
                         break;
                     case 'openRequestedCell':
                         this.scheduleOpenRequestedCell(action.requestId);
