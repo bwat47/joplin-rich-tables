@@ -81,7 +81,8 @@ function requireResolvedActiveCell(state: EditorState) {
 function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableRuntimeFacts {
     return {
         activeCell: { status: 'absent' },
-        hadActiveCellBeforeUpdate: false,
+        activeCellBefore: 'absent',
+        activeCellIdentityUnchanged: false,
         effectiveRawMode: false,
         nestedEditorOpen: false,
         pendingFullReplaceRebuild: false,
@@ -97,10 +98,10 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
             exitedSearchForce: false,
         },
         hasFullDocumentReplace: false,
+        rebuildTouchesPreviousActiveTable: false,
+        isUndoRedoInsideTable: false,
         hasInsertedTableActivation: false,
         openRequestId: null,
-        requiresCellReposition: false,
-        shouldSyncMainToNested: false,
         ...overrides,
     };
 }
@@ -322,7 +323,7 @@ describe('tableRuntimePolicies', () => {
     it('plans raw mode exit as cursor reactivation', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'unresolved' },
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             rawModeTransition: {
                 enteredRawMode: false,
                 exitedRawMode: true,
@@ -348,10 +349,10 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             hasInsertedTableActivation: true,
             openRequestId: 'explicit-request',
-            requiresCellReposition: true,
+            rebuildTouchesPreviousActiveTable: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
@@ -363,7 +364,7 @@ describe('tableRuntimePolicies', () => {
     it('appends inserted-table activation after raw-mode exit actions', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'unresolved' },
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             hasInsertedTableActivation: true,
             rawModeTransition: {
                 enteredRawMode: false,
@@ -430,7 +431,7 @@ describe('tableRuntimePolicies', () => {
         });
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             docChanged: true,
             selectionChanged: true,
             isNormalizeBeforeEdit: true,
@@ -553,36 +554,38 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
         });
 
         expect(reduceTableRuntime(facts)).toEqual([]);
     });
 
-    it('plans nested editor sync from a single sync fact', () => {
+    it('plans nested editor sync from document changes or same-cell selection changes', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
         });
 
-        expect(reduceTableRuntime({ ...facts, shouldSyncMainToNested: true })).toContainEqual({
+        expect(reduceTableRuntime({ ...facts, docChanged: true })).toContainEqual({
             type: 'syncMainToNested',
         });
-        expect(reduceTableRuntime({ ...facts, shouldSyncMainToNested: false })).toEqual([]);
+        expect(
+            reduceTableRuntime({ ...facts, selectionChanged: true, activeCellIdentityUnchanged: true })
+        ).toContainEqual({ type: 'syncMainToNested' });
+        expect(reduceTableRuntime({ ...facts, selectionChanged: true })).toEqual([]);
     });
 
     it('prefers an explicit open request over generic branches', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             docChanged: true,
             hasFullDocumentReplace: true,
             openRequestId: 'explicit-request',
-            requiresCellReposition: true,
+            rebuildTouchesPreviousActiveTable: true,
             selectionChanged: true,
-            shouldSyncMainToNested: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'explicit-request' }]);
@@ -592,7 +595,7 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             openRequestId: 'latest-request',
         });
 
@@ -603,9 +606,9 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             docChanged: true,
-            requiresCellReposition: true,
+            rebuildTouchesPreviousActiveTable: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
@@ -622,11 +625,30 @@ describe('tableRuntimePolicies', () => {
         ]);
     });
 
+    it('repositions after undo or redo inside a table without a resolved previous active cell', () => {
+        const facts = defaultRuntimeFacts({
+            docChanged: true,
+            isUndoRedoInsideTable: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([
+            {
+                type: 'scheduleActivateCellAtCursor',
+                options: {
+                    clearIfOutside: true,
+                    ensureCursorVisibleIfNotActivated: false,
+                    normalizeIfNeeded: false,
+                    preserveMainSelection: false,
+                },
+            },
+        ]);
+    });
+
     it('closes and clears the active cell when selection moves outside the active table', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             selectionChanged: true,
         });
 
@@ -640,7 +662,7 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'absent' },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
         });
 
         expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor', reason: 'activeCellRemoved' }]);
@@ -650,7 +672,7 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: true,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             selectionChanged: true,
         });
 
@@ -663,7 +685,7 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: true },
             nestedEditorOpen: false,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             selectionChanged: true,
         });
 
@@ -674,7 +696,7 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: false,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             docChanged: true,
         });
 
@@ -706,7 +728,7 @@ describe('tableRuntimePolicies', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'unresolved' },
             nestedEditorOpen: false,
-            hadActiveCellBeforeUpdate: true,
+            activeCellBefore: 'resolved',
             docChanged: true,
         });
 

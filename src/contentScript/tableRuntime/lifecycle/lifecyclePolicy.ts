@@ -1,12 +1,17 @@
 export type ActiveCellFacts =
     | { status: 'absent' }
     | { status: 'unresolved' }
-    | { status: 'resolved'; selectionLeftActiveTable: boolean };
+    | {
+          status: 'resolved';
+          // True when either main-selection endpoint is outside the resolved table.
+          selectionLeftActiveTable: boolean;
+      };
 
 export interface TableRuntimeFacts {
     // Post-update editor state
     activeCell: ActiveCellFacts;
-    hadActiveCellBeforeUpdate: boolean;
+    activeCellBefore: ActiveCellFacts['status'];
+    activeCellIdentityUnchanged: boolean;
     effectiveRawMode: boolean;
 
     // External facts supplied by the lifecycle plugin
@@ -21,14 +26,12 @@ export interface TableRuntimeFacts {
     isCellSelectionTransition: boolean;
     rawModeTransition: RawModeTransitionFacts;
     hasFullDocumentReplace: boolean;
+    rebuildTouchesPreviousActiveTable: boolean;
+    isUndoRedoInsideTable: boolean;
 
     // Requests
     hasInsertedTableActivation: boolean;
     openRequestId: string | null;
-
-    // Derived policy inputs
-    requiresCellReposition: boolean;
-    shouldSyncMainToNested: boolean;
 }
 
 export interface RawModeTransitionFacts {
@@ -88,7 +91,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     if (
-        facts.hadActiveCellBeforeUpdate &&
+        facts.activeCellBefore !== 'absent' &&
         facts.hasFullDocumentReplace &&
         !facts.isNormalizeBeforeEdit &&
         !facts.pendingFullReplaceRebuild
@@ -116,7 +119,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
     }
 
-    if (facts.requiresCellReposition) {
+    if (requiresCellReposition(facts)) {
         if (facts.nestedEditorOpen) {
             actions.push({ type: 'closeNestedEditor', reason: 'cellReposition' });
         }
@@ -135,11 +138,11 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         return actions;
     }
 
-    if (facts.activeCell.status === 'absent' && facts.hadActiveCellBeforeUpdate) {
+    if (facts.activeCell.status === 'absent' && facts.activeCellBefore !== 'absent') {
         actions.push({ type: 'closeNestedEditor', reason: 'activeCellRemoved' });
     }
 
-    if (facts.shouldSyncMainToNested) {
+    if (shouldSyncMainToNested(facts)) {
         actions.push({ type: 'syncMainToNested' });
     }
 
@@ -152,6 +155,25 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     return actions;
+}
+
+function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
+    return (
+        facts.nestedEditorOpen &&
+        !facts.isSync &&
+        facts.activeCell.status === 'resolved' &&
+        (facts.docChanged || (facts.selectionChanged && facts.activeCellIdentityUnchanged))
+    );
+}
+
+function requiresCellReposition(facts: TableRuntimeFacts): boolean {
+    if (!facts.docChanged || facts.isSync || facts.effectiveRawMode) {
+        return false;
+    }
+
+    return facts.activeCellBefore === 'resolved'
+        ? facts.rebuildTouchesPreviousActiveTable
+        : facts.isUndoRedoInsideTable;
 }
 
 function shouldClearActiveCellWhenSelectionLeavesTable(facts: TableRuntimeFacts): boolean {
