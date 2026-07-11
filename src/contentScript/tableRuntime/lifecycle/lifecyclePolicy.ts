@@ -50,7 +50,7 @@ export interface ActivateCellAtCursorOptions {
     preserveMainSelection: boolean;
 }
 
-export type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved';
+type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved';
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
