@@ -1,5 +1,4 @@
 import { EditorView } from '@codemirror/view';
-import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
@@ -7,7 +6,6 @@ import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 
-export type CommandColumnAlignment = TableAlignment;
 export type RowInsertOpenOptions = StructuralReopenOptions;
 
 const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
@@ -47,15 +45,6 @@ export function runStructuralCommand(
         ...defaults,
         ...options,
     });
-}
-
-export function updateAlignment(
-    view: EditorView,
-    resolvedCell: ResolvedActiveCell,
-    align: CommandColumnAlignment,
-    options?: StructuralReopenOptions
-): boolean {
-    return runStructuralCommand(view, resolvedCell, { type: 'alignColumn', alignment: align }, options);
 }
 
 export function insertRowAtBottom(
