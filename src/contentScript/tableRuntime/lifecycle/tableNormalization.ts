@@ -26,9 +26,7 @@ interface NormalizedTableReplacement {
 }
 
 export type NormalizeTableBeforeOpenPlan =
-    | { type: 'not-needed' }
-    | { type: 'aborted' }
-    | { type: 'dispatch'; spec: TransactionSpec };
+    { type: 'not-needed' } | { type: 'aborted' } | { type: 'dispatch'; spec: TransactionSpec };
 
 /**
  * Returns canonical table markdown plus missing blank-line boundaries when needed.

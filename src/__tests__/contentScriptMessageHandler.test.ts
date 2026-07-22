@@ -12,11 +12,9 @@ vi.mock('../logger', () => ({
 describe('contentScriptMessageHandler', () => {
     const globalValues = vi.fn(async (_keys: string[]) => [true]);
     const values = vi.fn(async (_keys: string[] | string) => ({}));
-    const execute = vi.fn(
-        async (_commandName: string, ..._args: unknown[]): Promise<unknown> => ({
-            html: '<p>ok</p>',
-        })
-    );
+    const execute = vi.fn(async (_commandName: string, ..._args: unknown[]): Promise<unknown> => ({
+        html: '<p>ok</p>',
+    }));
     const handler = createContentScriptMessageHandler({
         commands: { execute },
         settings: { globalValues, values },
