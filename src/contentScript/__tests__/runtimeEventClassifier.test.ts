@@ -80,12 +80,16 @@ function dispatchAndCaptureUpdate(params: {
 describe('runtimeEventClassifier', () => {
     it('distinguishes absent and unresolved active cells', () => {
         const absentUpdate = dispatchAndCaptureUpdate({
+            doc: DOC_WITH_SURROUNDING_TEXT,
             dispatch(view) {
                 view.dispatch({ selection: { anchor: 1 } });
             },
         });
+        // Anchored inside the document but outside any table, so the cell is present
+        // yet unresolvable — independent of how out-of-document anchors are handled.
         const unresolvedUpdate = dispatchAndCaptureUpdate({
-            activeCell: { ...getHeaderCell(), tableFrom: 999 },
+            doc: DOC_WITH_SURROUNDING_TEXT,
+            activeCell: getHeaderCell(DOC_WITH_SURROUNDING_TEXT.indexOf('after')),
             dispatch(view) {
                 view.dispatch({ selection: { anchor: 1 } });
             },

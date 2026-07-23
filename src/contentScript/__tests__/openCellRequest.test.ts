@@ -38,11 +38,14 @@ describe('openCellRequestField', () => {
             extensions: [activeCellField, openCellRequestField],
         });
 
-    const beginRequest = (state: EditorState, params?: { requestId?: string; suppressKeys?: boolean }) =>
+    const beginRequest = (
+        state: EditorState,
+        params?: { requestId?: string; suppressKeys?: boolean; activeCell?: ActiveCell }
+    ) =>
         state.update({
             effects: beginOpenCellRequestEffect.of({
                 requestId: params?.requestId ?? 'request-1',
-                activeCell,
+                activeCell: params?.activeCell ?? activeCell,
                 normalizeIfNeeded: true,
                 suppressKeys: params?.suppressKeys ?? true,
             }),
@@ -99,6 +102,28 @@ describe('openCellRequestField', () => {
         const mapped = state.update({
             changes: { from: 0, to: 1, insert: '' },
         }).state;
+
+        expect(getPendingOpenCellRequest(mapped)).toBeNull();
+    });
+
+    it('drops a request anchored past the end of the pre-change document', () => {
+        const base = createState();
+        const state = beginRequest(base, {
+            activeCell: { ...activeCell, tableFrom: base.doc.length + 10 },
+        });
+
+        // Mapping such an anchor is what `ChangeDesc.mapPos` throws on, so the anchor has to
+        // be rejected before it gets there rather than after.
+        expect(() => state.update({ changes: { from: 0, to: 0, insert: 'x' } })).not.toThrow();
+        expect(getPendingOpenCellRequest(state.update({ changes: { from: 0, to: 0, insert: 'x' } }).state)).toBeNull();
+    });
+
+    it('drops a request with a negative anchor', () => {
+        const state = beginRequest(createState(), {
+            activeCell: { ...activeCell, tableFrom: -1 },
+        });
+
+        const mapped = state.update({ changes: { from: 0, to: 0, insert: 'x' } }).state;
 
         expect(getPendingOpenCellRequest(mapped)).toBeNull();
     });

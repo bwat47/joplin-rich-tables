@@ -1,4 +1,4 @@
-import { EditorState, StateEffect, StateField } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import type { CellCoords, TableSection } from '../tableModel/types';
 
 export type ActiveCellSection = TableSection;
@@ -16,6 +16,28 @@ export function isSameActiveCell(a: ActiveCell | null, b: ActiveCell | null): bo
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();
 export const clearActiveCellEffect = StateEffect.define<void>();
+
+/**
+ * Maps an active-cell anchor from the pre-change document into the changed document.
+ *
+ * Stale anchors are rejected up front, before `mapPos` can throw for a position outside
+ * the pre-change document. `Number.isFinite` is load-bearing here: both range comparisons
+ * evaluate false for NaN, so neither one would reject it. Once the anchor is known to be
+ * within `[0, changes.length]`, `mapPos` always returns a finite in-document position, so
+ * the result needs no further checking.
+ */
+export function mapActiveCellThroughChanges(activeCell: ActiveCell | null, changes: ChangeDesc): ActiveCell | null {
+    if (
+        !activeCell ||
+        !Number.isFinite(activeCell.tableFrom) ||
+        activeCell.tableFrom < 0 ||
+        activeCell.tableFrom > changes.length
+    ) {
+        return null;
+    }
+
+    return { ...activeCell, tableFrom: changes.mapPos(activeCell.tableFrom, 1) };
+}
 
 export const activeCellField = StateField.define<ActiveCell | null>({
     create() {
@@ -36,15 +58,7 @@ export const activeCellField = StateField.define<ActiveCell | null>({
         }
 
         if (tr.docChanged) {
-            const mappedTableFrom = tr.changes.mapPos(value.tableFrom, 1);
-            if (!Number.isFinite(mappedTableFrom) || mappedTableFrom < 0) {
-                return null;
-            }
-
-            return {
-                ...value,
-                tableFrom: mappedTableFrom,
-            };
+            return mapActiveCellThroughChanges(value, tr.changes);
         }
 
         return value;

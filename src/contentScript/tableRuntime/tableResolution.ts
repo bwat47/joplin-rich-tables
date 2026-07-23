@@ -33,10 +33,37 @@ export function trimTrailingNonTableLines(text: string): string {
     return lines.join('\n');
 }
 
+function findTableAncestor(node: SyntaxNode): SyntaxNode | null {
+    let current: SyntaxNode | null = node;
+    // Exits with either a `Table` node or null once the walk runs off the top of the tree.
+    while (current && current.name !== 'Table') {
+        current = current.parent;
+    }
+    return current;
+}
+
+function buildResolvedTable(state: EditorState, node: Pick<SyntaxNode, 'from' | 'to'>): ResolvedTable {
+    const rawText = state.doc.sliceString(node.from, node.to);
+    const text = trimTrailingNonTableLines(rawText);
+    return { from: node.from, to: node.from + text.length, text };
+}
+
+function containsPosition(table: ResolvedTable, pos: number): boolean {
+    return pos >= table.from && pos <= table.to;
+}
+
 /**
- * Resolve the Lezer `Table` node that contains `pos`.
+ * Resolves the table containing `pos`, or null if `pos` lies outside every table.
+ *
+ * The range returned matches what {@link findTableRanges} reports for the same table, so
+ * point lookups and full-document discovery agree on table boundaries.
+ *
+ * Two tree lookups are needed. The forward lookup misses a table ending exactly at `pos`,
+ * since nothing after `pos` belongs to it; the backward lookup covers that boundary. Each
+ * candidate is containment-checked against the *trimmed* range, because Lezer's `Table`
+ * node can extend past the last real table row.
  */
-export function resolveTableAtPos(
+export function resolveContainingTableAtPos(
     state: EditorState,
     pos: number,
     timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS
@@ -46,20 +73,25 @@ export function resolveTableAtPos(
         return null;
     }
 
-    let node: SyntaxNode | null = tree.resolve(pos, 1);
-    while (node && node.name !== 'Table') {
-        node = node.parent;
+    const tableAfter = findTableAncestor(tree.resolve(pos, 1));
+    if (tableAfter) {
+        const resolved = buildResolvedTable(state, tableAfter);
+        if (containsPosition(resolved, pos)) {
+            return resolved;
+        }
     }
 
-    if (!node || node.name !== 'Table') {
+    const tableBefore = findTableAncestor(tree.resolve(pos, -1));
+    // The range comparison is an optimization, not a correctness guard: when both lookups
+    // land on the same node, containment was already checked above and failed, so falling
+    // through would return null anyway. Short-circuiting skips a redundant slice and trim
+    // of what may be a large table.
+    if (!tableBefore || (tableAfter && tableBefore.from === tableAfter.from && tableBefore.to === tableAfter.to)) {
         return null;
     }
 
-    const rawText = state.doc.sliceString(node.from, node.to);
-    const text = trimTrailingNonTableLines(rawText);
-    const to = node.from + text.length;
-
-    return { from: node.from, to, text };
+    const resolved = buildResolvedTable(state, tableBefore);
+    return containsPosition(resolved, pos) ? resolved : null;
 }
 
 /**
@@ -67,7 +99,6 @@ export function resolveTableAtPos(
  */
 export function findTableRanges(state: EditorState, timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS): ResolvedTable[] {
     const tables: ResolvedTable[] = [];
-    const doc = state.doc;
 
     const tree = ensureSyntaxTree(state, state.doc.length, timeoutMs);
     if (!tree) {
@@ -77,10 +108,7 @@ export function findTableRanges(state: EditorState, timeoutMs: number = TABLE_SY
     tree.iterate({
         enter: (node) => {
             if (node.name === 'Table') {
-                const rawText = doc.sliceString(node.from, node.to);
-                const text = trimTrailingNonTableLines(rawText);
-                const to = node.from + text.length;
-                tables.push({ from: node.from, to, text });
+                tables.push(buildResolvedTable(state, node));
             }
         },
     });
@@ -120,9 +148,9 @@ export function resolveCellDocRange(params: { tableFrom: number; ranges: TableCe
 }
 
 /**
- * Resolve a table at `pos` and build a full TableContext (parsed table + cell ranges).
- * Convenience wrapper combining resolveTableAtPos + buildTableContext.
+ * Resolve the table containing `pos` and build a full TableContext (parsed table + cell ranges).
+ * Convenience wrapper combining resolveContainingTableAtPos + buildTableContext.
  */
 export function resolveTableContextAtPos(state: EditorState, pos: number, timeoutMs?: number): TableContext | null {
-    return resolveTableContextFromResolved(resolveTableAtPos(state, pos, timeoutMs));
+    return resolveTableContextFromResolved(resolveContainingTableAtPos(state, pos, timeoutMs));
 }

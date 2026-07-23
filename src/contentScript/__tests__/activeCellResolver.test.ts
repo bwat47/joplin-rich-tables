@@ -74,6 +74,30 @@ describe('resolvedActiveCell', () => {
         expect(resolveActiveCell(tr.state, getActiveCell(tr.state))).toBeNull();
     });
 
+    it('returns null for an anchor outside the document', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const state = createState(doc);
+
+        for (const tableFrom of [-1, doc.length + 1, doc.length + 10]) {
+            expect(resolveActiveCell(state, { tableFrom, section: 'header', row: 0, col: 0 })).toBeNull();
+        }
+    });
+
+    it('resolves an in-document anchor that no longer points at the table start', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const state = createState(doc);
+
+        const resolved = resolveActiveCell(state, {
+            tableFrom: doc.indexOf('a1'),
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+
+        expect(resolved?.tableFrom).toBe(0);
+        expect(state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('H1');
+    });
+
     it('returns null when the logical cell no longer exists in the anchored table', () => {
         const startDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
         const state = createState(startDoc, {

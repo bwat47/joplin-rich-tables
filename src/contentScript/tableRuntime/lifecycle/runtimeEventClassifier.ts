@@ -7,7 +7,7 @@ import {
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { findTableRanges } from '../tableResolution';
+import { resolveContainingTableAtPos } from '../tableResolution';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
@@ -153,7 +153,7 @@ function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell:
 
 function cursorInsideAnyTable(update: ViewUpdate): boolean {
     const cursorPos = update.state.selection.main.head;
-    return findTableRanges(update.state).some((table) => cursorPos >= table.from && cursorPos <= table.to);
+    return resolveContainingTableAtPos(update.state, cursorPos) !== null;
 }
 
 function isUndoRedo(update: ViewUpdate): boolean {

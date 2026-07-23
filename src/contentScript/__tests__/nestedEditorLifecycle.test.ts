@@ -650,6 +650,33 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('rejects a stale active-cell anchor when exiting source mode', () => {
+        const doc = CANONICAL_DOC;
+        let state = createLifecycleState({
+            doc,
+            activeCell: headerCell({ tableFrom: doc.length + 1 }),
+        });
+        state = state.update({ effects: toggleSourceModeEffect.of(true) }).state;
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({ parent, state });
+
+        expect(() =>
+            view.dispatch({
+                effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+            })
+        ).not.toThrow();
+        flushAnimationFrames();
+
+        expect(activateCellAtPositionMock).toHaveBeenCalledWith(
+            view,
+            view.state.selection.main.head,
+            expect.objectContaining({ preferredActiveCell: null })
+        );
+
+        view.destroy();
+    });
+
     it('closes and clears the active cell when main-editor selection leaves the active table', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 

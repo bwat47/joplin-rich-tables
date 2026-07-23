@@ -1,7 +1,7 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
-import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { mapActiveCellThroughChanges, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
@@ -52,6 +52,15 @@ export interface PreparedOpenCellRequestTransaction {
 
 let nextOpenCellRequestId = 1;
 
+/**
+ * Maps a pending request's anchor through a change set, dropping the request when the
+ * anchor can no longer identify the table it was made against.
+ *
+ * The deletion scan is specific to open requests: an anchor sitting inside a deleted range
+ * maps to the deletion point rather than disappearing, so a request whose table was removed
+ * would otherwise survive and reopen against whatever text replaced it. Bounds-safe mapping
+ * is shared with the active-cell field so both agree on which anchors are salvageable.
+ */
 function mapActiveCell(activeCell: ActiveCell, changes: ChangeDesc): ActiveCell | undefined {
     let tableStartDeleted = false;
     changes.iterChangedRanges((fromA, toA) => {
@@ -63,15 +72,8 @@ function mapActiveCell(activeCell: ActiveCell, changes: ChangeDesc): ActiveCell 
         return undefined;
     }
 
-    const tableFrom = changes.mapPos(activeCell.tableFrom, 1);
-    if (!Number.isFinite(tableFrom) || tableFrom < 0) {
-        return undefined;
-    }
-
-    return {
-        ...activeCell,
-        tableFrom,
-    };
+    // `undefined` (not null) is what StateEffect.map needs in order to drop the effect.
+    return mapActiveCellThroughChanges(activeCell, changes) ?? undefined;
 }
 
 function createOpenCellRequestId(): string {

@@ -335,10 +335,15 @@ describe('createMainEditorActiveCellGuard', () => {
     });
 
     it('clears stale active cell when the resolver cannot find the anchored table', () => {
-        const doc = TABLE_DOC;
+        // The anchor must stay inside the document so `activeCellField` keeps it through the
+        // change; an out-of-document anchor is dropped by the field itself and never reaches
+        // the guard. Anchoring into a paragraph is what an active cell looks like after the
+        // table it pointed at is gone.
+        const doc = `${TABLE_DOC}\n\nparagraph`;
         const state = createActiveHeaderState({
+            doc,
             activeCell: headerCell({
-                tableFrom: doc.length + 10,
+                tableFrom: doc.indexOf('paragraph'),
             }),
         });
 
