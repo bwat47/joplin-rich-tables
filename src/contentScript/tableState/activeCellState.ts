@@ -36,14 +36,16 @@ export const activeCellField = StateField.define<ActiveCell | null>({
         }
 
         if (tr.docChanged) {
-            const mappedTableFrom = tr.changes.mapPos(value.tableFrom, 1);
-            if (!Number.isFinite(mappedTableFrom) || mappedTableFrom < 0) {
+            // `tableFrom` anchors into the pre-transaction document. A stale anchor can fall
+            // outside it, and `mapPos` throws a RangeError for out-of-range positions rather
+            // than returning a sentinel, so drop such anchors before mapping.
+            if (value.tableFrom < 0 || value.tableFrom > tr.startState.doc.length) {
                 return null;
             }
 
             return {
                 ...value,
-                tableFrom: mappedTableFrom,
+                tableFrom: tr.changes.mapPos(value.tableFrom, 1),
             };
         }
 
