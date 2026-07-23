@@ -35,10 +35,11 @@ export function trimTrailingNonTableLines(text: string): string {
 
 function findTableAncestor(node: SyntaxNode): SyntaxNode | null {
     let current: SyntaxNode | null = node;
+    // Exits with either a `Table` node or null once the walk runs off the top of the tree.
     while (current && current.name !== 'Table') {
         current = current.parent;
     }
-    return current?.name === 'Table' ? current : null;
+    return current;
 }
 
 function buildResolvedTable(state: EditorState, node: Pick<SyntaxNode, 'from' | 'to'>): ResolvedTable {
