@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveContainingTableAtPos } from '../tableRuntime/tableResolution';
+import { findTableRanges, resolveContainingTableAtPos } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| a | b |', '| --- | --- |', '| c | d |'].join('\n');
@@ -81,4 +81,49 @@ describe('resolveContainingTableAtPos', () => {
             expect(resolveContainingTableAtPos(state, TABLE.length + 1)).toBeNull();
         });
     });
+
+    /**
+     * Regression coverage for a cursor escaping the table widget after undo.
+     *
+     * Undo can restore the cursor to a table's very last offset. The lifecycle classifier
+     * decided "the cursor is inside a table" from `findTableRanges` containment and scheduled
+     * an activation, but activation resolved the table from the cursor position and got null
+     * there — so nothing was activated and the caret rendered outside the widget. The two
+     * resolvers disagreeing about one position was the whole bug, so pin their agreement
+     * across every offset rather than at hand-picked ones.
+     */
+    describe('agrees with findTableRanges at every document offset', () => {
+        const cases: Record<string, string> = {
+            'a lone table': TABLE,
+            'two tables': TWO_TABLES,
+            'a table with trailing non-table text': `${TABLE}\ntrailing text`,
+            'a table between paragraphs': `before\n\n${TABLE}\n\nafter`,
+            'a document with no table': 'just a paragraph\n\nand another',
+            'a table after a list': `- item\n\n${TABLE}`,
+        };
+
+        for (const [name, doc] of Object.entries(cases)) {
+            it(`agrees for ${name}`, () => {
+                const state = createMarkdownState(doc);
+                const ranges = findTableRanges(state);
+
+                const disagreements: string[] = [];
+                for (let pos = 0; pos <= doc.length; pos++) {
+                    const fromPoint = resolveContainingTableAtPos(state, pos);
+                    const fromScan = ranges.find((table) => pos >= table.from && pos <= table.to) ?? null;
+                    if (fromPoint?.from !== fromScan?.from || fromPoint?.to !== fromScan?.to) {
+                        disagreements.push(
+                            `pos ${pos}: point=${describeRange(fromPoint)} scan=${describeRange(fromScan)}`
+                        );
+                    }
+                }
+
+                expect(disagreements).toEqual([]);
+            });
+        }
+    });
 });
+
+function describeRange(table: { from: number; to: number } | null): string {
+    return table ? `${table.from}-${table.to}` : 'null';
+}
