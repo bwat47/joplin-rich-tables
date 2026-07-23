@@ -82,6 +82,10 @@ export function resolveContainingTableAtPos(
     }
 
     const tableBefore = findTableAncestor(tree.resolve(pos, -1));
+    // The range comparison is an optimization, not a correctness guard: when both lookups
+    // land on the same node, containment was already checked above and failed, so falling
+    // through would return null anyway. Short-circuiting skips a redundant slice and trim
+    // of what may be a large table.
     if (!tableBefore || (tableAfter && tableBefore.from === tableAfter.from && tableBefore.to === tableAfter.to)) {
         return null;
     }
