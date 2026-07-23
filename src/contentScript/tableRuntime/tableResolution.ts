@@ -96,13 +96,20 @@ export function resolveContainingTableAtPos(
 
 /**
  * Find all markdown table ranges in the document using the syntax tree.
+ *
+ * Returns `null` (rather than an empty array) when the syntax tree could not be
+ * produced within the timeout, so callers can distinguish "no tables" from
+ * "parse incomplete" and retry once parsing finishes.
  */
-export function findTableRanges(state: EditorState, timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS): ResolvedTable[] {
+export function findTableRanges(
+    state: EditorState,
+    timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS
+): ResolvedTable[] | null {
     const tables: ResolvedTable[] = [];
 
     const tree = ensureSyntaxTree(state, state.doc.length, timeoutMs);
     if (!tree) {
-        return tables;
+        return null;
     }
 
     tree.iterate({
