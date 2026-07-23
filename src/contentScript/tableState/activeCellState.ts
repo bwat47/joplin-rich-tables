@@ -1,4 +1,4 @@
-import { EditorState, StateEffect, StateField } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import type { CellCoords, TableSection } from '../tableModel/types';
 
 export type ActiveCellSection = TableSection;
@@ -16,6 +16,24 @@ export function isSameActiveCell(a: ActiveCell | null, b: ActiveCell | null): bo
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();
 export const clearActiveCellEffect = StateEffect.define<void>();
+
+/**
+ * Maps an active-cell anchor from the pre-change document into the changed document.
+ * Stale anchors are rejected before `mapPos` can throw for an out-of-range position.
+ */
+export function mapActiveCellThroughChanges(activeCell: ActiveCell | null, changes: ChangeDesc): ActiveCell | null {
+    if (
+        !activeCell ||
+        !Number.isFinite(activeCell.tableFrom) ||
+        activeCell.tableFrom < 0 ||
+        activeCell.tableFrom > changes.length
+    ) {
+        return null;
+    }
+
+    const tableFrom = changes.mapPos(activeCell.tableFrom, 1);
+    return Number.isFinite(tableFrom) && tableFrom >= 0 ? { ...activeCell, tableFrom } : null;
+}
 
 export const activeCellField = StateField.define<ActiveCell | null>({
     create() {
@@ -36,17 +54,7 @@ export const activeCellField = StateField.define<ActiveCell | null>({
         }
 
         if (tr.docChanged) {
-            // `tableFrom` anchors into the pre-transaction document. A stale anchor can fall
-            // outside it, and `mapPos` throws a RangeError for out-of-range positions rather
-            // than returning a sentinel, so drop such anchors before mapping.
-            if (value.tableFrom < 0 || value.tableFrom > tr.startState.doc.length) {
-                return null;
-            }
-
-            return {
-                ...value,
-                tableFrom: tr.changes.mapPos(value.tableFrom, 1),
-            };
+            return mapActiveCellThroughChanges(value, tr.changes);
         }
 
         return value;

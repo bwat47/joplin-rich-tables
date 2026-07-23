@@ -3,7 +3,7 @@ import {
     clearActiveCellEffect,
     getActiveCell,
     isSameActiveCell,
-    type ActiveCell,
+    mapActiveCellThroughChanges,
 } from '../../tableState/activeCellState';
 import {
     clearInsertedTableActivationEffect,
@@ -43,22 +43,6 @@ function ensureCursorVisible(view: EditorView): void {
     if (!cursorAbove && !cursorBelow) return;
 
     view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
-}
-
-function mapActiveCellThroughUpdate(update: ViewUpdate, activeCell: ActiveCell | null): ActiveCell | null {
-    if (!activeCell) {
-        return null;
-    }
-
-    const mappedTableFrom = update.changes.mapPos(activeCell.tableFrom, 1);
-    if (!Number.isFinite(mappedTableFrom) || mappedTableFrom < 0) {
-        return null;
-    }
-
-    return {
-        ...activeCell,
-        tableFrom: mappedTableFrom,
-    };
 }
 
 interface OpenRequestExecutionGuardResult {
@@ -150,7 +134,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         private scheduleActivateCellAtCursor(update: ViewUpdate, activateOptions: ActivateCellAtCursorOptions): void {
             const cursorPos = update.state.selection.main.head;
-            const preferredActiveCell = mapActiveCellThroughUpdate(update, getActiveCell(update.startState));
+            const preferredActiveCell = mapActiveCellThroughChanges(getActiveCell(update.startState), update.changes);
 
             requestViewAnimationFrame(this.view, () => {
                 if (!this.view.dom.isConnected) return;
