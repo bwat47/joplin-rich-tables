@@ -19,7 +19,12 @@ export const clearActiveCellEffect = StateEffect.define<void>();
 
 /**
  * Maps an active-cell anchor from the pre-change document into the changed document.
- * Stale anchors are rejected before `mapPos` can throw for an out-of-range position.
+ *
+ * Stale anchors are rejected up front, before `mapPos` can throw for a position outside
+ * the pre-change document. `Number.isFinite` is load-bearing here: both range comparisons
+ * evaluate false for NaN, so neither one would reject it. Once the anchor is known to be
+ * within `[0, changes.length]`, `mapPos` always returns a finite in-document position, so
+ * the result needs no further checking.
  */
 export function mapActiveCellThroughChanges(activeCell: ActiveCell | null, changes: ChangeDesc): ActiveCell | null {
     if (
@@ -31,8 +36,7 @@ export function mapActiveCellThroughChanges(activeCell: ActiveCell | null, chang
         return null;
     }
 
-    const tableFrom = changes.mapPos(activeCell.tableFrom, 1);
-    return Number.isFinite(tableFrom) && tableFrom >= 0 ? { ...activeCell, tableFrom } : null;
+    return { ...activeCell, tableFrom: changes.mapPos(activeCell.tableFrom, 1) };
 }
 
 export const activeCellField = StateField.define<ActiveCell | null>({
