@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EditorState } from '@codemirror/state';
 import { findTableRanges, resolveContainingTableAtPos } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -106,6 +107,9 @@ describe('resolveContainingTableAtPos', () => {
             it(`agrees for ${name}`, () => {
                 const state = createMarkdownState(doc);
                 const ranges = findTableRanges(state);
+                if (!ranges) {
+                    throw new Error('syntax tree unavailable for test document');
+                }
 
                 const disagreements: string[] = [];
                 for (let pos = 0; pos <= doc.length; pos++) {
@@ -121,6 +125,22 @@ describe('resolveContainingTableAtPos', () => {
                 expect(disagreements).toEqual([]);
             });
         }
+    });
+});
+
+describe('findTableRanges', () => {
+    it('returns null when no syntax tree is available', () => {
+        // A state without a markdown language never produces a syntax tree —
+        // the same signal callers see when ensureSyntaxTree times out.
+        const state = EditorState.create({ doc: TABLE });
+
+        expect(findTableRanges(state)).toBeNull();
+    });
+
+    it('returns an empty array for a parsed document without tables', () => {
+        const state = createMarkdownState('just a paragraph');
+
+        expect(findTableRanges(state)).toEqual([]);
     });
 });
 
