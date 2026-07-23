@@ -1,10 +1,9 @@
 import { EditorView } from '@codemirror/view';
-import { findTableRanges } from '../tableResolution';
+import { resolveContainingTableAtPos } from '../tableResolution';
 
 export function moveCursorOutOfTable(view: EditorView, offset: number = 1): boolean {
-    const tables = findTableRanges(view.state);
     const cursor = view.state.selection.main.head;
-    const tableContainingCursor = tables.find((t) => cursor >= t.from && cursor <= t.to);
+    const tableContainingCursor = resolveContainingTableAtPos(view.state, cursor);
     if (!tableContainingCursor) {
         return false;
     }
