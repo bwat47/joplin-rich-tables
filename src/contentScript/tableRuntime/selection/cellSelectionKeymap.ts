@@ -4,7 +4,7 @@ import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cel
 import { getActiveCell } from '../../tableState/activeCellState';
 import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
-import { resolveTableAtPos } from '../tableResolution';
+import { resolveContainingTableAtPos } from '../tableResolution';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
@@ -37,7 +37,7 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const table = resolveTableAtPos(view.state, selection.tableFrom);
+    const table = resolveContainingTableAtPos(view.state, selection.tableFrom);
     if (!table) {
         return false;
     }

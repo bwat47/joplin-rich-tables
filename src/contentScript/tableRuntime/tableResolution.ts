@@ -52,26 +52,15 @@ function containsPosition(table: ResolvedTable, pos: number): boolean {
 }
 
 /**
- * Resolve the Lezer `Table` node at `pos` using forward boundary affinity.
- */
-export function resolveTableAtPos(
-    state: EditorState,
-    pos: number,
-    timeoutMs: number = TABLE_SYNTAX_TREE_TIMEOUT_MS
-): ResolvedTable | null {
-    const tree = ensureSyntaxTree(state, pos, timeoutMs);
-    if (!tree) {
-        return null;
-    }
-
-    const table = findTableAncestor(tree.resolve(pos, 1));
-    return table ? buildResolvedTable(state, table) : null;
-}
-
-/**
- * Resolves the table range containing `pos` after applying the same trailing-line
- * trimming used by full-document table discovery. The second lookup preserves
- * inclusive containment when `pos` is exactly at the end of a table node.
+ * Resolves the table containing `pos`, or null if `pos` lies outside every table.
+ *
+ * The range returned matches what {@link findTableRanges} reports for the same table, so
+ * point lookups and full-document discovery agree on table boundaries.
+ *
+ * Two tree lookups are needed. The forward lookup misses a table ending exactly at `pos`,
+ * since nothing after `pos` belongs to it; the backward lookup covers that boundary. Each
+ * candidate is containment-checked against the *trimmed* range, because Lezer's `Table`
+ * node can extend past the last real table row.
  */
 export function resolveContainingTableAtPos(
     state: EditorState,
@@ -154,9 +143,9 @@ export function resolveCellDocRange(params: { tableFrom: number; ranges: TableCe
 }
 
 /**
- * Resolve a table at `pos` and build a full TableContext (parsed table + cell ranges).
- * Convenience wrapper combining resolveTableAtPos + buildTableContext.
+ * Resolve the table containing `pos` and build a full TableContext (parsed table + cell ranges).
+ * Convenience wrapper combining resolveContainingTableAtPos + buildTableContext.
  */
 export function resolveTableContextAtPos(state: EditorState, pos: number, timeoutMs?: number): TableContext | null {
-    return resolveTableContextFromResolved(resolveTableAtPos(state, pos, timeoutMs));
+    return resolveTableContextFromResolved(resolveContainingTableAtPos(state, pos, timeoutMs));
 }

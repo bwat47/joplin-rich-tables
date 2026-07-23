@@ -5,7 +5,7 @@
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
-import { resolveTableAtPos } from '../tableResolution';
+import { resolveContainingTableAtPos } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
@@ -55,7 +55,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    const table = resolveTableAtPos(view.state, pos);
+    const table = resolveContainingTableAtPos(view.state, pos);
 
     if (!table) {
         // Position is outside any table
@@ -137,7 +137,7 @@ export function activateTableCell(
     // Don't activate cells in source mode (no widgets exist)
     if (isSourceModeEnabled(view.state)) return;
 
-    const table = resolveTableAtPos(view.state, tableFrom);
+    const table = resolveContainingTableAtPos(view.state, tableFrom);
     if (!table) return;
 
     const ctx = buildTableContext(table);
