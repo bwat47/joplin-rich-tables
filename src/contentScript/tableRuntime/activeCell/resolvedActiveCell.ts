@@ -3,7 +3,6 @@ import { StateField } from '@codemirror/state';
 import { activeCellField, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
-import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 
 export interface ResolvedActiveCell {
@@ -55,12 +54,21 @@ export function resolveCellWithinResolvedTable(
     });
 }
 
-function clampDocPos(state: EditorState, pos: number): number {
-    return clamp(pos, 0, state.doc.length);
-}
-
+/**
+ * An anchor outside the document cannot identify a table. Rejecting it outright keeps
+ * resolution honest: clamping such an anchor to a document edge would resolve it against
+ * whatever happens to sit there, yielding a confident answer for an anchor we know is bad.
+ *
+ * Note this only covers anchors outside the document. An in-range anchor that no longer
+ * points at a table start still resolves to the table containing it, which nested-editor
+ * sessions rely on to recover from document drift.
+ */
 function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {
-    const ctx = resolveTableContextAtPos(state, clampDocPos(state, activeCell.tableFrom));
+    if (activeCell.tableFrom < 0 || activeCell.tableFrom > state.doc.length) {
+        return null;
+    }
+
+    const ctx = resolveTableContextAtPos(state, activeCell.tableFrom);
     if (!ctx) {
         return null;
     }
