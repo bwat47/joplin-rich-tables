@@ -602,10 +602,7 @@ describe('tableRuntimePolicies', () => {
         const tr = startState.update({
             changes: { from: 0, to: nonCanonicalDoc.length, insert: canonicalDoc },
             selection: { anchor: nextActiveCell.selectionAnchor },
-            effects: [
-                setActiveCellEffect.of(nextActiveCell.activeCell),
-                rebuildTableWidgetsEffect.of({ tableFrom: 0 }),
-            ],
+            effects: [setActiveCellEffect.of(nextActiveCell.activeCell), rebuildTableWidgetsEffect.of(undefined)],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const facts = defaultRuntimeFacts({

@@ -102,7 +102,7 @@ export function planNormalizeTableBeforeOpen(params: {
                     normalizeIfNeeded: false,
                 }),
                 triggerOpenCellRequestEffect.of({ requestId: currentRequest.requestId }),
-                rebuildTableWidgetsEffect.of({ tableFrom: replacement.tableFrom }),
+                rebuildTableWidgetsEffect.of(undefined),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
             scrollIntoView: false,
