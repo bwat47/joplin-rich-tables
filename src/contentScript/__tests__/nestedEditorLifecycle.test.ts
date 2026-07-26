@@ -150,7 +150,6 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
 }));
 
 describe('nestedEditorLifecycle', () => {
-    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
 
     const flushAnimationFrames = (): void => {
@@ -170,14 +169,14 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.openNestedEditor.mockReturnValue(true);
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
         animationFrameQueue = [];
-        globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+        vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
             animationFrameQueue.push(callback);
             return animationFrameQueue.length;
-        }) as typeof requestAnimationFrame;
+        }) as typeof requestAnimationFrame);
     });
 
     afterEach(() => {
-        globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+        vi.unstubAllGlobals();
         document.body.innerHTML = '';
     });
 

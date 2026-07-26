@@ -25,7 +25,12 @@ import {
 } from '../tableRuntime/selection/cellSelectionClipboard';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
-const doc = ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | b\\|c |  |', '| x | <br> | z |'].join('\n');
+const doc = [
+    String.raw`| H\|1 | H2 | H3 |`,
+    '| :--- | ---: | --- |',
+    String.raw`| a | b\|c |  |`,
+    '| x | <br> | z |',
+].join('\n');
 
 function selection(anchor: CellSelection['anchor'], focus: CellSelection['focus']): CellSelection {
     return { tableFrom: 0, anchor, focus };
@@ -61,7 +66,7 @@ describe('cellSelectionClipboard', () => {
                 state,
                 selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
             )
-        ).toEqual([['H\\|1', 'H2']]);
+        ).toEqual([[String.raw`H\|1`, 'H2']]);
     });
 
     it('extracts body-only selections', () => {
@@ -73,7 +78,7 @@ describe('cellSelectionClipboard', () => {
                 selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
             )
         ).toEqual([
-            ['b\\|c', ''],
+            [String.raw`b\|c`, ''],
             ['<br>', 'z'],
         ]);
     });
@@ -88,7 +93,7 @@ describe('cellSelectionClipboard', () => {
             )
         ).toEqual([
             ['H2', 'H3'],
-            ['b\\|c', ''],
+            [String.raw`b\|c`, ''],
         ]);
     });
 
@@ -100,7 +105,7 @@ describe('cellSelectionClipboard', () => {
                 state,
                 selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 1 })
             )
-        ).toBe(['| H\\|1 | H2 |', '| :--- | ---: |', '| a | b\\|c |', '| x | <br> |'].join('\n'));
+        ).toBe([String.raw`| H\|1 | H2 |`, '| :--- | ---: |', String.raw`| a | b\|c |`, '| x | <br> |'].join('\n'));
     });
 
     it('serializes body-only selections as a valid standalone markdown table', () => {
@@ -111,7 +116,7 @@ describe('cellSelectionClipboard', () => {
                 state,
                 selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 1, col: 1 })
             )
-        ).toBe(['| a | b\\|c |', '| --- | --- |', '| x | <br> |'].join('\n'));
+        ).toBe([String.raw`| a | b\|c |`, '| --- | --- |', '| x | <br> |'].join('\n'));
     });
 
     it('serializes vertical single-column selections without turning them into a row', () => {
@@ -197,7 +202,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(
-            ['| H\\|1 |  |  |', '| :--- | ---: | --- |', '| a |  |  |', '| x |  |  |'].join('\n')
+            [String.raw`| H\|1 |  |  |`, '| :--- | ---: | --- |', '| a |  |  |', '| x |  |  |'].join('\n')
         );
         expect(rewrite?.selection).toEqual(
             selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
@@ -350,7 +355,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(
-            ['| H\\|1 | P1 | H3 |', '| :--- | ---: | --- |', '| a | Q1 |  |', '| x | <br> | z |'].join('\n')
+            [String.raw`| H\|1 | P1 | H3 |`, '| :--- | ---: | --- |', '| a | Q1 |  |', '| x | <br> | z |'].join('\n')
         );
         expect(rewrite?.selection).toEqual(
             selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 1 })
@@ -379,7 +384,7 @@ describe('cellSelectionClipboard', () => {
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(
             [
-                '| H\\|1 | H2 | H3 |  |',
+                String.raw`| H\|1 | H2 | H3 |  |`,
                 '| :--- | ---: | --- | :---: |',
                 '| a | P1 | P2 | P3 |',
                 '| x | Q1 | Q2 | Q3 |',
@@ -452,7 +457,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(event.preventDefault).toHaveBeenCalledTimes(1);
         expect(mutableView.state.doc.toString()).toBe(
-            ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
+            [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
         );
         expect(getActiveCell(mutableView.state)).toBeNull();
         expect(getCellSelection(mutableView.state)).toEqual(
@@ -496,7 +501,7 @@ describe('cellSelectionClipboard', () => {
         ).toBe(true);
 
         expect(mutableView.state.doc.toString()).toBe(
-            ['| H\\|1 | H2 | H3 |', '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
+            [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | Q1 | Q2 |'].join('\n')
         );
         expect(getActiveCell(mutableView.state)).toBeNull();
         expect(getCellSelection(mutableView.state)).toEqual(

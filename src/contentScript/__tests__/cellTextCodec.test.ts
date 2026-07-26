@@ -14,13 +14,13 @@ import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('escapeUnescapedPipes', () => {
     it('escapes unescaped pipes', () => {
-        expect(escapeUnescapedPipes('a|b')).toBe('a\\|b');
-        expect(escapeUnescapedPipes('|')).toBe('\\|');
-        expect(escapeUnescapedPipes('a|b|c')).toBe('a\\|b\\|c');
+        expect(escapeUnescapedPipes('a|b')).toBe(String.raw`a\|b`);
+        expect(escapeUnescapedPipes('|')).toBe(String.raw`\|`);
+        expect(escapeUnescapedPipes('a|b|c')).toBe(String.raw`a\|b\|c`);
     });
 
     it('keeps already-escaped pipes intact', () => {
-        expect(escapeUnescapedPipes('a\\|b')).toBe('a\\|b');
+        expect(escapeUnescapedPipes(String.raw`a\|b`)).toBe(String.raw`a\|b`);
     });
 });
 
@@ -41,12 +41,12 @@ describe('normalizeBrTags', () => {
 
 describe('sanitizeLocalText / unsanitizeRootText', () => {
     it('converts local newlines and pipes to markdown-safe cell text', () => {
-        expect(sanitizeLocalText('a\nb|c')).toBe('a<br>b\\|c');
+        expect(sanitizeLocalText('a\nb|c')).toBe(String.raw`a<br>b\|c`);
     });
 
     it('normalizes self-closing br tags before syncing to root text', () => {
-        expect(sanitizeLocalText('a<br/>b|c')).toBe('a<br>b\\|c');
-        expect(sanitizeLocalText('a<br />b|c')).toBe('a<br>b\\|c');
+        expect(sanitizeLocalText('a<br/>b|c')).toBe(String.raw`a<br>b\|c`);
+        expect(sanitizeLocalText('a<br />b|c')).toBe(String.raw`a<br>b\|c`);
     });
 
     it('preserves trailing spaces during live editing sync', () => {
@@ -54,7 +54,7 @@ describe('sanitizeLocalText / unsanitizeRootText', () => {
     });
 
     it('converts root markdown-safe cell text back to local display text', () => {
-        expect(unsanitizeRootText('a<br>b\\|c')).toBe('a\nb|c');
+        expect(unsanitizeRootText(String.raw`a<br>b\|c`)).toBe('a\nb|c');
     });
 });
 
@@ -63,11 +63,11 @@ describe('selection mapping', () => {
         const localText = 'a\nb|c';
         const rootSelection = toRootSelection({ anchor: 0, head: localText.length }, localText);
 
-        expect(rootSelection).toEqual({ anchor: 0, head: 'a<br>b\\|c'.length });
+        expect(rootSelection).toEqual({ anchor: 0, head: String.raw`a<br>b\|c`.length });
     });
 
     it('maps root selection back to local selection', () => {
-        const rootText = 'a<br>b\\|c';
+        const rootText = String.raw`a<br>b\|c`;
         const localSelection = toLocalSelection({ anchor: 0, head: rootText.length }, rootText);
 
         expect(localSelection).toEqual({ anchor: 0, head: 'a\nb|c'.length });
@@ -118,7 +118,7 @@ describe('sanitizeCellChanges', () => {
         const result = sanitizeCellChanges(tr, 2, 4);
         expect(result.rejected).toBe(false);
         expect(result.didModifyInserts).toBe(true);
-        expect(result.changes).toEqual([{ from: 2, to: 2, insert: 'a<br>b\\|c' }]);
+        expect(result.changes).toEqual([{ from: 2, to: 2, insert: String.raw`a<br>b\|c` }]);
     });
 
     it('canonicalizes self-closing br tags during direct main-editor paste', () => {
@@ -133,6 +133,6 @@ describe('sanitizeCellChanges', () => {
         const result = sanitizeCellChanges(tr, 2, 4);
         expect(result.rejected).toBe(false);
         expect(result.didModifyInserts).toBe(true);
-        expect(result.changes).toEqual([{ from: 2, to: 2, insert: 'a<br>b\\|c' }]);
+        expect(result.changes).toEqual([{ from: 2, to: 2, insert: String.raw`a<br>b\|c` }]);
     });
 });
