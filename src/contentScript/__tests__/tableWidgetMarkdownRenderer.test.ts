@@ -15,14 +15,12 @@ class ResizeObserverMock {
 }
 
 describe('TableWidget markdown rendering', () => {
-    const originalResizeObserver = window.ResizeObserver;
-
     beforeEach(() => {
-        window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     });
 
     afterEach(() => {
-        window.ResizeObserver = originalResizeObserver;
+        vi.unstubAllGlobals();
     });
 
     it('uses the markdown renderer supplied by the editor state facet', async () => {
@@ -35,7 +33,7 @@ describe('TableWidget markdown rendering', () => {
         }
 
         const renderer: MarkdownRenderService = {
-            getCached: vi.fn(() => undefined),
+            getCached: vi.fn<MarkdownRenderService['getCached']>(),
             render: vi.fn(() => rendered.promise),
             clear: vi.fn(),
         };
@@ -50,7 +48,7 @@ describe('TableWidget markdown rendering', () => {
 
         const widget = new TableWidget(table, cellRanges, tableText, 0, tableText.length, 'hash');
         const dom = widget.toDOM(view);
-        document.body.appendChild(dom);
+        document.body.append(dom);
         rendered.resolve('<p><strong>rendered</strong></p>');
         await rendered.promise;
         // The widget attaches its DOM update in a .then() on the same promise.

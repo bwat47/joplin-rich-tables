@@ -496,7 +496,7 @@ describe('tableRuntimePolicies', () => {
             throw new Error('Expected sanitize decision');
         }
 
-        expect(decision.selection.main.head).toBe(resolved.editableFrom + 'a<br>b\\|c'.length);
+        expect(decision.selection.main.head).toBe(resolved.editableFrom + String.raw`a<br>b\|c`.length);
     });
 
     it('plans raw mode exit as cursor reactivation', () => {

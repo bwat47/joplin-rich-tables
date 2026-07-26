@@ -42,7 +42,7 @@ function createCell(): ActiveCell {
 
 function createView(): EditorView {
     const dom = document.createElement('div');
-    document.body.appendChild(dom);
+    document.body.append(dom);
     return {
         dom,
         state: {
@@ -72,12 +72,13 @@ function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
 }
 
 function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLButtonElement {
-    const button = plugin.dom.querySelector(`button[aria-label="${ariaLabel}"]`);
-    if (!(button instanceof HTMLButtonElement)) {
-        throw new Error(`Missing toolbar button: ${ariaLabel}`);
+    for (const button of plugin.dom.querySelectorAll<HTMLButtonElement>('button[aria-label]')) {
+        if (button.getAttribute('aria-label') === ariaLabel) {
+            return button;
+        }
     }
 
-    return button;
+    throw new TypeError(`Missing toolbar button: ${ariaLabel}`);
 }
 
 function setCurrentActiveCell(plugin: TableToolbarPlugin, cell: ActiveCell): void {
@@ -87,7 +88,7 @@ function setCurrentActiveCell(plugin: TableToolbarPlugin, cell: ActiveCell): voi
 function createToolbarButtons(plugin: TableToolbarPlugin): void {
     const createButtons = Reflect.get(plugin as unknown as object, 'createButtons');
     if (typeof createButtons !== 'function') {
-        throw new Error('Missing createButtons on toolbar plugin');
+        throw new TypeError('Missing createButtons on toolbar plugin');
     }
 
     createButtons.call(plugin);
@@ -95,7 +96,7 @@ function createToolbarButtons(plugin: TableToolbarPlugin): void {
 
 describe('tableToolbarPlugin', () => {
     beforeEach(() => {
-        document.body.innerHTML = '';
+        document.body.replaceChildren();
         vi.clearAllMocks();
     });
 

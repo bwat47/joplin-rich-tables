@@ -37,11 +37,11 @@ function createViewHarness() {
     const selectedWidget = document.createElement('div');
     const selectedWidgetChild = document.createElement('span');
     selectedWidget.className = CLASS_TABLE_WIDGET;
-    selectedWidget.appendChild(selectedWidgetChild);
-    contentDOM.appendChild(selectedWidget);
-    root.appendChild(scrollDOM);
-    root.appendChild(contentDOM);
-    document.body.appendChild(root);
+    selectedWidget.append(selectedWidgetChild);
+    contentDOM.append(selectedWidget);
+    root.append(scrollDOM);
+    root.append(contentDOM);
+    document.body.append(root);
 
     const view = {
         state,
@@ -63,7 +63,7 @@ function setActiveElement(element: Element | null): void {
 
 describe('cellSelectionShortcutScope', () => {
     afterEach(() => {
-        document.body.innerHTML = '';
+        document.body.replaceChildren();
         setActiveElement(document.body);
     });
 
@@ -86,8 +86,8 @@ describe('cellSelectionShortcutScope', () => {
         const toolbar = document.createElement('div');
         toolbar.className = CLASS_FLOATING_TOOLBAR;
         const button = document.createElement('button');
-        toolbar.appendChild(button);
-        root.appendChild(toolbar);
+        toolbar.append(button);
+        root.append(toolbar);
         setActiveElement(button);
 
         expect(canHandleTableSelectionKeydown(view)).toBe(false);
@@ -96,7 +96,7 @@ describe('cellSelectionShortcutScope', () => {
     it('rejects shortcuts when focus is on another interactive control in the editor', () => {
         const { view, root } = createViewHarness();
         const button = document.createElement('button');
-        root.appendChild(button);
+        root.append(button);
         setActiveElement(button);
 
         expect(canHandleTableSelectionKeydown(view)).toBe(false);
@@ -108,8 +108,8 @@ describe('cellSelectionShortcutScope', () => {
         editorHost.className = CLASS_CELL_EDITOR;
         const nestedContent = document.createElement('div');
         nestedContent.setAttribute('contenteditable', 'true');
-        editorHost.appendChild(nestedContent);
-        root.appendChild(editorHost);
+        editorHost.append(nestedContent);
+        root.append(editorHost);
         setActiveElement(nestedContent);
 
         expect(canHandleTableClipboardShortcut(view)).toBe(true);

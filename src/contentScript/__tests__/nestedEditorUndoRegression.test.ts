@@ -63,8 +63,6 @@ const TEST_HOST_CONFIG = {
 };
 
 describe('nested editor undo regression', () => {
-    const originalResizeObserver = globalThis.ResizeObserver;
-    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
 
     const flushAnimationFrames = (): void => {
@@ -75,18 +73,17 @@ describe('nested editor undo regression', () => {
     };
 
     beforeEach(() => {
-        globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
         animationFrameQueue = [];
-        globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+        vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
             animationFrameQueue.push(callback);
             return animationFrameQueue.length;
-        }) as typeof requestAnimationFrame;
+        }) as typeof requestAnimationFrame);
     });
 
     afterEach(() => {
-        globalThis.ResizeObserver = originalResizeObserver;
-        globalThis.requestAnimationFrame = originalRequestAnimationFrame;
-        document.body.innerHTML = '';
+        vi.unstubAllGlobals();
+        document.body.replaceChildren();
     });
 
     it('keeps the first body cell editor usable after undo restores deleted text in a single-table document', () => {
@@ -98,7 +95,7 @@ describe('nested editor undo regression', () => {
             col: 0,
         };
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
         const view = new EditorView({
             parent,
             state: EditorState.create({

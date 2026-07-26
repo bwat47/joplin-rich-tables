@@ -3,24 +3,24 @@ import { buildRenderableContent, containsMarkdown, escapeLeadingBlockMarkers } f
 
 describe('escapeLeadingBlockMarkers', () => {
     it('escapes leading heading markers', () => {
-        expect(escapeLeadingBlockMarkers('# Title')).toBe('\\# Title');
-        expect(escapeLeadingBlockMarkers('   ## Title')).toBe('   \\## Title');
+        expect(escapeLeadingBlockMarkers('# Title')).toBe(String.raw`\# Title`);
+        expect(escapeLeadingBlockMarkers('   ## Title')).toBe(String.raw`   \## Title`);
     });
 
     it('escapes leading blockquote markers', () => {
-        expect(escapeLeadingBlockMarkers('> Quote')).toBe('\\> Quote');
-        expect(escapeLeadingBlockMarkers('>Quote')).toBe('\\>Quote');
+        expect(escapeLeadingBlockMarkers('> Quote')).toBe(String.raw`\> Quote`);
+        expect(escapeLeadingBlockMarkers('>Quote')).toBe(String.raw`\>Quote`);
     });
 
     it('escapes leading unordered list markers', () => {
-        expect(escapeLeadingBlockMarkers('- Item')).toBe('\\- Item');
-        expect(escapeLeadingBlockMarkers('* Item')).toBe('\\* Item');
-        expect(escapeLeadingBlockMarkers('+ Item')).toBe('\\+ Item');
+        expect(escapeLeadingBlockMarkers('- Item')).toBe(String.raw`\- Item`);
+        expect(escapeLeadingBlockMarkers('* Item')).toBe(String.raw`\* Item`);
+        expect(escapeLeadingBlockMarkers('+ Item')).toBe(String.raw`\+ Item`);
     });
 
     it('escapes leading ordered list markers', () => {
-        expect(escapeLeadingBlockMarkers('1. Item')).toBe('1\\. Item');
-        expect(escapeLeadingBlockMarkers('12) Item')).toBe('12\\) Item');
+        expect(escapeLeadingBlockMarkers('1. Item')).toBe(String.raw`1\. Item`);
+        expect(escapeLeadingBlockMarkers('12) Item')).toBe(String.raw`12\) Item`);
     });
 
     it('does not escape inline formatting', () => {
@@ -43,7 +43,7 @@ describe('buildRenderableContent', () => {
     it('keeps fallback display text unescaped while escaping the render cache key', () => {
         const result = buildRenderableContent('# Heading');
         expect(result.displayText).toBe('# Heading');
-        expect(result.cacheKey).toBe('\\# Heading');
+        expect(result.cacheKey).toBe(String.raw`\# Heading`);
     });
 
     it('uses the normalized display text as the cache key for reference-looking links', () => {
@@ -53,7 +53,7 @@ describe('buildRenderableContent', () => {
     });
 
     it('unescapes pipes for display and cache lookup', () => {
-        const result = buildRenderableContent('a \\| b');
+        const result = buildRenderableContent(String.raw`a \| b`);
         expect(result.displayText).toBe('a | b');
         expect(result.cacheKey).toBe('a | b');
     });

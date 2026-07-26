@@ -30,7 +30,7 @@ export interface MutableTestView {
 }
 
 export function getLastDispatchSpec(view: MutableTestView): TransactionSpec {
-    const call = view.dispatch.mock.calls[view.dispatch.mock.calls.length - 1];
+    const call = view.dispatch.mock.calls.at(-1);
     if (!call) {
         throw new Error('Expected a dispatch call');
     }

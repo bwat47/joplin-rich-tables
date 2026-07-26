@@ -24,7 +24,7 @@ const markdownExtension = markdown({
 describe('cellSelectionKeymap', () => {
     it('routes undo through the main editor while a multi-cell selection is active', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,
@@ -71,7 +71,7 @@ describe('cellSelectionKeymap', () => {
 
     it('routes Delete through selection removal while a multi-cell selection is active', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,
@@ -114,7 +114,7 @@ describe('cellSelectionKeymap', () => {
 
     it('routes Backspace through selection removal while a multi-cell selection is active', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,
@@ -155,7 +155,7 @@ describe('cellSelectionKeymap', () => {
 
     it('focuses the main editor after deleting an emptied table via multi-cell selection', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,
@@ -213,7 +213,7 @@ describe('cellSelectionKeymap', () => {
 
     it('ignores Delete when multi-cell selection mode is not active', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const view = new EditorView({
@@ -243,7 +243,7 @@ describe('cellSelectionKeymap', () => {
 
     it('activates the focus cell editor on Tab while multi-cell selection is active', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,
@@ -274,7 +274,7 @@ describe('cellSelectionKeymap', () => {
             row: 0,
             col: 1,
         });
-        const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
+        const lastSpec = dispatchSpy.mock.calls.at(-1)?.[0];
         const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
         expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
 
@@ -283,7 +283,7 @@ describe('cellSelectionKeymap', () => {
 
     it('starts cell selection from a resolved active cell', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,
@@ -312,7 +312,7 @@ describe('cellSelectionKeymap', () => {
 
     it('does not start cell selection from a stale active cell', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const view = new EditorView({
             parent,

@@ -13,7 +13,7 @@ const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 function withView<T>(doc: string, run: (view: EditorView) => T): T {
     const parent = document.createElement('div');
-    document.body.appendChild(parent);
+    document.body.append(parent);
     const view = new EditorView({
         parent,
         state: createMarkdownState(doc, [activeCellField, sourceModeField]),

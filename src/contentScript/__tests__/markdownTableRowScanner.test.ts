@@ -11,14 +11,14 @@ describe('scanMarkdownTableRow', () => {
     it('ignores escaped pipes', () => {
         // String is: | a\|b | c |
         // Positions:  0123456789...
-        const line = '| a\\|b | c |';
+        const line = String.raw`| a\|b | c |`;
         const { delimiters } = scanMarkdownTableRow(line);
         expect(delimiters).toEqual([0, 7, 11]);
     });
 
     it('handles escaped backslash before pipe', () => {
         // \\| means escaped backslash followed by unescaped pipe
-        const line = '| a\\\\| b |';
+        const line = String.raw`| a\\| b |`;
         const { delimiters } = scanMarkdownTableRow(line);
         expect(delimiters).toEqual([0, 5, 9]);
     });

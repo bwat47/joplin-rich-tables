@@ -23,7 +23,7 @@ if (!Range.prototype.getBoundingClientRect) {
 
 function createView(doc: string): EditorView {
     const parent = document.createElement('div');
-    document.body.appendChild(parent);
+    document.body.append(parent);
 
     return new EditorView({
         parent,
@@ -49,7 +49,7 @@ function getSelectionPositions(view: EditorView): { anchor: number; head: number
 describe('forceRootDomSelection', () => {
     afterEach(() => {
         document.getSelection()?.removeAllRanges();
-        document.body.innerHTML = '';
+        document.body.replaceChildren();
     });
 
     it('writes the browser DOM selection for a forward editor selection', () => {

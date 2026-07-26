@@ -23,7 +23,7 @@ const mockIsNestedEditorOpen = isNestedEditorOpen as Mock;
 
 function createViewWithActiveCell(activeCell: ActiveCell): EditorView {
     const parent = document.createElement('div');
-    document.body.appendChild(parent);
+    document.body.append(parent);
 
     let view: EditorView;
     view = new EditorView({

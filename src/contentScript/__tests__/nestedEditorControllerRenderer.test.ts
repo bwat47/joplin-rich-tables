@@ -9,7 +9,7 @@ import { createMarkdownState } from './testMarkdownState';
 
 describe('nestedEditorController markdown rendering', () => {
     afterEach(() => {
-        document.body.innerHTML = '';
+        document.body.replaceChildren();
     });
 
     it('uses the markdown renderer supplied by the editor state facet when closing', () => {
@@ -34,11 +34,11 @@ describe('nestedEditorController markdown rendering', () => {
         }).state;
 
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
         const view = new EditorView({ parent, state });
         const cellElement = document.createElement('td');
         cellElement.textContent = '**body**';
-        parent.appendChild(cellElement);
+        parent.append(cellElement);
 
         expect(
             openNestedEditor({
@@ -70,7 +70,7 @@ describe('nestedEditorController markdown rendering', () => {
         const insertedTableWithSpacing = `${tableText}\n\n`;
         const doc = `${intro}${insertedTableWithSpacing}${middle}${tableText}`;
         const renderer: MarkdownRenderService = {
-            getCached: vi.fn(() => undefined),
+            getCached: vi.fn<MarkdownRenderService['getCached']>(),
             render: vi.fn(async () => ''),
             clear: vi.fn(),
         };
@@ -89,11 +89,11 @@ describe('nestedEditorController markdown rendering', () => {
         }).state;
 
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
         const view = new EditorView({ parent, state });
         const cellElement = document.createElement('th');
         cellElement.textContent = 'my new';
-        parent.appendChild(cellElement);
+        parent.append(cellElement);
 
         expect(
             openNestedEditor({

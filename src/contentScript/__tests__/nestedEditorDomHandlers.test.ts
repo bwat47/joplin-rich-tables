@@ -41,12 +41,12 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mo
 
 describe('nestedEditor dom handlers', () => {
     afterEach(() => {
-        document.body.innerHTML = '';
+        document.body.replaceChildren();
     });
 
     it('stops left-clicks inside selected text from bubbling to the parent editor', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const parentMouseDown = vi.fn();
         parent.addEventListener('mousedown', parentMouseDown);
@@ -71,7 +71,7 @@ describe('nestedEditor dom handlers', () => {
 
     it('keeps right-click selection sync while still blocking parent-editor mousedown handlers', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const parentMouseDown = vi.fn();
         parent.addEventListener('mousedown', parentMouseDown);

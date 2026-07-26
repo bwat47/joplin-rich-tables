@@ -102,7 +102,7 @@ function createLifecycleState(params: {
 
 function createLifecycleView(params: Parameters<typeof createLifecycleState>[0]): EditorView {
     const parent = document.createElement('div');
-    document.body.appendChild(parent);
+    document.body.append(parent);
 
     return new EditorView({
         parent,
@@ -150,7 +150,6 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
 }));
 
 describe('nestedEditorLifecycle', () => {
-    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
 
     const flushAnimationFrames = (): void => {
@@ -170,15 +169,15 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.openNestedEditor.mockReturnValue(true);
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
         animationFrameQueue = [];
-        globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+        vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
             animationFrameQueue.push(callback);
             return animationFrameQueue.length;
-        }) as typeof requestAnimationFrame;
+        }) as typeof requestAnimationFrame);
     });
 
     afterEach(() => {
-        globalThis.requestAnimationFrame = originalRequestAnimationFrame;
-        document.body.innerHTML = '';
+        vi.unstubAllGlobals();
+        document.body.replaceChildren();
     });
 
     it('schedules inserted-table activation from the effect payload', () => {
@@ -630,7 +629,7 @@ describe('nestedEditorLifecycle', () => {
             selection: { anchor: selectionFrom, head: selectionTo },
         }).state;
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
         const view = new EditorView({ parent, state });
         vi.spyOn(view, 'coordsAtPos').mockReturnValue({
             top: 0,
@@ -658,7 +657,7 @@ describe('nestedEditorLifecycle', () => {
         });
         state = state.update({ effects: toggleSourceModeEffect.of(true) }).state;
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
         const view = new EditorView({ parent, state });
 
         expect(() =>

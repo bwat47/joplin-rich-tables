@@ -45,7 +45,7 @@ function dispatchAndCaptureUpdate(params: {
 }): ViewUpdate {
     let captured: ViewUpdate | null = null;
     const parent = document.createElement('div');
-    document.body.appendChild(parent);
+    document.body.append(parent);
 
     let state = createMarkdownState(params.doc ?? TABLE_DOC, [
         activeCellField,

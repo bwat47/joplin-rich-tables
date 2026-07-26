@@ -142,7 +142,7 @@ describe('openCellRequestField', () => {
         mockLoggerWarn.mockClear();
 
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
         const view = new EditorView({
             parent,
             state: EditorState.create({

@@ -49,9 +49,9 @@ describe('pasteTableNormalizer', () => {
         });
 
         it('allows insert on a whitespace-only line between paragraphs', () => {
-            const doc = ['before', '   ', 'after'].join('\n');
+            const doc = ['before', ' '.repeat(3), 'after'].join('\n');
             const state = createMarkdownState(doc);
-            const insertionPos = doc.indexOf('   ');
+            const insertionPos = doc.indexOf(' '.repeat(3));
             const rewrite = buildRootTablePasteRewrite(state, insertionPos, insertionPos, NON_CANONICAL_TABLE);
 
             expect(rewrite).not.toBeNull();
@@ -74,9 +74,9 @@ describe('pasteTableNormalizer', () => {
         });
 
         it('adds a trailing newline when inserting at document end', () => {
-            const doc = ['before', '   '].join('\n');
+            const doc = ['before', ' '.repeat(3)].join('\n');
             const state = createMarkdownState(doc);
-            const insertionPos = doc.indexOf('   ');
+            const insertionPos = doc.indexOf(' '.repeat(3));
             const rewrite = buildRootTablePasteRewrite(state, insertionPos, insertionPos, NON_CANONICAL_TABLE);
 
             expect(rewrite).not.toBeNull();
@@ -105,7 +105,7 @@ describe('pasteTableNormalizer', () => {
         it('adds canonical spacing when replacing whitespace after line content', () => {
             const doc = ['before', 'abc   ', 'after'].join('\n');
             const state = createMarkdownState(doc);
-            const from = doc.indexOf('   ');
+            const from = doc.indexOf(' '.repeat(3));
             const to = from + 3;
             const rewrite = buildRootTablePasteRewrite(state, from, to, NON_CANONICAL_TABLE);
 
@@ -117,9 +117,9 @@ describe('pasteTableNormalizer', () => {
         });
 
         it('returns an absolute table start in the post-change document', () => {
-            const doc = ['before', '   ', 'after'].join('\n');
+            const doc = ['before', ' '.repeat(3), 'after'].join('\n');
             const state = createMarkdownState(doc);
-            const insertionPos = doc.indexOf('   ');
+            const insertionPos = doc.indexOf(' '.repeat(3));
             const rewrite = buildRootTablePasteRewrite(state, insertionPos, insertionPos, NON_CANONICAL_TABLE);
 
             expect(rewrite?.tableFrom).toBe(8);

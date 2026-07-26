@@ -71,6 +71,7 @@ describe('table widget interactions', () => {
         });
         const widget = {};
         const link = {
+            dataset: {},
             getAttribute: vi.fn((name: string) => (name === 'href' ? 'https://example.com' : null)),
         };
         const target = {

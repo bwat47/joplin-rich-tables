@@ -16,12 +16,12 @@ const markdownExtension = markdown({
 
 describe('nested editor navigation', () => {
     afterEach(() => {
-        document.body.innerHTML = '';
+        document.body.replaceChildren();
     });
 
     it('flushes pending nested-editor text before Tab inserts a new row from the last cell', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const mainView = new EditorView({
             parent,
@@ -39,7 +39,7 @@ describe('nested editor navigation', () => {
         });
 
         const cellElement = document.createElement('td');
-        document.body.appendChild(cellElement);
+        document.body.append(cellElement);
 
         if (!getActiveCell(mainView.state)) {
             throw new Error('Expected active cell to be set');
@@ -92,7 +92,7 @@ describe('nested editor navigation', () => {
 
     it('mirrors right-click position to the main editor without moving the nested selection', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const mainView = new EditorView({
             parent,
@@ -110,7 +110,7 @@ describe('nested editor navigation', () => {
         });
 
         const cellElement = document.createElement('td');
-        document.body.appendChild(cellElement);
+        document.body.append(cellElement);
 
         openNestedEditor({
             mainView,
@@ -161,7 +161,7 @@ describe('nested editor navigation', () => {
 
     it('does not open when no current active cell resolves', () => {
         const parent = document.createElement('div');
-        document.body.appendChild(parent);
+        document.body.append(parent);
 
         const mainView = new EditorView({
             parent,
@@ -170,7 +170,7 @@ describe('nested editor navigation', () => {
         });
 
         const cellElement = document.createElement('td');
-        document.body.appendChild(cellElement);
+        document.body.append(cellElement);
 
         expect(
             openNestedEditor({

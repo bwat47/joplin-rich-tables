@@ -1,14 +1,13 @@
-export function deferred<T>(): {
+type Deferred<T> = {
     promise: Promise<T>;
     resolve: (value: T) => void;
     reject: (reason?: unknown) => void;
-} {
-    let resolve!: (value: T) => void;
-    let reject!: (reason?: unknown) => void;
-    const promise = new Promise<T>((promiseResolve, promiseReject) => {
-        resolve = promiseResolve;
-        reject = promiseReject;
-    });
+};
 
-    return { promise, resolve, reject };
+const promiseConstructor = Promise as PromiseConstructor & {
+    withResolvers<T>(): Deferred<T>;
+};
+
+export function deferred<T>(): Deferred<T> {
+    return promiseConstructor.withResolvers<T>();
 }
