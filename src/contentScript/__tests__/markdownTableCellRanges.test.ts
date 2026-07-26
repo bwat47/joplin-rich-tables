@@ -38,14 +38,14 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, ranges.rows[0][1].from, ranges.rows[0][1].to)).toBe('d');
     });
 
-    it('does not treat escaped pipes (\\|) as delimiters', () => {
-        const text = ['| a\\|b | c |', '| --- | --- |', '| d | e |'].join('\n');
+    it(String.raw`does not treat escaped pipes (\|) as delimiters`, () => {
+        const text = [String.raw`| a\|b | c |`, '| --- | --- |', '| d | e |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);
         expect(ranges).not.toBeNull();
         if (!ranges) return;
 
         expect(ranges.headers).toHaveLength(2);
-        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe('a\\|b');
+        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe(String.raw`a\|b`);
         expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('c');
     });
 

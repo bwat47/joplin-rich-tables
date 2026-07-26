@@ -63,8 +63,6 @@ const TEST_HOST_CONFIG = {
 };
 
 describe('nested editor undo regression', () => {
-    const originalResizeObserver = globalThis.ResizeObserver;
-    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
     let animationFrameQueue: FrameRequestCallback[] = [];
 
     const flushAnimationFrames = (): void => {
@@ -75,17 +73,16 @@ describe('nested editor undo regression', () => {
     };
 
     beforeEach(() => {
-        globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
         animationFrameQueue = [];
-        globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+        vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
             animationFrameQueue.push(callback);
             return animationFrameQueue.length;
-        }) as typeof requestAnimationFrame;
+        }) as typeof requestAnimationFrame);
     });
 
     afterEach(() => {
-        globalThis.ResizeObserver = originalResizeObserver;
-        globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+        vi.unstubAllGlobals();
         document.body.innerHTML = '';
     });
 

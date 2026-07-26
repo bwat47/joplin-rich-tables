@@ -70,7 +70,11 @@ describe('table widget interactions', () => {
             ],
         });
         const widget = {};
+        // This file runs in the `node` environment, so the anchor is stubbed.
+        // It must mirror every DOM API the link handler reads: `dataset` for
+        // Joplin's internal-link attributes, `getAttribute` for the href.
         const link = {
+            dataset: {} as DOMStringMap,
             getAttribute: vi.fn((name: string) => (name === 'href' ? 'https://example.com' : null)),
         };
         const target = {

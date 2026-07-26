@@ -15,14 +15,12 @@ class ResizeObserverMock {
 }
 
 describe('TableWidget markdown rendering', () => {
-    const originalResizeObserver = window.ResizeObserver;
-
     beforeEach(() => {
-        window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     });
 
     afterEach(() => {
-        window.ResizeObserver = originalResizeObserver;
+        vi.unstubAllGlobals();
     });
 
     it('uses the markdown renderer supplied by the editor state facet', async () => {

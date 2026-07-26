@@ -112,7 +112,7 @@ describe('createMainEditorActiveCellGuard', () => {
 
         // Simulate pasting "Line1\nLine2|Val" into H1
         const pasteContent = 'Line1\nLine2|Val';
-        const expectedContent = 'Line1<br>Line2\\|Val';
+        const expectedContent = String.raw`Line1<br>Line2\|Val`;
 
         // Insert at start of cell
         const tr = state.update({
