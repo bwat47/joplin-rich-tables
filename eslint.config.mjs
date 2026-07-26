@@ -4,6 +4,7 @@ import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import importPlugin from 'eslint-plugin-import-x';
+import unicorn from 'eslint-plugin-unicorn';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -21,13 +22,14 @@ export default [
     },
 
     js.configs.recommended,
+    unicorn.configs.unopinionated,
 
     // Project TS/JS sources
     {
         files: ['**/*.{ts,tsx,js}'],
         languageOptions: {
             parser: tsParser,
-            ecmaVersion: 2020,
+            ecmaVersion: 2022,
             sourceType: 'module',
             globals: {
                 ...globals.node,
