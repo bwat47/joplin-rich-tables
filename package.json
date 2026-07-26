@@ -28,7 +28,7 @@
         "@codemirror/search": "^6.5.11",
         "@codemirror/state": "^6.5.3",
         "@codemirror/view": "^6.39.7",
-        "@floating-ui/dom": "^1.7.6",
+        "@floating-ui/dom": "^1.8.0",
         "@joplin/fork-uslug": "^2.0.6",
         "@lezer/common": "^1.5.2",
         "@lezer/highlight": "^1.2.3",
