@@ -94,7 +94,10 @@ export class TableToolbarPlugin {
 
     private createButtons() {
         const doc = getViewDocument(this.view);
-        this.dom.replaceChildren();
+        // `innerHTML = ''` rather than `replaceChildren()`: the latter needs
+        // Chrome 86 / Safari 14, above this plugin's mobile WebView baseline.
+        // See the ES2020 runtime note in AGENTS.md.
+        this.dom.innerHTML = '';
 
         const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => boolean) => {
             const btn = doc.createElement('button');
