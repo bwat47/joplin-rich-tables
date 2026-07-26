@@ -12,11 +12,9 @@ function hasUnescapedPipe(text: string): boolean {
             backslashRun++;
             continue;
         }
-        if (ch === '|') {
-            // Pipe is escaped only if preceded by odd number of backslashes
-            if (backslashRun % 2 === 0) {
-                return true;
-            }
+        // Pipe is escaped only if preceded by odd number of backslashes
+        if (ch === '|' && backslashRun % 2 === 0) {
+            return true;
         }
         backslashRun = 0;
     }

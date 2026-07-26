@@ -8,6 +8,10 @@ export interface LinkOpener {
 export function createLinkOpener(openLink: (href: string) => Promise<void>): LinkOpener {
     return {
         open(href) {
+            // Fire-and-forget by design: `open` is declared void so DOM event
+            // handlers can call it without awaiting. Making this async would
+            // return a promise nobody consumes.
+            // eslint-disable-next-line unicorn/prefer-await
             openLink(href).catch((error) => {
                 logger.error('Failed to open link:', error);
             });

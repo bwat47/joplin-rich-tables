@@ -41,7 +41,7 @@ export function escapeLeadingBlockMarkers(text: string): string {
     }
 
     // Blockquote: "> " (space optional)
-    if (/^>/.test(rest)) {
+    if (rest.startsWith('>')) {
         return `${leading}\\${rest}`;
     }
 

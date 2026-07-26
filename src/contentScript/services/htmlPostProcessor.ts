@@ -18,20 +18,26 @@ function cleanupAndOptimizeHtml(html: string): string {
     template.innerHTML = html;
 
     // Remove Joplin source blocks
-    template.content.querySelectorAll('.joplin-source').forEach((el) => el.remove());
+    for (const element of template.content.querySelectorAll('.joplin-source')) {
+        element.remove();
+    }
 
     // Joplin resource links sometimes render an icon span that depends on editor-global
     // font/icon CSS (e.g. Font Awesome). Inside table cells this can degrade into a
     // broken glyph (often a question mark). Remove the icon element but keep the
     // resource link text and any placeholders.
-    template.content.querySelectorAll('.resource-icon').forEach((el) => el.remove());
+    for (const element of template.content.querySelectorAll('.resource-icon')) {
+        element.remove();
+    }
 
     // Optimize KaTeX: Replace HTML/CSS representation with clean MathML
-    template.content.querySelectorAll('.katex').forEach((katexElement) => {
+    for (const katexElement of template.content.querySelectorAll('.katex')) {
         const math = katexElement.querySelector('math');
         if (math) {
             // Remove annotations (often contains raw TeX)
-            math.querySelectorAll('annotation').forEach((ann) => ann.remove());
+            for (const annotation of math.querySelectorAll('annotation')) {
+                annotation.remove();
+            }
 
             // Remove direct text node children of <math> - these are accessibility fallback
             // text that becomes visible when extracted from the hidden .katex-mathml span
@@ -49,7 +55,7 @@ function cleanupAndOptimizeHtml(html: string): string {
                 katexElement.replaceWith(math);
             }
         }
-    });
+    }
 
     return template.innerHTML;
 }

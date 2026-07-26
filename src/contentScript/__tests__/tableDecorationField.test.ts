@@ -8,8 +8,8 @@ const TABLE_COUNT = 5;
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 const FILLER = 'lorem ipsum dolor sit amet '.repeat(40);
 const LONG_TABLE_DOCUMENT = Array.from({ length: TABLE_COUNT }, () => `${FILLER}\n\n${TABLE}`).join('\n\n');
-const CLOCK_ADVANCE_MS = 2_000;
-const COMPLETE_PARSE_TIMEOUT_MS = 1_000;
+const CLOCK_ADVANCE_MS = 2000;
+const COMPLETE_PARSE_TIMEOUT_MS = 1000;
 
 describe('tableDecorationField', () => {
     it('rebuilds incomplete decorations when parsing finishes without a document change', () => {

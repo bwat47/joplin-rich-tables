@@ -17,7 +17,7 @@ export interface SanitizeChangesResult {
     changes: SimpleChange[];
 }
 
-const SELECTION_MARK = '\u0000';
+const SELECTION_MARK = '\u{0}';
 const UNESCAPED_PIPE_PATTERN = /(?<!\\)(\\\\)*\|/g;
 const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
 
@@ -39,7 +39,7 @@ function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: num
 
         if (ch === '|') {
             const isAlreadyEscaped = backslashRun % 2 === 1;
-            result += isAlreadyEscaped ? '|' : '\\|';
+            result += isAlreadyEscaped ? '|' : String.raw`\|`;
             backslashRun = 0;
             continue;
         }
@@ -56,11 +56,17 @@ export function convertNewlinesToBr(text: string): string {
 }
 
 export function unsanitizeRootText(rootText: string): string {
-    return rootText.split('<br>').join('\n').split('\\|').join('|');
+    return rootText
+        .split('<br>')
+        .join('\n')
+        .split(String.raw`\|`)
+        .join('|');
 }
 
 export function sanitizeLocalText(localText: string): string {
-    return normalizeBrTags(localText).replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
+    return normalizeBrTags(localText)
+        .replace(LINE_BREAK_PATTERN, '<br>')
+        .replace(UNESCAPED_PIPE_PATTERN, String.raw`\$&`);
 }
 
 function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {
@@ -88,7 +94,7 @@ function mapSelectionThroughTransform(
     const transformed = transform(marked);
     const mappedFrom = transformed.indexOf(SELECTION_MARK);
     const mappedTo = transformed.lastIndexOf(SELECTION_MARK) - 1;
-    if (mappedFrom < 0 || mappedTo < -1) {
+    if (mappedFrom === -1 || mappedTo < -1) {
         return { anchor: 0, head: 0 };
     }
 

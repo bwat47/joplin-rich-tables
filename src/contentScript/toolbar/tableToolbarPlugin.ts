@@ -102,13 +102,13 @@ export class TableToolbarPlugin {
             btn.className = 'cm-table-toolbar-btn';
             btn.type = 'button';
             btn.setAttribute('aria-label', ariaLabel);
-            btn.onclick = (e) => {
+            btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (onClick() === false) {
                     this.restoreNestedEditorFocusAfterNoop();
                 }
-            };
+            });
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
             this.dom.appendChild(btn);

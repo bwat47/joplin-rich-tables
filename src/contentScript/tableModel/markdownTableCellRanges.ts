@@ -175,11 +175,11 @@ export function computeMarkdownTableCellRanges(text: string): TableCellRanges | 
     }
 
     const headerLine = lines[0];
-    const separatorLine = lines[1];
-
     if (!headerLine.line.includes('|')) {
         return null;
     }
+
+    const separatorLine = lines[1];
     if (!isSeparatorRow(separatorLine.line)) {
         return null;
     }

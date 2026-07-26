@@ -46,8 +46,7 @@ describe('postProcessHtml', () => {
     });
 
     test('converts footnote refs in text nodes but not inside code/pre', () => {
-        const html =
-            '<div>' + 'Before [^abc] after' + '<code>code [^nope]</code>' + '<pre>pre [^nope2]</pre>' + '</div>';
+        const html = '<div>Before [^abc] after<code>code [^nope]</code><pre>pre [^nope2]</pre></div>';
 
         const result = postProcessHtml(html);
         const doc = parseHtml(result);

@@ -184,11 +184,13 @@ export function renderToolbarButtonGroups(
     renderButton: (button: ToolbarButtonDescriptor) => void,
     renderSeparator: () => void
 ): void {
-    groups.forEach((group, groupIndex) => {
-        group.forEach(renderButton);
+    for (const [groupIndex, group] of groups.entries()) {
+        for (const button of group) {
+            renderButton(button);
+        }
 
         if (groupIndex < groups.length - 1) {
             renderSeparator();
         }
-    });
+    }
 }

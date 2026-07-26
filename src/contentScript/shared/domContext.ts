@@ -5,6 +5,10 @@ function getNodeDocument(node: Node): Document {
 }
 
 export function getDocumentWindow(doc: Document): Window {
+    // `globalThis` is typed as `typeof globalThis`, which is not assignable to
+    // `Window` (it lacks `name`). The alternatives are a double cast that
+    // defeats type checking, or this.
+    // eslint-disable-next-line unicorn/prefer-global-this
     return doc.defaultView ?? window;
 }
 

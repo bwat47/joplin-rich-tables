@@ -252,9 +252,7 @@ class NestedEditorController {
             const { displayText, cacheKey } = buildRenderableContent(cellText);
             const cached = renderer.getCached(cacheKey);
 
-            if (cached !== undefined) {
-                this.contentEl.innerHTML = cached;
-            } else {
+            if (cached === undefined) {
                 this.contentEl.innerHTML = escapeHtmlPreservingBr(displayText);
                 if (containsMarkdown(cacheKey)) {
                     const contentEl = this.contentEl;
@@ -269,6 +267,8 @@ class NestedEditorController {
                             logger.error('Failed to render nested editor markdown:', error);
                         });
                 }
+            } else {
+                this.contentEl.innerHTML = cached;
             }
         }
 

@@ -98,12 +98,10 @@ export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | nu
     },
     update(value, tr) {
         // Re-derive when doc or active cell identity changes.
-        if (!tr.docChanged) {
-            // Use the false flag so states without activeCellField (e.g. nested editor
-            // states, autocomplete states) return undefined instead of throwing.
-            if (tr.startState.field(activeCellField, false) === tr.state.field(activeCellField, false)) {
-                return value;
-            }
+        // Use the false flag so states without activeCellField (e.g. nested editor
+        // states, autocomplete states) return undefined instead of throwing.
+        if (!tr.docChanged && tr.startState.field(activeCellField, false) === tr.state.field(activeCellField, false)) {
+            return value;
         }
         return resolveActiveCell(tr.state, getActiveCell(tr.state));
     },

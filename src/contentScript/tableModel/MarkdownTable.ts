@@ -68,7 +68,7 @@ function padArrayToLength<T>(arr: readonly T[], length: number, filler: T): T[] 
         return [...arr];
     }
 
-    return [...arr, ...new Array(length - arr.length).fill(filler)];
+    return [...arr, ...Array.from({ length: length - arr.length }, () => filler)];
 }
 
 function getColumnCount(
@@ -98,7 +98,7 @@ function normalizeState(input: {
 }
 
 function createEmptyRow(columnCount: number): string[] {
-    return new Array(columnCount).fill('');
+    return Array.from({ length: columnCount }, () => '');
 }
 
 function cloneUnifiedRows(headers: readonly string[], rows: readonly (readonly string[])[]): string[][] {
@@ -485,7 +485,7 @@ export class MarkdownTable {
         }
 
         while (nextRows.length < requiredRowCount) {
-            nextRows.push(new Array(requiredColCount).fill(''));
+            nextRows.push(Array.from({ length: requiredColCount }, () => ''));
         }
 
         for (let row = 0; row < nextRows.length; row++) {

@@ -30,14 +30,22 @@ function isAllowedYouTubeEmbedSrc(src: string): boolean {
 
 /**
  * Configure DOMPurify hooks once globally to avoid re-adding them on every render.
+ *
+ * Deliberately registered at module load: the hook enforces the iframe
+ * allowlist, so it must be in place before any caller can reach
+ * DOMPurify.sanitize. Deferring it behind an init function would make the
+ * security property depend on every call site remembering to trigger it.
  */
+// eslint-disable-next-line unicorn/no-top-level-side-effects
 DOMPurify.addHook('afterSanitizeElements', (node) => {
     // Only allow trusted YouTube embed iframes; remove everything else.
-    if (node instanceof Element && node.tagName === 'IFRAME') {
-        const src = node.getAttribute('src');
-        if (!src || !isAllowedYouTubeEmbedSrc(src)) {
-            node.remove();
-        }
+    if (!(node instanceof Element && node.tagName === 'IFRAME')) {
+        return;
+    }
+
+    const src = node.getAttribute('src');
+    if (!src || !isAllowedYouTubeEmbedSrc(src)) {
+        node.remove();
     }
 });
 

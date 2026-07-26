@@ -37,6 +37,7 @@ Start here when exploring the codebase:
 - **Sync transactions**: Always use `syncAnnotation` when forwarding changes between main and nested editors. Without it, changes trigger infinite re-render loops.
 - **Block decorations**: Must be provided via `StateField`, not `ViewPlugin`. CodeMirror requires decorations affecting layout to come from state.
 - **Build command**: Use `npm run dist`, not `npm run build` or `npx tsc`.
+- **Runtime baseline is ES2020**: the manifest declares `platforms: ["desktop", "mobile"]` and the build is ts-loader only — no Babel, no polyfills — so everything in `src/` ships verbatim to Joplin's mobile WebView (Android floor: API 24). Do not use `Array#at`, `String#replaceAll`, `Object.hasOwn`, `Promise.withResolvers`, or similar post-ES2020 APIs. `tsconfig` `target` and the unicorn opt-outs in `eslint.config.mjs` enforce this together; change them as a pair.
 
 ## Build, Test, and Development Commands
 

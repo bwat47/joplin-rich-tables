@@ -74,8 +74,8 @@ describe('navigateCell', () => {
     const getBeginRequestValue = () => getEffects().find((effect) => effect.is?.(beginOpenCellRequestEffect))?.value;
 
     const setupTable = (rows: number, cols: number) => {
-        const headers = Array(cols).fill({});
-        const bodyRows = Array(rows).fill(Array(cols).fill({}));
+        const headers = Array.from({ length: cols }, () => ({}));
+        const bodyRows = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ({})));
         currentCtx = {
             from: 0,
             to: 100,

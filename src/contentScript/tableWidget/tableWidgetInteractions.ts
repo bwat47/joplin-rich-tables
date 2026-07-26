@@ -123,7 +123,7 @@ function scrollToPosition(view: EditorView, pos: number): void {
 
 /** Escape special regex characters in a string */
 function escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return str.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
@@ -227,23 +227,20 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         event.preventDefault();
         event.stopPropagation();
 
-        const currentSelection = getCellSelection(view.state);
-        const hasSelection = Boolean(currentSelection);
-        if (mouseEvent.shiftKey) {
-            if (
-                setOrExtendCellSelectionToCoords(
-                    view,
-                    { section, row: section === SECTION_HEADER ? 0 : row, col },
-                    ctx.from
-                )
-            ) {
-                return true;
-            }
+        if (
+            mouseEvent.shiftKey &&
+            setOrExtendCellSelectionToCoords(
+                view,
+                { section, row: section === SECTION_HEADER ? 0 : row, col },
+                ctx.from
+            )
+        ) {
+            return true;
         }
 
         requestOpenCell(view, {
             target: { resolvedCell },
-            clearCellSelection: hasSelection,
+            clearCellSelection: Boolean(getCellSelection(view.state)),
             normalizeIfNeeded: true,
         });
 

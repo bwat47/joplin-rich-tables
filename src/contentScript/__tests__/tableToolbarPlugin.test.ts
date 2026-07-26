@@ -72,9 +72,12 @@ function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
 }
 
 function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLButtonElement {
+    // jsdom does not expose a global `CSS`, and the labels here are test-owned
+    // literals with no characters needing escaping.
+    // eslint-disable-next-line unicorn/require-css-escape
     const button = plugin.dom.querySelector(`button[aria-label="${ariaLabel}"]`);
     if (!(button instanceof HTMLButtonElement)) {
-        throw new Error(`Missing toolbar button: ${ariaLabel}`);
+        throw new TypeError(`Missing toolbar button: ${ariaLabel}`);
     }
 
     return button;
@@ -87,7 +90,7 @@ function setCurrentActiveCell(plugin: TableToolbarPlugin, cell: ActiveCell): voi
 function createToolbarButtons(plugin: TableToolbarPlugin): void {
     const createButtons = Reflect.get(plugin as unknown as object, 'createButtons');
     if (typeof createButtons !== 'function') {
-        throw new Error('Missing createButtons on toolbar plugin');
+        throw new TypeError('Missing createButtons on toolbar plugin');
     }
 
     createButtons.call(plugin);
