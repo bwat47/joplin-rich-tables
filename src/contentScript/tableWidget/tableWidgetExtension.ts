@@ -59,7 +59,7 @@ const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
 /**
  * Content script module export.
  */
-export default function (context: ContentScriptContext) {
+export default function tableWidgetExtension(context: ContentScriptContext) {
     logger.info('Content script loaded');
 
     const joplinBridge = createJoplinBridge(context.postMessage);

@@ -3,10 +3,10 @@ import { getCellSelection, isCellInRect, toSelectionRect } from '../tableState/c
 import { CLASS_CELL_SELECTED, findTableWidgetElement } from './domHelpers';
 import { makeTableId, type CellCoords } from '../tableModel/types';
 
-function readCoords(cell: Element): CellCoords | null {
-    const section = cell.getAttribute('data-section');
-    const row = Number(cell.getAttribute('data-row'));
-    const col = Number(cell.getAttribute('data-col'));
+function readCoords(cell: HTMLElement): CellCoords | null {
+    const section = cell.dataset.section;
+    const row = Number(cell.dataset.row);
+    const col = Number(cell.dataset.col);
 
     if ((section !== 'header' && section !== 'body') || Number.isNaN(row) || Number.isNaN(col)) {
         return null;
@@ -27,7 +27,9 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
     }
 
     const rect = toSelectionRect(selection);
-    const cells = widget.querySelectorAll('td[data-section][data-row][data-col], th[data-section][data-row][data-col]');
+    const cells = widget.querySelectorAll<HTMLElement>(
+        'td[data-section][data-row][data-col], th[data-section][data-row][data-col]'
+    );
     const selectedCells: HTMLElement[] = [];
 
     for (const cell of cells) {
@@ -36,7 +38,7 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
             continue;
         }
 
-        selectedCells.push(cell as HTMLElement);
+        selectedCells.push(cell);
     }
 
     return selectedCells;

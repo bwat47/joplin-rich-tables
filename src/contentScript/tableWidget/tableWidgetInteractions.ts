@@ -17,13 +17,12 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
 
     // Check for Joplin internal link data attributes first
     // renderMarkup converts :/id links to href="#" with data attributes
-    const resourceId = link.getAttribute('data-resource-id');
-    const noteId = link.getAttribute('data-note-id') || link.getAttribute('data-item-id');
-
+    const resourceId = link.dataset.resourceId;
     if (resourceId) {
         return `:/${resourceId}`;
     }
 
+    const noteId = link.dataset.noteId || link.dataset.itemId;
     if (noteId) {
         return `:/${noteId}`;
     }
@@ -52,7 +51,7 @@ function scrollToAnchor(view: EditorView, anchor: string): void {
     if (fnMatch) {
         const label = fnMatch[1];
         // Search for the footnote definition [^label]: in the document
-        const pattern = new RegExp(`^\\s*\\[\\^${escapeRegex(label)}\\]:`, 'i');
+        const pattern = new RegExp(String.raw`^\s*\[\^${escapeRegex(label)}\]:`, 'i');
         const pos = findPatternPosition(view, pattern);
         if (pos !== null) {
             scrollToPosition(view, pos);
