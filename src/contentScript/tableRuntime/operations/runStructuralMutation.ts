@@ -93,10 +93,7 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
     if (prepared.kind === 'deleteTable') {
         params.view.dispatch({
             changes: { from: prepared.tableFrom, to: prepared.tableTo, insert: '' },
-            effects: [
-                clearActiveCellEffect.of(undefined),
-                rebuildTableWidgetsEffect.of({ tableFrom: prepared.tableFrom }),
-            ],
+            effects: [clearActiveCellEffect.of(undefined), rebuildTableWidgetsEffect.of(undefined)],
         });
         params.afterDispatch?.();
 
@@ -125,7 +122,7 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
               }
             : {}),
         ...openTransaction,
-        effects: [...openTransaction.effects, rebuildTableWidgetsEffect.of({ tableFrom: prepared.tableFrom })],
+        effects: [...openTransaction.effects, rebuildTableWidgetsEffect.of(undefined)],
     });
     params.afterDispatch?.();
 

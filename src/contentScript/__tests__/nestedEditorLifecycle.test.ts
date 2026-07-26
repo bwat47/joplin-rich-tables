@@ -354,10 +354,7 @@ describe('nestedEditorLifecycle', () => {
         };
 
         view.dispatch({
-            effects: [
-                setActiveCellEffect.of(nextActiveCell),
-                rebuildTableWidgetsEffect.of({ tableFrom: nextActiveCell.tableFrom }),
-            ],
+            effects: [setActiveCellEffect.of(nextActiveCell), rebuildTableWidgetsEffect.of(undefined)],
         });
 
         expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
@@ -735,7 +732,7 @@ describe('nestedEditorLifecycle', () => {
             changes: { from: tableFrom, to: tableTo, insert: updatedTable },
             effects: [
                 setActiveCellEffect.of(nextCell),
-                rebuildTableWidgetsEffect.of({ tableFrom }),
+                rebuildTableWidgetsEffect.of(undefined),
                 ...openRequestEffects({
                     requestId: 'request-structural-reopen',
                     activeCell: nextCell,
