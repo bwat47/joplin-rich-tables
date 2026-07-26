@@ -3,10 +3,10 @@
  * Fast, simple, and provides reasonable distribution for short strings.
  */
 function fnv1aHash(text: string): number {
-    let hash = 2166136261;
-    for (let i = 0; i < text.length; i++) {
-        hash ^= text.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
+    let hash = 2_166_136_261;
+    for (const character of text) {
+        hash ^= character.codePointAt(0)!;
+        hash = Math.imul(hash, 16_777_619);
     }
     return hash >>> 0; // Convert to unsigned 32-bit
 }

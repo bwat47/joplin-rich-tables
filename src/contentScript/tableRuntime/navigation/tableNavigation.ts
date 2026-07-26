@@ -58,22 +58,36 @@ export function navigateCell(
 
     // --- Core Navigation Logic ---
 
-    if (direction === 'next') {
-        unifiedCol++;
-        if (unifiedCol >= numCols) {
-            unifiedCol = 0;
+    switch (direction) {
+        case 'next': {
+            unifiedCol++;
+            if (unifiedCol >= numCols) {
+                unifiedCol = 0;
+                unifiedRow++;
+            }
+
+            break;
+        }
+        case 'previous': {
+            unifiedCol--;
+            if (unifiedCol < 0) {
+                unifiedCol = numCols - 1;
+                unifiedRow--;
+            }
+
+            break;
+        }
+        case 'down': {
             unifiedRow++;
+
+            break;
         }
-    } else if (direction === 'previous') {
-        unifiedCol--;
-        if (unifiedCol < 0) {
-            unifiedCol = numCols - 1;
+        case 'up': {
             unifiedRow--;
+
+            break;
         }
-    } else if (direction === 'down') {
-        unifiedRow++;
-    } else if (direction === 'up') {
-        unifiedRow--;
+        // No default
     }
 
     // --- Boundary Handling ---

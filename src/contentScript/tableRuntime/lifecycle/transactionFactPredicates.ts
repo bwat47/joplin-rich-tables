@@ -4,11 +4,11 @@ import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectio
 import { normalizeBeforeEditAnnotation } from './tableNormalization';
 
 export function hasNormalizeBeforeEditAnnotation(transactions: readonly Transaction[]): boolean {
-    return transactions.some((tr) => Boolean(tr.annotation(normalizeBeforeEditAnnotation)));
+    return transactions.some((tr) => tr.annotation(normalizeBeforeEditAnnotation));
 }
 
 export function hasCellSelectionTransitionAnnotation(transactions: readonly Transaction[]): boolean {
-    return transactions.some((tr) => Boolean(tr.annotation(cellSelectionTransitionAnnotation)));
+    return transactions.some((tr) => tr.annotation(cellSelectionTransitionAnnotation));
 }
 
 export function hasFullDocumentReplace(transactions: readonly Transaction[]): boolean {

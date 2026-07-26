@@ -150,10 +150,10 @@ export class TableWidget extends WidgetType {
             if (align) {
                 th.style.textAlign = align;
             }
-            headerRow.appendChild(th);
+            headerRow.append(th);
         }
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
+        thead.append(headerRow);
+        table.append(thead);
 
         // Render body — skip synthetic cells that have no source range
         const tbody = doc.createElement('tbody');
@@ -174,13 +174,13 @@ export class TableWidget extends WidgetType {
                 if (align) {
                     td.style.textAlign = align;
                 }
-                tr.appendChild(td);
+                tr.append(td);
             }
-            tbody.appendChild(tr);
+            tbody.append(tr);
         }
-        table.appendChild(tbody);
+        table.append(tbody);
 
-        container.appendChild(table);
+        container.append(table);
 
         // Use ResizeObserver to notify CodeMirror whenever the table height changes.
         // This eliminates the race condition between async rendering and CM6's coordinate system.
@@ -216,7 +216,7 @@ export class TableWidget extends WidgetType {
         // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
         const contentWrapper = doc.createElement('div');
         contentWrapper.className = CLASS_CELL_CONTENT;
-        cell.appendChild(contentWrapper);
+        cell.append(contentWrapper);
 
         // Check if we have cached rendered HTML for the normalized cell content
         const cached = renderer.getCached(cacheKey);

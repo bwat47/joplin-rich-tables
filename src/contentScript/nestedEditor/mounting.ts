@@ -9,9 +9,9 @@ export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; ed
         content.className = CLASS_CELL_CONTENT;
 
         while (cell.firstChild) {
-            content.appendChild(cell.firstChild);
+            content.append(cell.firstChild);
         }
-        cell.appendChild(content);
+        cell.append(content);
     }
 
     let editorHost = cell.querySelector(`:scope > .${CLASS_CELL_EDITOR}`) as HTMLElement | null;
@@ -20,7 +20,7 @@ export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; ed
         editorHost.className = CLASS_CELL_EDITOR;
         // Visibility is controlled via CSS: hidden by default, shown when the parent
         // cell has CLASS_CELL_ACTIVE.
-        cell.appendChild(editorHost);
+        cell.append(editorHost);
     }
 
     return { content, editorHost };

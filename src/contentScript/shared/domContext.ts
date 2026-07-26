@@ -5,7 +5,7 @@ function getNodeDocument(node: Node): Document {
 }
 
 export function getDocumentWindow(doc: Document): Window {
-    return doc.defaultView ?? window;
+    return doc.defaultView ?? (globalThis as unknown as Window);
 }
 
 export function getViewDocument(view: EditorView): Document {

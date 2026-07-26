@@ -115,14 +115,25 @@ class NestedEditorController {
         );
         let localSelection = toLocalSelection(rootSelection, rootText);
 
-        if (params.initialCursorPos === 'start') {
-            localSelection = { anchor: 0, head: 0 };
-        } else if (params.initialCursorPos === 'end') {
-            localSelection = { anchor: localText.length, head: localText.length };
-        } else if (params.initialCursorPos === 'lastLineStart') {
-            const lastNewline = localText.lastIndexOf('\n');
-            const pos = lastNewline === -1 ? 0 : lastNewline + 1;
-            localSelection = { anchor: pos, head: pos };
+        switch (params.initialCursorPos) {
+            case 'start': {
+                localSelection = { anchor: 0, head: 0 };
+
+                break;
+            }
+            case 'end': {
+                localSelection = { anchor: localText.length, head: localText.length };
+
+                break;
+            }
+            case 'lastLineStart': {
+                const lastNewline = localText.lastIndexOf('\n');
+                const pos = lastNewline === -1 ? 0 : lastNewline + 1;
+                localSelection = { anchor: pos, head: pos };
+
+                break;
+            }
+            // No default
         }
 
         const session: NestedEditorSession = {
@@ -252,9 +263,7 @@ class NestedEditorController {
             const { displayText, cacheKey } = buildRenderableContent(cellText);
             const cached = renderer.getCached(cacheKey);
 
-            if (cached !== undefined) {
-                this.contentEl.innerHTML = cached;
-            } else {
+            if (cached === undefined) {
                 this.contentEl.innerHTML = escapeHtmlPreservingBr(displayText);
                 if (containsMarkdown(cacheKey)) {
                     const contentEl = this.contentEl;
@@ -269,6 +278,8 @@ class NestedEditorController {
                             logger.error('Failed to render nested editor markdown:', error);
                         });
                 }
+            } else {
+                this.contentEl.innerHTML = cached;
             }
         }
 

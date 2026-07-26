@@ -36,7 +36,7 @@ const fallbackMarkdownRenderer: MarkdownRenderService = {
         return Promise.resolve(escapeHtmlPreservingBr(text));
     },
     getCached() {
-        return undefined;
+        return;
     },
     clear() {
         // No-op fallback.

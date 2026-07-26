@@ -13,7 +13,7 @@ export function slugify(text: string): string {
  * When rendering cell content as standalone markdown, the escaping is no longer needed.
  */
 function unescapePipesForRendering(text: string): string {
-    return text.replace(/\\(\|)/g, '$1');
+    return text.replaceAll(/\\(\|)/g, '$1');
 }
 
 /**
@@ -41,7 +41,7 @@ export function escapeLeadingBlockMarkers(text: string): string {
     }
 
     // Blockquote: "> " (space optional)
-    if (/^>/.test(rest)) {
+    if (rest.startsWith('>')) {
         return `${leading}\\${rest}`;
     }
 
@@ -85,10 +85,10 @@ export function buildRenderableContent(cellText: string): RenderableContent {
  */
 export function escapeHtmlPreservingBr(text: string): string {
     return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/&lt;br&gt;/g, '<br>');
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('&lt;br&gt;', '<br>');
 }
 
 /**

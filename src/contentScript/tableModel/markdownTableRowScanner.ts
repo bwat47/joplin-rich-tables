@@ -21,13 +21,12 @@ export function scanMarkdownTableRow(line: string): TableRowScanResult {
     let isEscaped = false;
 
     for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-
         if (isEscaped) {
             isEscaped = false;
             continue;
         }
 
+        const ch = line[i];
         if (ch === '\\') {
             isEscaped = true;
             continue;

@@ -17,13 +17,12 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
 
     // Check for Joplin internal link data attributes first
     // renderMarkup converts :/id links to href="#" with data attributes
-    const resourceId = link.getAttribute('data-resource-id');
-    const noteId = link.getAttribute('data-note-id') || link.getAttribute('data-item-id');
-
+    const resourceId = link.dataset.resourceId;
     if (resourceId) {
         return `:/${resourceId}`;
     }
 
+    const noteId = link.dataset.noteId || link.dataset.itemId;
     if (noteId) {
         return `:/${noteId}`;
     }
@@ -52,7 +51,7 @@ function scrollToAnchor(view: EditorView, anchor: string): void {
     if (fnMatch) {
         const label = fnMatch[1];
         // Search for the footnote definition [^label]: in the document
-        const pattern = new RegExp(`^\\s*\\[\\^${escapeRegex(label)}\\]:`, 'i');
+        const pattern = new RegExp(String.raw`^\s*\[\^${escapeRegex(label)}\]:`, 'i');
         const pos = findPatternPosition(view, pattern);
         if (pos !== null) {
             scrollToPosition(view, pos);
@@ -124,7 +123,7 @@ function scrollToPosition(view: EditorView, pos: number): void {
 
 /** Escape special regex characters in a string */
 function escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
@@ -228,23 +227,21 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         event.preventDefault();
         event.stopPropagation();
 
-        const currentSelection = getCellSelection(view.state);
-        const hasSelection = Boolean(currentSelection);
-        if (mouseEvent.shiftKey) {
-            if (
-                setOrExtendCellSelectionToCoords(
-                    view,
-                    { section, row: section === SECTION_HEADER ? 0 : row, col },
-                    ctx.from
-                )
-            ) {
-                return true;
-            }
+        if (
+            mouseEvent.shiftKey &&
+            setOrExtendCellSelectionToCoords(
+                view,
+                { section, row: section === SECTION_HEADER ? 0 : row, col },
+                ctx.from
+            )
+        ) {
+            return true;
         }
 
+        const currentSelection = getCellSelection(view.state);
         requestOpenCell(view, {
             target: { resolvedCell },
-            clearCellSelection: hasSelection,
+            clearCellSelection: Boolean(currentSelection),
             normalizeIfNeeded: true,
         });
 

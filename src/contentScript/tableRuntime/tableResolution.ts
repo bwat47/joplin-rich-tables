@@ -22,9 +22,9 @@ export function trimTrailingNonTableLines(text: string): string {
 
     // Need at least header + separator (2 lines) for a valid table
     while (lines.length > 2) {
-        const lastLine = lines[lines.length - 1];
+        const lastLine = lines.at(-1);
         // A valid table row must contain '|'
-        if (lastLine.includes('|')) {
+        if (lastLine === undefined || lastLine.includes('|')) {
             break;
         }
         lines.pop();

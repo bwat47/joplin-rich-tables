@@ -132,7 +132,7 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
                 event.stopPropagation();
             };
 
-            this.view.dom.ownerDocument.addEventListener('keydown', this.onKeyDown, true);
+            this.view.dom.ownerDocument.addEventListener('keydown', this.onKeyDown, { capture: true });
         }
 
         destroy(): void {

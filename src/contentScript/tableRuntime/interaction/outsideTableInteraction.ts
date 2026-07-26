@@ -94,7 +94,7 @@ export const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
             const doc = this.view.dom.ownerDocument;
             // Register on the document in capture phase so outside right-click interactions
             // are seen even when Joplin/Electron context menu handlers intercept later in bubbling.
-            doc.addEventListener('contextmenu', this.onContextMenu, true);
+            doc.addEventListener('contextmenu', this.onContextMenu, { capture: true });
         }
 
         destroy(): void {

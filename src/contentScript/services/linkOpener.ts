@@ -7,10 +7,12 @@ export interface LinkOpener {
 
 export function createLinkOpener(openLink: (href: string) => Promise<void>): LinkOpener {
     return {
-        open(href) {
-            openLink(href).catch((error) => {
+        async open(href) {
+            try {
+                await openLink(href);
+            } catch (error) {
                 logger.error('Failed to open link:', error);
-            });
+            }
         },
     };
 }

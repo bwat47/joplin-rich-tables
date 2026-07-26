@@ -16,7 +16,7 @@ export interface RootTablePasteRewrite {
 }
 
 function normalizeClipboardLineEndings(text: string): string {
-    return text.replace(/\r\n?/g, '\n');
+    return text.replaceAll(/\r\n?/g, '\n');
 }
 
 function trimOuterBlankLines(text: string): string {
@@ -26,7 +26,11 @@ function trimOuterBlankLines(text: string): string {
         lines.shift();
     }
 
-    while (lines.length > 0 && lines[lines.length - 1].trim().length === 0) {
+    while (lines.length > 0) {
+        const lastLine = lines.at(-1);
+        if (lastLine === undefined || lastLine.trim().length > 0) {
+            break;
+        }
         lines.pop();
     }
 

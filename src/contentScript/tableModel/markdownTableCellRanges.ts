@@ -124,7 +124,7 @@ function parseLineCellRanges(line: string, lineFromInTable: number): CellRange[]
     if (allDelimiters.length > 0 && allDelimiters[0] === trimFrom) {
         innerFrom += 1;
     }
-    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimTo - 1) {
+    if (allDelimiters.length > 0 && allDelimiters.at(-1) === trimTo - 1) {
         innerTo -= 1;
     }
 
@@ -175,11 +175,11 @@ export function computeMarkdownTableCellRanges(text: string): TableCellRanges | 
     }
 
     const headerLine = lines[0];
-    const separatorLine = lines[1];
-
     if (!headerLine.line.includes('|')) {
         return null;
     }
+
+    const separatorLine = lines[1];
     if (!isSeparatorRow(separatorLine.line)) {
         return null;
     }

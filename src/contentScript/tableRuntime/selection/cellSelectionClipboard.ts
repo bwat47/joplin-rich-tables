@@ -324,15 +324,15 @@ export function createTableClipboardRewriteSpec(
     ];
 
     return {
-        ...(rewrite.tableText !== (currentTable?.text ?? '')
-            ? {
+        ...(rewrite.tableText === (currentTable?.text ?? '')
+            ? {}
+            : {
                   changes: {
                       from: rewrite.tableFrom,
                       to: currentTable?.to ?? rewrite.tableFrom,
                       insert: rewrite.tableText,
                   },
-              }
-            : {}),
+              }),
         selection: EditorSelection.single(rewrite.selectionAnchorPos),
         effects,
         annotations: cellSelectionTransitionAnnotation.of(true),
@@ -487,9 +487,9 @@ export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
             };
 
             const doc = this.view.dom.ownerDocument;
-            doc.addEventListener('copy', this.onCopy, true);
-            doc.addEventListener('cut', this.onCut, true);
-            doc.addEventListener('paste', this.onPaste, true);
+            doc.addEventListener('copy', this.onCopy, { capture: true });
+            doc.addEventListener('cut', this.onCut, { capture: true });
+            doc.addEventListener('paste', this.onPaste, { capture: true });
         }
 
         destroy(): void {

@@ -16,7 +16,7 @@ const createSvg = (doc: Document, paths: Array<{ d: string; fill?: string; strok
         path.setAttribute('d', pathSpec.d);
         if (pathSpec.fill) path.setAttribute('fill', pathSpec.fill);
         if (pathSpec.stroke) path.setAttribute('stroke', pathSpec.stroke);
-        svg.appendChild(path);
+        svg.append(path);
     }
 
     return svg;

@@ -42,7 +42,7 @@ function parseSeparatorRow(line: string): string[] {
     if (allDelimiters.length > 0 && allDelimiters[0] === 0) {
         innerFrom += 1;
     }
-    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimmed.length - 1) {
+    if (allDelimiters.length > 0 && allDelimiters.at(-1) === trimmed.length - 1) {
         innerTo -= 1;
     }
 
@@ -68,7 +68,7 @@ function padArrayToLength<T>(arr: readonly T[], length: number, filler: T): T[] 
         return [...arr];
     }
 
-    return [...arr, ...new Array(length - arr.length).fill(filler)];
+    return [...arr, ...Array.from({ length: length - arr.length }, () => filler)];
 }
 
 function getColumnCount(
@@ -98,7 +98,7 @@ function normalizeState(input: {
 }
 
 function createEmptyRow(columnCount: number): string[] {
-    return new Array(columnCount).fill('');
+    return Array.from({ length: columnCount }, () => '');
 }
 
 function cloneUnifiedRows(headers: readonly string[], rows: readonly (readonly string[])[]): string[][] {
@@ -274,7 +274,9 @@ export class MarkdownTable {
 
         const swapInArray = <T>(arr: readonly T[]) => {
             const nextArr = [...arr];
-            [nextArr[col1], nextArr[col2]] = [nextArr[col2], nextArr[col1]];
+            const firstValue = nextArr[col1];
+            nextArr[col1] = nextArr[col2];
+            nextArr[col2] = firstValue;
             return nextArr;
         };
 
@@ -485,7 +487,7 @@ export class MarkdownTable {
         }
 
         while (nextRows.length < requiredRowCount) {
-            nextRows.push(new Array(requiredColCount).fill(''));
+            nextRows.push(Array.from({ length: requiredColCount }, () => ''));
         }
 
         for (let row = 0; row < nextRows.length; row++) {
@@ -633,7 +635,9 @@ export class MarkdownTable {
 
         const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
 
-        [allRows[row1], allRows[row2]] = [allRows[row2], allRows[row1]];
+        const firstRow = allRows[row1];
+        allRows[row1] = allRows[row2];
+        allRows[row2] = firstRow;
 
         return MarkdownTable.create({
             headerCells: allRows[0],

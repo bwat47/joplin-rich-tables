@@ -57,11 +57,9 @@ interface OpenRequestExecutionGuardResult {
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
-        private pendingFullReplaceRebuild: boolean;
+        private pendingFullReplaceRebuild: boolean = false;
 
-        constructor(private view: EditorView) {
-            this.pendingFullReplaceRebuild = false;
-        }
+        constructor(private view: EditorView) {}
 
         update(update: ViewUpdate): void {
             const facts = classifyTableRuntimeFacts(update, {
@@ -207,12 +205,12 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 return null;
             }
 
-            const targetActiveCell = request.activeCell;
             if (!this.view.dom.isConnected) {
                 this.failOpenRequest(requestId);
                 return null;
             }
 
+            const targetActiveCell = request.activeCell;
             if (!isSameActiveCell(getActiveCell(this.view.state), targetActiveCell)) {
                 this.failOpenRequest(requestId);
                 return null;

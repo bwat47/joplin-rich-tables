@@ -29,7 +29,7 @@ export class TableToolbarPlugin {
         this.dom.style.position = 'absolute';
         this.dom.style.display = 'none';
 
-        view.dom.appendChild(this.dom);
+        view.dom.append(this.dom);
     }
 
     update(update: ViewUpdate) {
@@ -102,22 +102,22 @@ export class TableToolbarPlugin {
             btn.className = 'cm-table-toolbar-btn';
             btn.type = 'button';
             btn.setAttribute('aria-label', ariaLabel);
-            btn.onclick = (e) => {
+            btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (onClick() === false) {
                     this.restoreNestedEditorFocusAfterNoop();
                 }
-            };
-            btn.appendChild(svg);
+            });
+            btn.append(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
-            this.dom.appendChild(btn);
+            this.dom.append(btn);
         };
 
         const createSeparator = () => {
             const sep = doc.createElement('span');
             sep.className = 'cm-table-toolbar-separator';
-            this.dom.appendChild(sep);
+            this.dom.append(sep);
         };
 
         renderToolbarButtonGroups(
