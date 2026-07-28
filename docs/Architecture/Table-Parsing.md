@@ -56,7 +56,7 @@ This avoids duplicated resolve/parse/range work across:
 - Keyboard navigation.
 - Structural command helpers.
 
-The cache is an LRU map keyed by table text hash and stores both `MarkdownTable` and `cellRanges` together.
+The cache is an LRU map keyed by the table's source text and stores both `MarkdownTable` and `cellRanges` together.
 
 `TableContext` is read-only derived state. It may expose that the current table text is non-canonical, but it never
 rewrites the document by itself. Canonicalization happens only when the user crosses into interactive cell editing.
