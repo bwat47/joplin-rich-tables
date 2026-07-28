@@ -5,15 +5,13 @@
  * can stabilize scrolling when large block widgets are mounted/rebuilt.
  */
 
-import { hashTableText } from '../shared/hashUtils';
-
 const MAX_ENTRIES = 200;
 
 class TableHeightCache {
     private readonly cache = new Map<string, number>();
 
     private getTextKey(tableText: string): string {
-        return `text:${hashTableText(tableText)}`;
+        return `text:${tableText}`;
     }
 
     private getFromKey(tableFrom: number): string {
