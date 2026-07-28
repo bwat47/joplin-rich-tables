@@ -8,7 +8,6 @@
  */
 import { MarkdownTable } from './MarkdownTable';
 import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
-import { hashTableText } from '../shared/hashUtils';
 import type { ResolvedTable } from './types';
 
 export interface TableContext extends ResolvedTable {
@@ -17,29 +16,27 @@ export interface TableContext extends ResolvedTable {
 }
 
 interface CacheEntry {
-    text: string;
     table: MarkdownTable;
     cellRanges: TableCellRanges;
 }
 
+/** Keyed by the table's exact source text. */
 const tableContextCache = new Map<string, CacheEntry>();
 const MAX_CACHE_SIZE = 50;
 
 /**
  * Builds a TableContext from a resolved table range.
- * Uses an LRU cache keyed by table text hash so repeated lookups
+ * Uses an LRU cache keyed by the table's source text so repeated lookups
  * for the same table content skip parsing and range computation.
- * Cache hits are verified against stored text to guard against hash collisions.
  */
 export function buildTableContext(resolved: ResolvedTable): TableContext | null {
     const { from, to, text } = resolved;
-    const hash = hashTableText(text);
-    let entry = tableContextCache.get(hash);
+    let entry = tableContextCache.get(text);
 
-    if (entry && entry.text === text) {
+    if (entry) {
         // LRU refresh: move to end of Map
-        tableContextCache.delete(hash);
-        tableContextCache.set(hash, entry);
+        tableContextCache.delete(text);
+        tableContextCache.set(text, entry);
     } else {
         const table = MarkdownTable.parse(text);
         if (!table) return null;
@@ -47,13 +44,13 @@ export function buildTableContext(resolved: ResolvedTable): TableContext | null 
         const cellRanges = computeMarkdownTableCellRanges(text);
         if (!cellRanges) return null;
 
-        entry = { text, table, cellRanges };
+        entry = { table, cellRanges };
 
         if (tableContextCache.size >= MAX_CACHE_SIZE) {
             const firstKey = tableContextCache.keys().next().value;
-            if (firstKey) tableContextCache.delete(firstKey);
+            if (firstKey !== undefined) tableContextCache.delete(firstKey);
         }
-        tableContextCache.set(hash, entry);
+        tableContextCache.set(text, entry);
     }
 
     return { from, to, text, table: entry.table, cellRanges: entry.cellRanges };
