@@ -21,11 +21,25 @@ import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from
 import { getViewDocument, getViewWindow } from '../shared/domContext';
 import { logger } from '../../logger';
 
-/** Associates widget DOM elements with their EditorView for cleanup during destroy. */
-const widgetViews = new WeakMap<HTMLElement, EditorView>();
+/**
+ * What a rendered widget root currently represents.
+ *
+ * A widget root outlives the `TableWidget` instance that built it — CodeMirror hands the same
+ * DOM to successive widgets via `updateDOM()`. Anything captured from `this` at mount time is
+ * therefore a snapshot that silently goes stale, so per-DOM state lives here instead and
+ * `updateDOM()` is its single writer.
+ *
+ * `tableText` also serves as the reuse test: holding the text rather than a hash keeps the
+ * comparison exact, where a collision would silently show stale rows.
+ */
+interface WidgetDomState {
+    view: EditorView;
+    observer: ResizeObserver;
+    tableText: string;
+    tableFrom: number;
+}
 
-/** Associates widget DOM elements with their ResizeObserver for safe DOM reuse. */
-const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
+const widgetDomState = new WeakMap<HTMLElement, WidgetDomState>();
 
 function getViewResizeObserver(view: EditorView): typeof ResizeObserver {
     return (
@@ -33,18 +47,27 @@ function getViewResizeObserver(view: EditorView): typeof ResizeObserver {
     );
 }
 
-function requestTableMeasurement(view: EditorView, container: HTMLElement, tableFrom: number, tableText: string): void {
-    view.requestMeasure({
+function requestTableMeasurement(container: HTMLElement): void {
+    const state = widgetDomState.get(container);
+    if (!state) {
+        return;
+    }
+
+    state.view.requestMeasure({
         read: () => {
-            if (!container.isConnected) {
+            // Re-read the state: the table may have moved between scheduling and measuring.
+            const current = widgetDomState.get(container);
+            if (!current || !container.isConnected) {
                 return;
             }
 
-            const currentFrom = Number(container.getAttribute(`data-${ATTR_TABLE_FROM}`)) || tableFrom;
-            const height = container.getBoundingClientRect().height;
-            tableHeightCache.set({ tableFrom: currentFrom, tableText, heightPx: height });
+            tableHeightCache.set({
+                tableFrom: current.tableFrom,
+                tableText: current.tableText,
+                heightPx: container.getBoundingClientRect().height,
+            });
         },
-        key: tableHeightCache.getMeasureKey(tableFrom, tableText),
+        key: tableHeightCache.getMeasureKey(state.tableFrom, state.tableText),
     });
 }
 
@@ -53,63 +76,48 @@ function requestTableMeasurement(view: EditorView, container: HTMLElement, table
  * Supports rendering markdown content inside cells
  */
 export class TableWidget extends WidgetType {
-    private readonly contentHash: string;
-    private readonly cellRanges: TableCellRanges;
-
     constructor(
         private tableData: MarkdownTable,
-        cellRanges: TableCellRanges,
+        private readonly cellRanges: TableCellRanges,
         private tableText: string,
-        private tableFrom: number,
-        private tableTo: number,
-        contentHash: string
+        private tableFrom: number
     ) {
         super();
-        // Hash is pre-computed by the extension to avoid redundant hashing.
-        this.contentHash = contentHash;
-        this.cellRanges = cellRanges;
     }
 
-    eq(_other: TableWidget): boolean {
-        // Always return false to trigger updateDOM() call.
-        // updateDOM() will decide whether to reuse the DOM based on content hash.
-        return false;
+    eq(other: TableWidget): boolean {
+        // Everything else the widget exposes derives from the source text: `tableData` is
+        // MarkdownTable.parse(text) and `cellRanges` is computeMarkdownTableCellRanges(text).
+        // Text equality therefore implies the rendered DOM and estimated height match too.
+        //
+        // `tableFrom` is load-bearing, not defensive: in-cell edits take the `mapDecorations`
+        // path, which shifts decoration ranges without rebuilding widgets, so a widget's
+        // `tableFrom` drifts from the document. Comparing it routes those tables through
+        // updateDOM() to refresh their recorded position.
+        return this.tableText === other.tableText && this.tableFrom === other.tableFrom;
     }
 
     updateDOM(dom: HTMLElement, view: EditorView): boolean {
-        // Called when eq() returns false. We decide here whether to reuse the DOM.
-        // Check if the table content is the same by comparing stored hash.
-        if (dom.dataset.tableTextHash !== this.contentHash) {
+        // Reached when eq() returned false, i.e. the text or the position changed. A text change
+        // needs a full rebuild; a position change can reuse the DOM after refreshing the state
+        // that tracks it. This work cannot move into eq() because it has side effects.
+        //
+        // An unrecognised DOM has no recorded state, so it falls through to a rebuild.
+        const state = widgetDomState.get(dom);
+        if (!state || state.tableText !== this.tableText) {
             // Content changed (structural edit) - must rebuild DOM via toDOM().
             return false;
         }
 
-        // Also check if position changed - when positions shift significantly (e.g., undo
-        // removes text above table), CodeMirror might incorrectly match DOMs.
-        // We update the data attribute to reflect the new position, but we return true (reuse)
-        // because the content is the same. This preserves heavy DOM elements like videos.
-        const oldFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`));
-        if (oldFrom !== this.tableFrom) {
-            dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
-        }
-
-        // Content and position are the same - safe to reuse the DOM.
-        // Update the view mapping so destroy() can clean up correctly.
-        widgetViews.set(dom, view);
-
-        // Ensure a ResizeObserver exists for this DOM, even when it was reused.
-        if (!widgetResizeObservers.has(dom)) {
-            const ResizeObserverCtor = getViewResizeObserver(view);
-            const observer = new ResizeObserverCtor(() => {
-                requestTableMeasurement(view, dom, this.tableFrom, this.tableText);
-            });
-            observer.observe(dom);
-            widgetResizeObservers.set(dom, observer);
-        }
+        // Only the position changed, so the DOM stays as-is — preserving heavy elements like
+        // videos — and the recorded state is advanced to match. This is the single write point.
+        state.view = view;
+        state.tableFrom = this.tableFrom;
+        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
 
         // Prime CodeMirror's vertical layout info immediately on reuse instead of
         // waiting for ResizeObserver, which may fire too late for the first undo.
-        requestTableMeasurement(view, dom, this.tableFrom, this.tableText);
+        requestTableMeasurement(dom);
 
         return true;
     }
@@ -121,11 +129,10 @@ export class TableWidget extends WidgetType {
         const container = doc.createElement('div');
         container.className = CLASS_TABLE_WIDGET;
 
-        // Used by extension-level interaction handlers as a reliable fallback.
+        // Mirrors the recorded position for DOM inspection. Written only from widgetDomState,
+        // and never read back: interaction handlers resolve identity via posAtDOM() instead;
+        // see findTableWidgetElement().
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
-
-        // Store content hash for updateDOM() to detect content vs position-only changes.
-        container.dataset.tableTextHash = this.contentHash;
 
         const table = doc.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
@@ -184,18 +191,26 @@ export class TableWidget extends WidgetType {
 
         // Use ResizeObserver to notify CodeMirror whenever the table height changes.
         // This eliminates the race condition between async rendering and CM6's coordinate system.
+        // The callback deliberately captures nothing but the element: it outlives this widget,
+        // and requestTableMeasurement() reads whatever the element currently represents.
         const observer = new ResizeObserverCtor(() => {
             // requestMeasure is debounced internally by CM6, so safe to call frequently.
-            requestTableMeasurement(view, container, this.tableFrom, this.tableText);
+            requestTableMeasurement(container);
+        });
+
+        // Record the state before observing: the observer may fire immediately, and
+        // requestTableMeasurement() is a no-op until the element is registered.
+        widgetDomState.set(container, {
+            view,
+            observer,
+            tableText: this.tableText,
+            tableFrom: this.tableFrom,
         });
         observer.observe(container);
-        widgetResizeObservers.set(container, observer);
 
-        // Store view reference for cleanup when widget is destroyed
-        widgetViews.set(container, view);
         // Prime the measurement immediately on mount so the first scroll-preserving
         // undo/redo in a fresh note uses real widget geometry instead of estimates.
-        requestTableMeasurement(view, container, this.tableFrom, this.tableText);
+        requestTableMeasurement(container);
 
         return container;
     }
@@ -291,24 +306,28 @@ export class TableWidget extends WidgetType {
     }
 
     destroy(dom: HTMLElement): void {
-        // Disconnect ResizeObserver to prevent memory leaks.
-        const observer = widgetResizeObservers.get(dom);
-        if (observer) {
-            observer.disconnect();
-            widgetResizeObservers.delete(dom);
+        // After updateDOM() reuses an element, CodeMirror associates it with the newer widget.
+        // Read the per-DOM state so cleanup uses the element's current recorded identity.
+        const state = widgetDomState.get(dom);
+        if (!state) {
+            return;
         }
+
+        // Disconnect ResizeObserver to prevent memory leaks.
+        state.observer.disconnect();
 
         // Record a last-known height right before teardown. This helps future remounts even if
         // the widget is destroyed before the measurement queue runs.
-        const height = dom.getBoundingClientRect().height;
-        const currentFrom = Number(dom.getAttribute(`data-${ATTR_TABLE_FROM}`)) || this.tableFrom;
-        tableHeightCache.set({ tableFrom: currentFrom, tableText: this.tableText, heightPx: height });
+        tableHeightCache.set({
+            tableFrom: state.tableFrom,
+            tableText: state.tableText,
+            heightPx: dom.getBoundingClientRect().height,
+        });
+
+        widgetDomState.delete(dom);
 
         // Ensure any nested editor hosted in this widget is closed when the widget is destroyed.
         // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
-        const view = widgetViews.get(dom);
-        if (view) {
-            cleanupHostedNestedEditors(view, dom);
-        }
+        cleanupHostedNestedEditors(state.view, dom);
     }
 }

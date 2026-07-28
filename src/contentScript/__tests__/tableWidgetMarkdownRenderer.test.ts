@@ -46,7 +46,7 @@ describe('TableWidget markdown rendering', () => {
             requestMeasure: vi.fn(),
         } as unknown as EditorView;
 
-        const widget = new TableWidget(table, cellRanges, tableText, 0, tableText.length, 'hash');
+        const widget = new TableWidget(table, cellRanges, tableText, 0);
         const dom = widget.toDOM(view);
         document.body.appendChild(dom);
         rendered.resolve('<p><strong>rendered</strong></p>');
@@ -84,7 +84,7 @@ describe('TableWidget markdown rendering', () => {
         } as unknown as EditorView;
 
         const tableFrom = 50;
-        const widget = new TableWidget(table, cellRanges, tableText, tableFrom, tableFrom + tableText.length, 'hash');
+        const widget = new TableWidget(table, cellRanges, tableText, tableFrom);
         const dom = widget.toDOM(view);
         const targetCell = dom.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
         if (!targetCell) {

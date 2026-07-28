@@ -21,21 +21,18 @@ export const SECTION_HEADER = 'header';
 export const SECTION_BODY = 'body';
 
 /**
- * Returns the CSS selector for the table widget, optionally targeting a specific table instance.
+ * Returns the CSS selector matching every table widget root.
  *
- * @param tableId - Optional TableId identifying the table.
+ * Deliberately position-agnostic: identity comes from `posAtDOM()` via
+ * `findTableWidgetElement()`, never from `data-table-from`.
+ *
  * @returns The CSS selector string.
  *
  * @example
  * getWidgetSelector(); // returns '.cm-table-widget'
- * getWidgetSelector(makeTableId(105)); // returns '.cm-table-widget[data-table-from="105"]'
  */
-export function getWidgetSelector(tableId?: TableId): string {
-    const base = `.${CLASS_TABLE_WIDGET}`;
-    if (tableId !== undefined) {
-        return `${base}[data-${ATTR_TABLE_FROM}="${tableId}"]`;
-    }
-    return base;
+export function getWidgetSelector(): string {
+    return `.${CLASS_TABLE_WIDGET}`;
 }
 
 /**
