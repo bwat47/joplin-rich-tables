@@ -31,7 +31,11 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 Each rendered widget root is associated with the exact table source it was built from.
 
-On `updateDOM()`:
+`eq()` compares source text and document position, so a table that neither changed nor moved is
+skipped entirely during a rebuild. Position is part of the comparison because in-cell edits map
+decorations rather than rebuilding them, leaving a widget's recorded position stale.
+
+When `eq()` reports a difference, `updateDOM()` decides between reuse and rebuild:
 
 - Source text matches → DOM reused (return `true`); position-only changes refresh `data-table-from`.
 - Source text differs, or the element is unrecognised → CodeMirror destroys/recreates.

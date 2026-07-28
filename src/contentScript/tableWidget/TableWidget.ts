@@ -70,14 +70,23 @@ export class TableWidget extends WidgetType {
         super();
     }
 
-    eq(_other: TableWidget): boolean {
-        // Always return false to trigger updateDOM() call.
-        // updateDOM() will decide whether to reuse the DOM based on the rendered source text.
-        return false;
+    eq(other: TableWidget): boolean {
+        // Everything else the widget exposes derives from the source text: `tableData` is
+        // MarkdownTable.parse(text) and `cellRanges` is computeMarkdownTableCellRanges(text).
+        // Text equality therefore implies the rendered DOM and estimated height match too.
+        //
+        // `tableFrom` is load-bearing, not defensive: in-cell edits take the `mapDecorations`
+        // path, which shifts decoration ranges without rebuilding widgets, so a widget's
+        // `tableFrom` drifts from the document. Comparing it routes those tables through
+        // updateDOM() to refresh their recorded position.
+        return this.tableText === other.tableText && this.tableFrom === other.tableFrom;
     }
 
     updateDOM(dom: HTMLElement, view: EditorView): boolean {
-        // Called when eq() returns false. We decide here whether to reuse the DOM.
+        // Reached when eq() returned false, i.e. the text or the position changed. A text change
+        // needs a full rebuild; a position change can reuse the DOM after refreshing the state
+        // that tracks it. This work cannot move into eq() because it has side effects.
+        //
         // An unrecognised DOM has no recorded text, so it falls through to a rebuild.
         if (widgetRenderedText.get(dom) !== this.tableText) {
             // Content changed (structural edit) - must rebuild DOM via toDOM().
@@ -121,7 +130,9 @@ export class TableWidget extends WidgetType {
         const container = doc.createElement('div');
         container.className = CLASS_TABLE_WIDGET;
 
-        // Used by extension-level interaction handlers as a reliable fallback.
+        // Records the position this DOM was rendered at, for the height-cache keys used by
+        // requestTableMeasurement() and destroy(). Interaction handlers deliberately do not
+        // read it — they resolve identity via posAtDOM(); see findTableWidgetElement().
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
 
         // Record the exact source this DOM renders so updateDOM() can distinguish a content

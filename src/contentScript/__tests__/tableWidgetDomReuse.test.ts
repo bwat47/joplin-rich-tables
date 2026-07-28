@@ -87,4 +87,21 @@ describe('TableWidget DOM reuse', () => {
 
         expect(createWidget(TABLE_TEXT).updateDOM(foreignDom, view)).toBe(false);
     });
+
+    describe('eq', () => {
+        it('is equal when neither the source nor the position changed', () => {
+            expect(createWidget(TABLE_TEXT, 40).eq(createWidget(TABLE_TEXT, 40))).toBe(true);
+        });
+
+        it('is not equal when the source changed', () => {
+            expect(createWidget(TABLE_TEXT, 40).eq(createWidget(EDITED_TABLE_TEXT, 40))).toBe(false);
+        });
+
+        it('is not equal when only the position changed', () => {
+            // In-cell edits map decorations instead of rebuilding them, so a widget's tableFrom
+            // drifts from the document. Comparing it routes the table through updateDOM(), which
+            // refreshes the recorded position the height cache keys off.
+            expect(createWidget(TABLE_TEXT, 40).eq(createWidget(TABLE_TEXT, 120))).toBe(false);
+        });
+    });
 });

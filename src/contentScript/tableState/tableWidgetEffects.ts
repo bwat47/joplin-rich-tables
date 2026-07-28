@@ -6,10 +6,10 @@ import { StateEffect } from '@codemirror/state';
  * rendered HTML table stale.
  *
  * Rebuilds are deliberately document-wide rather than scoped to the mutated table. Rebuilding a
- * decoration does not re-render a widget: `TableWidget.eq()` always returns false and
- * `updateDOM()` reuses the existing DOM whenever the content hash matches, so unchanged tables
- * cost a reparse, not a re-render. Scoping the rebuild would trade that bounded cost for the
- * range-splicing complexity this design exists to avoid.
+ * decoration does not re-render a widget: `TableWidget.eq()` compares source text and position,
+ * so a table that neither changed nor moved is skipped outright, and one that only moved reuses
+ * its DOM via `updateDOM()`. Unchanged tables cost a reparse, not a re-render. Scoping the
+ * rebuild would trade that bounded cost for the range-splicing complexity this design avoids.
  *
  * Two consumers also read this effect as a signal that the widget DOM was replaced:
  * `mainEditorGuardPolicy` allows the transaction through without cell-range sanitization, and
