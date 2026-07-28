@@ -8,7 +8,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { deferred } from './testUtils';
@@ -208,6 +208,40 @@ describe('TableWidget markdown rendering', () => {
                     left: correctRect.left,
                 });
             } finally {
+                view.destroy();
+                parent.remove();
+            }
+        });
+
+        it('does not fall back to stale ranges when the live position is not inside a cell', () => {
+            const longTableText = ['| H1 | H2 |', '| --- | --- |', '| aaaaaaaaaa | b |'].join('\n');
+            const table = MarkdownTable.parse(longTableText);
+            const cachedRanges = computeMarkdownTableCellRanges(longTableText);
+            if (!table || !cachedRanges) {
+                throw new Error('Expected table to parse');
+            }
+
+            const { parent, view } = createRealView(longTableText);
+            const widget = new TableWidget(table, cachedRanges, longTableText, 0);
+            const dom = widget.toDOM(view);
+            vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
+
+            try {
+                editCellAWithoutRebuild(view, 'a');
+
+                const liveRanges = computeMarkdownTableCellRanges(view.state.doc.toString());
+                if (!liveRanges) {
+                    throw new Error('Expected edited table to parse');
+                }
+                const delimiterPos = liveRanges.rows[0][0].editableTo + 1;
+
+                // This position moved into the delimiter after cell A was shortened, but the
+                // pre-edit ranges still identify it as part of the old, longer cell A.
+                expect(findCellForPos(liveRanges, delimiterPos)).toBeNull();
+                expect(findCellForPos(cachedRanges, delimiterPos)).not.toBeNull();
+                expect(widget.coordsAt(dom, delimiterPos, 1)).toBeNull();
+            } finally {
+                widget.destroy(dom);
                 view.destroy();
                 parent.remove();
             }

@@ -298,7 +298,8 @@ export class TableWidget extends WidgetType {
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        const coords = this.resolveLiveCellCoords(dom, pos) ?? findCellForPos(this.cellRanges, pos);
+        const liveCoords = this.resolveLiveCellCoords(dom, pos);
+        const coords = liveCoords === undefined ? findCellForPos(this.cellRanges, pos) : liveCoords;
         if (!coords) {
             return null;
         }
@@ -317,11 +318,14 @@ export class TableWidget extends WidgetType {
      * `EditorView` instance across the widget's life — `.state` always reflects the latest
      * transaction even when `updateDOM()` hasn't run — so this stays accurate through the
      * `mapDecorations` path that keeps `this.tableFrom`/`this.cellRanges` frozen.
+     *
+     * `undefined` means live resolution was unavailable and the caller may use cached ranges.
+     * `null` is an authoritative result that the live position does not belong to a cell.
      */
-    private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null {
+    private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null | undefined {
         const state = widgetDomState.get(dom);
         if (!state) {
-            return null;
+            return undefined;
         }
 
         let liveTableFrom: number;
@@ -330,17 +334,17 @@ export class TableWidget extends WidgetType {
             // cached position field, which is exactly what's stale here.
             liveTableFrom = state.view.posAtDOM(dom);
         } catch {
-            return null;
+            return undefined;
         }
 
         const table = resolveContainingTableAtPos(state.view.state, liveTableFrom + pos);
         if (!table) {
-            return null;
+            return undefined;
         }
 
         const ctx = buildTableContext(table);
         if (!ctx) {
-            return null;
+            return undefined;
         }
 
         return findCellForPos(ctx.cellRanges, liveTableFrom + pos - ctx.from);
