@@ -1,12 +1,17 @@
 /** @vitest-environment jsdom */
 
+import { markdown } from '@codemirror/lang-markdown';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { TableWidget } from '../tableWidget/TableWidget';
+import { getWidgetSelector } from '../tableWidget/domHelpers';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
 
 const observerCallbacks: Array<() => void> = [];
@@ -18,6 +23,18 @@ class ResizeObserverMock {
     constructor(callback: () => void) {
         observerCallbacks.push(callback);
     }
+}
+
+if (!Range.prototype.getBoundingClientRect) {
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+        value: () => new DOMRect(),
+    });
+}
+
+if (!Range.prototype.getClientRects) {
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+        value: () => [],
+    });
 }
 
 /** Fires every ResizeObserver created during the test, as a real resize would. */
@@ -66,6 +83,29 @@ function createView(): EditorView {
     } as unknown as EditorView;
 }
 
+function createRealView(doc: string): { parent: HTMLElement; view: EditorView } {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    const state = EditorState.create({
+        doc,
+        extensions: [
+            markdown({ extensions: [GFM] }),
+            markdownRenderServiceFacet.of({
+                getCached: vi.fn(() => undefined),
+                render: vi.fn(async () => ''),
+                clear: vi.fn(),
+            }),
+            tableDecorationField,
+        ],
+    });
+
+    return {
+        parent,
+        view: new EditorView({ parent, state }),
+    };
+}
+
 describe('TableWidget DOM reuse', () => {
     beforeEach(() => {
         observerCallbacks.length = 0;
@@ -112,6 +152,70 @@ describe('TableWidget DOM reuse', () => {
         const foreignDom = document.createElement('div');
 
         expect(createWidget(TABLE_TEXT).updateDOM(foreignDom, view)).toBe(false);
+    });
+
+    describe('CodeMirror reconciliation', () => {
+        it('keeps the DOM node when an unchanged table decoration is rebuilt', () => {
+            const { parent, view } = createRealView(TABLE_TEXT);
+
+            try {
+                const originalTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
+                expect(originalTable).not.toBeNull();
+
+                view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
+
+                expect(view.contentDOM.querySelector(`${getWidgetSelector()} table`)).toBe(originalTable);
+            } finally {
+                view.destroy();
+                parent.remove();
+            }
+        });
+
+        it('keeps the DOM node and refreshes its position when the table moves', () => {
+            const { parent, view } = createRealView(TABLE_TEXT);
+            const prefix = 'intro\n\n';
+
+            try {
+                const originalWidget = view.contentDOM.querySelector(getWidgetSelector());
+                const originalTable = originalWidget?.querySelector('table');
+                expect(originalWidget).not.toBeNull();
+                expect(originalTable).not.toBeNull();
+
+                view.dispatch({ changes: { from: 0, insert: prefix } });
+
+                const movedWidget = view.contentDOM.querySelector(getWidgetSelector());
+                expect(movedWidget?.querySelector('table')).toBe(originalTable);
+                expect(movedWidget?.getAttribute('data-table-from')).toBe(String(prefix.length));
+            } finally {
+                view.destroy();
+                parent.remove();
+            }
+        });
+
+        it('replaces the DOM node when the table source changes', () => {
+            const { parent, view } = createRealView(TABLE_TEXT);
+
+            try {
+                const originalTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
+                expect(originalTable).not.toBeNull();
+
+                const editedCellFrom = TABLE_TEXT.lastIndexOf('b');
+                view.dispatch({
+                    changes: {
+                        from: editedCellFrom,
+                        to: editedCellFrom + 1,
+                        insert: 'CHANGED',
+                    },
+                });
+
+                const editedTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
+                expect(editedTable).not.toBe(originalTable);
+                expect(editedTable?.textContent).toContain('CHANGED');
+            } finally {
+                view.destroy();
+                parent.remove();
+            }
+        });
     });
 
     describe('height measurement', () => {
