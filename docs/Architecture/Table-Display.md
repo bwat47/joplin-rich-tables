@@ -48,7 +48,7 @@ content (videos, iframes) alive across rebuilds.
 
 ### 3. Table Context Cache
 
-`buildTableContext()` maintains an **LRU cache** (50 entries) keyed by table-text hash.
+`buildTableContext()` maintains an **LRU cache** (50 entries) keyed by table source text.
 
 Each cache entry stores:
 
@@ -68,7 +68,7 @@ Prevents scroll jumping via multi-layered approach:
 1. `view.requestMeasure()` notifies CodeMirror.
 2. Updates **LRU height cache** (200 entries).
 
-**Height Cache**: Hybrid lookup by position and content hash.
+**Height Cache**: Hybrid lookup by position and source text.
 
 **`coordsAt()`**: Returns cell bounding rectangle for precise scroll-to-cell during navigation.
 
