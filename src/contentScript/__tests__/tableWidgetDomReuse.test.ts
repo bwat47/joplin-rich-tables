@@ -7,10 +7,28 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { TableWidget } from '../tableWidget/TableWidget';
+import { tableHeightCache } from '../tableWidget/tableHeightCache';
+
+const observerCallbacks: Array<() => void> = [];
 
 class ResizeObserverMock {
     observe = vi.fn();
     disconnect = vi.fn();
+
+    constructor(callback: () => void) {
+        observerCallbacks.push(callback);
+    }
+}
+
+/** Fires every ResizeObserver created during the test, as a real resize would. */
+function triggerResize(): void {
+    for (const callback of observerCallbacks) {
+        callback();
+    }
+}
+
+function stubHeight(element: HTMLElement, heightPx: number): void {
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ height: heightPx } as DOMRect);
 }
 
 const TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
@@ -39,17 +57,25 @@ function createView(): EditorView {
     return {
         state,
         dom: document.createElement('div'),
-        requestMeasure: vi.fn(),
+        // CodeMirror batches these into its measure phase; running read() inline keeps the
+        // assertions synchronous without changing what the widget schedules.
+        requestMeasure: vi.fn((spec: { read: () => void }) => spec.read()),
+        // destroy() routes through cleanupHostedNestedEditors, which looks up the nested editor
+        // plugin. No nested editor is mounted in these tests.
+        plugin: vi.fn(() => null),
     } as unknown as EditorView;
 }
 
 describe('TableWidget DOM reuse', () => {
     beforeEach(() => {
+        observerCallbacks.length = 0;
+        tableHeightCache.clear();
         vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
+        vi.restoreAllMocks();
     });
 
     it('reuses the existing DOM when the table source is unchanged', () => {
@@ -86,6 +112,48 @@ describe('TableWidget DOM reuse', () => {
         const foreignDom = document.createElement('div');
 
         expect(createWidget(TABLE_TEXT).updateDOM(foreignDom, view)).toBe(false);
+    });
+
+    describe('height measurement', () => {
+        const MEASURED_HEIGHT = 250;
+        const ORIGINAL_FROM = 0;
+        const MOVED_FROM = 120;
+        // Queries the cache by position alone: tableHeightCache.get() also matches on text, so
+        // an unrelated text forces the lookup to be satisfied by the position key or not at all.
+        const UNRELATED_TEXT = 'unrelated';
+
+        it('records the current position after the table moved, not the mounted one', () => {
+            const view = createView();
+            const dom = createWidget(TABLE_TEXT, ORIGINAL_FROM).toDOM(view);
+            document.body.appendChild(dom);
+
+            expect(createWidget(TABLE_TEXT, MOVED_FROM).updateDOM(dom, view)).toBe(true);
+
+            // Stub only now, so the assertion reflects the ResizeObserver callback alone. That
+            // callback is created once at mount and outlives the widget that created it, so it
+            // must resolve the position at fire time rather than at creation time.
+            stubHeight(dom, MEASURED_HEIGHT);
+            triggerResize();
+
+            expect(tableHeightCache.get({ tableFrom: MOVED_FROM, tableText: UNRELATED_TEXT })).toBe(MEASURED_HEIGHT);
+            expect(tableHeightCache.get({ tableFrom: ORIGINAL_FROM, tableText: UNRELATED_TEXT })).toBeUndefined();
+
+            dom.remove();
+        });
+
+        it('records the last known height on destroy', () => {
+            const view = createView();
+            const widget = createWidget(TABLE_TEXT, ORIGINAL_FROM);
+            const dom = widget.toDOM(view);
+            document.body.appendChild(dom);
+
+            stubHeight(dom, MEASURED_HEIGHT);
+            widget.destroy(dom);
+
+            expect(tableHeightCache.get({ tableFrom: ORIGINAL_FROM, tableText: UNRELATED_TEXT })).toBe(MEASURED_HEIGHT);
+
+            dom.remove();
+        });
     });
 
     describe('eq', () => {
