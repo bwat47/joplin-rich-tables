@@ -27,6 +27,14 @@ const widgetViews = new WeakMap<HTMLElement, EditorView>();
 /** Associates widget DOM elements with their ResizeObserver for safe DOM reuse. */
 const widgetResizeObservers = new WeakMap<HTMLElement, ResizeObserver>();
 
+/**
+ * Associates widget DOM elements with the exact table source they were rendered from.
+ * `updateDOM()` compares against this to decide whether the DOM can be reused. Holding the
+ * text itself rather than a hash keeps the comparison exact: a hash match would only make
+ * identical content probable, and a collision would silently show stale rows.
+ */
+const widgetRenderedText = new WeakMap<HTMLElement, string>();
+
 function getViewResizeObserver(view: EditorView): typeof ResizeObserver {
     return (
         (getViewWindow(view) as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? ResizeObserver
@@ -53,33 +61,25 @@ function requestTableMeasurement(view: EditorView, container: HTMLElement, table
  * Supports rendering markdown content inside cells
  */
 export class TableWidget extends WidgetType {
-    private readonly contentHash: string;
-    private readonly cellRanges: TableCellRanges;
-
     constructor(
         private tableData: MarkdownTable,
-        cellRanges: TableCellRanges,
+        private readonly cellRanges: TableCellRanges,
         private tableText: string,
-        private tableFrom: number,
-        private tableTo: number,
-        contentHash: string
+        private tableFrom: number
     ) {
         super();
-        // Hash is pre-computed by the extension to avoid redundant hashing.
-        this.contentHash = contentHash;
-        this.cellRanges = cellRanges;
     }
 
     eq(_other: TableWidget): boolean {
         // Always return false to trigger updateDOM() call.
-        // updateDOM() will decide whether to reuse the DOM based on content hash.
+        // updateDOM() will decide whether to reuse the DOM based on the rendered source text.
         return false;
     }
 
     updateDOM(dom: HTMLElement, view: EditorView): boolean {
         // Called when eq() returns false. We decide here whether to reuse the DOM.
-        // Check if the table content is the same by comparing stored hash.
-        if (dom.dataset.tableTextHash !== this.contentHash) {
+        // An unrecognised DOM has no recorded text, so it falls through to a rebuild.
+        if (widgetRenderedText.get(dom) !== this.tableText) {
             // Content changed (structural edit) - must rebuild DOM via toDOM().
             return false;
         }
@@ -124,8 +124,9 @@ export class TableWidget extends WidgetType {
         // Used by extension-level interaction handlers as a reliable fallback.
         container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
 
-        // Store content hash for updateDOM() to detect content vs position-only changes.
-        container.dataset.tableTextHash = this.contentHash;
+        // Record the exact source this DOM renders so updateDOM() can distinguish a content
+        // change from a position-only change.
+        widgetRenderedText.set(container, this.tableText);
 
         const table = doc.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;

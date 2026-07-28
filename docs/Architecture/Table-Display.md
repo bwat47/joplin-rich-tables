@@ -27,16 +27,20 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 - **In-Cell Edits**: No rebuild; decorations mapped to preserve existing DOM.
 - **Sync Transactions**: From nested editor explicitly skip rebuilds.
 
-### 2. DOM Reuse (Content Hash)
+### 2. DOM Reuse (Exact Source Text)
 
-Each `TableWidget` has `contentHash` (FNV-1a of table text).
+Each rendered widget root is associated with the exact table source it was built from.
 
 On `updateDOM()`:
 
-- Hash matches → DOM reused (return `true`).
-- Hash differs → CodeMirror destroys/recreates.
+- Source text matches → DOM reused (return `true`); position-only changes refresh `data-table-from`.
+- Source text differs, or the element is unrecognised → CodeMirror destroys/recreates.
 
-Prevents flicker when rebuilding decorations for position sync.
+Comparison is against the text itself, not a hash: a hash match only makes identical content
+probable, and a collision would silently reuse DOM showing stale rows.
+
+Prevents flicker when rebuilding decorations for position sync, and keeps stateful embedded
+content (videos, iframes) alive across rebuilds.
 
 ### 3. Table Context Cache
 

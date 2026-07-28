@@ -2,7 +2,6 @@ import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { syntaxTreeAvailable } from '@codemirror/language';
 import { Decoration, DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { hashTableText } from '../shared/hashUtils';
 import { buildTableContext } from '../tableModel/tableContext';
 import { findTableRanges } from '../tableRuntime/tableResolution';
 import { TableWidget } from './TableWidget';
@@ -38,9 +37,7 @@ function buildTableDecorations(state: EditorState): TableDecorationState {
             continue;
         }
 
-        const contentHash = hashTableText(table.text);
-
-        const widget = new TableWidget(ctx.table, ctx.cellRanges, table.text, table.from, table.to, contentHash);
+        const widget = new TableWidget(ctx.table, ctx.cellRanges, table.text, table.from);
         const decoration = Decoration.replace({
             widget,
             block: true,
