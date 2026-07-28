@@ -34,6 +34,19 @@ describe('tableHeightCache', () => {
         expect(tableHeightCache.get({ tableFrom: table.tableFrom, tableText: '| edited |\n| --- |' })).toBe(HEIGHT);
     });
 
+    it('prefers its own measurement over whatever was last measured at its position', () => {
+        const evicted = tableAt(1);
+        const shiftedUp = { tableFrom: evicted.tableFrom, tableText: tableAt(2).tableText };
+        const OWN_HEIGHT = 300;
+
+        // Both tables have been measured; then the one above is deleted and the second
+        // table slides into the first one's offset.
+        tableHeightCache.set({ ...evicted, heightPx: HEIGHT });
+        tableHeightCache.set({ ...tableAt(2), heightPx: OWN_HEIGHT });
+
+        expect(tableHeightCache.get(shiftedUp)).toBe(OWN_HEIGHT);
+    });
+
     it('ignores non-positive and non-finite measurements', () => {
         const table = tableAt(1);
 

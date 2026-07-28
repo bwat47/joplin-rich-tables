@@ -62,7 +62,12 @@ class TableHeightCache {
         // During in-table edits, `tableText` changes but `tableFrom` usually doesn't.
         // During edits above the table, `tableFrom` changes but `tableText` doesn't.
         // Checking both makes the cache useful in both situations.
-        return this.byPosition.get(params.tableFrom) ?? this.byText.get(params.tableText);
+        //
+        // Text wins: identical source at the same editor width renders to the same
+        // height, so a text hit is this table's own measurement. A position hit only
+        // means some table was last measured at that offset, which stops being this
+        // table as soon as one above it is deleted.
+        return this.byText.get(params.tableText) ?? this.byPosition.get(params.tableFrom);
     }
 
     public set(params: { tableFrom: number; tableText: string; heightPx: number }): void {

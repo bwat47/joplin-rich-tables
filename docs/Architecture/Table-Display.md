@@ -66,9 +66,13 @@ Prevents scroll jumping via multi-layered approach:
 **ResizeObserver**: After async render:
 
 1. `view.requestMeasure()` notifies CodeMirror.
-2. Updates **LRU height cache** (200 entries).
+2. Updates **LRU height cache** (200 tables per index).
 
-**Height Cache**: Hybrid lookup by position and source text.
+**Height Cache**: Two LRU indexes over the same measurements, one keyed by source text and one by
+document position, so a height survives both in-table edits (position unchanged) and edits above the
+table (text unchanged). Text is consulted first: a text hit is the table's own measurement, whereas a
+position hit only reports whatever was last measured at that offset and goes stale when a table above
+is deleted.
 
 **`coordsAt()`**: Returns cell bounding rectangle for precise scroll-to-cell during navigation.
 
