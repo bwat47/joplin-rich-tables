@@ -306,8 +306,8 @@ export class TableWidget extends WidgetType {
     }
 
     destroy(dom: HTMLElement): void {
-        // CodeMirror calls destroy() on the widget that mounted the DOM, which may be several
-        // reuses behind the one it currently shows. Read the recorded state rather than `this`.
+        // After updateDOM() reuses an element, CodeMirror associates it with the newer widget.
+        // Read the per-DOM state so cleanup uses the element's current recorded identity.
         const state = widgetDomState.get(dom);
         if (!state) {
             return;
