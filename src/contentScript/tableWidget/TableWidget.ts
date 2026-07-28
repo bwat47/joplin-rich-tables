@@ -3,6 +3,9 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { buildTableContext } from '../tableModel/tableContext';
+import type { CellCoords } from '../tableModel/types';
+import { resolveContainingTableAtPos } from '../tableRuntime/tableResolution';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
@@ -281,13 +284,22 @@ export class TableWidget extends WidgetType {
      *
      * CodeMirror subtracts the widget's document start offset before calling this, so `pos` is
      * already relative to the widget — do not subtract `tableFrom` here.
+     *
+     * `this.cellRanges` reflects the table text as of the last full rebuild. In-cell edits are
+     * forwarded through the `mapDecorations` path (see tableDecorationPolicy.ts) precisely so the
+     * widget is *not* rebuilt while a nested editor is open, which leaves `cellRanges` stale for
+     * the whole editing session — long enough for `pos` to resolve to the wrong cell once the
+     * edited cell's length changes. `resolveLiveCellCoords()` recomputes ranges from the current
+     * document instead, so it takes priority whenever it succeeds; the cached ranges remain as a
+     * fallback for DOM not yet registered in `widgetDomState` (e.g. direct `toDOM()` use in tests).
      */
     coordsAt(
         dom: HTMLElement,
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        const coords = findCellForPos(this.cellRanges, pos);
+        const liveCoords = this.resolveLiveCellCoords(dom, pos);
+        const coords = liveCoords === undefined ? findCellForPos(this.cellRanges, pos) : liveCoords;
         if (!coords) {
             return null;
         }
@@ -298,6 +310,44 @@ export class TableWidget extends WidgetType {
         }
 
         return cell.getBoundingClientRect();
+    }
+
+    /**
+     * Resolves `pos` against the table's live document text rather than the `cellRanges`
+     * snapshot captured at the last full rebuild. `state.view` is the same long-lived
+     * `EditorView` instance across the widget's life — `.state` always reflects the latest
+     * transaction even when `updateDOM()` hasn't run — so this stays accurate through the
+     * `mapDecorations` path that keeps `this.tableFrom`/`this.cellRanges` frozen.
+     *
+     * `undefined` means live resolution was unavailable and the caller may use cached ranges.
+     * `null` is an authoritative result that the live position does not belong to a cell.
+     */
+    private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null | undefined {
+        const state = widgetDomState.get(dom);
+        if (!state) {
+            return undefined;
+        }
+
+        let liveTableFrom: number;
+        try {
+            // Mirrors findTableWidgetElement()'s posAtDOM-based lookup: avoids trusting any
+            // cached position field, which is exactly what's stale here.
+            liveTableFrom = state.view.posAtDOM(dom);
+        } catch {
+            return undefined;
+        }
+
+        const table = resolveContainingTableAtPos(state.view.state, liveTableFrom + pos);
+        if (!table) {
+            return undefined;
+        }
+
+        const ctx = buildTableContext(table);
+        if (!ctx) {
+            return undefined;
+        }
+
+        return findCellForPos(ctx.cellRanges, liveTableFrom + pos - ctx.from);
     }
 
     ignoreEvent(): boolean {
