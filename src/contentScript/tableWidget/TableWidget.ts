@@ -3,7 +3,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
     ATTR_TABLE_FROM,
@@ -281,12 +281,24 @@ export class TableWidget extends WidgetType {
      *
      * CodeMirror subtracts the widget's document start offset before calling this, so `pos` is
      * already relative to the widget — do not subtract `tableFrom` here.
+     *
+     * `this.cellRanges` reflects the table text as of the last full rebuild. In-cell edits are
+     * forwarded through the `mapDecorations` path (see tableDecorationPolicy.ts) precisely so the
+     * widget is *not* rebuilt while a nested editor is open, which leaves `cellRanges` stale for
+     * the whole editing session. The actively edited cell is the only part of a rendered table
+     * with a real cursor, so when one is open we resolve straight to its DOM element (tagged with
+     * `CLASS_CELL_ACTIVE`) instead of trusting offsets that may no longer match the live document.
      */
     coordsAt(
         dom: HTMLElement,
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
+        const activeCell = dom.querySelector(`.${CLASS_CELL_ACTIVE}`);
+        if (activeCell) {
+            return activeCell.getBoundingClientRect();
+        }
+
         const coords = findCellForPos(this.cellRanges, pos);
         if (!coords) {
             return null;
