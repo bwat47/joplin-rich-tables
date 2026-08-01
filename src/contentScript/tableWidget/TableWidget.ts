@@ -79,10 +79,10 @@ function requestTableMeasurement(container: HTMLElement): void {
  */
 export class TableWidget extends WidgetType {
     constructor(
-        private tableData: MarkdownTable,
+        private readonly tableData: MarkdownTable,
         private readonly cellRanges: TableCellRanges,
-        private tableText: string,
-        private tableFrom: number
+        private readonly tableText: string,
+        private readonly tableFrom: number
     ) {
         super();
     }
