@@ -321,6 +321,14 @@ export class TableWidget extends WidgetType {
      *
      * `undefined` means live resolution was unavailable and the caller may use cached ranges.
      * `null` is an authoritative result that the live position does not belong to a cell.
+     *
+     * The distinction is imperfect: `resolveContainingTableAtPos()` returns `null` both when
+     * the syntax tree is unavailable (timeout) and when the position genuinely isn't in a
+     * table, so the latter also maps to `undefined` here and falls back to cached ranges.
+     * This is deliberate: the "no longer a table" case is nearly unreachable (structural
+     * edits rebuild the widget via `eq()`; the `mapDecorations` window only spans in-cell
+     * edits, which keep the table intact), and a slightly stale cell rect scrolls better
+     * than the `null` alternative of no coordinates at all.
      */
     private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null | undefined {
         const state = widgetDomState.get(dom);
