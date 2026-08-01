@@ -20,9 +20,8 @@ import {
     getCellSelector,
 } from './domHelpers';
 import { estimateTableHeight } from './tableHeightEstimation';
-import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
+import { renderCellMarkdownInto } from '../services/renderCellInto';
 import { getViewDocument, getViewWindow } from '../shared/domContext';
-import { logger } from '../../logger';
 
 /**
  * What a rendered widget root currently represents.
@@ -228,40 +227,13 @@ export class TableWidget extends WidgetType {
         doc: Document,
         renderer: MarkdownRenderService
     ): void {
-        const { displayText, cacheKey } = buildRenderableContent(markdown);
-
         // Create a wrapper div for the content. This matches the structure ensureCellWrapper()
         // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
         const contentWrapper = doc.createElement('div');
         contentWrapper.className = CLASS_CELL_CONTENT;
         cell.appendChild(contentWrapper);
 
-        // Check if we have cached rendered HTML for the normalized cell content
-        const cached = renderer.getCached(cacheKey);
-        if (cached !== undefined) {
-            contentWrapper.innerHTML = cached;
-            return;
-        }
-
-        // Show content with <br> rendered as line breaks while async render runs
-        contentWrapper.innerHTML = escapeHtmlPreservingBr(displayText);
-
-        // Check if content likely contains markdown (optimization)
-        if (containsMarkdown(cacheKey)) {
-            // Request async rendering and update when ready
-            void renderer
-                .render(cacheKey)
-                .then((html) => {
-                    // Only update if the wrapper is still in the DOM.
-                    // Note: Height re-measurement is handled automatically by ResizeObserver.
-                    if (contentWrapper.isConnected) {
-                        contentWrapper.innerHTML = html;
-                    }
-                })
-                .catch((error) => {
-                    logger.error('Failed to render table cell markdown:', error);
-                });
-        }
+        renderCellMarkdownInto(contentWrapper, markdown, renderer);
     }
 
     /**

@@ -24,14 +24,13 @@ import {
     type ResolvedActiveCell,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { renderCellMarkdownInto } from '../services/renderCellInto';
 import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
-import { logger } from '../../logger';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
@@ -249,27 +248,8 @@ class NestedEditorController {
             const renderer = mainView.state.facet(markdownRenderServiceFacet);
             const { contentFrom, contentTo } = cellRange;
             const cellText = mainView.state.doc.sliceString(contentFrom, contentTo).trim();
-            const { displayText, cacheKey } = buildRenderableContent(cellText);
-            const cached = renderer.getCached(cacheKey);
 
-            if (cached !== undefined) {
-                this.contentEl.innerHTML = cached;
-            } else {
-                this.contentEl.innerHTML = escapeHtmlPreservingBr(displayText);
-                if (containsMarkdown(cacheKey)) {
-                    const contentEl = this.contentEl;
-                    void renderer
-                        .render(cacheKey)
-                        .then((html) => {
-                            if (contentEl.isConnected) {
-                                contentEl.innerHTML = html;
-                            }
-                        })
-                        .catch((error) => {
-                            logger.error('Failed to render nested editor markdown:', error);
-                        });
-                }
-            }
+            renderCellMarkdownInto(this.contentEl, cellText, renderer);
         }
 
         this.session = null;
