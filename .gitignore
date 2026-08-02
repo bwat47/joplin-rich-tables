@@ -13,3 +13,6 @@ publish/
 gemini/
 prompts/
 .claude/settings.local.json
+.repowise/
+.claude/
+*.mcp.json
