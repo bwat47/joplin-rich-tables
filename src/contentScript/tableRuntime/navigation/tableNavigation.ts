@@ -29,7 +29,7 @@ function insertRowFromKeyboardNavigation(
 export function navigateCell(
     view: EditorView,
     direction: 'next' | 'previous' | 'up' | 'down',
-    options: { cursorPos?: InitialCursorPos; allowRowCreation?: boolean } = {}
+    options: { initialCursorPos?: InitialCursorPos; allowRowCreation?: boolean } = {}
 ): boolean {
     // Prevent race conditions from rapid key-holding
     if (shouldSuppressNavigationKeys(view.state)) {
@@ -123,7 +123,7 @@ export function navigateCell(
     requestOpenCell(view, {
         target: { resolvedCell: nextResolvedCell },
         normalizeIfNeeded: true,
-        initialCursorPos: options.cursorPos,
+        initialCursorPos: options.initialCursorPos,
         suppressKeys: true,
     });
 

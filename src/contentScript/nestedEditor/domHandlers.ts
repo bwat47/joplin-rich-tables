@@ -51,7 +51,7 @@ export function createNestedEditorKeymap(
                 const { from } = options.getSelectionBounds(nestedView);
                 if (nestedView.state.selection.main.head === from) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'previous', { cursorPos: 'end' });
+                    return navigateCell(mainView, 'previous', { initialCursorPos: 'end' });
                 }
                 return false;
             },
@@ -62,7 +62,7 @@ export function createNestedEditorKeymap(
                 const { to } = options.getSelectionBounds(nestedView);
                 if (nestedView.state.selection.main.head === to) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'next', { cursorPos: 'start' });
+                    return navigateCell(mainView, 'next', { initialCursorPos: 'start' });
                 }
                 return false;
             },
@@ -77,12 +77,12 @@ export function createNestedEditorKeymap(
 
                 if (headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'up', { cursorPos: 'lastLineStart' });
+                    return navigateCell(mainView, 'up', { initialCursorPos: 'lastLineStart' });
                 }
 
                 if (head === from) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'up', { cursorPos: 'lastLineStart' });
+                    return navigateCell(mainView, 'up', { initialCursorPos: 'lastLineStart' });
                 }
 
                 return false;
@@ -98,12 +98,12 @@ export function createNestedEditorKeymap(
 
                 if (headRect && toRect && Math.abs(headRect.top - toRect.top) < 2) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'down', { cursorPos: 'start' });
+                    return navigateCell(mainView, 'down', { initialCursorPos: 'start' });
                 }
 
                 if (head === to) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'down', { cursorPos: 'start' });
+                    return navigateCell(mainView, 'down', { initialCursorPos: 'start' });
                 }
 
                 return false;
