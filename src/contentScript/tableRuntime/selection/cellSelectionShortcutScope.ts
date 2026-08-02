@@ -83,6 +83,47 @@ function isInsideSelectedTableWidget(view: EditorView, selection: CellSelection,
 }
 
 /**
+ * Classifies whether the table runtime owns an event based on the focused element.
+ *
+ * Branch order is significant:
+ * 1. Nested cell editors belong to this table runtime, even though their editable
+ *    content would otherwise be classified as an interactive element — so they are
+ *    checked before the interactive gate.
+ * 2. Genuinely interactive elements (toolbar buttons, dialogs, inputs) handle their
+ *    own events, so yield to them.
+ * 3. Everything below requires a selection the user can act on:
+ *    - a structural focus host means focus is parked on a container rather than a
+ *      real control;
+ *    - a non-interactive element inside the selected widget keeps table shortcuts
+ *      working while the widget has soft focus;
+ *    - anywhere else inside this CM instance is handled to prevent the event from
+ *      reaching unrelated handlers outside the table context.
+ */
+function canHandleShortcutForFocusedElement(
+    view: EditorView,
+    selection: CellSelection | null,
+    activeElement: Element
+): boolean {
+    if (isNestedEditorElement(activeElement) && view.dom.contains(activeElement)) {
+        return true;
+    }
+
+    if (isInteractiveElement(activeElement)) {
+        return false;
+    }
+
+    if (!selection) {
+        return false;
+    }
+
+    return (
+        isStructuralFocusHost(view, activeElement) ||
+        isInsideSelectedTableWidget(view, selection, activeElement) ||
+        view.dom.contains(activeElement)
+    );
+}
+
+/**
  * Determines whether document-level capture-phase event listeners should handle
  * a clipboard event (copy/cut/paste) or a keyboard shortcut that applies to both
  * cell selections and active cells. Returns true when focus is in a location where
@@ -90,9 +131,9 @@ function isInsideSelectedTableWidget(view: EditorView, selection: CellSelection,
  */
 export function canHandleTableClipboardShortcut(view: EditorView): boolean {
     const selection = getCellSelection(view.state);
-    const activeCell = getActiveCell(view.state);
+
     // No table interaction state at all — nothing to handle.
-    if (!selection && !activeCell) {
+    if (!selection && !getActiveCell(view.state)) {
         return false;
     }
 
@@ -104,36 +145,7 @@ export function canHandleTableClipboardShortcut(view: EditorView): boolean {
         return Boolean(selection);
     }
 
-    // Focus is inside a nested cell editor within this CM instance — always handle.
-    if (isNestedEditorElement(activeElement) && view.dom.contains(activeElement)) {
-        return true;
-    }
-
-    // Focus is on a genuinely interactive element (toolbar button, dialog, input, etc.).
-    // Yield to that element's own event handling.
-    if (isInteractiveElement(activeElement)) {
-        return false;
-    }
-
-    // Focus is parked on a container rather than a real control — handle if we have
-    // a selection that the user can act on.
-    if (isStructuralFocusHost(view, activeElement)) {
-        return Boolean(selection);
-    }
-
-    if (!selection) {
-        return false;
-    }
-
-    // Focus is on a non-interactive element inside the selected table widget —
-    // handle to keep table shortcuts working while the widget has soft focus.
-    if (isInsideSelectedTableWidget(view, selection, activeElement)) {
-        return true;
-    }
-
-    // Focus is somewhere else inside the CM editor — handle to prevent the event
-    // from reaching unrelated handlers outside the table context.
-    return view.dom.contains(activeElement);
+    return canHandleShortcutForFocusedElement(view, selection, activeElement);
 }
 
 /**
