@@ -1,3 +1,4 @@
+import type { StateEffect } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
@@ -14,6 +15,23 @@ function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null
     return null;
 }
 
+/** True when the event landed on the table widget, a cell editor, or the floating toolbar. */
+function isInsideTableUi(target: Element): boolean {
+    return Boolean(
+        target.closest(getWidgetSelector()) ||
+        target.closest(`.${CLASS_CELL_EDITOR}`) ||
+        target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
+    );
+}
+
+/** Effects that tear down whichever table selection state is currently live. */
+function buildClearEffects(hasActiveCell: boolean, hasCellSelection: boolean): StateEffect<unknown>[] {
+    return [
+        ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+        ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+    ];
+}
+
 function handleOutsideTableInteraction(
     view: EditorView,
     event: MouseEvent | PointerEvent,
@@ -25,11 +43,7 @@ function handleOutsideTableInteraction(
     }
 
     // Keep editor open if interaction is inside the widget or nested editor.
-    if (
-        target.closest(getWidgetSelector()) ||
-        target.closest(`.${CLASS_CELL_EDITOR}`) ||
-        target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
-    ) {
+    if (isInsideTableUi(target)) {
         return false;
     }
 
@@ -47,10 +61,7 @@ function handleOutsideTableInteraction(
         // menu opens against the expected pointer target without viewport jumps.
         view.dispatch({
             selection: { anchor: clickPos },
-            effects: [
-                ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
-                ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-            ],
+            effects: buildClearEffects(hasActiveCell, hasCellSelection),
             scrollIntoView: !options.preserveContextMenu,
         });
         if (!options.preserveContextMenu) {
@@ -61,12 +72,7 @@ function handleOutsideTableInteraction(
             focusMainEditorWithoutScroll(view);
         }
     } else if (hasActiveCell || hasCellSelection) {
-        view.dispatch({
-            effects: [
-                ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
-                ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-            ],
-        });
+        view.dispatch({ effects: buildClearEffects(hasActiveCell, hasCellSelection) });
     }
 
     // For mousedown, consume only if we positioned the cursor.
