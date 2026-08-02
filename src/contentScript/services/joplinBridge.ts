@@ -1,10 +1,14 @@
 import type {
     OpenLinkMessage,
+    OpenLinkResult,
     RenderMarkupMessage,
     RenderMarkupResult,
 } from '../../contentScriptBridge/contentScriptMessages';
 
 type PostMessageFn = (message: unknown) => Promise<unknown>;
+
+/** Used when the host reports a link failure without describing it. */
+const UNKNOWN_OPEN_LINK_ERROR = 'Unknown error opening link';
 
 export interface JoplinBridge {
     renderMarkup: (markdown: string, id: string) => Promise<RenderMarkupResult | null>;
@@ -29,7 +33,13 @@ export function createJoplinBridge(postMessage: PostMessageFn): JoplinBridge {
                 href,
             };
 
-            await postMessage(message);
+            const result = (await postMessage(message)) as OpenLinkResult | null;
+
+            // The host answers failures with `success: false` rather than rejecting,
+            // so reject here to surface them to the caller's error handling.
+            if (result && !result.success) {
+                throw new Error(result.error ?? UNKNOWN_OPEN_LINK_ERROR);
+            }
         },
     };
 }
