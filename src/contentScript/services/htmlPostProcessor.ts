@@ -57,6 +57,16 @@ function cleanupAndOptimizeHtml(html: string): string {
 }
 
 /**
+ * A footnote reference with its label captured, e.g. `[^abc]` or `[^note 1]`.
+ * The capture group is required: `convertFootnoteRefs` splits on this pattern
+ * and reads the labels out of the resulting parts.
+ */
+const FOOTNOTE_REF_PATTERN = /\[\^([^\]]+)\]/;
+
+/** Elements whose text is literal, so `[^label]` inside them is not a reference. */
+const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
+
+/**
  * Convert [^label] patterns to footnote links, but only in text nodes
  * outside of <code> and <pre> elements.
  *
@@ -74,46 +84,58 @@ function convertFootnoteRefs(html: string): string {
 /** Recursively process text nodes, skipping code/pre elements */
 function processFootnotesInNode(node: Node): void {
     for (const child of Array.from(node.childNodes)) {
-        if (child.nodeType === Node.TEXT_NODE) {
-            const text = child.textContent || '';
-            if (/\[\^[^\]]+\]/.test(text)) {
-                const fragment = document.createDocumentFragment();
-                let lastIndex = 0;
-                const regex = /\[\^([^\]]+)\]/g;
-                let match;
-
-                while ((match = regex.exec(text)) !== null) {
-                    // Add text before the footnote
-                    if (match.index > lastIndex) {
-                        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-                    }
-
-                    const label = match[1];
-                    const sup = document.createElement('sup');
-                    sup.className = 'footnote-ref';
-
-                    const a = document.createElement('a');
-                    a.href = buildFootnoteHref(label);
-                    a.textContent = label;
-
-                    sup.appendChild(a);
-                    fragment.appendChild(sup);
-
-                    lastIndex = regex.lastIndex;
-                }
-
-                // Add remaining text
-                if (lastIndex < text.length) {
-                    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-                }
-
-                child.replaceWith(fragment);
-            }
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
             const el = child as Element;
-            if (el.tagName !== 'CODE' && el.tagName !== 'PRE') {
+            if (!LITERAL_TEXT_TAGS.has(el.tagName)) {
                 processFootnotesInNode(el);
             }
+            continue;
+        }
+
+        if (child.nodeType !== Node.TEXT_NODE) {
+            continue;
+        }
+
+        const fragment = buildFootnoteFragment(child.textContent || '');
+        if (fragment) {
+            child.replaceWith(fragment);
         }
     }
+}
+
+/**
+ * The replacement for a text node containing footnote references, or null when
+ * the text has none and the node should be left as it is.
+ */
+function buildFootnoteFragment(text: string): DocumentFragment | null {
+    // Splitting on a capturing pattern interleaves the parts: even indices are
+    // the literal text between references, odd indices are the captured labels.
+    const parts = text.split(FOOTNOTE_REF_PATTERN);
+    if (parts.length === 1) {
+        return null;
+    }
+
+    const fragment = document.createDocumentFragment();
+    parts.forEach((part, index) => {
+        if (index % 2 === 1) {
+            fragment.appendChild(createFootnoteRef(part));
+        } else if (part) {
+            fragment.appendChild(document.createTextNode(part));
+        }
+    });
+
+    return fragment;
+}
+
+/** `<sup class="footnote-ref"><a href="#fn-label">label</a></sup>` */
+function createFootnoteRef(label: string): HTMLElement {
+    const sup = document.createElement('sup');
+    sup.className = 'footnote-ref';
+
+    const a = document.createElement('a');
+    a.href = buildFootnoteHref(label);
+    a.textContent = label;
+
+    sup.appendChild(a);
+    return sup;
 }

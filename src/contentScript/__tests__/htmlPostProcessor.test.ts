@@ -61,6 +61,46 @@ describe('postProcessHtml', () => {
         expect(doc.querySelector('pre')?.textContent).toBe('pre [^nope2]');
     });
 
+    test('converts every footnote ref in a text node and keeps the surrounding text', () => {
+        const html = '<div>start [^one] middle [^two] end</div>';
+
+        const result = postProcessHtml(html);
+        const doc = parseHtml(result);
+
+        const refs = Array.from(doc.querySelectorAll('sup.footnote-ref a'));
+        expect(refs.map((ref) => ref.textContent)).toEqual(['one', 'two']);
+        expect(doc.querySelector('div')?.textContent).toBe('start one middle two end');
+    });
+
+    test('converts adjacent footnote refs without inserting empty text', () => {
+        const html = '<div>[^a][^b]</div>';
+
+        const result = postProcessHtml(html);
+        const doc = parseHtml(result);
+
+        const div = doc.querySelector('div') as HTMLElement;
+        expect(Array.from(div.childNodes).map((n) => n.nodeName)).toEqual(['SUP', 'SUP']);
+    });
+
+    test('encodes labels with characters that are not URL safe', () => {
+        const html = '<div>see [^note 1]</div>';
+
+        const result = postProcessHtml(html);
+        const doc = parseHtml(result);
+
+        const ref = doc.querySelector('sup.footnote-ref a');
+        expect(ref?.getAttribute('href')).toBe('#fn-note%201');
+        expect(ref?.textContent).toBe('note 1');
+    });
+
+    test('leaves text without footnote refs untouched', () => {
+        const html = '<div>plain [not a ref] text</div>';
+
+        const result = postProcessHtml(html);
+
+        expect(result).toBe(html);
+    });
+
     test('replaces KaTeX HTML with MathML and removes annotations and direct text nodes', () => {
         const html =
             '<div>' +
