@@ -87,7 +87,7 @@ function decideDocumentEditDecoration(tr: Transaction): DecorationDecision {
  * Decides how the table decoration field reacts to a transaction.
  * The order of the checks below is significant: earlier decisions deliberately
  * win over later ones (a full document replace, for example, outranks a
- * pending rebuild effect in the same transaction).
+ * rebuildTableWidgetsEffect in the same transaction).
  */
 export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
     return (
