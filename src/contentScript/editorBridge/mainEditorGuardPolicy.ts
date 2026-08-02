@@ -30,32 +30,74 @@ export type GuardDecision =
           selection: EditorSelection;
       };
 
-function extractSingleInsertedText(tr: Transaction): string | null {
-    let insertedText: string | null = null;
-    let changeCount = 0;
-
-    tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
-        changeCount++;
-        if (changeCount === 1) {
-            insertedText = inserted.toString();
-        }
-    });
-
-    return changeCount === 1 && insertedText ? insertedText : null;
+interface SingleChange {
+    from: number;
+    to: number;
+    insertedText: string;
 }
 
-function extractSingleChangeRange(tr: Transaction): { from: number; to: number } | null {
-    let changeRange: { from: number; to: number } | null = null;
+function extractSinglePasteChange(tr: Transaction): SingleChange | null {
+    let singleChange: SingleChange | null = null;
+    let hasInsertedText = false;
     let changeCount = 0;
 
-    tr.changes.iterChanges((fromA, toA) => {
+    tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         changeCount++;
         if (changeCount === 1) {
-            changeRange = { from: fromA, to: toA };
+            const insertedText = inserted.toString();
+            singleChange = { from: fromA, to: toA, insertedText };
+            hasInsertedText = insertedText.length > 0;
         }
     });
 
-    return changeCount === 1 ? changeRange : null;
+    return changeCount === 1 && hasInsertedText ? singleChange : null;
+}
+
+function decideNestedEditorPaste(tr: Transaction, pastedText: string): GuardDecision | null {
+    const resolvedActiveCell = getResolvedActiveCell(tr.startState);
+    if (!resolvedActiveCell) {
+        return null;
+    }
+
+    const activeCell = resolvedActiveCell.activeCell;
+    const rewrite = buildMultiCellPasteRewrite(
+        tr.startState,
+        {
+            tableFrom: resolvedActiveCell.tableFrom,
+            anchor: {
+                section: activeCell.section,
+                row: activeCell.row,
+                col: activeCell.col,
+            },
+            source: 'activeCell',
+        },
+        pastedText
+    );
+
+    return rewrite ? { type: 'rewriteTableClipboard', rewrite } : null;
+}
+
+function decideRootEditorPaste(tr: Transaction, change: SingleChange): GuardDecision | null {
+    if (getCellSelection(tr.startState) || isEffectiveRawMode(tr.startState)) {
+        return null;
+    }
+
+    const rewrite = buildRootTablePasteRewrite(tr.startState, change.from, change.to, change.insertedText);
+
+    return rewrite ? { type: 'rewriteRootTablePaste', rewrite } : null;
+}
+
+function decidePasteTransaction(tr: Transaction, nestedEditorOpen: boolean): GuardDecision | null {
+    if (!tr.isUserEvent('input.paste')) {
+        return null;
+    }
+
+    const change = extractSinglePasteChange(tr);
+    if (!change) {
+        return null;
+    }
+
+    return nestedEditorOpen ? decideNestedEditorPaste(tr, change.insertedText) : decideRootEditorPaste(tr, change);
 }
 
 function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
@@ -87,51 +129,9 @@ export function decideMainEditorGuardTransaction(
         return { type: 'allowTransaction' };
     }
 
-    if (tr.isUserEvent('input.paste')) {
-        const pastedText = extractSingleInsertedText(tr);
-
-        if (pastedText) {
-            if (params.nestedEditorOpen) {
-                const resolvedActiveCell = getResolvedActiveCell(tr.startState);
-
-                if (resolvedActiveCell) {
-                    const activeCell = resolvedActiveCell.activeCell;
-                    const rewrite = buildMultiCellPasteRewrite(
-                        tr.startState,
-                        {
-                            tableFrom: resolvedActiveCell.tableFrom,
-                            anchor: {
-                                section: activeCell.section,
-                                row: activeCell.row,
-                                col: activeCell.col,
-                            },
-                            source: 'activeCell',
-                        },
-                        pastedText
-                    );
-
-                    if (rewrite) {
-                        return { type: 'rewriteTableClipboard', rewrite };
-                    }
-                }
-            }
-
-            if (!params.nestedEditorOpen && !getCellSelection(tr.startState) && !isEffectiveRawMode(tr.startState)) {
-                const changeRange = extractSingleChangeRange(tr);
-                if (changeRange) {
-                    const rewrite = buildRootTablePasteRewrite(
-                        tr.startState,
-                        changeRange.from,
-                        changeRange.to,
-                        pastedText
-                    );
-
-                    if (rewrite) {
-                        return { type: 'rewriteRootTablePaste', rewrite };
-                    }
-                }
-            }
-        }
+    const pasteDecision = decidePasteTransaction(tr, params.nestedEditorOpen);
+    if (pasteDecision) {
+        return pasteDecision;
     }
 
     const activeCell = getActiveCell(tr.startState);
