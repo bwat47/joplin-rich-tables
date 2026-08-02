@@ -1,7 +1,9 @@
 import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { slugify } from '../shared/cellContentUtils';
 import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import type { CellCoords } from '../tableModel/types';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
@@ -9,8 +11,27 @@ import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } f
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 
+/** Matches fenced code block delimiters (``` or ~~~) */
+const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
+
+/** Matches an ATX heading, capturing the hashes and the heading text: `## Some heading` */
+const HEADING_REGEX = /^(#{1,6})\s+(.*)/;
+
+/** Matches footnote anchors without a `ref` prefix: `#fn1`, `#fn-1` */
+const FOOTNOTE_ANCHOR_REGEX = /^#fn-?(.+)$/;
+
+/** Matches footnote back-reference anchors: `#fnref1`, `#fnref-1` */
+const FOOTNOTE_REF_ANCHOR_REGEX = /^#fnref-?(.+)$/;
+
+const ANCHOR_HREF_PREFIX = '#';
+
+const SELECTOR_LINK = 'a';
+const SELECTOR_CELL = 'td, th';
+
+const MOUSE_BUTTON_LEFT = 0;
+
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
-    const link = target.closest('a');
+    const link = target.closest(SELECTOR_LINK);
     if (!link) {
         return null;
     }
@@ -28,7 +49,7 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
     }
 
     const href = link.getAttribute('href');
-    if (!href || href === '#' || href === '') {
+    if (!href || href === ANCHOR_HREF_PREFIX || href === '') {
         return null;
     }
 
@@ -36,31 +57,10 @@ function getLinkHrefFromTarget(target: HTMLElement): string | null {
 }
 
 /**
- * Handle internal anchor links by scrolling to the footnote definition.
- * Footnote anchors can be #fn1, #fn-1, #fnref1, #fnref-1 depending on markdown-it config.
+ * Position of the first document line matching `predicate`, skipping fenced code blocks.
+ * Returns null when no line matches.
  */
-import { slugify } from '../shared/cellContentUtils';
-
-/** Matches fenced code block delimiters (``` or ~~~) */
-const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
-
-function scrollToAnchor(view: EditorView, anchor: string): void {
-    // 1. Try Footnote Extraction
-    // Defines: #fn1, #fn-1, #fnref1, #fnref-1 (with or without hyphen)
-    const fnMatch = anchor.match(/^#fn-?(.+)$/) || anchor.match(/^#fnref-?(.+)$/);
-    if (fnMatch) {
-        const label = fnMatch[1];
-        // Search for the footnote definition [^label]: in the document
-        const pattern = new RegExp(String.raw`^\s*\[\^${escapeRegex(label)}\]:`, 'i');
-        const pos = findPatternPosition(view, pattern);
-        if (pos !== null) {
-            scrollToPosition(view, pos);
-        }
-        return;
-    }
-
-    // 2. Try Heading Extraction
-    const activeSlug = anchor.replace(/^#/, '');
+function findLinePosition(view: EditorView, predicate: (line: string) => boolean): number | null {
     let lineStart = 0;
     let inFencedCode = false;
 
@@ -70,35 +70,7 @@ function scrollToAnchor(view: EditorView, anchor: string): void {
             inFencedCode = !inFencedCode;
         }
 
-        if (!inFencedCode && line.startsWith('#')) {
-            const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
-            if (headingMatch) {
-                const headingContent = headingMatch[2].trim();
-                if (slugify(headingContent) === activeSlug) {
-                    scrollToPosition(view, lineStart);
-                    return;
-                }
-            }
-        }
-
-        lineStart += line.length + 1; // +1 for newline
-    }
-}
-
-/**
- * Find position of first line matching pattern, skipping fenced code blocks.
- */
-function findPatternPosition(view: EditorView, pattern: RegExp): number | null {
-    let lineStart = 0;
-    let inFencedCode = false;
-
-    for (const line of view.state.doc.iterLines()) {
-        // Track fenced code blocks (``` or ~~~)
-        if (FENCED_CODE_REGEX.test(line)) {
-            inFencedCode = !inFencedCode;
-        }
-
-        if (!inFencedCode && pattern.test(line)) {
+        if (!inFencedCode && predicate(line)) {
             return lineStart;
         }
 
@@ -106,6 +78,49 @@ function findPatternPosition(view: EditorView, pattern: RegExp): number | null {
     }
 
     return null;
+}
+
+/** True when `line` is an ATX heading whose slugified text equals `slug`. */
+function isHeadingWithSlug(line: string, slug: string): boolean {
+    const headingMatch = line.match(HEADING_REGEX);
+    return headingMatch !== null && slugify(headingMatch[2].trim()) === slug;
+}
+
+/**
+ * Extract the footnote label from an anchor.
+ *
+ * NOTE: `FOOTNOTE_REF_ANCHOR_REGEX` is currently unreachable — `#fnref1` / `#fnref-1`
+ * already match `FOOTNOTE_ANCHOR_REGEX`, which captures the label as `ref1` / `ref-1`.
+ * Kept verbatim so this stays behaviour-preserving; correcting it is a separate change.
+ */
+function extractFootnoteLabel(anchor: string): string | null {
+    const match = anchor.match(FOOTNOTE_ANCHOR_REGEX) || anchor.match(FOOTNOTE_REF_ANCHOR_REGEX);
+    return match ? match[1] : null;
+}
+
+/**
+ * Resolve an internal anchor link to a document position.
+ * Footnote anchors can be #fn1, #fn-1, #fnref1, #fnref-1 depending on markdown-it config;
+ * anything else is treated as a heading slug.
+ */
+function resolveAnchorPosition(view: EditorView, anchor: string): number | null {
+    const footnoteLabel = extractFootnoteLabel(anchor);
+    if (footnoteLabel !== null) {
+        // Search for the footnote definition [^label]: in the document
+        const pattern = new RegExp(String.raw`^\s*\[\^${escapeRegex(footnoteLabel)}\]:`, 'i');
+        return findLinePosition(view, (line) => pattern.test(line));
+    }
+
+    const activeSlug = anchor.replace(/^#/, '');
+    return findLinePosition(view, (line) => isHeadingWithSlug(line, activeSlug));
+}
+
+/** Handle internal anchor links by scrolling to the footnote definition or heading. */
+function scrollToAnchor(view: EditorView, anchor: string): void {
+    const pos = resolveAnchorPosition(view, anchor);
+    if (pos !== null) {
+        scrollToPosition(view, pos);
+    }
 }
 
 /** Scroll to a document position and focus the editor.
@@ -126,6 +141,110 @@ function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Read cell coordinates from a cell element's data attributes.
+ * Returns null when any attribute is missing or unparseable.
+ */
+function readCellCoords(cell: HTMLElement): CellCoords | null {
+    const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
+    const row = Number(cell.dataset[DATA_ROW]);
+    const col = Number(cell.dataset[DATA_COL]);
+
+    if (!section || Number.isNaN(row) || Number.isNaN(col)) {
+        return null;
+    }
+
+    // The header is always a single row, so its row index is pinned to 0.
+    return { section, row: section === SECTION_HEADER ? 0 : row, col };
+}
+
+/** Click events: strict link opening. */
+function handleWidgetClick(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
+    // Only handle left clicks
+    if (event.button !== MOUSE_BUTTON_LEFT) {
+        return false;
+    }
+
+    const href = getLinkHrefFromTarget(target);
+    if (!href) {
+        return false;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Handle internal anchor links (e.g., footnotes #fn-1, #fnref-1)
+    // Joplin's openItem doesn't support these, so we scroll manually
+    if (href.startsWith(ANCHOR_HREF_PREFIX)) {
+        scrollToAnchor(view, href);
+        return true;
+    }
+
+    view.state.facet(linkOpenerFacet).open(href);
+    return true;
+}
+
+/** Mousedown events: cell activation. */
+function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
+    // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
+    // and open the link.
+    // If we processed cell activation here, it might swallow the event or change focus
+    // in a way that prevents the click.
+    // However, allow RIGHT click (button 2) to fall through to cell activation so we can open the editor
+    // and see the context menu.
+    if (event.button === MOUSE_BUTTON_LEFT && target.closest(SELECTOR_LINK)) {
+        if (getCellSelection(view.state)) {
+            view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+        }
+        return true; // Claim the event to prevent CodeMirror default selection, but don't activate cell
+    }
+
+    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    if (!cell) {
+        // Consume the event to prevent CodeMirror's internal mousedown handler from
+        // repositioning the cursor. Without this, clicking the widget's horizontal
+        // scrollbar maps to a document position at or after the table, which clears
+        // the active cell state and closes the nested editor.
+        return true;
+    }
+
+    return activateCellFromMouseDown(view, event, cell);
+}
+
+/** Extend the cell selection (shift-click) or open the clicked cell. */
+function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HTMLElement): boolean {
+    const coords = readCellCoords(cell);
+    if (!coords) {
+        return false;
+    }
+
+    const ctx = resolveTableContextFromEventTarget(view, cell);
+    if (!ctx) {
+        return false;
+    }
+
+    const resolvedCell = createResolvedActiveCell({ ctx, coords });
+    if (!resolvedCell) {
+        return false;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const hasSelection = Boolean(getCellSelection(view.state));
+    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, coords, ctx.from)) {
+        return true;
+    }
+
+    requestOpenCell(view, {
+        target: { resolvedCell },
+        clearCellSelection: hasSelection,
+        normalizeIfNeeded: true,
+    });
+
+    return true;
+}
+
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
     if (!target) {
@@ -143,111 +262,12 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    const isLink = Boolean(target.closest('a'));
-
-    // Handle Click events: strict link opening
     if (event.type === 'click') {
-        const mouseEvent = event as MouseEvent;
-        // Only handle left clicks
-        if (mouseEvent.button !== 0) {
-            return false;
-        }
-
-        if (isLink) {
-            const href = getLinkHrefFromTarget(target);
-            if (href) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                // Handle internal anchor links (e.g., footnotes #fn-1, #fnref-1)
-                // Joplin's openItem doesn't support these, so we scroll manually
-                if (href.startsWith('#')) {
-                    scrollToAnchor(view, href);
-                    return true;
-                }
-
-                view.state.facet(linkOpenerFacet).open(href);
-                return true;
-            }
-        }
-        return false;
+        return handleWidgetClick(view, event as MouseEvent, target);
     }
 
-    // Handle Mousedown events: cell activation
     if (event.type === 'mousedown') {
-        // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
-        // and open the link.
-        // If we processed cell activation here, it might swallow the event or change focus
-        // in a way that prevents the click.
-        // However, allow RIGHT click (button 2) to fall through to cell activation so we can open the editor
-        // and see the context menu.
-        const mouseEvent = event as MouseEvent;
-        if (isLink && mouseEvent.button === 0) {
-            if (getCellSelection(view.state)) {
-                view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
-            }
-            return true; // Claim the event to prevent CodeMirror default selection, but don't activate cell
-        }
-
-        // Cell activation logic
-        const cell = target.closest('td, th') as HTMLElement | null;
-        if (!cell) {
-            // Consume the event to prevent CodeMirror's internal mousedown handler from
-            // repositioning the cursor. Without this, clicking the widget's horizontal
-            // scrollbar maps to a document position at or after the table, which clears
-            // the active cell state and closes the nested editor.
-            return true;
-        }
-
-        const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
-        const row = Number(cell.dataset[DATA_ROW]);
-        const col = Number(cell.dataset[DATA_COL]);
-
-        if (!section || Number.isNaN(row) || Number.isNaN(col)) {
-            return false;
-        }
-
-        const ctx = resolveTableContextFromEventTarget(view, cell);
-        if (!ctx) {
-            return false;
-        }
-
-        const resolvedCell = createResolvedActiveCell({
-            ctx,
-            coords: {
-                section,
-                row: section === SECTION_HEADER ? 0 : row,
-                col,
-            },
-        });
-        if (!resolvedCell) {
-            return false;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        const currentSelection = getCellSelection(view.state);
-        const hasSelection = Boolean(currentSelection);
-        if (mouseEvent.shiftKey) {
-            if (
-                setOrExtendCellSelectionToCoords(
-                    view,
-                    { section, row: section === SECTION_HEADER ? 0 : row, col },
-                    ctx.from
-                )
-            ) {
-                return true;
-            }
-        }
-
-        requestOpenCell(view, {
-            target: { resolvedCell },
-            clearCellSelection: hasSelection,
-            normalizeIfNeeded: true,
-        });
-
-        return true;
+        return handleWidgetMouseDown(view, event as MouseEvent, target);
     }
 
     return false;
