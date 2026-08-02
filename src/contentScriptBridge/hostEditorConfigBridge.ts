@@ -49,26 +49,36 @@ export function defaultHostEditorConfig(): HostEditorConfig {
     };
 }
 
+/**
+ * Checks that `value` is a non-null object carrying a boolean under every key of `shape`.
+ * Extra keys are ignored, matching the tolerant validation the bridge has always applied.
+ */
+function isBooleanShape(value: unknown, shape: Record<string, boolean>): boolean {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+
+    const candidate = value as Record<string, unknown>;
+
+    return Object.keys(shape).every((key) => typeof candidate[key] === 'boolean');
+}
+
+/**
+ * The expected keys are derived from {@link defaultHostEditorConfig} so the guard stays exhaustive:
+ * adding a field to `HostEditorConfig` forces a matching default, which this check then picks up.
+ * A future non-boolean field is a compile error here rather than a silently unvalidated field.
+ */
 export function isHostEditorConfig(value: unknown): value is HostEditorConfig {
     if (typeof value !== 'object' || value === null) {
         return false;
     }
 
     const candidate = value as Partial<HostEditorConfig>;
-    const nestedEditor = candidate.nestedEditor;
-    const toolbar = candidate.toolbar;
+    const defaults = defaultHostEditorConfig();
 
     return (
-        typeof nestedEditor === 'object' &&
-        nestedEditor !== null &&
-        typeof nestedEditor.autoMatchingBraces === 'boolean' &&
-        typeof nestedEditor.spellcheck === 'boolean' &&
-        typeof toolbar === 'object' &&
-        toolbar !== null &&
-        typeof toolbar.showMoveButtons === 'boolean' &&
-        typeof toolbar.showClearButtons === 'boolean' &&
-        typeof toolbar.showAlignmentButtons === 'boolean' &&
-        typeof toolbar.showDeleteTableButton === 'boolean'
+        isBooleanShape(candidate.nestedEditor, defaults.nestedEditor) &&
+        isBooleanShape(candidate.toolbar, defaults.toolbar)
     );
 }
 
