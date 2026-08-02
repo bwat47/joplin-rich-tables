@@ -1,3 +1,5 @@
+import { buildFootnoteHref } from '../shared/footnoteAnchor';
+
 /**
  * Post-process rendered HTML to fix Joplin-specific display issues.
  * Includes KaTeX optimization and footnote reference conversion.
@@ -91,8 +93,7 @@ function processFootnotesInNode(node: Node): void {
                     sup.className = 'footnote-ref';
 
                     const a = document.createElement('a');
-                    // Encode any unsafe characters in the label for the ID
-                    a.href = `#fn-${encodeURIComponent(label)}`;
+                    a.href = buildFootnoteHref(label);
                     a.textContent = label;
 
                     sup.appendChild(a);

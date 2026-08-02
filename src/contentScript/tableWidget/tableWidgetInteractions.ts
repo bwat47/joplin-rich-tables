@@ -1,6 +1,7 @@
 import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
+import { parseFootnoteHref } from '../shared/footnoteAnchor';
 import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import type { CellCoords } from '../tableModel/types';
@@ -16,12 +17,6 @@ const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
 
 /** Matches an ATX heading, capturing the hashes and the heading text: `## Some heading` */
 const HEADING_REGEX = /^(#{1,6})\s+(.*)/;
-
-/** Matches footnote anchors without a `ref` prefix: `#fn1`, `#fn-1` */
-const FOOTNOTE_ANCHOR_REGEX = /^#fn-?(.+)$/;
-
-/** Matches footnote back-reference anchors: `#fnref1`, `#fnref-1` */
-const FOOTNOTE_REF_ANCHOR_REGEX = /^#fnref-?(.+)$/;
 
 const ANCHOR_HREF_PREFIX = '#';
 
@@ -87,26 +82,15 @@ function isHeadingWithSlug(line: string, slug: string): boolean {
 }
 
 /**
- * Extract the footnote label from an anchor.
- *
- * NOTE: `FOOTNOTE_REF_ANCHOR_REGEX` is currently unreachable — `#fnref1` / `#fnref-1`
- * already match `FOOTNOTE_ANCHOR_REGEX`, which captures the label as `ref1` / `ref-1`.
- * Kept verbatim so this stays behaviour-preserving; correcting it is a separate change.
- */
-function extractFootnoteLabel(anchor: string): string | null {
-    const match = anchor.match(FOOTNOTE_ANCHOR_REGEX) || anchor.match(FOOTNOTE_REF_ANCHOR_REGEX);
-    return match ? match[1] : null;
-}
-
-/**
  * Resolve an internal anchor link to a document position.
- * Footnote anchors can be #fn1, #fn-1, #fnref1, #fnref-1 depending on markdown-it config;
- * anything else is treated as a heading slug.
+ * Footnote anchors are the ones this plugin renders for `[^label]` text; anything
+ * else is treated as a heading slug.
  */
 function resolveAnchorPosition(view: EditorView, anchor: string): number | null {
-    const footnoteLabel = extractFootnoteLabel(anchor);
+    const footnoteLabel = parseFootnoteHref(anchor);
     if (footnoteLabel !== null) {
-        // Search for the footnote definition [^label]: in the document
+        // Search for the footnote definition [^label]: in the document.
+        // A footnote anchor never falls back to a heading lookup.
         const pattern = new RegExp(String.raw`^\s*\[\^${escapeRegex(footnoteLabel)}\]:`, 'i');
         return findLinePosition(view, (line) => pattern.test(line));
     }
@@ -173,7 +157,7 @@ function handleWidgetClick(view: EditorView, event: MouseEvent, target: HTMLElem
     event.preventDefault();
     event.stopPropagation();
 
-    // Handle internal anchor links (e.g., footnotes #fn-1, #fnref-1)
+    // Handle internal anchor links (headings and footnotes, e.g. #fn-1)
     // Joplin's openItem doesn't support these, so we scroll manually
     if (href.startsWith(ANCHOR_HREF_PREFIX)) {
         scrollToAnchor(view, href);
