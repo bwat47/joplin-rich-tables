@@ -3,6 +3,7 @@ import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
 import { mapActiveCellThroughChanges, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
 // Explicit open requests are single-flight, may survive normalization/rebuilds,
@@ -13,7 +14,7 @@ export interface OpenCellRequest {
     requestId: string;
     activeCell: ActiveCell;
     normalizeIfNeeded: boolean;
-    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+    initialCursorPos?: InitialCursorPos;
     suppressKeys: boolean;
 }
 
@@ -38,7 +39,7 @@ export interface RequestOpenCellParams {
     target: OpenCellRequestTarget;
     clearCellSelection?: boolean;
     normalizeIfNeeded?: boolean;
-    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+    initialCursorPos?: InitialCursorPos;
     requestId?: string;
     suppressKeys?: boolean;
     scrollIntoView?: boolean;

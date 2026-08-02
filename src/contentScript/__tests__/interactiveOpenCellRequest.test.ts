@@ -110,7 +110,7 @@ describe('interactive open-cell requests', () => {
             },
         });
 
-        expect(navigateCell(view, 'next', { cursorPos: 'end' })).toBe(true);
+        expect(navigateCell(view, 'next', { initialCursorPos: 'end' })).toBe(true);
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
 
         const activeCell = getActiveCell(view.state);

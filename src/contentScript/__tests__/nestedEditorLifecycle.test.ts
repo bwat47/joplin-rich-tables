@@ -33,6 +33,7 @@ import {
 } from '../tableRuntime/openCellRequest';
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
 
@@ -114,7 +115,7 @@ function openRequestEffects(params: {
     requestId: string;
     activeCell: ActiveCell;
     normalizeIfNeeded: boolean;
-    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+    initialCursorPos?: InitialCursorPos;
 }) {
     const request: OpenCellRequest = {
         requestId: params.requestId,

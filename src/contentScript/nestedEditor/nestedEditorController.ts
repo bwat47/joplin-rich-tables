@@ -31,12 +31,12 @@ import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEdito
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
 import {
     areSelectionsEqual,
     resolveInitialLocalSelection,
     toAbsoluteSelection,
     toRelativeSelection,
-    type InitialCursorPos,
 } from './nestedEditorSelection';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;

@@ -4,6 +4,7 @@ import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestTransaction } from '../openCellRequest';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
 function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
@@ -11,7 +12,7 @@ function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
 }
 
 export interface StructuralReopenOptions {
-    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+    initialCursorPos?: InitialCursorPos;
     afterDispatch?: () => void;
     clearCellSelection?: boolean;
     suppressKeys?: boolean;
