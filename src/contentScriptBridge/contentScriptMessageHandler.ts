@@ -19,6 +19,38 @@ function isContentScriptMessage(message: unknown): message is ContentScriptMessa
     return typeof message === 'object' && message !== null && 'type' in message;
 }
 
+async function renderMarkup(message: RenderMarkupMessage, deps: ContentScriptMessageHandlerDeps) {
+    const { markdown, id } = message;
+
+    try {
+        const result = await deps.commands.execute('renderMarkup', MarkupLanguage.Markdown, markdown, null, {
+            bodyOnly: true,
+        });
+        const html =
+            typeof result === 'object' && result !== null && 'html' in result
+                ? (result as { html: string }).html
+                : String(result);
+        logger.debug('Rendered markup:', { markdown, html });
+        return { id, html };
+    } catch (error) {
+        logger.error('Failed to render markup:', error);
+        return { id, html: markdown, error: true };
+    }
+}
+
+async function openLink(message: OpenLinkMessage, deps: ContentScriptMessageHandlerDeps) {
+    const { href } = message;
+
+    try {
+        await deps.commands.execute('openItem', href);
+        logger.debug('Opened link:', href);
+        return { success: true };
+    } catch (error) {
+        logger.error('Failed to open link:', error);
+        return { success: false, error: String(error) };
+    }
+}
+
 export function createContentScriptMessageHandler(deps: ContentScriptMessageHandlerDeps) {
     return async (message: unknown): Promise<unknown> => {
         if (!isContentScriptMessage(message)) {
@@ -26,38 +58,10 @@ export function createContentScriptMessageHandler(deps: ContentScriptMessageHand
         }
 
         switch (message.type) {
-            case 'renderMarkup': {
-                const { markdown, id } = message as RenderMarkupMessage;
-                try {
-                    const result = await deps.commands.execute(
-                        'renderMarkup',
-                        MarkupLanguage.Markdown,
-                        markdown,
-                        null,
-                        { bodyOnly: true }
-                    );
-                    const html =
-                        typeof result === 'object' && result !== null && 'html' in result
-                            ? (result as { html: string }).html
-                            : String(result);
-                    logger.debug('Rendered markup:', { markdown, html });
-                    return { id, html };
-                } catch (error) {
-                    logger.error('Failed to render markup:', error);
-                    return { id, html: markdown, error: true };
-                }
-            }
-            case 'openLink': {
-                const { href } = message as OpenLinkMessage;
-                try {
-                    await deps.commands.execute('openItem', href);
-                    logger.debug('Opened link:', href);
-                    return { success: true };
-                } catch (error) {
-                    logger.error('Failed to open link:', error);
-                    return { success: false, error: String(error) };
-                }
-            }
+            case 'renderMarkup':
+                return renderMarkup(message as RenderMarkupMessage, deps);
+            case 'openLink':
+                return openLink(message as OpenLinkMessage, deps);
             case 'getHostEditorConfig':
                 return readHostEditorConfig(deps);
             default:

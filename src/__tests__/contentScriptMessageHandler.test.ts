@@ -40,6 +40,37 @@ describe('contentScriptMessageHandler', () => {
         });
     });
 
+    it('normalizes non-object render results to strings', async () => {
+        execute.mockResolvedValueOnce('rendered text');
+
+        await expect(
+            handler({
+                type: 'renderMarkup',
+                markdown: 'Test',
+                id: 'render-2',
+            })
+        ).resolves.toEqual({
+            id: 'render-2',
+            html: 'rendered text',
+        });
+    });
+
+    it('returns the source markdown when rendering fails', async () => {
+        execute.mockRejectedValueOnce(new Error('render failed'));
+
+        await expect(
+            handler({
+                type: 'renderMarkup',
+                markdown: '# Test',
+                id: 'render-3',
+            })
+        ).resolves.toEqual({
+            id: 'render-3',
+            html: '# Test',
+            error: true,
+        });
+    });
+
     it('opens links via Joplin commands', async () => {
         execute.mockResolvedValueOnce(undefined);
 
@@ -50,6 +81,20 @@ describe('contentScriptMessageHandler', () => {
 
         expect(execute).toHaveBeenCalledWith('openItem', 'https://example.com');
         expect(result).toEqual({ success: true });
+    });
+
+    it('returns an error when opening a link fails', async () => {
+        execute.mockRejectedValueOnce(new Error('open failed'));
+
+        await expect(
+            handler({
+                type: 'openLink',
+                href: 'https://example.com',
+            })
+        ).resolves.toEqual({
+            success: false,
+            error: 'Error: open failed',
+        });
     });
 
     it('reads the host editor config', async () => {
