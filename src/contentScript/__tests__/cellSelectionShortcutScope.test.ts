@@ -13,21 +13,30 @@ import {
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 
-function createViewHarness() {
+function createViewHarness(options: { activeCell?: boolean; selection?: boolean } = {}) {
+    const { activeCell = true, selection = true } = options;
     let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField]);
     state = state.update({
         effects: [
-            setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'header',
-                row: 0,
-                col: 0,
-            }),
-            setCellSelectionEffect.of({
-                tableFrom: 0,
-                anchor: { section: 'header', row: 0, col: 0 },
-                focus: { section: 'body', row: 0, col: 0 },
-            }),
+            ...(activeCell
+                ? [
+                      setActiveCellEffect.of({
+                          tableFrom: 0,
+                          section: 'header' as const,
+                          row: 0,
+                          col: 0,
+                      }),
+                  ]
+                : []),
+            ...(selection
+                ? [
+                      setCellSelectionEffect.of({
+                          tableFrom: 0,
+                          anchor: { section: 'header' as const, row: 0, col: 0 },
+                          focus: { section: 'body' as const, row: 0, col: 0 },
+                      }),
+                  ]
+                : []),
         ],
     }).state;
 
@@ -113,5 +122,71 @@ describe('cellSelectionShortcutScope', () => {
         setActiveElement(nestedContent);
 
         expect(canHandleTableClipboardShortcut(view)).toBe(true);
+    });
+
+    it('rejects shortcuts when there is no table interaction state', () => {
+        const { view } = createViewHarness({ activeCell: false, selection: false });
+        setActiveElement(document.body);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(false);
+    });
+
+    it('allows shortcuts when nothing is focused but a selection exists', () => {
+        const { view } = createViewHarness();
+        setActiveElement(null);
+
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
+    });
+
+    it('rejects shortcuts when nothing is focused and only an active cell exists', () => {
+        const { view } = createViewHarness({ selection: false });
+        setActiveElement(null);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(false);
+    });
+
+    it.each([
+        ['editor root', (harness: ReturnType<typeof createViewHarness>) => harness.root],
+        ['scroll container', (harness: ReturnType<typeof createViewHarness>) => harness.scrollDOM],
+        ['content container', (harness: ReturnType<typeof createViewHarness>) => harness.contentDOM],
+    ])('allows shortcuts when focus is on the CodeMirror %s', (_label, pickElement) => {
+        const harness = createViewHarness();
+        setActiveElement(pickElement(harness));
+
+        expect(canHandleTableSelectionKeydown(harness.view)).toBe(true);
+    });
+
+    it('rejects shortcuts when focus is on a CodeMirror container without a selection', () => {
+        const { view, contentDOM } = createViewHarness({ selection: false });
+        setActiveElement(contentDOM);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(false);
+    });
+
+    it('allows shortcuts when focus is on a non-interactive element elsewhere in the editor', () => {
+        const { view, contentDOM } = createViewHarness();
+        const sibling = document.createElement('span');
+        contentDOM.appendChild(sibling);
+        setActiveElement(sibling);
+
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
+    });
+
+    it('rejects shortcuts when focus is on a non-interactive element outside the editor', () => {
+        const { view } = createViewHarness();
+        const outside = document.createElement('span');
+        document.body.appendChild(outside);
+        setActiveElement(outside);
+
+        expect(canHandleTableSelectionKeydown(view)).toBe(false);
+    });
+
+    it('rejects shortcuts when focus is outside the editor and only an active cell exists', () => {
+        const { view } = createViewHarness({ selection: false });
+        const outside = document.createElement('span');
+        document.body.appendChild(outside);
+        setActiveElement(outside);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(false);
     });
 });
