@@ -409,7 +409,7 @@ describe('tableRuntimePolicies', () => {
         expect(decision.rewrite.tableFrom).toBe(8);
     });
 
-    it('does not rewrite multi-change paste transactions', () => {
+    it('rewrites single-change but not multi-change paste transactions', () => {
         const state = createMarkdownState(['', 'after'].join('\n'), [
             activeCellField,
             cellSelectionField,
@@ -417,7 +417,11 @@ describe('tableRuntimePolicies', () => {
             searchForceSourceModeField,
         ]);
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
-        const tr = state.update({
+        const singleChangeTr = state.update({
+            changes: { from: 0, to: 0, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+        const multiChangeTr = state.update({
             changes: [
                 { from: 0, to: 0, insert: pasteText },
                 { from: state.doc.length, to: state.doc.length, insert: 'x' },
@@ -425,7 +429,10 @@ describe('tableRuntimePolicies', () => {
             userEvent: 'input.paste',
         });
 
-        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: false })).toEqual({
+        expect(decideMainEditorGuardTransaction(singleChangeTr, { nestedEditorOpen: false })).toMatchObject({
+            type: 'rewriteRootTablePaste',
+        });
+        expect(decideMainEditorGuardTransaction(multiChangeTr, { nestedEditorOpen: false })).toEqual({
             type: 'allowTransaction',
         });
     });
