@@ -6,6 +6,7 @@ import {
 } from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import { type CellCoords } from '../../tableModel/types';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { SECTION_BODY, SECTION_HEADER } from '../../tableWidget/domHelpers';
 import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 
@@ -28,7 +29,7 @@ function insertRowFromKeyboardNavigation(
 export function navigateCell(
     view: EditorView,
     direction: 'next' | 'previous' | 'up' | 'down',
-    options: { cursorPos?: 'start' | 'end' | 'lastLineStart'; allowRowCreation?: boolean } = {}
+    options: { cursorPos?: InitialCursorPos; allowRowCreation?: boolean } = {}
 ): boolean {
     // Prevent race conditions from rapid key-holding
     if (shouldSuppressNavigationKeys(view.state)) {

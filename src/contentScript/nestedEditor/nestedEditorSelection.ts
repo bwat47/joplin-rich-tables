@@ -1,9 +1,7 @@
 import type { EditorSelection } from '@codemirror/state';
 import type { LocalSelection } from '../editorBridge/cellTextCodec';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { clamp } from '../shared/numberUtils';
-
-/** Where the caret should land when a nested editor is opened programmatically. */
-export type InitialCursorPos = 'start' | 'end' | 'lastLineStart';
 
 /** Shifts a cell-relative selection into main-document coordinates. */
 export function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): LocalSelection {
