@@ -139,33 +139,55 @@ export function requestOpenCell(view: EditorView, params: RequestOpenCellParams)
     });
 }
 
+/** A clear only applies to the request it names, so a stale clear cannot cancel a newer request. */
+function clearsRequest(effect: StateEffect<unknown>, request: OpenCellRequest | null): boolean {
+    return request !== null && effect.is(clearOpenCellRequestEffect) && effect.value.requestId === request.requestId;
+}
+
+/**
+ * Folds a transaction's effects into the pending request. `replaced` reports whether a begin
+ * effect supplied the value, which the caller needs in order to decide about remapping.
+ */
+function applyOpenCellRequestEffects(
+    value: OpenCellRequest | null,
+    effects: readonly StateEffect<unknown>[]
+): { value: OpenCellRequest | null; replaced: boolean } {
+    let nextValue = value;
+    let replaced = false;
+
+    for (const effect of effects) {
+        if (effect.is(beginOpenCellRequestEffect)) {
+            nextValue = effect.value;
+            replaced = true;
+        } else if (clearsRequest(effect, nextValue)) {
+            nextValue = null;
+        }
+    }
+
+    return { value: nextValue, replaced };
+}
+
+/** Carries a request across a document change, dropping it when its anchor is no longer salvageable. */
+function remapOpenCellRequest(request: OpenCellRequest, changes: ChangeDesc): OpenCellRequest | null {
+    const activeCell = mapActiveCell(request.activeCell, changes);
+    return activeCell ? { ...request, activeCell } : null;
+}
+
 export const openCellRequestField = StateField.define<OpenCellRequest | null>({
     create() {
         return null;
     },
 
     update(value, tr) {
-        let nextValue = value;
-        let sawBegin = false;
+        const { value: nextValue, replaced } = applyOpenCellRequestEffects(value, tr.effects);
 
-        for (const effect of tr.effects) {
-            if (effect.is(beginOpenCellRequestEffect)) {
-                nextValue = effect.value;
-                sawBegin = true;
-                continue;
-            }
-
-            if (nextValue && effect.is(clearOpenCellRequestEffect) && effect.value.requestId === nextValue.requestId) {
-                nextValue = null;
-            }
+        // A begin effect dispatched alongside its own document change already carries
+        // post-change coordinates, so remapping it would shift the anchor a second time.
+        if (!nextValue || replaced || !tr.docChanged) {
+            return nextValue;
         }
 
-        if (tr.docChanged && nextValue && !sawBegin) {
-            const activeCell = mapActiveCell(nextValue.activeCell, tr.changes);
-            return activeCell ? { ...nextValue, activeCell } : null;
-        }
-
-        return nextValue;
+        return remapOpenCellRequest(nextValue, tr.changes);
     },
 });
 
