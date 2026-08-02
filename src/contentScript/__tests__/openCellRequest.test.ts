@@ -96,6 +96,22 @@ describe('openCellRequestField', () => {
         expect(getPendingOpenCellRequest(mapped)?.activeCell.tableFrom).toBe('prefix\n'.length);
     });
 
+    it('does not remap a request that begins in the same transaction as its document change', () => {
+        // Structural mutations dispatch the change and the begin effect together, with the
+        // active cell already expressed in post-change coordinates.
+        const state = createState().update({
+            changes: { from: 0, to: 0, insert: 'prefix\n' },
+            effects: beginOpenCellRequestEffect.of({
+                requestId: 'request-1',
+                activeCell,
+                normalizeIfNeeded: true,
+                suppressKeys: true,
+            }),
+        }).state;
+
+        expect(getPendingOpenCellRequest(state)?.activeCell.tableFrom).toBe(0);
+    });
+
     it('clears the request when the table start is deleted', () => {
         const state = beginRequest(createState());
 
