@@ -37,8 +37,8 @@ export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolea
  * explicit request the mirrored selection from the main editor wins; otherwise
  * the caret is collapsed to the requested edge of the cell text.
  *
- * `lastLineStart` targets the start of the final visual line, which is what
- * upward navigation into a multi-line cell expects.
+ * `lastLineStart` splits on the last newline, so a single-line cell collapses to
+ * the start and a trailing newline leaves the caret on the empty final line.
  */
 export function resolveInitialLocalSelection(
     mirroredSelection: LocalSelection,
