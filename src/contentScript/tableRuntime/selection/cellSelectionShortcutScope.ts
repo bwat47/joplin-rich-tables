@@ -131,10 +131,9 @@ function canHandleShortcutForFocusedElement(
  */
 export function canHandleTableClipboardShortcut(view: EditorView): boolean {
     const selection = getCellSelection(view.state);
-    const hasTableInteraction = Boolean(selection ?? getActiveCell(view.state));
 
     // No table interaction state at all — nothing to handle.
-    if (!hasTableInteraction) {
+    if (!selection && !getActiveCell(view.state)) {
         return false;
     }
 
