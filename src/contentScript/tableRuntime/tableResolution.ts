@@ -52,6 +52,30 @@ function containsPosition(table: ResolvedTable, pos: number): boolean {
     return pos >= table.from && pos <= table.to;
 }
 
+function resolveTableCandidate(
+    state: EditorState,
+    node: Pick<SyntaxNode, 'from' | 'to'> | null,
+    pos: number
+): ResolvedTable | null {
+    if (!node) {
+        return null;
+    }
+
+    const resolved = buildResolvedTable(state, node);
+    return containsPosition(resolved, pos) ? resolved : null;
+}
+
+function haveSameRange(
+    first: Pick<SyntaxNode, 'from' | 'to'> | null,
+    second: Pick<SyntaxNode, 'from' | 'to'> | null
+): boolean {
+    if (!first || !second) {
+        return false;
+    }
+
+    return first.from === second.from && first.to === second.to;
+}
+
 /**
  * Resolves the table containing `pos`, or null if `pos` lies outside every table.
  *
@@ -74,11 +98,9 @@ export function resolveContainingTableAtPos(
     }
 
     const tableAfter = findTableAncestor(tree.resolve(pos, 1));
-    if (tableAfter) {
-        const resolved = buildResolvedTable(state, tableAfter);
-        if (containsPosition(resolved, pos)) {
-            return resolved;
-        }
+    const resolvedAfter = resolveTableCandidate(state, tableAfter, pos);
+    if (resolvedAfter) {
+        return resolvedAfter;
     }
 
     const tableBefore = findTableAncestor(tree.resolve(pos, -1));
@@ -86,12 +108,11 @@ export function resolveContainingTableAtPos(
     // land on the same node, containment was already checked above and failed, so falling
     // through would return null anyway. Short-circuiting skips a redundant slice and trim
     // of what may be a large table.
-    if (!tableBefore || (tableAfter && tableBefore.from === tableAfter.from && tableBefore.to === tableAfter.to)) {
+    if (haveSameRange(tableAfter, tableBefore)) {
         return null;
     }
 
-    const resolved = buildResolvedTable(state, tableBefore);
-    return containsPosition(resolved, pos) ? resolved : null;
+    return resolveTableCandidate(state, tableBefore, pos);
 }
 
 /**
