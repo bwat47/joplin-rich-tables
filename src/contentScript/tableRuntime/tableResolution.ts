@@ -53,6 +53,26 @@ function containsPosition(table: ResolvedTable, pos: number): boolean {
 }
 
 /**
+ * Resolves a candidate table node, returning it only when its *trimmed* range
+ * contains `pos`. Lezer's `Table` node can extend past the last real table row,
+ * so raw node containment is not sufficient.
+ */
+function resolveIfContaining(state: EditorState, node: SyntaxNode | null, pos: number): ResolvedTable | null {
+    if (!node) {
+        return null;
+    }
+    const resolved = buildResolvedTable(state, node);
+    return containsPosition(resolved, pos) ? resolved : null;
+}
+
+function isSameNodeRange(a: SyntaxNode | null, b: SyntaxNode | null): boolean {
+    if (!a || !b) {
+        return false;
+    }
+    return a.from === b.from && a.to === b.to;
+}
+
+/**
  * Resolves the table containing `pos`, or null if `pos` lies outside every table.
  *
  * The range returned matches what {@link findTableRanges} reports for the same table, so
@@ -74,24 +94,20 @@ export function resolveContainingTableAtPos(
     }
 
     const tableAfter = findTableAncestor(tree.resolve(pos, 1));
-    if (tableAfter) {
-        const resolved = buildResolvedTable(state, tableAfter);
-        if (containsPosition(resolved, pos)) {
-            return resolved;
-        }
+    const resolvedAfter = resolveIfContaining(state, tableAfter, pos);
+    if (resolvedAfter) {
+        return resolvedAfter;
     }
 
     const tableBefore = findTableAncestor(tree.resolve(pos, -1));
-    // The range comparison is an optimization, not a correctness guard: when both lookups
+    // The same-node check is an optimization, not a correctness guard: when both lookups
     // land on the same node, containment was already checked above and failed, so falling
     // through would return null anyway. Short-circuiting skips a redundant slice and trim
     // of what may be a large table.
-    if (!tableBefore || (tableAfter && tableBefore.from === tableAfter.from && tableBefore.to === tableAfter.to)) {
+    if (isSameNodeRange(tableBefore, tableAfter)) {
         return null;
     }
-
-    const resolved = buildResolvedTable(state, tableBefore);
-    return containsPosition(resolved, pos) ? resolved : null;
+    return resolveIfContaining(state, tableBefore, pos);
 }
 
 /**
