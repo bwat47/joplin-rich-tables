@@ -24,60 +24,95 @@ function isInsideTableUi(target: Element): boolean {
     );
 }
 
+interface OutsideInteractionOptions {
+    preserveContextMenu: boolean;
+}
+
+/** Whichever pieces of table state an outside interaction would tear down. */
+interface LiveTableState {
+    hasActiveCell: boolean;
+    hasNestedEditor: boolean;
+    hasCellSelection: boolean;
+}
+
+/** Live table state, or null when nothing is open and the interaction can be ignored. */
+function resolveLiveTableState(view: EditorView): LiveTableState | null {
+    const live: LiveTableState = {
+        hasActiveCell: Boolean(getActiveCell(view.state)),
+        hasNestedEditor: isNestedEditorOpen(view),
+        hasCellSelection: Boolean(getCellSelection(view.state)),
+    };
+    if (!live.hasActiveCell && !live.hasNestedEditor && !live.hasCellSelection) {
+        return null;
+    }
+    return live;
+}
+
 /** Effects that tear down whichever table selection state is currently live. */
-function buildClearEffects(hasActiveCell: boolean, hasCellSelection: boolean): StateEffect<unknown>[] {
+function buildClearEffects(live: LiveTableState): StateEffect<unknown>[] {
     return [
-        ...(hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
-        ...(hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+        ...(live.hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+        ...(live.hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
     ];
+}
+
+/** Moves the caret to the clicked position and clears table state around it. */
+function moveCaretAndClearTableState(
+    view: EditorView,
+    clickPos: number,
+    live: LiveTableState,
+    options: OutsideInteractionOptions
+): void {
+    // On right-click context menus, avoid forcing focus/scroll so the native/Joplin
+    // menu opens against the expected pointer target without viewport jumps.
+    view.dispatch({
+        selection: { anchor: clickPos },
+        effects: buildClearEffects(live),
+        scrollIntoView: !options.preserveContextMenu,
+    });
+    if (!options.preserveContextMenu) {
+        view.focus();
+    } else if (live.hasNestedEditor) {
+        // The nested editor we just destroyed held focus; restore it to the
+        // main editor without scrolling so the caret is painted.
+        focusMainEditorWithoutScroll(view);
+    }
+}
+
+/** Fallback when the pointer maps to no document position: clear state, leave the caret alone. */
+function clearTableStateInPlace(view: EditorView, live: LiveTableState): void {
+    if (!live.hasActiveCell && !live.hasCellSelection) {
+        return;
+    }
+    view.dispatch({ effects: buildClearEffects(live) });
 }
 
 function handleOutsideTableInteraction(
     view: EditorView,
     event: MouseEvent | PointerEvent,
-    options: { preserveContextMenu: boolean }
+    options: OutsideInteractionOptions
 ): boolean {
-    const target = getEventTargetElement(event);
-    if (!target) {
-        return false;
-    }
-
     // Keep editor open if interaction is inside the widget or nested editor.
-    if (isInsideTableUi(target)) {
+    const target = getEventTargetElement(event);
+    if (!target || isInsideTableUi(target)) {
         return false;
     }
 
-    const hasActiveCell = Boolean(getActiveCell(view.state));
-    const hasNestedEditor = isNestedEditorOpen(view);
-    const hasCellSelection = Boolean(getCellSelection(view.state));
-    if (!hasActiveCell && !hasNestedEditor && !hasCellSelection) {
+    const live = resolveLiveTableState(view);
+    if (!live) {
         return false;
     }
 
     const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-
-    if (clickPos !== null) {
-        // On right-click context menus, avoid forcing focus/scroll so the native/Joplin
-        // menu opens against the expected pointer target without viewport jumps.
-        view.dispatch({
-            selection: { anchor: clickPos },
-            effects: buildClearEffects(hasActiveCell, hasCellSelection),
-            scrollIntoView: !options.preserveContextMenu,
-        });
-        if (!options.preserveContextMenu) {
-            view.focus();
-        } else if (hasNestedEditor) {
-            // The nested editor we just destroyed held focus; restore it to the
-            // main editor without scrolling so the caret is painted.
-            focusMainEditorWithoutScroll(view);
-        }
-    } else if (hasActiveCell || hasCellSelection) {
-        view.dispatch({ effects: buildClearEffects(hasActiveCell, hasCellSelection) });
+    if (clickPos === null) {
+        clearTableStateInPlace(view, live);
+        return false;
     }
 
+    moveCaretAndClearTableState(view, clickPos, live, options);
     // For mousedown, consume only if we positioned the cursor.
     // For contextmenu, never consume so native/Joplin menus can open.
-    return !options.preserveContextMenu && clickPos !== null;
+    return !options.preserveContextMenu;
 }
 
 export const closeOnOutsideMouseDown = EditorView.domEventHandlers({
