@@ -36,29 +36,24 @@ interface SingleChange {
     insertedText: string;
 }
 
-function extractSingleChange(tr: Transaction): SingleChange | null {
-    let from = 0;
-    let to = 0;
-    let insertedText: string | null = null;
+function extractSinglePasteChange(tr: Transaction): SingleChange | null {
+    let singleChange: SingleChange | null = null;
+    let hasInsertedText = false;
     let changeCount = 0;
 
     tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         changeCount++;
         if (changeCount === 1) {
-            from = fromA;
-            to = toA;
-            insertedText = inserted.toString();
+            const insertedText = inserted.toString();
+            singleChange = { from: fromA, to: toA, insertedText };
+            hasInsertedText = insertedText.length > 0;
         }
     });
 
-    return changeCount === 1 && insertedText ? { from, to, insertedText } : null;
+    return changeCount === 1 && hasInsertedText ? singleChange : null;
 }
 
-function decideNestedEditorPaste(tr: Transaction, pastedText: string, nestedEditorOpen: boolean): GuardDecision | null {
-    if (!nestedEditorOpen) {
-        return null;
-    }
-
+function decideNestedEditorPaste(tr: Transaction, pastedText: string): GuardDecision | null {
     const resolvedActiveCell = getResolvedActiveCell(tr.startState);
     if (!resolvedActiveCell) {
         return null;
@@ -82,8 +77,8 @@ function decideNestedEditorPaste(tr: Transaction, pastedText: string, nestedEdit
     return rewrite ? { type: 'rewriteTableClipboard', rewrite } : null;
 }
 
-function decideRootEditorPaste(tr: Transaction, change: SingleChange, nestedEditorOpen: boolean): GuardDecision | null {
-    if (nestedEditorOpen || getCellSelection(tr.startState) || isEffectiveRawMode(tr.startState)) {
+function decideRootEditorPaste(tr: Transaction, change: SingleChange): GuardDecision | null {
+    if (getCellSelection(tr.startState) || isEffectiveRawMode(tr.startState)) {
         return null;
     }
 
@@ -97,15 +92,12 @@ function decidePasteTransaction(tr: Transaction, nestedEditorOpen: boolean): Gua
         return null;
     }
 
-    const change = extractSingleChange(tr);
+    const change = extractSinglePasteChange(tr);
     if (!change) {
         return null;
     }
 
-    return (
-        decideNestedEditorPaste(tr, change.insertedText, nestedEditorOpen) ??
-        decideRootEditorPaste(tr, change, nestedEditorOpen)
-    );
+    return nestedEditorOpen ? decideNestedEditorPaste(tr, change.insertedText) : decideRootEditorPaste(tr, change);
 }
 
 function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {

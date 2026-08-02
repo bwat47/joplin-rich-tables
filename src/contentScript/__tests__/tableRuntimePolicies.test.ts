@@ -409,6 +409,27 @@ describe('tableRuntimePolicies', () => {
         expect(decision.rewrite.tableFrom).toBe(8);
     });
 
+    it('does not rewrite multi-change paste transactions', () => {
+        const state = createMarkdownState(['', 'after'].join('\n'), [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
+        const tr = state.update({
+            changes: [
+                { from: 0, to: 0, insert: pasteText },
+                { from: state.doc.length, to: state.doc.length, insert: 'x' },
+            ],
+            userEvent: 'input.paste',
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: false })).toEqual({
+            type: 'allowTransaction',
+        });
+    });
+
     it('does not return a root-table rewrite when a cell selection is active', () => {
         let state = createMarkdownState(['before', '', 'after'].join('\n'), [
             activeCellField,
