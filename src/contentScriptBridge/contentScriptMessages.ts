@@ -17,4 +17,9 @@ export interface OpenLinkMessage {
     href: string;
 }
 
+export interface OpenLinkResult {
+    success: boolean;
+    error?: string;
+}
+
 export type ContentScriptMessage = RenderMarkupMessage | OpenLinkMessage | GetHostEditorConfigMessage;

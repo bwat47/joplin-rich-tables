@@ -1,5 +1,11 @@
 import { logger } from '../logger';
-import type { ContentScriptMessage, OpenLinkMessage, RenderMarkupMessage } from './contentScriptMessages';
+import type {
+    ContentScriptMessage,
+    OpenLinkMessage,
+    OpenLinkResult,
+    RenderMarkupMessage,
+    RenderMarkupResult,
+} from './contentScriptMessages';
 import { readHostEditorConfig, type HostEditorConfigDeps } from './hostEditorConfigBridge';
 
 // Joplin's internal MarkupLanguage enum values
@@ -15,11 +21,14 @@ interface ContentScriptMessageHandlerDeps {
     settings: HostEditorConfigDeps['settings'];
 }
 
+/** The subset of handler dependencies needed to invoke Joplin commands. */
+type CommandDeps = Pick<ContentScriptMessageHandlerDeps, 'commands'>;
+
 function isContentScriptMessage(message: unknown): message is ContentScriptMessage {
     return typeof message === 'object' && message !== null && 'type' in message;
 }
 
-async function renderMarkup(message: RenderMarkupMessage, deps: ContentScriptMessageHandlerDeps) {
+async function renderMarkup(message: RenderMarkupMessage, deps: CommandDeps): Promise<RenderMarkupResult> {
     const { markdown, id } = message;
 
     try {
@@ -38,7 +47,7 @@ async function renderMarkup(message: RenderMarkupMessage, deps: ContentScriptMes
     }
 }
 
-async function openLink(message: OpenLinkMessage, deps: ContentScriptMessageHandlerDeps) {
+async function openLink(message: OpenLinkMessage, deps: CommandDeps): Promise<OpenLinkResult> {
     const { href } = message;
 
     try {
@@ -59,9 +68,9 @@ export function createContentScriptMessageHandler(deps: ContentScriptMessageHand
 
         switch (message.type) {
             case 'renderMarkup':
-                return renderMarkup(message as RenderMarkupMessage, deps);
+                return renderMarkup(message, deps);
             case 'openLink':
-                return openLink(message as OpenLinkMessage, deps);
+                return openLink(message, deps);
             case 'getHostEditorConfig':
                 return readHostEditorConfig(deps);
             default:
