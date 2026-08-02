@@ -310,6 +310,28 @@ describe('tableRuntimePolicies', () => {
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
     });
 
+    it('prefers the full document replace decision over a rebuild effect in the same transaction', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            changes: { from: 0, to: doc.length, insert: '# replaced' },
+            effects: rebuildTableWidgetsEffect.of(undefined),
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
+    });
+
+    it('keeps decorations for sync transactions that do not change the document', () => {
+        const activeCell = getHeaderCell();
+        const state = createState({ activeCell });
+        const tr = state.update({
+            selection: { anchor: 0 },
+            annotations: syncAnnotation.of(true),
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'keepDecorations' });
+    });
+
     it('allows sync transactions through the guard untouched', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });

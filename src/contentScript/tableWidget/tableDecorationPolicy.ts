@@ -1,4 +1,4 @@
-import { Transaction } from '@codemirror/state';
+import { Transaction, type StateEffectType } from '@codemirror/state';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
@@ -15,43 +15,58 @@ export type DecorationDecision =
     | { type: 'mapDecorations' }
     | { type: 'rebuildAllDecorations' };
 
-export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
-    const rawModeToggled = tr.effects.some(
-        (effect) => effect.is(toggleSourceModeEffect) || effect.is(setSearchForceSourceModeEffect)
-    );
+function hasEffect<T>(tr: Transaction, effectType: StateEffectType<T>): boolean {
+    return tr.effects.some((effect) => effect.is(effectType));
+}
+
+/**
+ * Raw mode replaces every table widget with plain markdown, so a toggle rebuilds
+ * everything on the way out and drops all decorations on the way in.
+ */
+function decideRawModeDecoration(tr: Transaction): DecorationDecision | null {
     const effectiveRawMode = isEffectiveRawMode(tr.state);
 
-    if (rawModeToggled) {
+    if (hasEffect(tr, toggleSourceModeEffect) || hasEffect(tr, setSearchForceSourceModeEffect)) {
         return effectiveRawMode ? { type: 'noneDecorations' } : { type: 'rebuildAllDecorations' };
     }
 
-    if (effectiveRawMode) {
-        return { type: 'noneDecorations' };
+    return effectiveRawMode ? { type: 'noneDecorations' } : null;
+}
+
+/**
+ * Changes forwarded from the nested editor only move text inside a cell, so the
+ * existing widgets are still valid and just need remapping.
+ */
+function decideSyncDecoration(tr: Transaction): DecorationDecision | null {
+    if (!tr.annotation(syncAnnotation)) {
+        return null;
     }
 
-    if (tr.annotation(syncAnnotation)) {
-        return tr.docChanged ? { type: 'mapDecorations' } : { type: 'keepDecorations' };
-    }
+    return tr.docChanged ? { type: 'mapDecorations' } : { type: 'keepDecorations' };
+}
 
-    if (tr.effects.some((effect) => effect.is(rebuildAllTableWidgetsEffect))) {
+function decideRebuildRequestDecoration(tr: Transaction): DecorationDecision | null {
+    if (hasEffect(tr, rebuildAllTableWidgetsEffect) || tr.annotation(normalizeBeforeEditAnnotation)) {
         return { type: 'rebuildAllDecorations' };
     }
 
-    if (tr.annotation(normalizeBeforeEditAnnotation)) {
-        return { type: 'rebuildAllDecorations' };
+    return null;
+}
+
+/**
+ * A full replace while a cell is active (e.g. external sync) invalidates the
+ * active cell; decorations are dropped and rebuilt once the lifecycle settles.
+ */
+function decideFullDocumentReplaceDecoration(tr: Transaction): DecorationDecision | null {
+    if (!tr.docChanged || !getActiveCell(tr.startState) || !isFullDocumentReplace(tr)) {
+        return null;
     }
 
-    const prevActiveCell = getActiveCell(tr.startState);
-    const resolvedPrevActiveCell = getResolvedActiveCell(tr.startState);
-    if (tr.docChanged && prevActiveCell && isFullDocumentReplace(tr)) {
-        return { type: 'noneDecorations' };
-    }
+    return { type: 'noneDecorations' };
+}
 
-    if (tr.effects.some((effect) => effect.is(clearActiveCellEffect))) {
-        return { type: 'rebuildAllDecorations' };
-    }
-
-    if (tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))) {
+function decideDocumentEditDecoration(tr: Transaction): DecorationDecision {
+    if (hasEffect(tr, clearActiveCellEffect) || hasEffect(tr, rebuildTableWidgetsEffect)) {
         return { type: 'rebuildAllDecorations' };
     }
 
@@ -59,12 +74,27 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
         return { type: 'keepDecorations' };
     }
 
-    const activeCell = getActiveCell(tr.state);
-    if (!activeCell) {
+    if (!getActiveCell(tr.state)) {
         return { type: 'rebuildAllDecorations' };
     }
 
-    return transactionRequiresTableRebuild(tr, resolvedPrevActiveCell)
+    return transactionRequiresTableRebuild(tr, getResolvedActiveCell(tr.startState))
         ? { type: 'rebuildAllDecorations' }
         : { type: 'mapDecorations' };
+}
+
+/**
+ * Decides how the table decoration field reacts to a transaction.
+ * The order of the checks below is significant: earlier decisions deliberately
+ * win over later ones (a full document replace, for example, outranks a
+ * rebuildTableWidgetsEffect in the same transaction).
+ */
+export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
+    return (
+        decideRawModeDecoration(tr) ??
+        decideSyncDecoration(tr) ??
+        decideRebuildRequestDecoration(tr) ??
+        decideFullDocumentReplaceDecoration(tr) ??
+        decideDocumentEditDecoration(tr)
+    );
 }
