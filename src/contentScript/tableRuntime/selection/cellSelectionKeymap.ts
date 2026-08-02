@@ -1,5 +1,5 @@
 import { redo, undo } from '@codemirror/commands';
-import { EditorView, ViewPlugin } from '@codemirror/view';
+import { EditorView, ViewPlugin, type Command } from '@codemirror/view';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
@@ -9,7 +9,6 @@ import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
 
-type EditorCommand = (view: EditorView) => boolean;
 type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
 
 function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
@@ -66,7 +65,7 @@ function activateSelectionFocus(view: EditorView): boolean {
     return true;
 }
 
-function resolveHistoryCommand(event: KeyboardEvent): EditorCommand | null {
+function resolveHistoryCommand(event: KeyboardEvent): Command | null {
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === 'z') {
         return event.shiftKey ? redo : undo;
@@ -79,7 +78,12 @@ function resolveHistoryCommand(event: KeyboardEvent): EditorCommand | null {
     return null;
 }
 
-function runEditorCommand(view: EditorView, command: EditorCommand): boolean {
+/**
+ * Runs a history command against the main editor, moving focus there when it
+ * applies. Undo/redo rewrites the document out from under the cell selection,
+ * so leaving focus on the (now stale) table widget would strand the caret.
+ */
+function runHistoryCommand(view: EditorView, command: Command): boolean {
     const handled = command(view);
     if (handled) {
         view.focus();
@@ -111,7 +115,7 @@ function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
 
     const historyCommand = resolveHistoryCommand(event);
     if (historyCommand) {
-        return runEditorCommand(view, historyCommand);
+        return runHistoryCommand(view, historyCommand);
     }
 
     return selectionKeyHandlers.get(event.key)?.(view, event) ?? false;
