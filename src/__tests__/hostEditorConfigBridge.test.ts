@@ -4,6 +4,7 @@ import {
     AUTO_MATCHING_BRACES_SETTING_KEY,
     SPELLCHECK_ENABLED_SETTING_KEY,
     defaultHostEditorConfig,
+    isHostEditorConfig,
     readHostEditorConfig,
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
@@ -119,6 +120,61 @@ describe('hostEditorConfigBridge', () => {
                 spellcheck: true,
             },
             toolbar: defaultHostEditorConfig().toolbar,
+        });
+    });
+
+    describe('isHostEditorConfig', () => {
+        it('accepts a fully populated config', () => {
+            expect(isHostEditorConfig(defaultHostEditorConfig())).toBe(true);
+        });
+
+        it('accepts a config carrying unknown extra keys', () => {
+            const config = defaultHostEditorConfig();
+
+            expect(isHostEditorConfig({ ...config, unexpected: 'value' })).toBe(true);
+        });
+
+        it.each([
+            ['null', null],
+            ['undefined', undefined],
+            ['a primitive', 'config'],
+            ['an empty object', {}],
+        ])('rejects %s', (_label, value) => {
+            expect(isHostEditorConfig(value)).toBe(false);
+        });
+
+        it('rejects a config missing a section', () => {
+            const { nestedEditor } = defaultHostEditorConfig();
+
+            expect(isHostEditorConfig({ nestedEditor })).toBe(false);
+        });
+
+        it('rejects a config whose section is null', () => {
+            const config = defaultHostEditorConfig();
+
+            expect(isHostEditorConfig({ ...config, toolbar: null })).toBe(false);
+        });
+
+        it('rejects a config missing a nested editor field', () => {
+            const config = defaultHostEditorConfig();
+
+            expect(
+                isHostEditorConfig({
+                    ...config,
+                    nestedEditor: { autoMatchingBraces: true },
+                })
+            ).toBe(false);
+        });
+
+        it('rejects a config with a non-boolean toolbar field', () => {
+            const config = defaultHostEditorConfig();
+
+            expect(
+                isHostEditorConfig({
+                    ...config,
+                    toolbar: { ...config.toolbar, showMoveButtons: 'true' },
+                })
+            ).toBe(false);
         });
     });
 });
