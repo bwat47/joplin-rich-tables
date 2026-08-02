@@ -4,6 +4,7 @@ import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { linkOpenerFacet } from '../services/linkOpener';
+import { buildFootnoteHref } from '../shared/footnoteAnchor';
 import {
     createInteractiveTableHarness,
     getLastDispatchSpec,
@@ -122,6 +123,7 @@ describe('table widget interactions', () => {
             '## Real Heading',
             '',
             '[^1]: actual footnote',
+            '[^my note]: spaced footnote',
         ].join('\n');
 
         const posOfLine = (doc: string, line: string): number => doc.indexOf(`\n${line}`) + 1;
@@ -164,6 +166,22 @@ describe('table widget interactions', () => {
                 selection: { anchor: posOfLine(ANCHOR_DOC, '[^1]: actual footnote') },
                 scrollIntoView: true,
             });
+        });
+
+        it('decodes the label so footnotes with unsafe characters resolve', () => {
+            const { view, handled } = clickAnchorLink(buildFootnoteHref('my note'));
+
+            expect(handled).toBe(true);
+            expect(getLastDispatchSpec(view as unknown as MutableTestView)).toMatchObject({
+                selection: { anchor: posOfLine(ANCHOR_DOC, '[^my note]: spaced footnote') },
+            });
+        });
+
+        it('does not fall back to a heading when a footnote anchor has no definition', () => {
+            const { view, handled } = clickAnchorLink(buildFootnoteHref('missing'));
+
+            expect(handled).toBe(true);
+            expect((view as unknown as MutableTestView).dispatch).not.toHaveBeenCalled();
         });
 
         it('scrolls to the heading whose slug matches the anchor', () => {
