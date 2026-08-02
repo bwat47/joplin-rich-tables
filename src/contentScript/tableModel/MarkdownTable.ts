@@ -121,6 +121,107 @@ function createFromUnifiedRows(
     });
 }
 
+export type RowMoveDirection = 'up' | 'down';
+
+/** Unified-row index delta applied by `moveRow` for each direction. */
+const ROW_MOVE_OFFSETS: Record<RowMoveDirection, number> = {
+    up: -1,
+    down: 1,
+};
+
+/** Placement of a clipboard fragment inside the unified grid, in unified coordinates. */
+interface PasteGeometry {
+    anchorRow: number;
+    anchorCol: number;
+    rowCount: number;
+    colCount: number;
+}
+
+function isRectangularFragment(cells: readonly (readonly string[])[], colCount: number): boolean {
+    return colCount > 0 && cells.every((row) => row.length === colCount);
+}
+
+/**
+ * Resolves where a clipboard fragment lands in the unified grid, or `null` when the
+ * anchor is out of bounds or the fragment is empty/ragged.
+ */
+function resolvePasteGeometry(anchor: CellCoords, fragment: ClipboardTableFragment): PasteGeometry | null {
+    const anchorRow = toUnifiedRowIndex(anchor.section, anchor.row);
+    if (anchorRow < 0 || anchor.col < 0) {
+        return null;
+    }
+
+    const rowCount = fragment.cells.length;
+    const colCount = fragment.cells[0]?.length ?? 0;
+    if (rowCount <= 0 || !isRectangularFragment(fragment.cells, colCount)) {
+        return null;
+    }
+
+    return { anchorRow, anchorCol: anchor.col, rowCount, colCount };
+}
+
+/** Grows the unified grid in place so every cell of the target rect exists. */
+function growUnifiedGrid(rows: string[][], requiredRowCount: number, requiredColCount: number): void {
+    while (rows.length < requiredRowCount) {
+        rows.push(createEmptyRow(requiredColCount));
+    }
+
+    for (const row of rows) {
+        while (row.length < requiredColCount) {
+            row.push('');
+        }
+    }
+}
+
+/**
+ * Extends alignments to cover columns the paste adds, adopting the clipboard alignment
+ * for each new column when the fragment supplies one.
+ */
+function extendAlignmentsForPaste(
+    alignments: readonly TableAlignment[],
+    requiredColCount: number,
+    anchorCol: number,
+    fragmentAlignments: readonly TableAlignment[]
+): TableAlignment[] {
+    const nextAlignments = [...alignments];
+
+    for (let targetCol = nextAlignments.length; targetCol < requiredColCount; targetCol++) {
+        nextAlignments.push(fragmentAlignments[targetCol - anchorCol] ?? null);
+    }
+
+    return nextAlignments;
+}
+
+/** Writes fragment cells into the grown grid, reporting whether any cell value changed. */
+function writeFragmentCells(rows: string[][], geometry: PasteGeometry, cells: readonly (readonly string[])[]): boolean {
+    let didChange = false;
+
+    for (let rowOffset = 0; rowOffset < geometry.rowCount; rowOffset++) {
+        const targetRow = rows[geometry.anchorRow + rowOffset];
+
+        for (let colOffset = 0; colOffset < geometry.colCount; colOffset++) {
+            const targetCol = geometry.anchorCol + colOffset;
+            const nextValue = cells[rowOffset][colOffset];
+
+            if (targetRow[targetCol] !== nextValue) {
+                targetRow[targetCol] = nextValue;
+                didChange = true;
+            }
+        }
+    }
+
+    return didChange;
+}
+
+function toPastedRect(geometry: PasteGeometry): TableRect {
+    return {
+        minRow: geometry.anchorRow,
+        maxRow: geometry.anchorRow + geometry.rowCount - 1,
+        minCol: geometry.anchorCol,
+        maxCol: geometry.anchorCol + geometry.colCount - 1,
+    };
+}
+
 export class MarkdownTable {
     private constructor(
         private readonly headersData: readonly string[],
@@ -183,6 +284,19 @@ export class MarkdownTable {
 
     get rowCount(): number {
         return 1 + this.rowsData.length;
+    }
+
+    private isValidColumnIndex(colIndex: number): boolean {
+        return colIndex >= 0 && colIndex < this.columnCount;
+    }
+
+    /** Validates a unified row index, where `0` addresses the header and `1..n` body rows. */
+    private isValidUnifiedRowIndex(rowIndex: number): boolean {
+        return rowIndex >= 0 && rowIndex < this.rowCount;
+    }
+
+    private isValidBodyRowIndex(rowIndex: number): boolean {
+        return rowIndex >= 0 && rowIndex < this.rowsData.length;
     }
 
     private getUnifiedRow(rowIndex: number): readonly string[] | null {
@@ -248,7 +362,7 @@ export class MarkdownTable {
             return this;
         }
 
-        if (colIndex < 0 || colIndex >= this.columnCount) {
+        if (!this.isValidColumnIndex(colIndex)) {
             return this;
         }
 
@@ -268,7 +382,7 @@ export class MarkdownTable {
     }
 
     swapColumns(col1: number, col2: number): MarkdownTable {
-        if (col1 < 0 || col1 >= this.columnCount || col2 < 0 || col2 >= this.columnCount || col1 === col2) {
+        if (!this.isValidColumnIndex(col1) || !this.isValidColumnIndex(col2) || col1 === col2) {
             return this;
         }
 
@@ -286,7 +400,7 @@ export class MarkdownTable {
     }
 
     updateColumnAlignment(colIndex: number, alignment: TableAlignment): MarkdownTable {
-        if (colIndex < 0 || colIndex >= this.alignmentsData.length) {
+        if (!this.isValidColumnIndex(colIndex)) {
             return this;
         }
 
@@ -332,7 +446,7 @@ export class MarkdownTable {
             });
         }
 
-        if (rowIndex < 0 || rowIndex >= this.rowsData.length) {
+        if (!this.isValidBodyRowIndex(rowIndex)) {
             return this;
         }
 
@@ -348,7 +462,7 @@ export class MarkdownTable {
     }
 
     clearColumn(colIndex: number): MarkdownTable {
-        if (colIndex < 0 || colIndex >= this.columnCount) {
+        if (!this.isValidColumnIndex(colIndex)) {
             return this;
         }
 
@@ -449,75 +563,35 @@ export class MarkdownTable {
         });
     }
 
+    /**
+     * Overwrites cells with a clipboard fragment anchored at `anchor`, growing the table
+     * when the fragment overflows the current bounds. Returns `null` when the anchor is
+     * out of bounds or the fragment is empty or ragged.
+     */
     pasteFragmentAt(anchor: CellCoords, fragment: ClipboardTableFragment): PasteRectResult | null {
-        const pastedRowCount = fragment.cells.length;
-        const pastedColCount = fragment.cells[0]?.length ?? 0;
-        const anchorRow = toUnifiedRowIndex(anchor.section, anchor.row);
-
-        if (
-            anchor.col < 0 ||
-            anchorRow < 0 ||
-            pastedRowCount <= 0 ||
-            pastedColCount <= 0 ||
-            fragment.cells.some((row) => row.length !== pastedColCount)
-        ) {
+        const geometry = resolvePasteGeometry(anchor, fragment);
+        if (!geometry) {
             return null;
         }
 
-        const requiredRowCount = anchorRow + pastedRowCount;
-        const requiredColCount = anchor.col + pastedColCount;
+        const requiredRowCount = geometry.anchorRow + geometry.rowCount;
+        const requiredColCount = geometry.anchorCol + geometry.colCount;
+        const didGrow = requiredRowCount > this.rowCount || requiredColCount > this.columnCount;
+
         const nextRows = cloneUnifiedRows(this.headersData, this.rowsData);
-        const nextAlignments = [...this.alignmentsData];
-        let didChange = requiredRowCount > this.rowCount || requiredColCount > this.columnCount;
+        growUnifiedGrid(nextRows, requiredRowCount, requiredColCount);
+        const nextAlignments = extendAlignmentsForPaste(
+            this.alignmentsData,
+            requiredColCount,
+            geometry.anchorCol,
+            fragment.alignments
+        );
 
-        if (requiredColCount > this.columnCount) {
-            for (let targetCol = this.columnCount; targetCol < requiredColCount; targetCol++) {
-                const clipboardCol = targetCol - anchor.col;
-                nextRows[0].push('');
-                nextAlignments.push(fragment.alignments[clipboardCol] ?? null);
-            }
-
-            for (let row = 1; row < nextRows.length; row++) {
-                while (nextRows[row].length < requiredColCount) {
-                    nextRows[row].push('');
-                }
-            }
-        }
-
-        while (nextRows.length < requiredRowCount) {
-            nextRows.push(new Array(requiredColCount).fill(''));
-        }
-
-        for (let row = 0; row < nextRows.length; row++) {
-            while (nextRows[row].length < requiredColCount) {
-                nextRows[row].push('');
-            }
-        }
-
-        for (let rowOffset = 0; rowOffset < pastedRowCount; rowOffset++) {
-            const targetRow = anchorRow + rowOffset;
-
-            for (let colOffset = 0; colOffset < pastedColCount; colOffset++) {
-                const targetCol = anchor.col + colOffset;
-                const nextValue = fragment.cells[rowOffset][colOffset];
-
-                if (nextRows[targetRow][targetCol] !== nextValue) {
-                    nextRows[targetRow][targetCol] = nextValue;
-                    didChange = true;
-                }
-            }
-        }
-
-        const pastedRect: TableRect = {
-            minRow: anchorRow,
-            maxRow: anchorRow + pastedRowCount - 1,
-            minCol: anchor.col,
-            maxCol: anchor.col + pastedColCount - 1,
-        };
-
+        const didWrite = writeFragmentCells(nextRows, geometry, fragment.cells);
+        const didChange = didGrow || didWrite;
         const table = didChange ? (createFromUnifiedRows(nextRows, nextAlignments) ?? this) : this;
 
-        return { table, pastedRect };
+        return { table, pastedRect: toPastedRect(geometry) };
     }
 
     /**
@@ -574,7 +648,7 @@ export class MarkdownTable {
             });
         }
 
-        if (rowIndex < 0 || rowIndex >= this.rowsData.length) {
+        if (!this.isValidBodyRowIndex(rowIndex)) {
             return this;
         }
 
@@ -588,38 +662,28 @@ export class MarkdownTable {
         });
     }
 
+    /** Whether `section`/`rowIndex` addresses a row that `moveRow` is allowed to relocate. */
+    private isMovableRowAddress(section: TableSection, rowIndex: number): boolean {
+        if (this.rowsData.length === 0) {
+            return false;
+        }
+
+        return section === 'header' ? rowIndex === 0 : this.isValidBodyRowIndex(rowIndex);
+    }
+
     /**
      * Moves a row up or down while preserving the current header/body command semantics.
      * Moving the header down swaps it with body row 0; moving the header up is a no-op.
+     * Moves past the first or last row are no-ops, enforced by `swapRows` bounds checking.
      */
-    moveRow(section: TableSection, rowIndex: number, direction: 'up' | 'down'): MarkdownTable {
-        if (this.rowsData.length === 0) {
-            return this;
-        }
-
-        if (section === 'header' && rowIndex !== 0) {
-            return this;
-        }
-        if (section === 'body' && (rowIndex < 0 || rowIndex >= this.rowsData.length)) {
+    moveRow(section: TableSection, rowIndex: number, direction: RowMoveDirection): MarkdownTable {
+        if (!this.isMovableRowAddress(section, rowIndex)) {
             return this;
         }
 
         const currentRowIndex = toUnifiedRowIndex(section, rowIndex);
-        let targetRowIndex: number;
 
-        if (direction === 'up') {
-            if (currentRowIndex === 0) {
-                return this;
-            }
-            targetRowIndex = currentRowIndex - 1;
-        } else {
-            if (currentRowIndex === this.rowCount - 1) {
-                return this;
-            }
-            targetRowIndex = currentRowIndex + 1;
-        }
-
-        return this.swapRows(currentRowIndex, targetRowIndex);
+        return this.swapRows(currentRowIndex, currentRowIndex + ROW_MOVE_OFFSETS[direction]);
     }
 
     /**
@@ -627,7 +691,7 @@ export class MarkdownTable {
      * address body rows.
      */
     swapRows(row1: number, row2: number): MarkdownTable {
-        if (row1 < 0 || row1 >= this.rowCount || row2 < 0 || row2 >= this.rowCount || row1 === row2) {
+        if (!this.isValidUnifiedRowIndex(row1) || !this.isValidUnifiedRowIndex(row2) || row1 === row2) {
             return this;
         }
 

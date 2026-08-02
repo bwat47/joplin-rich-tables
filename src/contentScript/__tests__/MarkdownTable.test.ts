@@ -97,6 +97,29 @@ describe('MarkdownTable', () => {
         expect(movedFirstBodyUp.bodyRows[0]).toEqual(['H1', 'H2']);
     });
 
+    it('treats moves past the grid edge and unaddressable rows as no-ops', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+            ],
+        });
+
+        expect(table.moveRow('body', 1, 'down')).toBe(table);
+        expect(table.moveRow('body', 5, 'up')).toBe(table);
+        expect(table.moveRow('body', -1, 'down')).toBe(table);
+        expect(table.moveRow('header', 1, 'down')).toBe(table);
+
+        const headerOnly = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [],
+        });
+        expect(headerOnly.moveRow('header', 0, 'down')).toBe(headerOnly);
+    });
+
     it('swapColumns preserves alignments', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['Left', 'Center', 'Right'],
@@ -338,6 +361,41 @@ describe('MarkdownTable', () => {
             ['', 'Q1', 'Q2', 'Q3'],
         ]);
         expect(result?.table.alignments).toEqual(['left', 'right', 'center', 'right']);
+    });
+
+    it('keeps the same instance when a paste rewrites cells with identical values', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        const result = table.pasteFragmentAt(
+            { section: 'body', row: 0, col: 0 },
+            { cells: [['A1', 'A2']], alignments: ['center', 'center'] }
+        );
+
+        expect(result?.table).toBe(table);
+        expect(result?.pastedRect).toEqual({ minRow: 1, maxRow: 1, minCol: 0, maxCol: 1 });
+    });
+
+    it('rejects empty, ragged, and out-of-bounds paste requests', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+        const anchor = { section: 'body', row: 0, col: 0 } as const;
+
+        expect(table.pasteFragmentAt(anchor, { cells: [], alignments: [] })).toBeNull();
+        expect(table.pasteFragmentAt(anchor, { cells: [[]], alignments: [] })).toBeNull();
+        expect(table.pasteFragmentAt(anchor, { cells: [['A'], ['B', 'C']], alignments: [] })).toBeNull();
+        expect(
+            table.pasteFragmentAt({ section: 'body', row: 0, col: -1 }, { cells: [['A']], alignments: [] })
+        ).toBeNull();
+        expect(
+            table.pasteFragmentAt({ section: 'body', row: -3, col: 0 }, { cells: [['A']], alignments: [] })
+        ).toBeNull();
     });
 
     it('treats pasted row zero as header only when anchored on the header', () => {
