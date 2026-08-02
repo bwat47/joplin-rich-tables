@@ -1,7 +1,7 @@
 import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { getCellSelection } from '../../tableState/cellSelectionState';
+import { getCellSelection, type CellSelection } from '../../tableState/cellSelectionState';
 import { makeTableId } from '../../tableModel/types';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from '../../tableWidget/domHelpers';
 
@@ -56,6 +56,33 @@ function isNestedEditorElement(element: Element): boolean {
 }
 
 /**
+ * Structural/container elements that can hold focus without being interactive:
+ * body and documentElement receive focus after a blur (or in Electron when no
+ * element is focused); the CM containers receive focus during programmatic
+ * focus shifts.
+ */
+function isStructuralFocusHost(view: EditorView, element: Element): boolean {
+    const doc = view.dom.ownerDocument;
+    const structuralHosts: Array<Element | null> = [
+        doc.body,
+        doc.documentElement,
+        view.dom,
+        view.contentDOM,
+        view.scrollDOM,
+    ];
+
+    return structuralHosts.includes(element);
+}
+
+/** True when `element` is the widget rendering `selection`'s table, or lives inside it. */
+function isInsideSelectedTableWidget(view: EditorView, selection: CellSelection, element: Element): boolean {
+    const selectedWidget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
+
+    // `contains()` is self-inclusive, so this also covers the widget root itself.
+    return Boolean(selectedWidget?.contains(element));
+}
+
+/**
  * Determines whether document-level capture-phase event listeners should handle
  * a clipboard event (copy/cut/paste) or a keyboard shortcut that applies to both
  * cell selections and active cells. Returns true when focus is in a location where
@@ -88,34 +115,25 @@ export function canHandleTableClipboardShortcut(view: EditorView): boolean {
         return false;
     }
 
-    // Focus is on a structural/container element: body or documentElement can receive
-    // focus after a blur (or in Electron when no element is focused); CM containers
-    // (dom, contentDOM, scrollDOM) receive focus during programmatic focus shifts.
-    // In these cases handle if we have a selection that the user can act on.
-    if (
-        activeElement === doc.body ||
-        activeElement === doc.documentElement ||
-        activeElement === view.dom ||
-        activeElement === view.contentDOM ||
-        activeElement === view.scrollDOM
-    ) {
+    // Focus is parked on a container rather than a real control — handle if we have
+    // a selection that the user can act on.
+    if (isStructuralFocusHost(view, activeElement)) {
         return Boolean(selection);
     }
 
-    if (selection) {
-        // Focus is on a non-interactive element inside the selected table widget —
-        // handle to keep table shortcuts working while the widget has soft focus.
-        const selectedWidget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
-        if (selectedWidget && (activeElement === selectedWidget || selectedWidget.contains(activeElement))) {
-            return true;
-        }
-
-        // Focus is somewhere else inside the CM editor — handle to prevent the event
-        // from reaching unrelated handlers outside the table context.
-        return view.dom.contains(activeElement);
+    if (!selection) {
+        return false;
     }
 
-    return false;
+    // Focus is on a non-interactive element inside the selected table widget —
+    // handle to keep table shortcuts working while the widget has soft focus.
+    if (isInsideSelectedTableWidget(view, selection, activeElement)) {
+        return true;
+    }
+
+    // Focus is somewhere else inside the CM editor — handle to prevent the event
+    // from reaching unrelated handlers outside the table context.
+    return view.dom.contains(activeElement);
 }
 
 /**
