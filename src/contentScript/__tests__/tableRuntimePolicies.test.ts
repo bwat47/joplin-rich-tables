@@ -358,6 +358,46 @@ describe('tableRuntimePolicies', () => {
         });
     });
 
+    it('clears the active cell on a full document replace', () => {
+        const state = createState({ activeCell: getHeaderCell() });
+        const tr = state.update({
+            changes: { from: 0, to: doc.length, insert: '# replaced' },
+            selection: { anchor: 3 },
+        });
+
+        const decision = decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true });
+
+        expect(decision.type).toBe('clearActiveCell');
+        if (decision.type !== 'clearActiveCell') {
+            throw new Error('Expected clear active cell decision');
+        }
+
+        expect(decision.selection?.main.head).toBe(3);
+    });
+
+    it('allows a full document replace through when no active cell is set', () => {
+        const state = createState();
+        const tr = state.update({
+            changes: { from: 0, to: doc.length, insert: '# replaced' },
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'allowTransaction',
+        });
+    });
+
+    it('clears an active cell that no longer resolves against the document', () => {
+        const state = createState({ activeCell: { tableFrom: 0, section: 'body', row: 9, col: 0 } });
+        const tr = state.update({
+            changes: { from: 0, to: 1, insert: '' },
+        });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'clearActiveCell',
+            selection: undefined,
+        });
+    });
+
     it('allows guard changes inside editable edge whitespace', () => {
         const paddedDoc = ['| H1  | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         let state = createMarkdownState(paddedDoc, [

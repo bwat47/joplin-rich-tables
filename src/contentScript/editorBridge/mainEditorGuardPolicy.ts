@@ -4,7 +4,7 @@ import { getCellSelection } from '../tableState/cellSelectionState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import {
@@ -113,51 +113,31 @@ function changesOverlapRange(tr: Transaction, from: number, to: number): boolean
     return overlaps;
 }
 
-export function decideMainEditorGuardTransaction(
-    tr: Transaction,
-    params: { nestedEditorOpen: boolean }
-): GuardDecision {
-    if (!tr.docChanged) {
-        return { type: 'allowTransaction' };
+function clearActiveCellDecision(tr: Transaction): GuardDecision {
+    return { type: 'clearActiveCell', selection: tr.selection ?? undefined };
+}
+
+/**
+ * Transactions the guard never inspects: they either carry no document change or are
+ * already produced by the plugin itself (nested editor sync, normalize-before-edit).
+ */
+function isGuardBypassTransaction(tr: Transaction): boolean {
+    return (
+        !tr.docChanged ||
+        Boolean(tr.annotation(syncAnnotation)) ||
+        Boolean(tr.annotation(normalizeBeforeEditAnnotation))
+    );
+}
+
+function decideFullDocumentReplace(tr: Transaction): GuardDecision | null {
+    if (!isFullDocumentReplace(tr)) {
+        return null;
     }
 
-    if (tr.annotation(syncAnnotation)) {
-        return { type: 'allowTransaction' };
-    }
+    return getActiveCell(tr.startState) ? clearActiveCellDecision(tr) : { type: 'allowTransaction' };
+}
 
-    if (tr.annotation(normalizeBeforeEditAnnotation)) {
-        return { type: 'allowTransaction' };
-    }
-
-    const pasteDecision = decidePasteTransaction(tr, params.nestedEditorOpen);
-    if (pasteDecision) {
-        return pasteDecision;
-    }
-
-    const activeCell = getActiveCell(tr.startState);
-    const resolvedActiveCell = getResolvedActiveCell(tr.startState);
-    if (isFullDocumentReplace(tr)) {
-        return activeCell
-            ? { type: 'clearActiveCell', selection: tr.selection ?? undefined }
-            : { type: 'allowTransaction' };
-    }
-
-    if (!params.nestedEditorOpen || !activeCell) {
-        return { type: 'allowTransaction' };
-    }
-
-    if (!resolvedActiveCell) {
-        return { type: 'clearActiveCell', selection: tr.selection ?? undefined };
-    }
-
-    if (tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))) {
-        return { type: 'allowTransaction' };
-    }
-
-    if (!changesOverlapRange(tr, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)) {
-        return { type: 'allowTransaction' };
-    }
-
+function decideCellSanitization(tr: Transaction, resolvedActiveCell: ResolvedActiveCell): GuardDecision {
     const sanitized = sanitizeCellChanges(tr, resolvedActiveCell.editableFrom, resolvedActiveCell.editableTo);
     if (sanitized.rejected) {
         return { type: 'rejectTransaction' };
@@ -178,4 +158,47 @@ export function decideMainEditorGuardTransaction(
         changes: sanitized.changes,
         selection,
     };
+}
+
+/** Decides how to treat a main-editor edit while a nested cell editor holds an active cell. */
+function decideActiveCellEdit(tr: Transaction): GuardDecision {
+    const resolvedActiveCell = getResolvedActiveCell(tr.startState);
+    if (!resolvedActiveCell) {
+        return clearActiveCellDecision(tr);
+    }
+
+    if (tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))) {
+        return { type: 'allowTransaction' };
+    }
+
+    if (!changesOverlapRange(tr, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)) {
+        return { type: 'allowTransaction' };
+    }
+
+    return decideCellSanitization(tr, resolvedActiveCell);
+}
+
+export function decideMainEditorGuardTransaction(
+    tr: Transaction,
+    params: { nestedEditorOpen: boolean }
+): GuardDecision {
+    if (isGuardBypassTransaction(tr)) {
+        return { type: 'allowTransaction' };
+    }
+
+    const pasteDecision = decidePasteTransaction(tr, params.nestedEditorOpen);
+    if (pasteDecision) {
+        return pasteDecision;
+    }
+
+    const fullReplaceDecision = decideFullDocumentReplace(tr);
+    if (fullReplaceDecision) {
+        return fullReplaceDecision;
+    }
+
+    if (!params.nestedEditorOpen || !getActiveCell(tr.startState)) {
+        return { type: 'allowTransaction' };
+    }
+
+    return decideActiveCellEdit(tr);
 }
