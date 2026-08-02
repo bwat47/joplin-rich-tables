@@ -1,6 +1,10 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin, type Command } from '@codemirror/view';
-import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import {
+    clearCellSelectionEffect,
+    getCellSelection,
+    type CellSelectionDirection,
+} from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
@@ -11,7 +15,7 @@ import { requestOpenCell } from '../openCellRequest';
 
 type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
 
-function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
+function extendOrStartSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     if (getCellSelection(view.state)) {
         return extendExistingCellSelection(view, direction);
     }
@@ -96,16 +100,26 @@ function handleDeleteKey(view: EditorView, event: KeyboardEvent): boolean {
     return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && handleSelectionDelete(view);
 }
 
+/** Enter and Tab both open the focus cell; Shift+Enter/Tab are left to the editor. */
+function handleActivateKey(view: EditorView, event: KeyboardEvent): boolean {
+    return !event.shiftKey && activateSelectionFocus(view);
+}
+
+/** Arrow keys extend the selection only while Shift is held. */
+function arrowKeyHandler(direction: CellSelectionDirection): SelectionKeyHandler {
+    return (view, event) => event.shiftKey && extendOrStartSelection(view, direction);
+}
+
 const selectionKeyHandlers: ReadonlyMap<string, SelectionKeyHandler> = new Map([
     ['Backspace', handleDeleteKey],
     ['Delete', handleDeleteKey],
-    ['ArrowLeft', (view, event) => event.shiftKey && extendOrStartSelection(view, 'left')],
-    ['ArrowRight', (view, event) => event.shiftKey && extendOrStartSelection(view, 'right')],
-    ['ArrowUp', (view, event) => event.shiftKey && extendOrStartSelection(view, 'up')],
-    ['ArrowDown', (view, event) => event.shiftKey && extendOrStartSelection(view, 'down')],
+    ['ArrowLeft', arrowKeyHandler('left')],
+    ['ArrowRight', arrowKeyHandler('right')],
+    ['ArrowUp', arrowKeyHandler('up')],
+    ['ArrowDown', arrowKeyHandler('down')],
     ['Escape', (view) => clearSelectionIfActive(view)],
-    ['Enter', (view, event) => !event.shiftKey && activateSelectionFocus(view)],
-    ['Tab', (view, event) => !event.shiftKey && activateSelectionFocus(view)],
+    ['Enter', handleActivateKey],
+    ['Tab', handleActivateKey],
 ]);
 
 function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
