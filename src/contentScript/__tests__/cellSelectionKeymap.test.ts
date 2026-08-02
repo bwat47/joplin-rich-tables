@@ -7,7 +7,7 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
     findCellElement: vi.fn(() => ({})),
 }));
 
-import { history } from '@codemirror/commands';
+import { history, undo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
@@ -21,22 +21,41 @@ const markdownExtension = markdown({
     extensions: [GFM],
 });
 
+/** Table with three columns and two body rows, so selection can move in every direction. */
+const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
+
+const mountedViews: EditorView[] = [];
+
+function mountSelectionView(doc: string): EditorView {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    const view = new EditorView({
+        parent,
+        extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+        doc,
+    });
+    mountedViews.push(view);
+
+    return view;
+}
+
+function pressKey(init: KeyboardEventInit & { key: string }): void {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+}
+
+afterEach(() => {
+    // Destroy here rather than per-test so a failing assertion cannot leak the
+    // plugin's document-level keydown listener into the next test.
+    while (mountedViews.length > 0) {
+        mountedViews.pop()?.destroy();
+    }
+    document.body.replaceChildren();
+});
+
 describe('cellSelectionKeymap', () => {
     it('routes undo through the main editor while a multi-cell selection is active', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            extensions: [
-                markdownExtension,
-                history(),
-                activeCellField,
-                cellSelectionField,
-                cellSelectionKeyCapturePlugin,
-            ],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
 
         view.dispatch({
             changes: {
@@ -54,79 +73,30 @@ describe('cellSelectionKeymap', () => {
         expect(view.state.doc.toString()).toContain('| b1 | b2 |');
         expect(getCellSelection(view.state)).not.toBeNull();
 
-        document.body.dispatchEvent(
-            new KeyboardEvent('keydown', {
-                key: 'z',
-                ctrlKey: true,
-                bubbles: true,
-                cancelable: true,
-            })
-        );
+        pressKey({ key: 'z', ctrlKey: true });
 
         expect(view.state.doc.toString()).not.toContain('| b1 | b2 |');
         expect(getCellSelection(view.state)).toBeNull();
-
-        view.destroy();
     });
 
-    it('routes Delete through selection removal while a multi-cell selection is active', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            extensions: [
-                markdownExtension,
-                history(),
-                activeCellField,
-                cellSelectionField,
-                cellSelectionKeyCapturePlugin,
-            ],
-            doc: ['| H1 |  | H3 |', '| --- | --- | --- |', '| A1 |  | A3 |', '| B1 |  | B3 |'].join('\n'),
-        });
+    it.each([
+        { label: 'Ctrl+Y', init: { key: 'y', ctrlKey: true } },
+        { label: 'Ctrl+Shift+Z', init: { key: 'z', ctrlKey: true, shiftKey: true } },
+    ])('routes redo through the main editor via $label', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
 
         view.dispatch({
-            effects: setCellSelectionEffect.of({
-                tableFrom: 0,
-                anchor: { section: 'header', row: 0, col: 1 },
-                focus: { section: 'body', row: 1, col: 1 },
-            }),
+            changes: {
+                from: view.state.doc.length,
+                to: view.state.doc.length,
+                insert: '\n| b1 | b2 |',
+            },
         });
-
-        const event = new KeyboardEvent('keydown', {
-            key: 'Delete',
-            bubbles: true,
-            cancelable: true,
-        });
-        document.body.dispatchEvent(event);
-
-        expect(view.state.doc.toString()).toBe(
-            ['| H1 | H3 |', '| --- | --- |', '| A1 | A3 |', '| B1 | B3 |'].join('\n')
-        );
-        expect(getCellSelection(view.state)).toEqual({
-            tableFrom: 0,
-            anchor: { section: 'header', row: 0, col: 1 },
-            focus: { section: 'body', row: 1, col: 1 },
-        });
-
-        view.destroy();
-    });
-
-    it('routes Backspace through selection removal while a multi-cell selection is active', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            extensions: [
-                markdownExtension,
-                history(),
-                activeCellField,
-                cellSelectionField,
-                cellSelectionKeyCapturePlugin,
-            ],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
+        // Undo directly so the redo stack is primed without the keymap's refocus,
+        // which would otherwise park focus on the contenteditable and suppress the
+        // next document-level shortcut.
+        undo(view);
+        expect(view.state.doc.toString()).not.toContain('| b1 | b2 |');
 
         view.dispatch({
             effects: setCellSelectionEffect.of({
@@ -136,12 +106,48 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        const event = new KeyboardEvent('keydown', {
-            key: 'Backspace',
-            bubbles: true,
-            cancelable: true,
+        pressKey(init);
+
+        expect(view.state.doc.toString()).toContain('| b1 | b2 |');
+    });
+
+    it('routes Delete through selection removal while a multi-cell selection is active', () => {
+        const view = mountSelectionView(
+            ['| H1 |  | H3 |', '| --- | --- | --- |', '| A1 |  | A3 |', '| B1 |  | B3 |'].join('\n')
+        );
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'header', row: 0, col: 1 },
+                focus: { section: 'body', row: 1, col: 1 },
+            }),
         });
-        document.body.dispatchEvent(event);
+
+        pressKey({ key: 'Delete' });
+
+        expect(view.state.doc.toString()).toBe(
+            ['| H1 | H3 |', '| --- | --- |', '| A1 | A3 |', '| B1 | B3 |'].join('\n')
+        );
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'header', row: 0, col: 1 },
+            focus: { section: 'body', row: 1, col: 1 },
+        });
+    });
+
+    it('routes Backspace through selection removal while a multi-cell selection is active', () => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        pressKey({ key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
         expect(getCellSelection(view.state)).toEqual({
@@ -149,25 +155,27 @@ describe('cellSelectionKeymap', () => {
             anchor: { section: 'body', row: 0, col: 0 },
             focus: { section: 'body', row: 0, col: 1 },
         });
+    });
 
-        view.destroy();
+    it.each(['shiftKey', 'altKey', 'ctrlKey', 'metaKey'] as const)('ignores Delete combined with %s', (modifier) => {
+        const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const view = mountSelectionView(initialDoc);
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        pressKey({ key: 'Delete', [modifier]: true });
+
+        expect(view.state.doc.toString()).toBe(initialDoc);
     });
 
     it('focuses the main editor after deleting an emptied table via multi-cell selection', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            extensions: [
-                markdownExtension,
-                history(),
-                activeCellField,
-                cellSelectionField,
-                cellSelectionKeyCapturePlugin,
-            ],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         const focusSpy = vi.spyOn(view, 'focus');
 
         view.dispatch({
@@ -178,13 +186,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        document.body.dispatchEvent(
-            new KeyboardEvent('keydown', {
-                key: 'Delete',
-                bubbles: true,
-                cancelable: true,
-            })
-        );
+        pressKey({ key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(['|  |  |', '| --- | --- |', '|  |  |'].join('\n'));
         expect(getCellSelection(view.state)).toEqual({
@@ -195,63 +197,27 @@ describe('cellSelectionKeymap', () => {
 
         focusSpy.mockClear();
 
-        document.body.dispatchEvent(
-            new KeyboardEvent('keydown', {
-                key: 'Delete',
-                bubbles: true,
-                cancelable: true,
-            })
-        );
+        pressKey({ key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe('');
         expect(getCellSelection(view.state)).toBeNull();
         expect(view.state.selection.main.anchor).toBe(0);
         expect(focusSpy).toHaveBeenCalledTimes(1);
-
-        view.destroy();
     });
 
     it('ignores Delete when multi-cell selection mode is not active', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
         const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const view = new EditorView({
-            parent,
-            extensions: [
-                markdownExtension,
-                history(),
-                activeCellField,
-                cellSelectionField,
-                cellSelectionKeyCapturePlugin,
-            ],
-            doc: initialDoc,
-        });
+        const view = mountSelectionView(initialDoc);
 
-        const event = new KeyboardEvent('keydown', {
-            key: 'Delete',
-            bubbles: true,
-            cancelable: true,
-        });
-        document.body.dispatchEvent(event);
+        pressKey({ key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(initialDoc);
         expect(getCellSelection(view.state)).toBeNull();
-
-        view.destroy();
     });
 
-    it('activates the focus cell editor on Tab while multi-cell selection is active', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
+    it('clears the selection on Escape', () => {
+        const view = mountSelectionView(GRID_DOC);
 
-        const view = new EditorView({
-            parent,
-            extensions: [markdownExtension, activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
-
-        const dispatchSpy = vi.spyOn(view, 'dispatch');
         view.dispatch({
             effects: setCellSelectionEffect.of({
                 tableFrom: 0,
@@ -260,36 +226,96 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        const event = new KeyboardEvent('keydown', {
-            key: 'Tab',
-            bubbles: true,
-            cancelable: true,
-        });
-        document.body.dispatchEvent(event);
+        pressKey({ key: 'Escape' });
 
         expect(getCellSelection(view.state)).toBeNull();
-        expect(getActiveCell(view.state)).toMatchObject({
-            tableFrom: 0,
-            section: 'body',
-            row: 0,
-            col: 1,
-        });
-        const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
-        const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
-        expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
+    });
 
-        view.destroy();
+    it.each([{ key: 'Tab' as const }, { key: 'Enter' as const }])(
+        'activates the focus cell editor on $key while multi-cell selection is active',
+        ({ key }) => {
+            const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+
+            const dispatchSpy = vi.spyOn(view, 'dispatch');
+            view.dispatch({
+                effects: setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'body', row: 0, col: 0 },
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+            });
+
+            pressKey({ key });
+
+            expect(getCellSelection(view.state)).toBeNull();
+            expect(getActiveCell(view.state)).toMatchObject({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 1,
+            });
+            const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
+            const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
+            expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
+        }
+    );
+
+    it.each([{ key: 'Tab' as const }, { key: 'Enter' as const }])(
+        'leaves the selection untouched on Shift+$key',
+        ({ key }) => {
+            const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+
+            const selection = {
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            } as const;
+            view.dispatch({ effects: setCellSelectionEffect.of(selection) });
+
+            pressKey({ key, shiftKey: true });
+
+            expect(getCellSelection(view.state)).toEqual(selection);
+            expect(getActiveCell(view.state)).toBeNull();
+        }
+    );
+
+    // Each direction is wired up by hand in the keymap's dispatch table, so a
+    // transposed entry would be invisible without per-direction coverage.
+    it.each([
+        { key: 'ArrowRight', expected: { section: 'body', row: 0, col: 2 } },
+        { key: 'ArrowLeft', expected: { section: 'body', row: 0, col: 0 } },
+        { key: 'ArrowDown', expected: { section: 'body', row: 1, col: 1 } },
+        { key: 'ArrowUp', expected: { section: 'header', row: 0, col: 1 } },
+    ])('extends the selection on Shift+$key', ({ key, expected }) => {
+        const view = mountSelectionView(GRID_DOC);
+
+        const anchor = { section: 'body', row: 0, col: 1 } as const;
+        view.dispatch({
+            effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }),
+        });
+
+        pressKey({ key, shiftKey: true });
+
+        expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: expected });
+    });
+
+    it.each(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'])('ignores %s without Shift', (key) => {
+        const view = mountSelectionView(GRID_DOC);
+
+        const selection = {
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 1 },
+            focus: { section: 'body', row: 0, col: 1 },
+        } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of(selection) });
+
+        pressKey({ key });
+
+        expect(getCellSelection(view.state)).toEqual(selection);
     });
 
     it('starts cell selection from a resolved active cell', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            extensions: [markdownExtension, activeCellField, cellSelectionField],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         view.dispatch({
             effects: setActiveCellEffect.of({
                 tableFrom: 0,
@@ -306,19 +332,10 @@ describe('cellSelectionKeymap', () => {
             anchor: { section: 'body', row: 0, col: 0 },
             focus: { section: 'body', row: 0, col: 1 },
         });
-
-        view.destroy();
     });
 
     it('does not start cell selection from a stale active cell', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const view = new EditorView({
-            parent,
-            extensions: [markdownExtension, activeCellField, cellSelectionField],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         view.dispatch({
             effects: setActiveCellEffect.of({
                 tableFrom: 0,
@@ -332,7 +349,5 @@ describe('cellSelectionKeymap', () => {
         expect(startCellSelectionFromActiveCell(view, 'right')).toBe(false);
         expect(dispatchSpy).not.toHaveBeenCalled();
         expect(getCellSelection(view.state)).toBeNull();
-
-        view.destroy();
     });
 });

@@ -1,16 +1,21 @@
 import { redo, undo } from '@codemirror/commands';
-import { EditorView, ViewPlugin } from '@codemirror/view';
-import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import { EditorView, ViewPlugin, type Command } from '@codemirror/view';
+import {
+    clearCellSelectionEffect,
+    getCellSelection,
+    type CellSelectionDirection,
+} from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
 import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
-import { resolveContainingTableAtPos } from '../tableResolution';
-import { buildTableContext } from '../../tableModel/tableContext';
+import { resolveTableContextAtPos } from '../tableResolution';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
 
-function extendOrStartSelection(view: EditorView, direction: 'left' | 'right' | 'up' | 'down'): boolean {
+type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
+
+function extendOrStartSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     if (getCellSelection(view.state)) {
         return extendExistingCellSelection(view, direction);
     }
@@ -37,12 +42,7 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const table = resolveContainingTableAtPos(view.state, selection.tableFrom);
-    if (!table) {
-        return false;
-    }
-
-    const ctx = buildTableContext(table);
+    const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }
@@ -69,49 +69,70 @@ function activateSelectionFocus(view: EditorView): boolean {
     return true;
 }
 
+function resolveHistoryCommand(event: KeyboardEvent): Command | null {
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && key === 'z') {
+        return event.shiftKey ? redo : undo;
+    }
+
+    if (event.ctrlKey && !event.metaKey && key === 'y') {
+        return redo;
+    }
+
+    return null;
+}
+
+/**
+ * Runs a history command against the main editor, moving focus there when it
+ * applies. Undo/redo rewrites the document out from under the cell selection,
+ * so leaving focus on the (now stale) table widget would strand the caret.
+ */
+function runHistoryCommand(view: EditorView, command: Command): boolean {
+    const handled = command(view);
+    if (handled) {
+        view.focus();
+    }
+
+    return handled;
+}
+
+function handleDeleteKey(view: EditorView, event: KeyboardEvent): boolean {
+    return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && handleSelectionDelete(view);
+}
+
+/** Enter and Tab both open the focus cell; Shift+Enter/Tab are left to the editor. */
+function handleActivateKey(view: EditorView, event: KeyboardEvent): boolean {
+    return !event.shiftKey && activateSelectionFocus(view);
+}
+
+/** Arrow keys extend the selection only while Shift is held. */
+function arrowKeyHandler(direction: CellSelectionDirection): SelectionKeyHandler {
+    return (view, event) => event.shiftKey && extendOrStartSelection(view, direction);
+}
+
+const selectionKeyHandlers: ReadonlyMap<string, SelectionKeyHandler> = new Map([
+    ['Backspace', handleDeleteKey],
+    ['Delete', handleDeleteKey],
+    ['ArrowLeft', arrowKeyHandler('left')],
+    ['ArrowRight', arrowKeyHandler('right')],
+    ['ArrowUp', arrowKeyHandler('up')],
+    ['ArrowDown', arrowKeyHandler('down')],
+    ['Escape', (view) => clearSelectionIfActive(view)],
+    ['Enter', handleActivateKey],
+    ['Tab', handleActivateKey],
+]);
+
 function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
     if (!canHandleTableSelectionKeydown(view)) {
         return false;
     }
 
-    const key = event.key.toLowerCase();
-    if ((event.ctrlKey || event.metaKey) && key === 'z') {
-        const command = event.shiftKey ? redo : undo;
-        const handled = command(view);
-        if (handled) {
-            view.focus();
-        }
-        return handled;
+    const historyCommand = resolveHistoryCommand(event);
+    if (historyCommand) {
+        return runHistoryCommand(view, historyCommand);
     }
 
-    if (event.ctrlKey && !event.metaKey && key === 'y') {
-        const handled = redo(view);
-        if (handled) {
-            view.focus();
-        }
-        return handled;
-    }
-
-    switch (event.key) {
-        case 'Backspace':
-        case 'Delete':
-            return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && handleSelectionDelete(view);
-        case 'ArrowLeft':
-            return event.shiftKey && extendOrStartSelection(view, 'left');
-        case 'ArrowRight':
-            return event.shiftKey && extendOrStartSelection(view, 'right');
-        case 'ArrowUp':
-            return event.shiftKey && extendOrStartSelection(view, 'up');
-        case 'ArrowDown':
-            return event.shiftKey && extendOrStartSelection(view, 'down');
-        case 'Escape':
-            return clearSelectionIfActive(view);
-        case 'Enter':
-        case 'Tab':
-            return !event.shiftKey && activateSelectionFocus(view);
-        default:
-            return false;
-    }
+    return selectionKeyHandlers.get(event.key)?.(view, event) ?? false;
 }
 
 export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
