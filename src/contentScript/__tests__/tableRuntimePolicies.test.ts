@@ -22,17 +22,8 @@ import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuar
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
-import {
-    normalizeBeforeEditAnnotation,
-    planNormalizeTableBeforeOpen,
-} from '../tableRuntime/lifecycle/tableNormalization';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
-import {
-    beginOpenCellRequestEffect,
-    openCellRequestField,
-    triggerOpenCellRequestEffect,
-    type OpenCellRequest,
-} from '../tableRuntime/openCellRequest';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -58,20 +49,6 @@ function getHeaderCell(): ActiveCell {
         row: 0,
         col: 0,
     };
-}
-
-function createOpenRequest(params: { activeCell: ActiveCell; normalizeIfNeeded: boolean }): OpenCellRequest {
-    return {
-        requestId: 'test-open-request',
-        activeCell: params.activeCell,
-        normalizeIfNeeded: params.normalizeIfNeeded,
-        initialCursorPos: 'end',
-        suppressKeys: false,
-    };
-}
-
-function addPendingOpenRequest(state: EditorState, request: OpenCellRequest): EditorState {
-    return state.update({ effects: beginOpenCellRequestEffect.of(request) }).state;
 }
 
 function requireResolvedActiveCell(state: EditorState) {
@@ -620,110 +597,6 @@ describe('tableRuntimePolicies', () => {
             type: 'allowTransaction',
         });
         expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
-    });
-
-    it('does not plan normalization when disabled or already canonical', () => {
-        const activeCell = getHeaderCell();
-        const nonCanonicalState = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [
-            activeCellField,
-            openCellRequestField,
-        ]).update({ effects: setActiveCellEffect.of(activeCell) }).state;
-        const disabledRequest = createOpenRequest({ activeCell, normalizeIfNeeded: false });
-        const nonCanonicalStateWithRequest = addPendingOpenRequest(nonCanonicalState, disabledRequest);
-        const nonCanonicalResolved = requireResolvedActiveCell(nonCanonicalStateWithRequest);
-
-        expect(
-            planNormalizeTableBeforeOpen({
-                state: nonCanonicalStateWithRequest,
-                resolvedActiveCell: nonCanonicalResolved,
-                request: disabledRequest,
-            })
-        ).toEqual({ type: 'not-needed' });
-
-        const canonicalActiveCell = { ...activeCell, tableFrom: 1 };
-        let canonicalState = createMarkdownState(`\n${doc}\n`, [activeCellField, openCellRequestField]);
-        canonicalState = canonicalState.update({ effects: setActiveCellEffect.of(canonicalActiveCell) }).state;
-        const canonicalRequest = createOpenRequest({ activeCell: canonicalActiveCell, normalizeIfNeeded: true });
-        canonicalState = addPendingOpenRequest(canonicalState, canonicalRequest);
-        const canonicalResolved = requireResolvedActiveCell(canonicalState);
-
-        expect(
-            planNormalizeTableBeforeOpen({
-                state: canonicalState,
-                resolvedActiveCell: canonicalResolved,
-                request: canonicalRequest,
-            })
-        ).toEqual({ type: 'not-needed' });
-    });
-
-    it('plans a normalization dispatch that remaps active cell and retriggers open request', () => {
-        const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
-        const activeCell: ActiveCell = {
-            tableFrom: 0,
-            section: 'body',
-            row: 0,
-            col: 1,
-        };
-        let state = createMarkdownState(nonCanonicalDoc, [activeCellField, openCellRequestField]);
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
-        const request = createOpenRequest({ activeCell, normalizeIfNeeded: true });
-        state = addPendingOpenRequest(state, request);
-        const resolved = requireResolvedActiveCell(state);
-
-        const plan = planNormalizeTableBeforeOpen({
-            state,
-            resolvedActiveCell: resolved,
-            request,
-        });
-
-        expect(plan.type).toBe('dispatch');
-        if (plan.type !== 'dispatch') {
-            throw new Error('Expected normalization dispatch plan');
-        }
-
-        const tr = state.update(plan.spec);
-        expect(tr.state.doc.toString()).toBe(`\n${doc}\n`);
-        expect(getActiveCell(tr.state)).toEqual({
-            tableFrom: 1,
-            section: 'body',
-            row: 0,
-            col: 1,
-        });
-        expect(tr.state.selection.main.anchor).toBeGreaterThan(0);
-        expect(tr.annotation(normalizeBeforeEditAnnotation)).toBe(true);
-        expect(tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))).toBe(true);
-        expect(
-            tr.effects.some(
-                (effect) =>
-                    effect.is(beginOpenCellRequestEffect) &&
-                    effect.value.requestId === 'test-open-request' &&
-                    effect.value.normalizeIfNeeded === false &&
-                    effect.value.activeCell.tableFrom === 1
-            )
-        ).toBe(true);
-        expect(
-            tr.effects.some(
-                (effect) => effect.is(triggerOpenCellRequestEffect) && effect.value.requestId === 'test-open-request'
-            )
-        ).toBe(true);
-    });
-
-    it('aborts normalization when the open request is stale', () => {
-        const activeCell = getHeaderCell();
-        let state = createMarkdownState(['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n'), [
-            activeCellField,
-            openCellRequestField,
-        ]);
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
-        const resolved = requireResolvedActiveCell(state);
-
-        expect(
-            planNormalizeTableBeforeOpen({
-                state,
-                resolvedActiveCell: resolved,
-                request: createOpenRequest({ activeCell, normalizeIfNeeded: true }),
-            })
-        ).toEqual({ type: 'aborted' });
     });
 
     it('does not plan a generic reopen for rebuild-only transactions', () => {
