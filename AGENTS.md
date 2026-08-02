@@ -74,3 +74,8 @@ Start here when exploring the codebase:
 ## Log messages
 
 - Use `src/logger.ts` wrapper
+
+## Codex working instructions
+
+- GitHub credentials are stored in the OS keyring.
+- If `gh auth status` fails inside the sandbox, retry it with escalated permissions before asking me to authenticate.
