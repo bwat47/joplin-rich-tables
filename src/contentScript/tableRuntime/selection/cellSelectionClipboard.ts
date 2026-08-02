@@ -16,7 +16,8 @@ import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
-import type { CellCoords } from '../../tableModel/types';
+import type { TableContext } from '../../tableModel/tableContext';
+import type { CellCoords, TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { clamp } from '../../shared/numberUtils';
@@ -185,42 +186,94 @@ function buildTableDeletionRewrite(tableFrom: number): TableClipboardRewrite {
     };
 }
 
-function clampIndex(value: number, max: number): number {
-    return clamp(value, 0, max);
+/**
+ * Re-clamps one selection axis onto a grid that just shrank, keeping the original
+ * span length where the surviving rows/columns still allow it.
+ */
+function clampSpan(min: number, max: number, axisLength: number): { min: number; max: number } {
+    const lastIndex = axisLength - 1;
+    const clampedMin = clamp(min, 0, lastIndex);
+
+    return {
+        min: clampedMin,
+        max: Math.max(clampedMin, clamp(max, 0, lastIndex)),
+    };
 }
 
-function remapSelectionAfterRowDelete(
-    tableFrom: number,
-    rect: ReturnType<typeof toSelectionRect>,
-    nextTable: MarkdownTable
-) {
-    const rowSpan = rect.maxRow - rect.minRow;
-    const minRow = clampIndex(rect.minRow, nextTable.rowCount - 1);
-    const maxRow = Math.max(minRow, clampIndex(rect.minRow + rowSpan, nextTable.rowCount - 1));
+function remapSelectionAfterRowDelete(tableFrom: number, rect: TableRect, nextTable: MarkdownTable) {
+    const rows = clampSpan(rect.minRow, rect.maxRow, nextTable.rowCount);
 
     return selectionFromRect(tableFrom, {
-        minRow,
-        maxRow,
+        minRow: rows.min,
+        maxRow: rows.max,
         minCol: 0,
         maxCol: nextTable.columnCount - 1,
     });
 }
 
-function remapSelectionAfterColumnDelete(
-    tableFrom: number,
-    rect: ReturnType<typeof toSelectionRect>,
-    nextTable: MarkdownTable
-) {
-    const colSpan = rect.maxCol - rect.minCol;
-    const minCol = clampIndex(rect.minCol, nextTable.columnCount - 1);
-    const maxCol = Math.max(minCol, clampIndex(rect.minCol + colSpan, nextTable.columnCount - 1));
+function remapSelectionAfterColumnDelete(tableFrom: number, rect: TableRect, nextTable: MarkdownTable) {
+    const cols = clampSpan(rect.minCol, rect.maxCol, nextTable.columnCount);
 
     return selectionFromRect(tableFrom, {
         minRow: 0,
         maxRow: nextTable.rowCount - 1,
-        minCol,
-        maxCol,
+        minCol: cols.min,
+        maxCol: cols.max,
     });
+}
+
+/** Null when the table refuses the deletion, i.e. it would leave no rows behind. */
+function buildEmptyRowRangeRemoval(ctx: TableContext, rect: TableRect): TableClipboardRewrite | null {
+    const nextTable = ctx.table.deleteUnifiedRowRange(rect.minRow, rect.maxRow);
+    if (nextTable === ctx.table) {
+        return null;
+    }
+
+    return buildTableRewrite({
+        tableFrom: ctx.from,
+        tableText: nextTable.serialize(),
+        selection: remapSelectionAfterRowDelete(ctx.from, rect, nextTable),
+        clearActiveCell: false,
+    });
+}
+
+/** Null when the table refuses the deletion, i.e. it would leave no columns behind. */
+function buildEmptyColumnRangeRemoval(ctx: TableContext, rect: TableRect): TableClipboardRewrite | null {
+    const nextTable = ctx.table.deleteColumnRange(rect.minCol, rect.maxCol);
+    if (nextTable === ctx.table) {
+        return null;
+    }
+
+    return buildTableRewrite({
+        tableFrom: ctx.from,
+        tableText: nextTable.serialize(),
+        selection: remapSelectionAfterColumnDelete(ctx.from, rect, nextTable),
+        clearActiveCell: false,
+    });
+}
+
+/**
+ * Structural removal for an already-empty rectangle: the whole table, whole rows, or
+ * whole columns. Null when the rectangle is not aligned to a structural axis, or when
+ * the deletion would empty the table out entirely.
+ */
+function buildEmptySelectionRemoval(ctx: TableContext, rect: TableRect): TableClipboardRewrite | null {
+    const spansAllRows = rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1;
+    const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
+
+    if (spansAllRows && spansAllCols) {
+        return buildTableDeletionRewrite(ctx.from);
+    }
+
+    if (spansAllCols) {
+        return buildEmptyRowRangeRemoval(ctx, rect);
+    }
+
+    if (spansAllRows) {
+        return buildEmptyColumnRangeRemoval(ctx, rect);
+    }
+
+    return null;
 }
 
 export function buildSelectionRemovalRewrite(
@@ -233,42 +286,17 @@ export function buildSelectionRemovalRewrite(
     }
 
     const rect = toSelectionRect(selection);
-    const isEmptySelection = ctx.table.isRectEmpty(rect);
-    const spansAllRows = rect.minRow === 0 && rect.maxRow === ctx.table.rowCount - 1;
-    const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
-
-    if (isEmptySelection && spansAllRows && spansAllCols) {
-        return buildTableDeletionRewrite(ctx.from);
-    }
-
-    if (isEmptySelection && spansAllCols) {
-        const nextTable = ctx.table.deleteUnifiedRowRange(rect.minRow, rect.maxRow);
-        if (nextTable !== ctx.table) {
-            return buildTableRewrite({
-                tableFrom: ctx.from,
-                tableText: nextTable.serialize(),
-                selection: remapSelectionAfterRowDelete(ctx.from, rect, nextTable),
-                clearActiveCell: false,
-            });
+    if (ctx.table.isRectEmpty(rect)) {
+        const structuralRewrite = buildEmptySelectionRemoval(ctx, rect);
+        if (structuralRewrite) {
+            return structuralRewrite;
         }
     }
 
-    if (isEmptySelection && spansAllRows) {
-        const nextTable = ctx.table.deleteColumnRange(rect.minCol, rect.maxCol);
-        if (nextTable !== ctx.table) {
-            return buildTableRewrite({
-                tableFrom: ctx.from,
-                tableText: nextTable.serialize(),
-                selection: remapSelectionAfterColumnDelete(ctx.from, rect, nextTable),
-                clearActiveCell: false,
-            });
-        }
-    }
-
-    const nextTable = ctx.table.clearRect(rect);
+    // Rectangles that still hold text (or that no structural deletion accepted) are cleared in place.
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: nextTable.serialize(),
+        tableText: ctx.table.clearRect(rect).serialize(),
         selection: selectionFromRect(ctx.from, rect),
         clearActiveCell: false,
     });
@@ -368,48 +396,55 @@ export function handleSelectionDelete(view: EditorView): boolean {
     return true;
 }
 
-function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
+interface SelectionClipboardCopy {
+    clipboardData: DataTransfer;
+    selection: CellSelection;
+    markdown: string;
+}
+
+/** Shared copy/cut prelude: null whenever this event is not ours to serialize. */
+function resolveSelectionClipboardCopy(event: ClipboardEvent, view: EditorView): SelectionClipboardCopy | null {
     const selection = getCellSelection(view.state);
     if (!selection || !event.clipboardData) {
-        return false;
+        return null;
     }
 
     if (!canHandleTableSelectionKeydown(view)) {
-        return false;
+        return null;
     }
 
     const markdown = copySelectionAsMarkdown(view.state, selection);
     if (!markdown) {
+        return null;
+    }
+
+    return { clipboardData: event.clipboardData, selection, markdown };
+}
+
+function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
+    const copy = resolveSelectionClipboardCopy(event, view);
+    if (!copy) {
         return false;
     }
 
-    event.clipboardData.setData('text/plain', markdown);
+    copy.clipboardData.setData('text/plain', copy.markdown);
     event.preventDefault();
     return true;
 }
 
 function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
-    const selection = getCellSelection(view.state);
-    if (!selection || !event.clipboardData) {
-        return false;
-    }
-
-    if (!canHandleTableSelectionKeydown(view)) {
-        return false;
-    }
-
-    const markdown = copySelectionAsMarkdown(view.state, selection);
-    if (!markdown) {
+    const copy = resolveSelectionClipboardCopy(event, view);
+    if (!copy) {
         return false;
     }
 
     // Cutting copies the selection, then applies the same table rewrite as Delete.
-    const rewrite = buildSelectionRemovalRewrite(view.state, selection);
+    const rewrite = buildSelectionRemovalRewrite(view.state, copy.selection);
     if (!rewrite) {
         return false;
     }
 
-    event.clipboardData.setData('text/plain', markdown);
+    copy.clipboardData.setData('text/plain', copy.markdown);
     dispatchTableClipboardRewrite(view, rewrite);
     event.preventDefault();
     return true;
