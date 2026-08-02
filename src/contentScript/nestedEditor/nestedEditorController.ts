@@ -31,6 +31,13 @@ import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEdito
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
+import {
+    areSelectionsEqual,
+    resolveInitialLocalSelection,
+    toAbsoluteSelection,
+    toRelativeSelection,
+    type InitialCursorPos,
+} from './nestedEditorSelection';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
@@ -52,25 +59,6 @@ interface NestedEditorSession {
     applyingRootToLocal: boolean;
 }
 
-function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): LocalSelection {
-    return {
-        anchor: editableFrom + selection.anchor,
-        head: editableFrom + selection.head,
-    };
-}
-
-function toRelativeSelection(selection: EditorSelection, editableFrom: number, editableTo: number): LocalSelection {
-    const main = selection.main;
-    return {
-        anchor: clamp(main.anchor, editableFrom, editableTo) - editableFrom,
-        head: clamp(main.head, editableFrom, editableTo) - editableFrom,
-    };
-}
-
-function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolean {
-    return a.anchor === b.anchor && a.head === b.head;
-}
-
 function isEditorFocused(view: EditorView | null): boolean {
     return Boolean(view?.hasFocus);
 }
@@ -86,7 +74,7 @@ class NestedEditorController {
         mainView: EditorView;
         cellElement: HTMLElement;
         featureSettings: NestedEditorHostConfig;
-        initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+        initialCursorPos?: InitialCursorPos;
     }): boolean {
         this.close();
 
@@ -112,17 +100,11 @@ class NestedEditorController {
             resolved.editableFrom,
             resolved.editableTo
         );
-        let localSelection = toLocalSelection(rootSelection, rootText);
-
-        if (params.initialCursorPos === 'start') {
-            localSelection = { anchor: 0, head: 0 };
-        } else if (params.initialCursorPos === 'end') {
-            localSelection = { anchor: localText.length, head: localText.length };
-        } else if (params.initialCursorPos === 'lastLineStart') {
-            const lastNewline = localText.lastIndexOf('\n');
-            const pos = lastNewline === -1 ? 0 : lastNewline + 1;
-            localSelection = { anchor: pos, head: pos };
-        }
+        const localSelection = resolveInitialLocalSelection(
+            toLocalSelection(rootSelection, rootText),
+            localText,
+            params.initialCursorPos
+        );
 
         const session: NestedEditorSession = {
             resolvedCell: resolved,
@@ -495,7 +477,7 @@ export function openNestedEditor(params: {
     mainView: EditorView;
     cellElement: HTMLElement;
     featureSettings: NestedEditorHostConfig;
-    initialCursorPos?: 'start' | 'end' | 'lastLineStart';
+    initialCursorPos?: InitialCursorPos;
 }): boolean {
     return getController(params.mainView)?.open(params) ?? false;
 }
