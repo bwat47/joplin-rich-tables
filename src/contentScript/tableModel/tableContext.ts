@@ -8,11 +8,22 @@
  */
 import { MarkdownTable } from './MarkdownTable';
 import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
-import type { ResolvedTable } from './types';
+import type { ResolvedTable, TableGridBounds } from './types';
 
 export interface TableContext extends ResolvedTable {
     table: MarkdownTable;
     cellRanges: TableCellRanges;
+}
+
+/** The header occupies unified row 0, so it contributes one row to the grid. */
+const HEADER_ROW_COUNT = 1;
+
+/** Grid size in unified coordinates; column count is taken from the header row. */
+export function getTableGridBounds(ctx: TableContext): TableGridBounds {
+    return {
+        totalRows: HEADER_ROW_COUNT + ctx.cellRanges.rows.length,
+        totalCols: ctx.cellRanges.headers.length,
+    };
 }
 
 interface CacheEntry {

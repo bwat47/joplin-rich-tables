@@ -31,6 +31,12 @@ export interface TableRect {
     maxCol: number;
 }
 
+/** Size of a table's unified grid, where the header counts as one row. */
+export interface TableGridBounds {
+    totalRows: number;
+    totalCols: number;
+}
+
 export function toUnifiedRowIndex(section: TableSection, row: number): number {
     return section === 'header' ? 0 : row + 1;
 }

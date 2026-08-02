@@ -12,22 +12,15 @@ import {
     type CellSelection,
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
-import type { TableContext } from '../../tableModel/tableContext';
+import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 import { makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
-function getTableBoundsFromContext(ctx: TableContext): { totalRows: number; totalCols: number } {
-    return {
-        totalRows: 1 + ctx.cellRanges.rows.length,
-        totalCols: ctx.cellRanges.headers.length,
-    };
-}
-
 function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
-    const bounds = getTableBoundsFromContext(ctx);
+    const bounds = getTableGridBounds(ctx);
     if (bounds.totalCols <= 0) {
         return null;
     }
