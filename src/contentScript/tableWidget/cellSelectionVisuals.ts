@@ -1,19 +1,7 @@
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
-import { CLASS_CELL_SELECTED, findTableWidgetElement } from './domHelpers';
-import { makeTableId, type CellCoords } from '../tableModel/types';
-
-function readCoords(cell: HTMLElement): CellCoords | null {
-    const section = cell.dataset.section;
-    const row = Number(cell.dataset.row);
-    const col = Number(cell.dataset.col);
-
-    if ((section !== 'header' && section !== 'body') || Number.isNaN(row) || Number.isNaN(col)) {
-        return null;
-    }
-
-    return { section, row, col };
-}
+import { CLASS_CELL_SELECTED, findTableWidgetElement, readCellCoords } from './domHelpers';
+import { makeTableId } from '../tableModel/types';
 
 function collectSelectedCells(view: EditorView): HTMLElement[] {
     const selection = getCellSelection(view.state);
@@ -33,7 +21,7 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
     const selectedCells: HTMLElement[] = [];
 
     for (const cell of cells) {
-        const coords = readCoords(cell);
+        const coords = readCellCoords(cell);
         if (!coords || !isCellInRect(rect, coords)) {
             continue;
         }

@@ -2,13 +2,12 @@ import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
 import { parseFootnoteHref } from '../shared/footnoteAnchor';
-import { clearActiveCellEffect, getActiveCell, type ActiveCellSection } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import type { CellCoords } from '../tableModel/types';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
-import { DATA_COL, DATA_ROW, DATA_SECTION, SECTION_HEADER, getWidgetSelector } from './domHelpers';
+import { getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 
@@ -123,23 +122,6 @@ function scrollToPosition(view: EditorView, pos: number): void {
 /** Escape special regex characters in a string */
 function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Read cell coordinates from a cell element's data attributes.
- * Returns null when any attribute is missing or unparseable.
- */
-function readCellCoords(cell: HTMLElement): CellCoords | null {
-    const section = (cell.dataset[DATA_SECTION] as ActiveCellSection | undefined) ?? null;
-    const row = Number(cell.dataset[DATA_ROW]);
-    const col = Number(cell.dataset[DATA_COL]);
-
-    if (!section || Number.isNaN(row) || Number.isNaN(col)) {
-        return null;
-    }
-
-    // The header is always a single row, so its row index is pinned to 0.
-    return { section, row: section === SECTION_HEADER ? 0 : row, col };
 }
 
 /** Click events: strict link opening. */
