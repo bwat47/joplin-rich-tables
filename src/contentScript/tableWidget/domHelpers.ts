@@ -1,4 +1,4 @@
-import { type CellCoords, type TableId, makeTableId } from '../tableModel/types';
+import { type CellCoords, type TableId, type TableSection, makeTableId } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
 
 // Main widget structure classes
@@ -47,6 +47,40 @@ export function getWidgetSelector(): string {
  */
 export function getCellSelector(coords: CellCoords): string {
     return `[data-${DATA_SECTION}="${coords.section}"][data-${DATA_ROW}="${coords.row}"][data-${DATA_COL}="${coords.col}"]`;
+}
+
+/** Narrows a raw `data-section` value to a known table section. */
+function isTableSection(value: string | undefined): value is TableSection {
+    return value === SECTION_HEADER || value === SECTION_BODY;
+}
+
+/** Parses a raw `data-row`/`data-col` value, returning null when it is not a number. */
+function readIndex(value: string | undefined): number | null {
+    const index = Number(value);
+    return Number.isNaN(index) ? null : index;
+}
+
+/**
+ * Reads cell coordinates back off a cell element's data attributes.
+ *
+ * The inverse of `getCellSelector()`, and the only supported way to turn a DOM
+ * cell into `CellCoords`: the attributes are written solely by `TableWidget`,
+ * so anything failing validation is not one of its cells.
+ *
+ * @param cell - A `td`/`th` element to read coordinates from.
+ * @returns The coordinates, or null when any attribute is missing or unparseable.
+ */
+export function readCellCoords(cell: HTMLElement): CellCoords | null {
+    const section = cell.dataset[DATA_SECTION];
+    const row = readIndex(cell.dataset[DATA_ROW]);
+    const col = readIndex(cell.dataset[DATA_COL]);
+
+    if (!isTableSection(section) || row === null || col === null) {
+        return null;
+    }
+
+    // The header is always a single row, so its row index is pinned to 0.
+    return { section, row: section === SECTION_HEADER ? 0 : row, col };
 }
 
 /**
