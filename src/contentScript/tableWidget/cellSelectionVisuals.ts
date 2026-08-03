@@ -1,14 +1,33 @@
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
-import { CLASS_CELL_SELECTED, findTableWidgetElement } from './domHelpers';
-import { makeTableId, type CellCoords } from '../tableModel/types';
+import {
+    CLASS_CELL_SELECTED,
+    DATA_COL,
+    DATA_ROW,
+    DATA_SECTION,
+    SECTION_BODY,
+    SECTION_HEADER,
+    findTableWidgetElement,
+} from './domHelpers';
+import { makeTableId, type CellCoords, type TableSection } from '../tableModel/types';
+
+/** Narrows a raw `data-section` value to a known table section. */
+function isTableSection(value: string | undefined): value is TableSection {
+    return value === SECTION_HEADER || value === SECTION_BODY;
+}
+
+/** Parses a raw `data-row`/`data-col` value, returning null when it is not a number. */
+function readIndex(value: string | undefined): number | null {
+    const index = Number(value);
+    return Number.isNaN(index) ? null : index;
+}
 
 function readCoords(cell: HTMLElement): CellCoords | null {
-    const section = cell.dataset.section;
-    const row = Number(cell.dataset.row);
-    const col = Number(cell.dataset.col);
+    const section = cell.dataset[DATA_SECTION];
+    const row = readIndex(cell.dataset[DATA_ROW]);
+    const col = readIndex(cell.dataset[DATA_COL]);
 
-    if ((section !== 'header' && section !== 'body') || Number.isNaN(row) || Number.isNaN(col)) {
+    if (!isTableSection(section) || row === null || col === null) {
         return null;
     }
 
