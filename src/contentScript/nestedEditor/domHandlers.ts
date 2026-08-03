@@ -11,6 +11,18 @@ function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean
     return command(mainView);
 }
 
+/**
+ * Mod-shortcuts that run as root editor commands (bold, italic, underline, code, link).
+ * They need a root selection mirroring the nested editor before they bubble out.
+ */
+const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
+
+/**
+ * Mod-shortcuts handled entirely by Joplin/the host (save, print, paste).
+ * They bubble untouched with no extra nested-editor bookkeeping.
+ */
+const HOST_PASSTHROUGH_KEYS: readonly string[] = ['s', 'p', 'v'];
+
 export function createNestedEditorKeymap(
     mainView: EditorView,
     options: {
@@ -224,28 +236,25 @@ export function createNestedEditorDomHandlers(
                 e.stopPropagation();
                 return false;
             },
+            // Never marks the event as handled; the branches only decide whether the
+            // keydown is allowed to bubble to the main editor and what to prepare first.
             keydown: (e) => {
                 const isMod = e.ctrlKey || e.metaKey;
                 const key = e.key.toLowerCase();
 
                 if (isMod && key === 'f') {
+                    // Search replaces the nested editor, so tear it down before the event bubbles.
                     options.closeEditor();
                     if (getActiveCell(mainView.state)) {
                         mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                     }
-                    return false;
-                }
-
-                if (isMod && ['b', 'i', 'u', '`', 'e', 'k'].includes(key)) {
+                } else if (isMod && ROOT_COMMAND_KEYS.includes(key)) {
                     options.ensureRootSelectionForCommand();
-                    return false;
+                } else if (!(isMod && HOST_PASSTHROUGH_KEYS.includes(key))) {
+                    // Everything else stays inside the nested editor.
+                    e.stopPropagation();
                 }
 
-                if (isMod && ['s', 'p', 'v'].includes(key)) {
-                    return false;
-                }
-
-                e.stopPropagation();
                 return false;
             },
             mousedown: (e, view) => {
