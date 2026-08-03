@@ -25,15 +25,20 @@ function isSelectionEndpointInView(view: EditorView, endpoint: DomSelectionEndpo
     return view.contentDOM.contains(endpoint.node);
 }
 
-function setForwardDomSelection(
+/**
+ * Fallback for browsers without `Selection.setBaseAndExtent`. A DOM Range has no
+ * direction, so callers must pass the endpoints in document order: for a backward
+ * selection that means `head` first.
+ */
+function setDomSelectionRange(
     documentSelection: Selection,
     doc: Document,
-    anchor: DomSelectionEndpoint,
-    head: DomSelectionEndpoint
+    start: DomSelectionEndpoint,
+    end: DomSelectionEndpoint
 ): void {
     const range = doc.createRange();
-    range.setStart(anchor.node, anchor.offset);
-    range.setEnd(head.node, head.offset);
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
     documentSelection.removeAllRanges();
     documentSelection.addRange(range);
 }
@@ -66,9 +71,9 @@ export function forceRootDomSelection(view: EditorView, selection: { anchor: num
         if (documentSelection.setBaseAndExtent) {
             documentSelection.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
         } else if (forward) {
-            setForwardDomSelection(documentSelection, doc, anchor, head);
+            setDomSelectionRange(documentSelection, doc, anchor, head);
         } else {
-            setForwardDomSelection(documentSelection, doc, head, anchor);
+            setDomSelectionRange(documentSelection, doc, head, anchor);
         }
         return true;
     } catch {
