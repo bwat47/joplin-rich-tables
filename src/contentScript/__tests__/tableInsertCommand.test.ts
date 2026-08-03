@@ -12,6 +12,11 @@ interface CapturedDispatch {
     effects: StateEffect<unknown>[];
 }
 
+function toEffectArray(effects: TransactionSpec['effects']): StateEffect<unknown>[] {
+    if (!effects) return [];
+    return Array.isArray(effects) ? [...(effects as StateEffect<unknown>[])] : [effects as StateEffect<unknown>];
+}
+
 function createMockView(doc: string, cursorPos: number): EditorView & { state: EditorState } {
     const dispatches: CapturedDispatch[] = [];
     const view = {
@@ -20,12 +25,7 @@ function createMockView(doc: string, cursorPos: number): EditorView & { state: E
             return dispatches;
         },
         dispatch(spec: TransactionSpec) {
-            const effects: StateEffect<unknown>[] = Array.isArray(spec.effects)
-                ? (spec.effects as StateEffect<unknown>[])
-                : spec.effects
-                  ? [spec.effects as StateEffect<unknown>]
-                  : [];
-            dispatches.push({ spec, effects });
+            dispatches.push({ spec, effects: toEffectArray(spec.effects) });
             this.state = this.state.update(spec).state;
         },
     };
