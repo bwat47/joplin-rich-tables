@@ -5,6 +5,7 @@ import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import importPlugin from 'eslint-plugin-import-x';
 import prettier from 'eslint-config-prettier';
+import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 
 function siblingGroups(folderNames) {
@@ -21,6 +22,7 @@ export default [
     },
 
     js.configs.recommended,
+    sonarjs.configs.recommended,
 
     // Project TS/JS sources
     {
@@ -46,6 +48,7 @@ export default [
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
             'no-useless-escape': 'off',
+            'sonarjs/dompurify-unsafe-config': 'off',
         },
     },
 
