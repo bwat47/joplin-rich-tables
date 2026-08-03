@@ -195,6 +195,29 @@ describe('tableRuntimePolicies', () => {
             ],
         },
         {
+            name: 'search-force exit plans cursor reactivation instead of raw-mode exit visibility work',
+            overrides: {
+                activeCell: { status: 'absent' },
+                rawModeTransition: {
+                    enteredRawMode: false,
+                    exitedRawMode: true,
+                    exitedSourceMode: false,
+                    exitedSearchForce: true,
+                },
+            },
+            expected: [
+                {
+                    type: 'scheduleActivateCellAtCursor',
+                    options: {
+                        clearIfOutside: false,
+                        ensureCursorVisibleIfNotActivated: true,
+                        normalizeIfNeeded: false,
+                        preserveMainSelection: true,
+                    },
+                },
+            ],
+        },
+        {
             name: 'visibility work precedes reposition',
             overrides: {
                 activeCell: { status: 'resolved', selectionLeftActiveTable: true },
@@ -258,6 +281,17 @@ describe('tableRuntimePolicies', () => {
                 hasFullDocumentReplace: true,
             },
             expected: [{ type: 'scheduleRebuildAllAfterFullReplace' }, { type: 'clearActiveCell' }],
+        },
+        {
+            name: 'a pending full-replace rebuild suppresses a duplicate rebuild without blocking continuing work',
+            overrides: {
+                activeCell: { status: 'unresolved' },
+                activeCellBefore: 'resolved',
+                docChanged: true,
+                hasFullDocumentReplace: true,
+                pendingFullReplaceRebuild: true,
+            },
+            expected: [{ type: 'clearActiveCell' }],
         },
     ])('$name', ({ overrides, expected }) => {
         expect(reduceTableRuntime(defaultRuntimeFacts(overrides))).toEqual(expected);
