@@ -66,48 +66,24 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, r.from, r.to)).toBe('');
     });
 
-    it('hides canonical delimiter padding from editable bounds', () => {
-        const text = ['| foo |', '| --- |'].join('\n');
+    it.each([
+        { case: 'hides canonical delimiter padding', headerLine: '| foo |', editable: 'foo' },
+        { case: 'preserves user-entered trailing whitespace', headerLine: '| foo  |', editable: 'foo ' },
+        { case: 'preserves user-entered leading whitespace', headerLine: '|  foo |', editable: ' foo' },
+        {
+            case: 'preserves user-entered leading and trailing whitespace',
+            headerLine: '|  foo  |',
+            editable: ' foo ',
+        },
+    ])('$case in editable bounds', ({ headerLine, editable }) => {
+        const text = [headerLine, '| --- |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);
         expect(ranges).not.toBeNull();
         if (!ranges) return;
 
         const header = ranges.headers[0];
         expect(sliceRange(text, header.from, header.to)).toBe('foo');
-        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('foo');
-    });
-
-    it('preserves user-entered trailing whitespace in editable bounds', () => {
-        const text = ['| foo  |', '| --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        const header = ranges.headers[0];
-        expect(sliceRange(text, header.from, header.to)).toBe('foo');
-        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('foo ');
-    });
-
-    it('preserves user-entered leading whitespace in editable bounds', () => {
-        const text = ['|  foo |', '| --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        const header = ranges.headers[0];
-        expect(sliceRange(text, header.from, header.to)).toBe('foo');
-        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe(' foo');
-    });
-
-    it('preserves user-entered leading and trailing whitespace in editable bounds', () => {
-        const text = ['|  foo  |', '| --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        const header = ranges.headers[0];
-        expect(sliceRange(text, header.from, header.to)).toBe('foo');
-        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe(' foo ');
+        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe(editable);
     });
 
     it('uses a zero-width editable span for canonical empty cells', () => {

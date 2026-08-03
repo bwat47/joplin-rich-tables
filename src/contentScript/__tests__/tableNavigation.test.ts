@@ -64,9 +64,9 @@ describe('navigateCell', () => {
     });
 
     const getEffects = () => {
-        const spec = mockDispatch.mock.calls[0]?.[0];
-        const effects = spec?.effects;
-        return Array.isArray(effects) ? effects : effects ? [effects] : [];
+        const effects = mockDispatch.mock.calls[0]?.[0]?.effects;
+        if (!effects) return [];
+        return Array.isArray(effects) ? effects : [effects];
     };
 
     const getSetActiveCellValue = () => getEffects().find((effect) => effect.is?.(setActiveCellEffect))?.value;

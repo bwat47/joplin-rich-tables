@@ -5,10 +5,7 @@ import { getDocumentWindow, requestViewAnimationFrame } from '../shared/domConte
 describe('domContext', () => {
     it('prefers the document defaultView over the ambient window', () => {
         const callback = vi.fn();
-        const rafSpy = vi.fn((frameCallback: FrameRequestCallback) => {
-            void frameCallback;
-            return 42;
-        });
+        const rafSpy = vi.fn((_frameCallback: FrameRequestCallback) => 42);
         const fakeWindow = { requestAnimationFrame: rafSpy } as unknown as Window;
         const fakeDocument = { defaultView: fakeWindow } as Document;
         const fakeView = {
