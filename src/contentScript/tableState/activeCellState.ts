@@ -1,7 +1,5 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
-import type { CellCoords, TableSection } from '../tableModel/types';
-
-export type ActiveCellSection = TableSection;
+import type { CellCoords } from '../tableModel/types';
 
 export interface ActiveCell extends CellCoords {
     tableFrom: number;
