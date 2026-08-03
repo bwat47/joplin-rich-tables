@@ -17,6 +17,16 @@ function unescapePipesForRendering(text: string): string {
 }
 
 /**
+ * Block markers escaped by prefixing a backslash to the whole run.
+ * Ordered lists are handled separately: their backslash goes after the number ("1\. ").
+ */
+const LEADING_BLOCK_MARKERS = [
+    /^#{1,6}(\s|$)/, // headings: "# " / "## " ...
+    /^>/, // blockquote: "> " (space optional)
+    /^[-*+](\s|$)/, // unordered list: "- " / "* " / "+ "
+];
+
+/**
  * Escape leading block markers so cells render inline-only markdown.
  * Assumes cell content has no newlines.
  */
@@ -35,18 +45,7 @@ export function escapeLeadingBlockMarkers(text: string): string {
         return text;
     }
 
-    // Headings: "# " / "## " ...
-    if (/^#{1,6}(\s|$)/.test(rest)) {
-        return `${leading}\\${rest}`;
-    }
-
-    // Blockquote: "> " (space optional)
-    if (/^>/.test(rest)) {
-        return `${leading}\\${rest}`;
-    }
-
-    // Unordered list: "- " / "* " / "+ "
-    if (/^[-*+](\s|$)/.test(rest)) {
+    if (LEADING_BLOCK_MARKERS.some((pattern) => pattern.test(rest))) {
         return `${leading}\\${rest}`;
     }
 
@@ -92,28 +91,31 @@ export function escapeHtmlPreservingBr(text: string): string {
 }
 
 /**
+ * Substrings that suggest inline markdown formatting.
+ * Checked as an order-independent disjunction, so each entry must not be
+ * subsumed by a shorter one (e.g. '**' would be dead next to '*').
+ */
+const MARKDOWN_MARKERS = [
+    '*', // bold / italic
+    '_', // bold / italic
+    '`', // code
+    '[', // links and images
+    '~~', // strikethrough
+    '<', // HTML tags
+    '==', // highlights
+    '++', // insert
+    '\\', // escaped text
+    'mailto:', // mailto links
+    'http', // bare links
+] as const;
+
+/**
  * Quick check if content likely contains markdown formatting
  * Avoids unnecessary render requests for plain text
  */
 export function containsMarkdown(text: string): boolean {
+    // KaTeX needs a delimiter pair ($...$ / $$...$$), so a lone '$' shouldn't trigger a render.
     const hasMathDelimiterPair = text.includes('$') && text.indexOf('$') !== text.lastIndexOf('$');
 
-    // Common markdown patterns
-    return (
-        text.includes('**') || // bold
-        text.includes('__') || // bold
-        text.includes('*') || // italic (single asterisk)
-        text.includes('_') || // italic (single underscore)
-        text.includes('`') || // code
-        text.includes('[') || // links
-        text.includes('~~') || // strikethrough
-        text.includes('![') || // images
-        text.includes('<') || // HTML tags
-        text.includes('==') || // Highlights
-        text.includes('++') || // Insert (++)
-        text.includes('\\') || // Escaped Text
-        text.includes('mailto:') || // Mailto links
-        text.includes('http') || // bare links
-        hasMathDelimiterPair // KaTeX inline/display math delimiters ($...$ / $$...$$)
-    );
+    return MARKDOWN_MARKERS.some((marker) => text.includes(marker)) || hasMathDelimiterPair;
 }
