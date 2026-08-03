@@ -96,16 +96,11 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         return actions;
     }
 
-    if (
-        facts.activeCellBefore !== 'absent' &&
-        facts.hasFullDocumentReplace &&
-        !facts.isNormalizeBeforeEdit &&
-        !facts.pendingFullReplaceRebuild
-    ) {
+    if (shouldRebuildAllAfterFullReplace(facts)) {
         actions.push({ type: 'scheduleRebuildAllAfterFullReplace' });
     }
 
-    if (facts.rawModeTransition.exitedSourceMode || facts.rawModeTransition.exitedSearchForce) {
+    if (exitedForcedRawMode(facts)) {
         actions.push({
             type: 'scheduleActivateCellAtCursor',
             options: getActivateCellAtCursorOptions('rawModeExit'),
@@ -113,16 +108,9 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         return actions;
     }
 
-    if (facts.rawModeTransition.enteredRawMode && !facts.isCellSelectionTransition) {
-        actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' });
-    }
-
-    if (
-        facts.rawModeTransition.exitedRawMode &&
-        facts.activeCell.status === 'absent' &&
-        !facts.isCellSelectionTransition
-    ) {
-        actions.push({ type: 'scheduleEnsureCursorVisible', mode: 'exitedRawModeWithoutActiveCell' });
+    const ensureCursorVisibleMode = getEnsureCursorVisibleMode(facts);
+    if (ensureCursorVisibleMode) {
+        actions.push({ type: 'scheduleEnsureCursorVisible', mode: ensureCursorVisibleMode });
     }
 
     if (requiresCellReposition(facts)) {
@@ -144,7 +132,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         return actions;
     }
 
-    if (facts.activeCell.status === 'absent' && facts.activeCellBefore !== 'absent') {
+    if (activeCellWasRemoved(facts)) {
         actions.push({ type: 'closeNestedEditor', reason: 'activeCellRemoved' });
     }
 
@@ -152,15 +140,57 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         actions.push({ type: 'syncMainToNested' });
     }
 
-    if (facts.docChanged && facts.activeCell.status === 'unresolved' && !facts.isSync) {
-        actions.push({ type: 'clearActiveCell' });
-    }
-
-    if (facts.docChanged && facts.activeCell.status === 'resolved' && !facts.nestedEditorOpen && !facts.isSync) {
+    if (shouldClearStaleActiveCell(facts)) {
         actions.push({ type: 'clearActiveCell' });
     }
 
     return actions;
+}
+
+function shouldRebuildAllAfterFullReplace(facts: TableRuntimeFacts): boolean {
+    return (
+        facts.activeCellBefore !== 'absent' &&
+        facts.hasFullDocumentReplace &&
+        !facts.isNormalizeBeforeEdit &&
+        !facts.pendingFullReplaceRebuild
+    );
+}
+
+// Source-mode and search-force exits bypass the normal raw-mode exit flow and
+// reactivate the cell under the cursor directly.
+function exitedForcedRawMode(facts: TableRuntimeFacts): boolean {
+    return facts.rawModeTransition.exitedSourceMode || facts.rawModeTransition.exitedSearchForce;
+}
+
+function getEnsureCursorVisibleMode(
+    facts: TableRuntimeFacts
+): 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' | null {
+    if (facts.isCellSelectionTransition) {
+        return null;
+    }
+    if (facts.rawModeTransition.enteredRawMode) {
+        return 'enteredRawMode';
+    }
+    if (facts.rawModeTransition.exitedRawMode && facts.activeCell.status === 'absent') {
+        return 'exitedRawModeWithoutActiveCell';
+    }
+    return null;
+}
+
+function activeCellWasRemoved(facts: TableRuntimeFacts): boolean {
+    return facts.activeCell.status === 'absent' && facts.activeCellBefore !== 'absent';
+}
+
+// After a document change outside the sync path, an active cell that no longer
+// resolves (or resolves without a nested editor to keep it alive) is stale.
+function shouldClearStaleActiveCell(facts: TableRuntimeFacts): boolean {
+    if (!facts.docChanged || facts.isSync) {
+        return false;
+    }
+    if (facts.activeCell.status === 'unresolved') {
+        return true;
+    }
+    return facts.activeCell.status === 'resolved' && !facts.nestedEditorOpen;
 }
 
 function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
