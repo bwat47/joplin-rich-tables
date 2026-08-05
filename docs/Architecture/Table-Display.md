@@ -78,7 +78,9 @@ is deleted.
 nested editor is open the widget's own cell ranges are frozen (see `mapDecorations` in
 `tableDecorationPolicy.ts`), so it reads live ranges from `resolvedActiveCellField` instead — a cached
 state-field read, since `coordsAt()` runs in CodeMirror's synchronous measure phase and must not
-re-parse the document.
+re-parse the document. The field only covers the active table, so switching activation to a different
+table rebuilds all widgets — otherwise the previous table's widget would keep frozen pre-edit ranges
+with no live coverage.
 
 ## Display Modes
 

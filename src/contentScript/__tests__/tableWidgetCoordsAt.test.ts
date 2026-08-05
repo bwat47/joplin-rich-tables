@@ -221,6 +221,65 @@ describe('TableWidget coordsAt', () => {
         });
     });
 
+    it('resolves coords in a previously edited table after activation switches to another table', () => {
+        // Regression test: editing table A freezes its widget via mapDecorations, and a bare
+        // setActiveCellEffect switch to table B (no doc change, no normalization needed) moves
+        // resolvedActiveCellField to B — so A's frozen widget is no longer covered by the live
+        // ranges. The decoration policy must rebuild on the switch so A's widget picks up
+        // post-edit cellRanges; otherwise coordsAt() resolves A against pre-edit offsets.
+        const tableA = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+        const tableB = ['| X1 | X2 |', '| --- | --- |', '| x | y |'].join('\n');
+
+        const { parent, view } = createRealView(`${tableA}\n\n${tableB}`);
+        try {
+            // Activate cell A[0][0] and grow it via a sync edit (nested-editor forwarding path).
+            const preRanges = computeMarkdownTableCellRanges(tableA);
+            if (!preRanges) throw new Error('Expected table A to parse');
+            view.dispatch({
+                effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+            });
+            view.dispatch({
+                changes: {
+                    from: preRanges.rows[0][0].editableFrom,
+                    to: preRanges.rows[0][0].editableTo,
+                    insert: 'aaaaaaaaaa',
+                },
+                annotations: [syncAnnotation.of(true)],
+            });
+
+            // Switch activation to table B the way requestOpenCell does: bare effect, no doc
+            // change. Production resolves B at its current (post-edit) position at click time.
+            const tableBFrom = view.state.doc.toString().indexOf('| X1');
+            view.dispatch({
+                effects: setActiveCellEffect.of({ tableFrom: tableBFrom, section: 'body', row: 0, col: 0 }),
+            });
+
+            const liveDocText = view.state.doc.toString();
+            const liveARanges = computeMarkdownTableCellRanges(liveDocText.slice(0, liveDocText.indexOf('\n\n')));
+            if (!liveARanges) throw new Error('Expected edited table A to parse');
+            // Tail of the grown cell A: past where A's pre-edit ranges said the cell ended.
+            const posInGrownCellA = liveARanges.rows[0][0].editableTo;
+
+            const tableABody = view.contentDOM.querySelectorAll('tbody')[0];
+            const cellA = tableABody?.querySelector('td:nth-child(1)') as HTMLElement | null;
+            const cellB = tableABody?.querySelector('td:nth-child(2)') as HTMLElement | null;
+            if (!cellA || !cellB) throw new Error('Expected table A cells to render');
+            const rect = { top: 1, bottom: 2, left: 3, right: 4 } as DOMRect;
+            const wrongRect = { top: 999, bottom: 999, left: 999, right: 999 } as DOMRect;
+            vi.spyOn(cellA, 'getBoundingClientRect').mockReturnValue(rect);
+            vi.spyOn(cellB, 'getBoundingClientRect').mockReturnValue(wrongRect);
+
+            expect(view.coordsAtPos(posInGrownCellA)).toMatchObject({
+                top: rect.top,
+                bottom: rect.bottom,
+                left: rect.left,
+            });
+        } finally {
+            view.destroy();
+            parent.remove();
+        }
+    });
+
     it('falls back to cached cellRanges when the DOM has no live view registered', () => {
         // toDOM() was called directly (as in the test above), bypassing the widgetDomState entry
         // that resolveLiveCellCoords() needs -- coordsAt must still resolve via the constructor's

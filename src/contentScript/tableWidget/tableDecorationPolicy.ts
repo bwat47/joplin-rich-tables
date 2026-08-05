@@ -1,5 +1,5 @@
 import { Transaction, type StateEffectType } from '@codemirror/state';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
@@ -65,6 +65,25 @@ function decideFullDocumentReplaceDecoration(tr: Transaction): DecorationDecisio
     return { type: 'noneDecorations' };
 }
 
+/**
+ * Switching activation to a different table ends the previous table's `mapDecorations`
+ * window without a clear effect, leaving its widget frozen with cell ranges that predate
+ * any in-cell edits — while `resolvedActiveCellField` moves on to the new table, so
+ * `coordsAt()` can no longer live-resolve the old one. Rebuilding restores the invariant
+ * that a frozen widget is always covered by the resolved active cell.
+ */
+function decideActiveTableSwitchDecoration(tr: Transaction): DecorationDecision | null {
+    const previousTableFrom = getActiveCell(tr.startState)?.tableFrom;
+    if (previousTableFrom === undefined) {
+        return null;
+    }
+
+    const switchesTable = tr.effects.some(
+        (effect) => effect.is(setActiveCellEffect) && effect.value.tableFrom !== previousTableFrom
+    );
+    return switchesTable ? { type: 'rebuildAllDecorations' } : null;
+}
+
 function decideDocumentEditDecoration(tr: Transaction): DecorationDecision {
     if (hasEffect(tr, clearActiveCellEffect) || hasEffect(tr, rebuildTableWidgetsEffect)) {
         return { type: 'rebuildAllDecorations' };
@@ -95,6 +114,7 @@ export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision
         decideSyncDecoration(tr) ??
         decideRebuildRequestDecoration(tr) ??
         decideFullDocumentReplaceDecoration(tr) ??
+        decideActiveTableSwitchDecoration(tr) ??
         decideDocumentEditDecoration(tr)
     );
 }
