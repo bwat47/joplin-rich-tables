@@ -15,10 +15,10 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 ### Scrolling
 
 Primary cell navigation opens the target nested editor, then focuses its `contentDOM`. The browser scrolls that focused
-cell into view as needed, which works more reliably on mobile than explicitely calling `scrollIntoView`.
+cell into view as needed, which works more reliably on mobile than explicitly calling `scrollIntoView`.
 
-The plugin still uses explicit `scrollIntoView` for other paths such as anchor jumps, source/raw-mode cursor
-visibility, and multi-cell selection focus.
+The plugin still uses explicit `scrollIntoView` for other paths such as anchor jumps and source/raw-mode cursor
+visibility.
 
 ### Open-Cell Request State
 

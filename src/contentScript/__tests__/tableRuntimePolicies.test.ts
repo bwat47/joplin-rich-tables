@@ -327,6 +327,26 @@ describe('tableRuntimePolicies', () => {
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
     });
 
+    it('rebuilds all decorations when activation switches to a different table', () => {
+        // The previous table's widget may hold cell ranges frozen by mapDecorations; once the
+        // resolved active cell moves to another table, only a rebuild keeps coordsAt() accurate.
+        const state = createState({ activeCell: getHeaderCell() });
+        const tr = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 50, section: 'body', row: 0, col: 0 }),
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+    });
+
+    it('keeps decorations when activation moves within the same table', () => {
+        const state = createState({ activeCell: getHeaderCell() });
+        const tr = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'keepDecorations' });
+    });
+
     it('returns none decorations in raw mode', () => {
         const state = createState();
         const tr = state.update({ effects: toggleSourceModeEffect.of(true) });

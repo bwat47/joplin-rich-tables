@@ -3,9 +3,8 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
-import { buildTableContext } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
-import { resolveContainingTableAtPos } from '../tableRuntime/tableResolution';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
@@ -251,8 +250,9 @@ export class TableWidget extends WidgetType {
     }
 
     /**
-     * Returns the bounding rectangle of the cell containing the given widget-relative position.
-     * This helps CodeMirror scroll precisely to specific cells rather than just the table bounds.
+     * Returns cell-level geometry for a position hidden by the table widget. CodeMirror coordinate
+     * consumers, such as cursor-positioned tooltips, use this to anchor UI to the corresponding
+     * rendered cell rather than the whole table.
      *
      * CodeMirror subtracts the widget's document start offset before calling this, so `pos` is
      * already relative to the widget — do not subtract `tableFrom` here.
@@ -261,9 +261,9 @@ export class TableWidget extends WidgetType {
      * forwarded through the `mapDecorations` path (see tableDecorationPolicy.ts) precisely so the
      * widget is *not* rebuilt while a nested editor is open, which leaves `cellRanges` stale for
      * the whole editing session — long enough for `pos` to resolve to the wrong cell once the
-     * edited cell's length changes. `resolveLiveCellCoords()` recomputes ranges from the current
-     * document instead, so it takes priority whenever it succeeds; the cached ranges remain as a
-     * fallback for DOM not yet registered in `widgetDomState` (e.g. direct `toDOM()` use in tests).
+     * edited cell's length changes. `resolveLiveCellCoords()` reads the live ranges instead, so it
+     * takes priority whenever it succeeds; the cached ranges remain as the fallback for every
+     * widget it does not cover (see there).
      */
     coordsAt(
         dom: HTMLElement,
@@ -285,26 +285,30 @@ export class TableWidget extends WidgetType {
     }
 
     /**
-     * Resolves `pos` against the table's live document text rather than the `cellRanges`
-     * snapshot captured at the last full rebuild. `state.view` is the same long-lived
-     * `EditorView` instance across the widget's life — `.state` always reflects the latest
-     * transaction even when `updateDOM()` hasn't run — so this stays accurate through the
-     * `mapDecorations` path that keeps `this.tableFrom`/`this.cellRanges` frozen.
+     * Resolves `pos` against the live cell ranges held in `resolvedActiveCellField` rather than
+     * the `cellRanges` snapshot captured at the last full rebuild.
      *
-     * `undefined` means live resolution was unavailable and the caller may use cached ranges.
-     * `null` is an authoritative result that the live position does not belong to a cell.
+     * The field covers exactly the window in which `cellRanges` is frozen: both `mapDecorations`
+     * branches require an active cell, and the field re-derives the table's `TableContext` on
+     * every `docChanged` — so the current ranges were already computed in the transaction that
+     * froze them. This runs inside CodeMirror's synchronous measure phase; re-deriving them from
+     * the syntax tree here would parse and slice the document again per call.
      *
-     * The distinction is imperfect: `resolveContainingTableAtPos()` returns `null` both when
-     * the syntax tree is unavailable (timeout) and when the position genuinely isn't in a
-     * table, so the latter also maps to `undefined` here and falls back to cached ranges.
-     * This is deliberate: the "no longer a table" case is nearly unreachable (structural
-     * edits rebuild the widget via `eq()`; the `mapDecorations` window only spans in-cell
-     * edits, which keep the table intact), and a slightly stale cell rect scrolls better
-     * than the `null` alternative of no coordinates at all.
+     * `undefined` means the live ranges do not cover this widget and the cached ranges are
+     * trustworthy (no active cell means no `mapDecorations` window; a widget outside the active
+     * table's span never goes stale). `null` is authoritative: the live position is not in a cell.
      */
     private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null | undefined {
         const state = widgetDomState.get(dom);
         if (!state) {
+            return undefined;
+        }
+
+        // Read the field directly rather than through getResolvedActiveCell(): its fallback for
+        // states without the field recomputes the context from the syntax tree, which is the
+        // measure-phase work this exists to avoid.
+        const resolved = state.view.state.field(resolvedActiveCellField, false);
+        if (!resolved) {
             return undefined;
         }
 
@@ -317,17 +321,16 @@ export class TableWidget extends WidgetType {
             return undefined;
         }
 
-        const table = resolveContainingTableAtPos(state.view.state, liveTableFrom + pos);
-        if (!table) {
+        // Containment rather than `liveTableFrom === ctx.from`: the widget may be a different
+        // table than the active one, and comparing spans tolerates any drift between the mapped
+        // decoration start and the freshly resolved table start.
+        const { ctx } = resolved;
+        const docPos = liveTableFrom + pos;
+        if (docPos < ctx.from || docPos > ctx.to) {
             return undefined;
         }
 
-        const ctx = buildTableContext(table);
-        if (!ctx) {
-            return undefined;
-        }
-
-        return findCellForPos(ctx.cellRanges, liveTableFrom + pos - ctx.from);
+        return findCellForPos(ctx.cellRanges, docPos - ctx.from);
     }
 
     ignoreEvent(): boolean {

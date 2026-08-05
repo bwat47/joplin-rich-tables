@@ -74,7 +74,9 @@ table (text unchanged). Text is consulted first: a text hit is the table's own m
 position hit only reports whatever was last measured at that offset and goes stale when a table above
 is deleted.
 
-**`coordsAt()`**: Returns cell bounding rectangle for precise scroll-to-cell during navigation.
+**`coordsAt()`**: Maps positions in replaced table source to rendered cell rectangles for
+CodeMirror coordinate consumers, notably cursor-positioned tooltips. Keyboard cell navigation
+scrolls through nested-editor focus and does not depend on it.
 
 ## Display Modes
 
