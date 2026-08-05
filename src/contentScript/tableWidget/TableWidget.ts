@@ -250,8 +250,9 @@ export class TableWidget extends WidgetType {
     }
 
     /**
-     * Returns the bounding rectangle of the cell containing the given widget-relative position.
-     * This helps CodeMirror scroll precisely to specific cells rather than just the table bounds.
+     * Returns cell-level geometry for a position hidden by the table widget. CodeMirror coordinate
+     * consumers, such as cursor-positioned tooltips, use this to anchor UI to the corresponding
+     * rendered cell rather than the whole table.
      *
      * CodeMirror subtracts the widget's document start offset before calling this, so `pos` is
      * already relative to the widget — do not subtract `tableFrom` here.
