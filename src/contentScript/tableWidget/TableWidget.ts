@@ -287,22 +287,15 @@ export class TableWidget extends WidgetType {
      * Resolves `pos` against the live cell ranges held in `resolvedActiveCellField` rather than
      * the `cellRanges` snapshot captured at the last full rebuild.
      *
-     * That field is the right source precisely because the two situations coincide: both
-     * `mapDecorations` branches require an active cell (a sync transaction only exists while a
-     * nested editor is open, and the document-edit branch checks `getActiveCell()` outright), and
-     * the field re-derives a full `TableContext` on every `docChanged`. So for the whole window in
-     * which `cellRanges` is frozen, the current ranges have already been computed once in the
-     * transaction that froze them — this runs inside CodeMirror's synchronous measure phase, and
-     * re-deriving them from the syntax tree here would parse and slice the document again per call.
+     * The field covers exactly the window in which `cellRanges` is frozen: both `mapDecorations`
+     * branches require an active cell, and the field re-derives the table's `TableContext` on
+     * every `docChanged` — so the current ranges were already computed in the transaction that
+     * froze them. This runs inside CodeMirror's synchronous measure phase; re-deriving them from
+     * the syntax tree here would parse and slice the document again per call.
      *
-     * `state.view` is the same long-lived `EditorView` instance across the widget's life, so
-     * `.state` reflects the latest transaction even when `updateDOM()` has not run.
-     *
-     * `undefined` means the live ranges do not cover this widget and the caller should use its
-     * cached ranges; `null` is an authoritative result that the live position is not in a cell.
-     * The `undefined` cases are all ones where the snapshot is trustworthy: no active cell means
-     * no `mapDecorations` window, and a widget outside the active table's span was never subject
-     * to the in-cell edits that go stale.
+     * `undefined` means the live ranges do not cover this widget and the cached ranges are
+     * trustworthy (no active cell means no `mapDecorations` window; a widget outside the active
+     * table's span never goes stale). `null` is authoritative: the live position is not in a cell.
      */
     private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null | undefined {
         const state = widgetDomState.get(dom);
