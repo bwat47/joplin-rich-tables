@@ -9,6 +9,8 @@ import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 
@@ -31,6 +33,8 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
                 render: vi.fn(async () => ''),
                 clear: vi.fn(),
             }),
+            activeCellField,
+            resolvedActiveCellField,
             tableDecorationField,
         ],
     });
@@ -95,7 +99,11 @@ describe('TableWidget coordsAt', () => {
         // widget's own `cellRanges` stay frozen at pre-edit offsets even though the live document
         // has changed underneath it. coordsAt must still resolve positions correctly in that state.
         const TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+        const TABLE_FROM = 0;
 
+        // A sync transaction only ever originates from an open nested editor, so the active cell
+        // is always set alongside it. Reproducing that here matters: coordsAt reads the live cell
+        // ranges from resolvedActiveCellField, which is only populated while a cell is active.
         function editCellAWithoutRebuild(view: EditorView, insertText: string): void {
             const cellARanges = computeMarkdownTableCellRanges(view.state.doc.toString());
             if (!cellARanges) {
@@ -103,6 +111,9 @@ describe('TableWidget coordsAt', () => {
             }
             const cellAFrom = cellARanges.rows[0][0].editableFrom;
             const cellATo = cellARanges.rows[0][0].editableTo;
+            view.dispatch({
+                effects: setActiveCellEffect.of({ tableFrom: TABLE_FROM, section: 'body', row: 0, col: 0 }),
+            });
             view.dispatch({
                 changes: { from: cellAFrom, to: cellATo, insert: insertText },
                 annotations: [syncAnnotation.of(true)],

@@ -74,7 +74,11 @@ table (text unchanged). Text is consulted first: a text hit is the table's own m
 position hit only reports whatever was last measured at that offset and goes stale when a table above
 is deleted.
 
-**`coordsAt()`**: Returns cell bounding rectangle for precise scroll-to-cell during navigation.
+**`coordsAt()`**: Returns cell bounding rectangle for precise scroll-to-cell during navigation. While a
+nested editor is open the widget's own cell ranges are frozen (see `mapDecorations` in
+`tableDecorationPolicy.ts`), so it reads live ranges from `resolvedActiveCellField` instead — a cached
+state-field read, since `coordsAt()` runs in CodeMirror's synchronous measure phase and must not
+re-parse the document.
 
 ## Display Modes
 
