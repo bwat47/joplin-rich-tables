@@ -22,8 +22,10 @@ const createSvg = (doc: Document, paths: Array<{ d: string; fill?: string; strok
     return svg;
 };
 
+export type ToolbarIconFactory = (doc: Document) => SVGSVGElement;
+
 // Tabler icons
-export const rowInsertTopIcon = (doc: Document) =>
+export const rowInsertTopIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M4 18v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z' },
@@ -31,7 +33,7 @@ export const rowInsertTopIcon = (doc: Document) =>
         { d: 'M10 7l4 0' },
     ]);
 
-export const rowInsertBottomIcon = (doc: Document) =>
+export const rowInsertBottomIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M20 6v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1z' },
@@ -39,7 +41,7 @@ export const rowInsertBottomIcon = (doc: Document) =>
         { d: 'M14 17l-4 0' },
     ]);
 
-export const rowRemoveIcon = (doc: Document) =>
+export const rowRemoveIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M20 6v4a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1z' },
@@ -47,7 +49,7 @@ export const rowRemoveIcon = (doc: Document) =>
         { d: 'M10 20l4 -4' },
     ]);
 
-export const columnInsertLeftIcon = (doc: Document) =>
+export const columnInsertLeftIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
@@ -55,7 +57,7 @@ export const columnInsertLeftIcon = (doc: Document) =>
         { d: 'M7 10l0 4' },
     ]);
 
-export const columnInsertRightIcon = (doc: Document) =>
+export const columnInsertRightIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M6 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
@@ -63,7 +65,7 @@ export const columnInsertRightIcon = (doc: Document) =>
         { d: 'M17 10l0 4' },
     ]);
 
-export const columnRemoveIcon = (doc: Document) =>
+export const columnRemoveIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M6 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1z' },
@@ -71,7 +73,7 @@ export const columnRemoveIcon = (doc: Document) =>
         { d: 'M16 14l4 -4' },
     ]);
 
-export const alignLeftIcon = (doc: Document) =>
+export const alignLeftIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M4 6l16 0' },
@@ -79,7 +81,7 @@ export const alignLeftIcon = (doc: Document) =>
         { d: 'M4 18l14 0' },
     ]);
 
-export const alignCenterIcon = (doc: Document) =>
+export const alignCenterIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M4 6l16 0' },
@@ -87,7 +89,7 @@ export const alignCenterIcon = (doc: Document) =>
         { d: 'M6 18l12 0' },
     ]);
 
-export const alignRightIcon = (doc: Document) =>
+export const alignRightIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M4 6l16 0' },
@@ -95,7 +97,7 @@ export const alignRightIcon = (doc: Document) =>
         { d: 'M6 18l14 0' },
     ]);
 
-export const moveColumnLeftIcon = (doc: Document) =>
+export const moveColumnLeftIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M5 12l14 0' },
@@ -103,7 +105,7 @@ export const moveColumnLeftIcon = (doc: Document) =>
         { d: 'M5 12l4 -4' },
     ]);
 
-export const moveColumnRightIcon = (doc: Document) =>
+export const moveColumnRightIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M5 12l14 0' },
@@ -111,7 +113,7 @@ export const moveColumnRightIcon = (doc: Document) =>
         { d: 'M15 8l4 4' },
     ]);
 
-export const moveRowUpIcon = (doc: Document) =>
+export const moveRowUpIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M12 5l0 14' },
@@ -119,7 +121,7 @@ export const moveRowUpIcon = (doc: Document) =>
         { d: 'M8 9l4 -4' },
     ]);
 
-export const moveRowDownIcon = (doc: Document) =>
+export const moveRowDownIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         { d: 'M12 5l0 14' },
@@ -127,7 +129,7 @@ export const moveRowDownIcon = (doc: Document) =>
         { d: 'M8 15l4 4' },
     ]);
 
-export const clearTableIcon = (doc: Document) =>
+export const clearTableIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         {
@@ -136,7 +138,7 @@ export const clearTableIcon = (doc: Document) =>
         { d: 'M18 13.3l-6.3 -6.3' },
     ]);
 
-export const deleteTableIcon = (doc: Document) =>
+export const deleteTableIcon: ToolbarIconFactory = (doc) =>
     createSvg(doc, [
         { d: 'M0 0h24v24H0z', fill: 'none', stroke: 'none' },
         {

@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import type { Facet } from '@codemirror/state';
-import type { ContentScriptContext, CodeMirrorControl } from 'api/types';
+import type { ContentScriptContext, CodeMirrorControl, MarkdownEditorContentScriptModule } from 'api/types';
 import {
     createMarkdownRenderer,
     markdownRenderServiceFacet,
@@ -59,7 +59,7 @@ const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
 /**
  * Content script module export.
  */
-export default function tableWidgetExtension(context: ContentScriptContext) {
+export default function tableWidgetExtension(context: ContentScriptContext): MarkdownEditorContentScriptModule {
     logger.info('Content script loaded');
 
     const joplinBridge = createJoplinBridge(context.postMessage);

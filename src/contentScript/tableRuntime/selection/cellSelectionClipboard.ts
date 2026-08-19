@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
@@ -36,10 +36,7 @@ export interface TableClipboardRewrite {
     selectionAnchorPos: number;
 }
 
-export function extractSelectedCellContents(
-    state: Parameters<typeof getCellSelection>[0],
-    selection: CellSelection
-): string[][] {
+export function extractSelectedCellContents(state: EditorState, selection: CellSelection): string[][] {
     const ctx = resolveTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return [];
@@ -64,10 +61,7 @@ export function extractSelectedCellContents(
     return rows;
 }
 
-export function copySelectionAsMarkdown(
-    state: Parameters<typeof getCellSelection>[0],
-    selection: CellSelection
-): string | null {
+export function copySelectionAsMarkdown(state: EditorState, selection: CellSelection): string | null {
     const ctx = resolveTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return null;
@@ -106,7 +100,7 @@ export function parseMarkdownTableClipboard(text: string): ClipboardTableFragmen
 }
 
 export function resolveTableClipboardTarget(
-    state: Parameters<typeof getCellSelection>[0],
+    state: EditorState,
     options: { nestedEditorOpen: boolean }
 ): TableClipboardTarget | null {
     const selection = getCellSelection(state);
@@ -277,7 +271,7 @@ function buildEmptySelectionRemoval(ctx: TableContext, rect: TableRect): TableCl
 }
 
 export function buildSelectionRemovalRewrite(
-    state: Parameters<typeof getCellSelection>[0],
+    state: EditorState,
     selection: CellSelection
 ): TableClipboardRewrite | null {
     const ctx = resolveTableContextAtPos(state, selection.tableFrom);
@@ -303,7 +297,7 @@ export function buildSelectionRemovalRewrite(
 }
 
 export function buildMultiCellPasteRewrite(
-    state: Parameters<typeof getCellSelection>[0],
+    state: EditorState,
     target: TableClipboardTarget,
     clipboardText: string
 ): TableClipboardRewrite | null {
@@ -339,10 +333,7 @@ export function buildMultiCellPasteRewrite(
     };
 }
 
-export function createTableClipboardRewriteSpec(
-    state: Parameters<typeof getCellSelection>[0],
-    rewrite: TableClipboardRewrite
-) {
+export function createTableClipboardRewriteSpec(state: EditorState, rewrite: TableClipboardRewrite): TransactionSpec {
     const currentTable = resolveTableContextAtPos(state, rewrite.tableFrom);
     const effects = [
         ...(rewrite.selection

@@ -1,4 +1,4 @@
-import { EditorSelection, StateCommand, Transaction } from '@codemirror/state';
+import { EditorSelection, StateCommand, Transaction, type Extension } from '@codemirror/state';
 import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
@@ -31,7 +31,7 @@ export function createNestedEditorKeymap(
         syncPendingChangesToRoot: () => void;
         extraBindings?: Record<string, StateCommand>;
     }
-) {
+): Extension {
     const bindings: KeyBinding[] = [
         { key: 'Mod-z', run: () => runHistoryCommand(mainView, undo) },
         { key: 'Mod-y', run: () => runHistoryCommand(mainView, redo) },
@@ -195,7 +195,7 @@ export function createNestedEditorDomHandlers(
         closeEditor: () => void;
         ensureRootSelectionForCommand: () => void;
     }
-) {
+): Extension[] {
     let pendingClipboardText: string | null = null;
 
     return [

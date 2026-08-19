@@ -24,7 +24,7 @@ describe('tableTransactionHelpers', () => {
         };
     }
 
-    function createCell(tableText: string, row: number = 0, col: number = 0) {
+    function createCell(tableText: string, row = 0, col = 0) {
         return {
             tableFrom: 0,
             section: 'body' as const,
