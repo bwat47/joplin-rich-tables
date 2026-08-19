@@ -62,7 +62,7 @@ export class TableToolbarPlugin {
         view.dom.appendChild(this.dom);
     }
 
-    update(update: ViewUpdate) {
+    update(update: ViewUpdate): void {
         const prevActiveCell = this.currentActiveCell;
         const activeCell = update.state.field(activeCellField);
         this.currentActiveCell = activeCell;
@@ -92,7 +92,7 @@ export class TableToolbarPlugin {
         // Note: autoUpdate handles other cases (scroll/resize)
     }
 
-    destroy() {
+    destroy(): void {
         this.destroyed = true;
         this.cleanupPositioning();
         this.dom.remove();

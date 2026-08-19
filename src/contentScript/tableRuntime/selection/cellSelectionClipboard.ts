@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type TransactionSpec } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
@@ -342,7 +342,7 @@ export function buildMultiCellPasteRewrite(
 export function createTableClipboardRewriteSpec(
     state: Parameters<typeof getCellSelection>[0],
     rewrite: TableClipboardRewrite
-) {
+): TransactionSpec {
     const currentTable = resolveTableContextAtPos(state, rewrite.tableFrom);
     const effects = [
         ...(rewrite.selection
