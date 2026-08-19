@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { resolveContainingTableAtPos } from '../tableResolution';
 
-export function moveCursorOutOfTable(view: EditorView, offset: number = 1): boolean {
+export function moveCursorOutOfTable(view: EditorView, offset = 1): boolean {
     const cursor = view.state.selection.main.head;
     const tableContainingCursor = resolveContainingTableAtPos(view.state, cursor);
     if (!tableContainingCursor) {
