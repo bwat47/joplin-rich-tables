@@ -15,6 +15,7 @@ import {
     rowInsertBottomIcon,
     rowInsertTopIcon,
     rowRemoveIcon,
+    type ToolbarIconFactory,
 } from './icons';
 import type { StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
@@ -24,7 +25,7 @@ export interface ToolbarButtonDescriptor {
     actionId: ToolbarActionId;
     title: string;
     ariaLabel: string;
-    iconFactory: (doc: Document) => SVGSVGElement;
+    iconFactory: ToolbarIconFactory;
 }
 
 const baseRowButtons: ToolbarButtonDescriptor[] = [
