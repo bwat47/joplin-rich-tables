@@ -16,10 +16,8 @@ export const rootEditorActiveCellAttribute = EditorView.editorAttributes.compute
 export const rootEditorSelectionSuppression = EditorView.baseTheme({
     [`&[data-rt-nested-active] .${CLASS_CELL_EDITOR} .cm-content::selection`]: {
         'background-color': 'transparent !important',
-        color: 'inherit !important',
     },
     [`&[data-rt-nested-active] .${CLASS_CELL_EDITOR} .cm-content *::selection`]: {
         'background-color': 'transparent !important',
-        color: 'inherit !important',
     },
 });

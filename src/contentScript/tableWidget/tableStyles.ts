@@ -76,11 +76,9 @@ export const tableStyles = EditorView.baseTheme({
     // opaque browser selection over CodeMirror's selection background.
     [`${getWidgetSelector()} .${CLASS_CELL_CONTENT}::selection`]: {
         'background-color': 'transparent !important',
-        color: 'inherit !important',
     },
     [`${getWidgetSelector()} .${CLASS_CELL_CONTENT} *::selection`]: {
         'background-color': 'transparent !important',
-        color: 'inherit !important',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
