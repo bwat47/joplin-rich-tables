@@ -5,7 +5,7 @@
 import { defaultKeymap } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
@@ -13,11 +13,19 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 const EMPTY_TABLE = ['|  |  |', '| --- | --- |', '|  |  |', '|  |  |'].join('\n');
 const mountedViews: EditorView[] = [];
+
+/** TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver. */
+class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+}
 
 function mountView(doc: string, selection: number | { anchor: number; head: number }): EditorView {
     const parent = document.createElement('div');
@@ -31,6 +39,9 @@ function mountView(doc: string, selection: number | { anchor: number; head: numb
             searchForceSourceModeField,
             sourceModeField,
             openCellRequestField,
+            // Tables must render as block replace decorations: vertical entry reads the
+            // block structure to find the table a movement stepped over.
+            tableDecorationField,
             EditorState.allowMultipleSelections.of(true),
             mainEditorTableEntryExtension,
             cellSelectionKeyCapturePlugin,
@@ -65,8 +76,13 @@ function expectWholeTableSelection(view: EditorView, focusEdge: 'start' | 'end')
     );
 }
 
+beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+});
+
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     while (mountedViews.length > 0) {
         mountedViews.pop()?.destroy();
     }
@@ -291,6 +307,30 @@ describe('mainEditorTableEntry vertical movement', () => {
         pressKey(view, 'ArrowDown');
 
         expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    it('does not enter the table below when the movement stays inside a wrapped line', () => {
+        const wrappedLine = 'a fairly long paragraph that wraps across several visual lines';
+        const doc = `${wrappedLine}\n${TABLE}`;
+        const view = mountView(doc, 2);
+        // A wrapped-line step lands further along the same line block, still short of the table.
+        mockVerticalTarget(view, 20);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('does not enter a table when the movement lands on an ordinary neighbouring line', () => {
+        const doc = `above\nmiddle\n${TABLE}`;
+        const view = mountView(doc, 5);
+        mockVerticalTarget(view, 8);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
     it('does not intercept a non-collapsed vertical selection', () => {

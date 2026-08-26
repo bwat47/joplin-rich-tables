@@ -17,10 +17,12 @@ table or any of the table's hidden Markdown. The first deletion selects the comp
 the normal multi-cell removal behavior. Extra blank lines between the caret and table remain ordinary editable text.
 Soft-keyboard and IME deletions are left to CodeMirror's platform behavior and are not intercepted by this extension.
 
-Plain ArrowDown/ArrowUp from the main editor uses CodeMirror's visual movement target and the document range it crossed
-to detect entry into a rendered table. Entry from above opens the top-left header cell at its start; entry from below
-opens the first cell of the final row at the start of its last line. Other vertical movement remains owned by the main
-editor.
+Plain ArrowDown/ArrowUp from the main editor detects entry into a rendered table from the visual movement target, or,
+when that target overshoots, from the block the movement stepped over. CodeMirror's vertical motion deliberately scans
+past block widgets, so a movement toward a table usually lands on the far side of it; the block adjacent to the caret's
+own line block is then the one that was skipped, and a replaced block there identifies the table. Entry from above opens
+the top-left header cell at its start; entry from below opens the first cell of the final row at the start of its last
+line. Other vertical movement remains owned by the main editor.
 
 Inside a nested editor, plain ArrowUp from the header's visual top boundary exits to the blank line above the table.
 Plain ArrowDown from the final row's visual bottom boundary exits to the blank line below it. The active cell is cleared,

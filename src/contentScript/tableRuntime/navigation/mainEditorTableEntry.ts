@@ -1,12 +1,12 @@
 import { EditorState, Prec, type Extension } from '@codemirror/state';
-import { keymap, type EditorView } from '@codemirror/view';
+import { BlockType, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { buildTableContext, getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
+import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { getPendingOpenCellRequest } from '../openCellRequest';
-import { findTableRanges, resolveTableContextAtPos } from '../tableResolution';
+import { resolveTableContextAtPos } from '../tableResolution';
 import { selectWholeTable, type WholeTableSelectionFocus } from '../selection/cellSelectionController';
 
 type DeletionDirection = 'backward' | 'forward';
@@ -66,13 +66,58 @@ function entersTableFromExpectedSide(
     return direction === 'down' ? currentPos < ctx.from : currentPos > ctx.to;
 }
 
+/** True when the movement left the caret's own line block rather than moving within a wrapped line. */
+function leavesBlock(block: BlockInfo, targetPos: number, direction: VerticalEntryDirection): boolean {
+    return direction === 'down' ? targetPos > block.to : targetPos < block.from;
+}
+
 /**
- * CodeMirror may place a vertical movement target on either side of a block
- * replacement instead of inside its document range. Resolve the direct target
- * first, then fall back to the nearest table fully crossed by the movement.
+ * Resolves the table that a vertical movement stepped over without landing in.
+ *
+ * `moveVertically` works in screen coordinates, and CodeMirror deliberately scans past
+ * block widgets while doing so: on hitting a non-text block it moves the probe to just
+ * beyond that block and keeps looking for a real line. Rendered tables are block replace
+ * decorations, so the returned target sits on the far side of the table rather than inside
+ * it, and resolving the target position alone finds nothing.
+ *
+ * So ask the layout which block was skipped instead of searching the document for one that
+ * fits. The block adjacent to the caret's own block, on the side being moved toward, is
+ * exactly the block CodeMirror scanned past. Both lookups are height-map queries and the
+ * table resolution is a point lookup, so this stays correct far down a long note where
+ * enumerating every table would require a full-document parse.
+ */
+function resolveSkippedTableBlock(
+    view: EditorView,
+    currentPos: number,
+    targetPos: number,
+    direction: VerticalEntryDirection
+): TableContext | null {
+    const currentBlock = view.lineBlockAt(currentPos);
+    if (!leavesBlock(currentBlock, targetPos, direction)) {
+        return null;
+    }
+
+    const probePos = direction === 'down' ? currentBlock.to + 1 : currentBlock.from - 1;
+    if (probePos < 0 || probePos > view.state.doc.length) {
+        return null;
+    }
+
+    // A composite `type` means the line is split by block widgets, which a whole-line
+    // table replacement never produces; treating it as "not a table" is the safe read.
+    const skippedBlock = view.lineBlockAt(probePos);
+    if (skippedBlock.type !== BlockType.WidgetRange) {
+        return null;
+    }
+
+    return resolveTableContextAtPos(view.state, skippedBlock.from, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+}
+
+/**
+ * Resolve the table a vertical movement should enter: the one under the movement target,
+ * or else the one the movement skipped over.
  */
 function resolveVerticalEntryContext(
-    state: EditorState,
+    view: EditorView,
     currentPos: number,
     targetPos: number,
     direction: VerticalEntryDirection
@@ -81,29 +126,12 @@ function resolveVerticalEntryContext(
         return null;
     }
 
-    const directCtx = resolveTableContextAtPos(state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    const directCtx = resolveTableContextAtPos(view.state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
     if (directCtx && entersTableFromExpectedSide(currentPos, directCtx, direction)) {
         return directCtx;
     }
 
-    const tables = findTableRanges(state, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-    if (!tables) {
-        return null;
-    }
-
-    if (direction === 'down') {
-        const crossed = tables.find((table) => currentPos < table.from && targetPos > table.to);
-        return crossed ? buildTableContext(crossed) : null;
-    }
-
-    for (let index = tables.length - 1; index >= 0; index--) {
-        const table = tables[index];
-        if (currentPos > table.to && targetPos < table.from) {
-            return buildTableContext(table);
-        }
-    }
-
-    return null;
+    return resolveSkippedTableBlock(view, currentPos, targetPos, direction);
 }
 
 function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
@@ -117,7 +145,7 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
         return false;
     }
 
-    const ctx = resolveVerticalEntryContext(view.state, current.head, target.head, direction);
+    const ctx = resolveVerticalEntryContext(view, current.head, target.head, direction);
     if (!ctx) {
         return false;
     }
