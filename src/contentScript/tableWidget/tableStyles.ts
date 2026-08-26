@@ -5,7 +5,12 @@ import {
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
 } from '../shared/tableDomClasses';
-import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
+import {
+    CLASS_CELL_SELECTED,
+    CLASS_TABLE_WIDGET_SPANNED,
+    CLASS_TABLE_WIDGET_TABLE,
+    getWidgetSelector,
+} from './domHelpers';
 
 /**
  * Base styles for the table widget, split by responsibility:
@@ -79,6 +84,13 @@ export const tableStyles = EditorView.baseTheme({
     },
     [`${getWidgetSelector()} .${CLASS_CELL_CONTENT} *::selection`]: {
         'background-color': 'transparent !important',
+    },
+    // CodeMirror's selection layer paints at `z-index: -1`, behind the content, so it only
+    // shows through cells that have no background of their own. Drop the header tint while a
+    // document selection covers the table, so the whole table carries the same selection
+    // colour as the surrounding text instead of leaving the header row looking unselected.
+    [`.${CLASS_TABLE_WIDGET_SPANNED} .${CLASS_TABLE_WIDGET_TABLE} th`]: {
+        backgroundColor: 'transparent',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries

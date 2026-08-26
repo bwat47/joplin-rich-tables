@@ -5,6 +5,8 @@ import type { EditorView } from '@codemirror/view';
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
+// Set on a widget root while a document selection covers the whole table.
+export const CLASS_TABLE_WIDGET_SPANNED = 'cm-table-widget-spanned';
 
 // Floating toolbar container (positioned relative to the active table widget)
 export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';

@@ -12,6 +12,18 @@ Lezer syntax tree scanner detects Markdown tables → replaced with `Decoration.
 - Wide tables scroll horizontally within container.
 - Each cell renders into a dedicated content wrapper (`CLASS_CELL_CONTENT`) so styling can be applied consistently between initial render and nested-editor activation.
 
+### Document Selection Over a Widget
+
+A selection spanning a table is drawn by CodeMirror's `.cm-selectionLayer`, which paints at
+`z-index: -1` (behind content). Two rules in `tableStyles.ts` keep that the only highlight:
+
+- `::selection` is suppressed inside `CLASS_CELL_CONTENT`. `drawSelection()` only suppresses the
+  native highlight under `.cm-line`, and a block widget sits outside every line, so without this
+  the browser stacks a second, opaque highlight over the layer. The widget-scoped selector is
+  load-bearing: it beats Joplin's own `&.cm-focused ::selection !important` rule on specificity.
+- `<th>` drops its background while `spannedTableVisuals.ts` marks the widget spanned, so the
+  layer shows through the header row too.
+
 ### Media and Embed Constraints
 
 Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embeds.

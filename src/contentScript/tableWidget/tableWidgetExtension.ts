@@ -44,6 +44,7 @@ import {
 } from '../tableRuntime/interaction/outsideTableInteraction';
 import { createStartupCursorCorrection } from '../tableRuntime/startupCursorCorrection';
 import { tableDecorationField } from './tableDecorationField';
+import { spannedTableVisualsPlugin } from './spannedTableVisuals';
 import {
     rootEditorActiveCellAttribute,
     rootEditorSelectionSuppression,
@@ -131,6 +132,7 @@ async function registerTableWidgetExtension(
         cellSelectionScopeGuard,
         cellSelectionClipboardPlugin,
         cellSelectionVisualsPlugin,
+        spannedTableVisualsPlugin,
         cellSelectionCaretSuppression,
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
