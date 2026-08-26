@@ -1,15 +1,33 @@
 import { EditorView } from '@codemirror/view';
-import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../activeCell/resolvedActiveCell';
+import {
+    getResolvedActiveCell,
+    resolveCellWithinResolvedTable,
+    type ResolvedActiveCell,
+} from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { getTableGridBounds } from '../../tableModel/tableContext';
 import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 import { resolveNavigationTarget, type NavigationDirection } from './navigationTarget';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
+import { exitTableToAdjacentLine } from './tableExit';
+
+export interface NavigateCellOptions {
+    initialCursorPos?: InitialCursorPos;
+    allowRowCreation?: boolean;
+    exitTableAtBoundary?: boolean;
+}
+
+function exitTable(view: EditorView, resolvedActiveCell: ResolvedActiveCell, direction: 'up' | 'down'): void {
+    exitTableToAdjacentLine(view, resolvedActiveCell.ctx, direction === 'up' ? 'before' : 'after', [
+        clearActiveCellEffect.of(undefined),
+    ]);
+}
 
 export function navigateCell(
     view: EditorView,
     direction: NavigationDirection,
-    options: { initialCursorPos?: InitialCursorPos; allowRowCreation?: boolean } = {}
+    options: NavigateCellOptions = {}
 ): boolean {
     // Prevent race conditions from rapid key-holding
     if (shouldSuppressNavigationKeys(view.state)) {
@@ -29,6 +47,9 @@ export function navigateCell(
     });
 
     if (target.kind === 'blocked') {
+        if (options.exitTableAtBoundary && (direction === 'up' || direction === 'down')) {
+            exitTable(view, resolvedActiveCell, direction);
+        }
         return true;
     }
 

@@ -11,6 +11,7 @@ import { buildTableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
@@ -21,6 +22,10 @@ export interface ActivateCellOptions {
     preserveMainSelection?: boolean;
     /** Optional fallback identity used when the cursor lands on table structure during lifecycle-driven reactivation */
     preferredActiveCell?: ActiveCell | null;
+}
+
+export interface ActivateTableCellOptions {
+    initialCursorPos?: InitialCursorPos;
 }
 
 export function resolveActivationTargetCell(params: {
@@ -126,32 +131,37 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
  * Activates a specific cell by table position and coordinates.
  * Callers that depend on newly mounted widgets should schedule this after the
  * relevant DOM update has had a chance to render.
+ * @returns true when an open-cell request was dispatched.
  */
 export function activateTableCell(
     view: EditorView,
     tableFrom: number,
-    coords: { section: 'header' | 'body'; row: number; col: number }
-): void {
-    if (!view.dom.isConnected) return;
+    coords: { section: 'header' | 'body'; row: number; col: number },
+    options: ActivateTableCellOptions = {}
+): boolean {
+    if (!view.dom.isConnected) return false;
 
     // Don't activate cells in source mode (no widgets exist)
-    if (isSourceModeEnabled(view.state)) return;
+    if (isSourceModeEnabled(view.state)) return false;
 
     const table = resolveContainingTableAtPos(view.state, tableFrom);
-    if (!table) return;
+    if (!table) return false;
 
     const ctx = buildTableContext(table);
-    if (!ctx) return;
+    if (!ctx) return false;
 
     const resolvedCell = createResolvedActiveCell({
         ctx,
         coords,
     });
 
-    if (!resolvedCell) return;
+    if (!resolvedCell) return false;
 
     requestOpenCell(view, {
         target: { resolvedCell },
         normalizeIfNeeded: true,
+        initialCursorPos: options.initialCursorPos,
     });
+
+    return true;
 }

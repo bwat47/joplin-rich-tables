@@ -45,6 +45,7 @@ function pressKey(init: KeyboardEventInit & { key: string }): void {
 }
 
 afterEach(() => {
+    vi.restoreAllMocks();
     // Destroy here rather than per-test so a failing assertion cannot leak the
     // plugin's document-level keydown listener into the next test.
     while (mountedViews.length > 0) {
@@ -157,7 +158,52 @@ describe('cellSelectionKeymap', () => {
         });
     });
 
-    it.each(['shiftKey', 'altKey', 'ctrlKey', 'metaKey'] as const)('ignores Delete combined with %s', (modifier) => {
+    it.each([
+        { label: 'Ctrl+Backspace', init: { key: 'Backspace', ctrlKey: true } },
+        { label: 'Ctrl+Delete', init: { key: 'Delete', ctrlKey: true } },
+        { label: 'Shift+Backspace', init: { key: 'Backspace', shiftKey: true } },
+    ])('routes $label through selection removal', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        pressKey(init);
+
+        expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
+    });
+
+    it.each([
+        { label: 'Option+Backspace', init: { key: 'Backspace', altKey: true } },
+        { label: 'Option+Delete', init: { key: 'Delete', altKey: true } },
+        { label: 'Command+Backspace', init: { key: 'Backspace', metaKey: true } },
+        { label: 'Command+Delete', init: { key: 'Delete', metaKey: true } },
+    ])('routes $label through selection removal on macOS', ({ init }) => {
+        vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue('MacIntel');
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        pressKey(init);
+
+        expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
+    });
+
+    it.each([
+        { label: 'Shift+Delete', modifiers: { shiftKey: true } },
+        { label: 'Ctrl+Alt+Delete', modifiers: { ctrlKey: true, altKey: true } },
+    ])('ignores $label because it is not a CodeMirror deletion command', ({ modifiers }) => {
         const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const view = mountSelectionView(initialDoc);
 
@@ -169,7 +215,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Delete', [modifier]: true });
+        pressKey({ key: 'Delete', ...modifiers });
 
         expect(view.state.doc.toString()).toBe(initialDoc);
     });
@@ -299,9 +345,51 @@ describe('cellSelectionKeymap', () => {
         expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: expected });
     });
 
-    it.each(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'])('ignores %s without Shift', (key) => {
-        const view = mountSelectionView(GRID_DOC);
+    it.each([
+        { key: 'ArrowDown', edge: 'after' },
+        { key: 'ArrowRight', edge: 'after' },
+        { key: 'ArrowUp', edge: 'before' },
+        { key: 'ArrowLeft', edge: 'before' },
+    ])('collapses the selection $edge the table on $key without Shift', ({ key, edge }) => {
+        const prefix = 'above';
+        const view = mountSelectionView(`${prefix}\n${GRID_DOC}\nbelow`);
+        const tableFrom = prefix.length + 1;
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 1, col: 2 },
+            }),
+        });
 
+        pressKey({ key });
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.state.selection.main.head).toBe(
+            edge === 'before' ? tableFrom - 1 : tableFrom + GRID_DOC.length + 1
+        );
+    });
+
+    it.each(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'])(
+        'drops the selection on %s when the table has no adjacent line',
+        (key) => {
+            const view = mountSelectionView(GRID_DOC);
+            view.dispatch({
+                effects: setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'body', row: 0, col: 1 },
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+            });
+
+            pressKey({ key });
+
+            expect(getCellSelection(view.state)).toBeNull();
+        }
+    );
+
+    it.each(['ArrowRight', 'ArrowDown'])('leaves %s with a modifier to the main editor', (key) => {
+        const view = mountSelectionView(GRID_DOC);
         const selection = {
             tableFrom: 0,
             anchor: { section: 'body', row: 0, col: 1 },
@@ -309,7 +397,7 @@ describe('cellSelectionKeymap', () => {
         } as const;
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-        pressKey({ key });
+        pressKey({ key, ctrlKey: true });
 
         expect(getCellSelection(view.state)).toEqual(selection);
     });

@@ -18,7 +18,8 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
+import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
+import { cellSelectionCaretSuppression, cellSelectionVisualsPlugin } from './cellSelectionVisuals';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
@@ -36,6 +37,7 @@ import {
 } from '../tableRuntime/openCellRequest';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
+import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import {
     closeOnOutsideMouseDown,
     outsideInteractionCapturePlugin,
@@ -117,6 +119,7 @@ async function registerTableWidgetExtension(
         openCellRequestField,
         insertedTableActivationField,
         cellSelectionField,
+        mainEditorTableEntryExtension,
         createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
         openCellRequestKeymap,
         openCellRequestTimeoutPlugin,
@@ -125,8 +128,10 @@ async function registerTableWidgetExtension(
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,
         cellSelectionKeyCapturePlugin,
+        cellSelectionScopeGuard,
         cellSelectionClipboardPlugin,
         cellSelectionVisualsPlugin,
+        cellSelectionCaretSuppression,
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
         tableDecorationField,

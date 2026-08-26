@@ -108,6 +108,10 @@ function canHandleShortcutForFocusedElement(
         return true;
     }
 
+    if (selection && isStructuralFocusHost(view, activeElement)) {
+        return true;
+    }
+
     if (isInteractiveElement(activeElement)) {
         return false;
     }
@@ -116,11 +120,7 @@ function canHandleShortcutForFocusedElement(
         return false;
     }
 
-    return (
-        isStructuralFocusHost(view, activeElement) ||
-        isInsideSelectedTableWidget(view, selection, activeElement) ||
-        view.dom.contains(activeElement)
-    );
+    return isInsideSelectedTableWidget(view, selection, activeElement) || view.dom.contains(activeElement);
 }
 
 /**

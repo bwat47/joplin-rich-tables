@@ -5,7 +5,7 @@ import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 
-import { setActiveCellEffect } from '../tableState/activeCellState';
+import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperations';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -46,6 +46,7 @@ describe('navigateCell', () => {
         mockView = {
             state: mockState,
             dispatch: mockDispatch,
+            focus: vi.fn(),
             contentDOM: {
                 focus: vi.fn(),
                 querySelectorAll: vi.fn().mockReturnValue([]),
@@ -257,7 +258,7 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
 
         expect(result).toBe(true);
-        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(mockView.focus).not.toHaveBeenCalled();
     });
 
     it('should navigate previous from body start to header end', () => {
@@ -297,5 +298,62 @@ describe('navigateCell', () => {
             row: 0,
             col: 0,
         });
+    });
+
+    it('should exit above the table when moving up from the header boundary', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_HEADER, 0, 1);
+
+        const result = navigateCell(mockView, 'up', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 9 }, scrollIntoView: true })
+        );
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
+        expect(mockView.focus).toHaveBeenCalled();
+    });
+
+    it('should exit below the table when moving down from the final body row', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_BODY, 1, 0);
+
+        const result = navigateCell(mockView, 'down', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 90 }, scrollIntoView: true })
+        );
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
+        expect(mockView.focus).toHaveBeenCalled();
+    });
+
+    it('should keep boundary navigation blocked when table exit is not requested', () => {
+        const ctx = setupTable(1, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_HEADER, 0, 0);
+
+        const result = navigateCell(mockView, 'up');
+
+        expect(result).toBe(true);
+        expect(mockDispatch).not.toHaveBeenCalled();
+        expect(mockView.focus).not.toHaveBeenCalled();
+    });
+
+    it('should remain blocked when no adjacent line exists at the document edge', () => {
+        const ctx = setupTable(1, 2);
+        ctx.from = 0;
+        setupActiveCell(SECTION_HEADER, 0, 0);
+
+        const result = navigateCell(mockView, 'up', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).not.toHaveBeenCalled();
+        expect(mockView.focus).not.toHaveBeenCalled();
     });
 });
