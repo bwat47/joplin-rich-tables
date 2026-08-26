@@ -5,13 +5,13 @@
 import { defaultKeymap } from '@codemirror/commands';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { afterEach, describe, expect, it } from 'vitest';
-import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
-import { openCellRequestField } from '../tableRuntime/openCellRequest';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -66,11 +66,16 @@ function expectWholeTableSelection(view: EditorView, focusEdge: 'start' | 'end')
 }
 
 afterEach(() => {
+    vi.restoreAllMocks();
     while (mountedViews.length > 0) {
         mountedViews.pop()?.destroy();
     }
     document.body.replaceChildren();
 });
+
+function mockVerticalTarget(view: EditorView, targetPos: number): void {
+    vi.spyOn(view, 'moveVertically').mockReturnValue(EditorSelection.cursor(targetPos));
+}
 
 describe('mainEditorTableEntry deletion protection', () => {
     it('selects the entire table when Backspace reaches it from below', () => {
@@ -236,5 +241,124 @@ describe('mainEditorTableEntry deletion protection', () => {
         pressKey(view, 'Backspace');
 
         expect(getCellSelection(view.state)).toBeNull();
+    });
+});
+
+describe('mainEditorTableEntry vertical movement', () => {
+    it('opens the top-left header cell when ArrowDown enters from above', () => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}`;
+        const tableFrom = prefix.length + 1;
+        const view = mountView(doc, prefix.length);
+        mockVerticalTarget(view, tableFrom);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toEqual({
+            tableFrom,
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            initialCursorPos: 'start',
+        });
+    });
+
+    it('opens the bottom-left body cell when ArrowUp enters from below', () => {
+        const doc = `${TABLE}\nbelow`;
+        const view = mountView(doc, TABLE.length + 1);
+        mockVerticalTarget(view, TABLE.length);
+
+        pressKey(view, 'ArrowUp');
+
+        expect(getActiveCell(view.state)).toEqual({
+            tableFrom: 0,
+            section: 'body',
+            row: 1,
+            col: 0,
+        });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            initialCursorPos: 'lastLineStart',
+        });
+    });
+
+    it('opens the header when ArrowUp enters a table with no body rows', () => {
+        const headerOnlyTable = ['| H1 | H2 |', '| --- | --- |'].join('\n');
+        const doc = `${headerOnlyTable}\nbelow`;
+        const view = mountView(doc, headerOnlyTable.length + 1);
+        mockVerticalTarget(view, headerOnlyTable.length);
+
+        pressKey(view, 'ArrowUp');
+
+        expect(getActiveCell(view.state)).toEqual({
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            initialCursorPos: 'lastLineStart',
+        });
+    });
+
+    it.each([
+        { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
+        { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
+    ])('leaves vertical movement in the main editor during $label', ({ effect }) => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, prefix.length);
+        view.dispatch({ effects: effect });
+        mockVerticalTarget(view, prefix.length + 1);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('does not activate a table when vertical movement stays outside it', () => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, prefix.length);
+        mockVerticalTarget(view, prefix.length - 1);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    it('requires entry from the side implied by the arrow direction', () => {
+        const doc = `${TABLE}\nbelow`;
+        const view = mountView(doc, TABLE.length + 1);
+        mockVerticalTarget(view, TABLE.length);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    it('does not intercept a non-collapsed vertical selection', () => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, { anchor: 0, head: prefix.length });
+        mockVerticalTarget(view, prefix.length + 1);
+
+        pressKey(view, 'ArrowDown');
+
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    it('leaves Shift+ArrowDown to the main editor', () => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, prefix.length);
+        mockVerticalTarget(view, prefix.length + 1);
+
+        pressKey(view, 'ArrowDown', { shiftKey: true });
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 });

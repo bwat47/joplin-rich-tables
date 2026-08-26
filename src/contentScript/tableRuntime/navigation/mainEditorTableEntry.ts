@@ -1,8 +1,10 @@
 import { EditorState, Prec, Transaction, type Extension, type TransactionSpec } from '@codemirror/state';
 import { keymap, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { getCellSelection } from '../../tableState/cellSelectionState';
+import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { getTableGridBounds } from '../../tableModel/tableContext';
+import { activateTableCell } from '../activeCell/cellActivation';
 import { getPendingOpenCellRequest } from '../openCellRequest';
 import { resolveTableContextAtPos } from '../tableResolution';
 import {
@@ -12,6 +14,7 @@ import {
 } from '../selection/cellSelectionController';
 
 type DeletionDirection = 'backward' | 'forward';
+type VerticalEntryDirection = 'up' | 'down';
 
 // A rendered widget implies that table parsing has already completed. Keyboard
 // entry must never block waiting for syntax work on the input event path.
@@ -54,6 +57,38 @@ function selectTableAtCharacterTarget(view: EditorView, direction: DeletionDirec
     }
 
     return selectWholeTable(view, ctx, focusEdgeForDirection(direction));
+}
+
+function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
+    if (!canEnterRenderedTable(view.state)) {
+        return false;
+    }
+
+    const current = view.state.selection.main;
+    const target = view.moveVertically(current, direction === 'down');
+    if (target.head === current.head) {
+        return false;
+    }
+
+    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    if (!ctx) {
+        return false;
+    }
+
+    const entersFromExpectedSide = direction === 'down' ? current.head < ctx.from : current.head > ctx.to;
+    if (!entersFromExpectedSide) {
+        return false;
+    }
+
+    const bounds = getTableGridBounds(ctx);
+    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+        return false;
+    }
+
+    const targetCoords = fromUnifiedRow(direction === 'down' ? 0 : bounds.totalRows - 1, 0);
+    return activateTableCell(view, ctx.from, targetCoords, {
+        initialCursorPos: direction === 'down' ? 'start' : 'lastLineStart',
+    });
 }
 
 function findSinglePureDeletion(transaction: Transaction): PureDeletion | null {
@@ -121,7 +156,7 @@ function rewriteTableBoundaryDeletion(transaction: Transaction): TransactionSpec
 
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of(rewriteTableBoundaryDeletion);
 
-const tableBoundaryDeletionKeymap = Prec.highest(
+const tableEntryKeymap = Prec.highest(
     keymap.of([
         {
             key: 'Backspace',
@@ -131,7 +166,15 @@ const tableBoundaryDeletionKeymap = Prec.highest(
             key: 'Delete',
             run: (view) => selectTableAtCharacterTarget(view, 'forward'),
         },
+        {
+            key: 'ArrowUp',
+            run: (view) => activateTableAtVerticalTarget(view, 'up'),
+        },
+        {
+            key: 'ArrowDown',
+            run: (view) => activateTableAtVerticalTarget(view, 'down'),
+        },
     ])
 );
 
-export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableBoundaryDeletionKeymap];
+export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableEntryKeymap];
