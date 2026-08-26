@@ -3,10 +3,10 @@ import { keymap, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getTableGridBounds } from '../../tableModel/tableContext';
+import { buildTableContext, getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { activateTableCell } from '../activeCell/cellActivation';
 import { getPendingOpenCellRequest } from '../openCellRequest';
-import { resolveTableContextAtPos } from '../tableResolution';
+import { findTableRanges, resolveTableContextAtPos } from '../tableResolution';
 import {
     buildWholeTableSelectionTransaction,
     selectWholeTable,
@@ -59,6 +59,62 @@ function selectTableAtCharacterTarget(view: EditorView, direction: DeletionDirec
     return selectWholeTable(view, ctx, focusEdgeForDirection(direction));
 }
 
+function isPositionMovingInDirection(
+    currentPos: number,
+    targetPos: number,
+    direction: VerticalEntryDirection
+): boolean {
+    return direction === 'down' ? targetPos > currentPos : targetPos < currentPos;
+}
+
+function entersTableFromExpectedSide(
+    currentPos: number,
+    ctx: TableContext,
+    direction: VerticalEntryDirection
+): boolean {
+    return direction === 'down' ? currentPos < ctx.from : currentPos > ctx.to;
+}
+
+/**
+ * CodeMirror may place a vertical movement target on either side of a block
+ * replacement instead of inside its document range. Resolve the direct target
+ * first, then fall back to the nearest table fully crossed by the movement.
+ */
+function resolveVerticalEntryContext(
+    state: EditorState,
+    currentPos: number,
+    targetPos: number,
+    direction: VerticalEntryDirection
+): TableContext | null {
+    if (!isPositionMovingInDirection(currentPos, targetPos, direction)) {
+        return null;
+    }
+
+    const directCtx = resolveTableContextAtPos(state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    if (directCtx && entersTableFromExpectedSide(currentPos, directCtx, direction)) {
+        return directCtx;
+    }
+
+    const tables = findTableRanges(state, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    if (!tables) {
+        return null;
+    }
+
+    if (direction === 'down') {
+        const crossed = tables.find((table) => currentPos < table.from && targetPos > table.to);
+        return crossed ? buildTableContext(crossed) : null;
+    }
+
+    for (let index = tables.length - 1; index >= 0; index--) {
+        const table = tables[index];
+        if (currentPos > table.to && targetPos < table.from) {
+            return buildTableContext(table);
+        }
+    }
+
+    return null;
+}
+
 function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
     if (!canEnterRenderedTable(view.state)) {
         return false;
@@ -70,13 +126,8 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
         return false;
     }
 
-    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    const ctx = resolveVerticalEntryContext(view.state, current.head, target.head, direction);
     if (!ctx) {
-        return false;
-    }
-
-    const entersFromExpectedSide = direction === 'down' ? current.head < ctx.from : current.head > ctx.to;
-    if (!entersFromExpectedSide) {
         return false;
     }
 

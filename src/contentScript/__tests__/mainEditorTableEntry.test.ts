@@ -245,12 +245,12 @@ describe('mainEditorTableEntry deletion protection', () => {
 });
 
 describe('mainEditorTableEntry vertical movement', () => {
-    it('opens the top-left header cell when ArrowDown enters from above', () => {
+    it('opens the top-left header cell when ArrowDown skips across the table widget', () => {
         const prefix = 'above';
-        const doc = `${prefix}\n${TABLE}`;
+        const doc = `${prefix}\n${TABLE}\nbelow`;
         const tableFrom = prefix.length + 1;
         const view = mountView(doc, prefix.length);
-        mockVerticalTarget(view, tableFrom);
+        mockVerticalTarget(view, tableFrom + TABLE.length + 1);
 
         pressKey(view, 'ArrowDown');
 
@@ -265,15 +265,17 @@ describe('mainEditorTableEntry vertical movement', () => {
         });
     });
 
-    it('opens the bottom-left body cell when ArrowUp enters from below', () => {
-        const doc = `${TABLE}\nbelow`;
-        const view = mountView(doc, TABLE.length + 1);
-        mockVerticalTarget(view, TABLE.length);
+    it('opens the bottom-left body cell when ArrowUp skips across the table widget', () => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}\nbelow`;
+        const tableFrom = prefix.length + 1;
+        const view = mountView(doc, tableFrom + TABLE.length + 1);
+        mockVerticalTarget(view, prefix.length);
 
         pressKey(view, 'ArrowUp');
 
         expect(getActiveCell(view.state)).toEqual({
-            tableFrom: 0,
+            tableFrom,
             section: 'body',
             row: 1,
             col: 0,

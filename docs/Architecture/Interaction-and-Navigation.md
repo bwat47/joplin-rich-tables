@@ -17,9 +17,10 @@ any of the table's hidden Markdown. The first deletion selects the complete cell
 normal multi-cell removal behavior. Extra blank lines between the caret and table remain ordinary editable text. A
 transaction filter applies the same protection to mobile soft-keyboard deletions that do not produce a usable keydown.
 
-Plain ArrowDown/ArrowUp from the main editor uses CodeMirror's visual movement target to detect entry into a rendered
-table. Entry from above opens the top-left header cell at its start; entry from below opens the first cell of the final
-row at the start of its last line. Other vertical movement remains owned by the main editor.
+Plain ArrowDown/ArrowUp from the main editor uses CodeMirror's visual movement target and the document range it crossed
+to detect entry into a rendered table. Entry from above opens the top-left header cell at its start; entry from below
+opens the first cell of the final row at the start of its last line. Other vertical movement remains owned by the main
+editor.
 
 ### Scrolling
 
