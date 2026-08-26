@@ -1,15 +1,42 @@
 import { EditorView } from '@codemirror/view';
-import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../activeCell/resolvedActiveCell';
+import {
+    getResolvedActiveCell,
+    resolveCellWithinResolvedTable,
+    type ResolvedActiveCell,
+} from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { getTableGridBounds } from '../../tableModel/tableContext';
 import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 import { resolveNavigationTarget, type NavigationDirection } from './navigationTarget';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
+import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
+
+export interface NavigateCellOptions {
+    initialCursorPos?: InitialCursorPos;
+    allowRowCreation?: boolean;
+    exitTableAtBoundary?: boolean;
+}
+
+function exitTable(view: EditorView, resolvedActiveCell: ResolvedActiveCell, direction: 'up' | 'down'): void {
+    const { from, to } = resolvedActiveCell.ctx;
+    const exitPos = direction === 'up' ? from - 1 : to + 1;
+    if (exitPos < 0 || exitPos > view.state.doc.length) {
+        return;
+    }
+
+    view.dispatch({
+        selection: { anchor: exitPos },
+        effects: clearActiveCellEffect.of(undefined),
+        scrollIntoView: true,
+    });
+    focusMainEditorWithoutScroll(view);
+}
 
 export function navigateCell(
     view: EditorView,
     direction: NavigationDirection,
-    options: { initialCursorPos?: InitialCursorPos; allowRowCreation?: boolean } = {}
+    options: NavigateCellOptions = {}
 ): boolean {
     // Prevent race conditions from rapid key-holding
     if (shouldSuppressNavigationKeys(view.state)) {
@@ -29,6 +56,9 @@ export function navigateCell(
     });
 
     if (target.kind === 'blocked') {
+        if (options.exitTableAtBoundary && (direction === 'up' || direction === 'down')) {
+            exitTable(view, resolvedActiveCell, direction);
+        }
         return true;
     }
 

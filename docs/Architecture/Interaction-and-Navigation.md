@@ -22,6 +22,10 @@ to detect entry into a rendered table. Entry from above opens the top-left heade
 opens the first cell of the final row at the start of its last line. Other vertical movement remains owned by the main
 editor.
 
+Inside a nested editor, plain ArrowUp from the header's visual top boundary exits to the blank line above the table.
+Plain ArrowDown from the final row's visual bottom boundary exits to the blank line below it. The active cell is cleared,
+the nested editor closes through the normal lifecycle, and focus returns to the main editor.
+
 ### Scrolling
 
 Primary cell navigation opens the target nested editor, then focuses its `contentDOM`. The browser scrolls that focused

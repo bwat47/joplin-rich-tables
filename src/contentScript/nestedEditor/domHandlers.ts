@@ -89,12 +89,18 @@ export function createNestedEditorKeymap(
 
                 if (headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'up', { initialCursorPos: 'lastLineStart' });
+                    return navigateCell(mainView, 'up', {
+                        initialCursorPos: 'lastLineStart',
+                        exitTableAtBoundary: true,
+                    });
                 }
 
                 if (head === from) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'up', { initialCursorPos: 'lastLineStart' });
+                    return navigateCell(mainView, 'up', {
+                        initialCursorPos: 'lastLineStart',
+                        exitTableAtBoundary: true,
+                    });
                 }
 
                 return false;
@@ -110,12 +116,18 @@ export function createNestedEditorKeymap(
 
                 if (headRect && toRect && Math.abs(headRect.top - toRect.top) < 2) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'down', { initialCursorPos: 'start' });
+                    return navigateCell(mainView, 'down', {
+                        initialCursorPos: 'start',
+                        exitTableAtBoundary: true,
+                    });
                 }
 
                 if (head === to) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'down', { initialCursorPos: 'start' });
+                    return navigateCell(mainView, 'down', {
+                        initialCursorPos: 'start',
+                        exitTableAtBoundary: true,
+                    });
                 }
 
                 return false;
