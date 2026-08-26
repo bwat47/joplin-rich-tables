@@ -309,13 +309,9 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'up', { exitTableAtBoundary: true });
 
         expect(result).toBe(true);
-        expect(mockDispatch).toHaveBeenCalledWith({
-            selection: { anchor: 9 },
-            effects: expect.objectContaining({
-                is: expect.any(Function),
-            }),
-            scrollIntoView: true,
-        });
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 9 }, scrollIntoView: true })
+        );
         expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
         expect(mockView.focus).toHaveBeenCalled();
     });
@@ -329,13 +325,9 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'down', { exitTableAtBoundary: true });
 
         expect(result).toBe(true);
-        expect(mockDispatch).toHaveBeenCalledWith({
-            selection: { anchor: 90 },
-            effects: expect.objectContaining({
-                is: expect.any(Function),
-            }),
-            scrollIntoView: true,
-        });
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 90 }, scrollIntoView: true })
+        );
         expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
         expect(mockView.focus).toHaveBeenCalled();
     });

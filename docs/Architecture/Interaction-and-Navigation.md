@@ -17,6 +17,11 @@ table or any of the table's hidden Markdown. The first deletion selects the comp
 the normal multi-cell removal behavior. Extra blank lines between the caret and table remain ordinary editable text.
 Soft-keyboard and IME deletions are left to CodeMirror's platform behavior and are not intercepted by this extension.
 
+While a cell selection is live the caret is parked at the focus cell's document position so clipboard and shortcut
+handling keep working, and the main editor's caret is hidden so the highlight alone conveys the state. An unmodified
+arrow key collapses the selection and moves the caret out of the table, the way an arrow key collapses a text selection;
+Shift+Arrow extends it instead. Any other command that moves the caret outside the selected table drops the selection.
+
 Plain ArrowDown/ArrowUp from the main editor detects entry into a rendered table from the visual movement target, or,
 when that target overshoots, from the block the movement stepped over. CodeMirror's vertical motion deliberately scans
 past block widgets, so a movement toward a table usually lands on the far side of it; the block adjacent to the caret's

@@ -7,7 +7,11 @@ import {
 } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
-import { extendExistingCellSelection, startCellSelectionFromActiveCell } from './cellSelectionController';
+import {
+    collapseCellSelectionOutOfTable,
+    extendExistingCellSelection,
+    startCellSelectionFromActiveCell,
+} from './cellSelectionController';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
@@ -105,9 +109,23 @@ function handleActivateKey(view: EditorView, event: KeyboardEvent): boolean {
     return !event.shiftKey && activateSelectionFocus(view);
 }
 
-/** Arrow keys extend the selection only while Shift is held. */
+function hasNoModifiers(event: KeyboardEvent): boolean {
+    return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
+}
+
+/**
+ * Shift+Arrow extends the selection; a bare arrow collapses it and leaves the table.
+ * Modified arrows (word/line movement) are left to the main editor, which moves the
+ * caret out of the table's range and lets the selection guard drop the highlight.
+ */
 function arrowKeyHandler(direction: CellSelectionDirection): SelectionKeyHandler {
-    return (view, event) => event.shiftKey && extendOrStartSelection(view, direction);
+    return (view, event) => {
+        if (event.shiftKey) {
+            return extendOrStartSelection(view, direction);
+        }
+
+        return hasNoModifiers(event) && collapseCellSelectionOutOfTable(view, direction);
+    };
 }
 
 const selectionKeyHandlers: ReadonlyMap<string, SelectionKeyHandler> = new Map([

@@ -299,9 +299,51 @@ describe('cellSelectionKeymap', () => {
         expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: expected });
     });
 
-    it.each(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'])('ignores %s without Shift', (key) => {
-        const view = mountSelectionView(GRID_DOC);
+    it.each([
+        { key: 'ArrowDown', edge: 'after' },
+        { key: 'ArrowRight', edge: 'after' },
+        { key: 'ArrowUp', edge: 'before' },
+        { key: 'ArrowLeft', edge: 'before' },
+    ])('collapses the selection $edge the table on $key without Shift', ({ key, edge }) => {
+        const prefix = 'above';
+        const view = mountSelectionView(`${prefix}\n${GRID_DOC}\nbelow`);
+        const tableFrom = prefix.length + 1;
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 1, col: 2 },
+            }),
+        });
 
+        pressKey({ key });
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.state.selection.main.head).toBe(
+            edge === 'before' ? tableFrom - 1 : tableFrom + GRID_DOC.length + 1
+        );
+    });
+
+    it.each(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'])(
+        'drops the selection on %s when the table has no adjacent line',
+        (key) => {
+            const view = mountSelectionView(GRID_DOC);
+            view.dispatch({
+                effects: setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'body', row: 0, col: 1 },
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+            });
+
+            pressKey({ key });
+
+            expect(getCellSelection(view.state)).toBeNull();
+        }
+    );
+
+    it.each(['ArrowRight', 'ArrowDown'])('leaves %s with a modifier to the main editor', (key) => {
+        const view = mountSelectionView(GRID_DOC);
         const selection = {
             tableFrom: 0,
             anchor: { section: 'body', row: 0, col: 1 },
@@ -309,7 +351,7 @@ describe('cellSelectionKeymap', () => {
         } as const;
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-        pressKey({ key });
+        pressKey({ key, ctrlKey: true });
 
         expect(getCellSelection(view.state)).toEqual(selection);
     });

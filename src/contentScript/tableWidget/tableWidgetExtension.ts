@@ -18,7 +18,8 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { cellSelectionVisualsPlugin } from './cellSelectionVisuals';
+import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
+import { cellSelectionCaretSuppression, cellSelectionVisualsPlugin } from './cellSelectionVisuals';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
@@ -127,8 +128,10 @@ async function registerTableWidgetExtension(
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,
         cellSelectionKeyCapturePlugin,
+        cellSelectionScopeGuard,
         cellSelectionClipboardPlugin,
         cellSelectionVisualsPlugin,
+        cellSelectionCaretSuppression,
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
         tableDecorationField,
