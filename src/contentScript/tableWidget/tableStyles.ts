@@ -71,6 +71,17 @@ export const tableStyles = EditorView.baseTheme({
         paddingLeft: '1px !important',
         whiteSpace: 'normal',
     },
+    // A document selection spanning a replacement widget also creates a native DOM selection
+    // through its rendered content. Suppress that second highlight so it does not stack an
+    // opaque browser selection over CodeMirror's selection background.
+    [`${getWidgetSelector()} .${CLASS_CELL_CONTENT}::selection`]: {
+        'background-color': 'transparent !important',
+        color: 'inherit !important',
+    },
+    [`${getWidgetSelector()} .${CLASS_CELL_CONTENT} *::selection`]: {
+        'background-color': 'transparent !important',
+        color: 'inherit !important',
+    },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries
     },
