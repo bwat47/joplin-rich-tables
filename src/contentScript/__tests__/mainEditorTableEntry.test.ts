@@ -163,13 +163,38 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('does not intercept modified deletion keys', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
+    it.each([
+        {
+            label: 'Ctrl+Backspace',
+            key: 'Backspace',
+            modifiers: { ctrlKey: true },
+            doc: `${TABLE}\nafter`,
+            caret: TABLE.length + 1,
+            focusEdge: 'end' as const,
+        },
+        {
+            label: 'Ctrl+Delete',
+            key: 'Delete',
+            modifiers: { ctrlKey: true },
+            doc: `before\n${TABLE}`,
+            caret: 'before'.length,
+            focusEdge: 'start' as const,
+        },
+        {
+            label: 'Shift+Backspace',
+            key: 'Backspace',
+            modifiers: { shiftKey: true },
+            doc: `${TABLE}\nafter`,
+            caret: TABLE.length + 1,
+            focusEdge: 'end' as const,
+        },
+    ])('protects the table from $label', ({ key, modifiers, doc, caret, focusEdge }) => {
+        const view = mountView(doc, caret);
 
-        pressKey(view, 'Backspace', { altKey: true });
+        pressKey(view, key, modifiers);
 
-        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.state.doc.toString()).toBe(doc);
+        expectWholeTableSelection(view, focusEdge);
     });
 
     it('does not enter selection mode while an active cell exists', () => {

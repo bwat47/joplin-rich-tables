@@ -12,6 +12,9 @@ import { selectWholeTable, type WholeTableSelectionFocus } from '../selection/ce
 type DeletionDirection = 'backward' | 'forward';
 type VerticalEntryDirection = 'up' | 'down';
 
+const selectTableBackward = (view: EditorView): boolean => selectTableAtCharacterTarget(view, 'backward');
+const selectTableForward = (view: EditorView): boolean => selectTableAtCharacterTarget(view, 'forward');
+
 // A rendered widget implies that table parsing has already completed. Keyboard
 // entry must never block waiting for syntax work on the keyboard event path.
 const TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS = 0;
@@ -165,11 +168,30 @@ const tableEntryKeymap = Prec.highest(
     keymap.of([
         {
             key: 'Backspace',
-            run: (view) => selectTableAtCharacterTarget(view, 'backward'),
+            run: selectTableBackward,
+            shift: selectTableBackward,
         },
         {
             key: 'Delete',
-            run: (view) => selectTableAtCharacterTarget(view, 'forward'),
+            run: selectTableForward,
+        },
+        {
+            key: 'Mod-Backspace',
+            mac: 'Alt-Backspace',
+            run: selectTableBackward,
+        },
+        {
+            key: 'Mod-Delete',
+            mac: 'Alt-Delete',
+            run: selectTableForward,
+        },
+        {
+            mac: 'Mod-Backspace',
+            run: selectTableBackward,
+        },
+        {
+            mac: 'Mod-Delete',
+            run: selectTableForward,
         },
         {
             key: 'ArrowUp',

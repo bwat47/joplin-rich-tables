@@ -14,7 +14,8 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 
 From the main editor, hardware Backspace or Delete stops before it can remove the final line break adjoining a rendered
 table or any of the table's hidden Markdown. The first deletion selects the complete cell grid; subsequent deletion uses
-the normal multi-cell removal behavior. Extra blank lines between the caret and table remain ordinary editable text.
+the normal multi-cell removal behavior. Platform-standard word/line deletion shortcuts and Shift+Backspace receive the
+same protection. Extra blank lines between the caret and table remain ordinary editable text.
 Soft-keyboard and IME deletions are left to CodeMirror's platform behavior and are not intercepted by this extension.
 
 While a cell selection is live the caret is parked at the focus cell's document position so clipboard and shortcut
