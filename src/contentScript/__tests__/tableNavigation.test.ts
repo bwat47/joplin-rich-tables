@@ -46,6 +46,7 @@ describe('navigateCell', () => {
         mockView = {
             state: mockState,
             dispatch: mockDispatch,
+            focus: vi.fn(),
             contentDOM: {
                 focus: vi.fn(),
                 querySelectorAll: vi.fn().mockReturnValue([]),
@@ -257,7 +258,7 @@ describe('navigateCell', () => {
         const result = navigateCell(mockView, 'down', { allowRowCreation: true });
 
         expect(result).toBe(true);
-        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(mockView.focus).not.toHaveBeenCalled();
     });
 
     it('should navigate previous from body start to header end', () => {
@@ -316,7 +317,7 @@ describe('navigateCell', () => {
             scrollIntoView: true,
         });
         expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
-        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(mockView.focus).toHaveBeenCalled();
     });
 
     it('should exit below the table when moving down from the final body row', () => {
@@ -336,7 +337,7 @@ describe('navigateCell', () => {
             scrollIntoView: true,
         });
         expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
-        expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(mockView.focus).toHaveBeenCalled();
     });
 
     it('should keep boundary navigation blocked when table exit is not requested', () => {
@@ -349,7 +350,7 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(mockDispatch).not.toHaveBeenCalled();
-        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(mockView.focus).not.toHaveBeenCalled();
     });
 
     it('should remain blocked when no adjacent line exists at the document edge', () => {
@@ -361,6 +362,6 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(mockDispatch).not.toHaveBeenCalled();
-        expect(mockView.contentDOM.focus).not.toHaveBeenCalled();
+        expect(mockView.focus).not.toHaveBeenCalled();
     });
 });
