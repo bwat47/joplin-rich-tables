@@ -36,6 +36,7 @@ import {
 } from '../tableRuntime/openCellRequest';
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
+import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import {
     closeOnOutsideMouseDown,
     outsideInteractionCapturePlugin,
@@ -117,6 +118,7 @@ async function registerTableWidgetExtension(
         openCellRequestField,
         insertedTableActivationField,
         cellSelectionField,
+        mainEditorTableEntryExtension,
         createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
         openCellRequestKeymap,
         openCellRequestTimeoutPlugin,

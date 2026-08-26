@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type TransactionSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -118,6 +118,62 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
         },
         { clearActiveCell: true }
     );
+}
+
+export type WholeTableSelectionFocus = 'start' | 'end';
+
+function createWholeTableSelection(ctx: TableContext, focusEdge: WholeTableSelectionFocus): CellSelection | null {
+    const bounds = getTableGridBounds(ctx);
+    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+        return null;
+    }
+
+    const start = fromUnifiedRow(0, 0);
+    const end = fromUnifiedRow(bounds.totalRows - 1, bounds.totalCols - 1);
+
+    return focusEdge === 'start'
+        ? { tableFrom: ctx.from, anchor: end, focus: start }
+        : { tableFrom: ctx.from, anchor: start, focus: end };
+}
+
+/**
+ * Builds the state transition used when deletion reaches a rendered table.
+ * The focus edge follows the direction the caret approached from, keeping the
+ * hidden root selection and any subsequent scrolling close to that boundary.
+ */
+export function buildWholeTableSelectionTransaction(
+    ctx: TableContext,
+    focusEdge: WholeTableSelectionFocus
+): TransactionSpec | null {
+    const selection = createWholeTableSelection(ctx, focusEdge);
+    if (!selection) {
+        return null;
+    }
+
+    const focusRange = resolveCellDocRange({
+        tableFrom: ctx.from,
+        ranges: ctx.cellRanges,
+        coords: selection.focus,
+    });
+    if (!focusRange) {
+        return null;
+    }
+
+    return {
+        selection: EditorSelection.single(focusRange.editableFrom),
+        effects: [setCellSelectionEffect.of(selection), clearActiveCellEffect.of(undefined)],
+        annotations: cellSelectionTransitionAnnotation.of(true),
+        scrollIntoView: false,
+    };
+}
+
+export function selectWholeTable(view: EditorView, ctx: TableContext, focusEdge: WholeTableSelectionFocus): boolean {
+    const selection = createWholeTableSelection(ctx, focusEdge);
+    if (!selection) {
+        return false;
+    }
+
+    return dispatchSelectionWithContext(view, ctx, selection, { clearActiveCell: true });
 }
 
 export function extendExistingCellSelection(view: EditorView, direction: CellSelectionDirection): boolean {
