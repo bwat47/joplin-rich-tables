@@ -3,7 +3,7 @@
  */
 
 import { defaultKeymap } from '@codemirror/commands';
-import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -124,41 +124,6 @@ describe('mainEditorTableEntry deletion protection', () => {
     });
 
     it.each([
-        { label: 'backward', direction: 'backward' as const, doc: `${TABLE}\nafter`, caret: TABLE.length + 1 },
-        {
-            label: 'forward',
-            direction: 'forward' as const,
-            doc: `before\n${TABLE}`,
-            caret: 'before'.length,
-        },
-    ])('rewrites a soft-keyboard $label deletion into the same table selection', ({ direction, doc, caret }) => {
-        const view = mountView(doc, caret);
-        const changes =
-            direction === 'backward' ? { from: TABLE.length, to: TABLE.length + 1 } : { from: caret, to: caret + 1 };
-
-        view.dispatch({
-            changes,
-            annotations: Transaction.userEvent.of('input.type'),
-        });
-
-        expect(view.state.doc.toString()).toBe(doc);
-        expectWholeTableSelection(view, direction === 'backward' ? 'end' : 'start');
-    });
-
-    it('rewrites an explicit delete.backward transaction', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
-
-        view.dispatch({
-            changes: { from: TABLE.length, to: TABLE.length + 1 },
-            annotations: Transaction.userEvent.of('delete.backward'),
-        });
-
-        expect(view.state.doc.toString()).toBe(doc);
-        expectWholeTableSelection(view, 'end');
-    });
-
-    it.each([
         { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
         { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
     ])('leaves table Markdown editable in $label', ({ effect }) => {
@@ -205,19 +170,6 @@ describe('mainEditorTableEntry deletion protection', () => {
 
         pressKey(view, 'Backspace');
 
-        expect(getCellSelection(view.state)).toBeNull();
-    });
-
-    it('does not rewrite input.type changes that insert replacement text', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
-
-        view.dispatch({
-            changes: { from: TABLE.length, to: TABLE.length + 1, insert: 'x' },
-            annotations: Transaction.userEvent.of('input.type'),
-        });
-
-        expect(view.state.doc.toString()).toBe(`${TABLE}xafter`);
         expect(getCellSelection(view.state)).toBeNull();
     });
 

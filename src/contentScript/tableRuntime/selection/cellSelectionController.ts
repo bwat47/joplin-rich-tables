@@ -1,4 +1,4 @@
-import { EditorSelection, type TransactionSpec } from '@codemirror/state';
+import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -134,37 +134,6 @@ function createWholeTableSelection(ctx: TableContext, focusEdge: WholeTableSelec
     return focusEdge === 'start'
         ? { tableFrom: ctx.from, anchor: end, focus: start }
         : { tableFrom: ctx.from, anchor: start, focus: end };
-}
-
-/**
- * Builds the state transition used when deletion reaches a rendered table.
- * The focus edge follows the direction the caret approached from, keeping the
- * hidden root selection and any subsequent scrolling close to that boundary.
- */
-export function buildWholeTableSelectionTransaction(
-    ctx: TableContext,
-    focusEdge: WholeTableSelectionFocus
-): TransactionSpec | null {
-    const selection = createWholeTableSelection(ctx, focusEdge);
-    if (!selection) {
-        return null;
-    }
-
-    const focusRange = resolveCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: selection.focus,
-    });
-    if (!focusRange) {
-        return null;
-    }
-
-    return {
-        selection: EditorSelection.single(focusRange.editableFrom),
-        effects: [setCellSelectionEffect.of(selection), clearActiveCellEffect.of(undefined)],
-        annotations: cellSelectionTransitionAnnotation.of(true),
-        scrollIntoView: false,
-    };
 }
 
 export function selectWholeTable(view: EditorView, ctx: TableContext, focusEdge: WholeTableSelectionFocus): boolean {

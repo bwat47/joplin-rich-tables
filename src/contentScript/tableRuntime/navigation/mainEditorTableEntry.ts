@@ -1,4 +1,4 @@
-import { EditorState, Prec, Transaction, type Extension, type TransactionSpec } from '@codemirror/state';
+import { EditorState, Prec, type Extension } from '@codemirror/state';
 import { keymap, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
@@ -7,23 +7,14 @@ import { buildTableContext, getTableGridBounds, type TableContext } from '../../
 import { activateTableCell } from '../activeCell/cellActivation';
 import { getPendingOpenCellRequest } from '../openCellRequest';
 import { findTableRanges, resolveTableContextAtPos } from '../tableResolution';
-import {
-    buildWholeTableSelectionTransaction,
-    selectWholeTable,
-    type WholeTableSelectionFocus,
-} from '../selection/cellSelectionController';
+import { selectWholeTable, type WholeTableSelectionFocus } from '../selection/cellSelectionController';
 
 type DeletionDirection = 'backward' | 'forward';
 type VerticalEntryDirection = 'up' | 'down';
 
 // A rendered widget implies that table parsing has already completed. Keyboard
-// entry must never block waiting for syntax work on the input event path.
+// entry must never block waiting for syntax work on the keyboard event path.
 const TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS = 0;
-
-interface PureDeletion {
-    from: number;
-    to: number;
-}
 
 function canEnterRenderedTable(state: EditorState): boolean {
     return (
@@ -142,71 +133,6 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
     });
 }
 
-function findSinglePureDeletion(transaction: Transaction): PureDeletion | null {
-    let deletion: PureDeletion | null = null;
-    let valid = true;
-
-    transaction.changes.iterChanges((from, to, _fromB, _toB, inserted) => {
-        if (deletion || from === to || inserted.length > 0) {
-            valid = false;
-            return;
-        }
-
-        deletion = { from, to };
-    });
-
-    return valid ? deletion : null;
-}
-
-function inferDeletionDirection(transaction: Transaction, deletion: PureDeletion): DeletionDirection | null {
-    const userEvent = transaction.annotation(Transaction.userEvent);
-    if (userEvent === 'delete.backward') {
-        return 'backward';
-    }
-    if (userEvent === 'delete.forward') {
-        return 'forward';
-    }
-    if (userEvent !== 'input.type') {
-        return null;
-    }
-
-    const caret = transaction.startState.selection.main.head;
-    if (deletion.to === caret && deletion.from < caret) {
-        return 'backward';
-    }
-    if (deletion.from === caret && deletion.to > caret) {
-        return 'forward';
-    }
-
-    return null;
-}
-
-function rewriteTableBoundaryDeletion(transaction: Transaction): TransactionSpec | Transaction {
-    if (!transaction.docChanged || !canEnterRenderedTable(transaction.startState)) {
-        return transaction;
-    }
-
-    const deletion = findSinglePureDeletion(transaction);
-    if (!deletion) {
-        return transaction;
-    }
-
-    const direction = inferDeletionDirection(transaction, deletion);
-    if (!direction) {
-        return transaction;
-    }
-
-    const targetPos = direction === 'backward' ? deletion.from : deletion.to;
-    const ctx = resolveTableContextAtPos(transaction.startState, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-    if (!ctx) {
-        return transaction;
-    }
-
-    return buildWholeTableSelectionTransaction(ctx, focusEdgeForDirection(direction)) ?? transaction;
-}
-
-const tableBoundaryDeletionFilter = EditorState.transactionFilter.of(rewriteTableBoundaryDeletion);
-
 const tableEntryKeymap = Prec.highest(
     keymap.of([
         {
@@ -228,4 +154,4 @@ const tableEntryKeymap = Prec.highest(
     ])
 );
 
-export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableEntryKeymap];
+export const mainEditorTableEntryExtension: Extension = tableEntryKeymap;

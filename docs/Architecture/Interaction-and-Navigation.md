@@ -12,10 +12,10 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 | **ArrowLeft/Right** | Navigate Cell | At boundary, jumps to prev/next cell.                     |
 | **ArrowUp/Down**    | Navigate Line | At visual top/bottom boundary, jumps to cell above/below. |
 
-From the main editor, Backspace or Delete stops before it can remove the final line break adjoining a rendered table or
-any of the table's hidden Markdown. The first deletion selects the complete cell grid; subsequent deletion uses the
-normal multi-cell removal behavior. Extra blank lines between the caret and table remain ordinary editable text. A
-transaction filter applies the same protection to mobile soft-keyboard deletions that do not produce a usable keydown.
+From the main editor, hardware Backspace or Delete stops before it can remove the final line break adjoining a rendered
+table or any of the table's hidden Markdown. The first deletion selects the complete cell grid; subsequent deletion uses
+the normal multi-cell removal behavior. Extra blank lines between the caret and table remain ordinary editable text.
+Soft-keyboard and IME deletions are left to CodeMirror's platform behavior and are not intercepted by this extension.
 
 Plain ArrowDown/ArrowUp from the main editor uses CodeMirror's visual movement target and the document range it crossed
 to detect entry into a rendered table. Entry from above opens the top-left header cell at its start; entry from below
