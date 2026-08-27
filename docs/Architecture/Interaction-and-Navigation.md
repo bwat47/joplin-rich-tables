@@ -14,8 +14,7 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 
 From the main editor, hardware Backspace or Delete stops before it can remove the final line break adjoining a rendered
 table or any of the table's hidden Markdown. Instead, it opens the boundary cell: Backspace enters the final cell at its
-end, while Delete enters the first cell at its start. Platform-standard word/line deletion shortcuts and Shift+Backspace
-receive the same protection. Extra blank lines between the caret and table remain ordinary editable text.
+end, while Delete enters the first cell at its start. Extra blank lines between the caret and table remain ordinary editable text.
 For a ragged table, the target is the edge cell that has a source range; normalization makes the table rectangular after
 that resolvable cell has been activated.
 Protection follows CodeMirror's semantic `delete.backward` and `delete.forward` transactions rather than physical key
