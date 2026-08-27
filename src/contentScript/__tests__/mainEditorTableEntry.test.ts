@@ -17,7 +17,6 @@ import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
-const EMPTY_TABLE = ['|  |  |', '| --- | --- |', '|  |  |', '|  |  |'].join('\n');
 const mountedViews: EditorView[] = [];
 
 /** TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver. */
@@ -65,15 +64,15 @@ function pressKey(view: EditorView, key: string, modifiers: KeyboardEventInit = 
     );
 }
 
-function expectWholeTableSelection(view: EditorView, focusEdge: 'start' | 'end'): void {
-    const start = { section: 'header', row: 0, col: 0 } as const;
-    const end = { section: 'body', row: 1, col: 1 } as const;
-
-    expect(getCellSelection(view.state)).toEqual(
-        focusEdge === 'start'
-            ? { tableFrom: view.state.doc.toString().indexOf(TABLE), anchor: end, focus: start }
-            : { tableFrom: view.state.doc.toString().indexOf(TABLE), anchor: start, focus: end }
+function expectBoundaryCellOpen(view: EditorView, edge: 'start' | 'end'): void {
+    const tableFrom = view.state.doc.toString().indexOf(TABLE);
+    expect(getActiveCell(view.state)).toEqual(
+        edge === 'start'
+            ? { tableFrom, section: 'header', row: 0, col: 0 }
+            : { tableFrom, section: 'body', row: 1, col: 1 }
     );
+    expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos: edge });
+    expect(getCellSelection(view.state)).toBeNull();
 }
 
 beforeEach(() => {
@@ -94,17 +93,17 @@ function mockVerticalTarget(view: EditorView, targetPos: number): void {
 }
 
 describe('mainEditorTableEntry deletion protection', () => {
-    it('selects the entire table when Backspace reaches it from below', () => {
+    it('opens the final cell when Backspace reaches the table from below', () => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);
 
         pressKey(view, 'Backspace');
 
         expect(view.state.doc.toString()).toBe(doc);
-        expectWholeTableSelection(view, 'end');
+        expectBoundaryCellOpen(view, 'end');
     });
 
-    it('selects the entire table when Delete reaches it from above', () => {
+    it('opens the first cell when Delete reaches the table from above', () => {
         const prefix = 'before';
         const doc = `${prefix}\n${TABLE}`;
         const view = mountView(doc, prefix.length);
@@ -112,7 +111,25 @@ describe('mainEditorTableEntry deletion protection', () => {
         pressKey(view, 'Delete');
 
         expect(view.state.doc.toString()).toBe(doc);
-        expectWholeTableSelection(view, 'start');
+        expectBoundaryCellOpen(view, 'start');
+    });
+
+    it('opens the final header cell when Backspace reaches a table with no body rows', () => {
+        const headerOnlyTable = ['| H1 | H2 |', '| --- | --- |'].join('\n');
+        const doc = `${headerOnlyTable}\nafter`;
+        const view = mountView(doc, headerOnlyTable.length + 1);
+
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expect(getActiveCell(view.state)).toEqual({
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos: 'end' });
+        expect(getCellSelection(view.state)).toBeNull();
     });
 
     it('deletes extra blank lines normally before protecting the final table boundary', () => {
@@ -125,18 +142,48 @@ describe('mainEditorTableEntry deletion protection', () => {
 
         pressKey(view, 'Backspace');
         expect(view.state.doc.toString()).toBe(`${TABLE}\nafter`);
-        expectWholeTableSelection(view, 'end');
+        expectBoundaryCellOpen(view, 'end');
     });
 
-    it('routes the next Backspace through the existing multi-cell removal behavior', () => {
+    it('protects the table from a semantic deletion transaction without a physical key event', () => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);
 
-        pressKey(view, 'Backspace');
-        pressKey(view, 'Backspace');
+        view.dispatch({
+            changes: { from: TABLE.length, to: TABLE.length + 1 },
+            userEvent: 'delete.backward',
+        });
 
-        expect(view.state.doc.toString()).toBe(`${EMPTY_TABLE}\nafter`);
-        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(view.state.doc.toString()).toBe(doc);
+        expectBoundaryCellOpen(view, 'end');
+    });
+
+    it('leaves DOM and IME-style input transactions to CodeMirror', () => {
+        const doc = `${TABLE}\nafter`;
+        const view = mountView(doc, TABLE.length + 1);
+
+        view.dispatch({
+            changes: { from: TABLE.length, to: TABLE.length + 1 },
+            userEvent: 'input.type',
+        });
+
+        expect(view.state.doc.toString()).toBe(`${TABLE}after`);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('does not redirect a semantic deletion that does not touch the adjoining table', () => {
+        const doc = `${TABLE}\nafter`;
+        const view = mountView(doc, TABLE.length + 1);
+
+        view.dispatch({
+            changes: { from: 1, to: 2 },
+            userEvent: 'delete.backward',
+        });
+
+        expect(view.state.doc.toString()).not.toBe(doc);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
     it.each([
@@ -151,6 +198,8 @@ describe('mainEditorTableEntry deletion protection', () => {
 
         expect(view.state.doc.toString()).not.toBe(doc);
         expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
     it('does not intercept deletion for a non-collapsed selection', () => {
@@ -161,6 +210,7 @@ describe('mainEditorTableEntry deletion protection', () => {
 
         expect(view.state.doc.toString()).toBe(`${TABLE}\n`);
         expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
     });
 
     it.each([
@@ -170,7 +220,7 @@ describe('mainEditorTableEntry deletion protection', () => {
             modifiers: { ctrlKey: true },
             doc: `${TABLE}\nafter`,
             caret: TABLE.length + 1,
-            focusEdge: 'end' as const,
+            edge: 'end' as const,
         },
         {
             label: 'Ctrl+Delete',
@@ -178,7 +228,7 @@ describe('mainEditorTableEntry deletion protection', () => {
             modifiers: { ctrlKey: true },
             doc: `before\n${TABLE}`,
             caret: 'before'.length,
-            focusEdge: 'start' as const,
+            edge: 'start' as const,
         },
         {
             label: 'Shift+Backspace',
@@ -186,15 +236,15 @@ describe('mainEditorTableEntry deletion protection', () => {
             modifiers: { shiftKey: true },
             doc: `${TABLE}\nafter`,
             caret: TABLE.length + 1,
-            focusEdge: 'end' as const,
+            edge: 'end' as const,
         },
-    ])('protects the table from $label', ({ key, modifiers, doc, caret, focusEdge }) => {
+    ])('protects the table from $label', ({ key, modifiers, doc, caret, edge }) => {
         const view = mountView(doc, caret);
 
         pressKey(view, key, modifiers);
 
         expect(view.state.doc.toString()).toBe(doc);
-        expectWholeTableSelection(view, focusEdge);
+        expectBoundaryCellOpen(view, edge);
     });
 
     it('does not enter selection mode while an active cell exists', () => {

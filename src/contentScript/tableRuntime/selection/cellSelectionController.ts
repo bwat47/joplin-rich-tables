@@ -122,31 +122,6 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
     );
 }
 
-export type WholeTableSelectionFocus = 'start' | 'end';
-
-function createWholeTableSelection(ctx: TableContext, focusEdge: WholeTableSelectionFocus): CellSelection | null {
-    const bounds = getTableGridBounds(ctx);
-    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
-        return null;
-    }
-
-    const start = fromUnifiedRow(0, 0);
-    const end = fromUnifiedRow(bounds.totalRows - 1, bounds.totalCols - 1);
-
-    return focusEdge === 'start'
-        ? { tableFrom: ctx.from, anchor: end, focus: start }
-        : { tableFrom: ctx.from, anchor: start, focus: end };
-}
-
-export function selectWholeTable(view: EditorView, ctx: TableContext, focusEdge: WholeTableSelectionFocus): boolean {
-    const selection = createWholeTableSelection(ctx, focusEdge);
-    if (!selection) {
-        return false;
-    }
-
-    return dispatchSelectionWithContext(view, ctx, selection, { clearActiveCell: true });
-}
-
 export function extendExistingCellSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     const selection = getCellSelection(view.state);
     if (!selection) {

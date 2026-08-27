@@ -13,10 +13,11 @@ Cells are separate editor instances (or `<td>` when inactive). Key events are in
 | **ArrowUp/Down**    | Navigate Line | At visual top/bottom boundary, jumps to cell above/below. |
 
 From the main editor, hardware Backspace or Delete stops before it can remove the final line break adjoining a rendered
-table or any of the table's hidden Markdown. The first deletion selects the complete cell grid; subsequent deletion uses
-the normal multi-cell removal behavior. Platform-standard word/line deletion shortcuts and Shift+Backspace receive the
-same protection. Extra blank lines between the caret and table remain ordinary editable text.
-Soft-keyboard and IME deletions are left to CodeMirror's platform behavior and are not intercepted by this extension.
+table or any of the table's hidden Markdown. Instead, it opens the boundary cell: Backspace enters the final cell at its
+end, while Delete enters the first cell at its start. Platform-standard word/line deletion shortcuts and Shift+Backspace
+receive the same protection. Extra blank lines between the caret and table remain ordinary editable text.
+Protection follows CodeMirror's semantic `delete.backward` and `delete.forward` transactions rather than physical key
+bindings. Soft-keyboard and IME `input.type` transactions remain under CodeMirror's platform behavior.
 
 While a cell selection is live the caret is parked at the focus cell's document position so clipboard and shortcut
 handling keep working, and the main editor's caret is hidden so the highlight alone conveys the state. An unmodified

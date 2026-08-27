@@ -1,19 +1,16 @@
-import { EditorState, Prec, type Extension } from '@codemirror/state';
+import { EditorState, Prec, type Extension, type Transaction } from '@codemirror/state';
 import { BlockType, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { activateTableCell } from '../activeCell/cellActivation';
-import { getPendingOpenCellRequest } from '../openCellRequest';
+import { createResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getPendingOpenCellRequest, prepareOpenCellRequestTransaction } from '../openCellRequest';
 import { resolveTableContextAtPos } from '../tableResolution';
-import { selectWholeTable, type WholeTableSelectionFocus } from '../selection/cellSelectionController';
 
 type DeletionDirection = 'backward' | 'forward';
 type VerticalEntryDirection = 'up' | 'down';
-
-const selectTableBackward = (view: EditorView): boolean => selectTableAtCharacterTarget(view, 'backward');
-const selectTableForward = (view: EditorView): boolean => selectTableAtCharacterTarget(view, 'forward');
 
 // A rendered widget implies that table parsing has already completed. Keyboard
 // entry must never block waiting for syntax work on the keyboard event path.
@@ -30,28 +27,55 @@ function canEnterRenderedTable(state: EditorState): boolean {
     );
 }
 
-function focusEdgeForDirection(direction: DeletionDirection): WholeTableSelectionFocus {
-    return direction === 'backward' ? 'end' : 'start';
+function getDeletionDirection(transaction: Transaction): DeletionDirection | null {
+    if (transaction.isUserEvent('delete.backward')) {
+        return 'backward';
+    }
+
+    if (transaction.isUserEvent('delete.forward')) {
+        return 'forward';
+    }
+
+    return null;
 }
 
-function selectTableAtCharacterTarget(view: EditorView, direction: DeletionDirection): boolean {
-    if (!canEnterRenderedTable(view.state)) {
-        return false;
+const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
+    const direction = getDeletionDirection(transaction);
+    if (!direction || !transaction.docChanged || !canEnterRenderedTable(transaction.startState)) {
+        return transaction;
     }
 
-    const current = view.state.selection.main;
-    const target = view.moveByChar(current, direction === 'forward');
-    if (target.head === current.head) {
-        return false;
+    const current = transaction.startState.selection.main;
+    const targetPos = current.head + (direction === 'forward' ? 1 : -1);
+    if (targetPos < 0 || targetPos > transaction.startState.doc.length) {
+        return transaction;
+    }
+    if (!transaction.changes.touchesRange(targetPos)) {
+        return transaction;
     }
 
-    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    const ctx = resolveTableContextAtPos(transaction.startState, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
     if (!ctx) {
-        return false;
+        return transaction;
     }
 
-    return selectWholeTable(view, ctx, focusEdgeForDirection(direction));
-}
+    const bounds = getTableGridBounds(ctx);
+    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+        return transaction;
+    }
+
+    const isBackward = direction === 'backward';
+    const targetCoords = fromUnifiedRow(isBackward ? bounds.totalRows - 1 : 0, isBackward ? bounds.totalCols - 1 : 0);
+    const resolvedCell = createResolvedActiveCell({ ctx, coords: targetCoords });
+    if (!resolvedCell) {
+        return transaction;
+    }
+
+    return prepareOpenCellRequestTransaction({
+        target: { resolvedCell },
+        initialCursorPos: isBackward ? 'end' : 'start',
+    });
+});
 
 function isPositionMovingInDirection(
     currentPos: number,
@@ -164,35 +188,8 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
     });
 }
 
-const tableEntryKeymap = Prec.highest(
+const tableVerticalEntryKeymap = Prec.highest(
     keymap.of([
-        {
-            key: 'Backspace',
-            run: selectTableBackward,
-            shift: selectTableBackward,
-        },
-        {
-            key: 'Delete',
-            run: selectTableForward,
-        },
-        {
-            key: 'Mod-Backspace',
-            mac: 'Alt-Backspace',
-            run: selectTableBackward,
-        },
-        {
-            key: 'Mod-Delete',
-            mac: 'Alt-Delete',
-            run: selectTableForward,
-        },
-        {
-            mac: 'Mod-Backspace',
-            run: selectTableBackward,
-        },
-        {
-            mac: 'Mod-Delete',
-            run: selectTableForward,
-        },
         {
             key: 'ArrowUp',
             run: (view) => activateTableAtVerticalTarget(view, 'up'),
@@ -204,4 +201,4 @@ const tableEntryKeymap = Prec.highest(
     ])
 );
 
-export const mainEditorTableEntryExtension: Extension = tableEntryKeymap;
+export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableVerticalEntryKeymap];

@@ -6,10 +6,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
-import { activeCellField } from '../tableState/activeCellState';
-import { cellSelectionField, clearCellSelectionEffect } from '../tableState/cellSelectionState';
-import { selectWholeTable } from '../tableRuntime/selection/cellSelectionController';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellSelectionCaretSuppression } from '../tableWidget/cellSelectionVisuals';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -25,12 +22,7 @@ function mountView(): EditorView {
     const view = new EditorView({
         parent,
         doc: DOC,
-        extensions: [
-            markdown({ extensions: [GFM] }),
-            activeCellField,
-            cellSelectionField,
-            cellSelectionCaretSuppression,
-        ],
+        extensions: [markdown({ extensions: [GFM] }), cellSelectionField, cellSelectionCaretSuppression],
     });
     mountedViews.push(view);
 
@@ -49,9 +41,13 @@ describe('cellSelectionCaretSuppression', () => {
         const view = mountView();
         expect(view.dom.hasAttribute('data-rt-cell-selection')).toBe(false);
 
-        const ctx = resolveTableContextAtPos(view.state, TABLE_FROM);
-        expect(ctx).not.toBeNull();
-        expect(selectWholeTable(view, ctx!, 'end')).toBe(true);
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: TABLE_FROM,
+                anchor: { section: 'header', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
         expect(view.dom.hasAttribute('data-rt-cell-selection')).toBe(true);
 
         view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
