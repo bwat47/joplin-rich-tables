@@ -4,43 +4,54 @@
 
 Cells are separate editor instances (or `<td>` when inactive). Key events are intercepted to simulate natural navigation.
 
-| Key                 | Action        | Behavior                                                  |
-| :------------------ | :------------ | :-------------------------------------------------------- |
-| **Tab**             | Next Cell     | End of row/column creates new row.                        |
-| **Shift+Tab**       | Previous Cell |                                                           |
-| **Enter**           | Cell Below    | Last row creates new row.                                 |
-| **ArrowLeft/Right** | Navigate Cell | At boundary, jumps to prev/next cell.                     |
-| **ArrowUp/Down**    | Navigate Line | At visual top/bottom boundary, jumps to cell above/below. |
+| Key                 | Action        | At the cell boundary                                                        |
+| :------------------ | :------------ | :-------------------------------------------------------------------------- |
+| **Tab**             | Next cell     | Last cell creates a new row.                                                |
+| **Shift+Tab**       | Previous cell | First cell is blocked.                                                      |
+| **Enter**           | Cell below    | Last row creates a new row.                                                 |
+| **ArrowLeft/Right** | Move by char  | Cell edge moves to the previous/next cell; grid edge exits the table.       |
+| **ArrowUp/Down**    | Move by line  | Visual top/bottom moves to the cell above/below; grid edge exits the table. |
 
-From the main editor, hardware Backspace or Delete stops before it can remove the final line break adjoining a rendered
-table or any of the table's hidden Markdown. Instead, it opens the boundary cell: Backspace enters the final cell at its
-end, while Delete enters the first cell at its start. Extra blank lines between the caret and table remain ordinary editable text.
-For a ragged table, the target is the edge cell that has a source range; normalization makes the table rectangular after
-that resolvable cell has been activated.
-Protection follows CodeMirror's semantic `delete.backward` and `delete.forward` transactions rather than physical key
-bindings, and covers every caret of a multi-cursor deletion: the first table reached in document order is entered and
-the rest of the gesture is dropped, since a cell editor holds a single caret. Soft-keyboard and IME `input.type` transactions remain under CodeMirror's platform behavior. Further deletions into that
-table, arriving before the requested cell opens, are dropped since the caret is parked inside it until then.
+### Crossing the Table Boundary
 
-While a cell selection is live the caret is parked at the focus cell's document position so clipboard and shortcut
-handling keep working, and the main editor's caret is hidden so the highlight alone conveys the state. An unmodified
-arrow key collapses the selection and moves the caret out of the table, the way an arrow key collapses a text selection;
-Shift+Arrow extends it instead. Any other command that moves the caret outside the selected table drops the selection.
+A rendered table is a block replace decoration, so the main editor's caret is only ever adjacent to a table, never
+usefully inside one. Entry and exit are the two halves of that crossing, and the opposite key reverses it.
 
-Plain arrow keys from the main editor detect entry into a rendered table from CodeMirror's visual movement target.
-ArrowRight from the adjoining line above opens the first cell at its start; ArrowLeft from the adjoining line below
-opens the final cell at its end. Horizontal direction follows CodeMirror's text direction for the current line.
-ArrowDown/ArrowUp also account for a target that overshoots the widget, locating the table from the block the movement
-stepped over. CodeMirror's vertical motion deliberately scans past block widgets, so a movement toward a table usually
-lands on the far side of it; the block adjacent to the caret's own line block is then the one that was skipped, and a
-replaced block there identifies the table. Entry from above opens the top-left header cell at its start; entry from below
-opens the first cell of the final row at the start of its last line. Other vertical movement remains owned by the main
-editor.
+**Entry** (`tableRuntime/navigation/mainEditorTableEntry.ts`): deletion and plain arrow movement toward a table open a
+cell instead of moving the caret into the replaced range. Extra blank lines in between stay ordinary editable text.
 
-Inside a nested editor, plain ArrowUp from the header's visual top boundary and ArrowLeft from the first cell's start
-exit to the blank line above the table. Plain ArrowDown from the final row's visual bottom boundary and ArrowRight from
-the final cell's end exit to the blank line below it. The active cell is cleared, the nested editor closes through the
-normal lifecycle, and focus returns to the main editor.
+| Caret is        | Key                           | Opens                                                            |
+| :-------------- | :---------------------------- | :--------------------------------------------------------------- |
+| Above the table | Delete, ArrowRight, ArrowDown | First header cell, caret at its start                            |
+| Below the table | Backspace, ArrowLeft          | Final cell, caret at its end                                     |
+| Below the table | ArrowUp                       | First cell of the final row, caret at the start of its last line |
+
+**Exit** (`tableRuntime/navigation/tableExit.ts`): a nested-editor arrow key that walks off the grid clears the active
+cell, moves the caret to the adjacent line, closes the nested editor through the normal lifecycle, and returns focus to
+the main editor. ArrowUp from the header's visual top and ArrowLeft from the first cell's start exit above; ArrowDown
+from the final row's visual bottom and ArrowRight from the final cell's end exit below. A table against a document edge
+has no adjacent line, so the key is swallowed instead.
+
+Rules that hold across both halves:
+
+- Deletion protection keys off CodeMirror's semantic `delete.backward`/`delete.forward` transactions rather than
+  physical key bindings, so word- and line-wise deletes are covered while IME and soft-keyboard `input.type` stays under
+  CodeMirror's platform behavior.
+- A cell editor holds one caret, so only one may enter: a multi-cursor deletion enters the first table in document order
+  and drops the rest, as do repeat deletions arriving before the requested cell opens.
+- For a ragged table the target is the edge cell that has a source range; normalization squares the table only after
+  that cell is activated.
+- Arrow entry requires a lone empty caret in rendered mode with no live cell selection — anything else stays with the
+  main editor. Vertical entry also has to recover the table a movement _skipped_, since CodeMirror scans past block
+  widgets; see `resolveSkippedTableBlock`.
+
+### Cell Selection Caret
+
+- The caret is parked at the focus cell's document position so clipboard and shortcut handling keep working, and the
+  main editor's caret is hidden so the highlight alone conveys the state.
+- An unmodified arrow key collapses the selection and moves the caret out of the table, the way an arrow key collapses
+  a text selection; Shift+Arrow extends it instead.
+- Any other command that moves the caret outside the selected table drops the selection.
 
 ### Scrolling
 
@@ -52,18 +63,15 @@ visibility.
 
 ### Open-Cell Request State
 
-Rapid navigation can cause race conditions (new request before previous cell mounts).
+Rapid navigation races a new request against the previously requested cell mounting, so open-cell transitions are
+tracked in a `StateField` (`tableRuntime/openCellRequest.ts`) rather than a module-global lock.
 
-Open-cell transitions are tracked by a CodeMirror `StateField` in `tableRuntime/openCellRequest.ts`.
-Keyboard navigation dispatches an explicit request with target cell, cursor placement, normalization intent, and
-key-suppression state. The lifecycle trigger carries only the request id; lifecycle re-reads the pending request,
-then completes it after the nested editor opens and focus has been handed off, or fails it when the open path aborts.
-A watchdog ViewPlugin fails stuck requests after 1 second.
-
-Row creation uses the same explicit reopen path as other command-driven structural operations.
-The row-insert transaction updates table text, main-editor selection, active-cell state, and open intent together.
-Lifecycle then reopens the replacement nested editor, and Tab/Enter suppression reads the pending request state rather
-than a module-global lock.
+- The initiating action dispatches a request carrying target cell, cursor placement, normalization intent, and
+  key-suppression state; the lifecycle trigger carries only the request id.
+- Lifecycle re-reads the pending request, then completes it once the nested editor is open and focus has been handed
+  off, or fails it when the open path aborts. A watchdog `ViewPlugin` fails stuck requests after 1 second.
+- Row creation uses the same path: one transaction updates table text, main-editor selection, active-cell state, and
+  open intent together, and Tab/Enter suppression reads the pending request.
 
 ## Selection Sync
 
