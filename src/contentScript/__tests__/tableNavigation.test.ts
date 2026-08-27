@@ -332,6 +332,68 @@ describe('navigateCell', () => {
         expect(mockView.focus).toHaveBeenCalled();
     });
 
+    it('should exit above the table when moving left from the first cell', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_HEADER, 0, 0);
+
+        const result = navigateCell(mockView, 'previous', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 9 }, scrollIntoView: true })
+        );
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
+        expect(mockView.focus).toHaveBeenCalled();
+    });
+
+    it('should exit below the table when moving right from the final cell', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_BODY, 1, 1);
+
+        const result = navigateCell(mockView, 'next', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 90 }, scrollIntoView: true })
+        );
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
+        expect(mockView.focus).toHaveBeenCalled();
+    });
+
+    // Table exit is requested for every direction, so a row wrap - the nearest thing to a
+    // grid edge that is still a legal move - must keep navigating rather than leaving.
+    it('should wrap to the previous row rather than exit when table exit is requested mid-grid', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_BODY, 0, 0);
+
+        const result = navigateCell(mockView, 'previous', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(getSetActiveCellValue()).toMatchObject({ section: SECTION_HEADER, row: 0, col: 1 });
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(false);
+        expect(mockView.focus).not.toHaveBeenCalled();
+    });
+
+    it('should wrap to the next row rather than exit when table exit is requested mid-grid', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_BODY, 0, 1);
+
+        const result = navigateCell(mockView, 'next', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(getSetActiveCellValue()).toMatchObject({ section: SECTION_BODY, row: 1, col: 0 });
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(false);
+        expect(mockView.focus).not.toHaveBeenCalled();
+    });
+
     it('should keep boundary navigation blocked when table exit is not requested', () => {
         const ctx = setupTable(1, 2);
         ctx.from = 10;

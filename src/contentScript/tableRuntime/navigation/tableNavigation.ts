@@ -18,8 +18,9 @@ export interface NavigateCellOptions {
     exitTableAtBoundary?: boolean;
 }
 
-function exitTable(view: EditorView, resolvedActiveCell: ResolvedActiveCell, direction: 'up' | 'down'): void {
-    exitTableToAdjacentLine(view, resolvedActiveCell.ctx, direction === 'up' ? 'before' : 'after', [
+function exitTable(view: EditorView, resolvedActiveCell: ResolvedActiveCell, direction: NavigationDirection): void {
+    const exitsBefore = direction === 'previous' || direction === 'up';
+    exitTableToAdjacentLine(view, resolvedActiveCell.ctx, exitsBefore ? 'before' : 'after', [
         clearActiveCellEffect.of(undefined),
     ]);
 }
@@ -47,7 +48,7 @@ export function navigateCell(
     });
 
     if (target.kind === 'blocked') {
-        if (options.exitTableAtBoundary && (direction === 'up' || direction === 'down')) {
+        if (options.exitTableAtBoundary) {
             exitTable(view, resolvedActiveCell, direction);
         }
         return true;
