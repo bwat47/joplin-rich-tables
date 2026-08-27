@@ -4,13 +4,22 @@ import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
-import { activateTableCell } from '../activeCell/cellActivation';
-import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { getPendingOpenCellRequest, prepareOpenCellRequestTransaction } from '../openCellRequest';
+import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getPendingOpenCellRequest, type PreparedOpenCellRequestTransaction } from '../openCellRequest';
 import { resolveTableContextAtPos } from '../tableResolution';
+import type { CellCoords } from '../../tableModel/types';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 type DeletionDirection = 'backward' | 'forward';
 type VerticalEntryDirection = 'up' | 'down';
+/** Which end of a grid axis an entry lands on. */
+type GridEdge = 'first' | 'last';
+
+interface EdgeCellTarget {
+    row: GridEdge;
+    col: GridEdge;
+}
 
 // A rendered widget implies that table parsing has already completed. Keyboard
 // entry must never block waiting for syntax work on the keyboard event path.
@@ -37,6 +46,28 @@ function getDeletionDirection(transaction: Transaction): DeletionDirection | nul
     }
 
     return null;
+}
+
+function resolveEdgeCellCoords(ctx: TableContext, edges: EdgeCellTarget): CellCoords | null {
+    const bounds = getTableGridBounds(ctx);
+    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+        return null;
+    }
+
+    return fromUnifiedRow(
+        edges.row === 'first' ? 0 : bounds.totalRows - 1,
+        edges.col === 'first' ? 0 : bounds.totalCols - 1
+    );
+}
+
+/** Transaction opening a table's edge cell, or null when the table has no usable grid. */
+function prepareEdgeCellEntry(
+    ctx: TableContext,
+    edges: EdgeCellTarget,
+    initialCursorPos: InitialCursorPos
+): PreparedOpenCellRequestTransaction | null {
+    const coords = resolveEdgeCellCoords(ctx, edges);
+    return coords ? prepareCellEntryTransaction({ ctx, coords, initialCursorPos }) : null;
 }
 
 /**
@@ -90,22 +121,10 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
         return transaction;
     }
 
-    const bounds = getTableGridBounds(ctx);
-    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
-        return transaction;
-    }
-
     const isBackward = direction === 'backward';
-    const targetCoords = fromUnifiedRow(isBackward ? bounds.totalRows - 1 : 0, isBackward ? bounds.totalCols - 1 : 0);
-    const resolvedCell = createResolvedActiveCell({ ctx, coords: targetCoords });
-    if (!resolvedCell) {
-        return transaction;
-    }
+    const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
 
-    return prepareOpenCellRequestTransaction({
-        target: { resolvedCell },
-        initialCursorPos: isBackward ? 'end' : 'start',
-    });
+    return prepareEdgeCellEntry(ctx, edges, isBackward ? 'end' : 'start') ?? transaction;
 });
 
 function isPositionMovingInDirection(
@@ -208,15 +227,18 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
         return false;
     }
 
-    const bounds = getTableGridBounds(ctx);
-    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+    const isDown = direction === 'down';
+    const spec = prepareEdgeCellEntry(
+        ctx,
+        { row: isDown ? 'first' : 'last', col: 'first' },
+        isDown ? 'start' : 'lastLineStart'
+    );
+    if (!spec) {
         return false;
     }
 
-    const targetCoords = fromUnifiedRow(direction === 'down' ? 0 : bounds.totalRows - 1, 0);
-    return activateTableCell(view, ctx.from, targetCoords, {
-        initialCursorPos: direction === 'down' ? 'start' : 'lastLineStart',
-    });
+    view.dispatch(spec);
+    return true;
 }
 
 const tableVerticalEntryKeymap = Prec.highest(

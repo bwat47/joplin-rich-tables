@@ -5,12 +5,17 @@
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
-import { resolveContainingTableAtPos } from '../tableResolution';
+import { resolveContainingTableAtPos, resolveTableContextAtPos } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
-import { buildTableContext } from '../../tableModel/tableContext';
+import { buildTableContext, type TableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
-import { requestOpenCell } from '../openCellRequest';
+import {
+    prepareOpenCellRequestTransaction,
+    requestOpenCell,
+    type PreparedOpenCellRequestTransaction,
+} from '../openCellRequest';
+import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 export interface ActivateCellOptions {
@@ -136,7 +141,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 export function activateTableCell(
     view: EditorView,
     tableFrom: number,
-    coords: { section: 'header' | 'body'; row: number; col: number },
+    coords: CellCoords,
     options: ActivateTableCellOptions = {}
 ): boolean {
     if (!view.dom.isConnected) return false;
@@ -144,24 +149,36 @@ export function activateTableCell(
     // Don't activate cells in source mode (no widgets exist)
     if (isSourceModeEnabled(view.state)) return false;
 
-    const table = resolveContainingTableAtPos(view.state, tableFrom);
-    if (!table) return false;
-
-    const ctx = buildTableContext(table);
+    const ctx = resolveTableContextAtPos(view.state, tableFrom);
     if (!ctx) return false;
 
-    const resolvedCell = createResolvedActiveCell({
-        ctx,
-        coords,
-    });
+    const spec = prepareCellEntryTransaction({ ctx, coords, initialCursorPos: options.initialCursorPos });
+    if (!spec) return false;
 
-    if (!resolvedCell) return false;
-
-    requestOpenCell(view, {
-        target: { resolvedCell },
-        normalizeIfNeeded: true,
-        initialCursorPos: options.initialCursorPos,
-    });
+    view.dispatch(spec);
 
     return true;
+}
+
+/**
+ * Builds the transaction that opens `coords` as the active cell.
+ *
+ * Shared by the dispatching entry points and by the boundary-deletion transaction
+ * filter, which can only return a spec.
+ */
+export function prepareCellEntryTransaction(params: {
+    ctx: TableContext;
+    coords: CellCoords;
+    initialCursorPos?: InitialCursorPos;
+}): PreparedOpenCellRequestTransaction | null {
+    const resolvedCell = createResolvedActiveCell({ ctx: params.ctx, coords: params.coords });
+    if (!resolvedCell) {
+        return null;
+    }
+
+    return prepareOpenCellRequestTransaction({
+        target: { resolvedCell },
+        normalizeIfNeeded: true,
+        initialCursorPos: params.initialCursorPos,
+    });
 }
