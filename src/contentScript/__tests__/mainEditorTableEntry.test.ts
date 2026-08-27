@@ -319,16 +319,54 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('requires a single selection range', () => {
+    it('enters the table one of several carets reaches, collapsing the rest', () => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);
         view.dispatch({
-            selection: EditorSelection.create([EditorSelection.cursor(TABLE.length + 1), EditorSelection.cursor(0)]),
+            selection: EditorSelection.create([
+                EditorSelection.cursor(doc.length),
+                EditorSelection.cursor(TABLE.length + 1),
+            ]),
         });
 
         pressKey(view, 'Backspace');
 
-        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.state.doc.toString()).toBe(doc);
+        expect(view.state.selection.ranges).toHaveLength(1);
+        expectBoundaryCellOpen(view, 'end');
+    });
+
+    it('enters the first table in document order when carets reach two of them', () => {
+        const doc = `${TABLE}\n\nbetween\n\n${TABLE}\nafter`;
+        const secondTableFrom = doc.lastIndexOf(TABLE);
+        const view = mountView(doc, TABLE.length + 1);
+        view.dispatch({
+            selection: EditorSelection.create([
+                EditorSelection.cursor(TABLE.length + 1),
+                EditorSelection.cursor(secondTableFrom + TABLE.length + 1),
+            ]),
+        });
+
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expect(getActiveCell(view.state)).toEqual({ tableFrom: 0, section: 'body', row: 1, col: 1 });
+    });
+
+    it('still deletes when no caret of a multi-range deletion reaches a table', () => {
+        const doc = `${TABLE}\n\nalpha\nbeta`;
+        const view = mountView(doc, doc.length);
+        view.dispatch({
+            selection: EditorSelection.create([
+                EditorSelection.cursor(doc.indexOf('alpha') + 'alpha'.length),
+                EditorSelection.cursor(doc.length),
+            ]),
+        });
+
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(`${TABLE}\n\nalph\nbet`);
+        expect(getActiveCell(view.state)).toBeNull();
     });
 });
 

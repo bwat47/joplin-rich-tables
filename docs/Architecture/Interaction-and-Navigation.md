@@ -18,7 +18,8 @@ end, while Delete enters the first cell at its start. Extra blank lines between 
 For a ragged table, the target is the edge cell that has a source range; normalization makes the table rectangular after
 that resolvable cell has been activated.
 Protection follows CodeMirror's semantic `delete.backward` and `delete.forward` transactions rather than physical key
-bindings. Soft-keyboard and IME `input.type` transactions remain under CodeMirror's platform behavior. Further deletions into that
+bindings, and covers every caret of a multi-cursor deletion: the first table reached in document order is entered and
+the rest of the gesture is dropped, since a cell editor holds a single caret. Soft-keyboard and IME `input.type` transactions remain under CodeMirror's platform behavior. Further deletions into that
 table, arriving before the requested cell opens, are dropped since the caret is parked inside it until then.
 
 While a cell selection is live the caret is parked at the focus cell's document position so clipboard and shortcut

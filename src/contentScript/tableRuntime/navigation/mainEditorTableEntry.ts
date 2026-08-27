@@ -1,4 +1,4 @@
-import { EditorState, Prec, type Extension, type Transaction } from '@codemirror/state';
+import { EditorState, Prec, type Extension, type SelectionRange, type Transaction } from '@codemirror/state';
 import { BlockType, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
@@ -28,12 +28,15 @@ const TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS = 0;
 function canEnterRenderedTable(state: EditorState): boolean {
     return (
         !isEffectiveRawMode(state) &&
-        state.selection.ranges.length === 1 &&
-        state.selection.main.empty &&
         !getCellSelection(state) &&
         !getActiveCell(state) &&
         !getPendingOpenCellRequest(state)
     );
+}
+
+/** Vertical entry reads the movement target off the main range, so it needs a lone caret. */
+function canEnterFromVerticalMovement(state: EditorState): boolean {
+    return canEnterRenderedTable(state) && state.selection.ranges.length === 1 && state.selection.main.empty;
 }
 
 function getDeletionDirection(transaction: Transaction): DeletionDirection | null {
@@ -101,6 +104,33 @@ function isDeletingIntoPendingOpenCell(transaction: Transaction): boolean {
     return Boolean(transaction.changes.touchesRange(resolved.tableFrom, resolved.tableTo));
 }
 
+/** The table this range's deletion would reach, or null when it stays outside one. */
+function resolveDeletionTargetTable(
+    transaction: Transaction,
+    range: SelectionRange,
+    direction: DeletionDirection
+): TableContext | null {
+    // An explicit selection is a deliberate range deletion, a table-spanning one included.
+    if (!range.empty) {
+        return null;
+    }
+
+    // CodeMirror's deletion commands remove one contiguous range anchored at the caret, so
+    // the character next to the caret is always part of it - including word- and line-wise
+    // deletion, which stops at the line boundary and reaches the table on the following
+    // press. Probing that one position identifies the table being deleted into without
+    // walking the change set; `touchesRange` then confirms this transaction is that deletion.
+    const targetPos = range.head + (direction === 'forward' ? 1 : -1);
+    if (targetPos < 0 || targetPos > transaction.startState.doc.length) {
+        return null;
+    }
+    if (!transaction.changes.touchesRange(targetPos)) {
+        return null;
+    }
+
+    return resolveTableContextAtPos(transaction.startState, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+}
+
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
     const direction = getDeletionDirection(transaction);
     if (!direction || !transaction.docChanged) {
@@ -116,29 +146,26 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
         return transaction;
     }
 
-    // CodeMirror's deletion commands remove one contiguous range anchored at the caret, so
-    // the character next to the caret is always part of it - including word- and line-wise
-    // deletion, which stops at the line boundary and reaches the table on the following
-    // press. Probing that one position identifies the table being deleted into without
-    // walking the change set; `touchesRange` then confirms this transaction is that deletion.
-    const current = transaction.startState.selection.main;
-    const targetPos = current.head + (direction === 'forward' ? 1 : -1);
-    if (targetPos < 0 || targetPos > transaction.startState.doc.length) {
-        return transaction;
-    }
-    if (!transaction.changes.touchesRange(targetPos)) {
-        return transaction;
-    }
-
-    const ctx = resolveTableContextAtPos(transaction.startState, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-    if (!ctx) {
-        return transaction;
-    }
-
     const isBackward = direction === 'backward';
     const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
 
-    return prepareEdgeCellEntry(ctx, edges, isBackward ? 'end' : 'start') ?? transaction;
+    // Several carets can reach tables in one gesture. Enter the first in document order and
+    // drop the rest of the deletion: a cell editor holds one caret, so the entry transaction
+    // collapses the other ranges regardless, and letting them through would edit the very
+    // Markdown this filter protects.
+    for (const range of transaction.startState.selection.ranges) {
+        const ctx = resolveDeletionTargetTable(transaction, range, direction);
+        if (!ctx) {
+            continue;
+        }
+
+        const spec = prepareEdgeCellEntry(ctx, edges, isBackward ? 'end' : 'start');
+        if (spec) {
+            return spec;
+        }
+    }
+
+    return transaction;
 });
 
 function isPositionMovingInDirection(
@@ -226,7 +253,7 @@ function resolveVerticalEntryContext(
 }
 
 function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
-    if (!canEnterRenderedTable(view.state)) {
+    if (!canEnterFromVerticalMovement(view.state)) {
         return false;
     }
 
