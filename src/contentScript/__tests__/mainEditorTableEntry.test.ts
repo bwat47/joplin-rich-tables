@@ -145,6 +145,34 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
+    it.each([
+        {
+            label: 'shorter than the header',
+            table: ['| H1 | H2 |', '| --- | --- |', '| a1 |'].join('\n'),
+            expectedCol: 0,
+        },
+        {
+            label: 'wider than the header',
+            table: ['| H1 |', '| --- |', '| a1 | a2 |'].join('\n'),
+            expectedCol: 1,
+        },
+    ])('opens the final source-backed cell when the last row is $label', ({ table, expectedCol }) => {
+        const doc = `${table}\nafter`;
+        const view = mountView(doc, table.length + 1);
+
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expect(getActiveCell(view.state)).toEqual({
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: expectedCol,
+        });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos: 'end' });
+        expect(getCellSelection(view.state)).toBeNull();
+    });
+
     it('deletes extra blank lines normally before protecting the final table boundary', () => {
         const doc = `${TABLE}\n\nafter`;
         const view = mountView(doc, TABLE.length + 2);

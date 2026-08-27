@@ -3,7 +3,7 @@ import { BlockType, keymap, type BlockInfo, type EditorView } from '@codemirror/
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
+import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { getPendingOpenCellRequest, type PreparedOpenCellRequestTransaction } from '../openCellRequest';
@@ -48,16 +48,16 @@ function getDeletionDirection(transaction: Transaction): DeletionDirection | nul
     return null;
 }
 
-function resolveEdgeCellCoords(ctx: TableContext, edges: EdgeCellTarget): CellCoords | null {
-    const bounds = getTableGridBounds(ctx);
-    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+function resolveSourceEdgeCellCoords(ctx: TableContext, edges: EdgeCellTarget): CellCoords | null {
+    const rows = [ctx.cellRanges.headers, ...ctx.cellRanges.rows];
+    const rowIndex = edges.row === 'first' ? 0 : rows.length - 1;
+    const row = rows[rowIndex];
+    if (!row?.length) {
         return null;
     }
 
-    return fromUnifiedRow(
-        edges.row === 'first' ? 0 : bounds.totalRows - 1,
-        edges.col === 'first' ? 0 : bounds.totalCols - 1
-    );
+    const colIndex = edges.col === 'first' ? 0 : row.length - 1;
+    return fromUnifiedRow(rowIndex, colIndex);
 }
 
 /** Transaction opening a table's edge cell, or null when the table has no usable grid. */
@@ -66,7 +66,10 @@ function prepareEdgeCellEntry(
     edges: EdgeCellTarget,
     initialCursorPos: InitialCursorPos
 ): PreparedOpenCellRequestTransaction | null {
-    const coords = resolveEdgeCellCoords(ctx, edges);
+    // Open requests must start from a source-backed cell. Normalization can make a
+    // ragged table rectangular after activation, but it cannot resolve a synthetic
+    // padded cell before that transaction has run.
+    const coords = resolveSourceEdgeCellCoords(ctx, edges);
     return coords ? prepareCellEntryTransaction({ ctx, coords, initialCursorPos }) : null;
 }
 
