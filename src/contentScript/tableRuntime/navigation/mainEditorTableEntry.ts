@@ -5,7 +5,7 @@ import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelection
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { activateTableCell } from '../activeCell/cellActivation';
-import { createResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { getPendingOpenCellRequest, prepareOpenCellRequestTransaction } from '../openCellRequest';
 import { resolveTableContextAtPos } from '../tableResolution';
 
@@ -39,9 +39,40 @@ function getDeletionDirection(transaction: Transaction): DeletionDirection | nul
     return null;
 }
 
+/**
+ * True while an open-cell request is still in flight with the caret parked inside its table.
+ *
+ * A request settles a frame or more after it is dispatched - later still when the table has
+ * to be normalized first. Until the nested editor mounts and takes focus, the main editor
+ * owns the keyboard with the caret sitting in the table's replaced range, so a repeat
+ * deletion would edit the hidden Markdown that this filter exists to protect.
+ */
+function isDeletingIntoPendingOpenCell(state: EditorState): boolean {
+    if (isEffectiveRawMode(state) || !getPendingOpenCellRequest(state)) {
+        return false;
+    }
+
+    const resolved = getResolvedActiveCell(state);
+    if (!resolved) {
+        return false;
+    }
+
+    const { head } = state.selection.main;
+    return head >= resolved.tableFrom && head <= resolved.tableTo;
+}
+
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
     const direction = getDeletionDirection(transaction);
-    if (!direction || !transaction.docChanged || !canEnterRenderedTable(transaction.startState)) {
+    if (!direction || !transaction.docChanged) {
+        return transaction;
+    }
+
+    // Drop the deletion outright: the caret is already on its way into a cell.
+    if (isDeletingIntoPendingOpenCell(transaction.startState)) {
+        return [];
+    }
+
+    if (!canEnterRenderedTable(transaction.startState)) {
         return transaction;
     }
 

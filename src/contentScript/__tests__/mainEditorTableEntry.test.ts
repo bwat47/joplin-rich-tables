@@ -103,6 +103,19 @@ describe('mainEditorTableEntry deletion protection', () => {
         expectBoundaryCellOpen(view, 'end');
     });
 
+    it('drops repeat deletions while the open-cell request is still in flight', () => {
+        const doc = `${TABLE}\nafter`;
+        const view = mountView(doc, TABLE.length + 1);
+
+        // The nested editor mounts a frame later, so the main editor still owns these.
+        pressKey(view, 'Backspace');
+        pressKey(view, 'Backspace');
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expectBoundaryCellOpen(view, 'end');
+    });
+
     it('opens the first cell when Delete reaches the table from above', () => {
         const prefix = 'before';
         const doc = `${prefix}\n${TABLE}`;

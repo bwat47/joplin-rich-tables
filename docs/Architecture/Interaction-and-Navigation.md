@@ -17,7 +17,8 @@ table or any of the table's hidden Markdown. Instead, it opens the boundary cell
 end, while Delete enters the first cell at its start. Platform-standard word/line deletion shortcuts and Shift+Backspace
 receive the same protection. Extra blank lines between the caret and table remain ordinary editable text.
 Protection follows CodeMirror's semantic `delete.backward` and `delete.forward` transactions rather than physical key
-bindings. Soft-keyboard and IME `input.type` transactions remain under CodeMirror's platform behavior.
+bindings. Soft-keyboard and IME `input.type` transactions remain under CodeMirror's platform behavior. Further deletions
+arriving before the requested cell opens are dropped, since the caret is parked inside the table until then.
 
 While a cell selection is live the caret is parked at the focus cell's document position so clipboard and shortcut
 handling keep working, and the main editor's caret is hidden so the highlight alone conveys the state. An unmodified
