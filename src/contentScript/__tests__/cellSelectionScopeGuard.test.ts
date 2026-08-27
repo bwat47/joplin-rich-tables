@@ -6,11 +6,13 @@ import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
-import { activeCellField } from '../tableState/activeCellState';
-import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { selectWholeTable } from '../tableRuntime/selection/cellSelectionController';
+import {
+    cellSelectionField,
+    cellSelectionTransitionAnnotation,
+    getCellSelection,
+    setCellSelectionEffect,
+} from '../tableState/cellSelectionState';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const PREFIX = 'above';
@@ -27,7 +29,7 @@ function mountView(): EditorView {
     const view = new EditorView({
         parent,
         doc: DOC,
-        extensions: [markdown({ extensions: [GFM] }), activeCellField, cellSelectionField, cellSelectionScopeGuard],
+        extensions: [markdown({ extensions: [GFM] }), cellSelectionField, cellSelectionScopeGuard],
     });
     mountedViews.push(view);
 
@@ -40,9 +42,15 @@ function flushFrames(): Promise<void> {
 }
 
 function selectTable(view: EditorView): void {
-    const ctx = resolveTableContextAtPos(view.state, TABLE_FROM);
-    expect(ctx).not.toBeNull();
-    expect(selectWholeTable(view, ctx!, 'end')).toBe(true);
+    view.dispatch({
+        selection: { anchor: TABLE_FROM + 1 },
+        effects: setCellSelectionEffect.of({
+            tableFrom: TABLE_FROM,
+            anchor: { section: 'header', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        }),
+        annotations: cellSelectionTransitionAnnotation.of(true),
+    });
 }
 
 afterEach(() => {

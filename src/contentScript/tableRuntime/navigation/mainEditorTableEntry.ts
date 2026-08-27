@@ -1,19 +1,25 @@
-import { EditorState, Prec, type Extension } from '@codemirror/state';
+import { EditorState, Prec, type Extension, type SelectionRange, type Transaction } from '@codemirror/state';
 import { BlockType, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
-import { activateTableCell } from '../activeCell/cellActivation';
-import { getPendingOpenCellRequest } from '../openCellRequest';
+import type { TableContext } from '../../tableModel/tableContext';
+import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getPendingOpenCellRequest, type PreparedOpenCellRequestTransaction } from '../openCellRequest';
 import { resolveTableContextAtPos } from '../tableResolution';
-import { selectWholeTable, type WholeTableSelectionFocus } from '../selection/cellSelectionController';
+import type { CellCoords } from '../../tableModel/types';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 type DeletionDirection = 'backward' | 'forward';
 type VerticalEntryDirection = 'up' | 'down';
+/** Which end of a grid axis an entry lands on. */
+type GridEdge = 'first' | 'last';
 
-const selectTableBackward = (view: EditorView): boolean => selectTableAtCharacterTarget(view, 'backward');
-const selectTableForward = (view: EditorView): boolean => selectTableAtCharacterTarget(view, 'forward');
+interface EdgeCellTarget {
+    row: GridEdge;
+    col: GridEdge;
+}
 
 // A rendered widget implies that table parsing has already completed. Keyboard
 // entry must never block waiting for syntax work on the keyboard event path.
@@ -22,36 +28,145 @@ const TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS = 0;
 function canEnterRenderedTable(state: EditorState): boolean {
     return (
         !isEffectiveRawMode(state) &&
-        state.selection.ranges.length === 1 &&
-        state.selection.main.empty &&
         !getCellSelection(state) &&
         !getActiveCell(state) &&
         !getPendingOpenCellRequest(state)
     );
 }
 
-function focusEdgeForDirection(direction: DeletionDirection): WholeTableSelectionFocus {
-    return direction === 'backward' ? 'end' : 'start';
+/** Vertical entry reads the movement target off the main range, so it needs a lone caret. */
+function canEnterFromVerticalMovement(state: EditorState): boolean {
+    return canEnterRenderedTable(state) && state.selection.ranges.length === 1 && state.selection.main.empty;
 }
 
-function selectTableAtCharacterTarget(view: EditorView, direction: DeletionDirection): boolean {
-    if (!canEnterRenderedTable(view.state)) {
-        return false;
+function getDeletionDirection(transaction: Transaction): DeletionDirection | null {
+    if (transaction.isUserEvent('delete.backward')) {
+        return 'backward';
     }
 
-    const current = view.state.selection.main;
-    const target = view.moveByChar(current, direction === 'forward');
-    if (target.head === current.head) {
-        return false;
+    if (transaction.isUserEvent('delete.forward')) {
+        return 'forward';
     }
 
-    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-    if (!ctx) {
-        return false;
-    }
-
-    return selectWholeTable(view, ctx, focusEdgeForDirection(direction));
+    return null;
 }
+
+function resolveSourceEdgeCellCoords(ctx: TableContext, edges: EdgeCellTarget): CellCoords | null {
+    const rows = [ctx.cellRanges.headers, ...ctx.cellRanges.rows];
+    const rowIndex = edges.row === 'first' ? 0 : rows.length - 1;
+    const row = rows[rowIndex];
+    if (!row?.length) {
+        return null;
+    }
+
+    const colIndex = edges.col === 'first' ? 0 : row.length - 1;
+    return fromUnifiedRow(rowIndex, colIndex);
+}
+
+/** Transaction opening a table's edge cell, or null when the table has no usable grid. */
+function prepareEdgeCellEntry(
+    ctx: TableContext,
+    edges: EdgeCellTarget,
+    initialCursorPos: InitialCursorPos
+): PreparedOpenCellRequestTransaction | null {
+    // Open requests must start from a source-backed cell. Normalization can make a
+    // ragged table rectangular after activation, but it cannot resolve a synthetic
+    // padded cell before that transaction has run.
+    const coords = resolveSourceEdgeCellCoords(ctx, edges);
+    return coords ? prepareCellEntryTransaction({ ctx, coords, initialCursorPos }) : null;
+}
+
+/**
+ * True when this deletion would edit the table an in-flight open-cell request is entering.
+ *
+ * A request settles a frame or more after it is dispatched - later still when the table has
+ * to be normalized first. Until the nested editor mounts and takes focus, the main editor
+ * owns the keyboard with the caret sitting in the table's replaced range, so a repeat
+ * deletion would edit the hidden Markdown that this filter exists to protect. Deletions
+ * elsewhere in the document are none of this filter's business, so they must still pass.
+ */
+function isDeletingIntoPendingOpenCell(transaction: Transaction): boolean {
+    const state = transaction.startState;
+    if (isEffectiveRawMode(state) || !getPendingOpenCellRequest(state)) {
+        return false;
+    }
+
+    const resolved = getResolvedActiveCell(state);
+    if (!resolved) {
+        return false;
+    }
+
+    const { head } = state.selection.main;
+    if (head < resolved.tableFrom || head > resolved.tableTo) {
+        return false;
+    }
+
+    return Boolean(transaction.changes.touchesRange(resolved.tableFrom, resolved.tableTo));
+}
+
+/** The table this range's deletion would reach, or null when it stays outside one. */
+function resolveDeletionTargetTable(
+    transaction: Transaction,
+    range: SelectionRange,
+    direction: DeletionDirection
+): TableContext | null {
+    // An explicit selection is a deliberate range deletion, a table-spanning one included.
+    if (!range.empty) {
+        return null;
+    }
+
+    // CodeMirror's deletion commands remove one contiguous range anchored at the caret, so
+    // the character next to the caret is always part of it - including word- and line-wise
+    // deletion, which stops at the line boundary and reaches the table on the following
+    // press. Probing that one position identifies the table being deleted into without
+    // walking the change set; `touchesRange` then confirms this transaction is that deletion.
+    const targetPos = range.head + (direction === 'forward' ? 1 : -1);
+    if (targetPos < 0 || targetPos > transaction.startState.doc.length) {
+        return null;
+    }
+    if (!transaction.changes.touchesRange(targetPos)) {
+        return null;
+    }
+
+    return resolveTableContextAtPos(transaction.startState, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+}
+
+const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
+    const direction = getDeletionDirection(transaction);
+    if (!direction || !transaction.docChanged) {
+        return transaction;
+    }
+
+    // Drop the deletion outright: the caret is already on its way into a cell.
+    if (isDeletingIntoPendingOpenCell(transaction)) {
+        return [];
+    }
+
+    if (!canEnterRenderedTable(transaction.startState)) {
+        return transaction;
+    }
+
+    const isBackward = direction === 'backward';
+    const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
+
+    // Several carets can reach tables in one gesture. Enter the first in document order and
+    // drop the rest of the deletion: a cell editor holds one caret, so the entry transaction
+    // collapses the other ranges regardless, and letting them through would edit the very
+    // Markdown this filter protects.
+    for (const range of transaction.startState.selection.ranges) {
+        const ctx = resolveDeletionTargetTable(transaction, range, direction);
+        if (!ctx) {
+            continue;
+        }
+
+        const spec = prepareEdgeCellEntry(ctx, edges, isBackward ? 'end' : 'start');
+        if (spec) {
+            return spec;
+        }
+    }
+
+    return transaction;
+});
 
 function isPositionMovingInDirection(
     currentPos: number,
@@ -138,7 +253,7 @@ function resolveVerticalEntryContext(
 }
 
 function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
-    if (!canEnterRenderedTable(view.state)) {
+    if (!canEnterFromVerticalMovement(view.state)) {
         return false;
     }
 
@@ -153,46 +268,22 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
         return false;
     }
 
-    const bounds = getTableGridBounds(ctx);
-    if (bounds.totalRows <= 0 || bounds.totalCols <= 0) {
+    const isDown = direction === 'down';
+    const spec = prepareEdgeCellEntry(
+        ctx,
+        { row: isDown ? 'first' : 'last', col: 'first' },
+        isDown ? 'start' : 'lastLineStart'
+    );
+    if (!spec) {
         return false;
     }
 
-    const targetCoords = fromUnifiedRow(direction === 'down' ? 0 : bounds.totalRows - 1, 0);
-    return activateTableCell(view, ctx.from, targetCoords, {
-        initialCursorPos: direction === 'down' ? 'start' : 'lastLineStart',
-    });
+    view.dispatch(spec);
+    return true;
 }
 
-const tableEntryKeymap = Prec.highest(
+const tableVerticalEntryKeymap = Prec.highest(
     keymap.of([
-        {
-            key: 'Backspace',
-            run: selectTableBackward,
-            shift: selectTableBackward,
-        },
-        {
-            key: 'Delete',
-            run: selectTableForward,
-        },
-        {
-            key: 'Mod-Backspace',
-            mac: 'Alt-Backspace',
-            run: selectTableBackward,
-        },
-        {
-            key: 'Mod-Delete',
-            mac: 'Alt-Delete',
-            run: selectTableForward,
-        },
-        {
-            mac: 'Mod-Backspace',
-            run: selectTableBackward,
-        },
-        {
-            mac: 'Mod-Delete',
-            run: selectTableForward,
-        },
         {
             key: 'ArrowUp',
             run: (view) => activateTableAtVerticalTarget(view, 'up'),
@@ -204,4 +295,4 @@ const tableEntryKeymap = Prec.highest(
     ])
 );
 
-export const mainEditorTableEntryExtension: Extension = tableEntryKeymap;
+export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableVerticalEntryKeymap];
