@@ -103,6 +103,20 @@ describe('mainEditorTableEntry deletion protection', () => {
         expectBoundaryCellOpen(view, 'end');
     });
 
+    it('leaves a deletion elsewhere in the document alone while a request is in flight', () => {
+        const suffix = 'after';
+        const doc = `${TABLE}\n${suffix}`;
+        const view = mountView(doc, TABLE.length + 1);
+
+        pressKey(view, 'Backspace');
+        view.dispatch({
+            changes: { from: doc.length - 1, to: doc.length },
+            userEvent: 'delete.backward',
+        });
+
+        expect(view.state.doc.toString()).toBe(`${TABLE}\n${suffix.slice(0, -1)}`);
+    });
+
     it('drops repeat deletions while the open-cell request is still in flight', () => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);

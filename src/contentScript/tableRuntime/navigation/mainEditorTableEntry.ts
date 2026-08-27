@@ -74,14 +74,16 @@ function prepareEdgeCellEntry(
 }
 
 /**
- * True while an open-cell request is still in flight with the caret parked inside its table.
+ * True when this deletion would edit the table an in-flight open-cell request is entering.
  *
  * A request settles a frame or more after it is dispatched - later still when the table has
  * to be normalized first. Until the nested editor mounts and takes focus, the main editor
  * owns the keyboard with the caret sitting in the table's replaced range, so a repeat
- * deletion would edit the hidden Markdown that this filter exists to protect.
+ * deletion would edit the hidden Markdown that this filter exists to protect. Deletions
+ * elsewhere in the document are none of this filter's business, so they must still pass.
  */
-function isDeletingIntoPendingOpenCell(state: EditorState): boolean {
+function isDeletingIntoPendingOpenCell(transaction: Transaction): boolean {
+    const state = transaction.startState;
     if (isEffectiveRawMode(state) || !getPendingOpenCellRequest(state)) {
         return false;
     }
@@ -92,7 +94,11 @@ function isDeletingIntoPendingOpenCell(state: EditorState): boolean {
     }
 
     const { head } = state.selection.main;
-    return head >= resolved.tableFrom && head <= resolved.tableTo;
+    if (head < resolved.tableFrom || head > resolved.tableTo) {
+        return false;
+    }
+
+    return Boolean(transaction.changes.touchesRange(resolved.tableFrom, resolved.tableTo));
 }
 
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
@@ -102,7 +108,7 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
     }
 
     // Drop the deletion outright: the caret is already on its way into a cell.
-    if (isDeletingIntoPendingOpenCell(transaction.startState)) {
+    if (isDeletingIntoPendingOpenCell(transaction)) {
         return [];
     }
 
