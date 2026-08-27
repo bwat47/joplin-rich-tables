@@ -1,5 +1,5 @@
 import { EditorState, Prec, type Extension, type SelectionRange, type Transaction } from '@codemirror/state';
-import { BlockType, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
+import { BlockType, Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
@@ -13,6 +13,7 @@ import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 type DeletionDirection = 'backward' | 'forward';
 type VerticalEntryDirection = 'up' | 'down';
+type HorizontalEntryDirection = 'left' | 'right';
 /** Which end of a grid axis an entry lands on. */
 type GridEdge = 'first' | 'last';
 
@@ -34,8 +35,8 @@ function canEnterRenderedTable(state: EditorState): boolean {
     );
 }
 
-/** Vertical entry reads the movement target off the main range, so it needs a lone caret. */
-function canEnterFromVerticalMovement(state: EditorState): boolean {
+/** Arrow entry reads one movement target off the main range, so it needs a lone caret. */
+function canEnterFromArrowMovement(state: EditorState): boolean {
     return canEnterRenderedTable(state) && state.selection.ranges.length === 1 && state.selection.main.empty;
 }
 
@@ -253,7 +254,7 @@ function resolveVerticalEntryContext(
 }
 
 function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
-    if (!canEnterFromVerticalMovement(view.state)) {
+    if (!canEnterFromArrowMovement(view.state)) {
         return false;
     }
 
@@ -282,8 +283,47 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
     return true;
 }
 
-const tableVerticalEntryKeymap = Prec.highest(
+function activateTableAtHorizontalTarget(view: EditorView, direction: HorizontalEntryDirection): boolean {
+    if (!canEnterFromArrowMovement(view.state)) {
+        return false;
+    }
+
+    const current = view.state.selection.main;
+    const lineIsLeftToRight = view.textDirectionAt(current.head) === Direction.LTR;
+    const movesForward = direction === 'right' ? lineIsLeftToRight : !lineIsLeftToRight;
+    const target = view.moveByChar(current, movesForward);
+    if (target.head === current.head) {
+        return false;
+    }
+
+    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    if (!ctx || (movesForward ? current.head >= ctx.from : current.head <= ctx.to)) {
+        return false;
+    }
+
+    const spec = prepareEdgeCellEntry(
+        ctx,
+        movesForward ? { row: 'first', col: 'first' } : { row: 'last', col: 'last' },
+        movesForward ? 'start' : 'end'
+    );
+    if (!spec) {
+        return false;
+    }
+
+    view.dispatch(spec);
+    return true;
+}
+
+const tableArrowEntryKeymap = Prec.highest(
     keymap.of([
+        {
+            key: 'ArrowLeft',
+            run: (view) => activateTableAtHorizontalTarget(view, 'left'),
+        },
+        {
+            key: 'ArrowRight',
+            run: (view) => activateTableAtHorizontalTarget(view, 'right'),
+        },
         {
             key: 'ArrowUp',
             run: (view) => activateTableAtVerticalTarget(view, 'up'),
@@ -295,4 +335,4 @@ const tableVerticalEntryKeymap = Prec.highest(
     ])
 );
 
-export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableVerticalEntryKeymap];
+export const mainEditorTableEntryExtension: Extension = [tableBoundaryDeletionFilter, tableArrowEntryKeymap];

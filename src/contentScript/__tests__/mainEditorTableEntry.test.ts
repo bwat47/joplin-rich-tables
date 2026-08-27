@@ -4,7 +4,7 @@
 
 import { defaultKeymap } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
+import { Direction, EditorView, keymap } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
@@ -90,6 +90,15 @@ afterEach(() => {
 
 function mockVerticalTarget(view: EditorView, targetPos: number): void {
     vi.spyOn(view, 'moveVertically').mockReturnValue(EditorSelection.cursor(targetPos));
+}
+
+function expectCellOpen(
+    view: EditorView,
+    expected: { tableFrom: number; section: 'header' | 'body'; row: number; col: number },
+    initialCursorPos: 'start' | 'end'
+): void {
+    expect(getActiveCell(view.state)).toEqual(expected);
+    expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos });
 }
 
 describe('mainEditorTableEntry deletion protection', () => {
@@ -512,5 +521,62 @@ describe('mainEditorTableEntry vertical movement', () => {
 
         expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+});
+
+describe('mainEditorTableEntry horizontal movement', () => {
+    it('opens the first cell when ArrowRight crosses from the empty line above the table', () => {
+        const prefix = 'above\n';
+        const doc = `${prefix}\n${TABLE}`;
+        const tableFrom = prefix.length + 1;
+        const view = mountView(doc, prefix.length);
+
+        pressKey(view, 'ArrowRight');
+
+        expectCellOpen(view, { tableFrom, section: 'header', row: 0, col: 0 }, 'start');
+    });
+
+    it('opens the final cell when ArrowLeft crosses from the empty line below the table', () => {
+        const doc = `${TABLE}\n\nbelow`;
+        const view = mountView(doc, TABLE.length + 1);
+
+        pressKey(view, 'ArrowLeft');
+
+        expectCellOpen(view, { tableFrom: 0, section: 'body', row: 1, col: 1 }, 'end');
+    });
+
+    it('leaves ordinary horizontal movement to the main editor', () => {
+        const doc = `above\n\n${TABLE}`;
+        const view = mountView(doc, 1);
+
+        pressKey(view, 'ArrowRight');
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        expect(view.state.selection.main.head).toBe(2);
+    });
+
+    it('leaves Shift+ArrowRight to the main editor', () => {
+        const prefix = 'above\n';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, prefix.length);
+
+        pressKey(view, 'ArrowRight', { shiftKey: true });
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('uses the line text direction to interpret horizontal movement', () => {
+        const prefix = 'above\n';
+        const doc = `${prefix}\n${TABLE}`;
+        const tableFrom = prefix.length + 1;
+        const view = mountView(doc, prefix.length);
+        vi.spyOn(view, 'textDirectionAt').mockReturnValue(Direction.RTL);
+        vi.spyOn(view, 'moveByChar').mockReturnValue(EditorSelection.cursor(tableFrom));
+
+        pressKey(view, 'ArrowLeft');
+
+        expectCellOpen(view, { tableFrom, section: 'header', row: 0, col: 0 }, 'start');
     });
 });

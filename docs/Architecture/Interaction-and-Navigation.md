@@ -27,16 +27,20 @@ handling keep working, and the main editor's caret is hidden so the highlight al
 arrow key collapses the selection and moves the caret out of the table, the way an arrow key collapses a text selection;
 Shift+Arrow extends it instead. Any other command that moves the caret outside the selected table drops the selection.
 
-Plain ArrowDown/ArrowUp from the main editor detects entry into a rendered table from the visual movement target, or,
-when that target overshoots, from the block the movement stepped over. CodeMirror's vertical motion deliberately scans
-past block widgets, so a movement toward a table usually lands on the far side of it; the block adjacent to the caret's
-own line block is then the one that was skipped, and a replaced block there identifies the table. Entry from above opens
-the top-left header cell at its start; entry from below opens the first cell of the final row at the start of its last
-line. Other vertical movement remains owned by the main editor.
+Plain arrow keys from the main editor detect entry into a rendered table from CodeMirror's visual movement target.
+ArrowRight from the adjoining line above opens the first cell at its start; ArrowLeft from the adjoining line below
+opens the final cell at its end. Horizontal direction follows CodeMirror's text direction for the current line.
+ArrowDown/ArrowUp also account for a target that overshoots the widget, locating the table from the block the movement
+stepped over. CodeMirror's vertical motion deliberately scans past block widgets, so a movement toward a table usually
+lands on the far side of it; the block adjacent to the caret's own line block is then the one that was skipped, and a
+replaced block there identifies the table. Entry from above opens the top-left header cell at its start; entry from below
+opens the first cell of the final row at the start of its last line. Other vertical movement remains owned by the main
+editor.
 
-Inside a nested editor, plain ArrowUp from the header's visual top boundary exits to the blank line above the table.
-Plain ArrowDown from the final row's visual bottom boundary exits to the blank line below it. The active cell is cleared,
-the nested editor closes through the normal lifecycle, and focus returns to the main editor.
+Inside a nested editor, plain ArrowUp from the header's visual top boundary and ArrowLeft from the first cell's start
+exit to the blank line above the table. Plain ArrowDown from the final row's visual bottom boundary and ArrowRight from
+the final cell's end exit to the blank line below it. The active cell is cleared, the nested editor closes through the
+normal lifecycle, and focus returns to the main editor.
 
 ### Scrolling
 

@@ -332,6 +332,38 @@ describe('navigateCell', () => {
         expect(mockView.focus).toHaveBeenCalled();
     });
 
+    it('should exit above the table when moving left from the first cell', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_HEADER, 0, 0);
+
+        const result = navigateCell(mockView, 'previous', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 9 }, scrollIntoView: true })
+        );
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
+        expect(mockView.focus).toHaveBeenCalled();
+    });
+
+    it('should exit below the table when moving right from the final cell', () => {
+        const ctx = setupTable(2, 2);
+        ctx.from = 10;
+        ctx.to = 89;
+        setupActiveCell(SECTION_BODY, 1, 1);
+
+        const result = navigateCell(mockView, 'next', { exitTableAtBoundary: true });
+
+        expect(result).toBe(true);
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ selection: { anchor: 90 }, scrollIntoView: true })
+        );
+        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
+        expect(mockView.focus).toHaveBeenCalled();
+    });
+
     it('should keep boundary navigation blocked when table exit is not requested', () => {
         const ctx = setupTable(1, 2);
         ctx.from = 10;

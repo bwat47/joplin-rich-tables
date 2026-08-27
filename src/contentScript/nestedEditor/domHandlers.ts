@@ -63,7 +63,10 @@ export function createNestedEditorKeymap(
                 const { from } = options.getSelectionBounds(nestedView);
                 if (nestedView.state.selection.main.head === from) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'previous', { initialCursorPos: 'end' });
+                    return navigateCell(mainView, 'previous', {
+                        initialCursorPos: 'end',
+                        exitTableAtBoundary: true,
+                    });
                 }
                 return false;
             },
@@ -74,7 +77,10 @@ export function createNestedEditorKeymap(
                 const { to } = options.getSelectionBounds(nestedView);
                 if (nestedView.state.selection.main.head === to) {
                     options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'next', { initialCursorPos: 'start' });
+                    return navigateCell(mainView, 'next', {
+                        initialCursorPos: 'start',
+                        exitTableAtBoundary: true,
+                    });
                 }
                 return false;
             },
