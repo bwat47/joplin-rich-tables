@@ -21,8 +21,10 @@ A selection spanning a table is drawn by CodeMirror's `.cm-selectionLayer`, whic
   native highlight under `.cm-line`, and a block widget sits outside every line, so without this
   the browser stacks a second, opaque highlight over the layer. The widget-scoped selector is
   load-bearing: it beats Joplin's own `&.cm-focused ::selection !important` rule on specificity.
-- `<th>` drops its background while `spannedTableVisuals.ts` marks the widget spanned, so the
-  layer shows through the header row too.
+- `<th>` drops its background while `spannedTableVisuals.ts` marks the widget strictly enclosed
+  by the selection, so the layer shows through the header row too. Exact and one-sided boundary
+  matches are excluded because CodeMirror does not paint its layer across the replacement widget
+  in those cases.
 
 ### Media and Embed Constraints
 

@@ -30,18 +30,26 @@ function spannedIdsFor(state: EditorState, anchor: number, head: number): Set<st
 }
 
 describe('collectSpannedTableIds', () => {
-    it('reports a table whose whole range is covered by the selection', () => {
+    it('reports a table whose range is strictly enclosed by the selection', () => {
         const state = createState();
         const table = tableRange(state);
 
         expect(spannedIdsFor(state, 0, state.doc.length)).toEqual(new Set([makeTableId(table.from)]));
     });
 
-    it('reports a selection that matches the table range exactly', () => {
+    it('ignores a selection that matches the table range exactly', () => {
         const state = createState();
         const table = tableRange(state);
 
-        expect(spannedIdsFor(state, table.from, table.to)).toEqual(new Set([makeTableId(table.from)]));
+        expect(spannedIdsFor(state, table.from, table.to)).toEqual(new Set());
+    });
+
+    it('ignores a fully covered table when either selection endpoint matches its boundary', () => {
+        const state = createState();
+        const table = tableRange(state);
+
+        expect(spannedIdsFor(state, table.from, state.doc.length)).toEqual(new Set());
+        expect(spannedIdsFor(state, 0, table.to)).toEqual(new Set());
     });
 
     it('ignores a selection that only reaches part-way into the table', () => {

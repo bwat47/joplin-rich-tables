@@ -6,11 +6,11 @@ import { createElementClassSyncPlugin } from './elementClassSync';
 import { tableDecorationField } from './tableDecorationField';
 
 /**
- * Returns the ids of the tables whose entire widget range sits inside one selection range.
+ * Returns the ids of tables whose widget range is strictly enclosed by one selection range.
  *
- * Partial overlaps are deliberately excluded: CodeMirror's own selection rectangle already
- * stops part-way through the widget in that case, so clearing the cell backgrounds would
- * overstate how much of the table is selected.
+ * CodeMirror only paints its selection layer across a replacement widget when both selection
+ * endpoints sit outside the widget. Exact matches, boundary matches, and partial overlaps are
+ * excluded so cell backgrounds are only cleared when there is a layer underneath them.
  */
 export function collectSpannedTableIds(state: EditorState): Set<TableId> {
     const spanned = new Set<TableId>();
@@ -27,7 +27,7 @@ export function collectSpannedTableIds(state: EditorState): Set<TableId> {
         }
 
         tableDecorations.decorations.between(range.from, range.to, (from, to) => {
-            if (from >= range.from && to <= range.to) {
+            if (from > range.from && to < range.to) {
                 spanned.add(makeTableId(from));
             }
         });
@@ -59,8 +59,8 @@ function collectSpannedWidgets(view: EditorView): HTMLElement[] {
 }
 
 /**
- * Marks the table widgets a document selection covers, so they can drop the cell backgrounds
- * that would otherwise hide CodeMirror's selection layer.
+ * Marks table widgets that sit strictly inside a document selection, so they can drop the cell
+ * backgrounds that would otherwise hide CodeMirror's selection layer.
  *
  * `.cm-selectionLayer` paints at `z-index: -1`, behind the content, so the selection only
  * shows through cells that have no background of their own.
