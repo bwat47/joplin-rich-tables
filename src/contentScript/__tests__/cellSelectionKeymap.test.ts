@@ -162,6 +162,10 @@ describe('cellSelectionKeymap', () => {
         { label: 'Ctrl+Backspace', init: { key: 'Backspace', ctrlKey: true } },
         { label: 'Ctrl+Delete', init: { key: 'Delete', ctrlKey: true } },
         { label: 'Shift+Backspace', init: { key: 'Backspace', shiftKey: true } },
+        { label: 'Option+Backspace', init: { key: 'Backspace', altKey: true } },
+        { label: 'Option+Delete', init: { key: 'Delete', altKey: true } },
+        { label: 'Command+Backspace', init: { key: 'Backspace', metaKey: true } },
+        { label: 'Command+Delete', init: { key: 'Delete', metaKey: true } },
     ])('routes $label through selection removal', ({ init }) => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
 
@@ -178,32 +182,7 @@ describe('cellSelectionKeymap', () => {
         expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
     });
 
-    it.each([
-        { label: 'Option+Backspace', init: { key: 'Backspace', altKey: true } },
-        { label: 'Option+Delete', init: { key: 'Delete', altKey: true } },
-        { label: 'Command+Backspace', init: { key: 'Backspace', metaKey: true } },
-        { label: 'Command+Delete', init: { key: 'Delete', metaKey: true } },
-    ])('routes $label through selection removal on macOS', ({ init }) => {
-        vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue('MacIntel');
-        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
-
-        view.dispatch({
-            effects: setCellSelectionEffect.of({
-                tableFrom: 0,
-                anchor: { section: 'body', row: 0, col: 0 },
-                focus: { section: 'body', row: 0, col: 1 },
-            }),
-        });
-
-        pressKey(init);
-
-        expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
-    });
-
-    it.each([
-        { label: 'Shift+Delete', modifiers: { shiftKey: true } },
-        { label: 'Ctrl+Alt+Delete', modifiers: { ctrlKey: true, altKey: true } },
-    ])('ignores $label because it is not a CodeMirror deletion command', ({ modifiers }) => {
+    it('leaves Shift+Delete to the clipboard handler, since it is the platform cut gesture', () => {
         const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const view = mountSelectionView(initialDoc);
 
@@ -215,7 +194,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Delete', ...modifiers });
+        pressKey({ key: 'Delete', shiftKey: true });
 
         expect(view.state.doc.toString()).toBe(initialDoc);
     });

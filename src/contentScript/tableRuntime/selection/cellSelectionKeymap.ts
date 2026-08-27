@@ -16,7 +16,6 @@ import { resolveTableContextAtPos } from '../tableResolution';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
-import { getViewWindow } from '../../shared/domContext';
 
 type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
 
@@ -101,24 +100,18 @@ function runHistoryCommand(view: EditorView, command: Command): boolean {
     return handled;
 }
 
-const APPLE_PLATFORM_PATTERN = /Mac|iPhone|iPad|iPod/;
-
-/** Mirrors the modified Backspace/Delete gestures in CodeMirror's standard keymap. */
-function isSelectionDeletionKey(view: EditorView, event: KeyboardEvent): boolean {
-    const isApplePlatform = APPLE_PLATFORM_PATTERN.test(getViewWindow(view).navigator.platform);
-    if (isApplePlatform) {
-        return !event.ctrlKey && !event.shiftKey && event.altKey !== event.metaKey;
+/**
+ * Every Backspace/Delete removes the selected cells: word- and line-wise deletion have no
+ * meaning over a rectangle of cells, so the modifiers carry no extra behavior to preserve.
+ * Shift+Delete is the exception - it is the platform's cut gesture, and belongs to the
+ * clipboard handler.
+ */
+function handleDeleteKey(view: EditorView, event: KeyboardEvent): boolean {
+    if (event.key === 'Delete' && event.shiftKey) {
+        return false;
     }
 
-    return !event.altKey && !event.metaKey && !event.shiftKey && event.ctrlKey;
-}
-
-function handleDeleteKey(view: EditorView, event: KeyboardEvent): boolean {
-    const isPlainDelete = !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
-    const isShiftBackspace =
-        event.key === 'Backspace' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
-
-    return (isPlainDelete || isShiftBackspace || isSelectionDeletionKey(view, event)) && handleSelectionDelete(view);
+    return handleSelectionDelete(view);
 }
 
 /** Enter and Tab both open the focus cell; Shift+Enter/Tab are left to the editor. */
