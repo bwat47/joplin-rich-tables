@@ -1,7 +1,7 @@
 import type { EditorState, Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { makeTableId, type TableId } from '../tableModel/types';
-import { CLASS_TABLE_WIDGET_SPANNED, getWidgetSelector } from './domHelpers';
+import { CLASS_TABLE_WIDGET_SPANNED, collectTableWidgetElements } from './domHelpers';
 import { createElementClassSyncPlugin } from './elementClassSync';
 import { tableDecorationField } from './tableDecorationField';
 
@@ -37,25 +37,7 @@ export function collectSpannedTableIds(state: EditorState): Set<TableId> {
 }
 
 function collectSpannedWidgets(view: EditorView): HTMLElement[] {
-    const spanned = collectSpannedTableIds(view.state);
-    if (spanned.size === 0) {
-        return [];
-    }
-
-    // Widget identity comes from `posAtDOM()`, never from `data-table-from`, which can be
-    // stale when decorations are mapped rather than rebuilt.
-    const widgets: HTMLElement[] = [];
-    for (const element of view.contentDOM.querySelectorAll<HTMLElement>(getWidgetSelector())) {
-        try {
-            if (spanned.has(makeTableId(view.posAtDOM(element)))) {
-                widgets.push(element);
-            }
-        } catch {
-            // posAtDOM can fail for edge cases, continue
-        }
-    }
-
-    return widgets;
+    return collectTableWidgetElements(view, collectSpannedTableIds(view.state));
 }
 
 /**

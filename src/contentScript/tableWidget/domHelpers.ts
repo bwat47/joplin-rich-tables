@@ -26,7 +26,7 @@ export const SECTION_BODY = 'body';
  * Returns the CSS selector matching every table widget root.
  *
  * Deliberately position-agnostic: identity comes from `posAtDOM()` via
- * `findTableWidgetElement()`, never from `data-table-from`.
+ * `iterateTableWidgets()`, never from `data-table-from`.
  *
  * @returns The CSS selector string.
  *
@@ -86,27 +86,59 @@ export function readCellCoords(cell: HTMLElement): CellCoords | null {
 }
 
 /**
- * Locate a table widget root element by matching its current document position.
+ * Yields every rendered table widget root paired with the table it currently belongs to.
  *
- * We deliberately avoid relying on `data-table-from` for identity because it may
- * become stale when decorations are mapped (but not rebuilt) through edits.
+ * The single place identity is resolved: always from `posAtDOM()`, never from
+ * `data-table-from`, which may become stale when decorations are mapped (but not
+ * rebuilt) through edits. Widgets whose position cannot be resolved are skipped.
  */
-export function findTableWidgetElement(view: EditorView, tableId: TableId): HTMLElement | null {
+function* iterateTableWidgets(view: EditorView): Generator<{ element: HTMLElement; tableId: TableId }> {
     // Prefer contentDOM so we only scan editor content (not gutters/toolbars).
-    const allWidgets = view.contentDOM.querySelectorAll(getWidgetSelector());
-
-    for (const widget of allWidgets) {
+    for (const element of view.contentDOM.querySelectorAll<HTMLElement>(getWidgetSelector())) {
+        let tableId: TableId;
         try {
-            const widgetPos = view.posAtDOM(widget);
-            if (makeTableId(widgetPos) === tableId) {
-                return widget as HTMLElement;
-            }
+            tableId = makeTableId(view.posAtDOM(element));
         } catch {
             // posAtDOM can fail for edge cases, continue
+            continue;
+        }
+
+        yield { element, tableId };
+    }
+}
+
+/**
+ * Locate a table widget root element by matching its current document position.
+ */
+export function findTableWidgetElement(view: EditorView, tableId: TableId): HTMLElement | null {
+    for (const widget of iterateTableWidgets(view)) {
+        if (widget.tableId === tableId) {
+            return widget.element;
         }
     }
 
     return null;
+}
+
+/**
+ * Collects the widget roots of the given tables, in document order.
+ *
+ * Ids with no rendered widget (outside the viewport, or already gone) are simply absent
+ * from the result.
+ */
+export function collectTableWidgetElements(view: EditorView, tableIds: ReadonlySet<TableId>): HTMLElement[] {
+    if (tableIds.size === 0) {
+        return [];
+    }
+
+    const elements: HTMLElement[] = [];
+    for (const { element, tableId } of iterateTableWidgets(view)) {
+        if (tableIds.has(tableId)) {
+            elements.push(element);
+        }
+    }
+
+    return elements;
 }
 
 /**
