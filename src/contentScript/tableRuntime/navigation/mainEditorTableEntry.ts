@@ -107,6 +107,11 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
         return transaction;
     }
 
+    // CodeMirror's deletion commands remove one contiguous range anchored at the caret, so
+    // the character next to the caret is always part of it - including word- and line-wise
+    // deletion, which stops at the line boundary and reaches the table on the following
+    // press. Probing that one position identifies the table being deleted into without
+    // walking the change set; `touchesRange` then confirms this transaction is that deletion.
     const current = transaction.startState.selection.main;
     const targetPos = current.head + (direction === 'forward' ? 1 : -1);
     if (targetPos < 0 || targetPos > transaction.startState.doc.length) {
