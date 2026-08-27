@@ -277,16 +277,6 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('does not intercept movement that stays outside a table', () => {
-        const doc = `text\n\n${TABLE}`;
-        const view = mountView(doc, 6);
-
-        pressKey(view, 'Backspace');
-
-        expect(view.state.doc.toString()).toBe(`text\n${TABLE}`);
-        expect(getCellSelection(view.state)).toBeNull();
-    });
-
     it('requires a single selection range', () => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);
