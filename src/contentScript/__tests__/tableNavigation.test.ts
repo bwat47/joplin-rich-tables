@@ -163,11 +163,11 @@ describe('navigateCell', () => {
             row: 0,
             col: 1,
         });
-        expect(getBeginRequestValue()).toMatchObject({});
-        expect(getOpenRequestValue()).toEqual({ requestId: getBeginRequestValue().requestId });
-        expect(getBeginRequestValue()).toMatchObject({
+        const beginRequest = getBeginRequestValue();
+        expect(beginRequest).toMatchObject({
             suppressKeys: true,
         });
+        expect(getOpenRequestValue()).toEqual({ requestId: beginRequest.requestId });
         expect(mockDispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 selection: { anchor: 10 },
