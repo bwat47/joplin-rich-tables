@@ -70,10 +70,7 @@ function moveCaretAndClearTableState(
         scrollIntoView: !options.preserveContextMenu,
     });
     // A right-click only claims focus when the nested editor we just destroyed held it;
-    // otherwise focus stays put so the menu anchors to whatever was clicked. Either way
-    // view.focus() is required rather than a bare contentDOM.focus(): the main editor was
-    // unfocused during the dispatch above, so CodeMirror has not written the new selection
-    // to the DOM. view.focus() syncs it from state (painting the caret) without scrolling.
+    // otherwise focus stays put so the menu anchors to whatever was clicked.
     if (!options.preserveContextMenu || live.hasNestedEditor) {
         view.focus();
     }
