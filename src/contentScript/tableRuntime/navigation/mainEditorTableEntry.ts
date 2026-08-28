@@ -95,11 +95,11 @@ function prepareEdgeCellEntry(
 /**
  * True when this deletion would edit the table an in-flight open-cell request is entering.
  *
- * A request settles a frame or more after it is dispatched - later still when the table has
- * to be normalized first. Until the nested editor mounts and takes focus, the main editor
- * owns the keyboard with the caret sitting in the table's replaced range, so a repeat
- * deletion would edit the hidden Markdown that this filter exists to protect. Deletions
- * elsewhere in the document are none of this filter's business, so they must still pass.
+ * A request does not hand focus to the nested editor until the next frame. Until it mounts,
+ * the main editor owns the keyboard with the caret sitting in the table's replaced range, so
+ * a repeat deletion would edit the hidden Markdown that this filter exists to protect.
+ * Deletions elsewhere in the document are none of this filter's business, so they must still
+ * pass.
  */
 function isDeletingIntoPendingOpenCell(transaction: Transaction): boolean {
     const state = transaction.startState;
