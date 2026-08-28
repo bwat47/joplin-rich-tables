@@ -20,6 +20,7 @@ import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 type DeletionDirection = 'backward' | 'forward';
+type TableSide = 'before' | 'after';
 type VerticalEntryDirection = 'up' | 'down';
 type HorizontalEntryDirection = 'left' | 'right';
 /** Which end of a grid axis an entry lands on. */
@@ -28,6 +29,11 @@ type GridEdge = 'first' | 'last';
 interface EdgeCellTarget {
     row: GridEdge;
     col: GridEdge;
+}
+
+interface BoundaryEntryTarget {
+    ctx: TableContext;
+    side: TableSide;
 }
 
 // A rendered widget implies that table parsing has already completed. Keyboard
@@ -131,75 +137,177 @@ function resolveDeletionTargetTable(
         return null;
     }
 
+    const state = transaction.startState;
+    const deletedCharFrom = range.head + (direction === 'forward' ? 0 : -1);
+    if (deletedCharFrom < 0 || deletedCharFrom >= state.doc.length) {
+        return null;
+    }
+    // A newline can be table separation even when the table begins at the change's other
+    // endpoint. Let the boundary resolver decide whether it is protected or surplus.
+    if (state.doc.sliceString(deletedCharFrom, deletedCharFrom + 1) === '\n') {
+        return null;
+    }
+
     // CodeMirror's deletion commands remove one contiguous range anchored at the caret, so
     // the character next to the caret is always part of it - including word- and line-wise
     // deletion, which stops at the line boundary and reaches the table on the following
     // press. Probing that one position identifies the table being deleted into without
     // walking the change set; `touchesRange` then confirms this transaction is that deletion.
     const targetPos = range.head + (direction === 'forward' ? 1 : -1);
-    if (targetPos < 0 || targetPos > transaction.startState.doc.length) {
+    if (targetPos < 0 || targetPos > state.doc.length) {
         return null;
     }
     if (!transaction.changes.touchesRange(targetPos)) {
         return null;
     }
 
-    return resolveTableContextAtPos(transaction.startState, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    return resolveTableContextAtPos(state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
 }
 
-/** Length of the run of newlines starting at `from` and extending in `direction`. */
-function measureNewlineRun(state: EditorState, from: number, direction: DeletionDirection): number {
-    const limit = PROTECTED_BOUNDARY_NEWLINES + 1;
-    const text =
-        direction === 'forward'
-            ? state.doc.sliceString(from, Math.min(state.doc.length, from + limit))
-            : state.doc.sliceString(Math.max(0, from - limit), from);
-    let run = 0;
-    while (run < text.length && text[direction === 'forward' ? run : text.length - 1 - run] === '\n') {
-        run++;
+/** Number of consecutive newlines immediately before `pos`, capped at `limit`. */
+function countNewlinesBackward(state: EditorState, pos: number, limit: number): number {
+    let count = 0;
+    while (count < limit && pos - count > 0 && state.doc.sliceString(pos - count - 1, pos - count) === '\n') {
+        count++;
     }
-    return run;
+    return count;
+}
+
+/** Number of consecutive newlines immediately after `pos`, capped at `limit`. */
+function countNewlinesForward(state: EditorState, pos: number, limit: number): number {
+    let count = 0;
+    while (
+        count < limit &&
+        pos + count < state.doc.length &&
+        state.doc.sliceString(pos + count, pos + count + 1) === '\n'
+    ) {
+        count++;
+    }
+    return count;
+}
+
+/** True when a changed old-document range strictly overlaps `[from, to)`. */
+function changesOverlapRange(transaction: Transaction, from: number, to: number): boolean {
+    let overlaps = false;
+    transaction.changes.iterChangedRanges((changedFrom, changedTo) => {
+        if (changedFrom < to && changedTo > from) {
+            overlaps = true;
+        }
+    });
+    return overlaps;
+}
+
+/**
+ * The table that the newline span `[from, to)` separates from its neighbour, or null.
+ *
+ * A span between two tables separates both, so the table the deletion moves toward wins.
+ */
+function resolveAdjoiningTable(
+    state: EditorState,
+    from: number,
+    to: number,
+    direction: DeletionDirection
+): BoundaryEntryTarget | null {
+    const sides: TableSide[] = direction === 'backward' ? ['before', 'after'] : ['after', 'before'];
+    for (const side of sides) {
+        const boundary = side === 'before' ? from : to;
+        const ctx = resolveTableContextAtPos(state, boundary, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+        if (ctx && (side === 'before' ? ctx.to === boundary : ctx.from === boundary)) {
+            return { ctx, side };
+        }
+    }
+
+    return null;
 }
 
 /**
  * The table whose boundary separation this deletion would consume, or null.
  *
- * A table is kept clear of its neighbours by `REQUIRED_TABLE_BOUNDARY_BLANK_LINES`, and
- * entering a cell restores that spacing when it is missing. Deleting the last of those
- * newlines is therefore work the plugin immediately undoes, so the separator counts as
- * part of the table boundary and the deletion enters the edge cell instead. Surplus blank
- * lines are ordinary text and still delete normally, one press at a time.
+ * A table is kept clear of its neighbours by `REQUIRED_TABLE_BOUNDARY_BLANK_LINES`, and a
+ * newline counts as part of that boundary in either of two ways:
+ *
+ * - it sits directly against a table edge, so removing it merges the neighbouring line into
+ *   the table's own line and leaves the caret parked on the widget edge; or
+ * - it belongs to a run no longer than `PROTECTED_BOUNDARY_NEWLINES`, so removing it drops
+ *   the separation below the blank line the plugin would immediately restore.
+ *
+ * Deleting toward the table enters its edge cell; deleting away preserves the newline and
+ * moves the caret. Surplus blank lines in the middle of a longer run are ordinary text and
+ * still delete normally, one press at a time.
  */
 function resolveBoundarySeparatorTable(
     transaction: Transaction,
     range: SelectionRange,
     direction: DeletionDirection
-): TableContext | null {
+): BoundaryEntryTarget | null {
     if (!range.empty) {
         return null;
     }
 
     const state = transaction.startState;
-    const runLength = measureNewlineRun(state, range.head, direction);
-    if (runLength === 0 || runLength > PROTECTED_BOUNDARY_NEWLINES) {
+    const deletedFrom = range.head + (direction === 'forward' ? 0 : -1);
+    if (deletedFrom < 0 || deletedFrom >= state.doc.length) {
+        return null;
+    }
+    if (state.doc.sliceString(deletedFrom, deletedFrom + 1) !== '\n') {
+        return null;
+    }
+    // `touchesRange` includes changes adjacent to either endpoint. Boundary protection only
+    // applies when the deletion actually consumes this newline.
+    if (!changesOverlapRange(transaction, deletedFrom, deletedFrom + 1)) {
         return null;
     }
 
-    const isForward = direction === 'forward';
-    const runFrom = isForward ? range.head : range.head - runLength;
-    const runTo = isForward ? range.head + runLength : range.head;
-    if (!transaction.changes.touchesRange(runFrom, runTo)) {
+    const edgeAdjacent = resolveAdjoiningTable(state, deletedFrom, deletedFrom + 1, direction);
+    if (edgeAdjacent) {
+        return edgeAdjacent;
+    }
+
+    const limit = PROTECTED_BOUNDARY_NEWLINES + 1;
+    const runFrom = range.head - countNewlinesBackward(state, range.head, limit);
+    const runTo = range.head + countNewlinesForward(state, range.head, limit);
+    if (runTo - runFrom > PROTECTED_BOUNDARY_NEWLINES) {
         return null;
     }
 
-    // The run has to lead straight into the table, not merely toward one further away.
-    const boundary = isForward ? runTo : runFrom;
-    const ctx = resolveTableContextAtPos(state, boundary, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-    if (!ctx || (isForward ? ctx.from !== boundary : ctx.to !== boundary)) {
+    return resolveAdjoiningTable(state, runFrom, runTo, direction);
+}
+
+/** Replacement transaction for a deletion that reaches a table boundary, or null to pass it through. */
+function prepareTableBoundaryDeletion(
+    transaction: Transaction,
+    range: SelectionRange,
+    direction: DeletionDirection
+): TransactionSpec | null {
+    const isBackward = direction === 'backward';
+    const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
+    const deletionTarget = resolveDeletionTargetTable(transaction, range, direction);
+    if (deletionTarget) {
+        return prepareEdgeCellEntry(transaction.startState, deletionTarget, edges, isBackward ? 'end' : 'start');
+    }
+
+    const boundaryTarget = resolveBoundarySeparatorTable(transaction, range, direction);
+    if (!boundaryTarget) {
         return null;
     }
 
-    return ctx;
+    const movesTowardTable =
+        (isBackward && boundaryTarget.side === 'before') ||
+        (direction === 'forward' && boundaryTarget.side === 'after');
+    if (movesTowardTable) {
+        return prepareEdgeCellEntry(transaction.startState, boundaryTarget.ctx, edges, isBackward ? 'end' : 'start');
+    }
+
+    if (transaction.startState.selection.ranges.length > 1) {
+        return null;
+    }
+
+    // Preserve the separator while making the one-position caret move requested by the key.
+    // Mapping multiple ranges would be surprising and is not needed for entry.
+    return {
+        selection: { anchor: range.head + (isBackward ? -1 : 1) },
+        scrollIntoView: transaction.scrollIntoView,
+    };
 }
 
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
@@ -217,22 +325,11 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
         return transaction;
     }
 
-    const isBackward = direction === 'backward';
-    const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
-
-    // Several carets can reach tables in one gesture. Enter the first in document order and
-    // drop the rest of the deletion: a cell editor holds one caret, so the entry transaction
-    // collapses the other ranges regardless, and letting them through would edit the very
-    // Markdown this filter protects.
+    // Several carets can reach tables in one gesture. A deletion toward a table enters the
+    // first in document order and drops the rest because a cell editor holds one caret. An
+    // away-from-table caret move requires a lone caret; multi-range deletion passes through.
     for (const range of transaction.startState.selection.ranges) {
-        const ctx =
-            resolveDeletionTargetTable(transaction, range, direction) ??
-            resolveBoundarySeparatorTable(transaction, range, direction);
-        if (!ctx) {
-            continue;
-        }
-
-        const spec = prepareEdgeCellEntry(transaction.startState, ctx, edges, isBackward ? 'end' : 'start');
+        const spec = prepareTableBoundaryDeletion(transaction, range, direction);
         if (spec) {
             return spec;
         }
