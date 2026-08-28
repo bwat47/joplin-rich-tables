@@ -203,7 +203,7 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     }
 
     requestOpenCell(view, {
-        target: { resolvedCell },
+        resolvedCell,
         clearCellSelection: hasSelection,
     });
 

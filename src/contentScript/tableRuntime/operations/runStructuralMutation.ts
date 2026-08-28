@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
-import { prepareOpenCellRequestTransaction } from '../openCellRequest';
+import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -101,14 +101,9 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
         return true;
     }
 
-    const openTransaction = prepareOpenCellRequestTransaction({
-        // The coordinates below belong to the table this mutation is about to write, so
-        // there is nothing in the current document to resolve or normalize them against.
-        state: params.view.state,
-        target: {
-            activeCell: prepared.nextActiveCell.activeCell,
-            selectionAnchor: prepared.nextActiveCell.selectionAnchor,
-        },
+    const openRequest = prepareOpenCellRequestAttachment({
+        activeCell: prepared.nextActiveCell.activeCell,
+        selectionAnchor: prepared.nextActiveCell.selectionAnchor,
         initialCursorPos: params.initialCursorPos,
         clearCellSelection: params.clearCellSelection,
         suppressKeys: params.suppressKeys,
@@ -124,8 +119,8 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
                   },
               }
             : {}),
-        ...openTransaction,
-        effects: [...openTransaction.effects, rebuildTableWidgetsEffect.of(undefined)],
+        ...openRequest,
+        effects: [...openRequest.effects, rebuildTableWidgetsEffect.of(undefined)],
     });
     params.afterDispatch?.();
 

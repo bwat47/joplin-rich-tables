@@ -27,39 +27,35 @@ export interface OpenCellRequestSignal {
     requestId: string;
 }
 
-/**
- * A cell resolved against the current document can be normalized on the way in. Bare
- * coordinates cannot: they belong to a table the caller is about to create in the same
- * transaction, so there is nothing in the current document to resolve them against.
- */
-type OpenCellRequestTarget =
-    | {
-          activeCell: ActiveCell;
-          selectionAnchor?: number;
-      }
-    | {
-          resolvedCell: ResolvedActiveCell;
-      };
-
 /** A transaction spec whose effects stay an array, so callers can extend them. */
 export interface PreparedOpenCellRequestTransaction extends TransactionSpec {
     effects: StateEffect<unknown>[];
 }
 
-export interface RequestOpenCellParams {
-    target: OpenCellRequestTarget;
+/**
+ * Selection and effects that attach an open request to a transaction the caller owns.
+ *
+ * Deliberately not a `TransactionSpec`: the caller merges this into its own spec, so the
+ * type must not be able to carry a `changes` key that would override the caller's.
+ */
+export interface OpenCellRequestAttachment {
+    selection?: { anchor: number };
+    effects: StateEffect<unknown>[];
+}
+
+interface OpenCellRequestOptions {
     clearCellSelection?: boolean;
-    /** Fold canonical-form repair into this transaction when the table needs it (default true). */
-    normalizeIfNeeded?: boolean;
     initialCursorPos?: InitialCursorPos;
     requestId?: string;
     suppressKeys?: boolean;
-    scrollIntoView?: boolean;
-    preserveMainSelection?: boolean;
 }
 
-export interface PrepareOpenCellRequestTransactionParams extends RequestOpenCellParams {
-    state: EditorState;
+export interface RequestOpenCellParams extends OpenCellRequestOptions {
+    resolvedCell: ResolvedActiveCell;
+    /** Fold canonical-form repair into this transaction when the table needs it (default true). */
+    normalizeIfNeeded?: boolean;
+    scrollIntoView?: boolean;
+    preserveMainSelection?: boolean;
 }
 
 let nextOpenCellRequestId = 1;
@@ -104,32 +100,37 @@ export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
 export const clearOpenCellRequestEffect = StateEffect.define<ClearOpenCellRequest>();
 export const triggerOpenCellRequestEffect = StateEffect.define<OpenCellRequestSignal>();
 
-function resolveOpenCellRequestTarget(target: OpenCellRequestTarget): {
-    activeCell: ActiveCell;
-    selectionAnchor?: number;
-} {
-    if ('resolvedCell' in target) {
-        return {
-            activeCell: target.resolvedCell.activeCell,
-            selectionAnchor: target.resolvedCell.editableFrom,
-        };
-    }
-
-    return target;
+function buildOpenCellRequestEffects(
+    params: OpenCellRequestOptions & { requestId: string; activeCell: ActiveCell }
+): StateEffect<unknown>[] {
+    return [
+        ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+        setActiveCellEffect.of(params.activeCell),
+        beginOpenCellRequestEffect.of({
+            requestId: params.requestId,
+            activeCell: params.activeCell,
+            initialCursorPos: params.initialCursorPos,
+            suppressKeys: params.suppressKeys ?? false,
+        }),
+        triggerOpenCellRequestEffect.of({ requestId: params.requestId }),
+    ];
 }
 
-/** The repair this entry owes the table, or null when none is needed or wanted. */
-function planNormalization(params: PrepareOpenCellRequestTransactionParams) {
-    if (params.normalizeIfNeeded === false || !('resolvedCell' in params.target)) {
-        return null;
-    }
+/**
+ * Attaches an open request for bare coordinates to a transaction the caller owns.
+ *
+ * The coordinates belong to a table the caller is about to write, so there is nothing in
+ * the current document to resolve or repair them against: this path never normalizes.
+ */
+export function prepareOpenCellRequestAttachment(
+    params: OpenCellRequestOptions & { activeCell: ActiveCell; selectionAnchor?: number }
+): OpenCellRequestAttachment {
+    const requestId = params.requestId ?? createOpenCellRequestId();
 
-    const { resolvedCell } = params.target;
-    return planCellEntryNormalization({
-        state: params.state,
-        ctx: resolvedCell.ctx,
-        coords: resolvedCell.activeCell,
-    });
+    return {
+        ...(params.selectionAnchor != null ? { selection: { anchor: params.selectionAnchor } } : {}),
+        effects: buildOpenCellRequestEffects({ ...params, requestId }),
+    };
 }
 
 /**
@@ -142,33 +143,28 @@ function planNormalization(params: PrepareOpenCellRequestTransactionParams) {
  * host writes a stale note body back over the editor.
  */
 export function prepareOpenCellRequestTransaction(
-    params: PrepareOpenCellRequestTransactionParams
+    params: RequestOpenCellParams & { state: EditorState }
 ): PreparedOpenCellRequestTransaction {
     const requestId = params.requestId ?? createOpenCellRequestId();
-    const normalization = planNormalization(params);
-    const { activeCell, selectionAnchor } = normalization
-        ? normalization.target
-        : resolveOpenCellRequestTarget(params.target);
+    const normalization =
+        params.normalizeIfNeeded === false
+            ? null
+            : planCellEntryNormalization({
+                  state: params.state,
+                  ctx: params.resolvedCell.ctx,
+                  coords: params.resolvedCell.activeCell,
+              });
 
-    const request: OpenCellRequest = {
-        requestId,
-        activeCell,
-        initialCursorPos: params.initialCursorPos,
-        suppressKeys: params.suppressKeys ?? false,
-    };
+    const activeCell = normalization?.target.activeCell ?? params.resolvedCell.activeCell;
+    const selectionAnchor = normalization?.target.selectionAnchor ?? params.resolvedCell.editableFrom;
 
     return {
         ...(normalization
             ? { changes: normalization.changes, annotations: normalizeBeforeEditAnnotation.of(true) }
             : {}),
-        ...(!params.preserveMainSelection && selectionAnchor != null ? { selection: { anchor: selectionAnchor } } : {}),
+        ...(params.preserveMainSelection ? {} : { selection: { anchor: selectionAnchor } }),
         effects: [
-            ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-            setActiveCellEffect.of(activeCell),
-            beginOpenCellRequestEffect.of(request),
-            triggerOpenCellRequestEffect.of({
-                requestId,
-            }),
+            ...buildOpenCellRequestEffects({ ...params, requestId, activeCell }),
             ...(normalization ? [rebuildTableWidgetsEffect.of(undefined)] : []),
         ],
     };

@@ -72,7 +72,8 @@ tracked in a `StateField` (`tableRuntime/openCellRequest.ts`) rather than a modu
 
 - The initiating action dispatches a request carrying target cell, cursor placement, and key-suppression state, plus
   any canonical-form repair the table needed; the lifecycle trigger carries only the request id. Requests built from
-  bare coordinates (a structural mutation naming a table it is about to write) cannot be repaired this way and opt out.
+  bare coordinates (a structural mutation naming a table it is about to write) cannot be repaired this way, so they use
+  a separate builder returning selection and effects only, which the caller merges into its own transaction.
 - Lifecycle re-reads the pending request, then completes it once the nested editor is open and focus has been handed
   off, or fails it when the open path aborts. A watchdog `ViewPlugin` fails stuck requests after 1 second.
 - Row creation uses the same path: one transaction updates table text, main-editor selection, active-cell state, and

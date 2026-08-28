@@ -57,7 +57,7 @@ function activateSelectionFocus(view: EditorView): boolean {
     }
 
     requestOpenCell(view, {
-        target: { resolvedCell },
+        resolvedCell,
         clearCellSelection: true,
         scrollIntoView: false,
     });

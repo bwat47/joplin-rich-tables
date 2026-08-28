@@ -109,7 +109,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     requestOpenCell(view, {
-        target: { resolvedCell },
+        resolvedCell,
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,
     });
@@ -176,7 +176,7 @@ export function prepareCellEntryTransaction(params: {
 
     return prepareOpenCellRequestTransaction({
         state: params.state,
-        target: { resolvedCell },
+        resolvedCell,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: true,
     });

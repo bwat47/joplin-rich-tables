@@ -42,7 +42,7 @@ function enterCell(params: { doc: string; tableFrom: number; activeCell?: Active
 
     const spec = prepareOpenCellRequestTransaction({
         state,
-        target: { resolvedCell },
+        resolvedCell,
         normalizeIfNeeded: params.normalizeIfNeeded,
         requestId: REQUEST_ID,
         initialCursorPos: 'end',
