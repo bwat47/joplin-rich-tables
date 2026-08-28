@@ -109,7 +109,6 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     requestOpenCell(view, {
-        state: view.state,
         target: { resolvedCell },
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,

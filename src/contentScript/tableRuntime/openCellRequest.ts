@@ -47,7 +47,6 @@ export interface PreparedOpenCellRequestTransaction extends TransactionSpec {
 }
 
 export interface RequestOpenCellParams {
-    state: EditorState;
     target: OpenCellRequestTarget;
     clearCellSelection?: boolean;
     /** Fold canonical-form repair into this transaction when the table needs it (default true). */
@@ -57,6 +56,10 @@ export interface RequestOpenCellParams {
     suppressKeys?: boolean;
     scrollIntoView?: boolean;
     preserveMainSelection?: boolean;
+}
+
+export interface PrepareOpenCellRequestTransactionParams extends RequestOpenCellParams {
+    state: EditorState;
 }
 
 let nextOpenCellRequestId = 1;
@@ -116,7 +119,7 @@ function resolveOpenCellRequestTarget(target: OpenCellRequestTarget): {
 }
 
 /** The repair this entry owes the table, or null when none is needed or wanted. */
-function planNormalization(params: RequestOpenCellParams) {
+function planNormalization(params: PrepareOpenCellRequestTransactionParams) {
     if (params.normalizeIfNeeded === false || !('resolvedCell' in params.target)) {
         return null;
     }
@@ -138,7 +141,9 @@ function planNormalization(params: RequestOpenCellParams) {
  * reaches the host as an update it cannot order against the keystrokes around it, and the
  * host writes a stale note body back over the editor.
  */
-export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams): PreparedOpenCellRequestTransaction {
+export function prepareOpenCellRequestTransaction(
+    params: PrepareOpenCellRequestTransactionParams
+): PreparedOpenCellRequestTransaction {
     const requestId = params.requestId ?? createOpenCellRequestId();
     const normalization = planNormalization(params);
     const { activeCell, selectionAnchor } = normalization
@@ -171,7 +176,7 @@ export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams)
 
 export function requestOpenCell(view: EditorView, params: RequestOpenCellParams): void {
     view.dispatch({
-        ...prepareOpenCellRequestTransaction(params),
+        ...prepareOpenCellRequestTransaction({ ...params, state: view.state }),
         scrollIntoView: params.scrollIntoView ?? false,
     });
 }
