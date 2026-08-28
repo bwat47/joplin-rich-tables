@@ -85,7 +85,7 @@ function getNormalizedTableReplacementIfChanged(
 
 /**
  * Normalization to apply in the same transaction that enters `coords`, or null when the
- * table is already canonical.
+ * table is already canonical or `coords` cannot be mapped into the repaired text.
  *
  * Entry transactions are dispatched from the event that triggered them, so folding the
  * repair in keeps the document change on that event. Repairing a frame later instead
@@ -107,6 +107,9 @@ export function planCellEntryNormalization(params: {
         tableText: replacement.tableText,
         target: params.coords,
     });
+    // Dropping the repair keeps the entry alive: the cell still opens, against the table as it
+    // stands. `serialize()` widens rows rather than dropping columns, so a source-backed cell
+    // always maps - this is a guard, not an expected path.
     if (!target) {
         return null;
     }
