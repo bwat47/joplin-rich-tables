@@ -36,6 +36,7 @@ Start here when exploring the codebase:
 
 - **Sync transactions**: Always use `syncAnnotation` when forwarding changes between main and nested editors. Without it, changes trigger infinite re-render loops.
 - **Block decorations**: Must be provided via `StateField`, not `ViewPlugin`. CodeMirror requires decorations affecting layout to come from state.
+- **Main editor focus**: Restore focus with `view.focus()`, not a bare `contentDOM.focus()`. CodeMirror writes the DOM selection only while focused, so when a nested cell editor held focus during the dispatch, only `view.focus()` syncs the new selection and paints the caret. It suppresses the DOM observer and prevents scrolling internally.
 - **Build command**: Use `npm run dist`, not `npm run build` or `npx tsc`.
 
 ## Build, Test, and Development Commands

@@ -1,3 +1,7 @@
+/**
+ * @vitest-environment jsdom
+ */
+
 import { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import type { ActiveCell } from '../tableState/activeCellState';
@@ -25,11 +29,7 @@ describe('tableCommands', () => {
     let mockGetResolvedActiveCell: Mock;
 
     beforeEach(() => {
-        mockView = {
-            contentDOM: {
-                focus: vi.fn(),
-            },
-        } as unknown as EditorView;
+        mockView = {} as unknown as EditorView;
         mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as Mock;
         mockRunStructuralMutationAndReopen.mockClear();
         mockGetResolvedActiveCell = getResolvedActiveCell as Mock;
@@ -77,9 +77,6 @@ describe('tableCommands', () => {
                     afterDispatch: expect.any(Function),
                 })
             );
-            const afterDispatch = mockRunStructuralMutationAndReopen.mock.calls[0][0].afterDispatch as () => void;
-            afterDispatch();
-            expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
         });
 
         it('routes non-row structural operations through shared reopen defaults', () => {
@@ -101,20 +98,40 @@ describe('tableCommands', () => {
     });
 
     describe('defaults', () => {
-        it('getDefaultStructuralReopenOptions focuses the main editor after dispatch', () => {
-            const options = getDefaultStructuralReopenOptions(mockView);
+        let view: EditorView;
 
-            options.afterDispatch?.();
+        beforeEach(() => {
+            const parent = document.createElement('div');
+            document.body.appendChild(parent);
+            view = new EditorView({
+                parent,
+                doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
+            });
+            view.contentDOM.blur();
+        });
 
-            expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
+        afterEach(() => {
+            const parent = view.dom.parentElement;
+            view.destroy();
+            parent?.remove();
+        });
+
+        it('getDefaultStructuralReopenOptions hands focus back to the main editor after dispatch', () => {
+            expect(document.activeElement).not.toBe(view.contentDOM);
+
+            getDefaultStructuralReopenOptions(view).afterDispatch?.();
+
+            expect(document.activeElement).toBe(view.contentDOM);
         });
 
         it('getDefaultRowInsertOpenOptions adds start cursor placement on top of structural defaults', () => {
-            const options = getDefaultRowInsertOpenOptions(mockView);
+            const options = getDefaultRowInsertOpenOptions(view);
 
             expect(options.initialCursorPos).toBe('start');
+
             options.afterDispatch?.();
-            expect(mockView.contentDOM.focus).toHaveBeenCalledWith({ preventScroll: true });
+
+            expect(document.activeElement).toBe(view.contentDOM);
         });
     });
 
