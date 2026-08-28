@@ -1,6 +1,5 @@
 import type { StateEffect } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
@@ -70,12 +69,13 @@ function moveCaretAndClearTableState(
         effects: buildClearEffects(live),
         scrollIntoView: !options.preserveContextMenu,
     });
-    if (!options.preserveContextMenu) {
+    // A right-click only claims focus when the nested editor we just destroyed held it;
+    // otherwise focus stays put so the menu anchors to whatever was clicked. Either way
+    // view.focus() is required rather than a bare contentDOM.focus(): the main editor was
+    // unfocused during the dispatch above, so CodeMirror has not written the new selection
+    // to the DOM. view.focus() syncs it from state (painting the caret) without scrolling.
+    if (!options.preserveContextMenu || live.hasNestedEditor) {
         view.focus();
-    } else if (live.hasNestedEditor) {
-        // The nested editor we just destroyed held focus; restore it to the
-        // main editor without scrolling so the caret is painted.
-        focusMainEditorWithoutScroll(view);
     }
 }
 

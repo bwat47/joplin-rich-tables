@@ -1,7 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { focusMainEditorWithoutScroll } from '../../shared/mainEditorFocus';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
@@ -13,7 +12,7 @@ const DEFAULT_INSERTED_TABLE_SELECTION_OFFSET = 2;
 
 export function getDefaultStructuralReopenOptions(view: EditorView): StructuralReopenOptions {
     return {
-        afterDispatch: () => focusMainEditorWithoutScroll(view),
+        afterDispatch: () => view.focus(),
     };
 }
 
