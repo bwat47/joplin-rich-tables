@@ -166,9 +166,6 @@ function resolveDeletionTargetTable(
     // press. Probing that one position identifies the table being deleted into without
     // walking the change set; `touchesRange` then confirms this transaction is that deletion.
     const targetPos = range.head + (direction === 'forward' ? 1 : -1);
-    if (targetPos < 0 || targetPos > state.doc.length) {
-        return null;
-    }
     if (!transaction.changes.touchesRange(targetPos)) {
         return null;
     }
