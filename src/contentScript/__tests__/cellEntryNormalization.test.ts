@@ -7,6 +7,7 @@ import {
     openCellRequestField,
     prepareOpenCellRequestTransaction,
     triggerOpenCellRequestEffect,
+    type CellEntryMode,
 } from '../tableRuntime/openCellRequest';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
@@ -25,7 +26,7 @@ function headerCellAt(tableFrom: number): ActiveCell {
  * Builds a document containing a table at `tableFrom` and prepares the transaction that
  * enters `activeCell`, the way every keyboard, click and navigation entry point does.
  */
-function enterCell(params: { doc: string; tableFrom: number; activeCell?: ActiveCell; normalizeIfNeeded?: boolean }) {
+function enterCell(params: { doc: string; tableFrom: number; activeCell?: ActiveCell; entryMode?: CellEntryMode }) {
     const activeCell = params.activeCell ?? headerCellAt(params.tableFrom);
     const state = createMarkdownState(params.doc, [activeCellField, openCellRequestField]).update({
         effects: setActiveCellEffect.of(activeCell),
@@ -43,7 +44,7 @@ function enterCell(params: { doc: string; tableFrom: number; activeCell?: Active
     const spec = prepareOpenCellRequestTransaction({
         state,
         resolvedCell,
-        normalizeIfNeeded: params.normalizeIfNeeded,
+        entryMode: params.entryMode,
         requestId: REQUEST_ID,
         initialCursorPos: 'end',
     });
@@ -60,11 +61,11 @@ describe('entering a cell', () => {
         expect(transaction.state.doc.toString()).toBe(doc);
     });
 
-    it('leaves the document alone when the caller opts out of normalization', () => {
+    it('leaves the document alone when the entry may not repair', () => {
         const { transaction } = enterCell({
             doc: nonCanonicalTable,
             tableFrom: 0,
-            normalizeIfNeeded: false,
+            entryMode: 'enter',
         });
 
         expect(transaction.docChanged).toBe(false);

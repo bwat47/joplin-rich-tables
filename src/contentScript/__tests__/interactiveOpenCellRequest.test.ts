@@ -65,10 +65,10 @@ describe('interactive open-cell requests', () => {
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
     });
 
-    it('can skip normalization on cursor activation for lifecycle-driven re-entry', () => {
+    it('can enter without repairing on cursor activation for lifecycle-driven re-entry', () => {
         const { view } = createInteractiveTableHarness();
 
-        expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'), { normalizeIfNeeded: false })).toBe(true);
+        expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'), { entryMode: 'enter' })).toBe(true);
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
         const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
@@ -81,7 +81,7 @@ describe('interactive open-cell requests', () => {
 
         expect(
             activateCellAtPosition(view, doc.indexOf('| a2'), {
-                normalizeIfNeeded: false,
+                entryMode: 'enter',
                 preferredActiveCell: {
                     tableFrom: 0,
                     section: 'body',

@@ -14,6 +14,7 @@ import { createResolvedActiveCell } from './resolvedActiveCell';
 import {
     prepareOpenCellRequestTransaction,
     requestOpenCell,
+    type CellEntryMode,
     type PreparedOpenCellRequestTransaction,
 } from '../openCellRequest';
 import type { CellCoords } from '../../tableModel/types';
@@ -22,10 +23,8 @@ import type { InitialCursorPos } from '../../shared/cursorPlacement';
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
     clearIfOutside?: boolean;
-    /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
-    normalizeIfNeeded?: boolean;
-    /** If true, preserve the current main-editor selection when requesting the nested editor open */
-    preserveMainSelection?: boolean;
+    /** How far this entry may go (default `repair`). */
+    entryMode?: CellEntryMode;
     /** Optional fallback identity used when the cursor lands on table structure during lifecycle-driven reactivation */
     preferredActiveCell?: ActiveCell | null;
 }
@@ -110,8 +109,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
     requestOpenCell(view, {
         resolvedCell,
-        normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
-        preserveMainSelection: options?.preserveMainSelection ?? false,
+        entryMode: options?.entryMode,
     });
 
     return true;

@@ -1,3 +1,5 @@
+import type { CellEntryMode } from '../openCellRequest';
+
 export type ActiveCellFacts =
     | { status: 'absent' }
     | { status: 'unresolved' }
@@ -46,8 +48,8 @@ type ActivateCellAtCursorReason = 'rawModeExit' | 'cellReposition';
 export interface ActivateCellAtCursorOptions {
     clearIfOutside: boolean;
     ensureCursorVisibleIfNotActivated: boolean;
-    normalizeIfNeeded: boolean;
-    preserveMainSelection: boolean;
+    /** Lifecycle reactivation never repairs: the frame it runs in no longer owns the event. */
+    entryMode: Extract<CellEntryMode, 'enter' | 'adopt'>;
 }
 
 type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved';
@@ -229,15 +231,13 @@ function getActivateCellAtCursorOptions(reason: ActivateCellAtCursorReason): Act
         return {
             clearIfOutside: false,
             ensureCursorVisibleIfNotActivated: true,
-            normalizeIfNeeded: false,
-            preserveMainSelection: true,
+            entryMode: 'adopt',
         };
     }
 
     return {
         clearIfOutside: true,
         ensureCursorVisibleIfNotActivated: false,
-        normalizeIfNeeded: false,
-        preserveMainSelection: false,
+        entryMode: 'enter',
     };
 }

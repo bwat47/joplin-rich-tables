@@ -50,12 +50,25 @@ interface OpenCellRequestOptions {
     suppressKeys?: boolean;
 }
 
+/**
+ * How far an entry may go, from most to least.
+ *
+ * - `repair`: rewrite the table into canonical form if it needs it, then put the caret in the cell.
+ * - `enter`: put the caret in the cell, leaving the document as it stands.
+ * - `adopt`: leave the document and the caret alone; only re-establish the active cell.
+ *
+ * A ladder rather than separate flags: repairing the table without moving the caret would leave
+ * the preserved selection mapped through a whole-table replacement, which preserves nothing.
+ */
+export type CellEntryMode = 'repair' | 'enter' | 'adopt';
+
+const DEFAULT_CELL_ENTRY_MODE: CellEntryMode = 'repair';
+
 export interface RequestOpenCellParams extends OpenCellRequestOptions {
     resolvedCell: ResolvedActiveCell;
-    /** Fold canonical-form repair into this transaction when the table needs it (default true). */
-    normalizeIfNeeded?: boolean;
+    /** How far this entry may go (default `repair`). */
+    entryMode?: CellEntryMode;
     scrollIntoView?: boolean;
-    preserveMainSelection?: boolean;
 }
 
 let nextOpenCellRequestId = 1;
@@ -146,14 +159,15 @@ export function prepareOpenCellRequestTransaction(
     params: RequestOpenCellParams & { state: EditorState }
 ): PreparedOpenCellRequestTransaction {
     const requestId = params.requestId ?? createOpenCellRequestId();
+    const entryMode = params.entryMode ?? DEFAULT_CELL_ENTRY_MODE;
     const normalization =
-        params.normalizeIfNeeded === false
-            ? null
-            : planCellEntryNormalization({
+        entryMode === 'repair'
+            ? planCellEntryNormalization({
                   state: params.state,
                   ctx: params.resolvedCell.ctx,
                   coords: params.resolvedCell.activeCell,
-              });
+              })
+            : null;
 
     const activeCell = normalization?.target.activeCell ?? params.resolvedCell.activeCell;
     const selectionAnchor = normalization?.target.selectionAnchor ?? params.resolvedCell.editableFrom;
@@ -162,7 +176,7 @@ export function prepareOpenCellRequestTransaction(
         ...(normalization
             ? { changes: normalization.changes, annotations: normalizeBeforeEditAnnotation.of(true) }
             : {}),
-        ...(params.preserveMainSelection ? {} : { selection: { anchor: selectionAnchor } }),
+        ...(entryMode === 'adopt' ? {} : { selection: { anchor: selectionAnchor } }),
         effects: [
             ...buildOpenCellRequestEffects({ ...params, requestId, activeCell }),
             ...(normalization ? [rebuildTableWidgetsEffect.of(undefined)] : []),

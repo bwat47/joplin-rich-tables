@@ -288,8 +288,7 @@ describe('nestedEditorLifecycle', () => {
             doc.indexOf('| a2'),
             expect.objectContaining({
                 clearIfOutside: true,
-                normalizeIfNeeded: false,
-                preserveMainSelection: false,
+                entryMode: 'enter',
                 preferredActiveCell: activeCell,
             })
         );
@@ -323,8 +322,7 @@ describe('nestedEditorLifecycle', () => {
             insertedPrefix.length + doc.indexOf('| a2'),
             expect.objectContaining({
                 clearIfOutside: true,
-                normalizeIfNeeded: false,
-                preserveMainSelection: false,
+                entryMode: 'enter',
                 preferredActiveCell: {
                     ...activeCell,
                     tableFrom: insertedPrefix.length,
