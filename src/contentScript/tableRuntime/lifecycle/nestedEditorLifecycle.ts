@@ -11,7 +11,7 @@ import {
 } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -46,7 +46,6 @@ function ensureCursorVisible(view: EditorView): void {
 
 interface OpenRequestExecutionGuardResult {
     request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
-    resolvedActiveCell: ResolvedActiveCell;
     cellElement: HTMLElement;
 }
 
@@ -219,7 +218,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             return {
                 request,
-                resolvedActiveCell,
                 cellElement,
             };
         }
