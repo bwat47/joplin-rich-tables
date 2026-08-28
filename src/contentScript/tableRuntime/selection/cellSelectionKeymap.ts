@@ -6,7 +6,7 @@ import {
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { createActiveCellFromRanges } from '../activeCell/activeCellFactory';
+import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import {
     collapseCellSelectionOutOfTable,
     extendExistingCellSelection,
@@ -51,22 +51,15 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const nextActiveCell = createActiveCellFromRanges({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        target: selection.focus,
-    });
-    if (!nextActiveCell) {
+    const resolvedCell = resolveClampedCell({ ctx, target: selection.focus });
+    if (!resolvedCell) {
         return false;
     }
 
     requestOpenCell(view, {
-        target: {
-            activeCell: nextActiveCell.activeCell,
-            selectionAnchor: nextActiveCell.selectionAnchor,
-        },
+        state: view.state,
+        target: { resolvedCell },
         clearCellSelection: true,
-        normalizeIfNeeded: true,
         scrollIntoView: false,
     });
 

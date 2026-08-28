@@ -1,8 +1,10 @@
-import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, type ChangeDesc, type TransactionSpec } from '@codemirror/state';
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
 import { mapActiveCellThroughChanges, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
@@ -13,7 +15,6 @@ const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 export interface OpenCellRequest {
     requestId: string;
     activeCell: ActiveCell;
-    normalizeIfNeeded: boolean;
     initialCursorPos?: InitialCursorPos;
     suppressKeys: boolean;
 }
@@ -26,6 +27,11 @@ export interface OpenCellRequestSignal {
     requestId: string;
 }
 
+/**
+ * A cell resolved against the current document can be normalized on the way in. Bare
+ * coordinates cannot: they belong to a table the caller is about to create in the same
+ * transaction, so there is nothing in the current document to resolve them against.
+ */
 type OpenCellRequestTarget =
     | {
           activeCell: ActiveCell;
@@ -35,20 +41,22 @@ type OpenCellRequestTarget =
           resolvedCell: ResolvedActiveCell;
       };
 
+/** A transaction spec whose effects stay an array, so callers can extend them. */
+export interface PreparedOpenCellRequestTransaction extends TransactionSpec {
+    effects: StateEffect<unknown>[];
+}
+
 export interface RequestOpenCellParams {
+    state: EditorState;
     target: OpenCellRequestTarget;
     clearCellSelection?: boolean;
+    /** Fold canonical-form repair into this transaction when the table needs it (default true). */
     normalizeIfNeeded?: boolean;
     initialCursorPos?: InitialCursorPos;
     requestId?: string;
     suppressKeys?: boolean;
     scrollIntoView?: boolean;
     preserveMainSelection?: boolean;
-}
-
-export interface PreparedOpenCellRequestTransaction {
-    selection?: { anchor: number };
-    effects: StateEffect<unknown>[];
 }
 
 let nextOpenCellRequestId = 1;
@@ -107,19 +115,47 @@ function resolveOpenCellRequestTarget(target: OpenCellRequestTarget): {
     return target;
 }
 
+/** The repair this entry owes the table, or null when none is needed or wanted. */
+function planNormalization(params: RequestOpenCellParams) {
+    if (params.normalizeIfNeeded === false || !('resolvedCell' in params.target)) {
+        return null;
+    }
+
+    const { resolvedCell } = params.target;
+    return planCellEntryNormalization({
+        state: params.state,
+        ctx: resolvedCell.ctx,
+        coords: resolvedCell.activeCell,
+    });
+}
+
+/**
+ * Builds the whole entry as one transaction: the canonical-form repair the table needs,
+ * the active cell it lands on, and the request that opens it.
+ *
+ * Keeping the repair here rather than in a follow-up dispatch means the document change
+ * always belongs to the event that asked for the entry. A repair arriving a frame later
+ * reaches the host as an update it cannot order against the keystrokes around it, and the
+ * host writes a stale note body back over the editor.
+ */
 export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams): PreparedOpenCellRequestTransaction {
     const requestId = params.requestId ?? createOpenCellRequestId();
-    const normalizeIfNeeded = params.normalizeIfNeeded ?? true;
-    const { activeCell, selectionAnchor } = resolveOpenCellRequestTarget(params.target);
+    const normalization = planNormalization(params);
+    const { activeCell, selectionAnchor } = normalization
+        ? normalization.target
+        : resolveOpenCellRequestTarget(params.target);
+
     const request: OpenCellRequest = {
         requestId,
         activeCell,
-        normalizeIfNeeded,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: params.suppressKeys ?? false,
     };
 
     return {
+        ...(normalization
+            ? { changes: normalization.changes, annotations: normalizeBeforeEditAnnotation.of(true) }
+            : {}),
         ...(!params.preserveMainSelection && selectionAnchor != null ? { selection: { anchor: selectionAnchor } } : {}),
         effects: [
             ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
@@ -128,6 +164,7 @@ export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams)
             triggerOpenCellRequestEffect.of({
                 requestId,
             }),
+            ...(normalization ? [rebuildTableWidgetsEffect.of(undefined)] : []),
         ],
     };
 }

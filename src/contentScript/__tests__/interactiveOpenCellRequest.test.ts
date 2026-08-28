@@ -16,6 +16,9 @@ import {
     NON_CANONICAL_DOC,
 } from './interactiveTableTestHarness';
 
+/** What {@link NON_CANONICAL_DOC} becomes once entry repairs it, document padding included. */
+const NORMALIZED_DOC = `\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`;
+
 function findOpenRequest(spec: TransactionSpec) {
     const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
     return effects.find((effect) => effect?.is?.(triggerOpenCellRequestEffect)) ?? null;
@@ -27,7 +30,7 @@ function findBeginOpenRequest(spec: TransactionSpec) {
 }
 
 describe('interactive open-cell requests', () => {
-    it('requests normalization on mousedown cell activation before opening the nested editor', () => {
+    it('normalizes the table in the transaction a mousedown activation opens it with', () => {
         const { view, cells } = createInteractiveTableHarness();
         const event = {
             type: 'mousedown',
@@ -38,31 +41,27 @@ describe('interactive open-cell requests', () => {
         } as unknown as MouseEvent;
 
         expect(handleTableInteraction(view, event)).toBe(true);
-        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(NORMALIZED_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',
             row: 0,
             col: 0,
         });
 
-        const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(beginRequest?.value).toMatchObject({ normalizeIfNeeded: true });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
     });
 
-    it('requests normalization on cursor activation before opening the nested editor', () => {
+    it('normalizes the table in the transaction a cursor activation opens it with', () => {
         const { view } = createInteractiveTableHarness();
 
         expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'))).toBe(true);
-        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(NORMALIZED_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',
             row: 0,
             col: 0,
         });
 
-        const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(beginRequest?.value).toMatchObject({ normalizeIfNeeded: true });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
     });
 
@@ -73,7 +72,6 @@ describe('interactive open-cell requests', () => {
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
         const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(beginRequest?.value).toMatchObject({ normalizeIfNeeded: false });
         expect(openRequest?.value).toEqual({ requestId: beginRequest?.value?.requestId });
     });
 
@@ -100,7 +98,7 @@ describe('interactive open-cell requests', () => {
         });
     });
 
-    it('requests normalization on keyboard navigation before reopening the target cell', () => {
+    it('normalizes the table in the transaction keyboard navigation reopens a cell with', () => {
         const { view } = createInteractiveTableHarness({
             activeCell: {
                 tableFrom: 0,
@@ -111,7 +109,7 @@ describe('interactive open-cell requests', () => {
         });
 
         expect(navigateCell(view, 'next', { initialCursorPos: 'end' })).toBe(true);
-        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
+        expect(view.state.doc.toString()).toBe(NORMALIZED_DOC);
 
         const activeCell = getActiveCell(view.state);
         expect(activeCell).toMatchObject({
@@ -120,8 +118,6 @@ describe('interactive open-cell requests', () => {
             col: 1,
         });
 
-        const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(beginRequest?.value).toMatchObject({ normalizeIfNeeded: true });
         expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toMatchObject({
             activeCell,

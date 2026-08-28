@@ -203,9 +203,9 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     }
 
     requestOpenCell(view, {
+        state: view.state,
         target: { resolvedCell },
         clearCellSelection: hasSelection,
-        normalizeIfNeeded: true,
     });
 
     return true;

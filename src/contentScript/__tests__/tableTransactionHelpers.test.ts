@@ -113,7 +113,6 @@ describe('tableTransactionHelpers', () => {
         );
         expect(beginRequest?.value).toMatchObject({
             activeCell: { section: 'body', row: 1, col: 1 },
-            normalizeIfNeeded: false,
         });
         expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
     });

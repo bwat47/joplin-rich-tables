@@ -2,18 +2,20 @@
  * Shared cell activation logic for activating table cells and opening nested editors.
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
-import type { EditorState, TransactionSpec } from '@codemirror/state';
+import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
 import { resolveContainingTableAtPos, resolveTableContextAtPos } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../../tableModel/tableContext';
-import { createActiveCellFromRanges } from './activeCellFactory';
+import { resolveClampedCell } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
-import { prepareOpenCellRequestTransaction, requestOpenCell } from '../openCellRequest';
-import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from '../lifecycle/tableNormalization';
-import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import {
+    prepareOpenCellRequestTransaction,
+    requestOpenCell,
+    type PreparedOpenCellRequestTransaction,
+} from '../openCellRequest';
 import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
@@ -98,23 +100,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         activeCell: options?.preferredActiveCell ?? getActiveCell(view.state),
     });
 
-    const nextActiveCell = createActiveCellFromRanges({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        target: targetCell,
-    });
-    if (!nextActiveCell) {
-        if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-        return false;
-    }
-
-    const resolvedCell = createResolvedActiveCell({
-        ctx,
-        coords: nextActiveCell.activeCell,
-    });
-
+    const resolvedCell = resolveClampedCell({ ctx, target: targetCell });
     if (!resolvedCell) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
@@ -123,6 +109,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     requestOpenCell(view, {
+        state: view.state,
         target: { resolvedCell },
         normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
         preserveMainSelection: options?.preserveMainSelection ?? false,
@@ -175,46 +162,22 @@ export function activateTableCell(
  * range, so key repeat would otherwise walk it through the hidden Markdown.
  *
  * Any normalization the table needs is folded into this same transaction, so the whole
- * entry is one document change dispatched from the event that asked for it. The request
- * therefore never carries `normalizeIfNeeded`.
+ * entry is one document change dispatched from the event that asked for it.
  */
 export function prepareCellEntryTransaction(params: {
     state: EditorState;
     ctx: TableContext;
     coords: CellCoords;
     initialCursorPos?: InitialCursorPos;
-}): TransactionSpec | null {
-    const normalization = planCellEntryNormalization({
-        state: params.state,
-        ctx: params.ctx,
-        coords: params.coords,
-    });
-
-    if (normalization) {
-        const request = prepareOpenCellRequestTransaction({
-            target: normalization.target,
-            normalizeIfNeeded: false,
-            initialCursorPos: params.initialCursorPos,
-            suppressKeys: true,
-        });
-
-        return {
-            ...request,
-            changes: normalization.changes,
-            effects: [...request.effects, rebuildTableWidgetsEffect.of(undefined)],
-            annotations: normalizeBeforeEditAnnotation.of(true),
-            scrollIntoView: false,
-        };
-    }
-
+}): PreparedOpenCellRequestTransaction | null {
     const resolvedCell = createResolvedActiveCell({ ctx: params.ctx, coords: params.coords });
     if (!resolvedCell) {
         return null;
     }
 
     return prepareOpenCellRequestTransaction({
+        state: params.state,
         target: { resolvedCell },
-        normalizeIfNeeded: false,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: true,
     });

@@ -46,7 +46,6 @@ describe('openCellRequestField', () => {
             effects: beginOpenCellRequestEffect.of({
                 requestId: params?.requestId ?? 'request-1',
                 activeCell: params?.activeCell ?? activeCell,
-                normalizeIfNeeded: true,
                 suppressKeys: params?.suppressKeys ?? true,
             }),
         }).state;
@@ -57,7 +56,6 @@ describe('openCellRequestField', () => {
         expect(getPendingOpenCellRequest(state)).toMatchObject({
             requestId: 'request-1',
             activeCell,
-            normalizeIfNeeded: true,
         });
     });
 
@@ -104,7 +102,6 @@ describe('openCellRequestField', () => {
             effects: beginOpenCellRequestEffect.of({
                 requestId: 'request-1',
                 activeCell,
-                normalizeIfNeeded: true,
                 suppressKeys: true,
             }),
         }).state;
@@ -171,7 +168,6 @@ describe('openCellRequestField', () => {
             effects: beginOpenCellRequestEffect.of({
                 requestId: 'request-timeout',
                 activeCell,
-                normalizeIfNeeded: true,
                 suppressKeys: true,
             }),
         });

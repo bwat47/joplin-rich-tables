@@ -102,11 +102,13 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
     }
 
     const openTransaction = prepareOpenCellRequestTransaction({
+        // The coordinates below belong to the table this mutation is about to write, so
+        // there is nothing in the current document to resolve or normalize them against.
+        state: params.view.state,
         target: {
             activeCell: prepared.nextActiveCell.activeCell,
             selectionAnchor: prepared.nextActiveCell.selectionAnchor,
         },
-        normalizeIfNeeded: false,
         initialCursorPos: params.initialCursorPos,
         clearCellSelection: params.clearCellSelection,
         suppressKeys: params.suppressKeys,

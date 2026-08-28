@@ -11,7 +11,7 @@ import {
     classifyTableRuntimeFacts,
     type TableRuntimeExternalFacts,
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';

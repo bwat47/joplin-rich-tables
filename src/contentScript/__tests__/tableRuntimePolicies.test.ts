@@ -22,7 +22,7 @@ import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuar
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

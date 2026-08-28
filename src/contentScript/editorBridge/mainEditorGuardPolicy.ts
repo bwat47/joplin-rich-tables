@@ -6,7 +6,7 @@ import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import {
     buildMultiCellPasteRewrite,
     type TableClipboardRewrite,

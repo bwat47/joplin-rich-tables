@@ -257,15 +257,16 @@ describe('mainEditorTableEntry deletion protection', () => {
         // The spacing the table is missing is restored as part of entry rather than by a
         // follow-up a frame later, so the document settles within the keystroke.
         expect(view.state.doc.toString()).toBe(`${BEFORE}\n\n${TABLE}\n\n${AFTER}`);
-        expect(getPendingOpenCellRequest(view.state)).toMatchObject({ normalizeIfNeeded: false });
+        expectBoundaryCellOpen(view, 'start');
     });
 
-    it('leaves no repair owed when it enters an already canonical table', () => {
+    it('enters a canonical table without touching the document', () => {
         const view = mountView(ABOVE_TABLE_DOC, BEFORE.length);
 
         pressKey(view, 'Delete');
 
-        expect(getPendingOpenCellRequest(view.state)).toMatchObject({ normalizeIfNeeded: false });
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expectBoundaryCellOpen(view, 'start');
     });
 
     it('protects the table from a semantic deletion transaction without a physical key event', () => {

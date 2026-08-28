@@ -40,8 +40,11 @@ Rules that hold across both halves:
 - A cell editor holds one caret, so only one may enter: a multi-cursor deletion enters the first table in document order
   and drops the rest. Once entry is requested, key repeat is suppressed until the nested editor takes focus, so a held
   key cannot walk the main caret through the hidden Markdown.
-- For a ragged table the target is the edge cell that has a source range; normalization squares the table only after
-  that cell is activated.
+- For a ragged table the target is the edge cell that has a source range; the entry transaction squares the table and
+  remaps that cell in one step.
+- The blank line a table needs on each side counts as part of its boundary: a deletion that would drop the separation
+  below `REQUIRED_TABLE_BOUNDARY_BLANK_LINES` enters the edge cell instead. Surplus blank lines are ordinary text and
+  still delete one press at a time.
 - Arrow entry requires a lone empty caret in rendered mode with no live cell selection — anything else stays with the
   main editor. Vertical entry also has to recover the table a movement _skipped_, since CodeMirror scans past block
   widgets; see `resolveSkippedTableBlock`.
@@ -67,8 +70,9 @@ visibility.
 Rapid navigation races a new request against the previously requested cell mounting, so open-cell transitions are
 tracked in a `StateField` (`tableRuntime/openCellRequest.ts`) rather than a module-global lock.
 
-- The initiating action dispatches a request carrying target cell, cursor placement, normalization intent, and
-  key-suppression state; the lifecycle trigger carries only the request id.
+- The initiating action dispatches a request carrying target cell, cursor placement, and key-suppression state, plus
+  any canonical-form repair the table needed; the lifecycle trigger carries only the request id. Requests built from
+  bare coordinates (a structural mutation naming a table it is about to write) cannot be repaired this way and opt out.
 - Lifecycle re-reads the pending request, then completes it once the nested editor is open and focus has been handed
   off, or fails it when the open path aborts. A watchdog `ViewPlugin` fails stuck requests after 1 second.
 - Row creation uses the same path: one transaction updates table text, main-editor selection, active-cell state, and
