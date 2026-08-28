@@ -165,6 +165,10 @@ export function activateTableCell(
  *
  * Shared by the dispatching entry points and by the boundary-deletion transaction
  * filter, which can only return a spec.
+ *
+ * The request suppresses navigation keys: until the nested editor mounts and takes focus,
+ * the main editor still owns the keyboard with the caret parked in the table's replaced
+ * range, so key repeat would otherwise walk it through the hidden Markdown.
  */
 export function prepareCellEntryTransaction(params: {
     ctx: TableContext;
@@ -180,5 +184,6 @@ export function prepareCellEntryTransaction(params: {
         target: { resolvedCell },
         normalizeIfNeeded: true,
         initialCursorPos: params.initialCursorPos,
+        suppressKeys: true,
     });
 }

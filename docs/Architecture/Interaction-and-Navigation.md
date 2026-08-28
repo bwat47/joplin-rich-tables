@@ -38,7 +38,8 @@ Rules that hold across both halves:
   physical key bindings, so word- and line-wise deletes are covered while IME and soft-keyboard `input.type` stays under
   CodeMirror's platform behavior.
 - A cell editor holds one caret, so only one may enter: a multi-cursor deletion enters the first table in document order
-  and drops the rest, as do repeat deletions arriving before the requested cell opens.
+  and drops the rest. Once entry is requested, key repeat is suppressed until the nested editor takes focus, so a held
+  key cannot walk the main caret through the hidden Markdown.
 - For a ragged table the target is the edge cell that has a source range; normalization squares the table only after
   that cell is activated.
 - Arrow entry requires a lone empty caret in rendered mode with no live cell selection — anything else stays with the

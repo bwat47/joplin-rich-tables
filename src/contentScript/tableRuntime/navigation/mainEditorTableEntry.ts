@@ -6,7 +6,11 @@ import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { getPendingOpenCellRequest, type PreparedOpenCellRequestTransaction } from '../openCellRequest';
+import {
+    getPendingOpenCellRequest,
+    shouldSuppressNavigationKeys,
+    type PreparedOpenCellRequestTransaction,
+} from '../openCellRequest';
 import { resolveTableContextAtPos } from '../tableResolution';
 import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
@@ -254,6 +258,10 @@ function resolveVerticalEntryContext(
 }
 
 function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntryDirection): boolean {
+    if (shouldSuppressNavigationKeys(view.state)) {
+        return true;
+    }
+
     if (!canEnterFromArrowMovement(view.state)) {
         return false;
     }
@@ -284,6 +292,10 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
 }
 
 function activateTableAtHorizontalTarget(view: EditorView, direction: HorizontalEntryDirection): boolean {
+    if (shouldSuppressNavigationKeys(view.state)) {
+        return true;
+    }
+
     if (!canEnterFromArrowMovement(view.state)) {
         return false;
     }
@@ -314,6 +326,16 @@ function activateTableAtHorizontalTarget(view: EditorView, direction: Horizontal
     return true;
 }
 
+/**
+ * Arrow entry runs ahead of the main editor's own motion commands.
+ *
+ * Both handlers swallow the key while an entry request is in flight. The request settles a
+ * frame or more after dispatch, and until the nested editor mounts and takes focus the main
+ * editor still owns the keyboard with the caret parked in the table's replaced range, so key
+ * repeat would otherwise walk it through the hidden Markdown. This mirrors the Tab/Enter
+ * suppression in `openCellRequestKeymap` and the repeat-deletion guard in this module's
+ * transaction filter.
+ */
 const tableArrowEntryKeymap = Prec.highest(
     keymap.of([
         {

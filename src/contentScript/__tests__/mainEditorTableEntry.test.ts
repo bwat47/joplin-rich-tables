@@ -580,3 +580,58 @@ describe('mainEditorTableEntry horizontal movement', () => {
         expectCellOpen(view, { tableFrom, section: 'header', row: 0, col: 0 }, 'start');
     });
 });
+
+describe('mainEditorTableEntry key repeat', () => {
+    it('pins the caret when ArrowRight repeats while the entry request is in flight', () => {
+        const prefix = 'above\n';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, prefix.length);
+
+        pressKey(view, 'ArrowRight');
+        const headAfterEntry = view.state.selection.main.head;
+        pressKey(view, 'ArrowRight');
+        pressKey(view, 'ArrowRight');
+
+        expect(view.state.selection.main.head).toBe(headAfterEntry);
+        expectCellOpen(view, { tableFrom: prefix.length + 1, section: 'header', row: 0, col: 0 }, 'start');
+    });
+
+    it('pins the caret when ArrowDown repeats while the entry request is in flight', () => {
+        const prefix = 'above';
+        const doc = `${prefix}\n${TABLE}`;
+        const view = mountView(doc, prefix.length);
+        mockVerticalTarget(view, prefix.length + 1);
+
+        pressKey(view, 'ArrowDown');
+        const headAfterEntry = view.state.selection.main.head;
+        pressKey(view, 'ArrowDown');
+
+        expect(view.state.selection.main.head).toBe(headAfterEntry);
+        expectCellOpen(view, { tableFrom: prefix.length + 1, section: 'header', row: 0, col: 0 }, 'start');
+    });
+
+    it('pins the caret when an arrow follows a deletion that entered the table', () => {
+        const doc = `${TABLE}\n\nbelow`;
+        const view = mountView(doc, TABLE.length + 2);
+
+        pressKey(view, 'Backspace');
+        pressKey(view, 'Backspace');
+        const headAfterEntry = view.state.selection.main.head;
+        pressKey(view, 'ArrowRight');
+        pressKey(view, 'ArrowRight');
+
+        expect(view.state.selection.main.head).toBe(headAfterEntry);
+        expectBoundaryCellOpen(view, 'end');
+    });
+
+    it('leaves arrow keys to the main editor when no request is in flight', () => {
+        const doc = `above\n\n${TABLE}`;
+        const view = mountView(doc, 0);
+
+        pressKey(view, 'ArrowRight');
+        pressKey(view, 'ArrowRight');
+
+        expect(view.state.selection.main.head).toBe(2);
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+});
