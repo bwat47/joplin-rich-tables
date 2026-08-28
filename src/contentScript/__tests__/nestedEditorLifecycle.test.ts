@@ -114,13 +114,11 @@ function createLifecycleView(params: Parameters<typeof createLifecycleState>[0])
 function openRequestEffects(params: {
     requestId: string;
     activeCell: ActiveCell;
-    normalizeIfNeeded: boolean;
     initialCursorPos?: InitialCursorPos;
 }) {
     const request: OpenCellRequest = {
         requestId: params.requestId,
         activeCell: params.activeCell,
-        normalizeIfNeeded: params.normalizeIfNeeded,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: false,
     };
@@ -290,8 +288,7 @@ describe('nestedEditorLifecycle', () => {
             doc.indexOf('| a2'),
             expect.objectContaining({
                 clearIfOutside: true,
-                normalizeIfNeeded: false,
-                preserveMainSelection: false,
+                entryMode: 'enter',
                 preferredActiveCell: activeCell,
             })
         );
@@ -325,8 +322,7 @@ describe('nestedEditorLifecycle', () => {
             insertedPrefix.length + doc.indexOf('| a2'),
             expect.objectContaining({
                 clearIfOutside: true,
-                normalizeIfNeeded: false,
-                preserveMainSelection: false,
+                entryMode: 'enter',
                 preferredActiveCell: {
                     ...activeCell,
                     tableFrom: insertedPrefix.length,
@@ -377,7 +373,6 @@ describe('nestedEditorLifecycle', () => {
                 ...openRequestEffects({
                     requestId: 'request-direct',
                     activeCell,
-                    normalizeIfNeeded: false,
                     initialCursorPos: 'end',
                 }),
             ],
@@ -409,13 +404,11 @@ describe('nestedEditorLifecycle', () => {
                 ...openRequestEffects({
                     requestId: 'request-stale',
                     activeCell,
-                    normalizeIfNeeded: false,
                     initialCursorPos: 'start',
                 }),
                 ...openRequestEffects({
                     requestId: 'request-latest',
                     activeCell,
-                    normalizeIfNeeded: false,
                     initialCursorPos: 'end',
                 }),
             ],
@@ -448,7 +441,6 @@ describe('nestedEditorLifecycle', () => {
                 ...openRequestEffects({
                     requestId: 'request-missing-cell',
                     activeCell,
-                    normalizeIfNeeded: false,
                 }),
             ],
         });
@@ -476,7 +468,10 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('normalizes before opening and preserves pending cursor placement', () => {
+    it('opens a requested cell without repairing the document itself', () => {
+        // Entry transactions carry whatever repair the table needs, so nothing here may
+        // rewrite the document a frame later: the host cannot order a late rewrite against
+        // the keystrokes around it and writes a stale note body back over the editor.
         const activeCell = headerCell({
             section: 'header',
             row: 0,
@@ -485,43 +480,20 @@ describe('nestedEditorLifecycle', () => {
         const view = createLifecycleView({
             doc: NON_CANONICAL_DOC,
         });
-        const dispatchSpy = vi.spyOn(view, 'dispatch');
 
         view.dispatch({
             effects: [
                 setActiveCellEffect.of(activeCell),
                 ...openRequestEffects({
-                    requestId: 'request-normalize',
+                    requestId: 'request-no-repair',
                     activeCell,
-                    normalizeIfNeeded: true,
                     initialCursorPos: 'end',
                 }),
             ],
         });
         flushAnimationFrames();
 
-        expect(view.state.doc.toString()).toBe(`\n${CANONICAL_DOC}\n`);
-
-        const normalizedOpenDispatch = dispatchSpy.mock.calls
-            .map((call) => call[0])
-            .find((spec) => {
-                const effects = Array.isArray(spec?.effects) ? spec.effects : [spec?.effects];
-                return (
-                    effects.some(
-                        (effect) =>
-                            effect?.is?.(beginOpenCellRequestEffect) &&
-                            effect.value?.requestId === 'request-normalize' &&
-                            effect.value?.normalizeIfNeeded === false
-                    ) &&
-                    effects.some(
-                        (effect) =>
-                            effect?.is?.(triggerOpenCellRequestEffect) &&
-                            effect.value?.requestId === 'request-normalize'
-                    )
-                );
-            });
-
-        expect(normalizedOpenDispatch).toBeDefined();
+        expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
@@ -530,50 +502,6 @@ describe('nestedEditorLifecycle', () => {
             })
         );
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
-
-        view.destroy();
-    });
-
-    it('adds missing blank lines around a normalized table and remaps the active cell', () => {
-        const doc = `before\n${NON_CANONICAL_DOC}\nafter`;
-        const initialTableFrom = 'before\n'.length;
-        const normalizedTableFrom = 'before\n\n'.length;
-        const activeCell = headerCell({
-            tableFrom: initialTableFrom,
-            section: 'body',
-            row: 0,
-            col: 1,
-        });
-        const view = createLifecycleView({
-            doc,
-        });
-
-        view.dispatch({
-            effects: [
-                setActiveCellEffect.of(activeCell),
-                ...openRequestEffects({
-                    requestId: 'request-normalize-boundaries',
-                    activeCell,
-                    normalizeIfNeeded: true,
-                    initialCursorPos: 'end',
-                }),
-            ],
-        });
-        flushAnimationFrames();
-
-        expect(view.state.doc.toString()).toBe(`before\n\n${CANONICAL_DOC}\n\nafter`);
-        expect(getActiveCell(view.state)).toMatchObject({
-            tableFrom: normalizedTableFrom,
-            section: 'body',
-            row: 0,
-            col: 1,
-        });
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
-            expect.objectContaining({
-                mainView: view,
-                initialCursorPos: 'end',
-            })
-        );
 
         view.destroy();
     });
@@ -592,7 +520,6 @@ describe('nestedEditorLifecycle', () => {
                 ...openRequestEffects({
                     requestId: 'request-remapped-before-open',
                     activeCell,
-                    normalizeIfNeeded: false,
                 }),
             ],
         });
@@ -737,7 +664,6 @@ describe('nestedEditorLifecycle', () => {
                 ...openRequestEffects({
                     requestId: 'request-structural-reopen',
                     activeCell: nextCell,
-                    normalizeIfNeeded: false,
                 }),
             ],
         });

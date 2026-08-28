@@ -259,7 +259,8 @@ describe('cellSelectionKeymap', () => {
     it.each([{ key: 'Tab' as const }, { key: 'Enter' as const }])(
         'activates the focus cell editor on $key while multi-cell selection is active',
         ({ key }) => {
-            const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+            const table = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+            const view = mountSelectionView(table);
 
             const dispatchSpy = vi.spyOn(view, 'dispatch');
             view.dispatch({
@@ -273,8 +274,10 @@ describe('cellSelectionKeymap', () => {
             pressKey({ key });
 
             expect(getCellSelection(view.state)).toBeNull();
+            // The fixture table sits flush against both document edges, so entry pads it.
+            expect(view.state.doc.toString()).toBe(`\n${table}\n`);
             expect(getActiveCell(view.state)).toMatchObject({
-                tableFrom: 0,
+                tableFrom: view.state.doc.toString().indexOf(table),
                 section: 'body',
                 row: 0,
                 col: 1,

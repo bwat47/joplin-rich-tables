@@ -6,7 +6,7 @@ import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tabl
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/lifecycle/tableNormalization';
+import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
 
 export type DecorationDecision =

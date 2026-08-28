@@ -1,8 +1,10 @@
-import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, type ChangeDesc, type TransactionSpec } from '@codemirror/state';
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
 import { mapActiveCellThroughChanges, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
@@ -13,7 +15,6 @@ const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 export interface OpenCellRequest {
     requestId: string;
     activeCell: ActiveCell;
-    normalizeIfNeeded: boolean;
     initialCursorPos?: InitialCursorPos;
     suppressKeys: boolean;
 }
@@ -26,29 +27,48 @@ export interface OpenCellRequestSignal {
     requestId: string;
 }
 
-type OpenCellRequestTarget =
-    | {
-          activeCell: ActiveCell;
-          selectionAnchor?: number;
-      }
-    | {
-          resolvedCell: ResolvedActiveCell;
-      };
+/** A transaction spec whose effects stay an array, so callers can extend them. */
+export interface PreparedOpenCellRequestTransaction extends TransactionSpec {
+    effects: StateEffect<unknown>[];
+}
 
-export interface RequestOpenCellParams {
-    target: OpenCellRequestTarget;
+/**
+ * Selection and effects that attach an open request to a transaction the caller owns.
+ *
+ * Deliberately not a `TransactionSpec`: the caller merges this into its own spec, so the
+ * type must not be able to carry a `changes` key that would override the caller's.
+ */
+export interface OpenCellRequestAttachment {
+    selection?: { anchor: number };
+    effects: StateEffect<unknown>[];
+}
+
+interface OpenCellRequestOptions {
     clearCellSelection?: boolean;
-    normalizeIfNeeded?: boolean;
     initialCursorPos?: InitialCursorPos;
     requestId?: string;
     suppressKeys?: boolean;
-    scrollIntoView?: boolean;
-    preserveMainSelection?: boolean;
 }
 
-export interface PreparedOpenCellRequestTransaction {
-    selection?: { anchor: number };
-    effects: StateEffect<unknown>[];
+/**
+ * How far an entry may go, from most to least.
+ *
+ * - `repair`: rewrite the table into canonical form if it needs it, then put the caret in the cell.
+ * - `enter`: put the caret in the cell, leaving the document as it stands.
+ * - `adopt`: leave the document and the caret alone; only re-establish the active cell.
+ *
+ * A ladder rather than separate flags: repairing the table without moving the caret would leave
+ * the preserved selection mapped through a whole-table replacement, which preserves nothing.
+ */
+export type CellEntryMode = 'repair' | 'enter' | 'adopt';
+
+const DEFAULT_CELL_ENTRY_MODE: CellEntryMode = 'repair';
+
+export interface RequestOpenCellParams extends OpenCellRequestOptions {
+    resolvedCell: ResolvedActiveCell;
+    /** How far this entry may go (default `repair`). */
+    entryMode?: CellEntryMode;
+    scrollIntoView?: boolean;
 }
 
 let nextOpenCellRequestId = 1;
@@ -93,48 +113,80 @@ export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
 export const clearOpenCellRequestEffect = StateEffect.define<ClearOpenCellRequest>();
 export const triggerOpenCellRequestEffect = StateEffect.define<OpenCellRequestSignal>();
 
-function resolveOpenCellRequestTarget(target: OpenCellRequestTarget): {
-    activeCell: ActiveCell;
-    selectionAnchor?: number;
-} {
-    if ('resolvedCell' in target) {
-        return {
-            activeCell: target.resolvedCell.activeCell,
-            selectionAnchor: target.resolvedCell.editableFrom,
-        };
-    }
-
-    return target;
+function buildOpenCellRequestEffects(
+    params: OpenCellRequestOptions & { requestId: string; activeCell: ActiveCell }
+): StateEffect<unknown>[] {
+    return [
+        ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+        setActiveCellEffect.of(params.activeCell),
+        beginOpenCellRequestEffect.of({
+            requestId: params.requestId,
+            activeCell: params.activeCell,
+            initialCursorPos: params.initialCursorPos,
+            suppressKeys: params.suppressKeys ?? false,
+        }),
+        triggerOpenCellRequestEffect.of({ requestId: params.requestId }),
+    ];
 }
 
-export function prepareOpenCellRequestTransaction(params: RequestOpenCellParams): PreparedOpenCellRequestTransaction {
+/**
+ * Attaches an open request for bare coordinates to a transaction the caller owns.
+ *
+ * The coordinates belong to a table the caller is about to write, so there is nothing in
+ * the current document to resolve or repair them against: this path never normalizes.
+ */
+export function prepareOpenCellRequestAttachment(
+    params: OpenCellRequestOptions & { activeCell: ActiveCell; selectionAnchor?: number }
+): OpenCellRequestAttachment {
     const requestId = params.requestId ?? createOpenCellRequestId();
-    const normalizeIfNeeded = params.normalizeIfNeeded ?? true;
-    const { activeCell, selectionAnchor } = resolveOpenCellRequestTarget(params.target);
-    const request: OpenCellRequest = {
-        requestId,
-        activeCell,
-        normalizeIfNeeded,
-        initialCursorPos: params.initialCursorPos,
-        suppressKeys: params.suppressKeys ?? false,
-    };
 
     return {
-        ...(!params.preserveMainSelection && selectionAnchor != null ? { selection: { anchor: selectionAnchor } } : {}),
+        ...(params.selectionAnchor != null ? { selection: { anchor: params.selectionAnchor } } : {}),
+        effects: buildOpenCellRequestEffects({ ...params, requestId }),
+    };
+}
+
+/**
+ * Builds the whole entry as one transaction: the canonical-form repair the table needs,
+ * the active cell it lands on, and the request that opens it.
+ *
+ * Keeping the repair here rather than in a follow-up dispatch means the document change
+ * always belongs to the event that asked for the entry. A repair arriving a frame later
+ * reaches the host as an update it cannot order against the keystrokes around it, and the
+ * host writes a stale note body back over the editor.
+ */
+export function prepareOpenCellRequestTransaction(
+    params: RequestOpenCellParams & { state: EditorState }
+): PreparedOpenCellRequestTransaction {
+    const requestId = params.requestId ?? createOpenCellRequestId();
+    const entryMode = params.entryMode ?? DEFAULT_CELL_ENTRY_MODE;
+    const normalization =
+        entryMode === 'repair'
+            ? planCellEntryNormalization({
+                  state: params.state,
+                  ctx: params.resolvedCell.ctx,
+                  coords: params.resolvedCell.activeCell,
+              })
+            : null;
+
+    const activeCell = normalization?.target.activeCell ?? params.resolvedCell.activeCell;
+    const selectionAnchor = normalization?.target.selectionAnchor ?? params.resolvedCell.editableFrom;
+
+    return {
+        ...(normalization
+            ? { changes: normalization.changes, annotations: normalizeBeforeEditAnnotation.of(true) }
+            : {}),
+        ...(entryMode === 'adopt' ? {} : { selection: { anchor: selectionAnchor } }),
         effects: [
-            ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
-            setActiveCellEffect.of(activeCell),
-            beginOpenCellRequestEffect.of(request),
-            triggerOpenCellRequestEffect.of({
-                requestId,
-            }),
+            ...buildOpenCellRequestEffects({ ...params, requestId, activeCell }),
+            ...(normalization ? [rebuildTableWidgetsEffect.of(undefined)] : []),
         ],
     };
 }
 
 export function requestOpenCell(view: EditorView, params: RequestOpenCellParams): void {
     view.dispatch({
-        ...prepareOpenCellRequestTransaction(params),
+        ...prepareOpenCellRequestTransaction({ ...params, state: view.state }),
         scrollIntoView: params.scrollIntoView ?? false,
     });
 }

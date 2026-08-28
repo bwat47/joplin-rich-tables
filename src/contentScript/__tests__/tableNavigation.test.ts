@@ -20,6 +20,13 @@ vi.mock('../tableRuntime/operations/structuralOperations', () => ({
     insertRowAtBottom: vi.fn(),
 }));
 
+/**
+ * The stub table serializes to exactly what it already spans, padding included, so entry
+ * finds nothing to repair and these tests stay about navigation targets.
+ */
+const TABLE_TEXT = '| header |\n| --- |\n| body |';
+const PADDED_TABLE_TEXT = `\n${TABLE_TEXT}\n`;
+
 describe('navigateCell', () => {
     let mockView: EditorView;
     let mockState: EditorState;
@@ -28,7 +35,7 @@ describe('navigateCell', () => {
         from: number;
         to: number;
         text: string;
-        table: Record<string, never>;
+        table: { serialize: () => string };
         cellRanges: {
             headers: Array<Record<string, never>>;
             rows: Array<Array<Record<string, never>>>;
@@ -40,7 +47,10 @@ describe('navigateCell', () => {
         currentCtx = null;
         mockState = {
             field: vi.fn(),
-            doc: { length: 100 },
+            doc: {
+                length: 100,
+                sliceString: () => '',
+            },
         } as unknown as EditorState;
 
         mockView = {
@@ -80,8 +90,8 @@ describe('navigateCell', () => {
         currentCtx = {
             from: 0,
             to: 100,
-            text: '| header |\n| --- |\n| body |',
-            table: {},
+            text: PADDED_TABLE_TEXT,
+            table: { serialize: () => TABLE_TEXT },
             cellRanges: {
                 headers,
                 rows: bodyRows,
@@ -90,6 +100,7 @@ describe('navigateCell', () => {
 
         (resolveCellWithinResolvedTable as Mock).mockImplementation(
             (_resolved: unknown, target: { section: 'header' | 'body'; row: number; col: number }) => ({
+                ctx: currentCtx,
                 activeCell: {
                     tableFrom: 0,
                     section: target.section,
@@ -152,13 +163,11 @@ describe('navigateCell', () => {
             row: 0,
             col: 1,
         });
-        expect(getBeginRequestValue()).toMatchObject({
-            normalizeIfNeeded: true,
-        });
-        expect(getOpenRequestValue()).toEqual({ requestId: getBeginRequestValue().requestId });
-        expect(getBeginRequestValue()).toMatchObject({
+        const beginRequest = getBeginRequestValue();
+        expect(beginRequest).toMatchObject({
             suppressKeys: true,
         });
+        expect(getOpenRequestValue()).toEqual({ requestId: beginRequest.requestId });
         expect(mockDispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 selection: { anchor: 10 },

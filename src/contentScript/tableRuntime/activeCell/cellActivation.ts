@@ -2,17 +2,19 @@
  * Shared cell activation logic for activating table cells and opening nested editors.
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
+import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
 import { resolveContainingTableAtPos, resolveTableContextAtPos } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../../tableModel/tableContext';
-import { createActiveCellFromRanges } from './activeCellFactory';
+import { resolveClampedCell } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
 import {
     prepareOpenCellRequestTransaction,
     requestOpenCell,
+    type CellEntryMode,
     type PreparedOpenCellRequestTransaction,
 } from '../openCellRequest';
 import type { CellCoords } from '../../tableModel/types';
@@ -21,10 +23,8 @@ import type { InitialCursorPos } from '../../shared/cursorPlacement';
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */
     clearIfOutside?: boolean;
-    /** If true, normalize non-canonical tables before opening the nested editor (default: true) */
-    normalizeIfNeeded?: boolean;
-    /** If true, preserve the current main-editor selection when requesting the nested editor open */
-    preserveMainSelection?: boolean;
+    /** How far this entry may go (default `repair`). */
+    entryMode?: CellEntryMode;
     /** Optional fallback identity used when the cursor lands on table structure during lifecycle-driven reactivation */
     preferredActiveCell?: ActiveCell | null;
 }
@@ -99,23 +99,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         activeCell: options?.preferredActiveCell ?? getActiveCell(view.state),
     });
 
-    const nextActiveCell = createActiveCellFromRanges({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        target: targetCell,
-    });
-    if (!nextActiveCell) {
-        if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-        return false;
-    }
-
-    const resolvedCell = createResolvedActiveCell({
-        ctx,
-        coords: nextActiveCell.activeCell,
-    });
-
+    const resolvedCell = resolveClampedCell({ ctx, target: targetCell });
     if (!resolvedCell) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
@@ -124,9 +108,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     requestOpenCell(view, {
-        target: { resolvedCell },
-        normalizeIfNeeded: options?.normalizeIfNeeded ?? true,
-        preserveMainSelection: options?.preserveMainSelection ?? false,
+        resolvedCell,
+        entryMode: options?.entryMode,
     });
 
     return true;
@@ -152,7 +135,12 @@ export function activateTableCell(
     const ctx = resolveTableContextAtPos(view.state, tableFrom);
     if (!ctx) return false;
 
-    const spec = prepareCellEntryTransaction({ ctx, coords, initialCursorPos: options.initialCursorPos });
+    const spec = prepareCellEntryTransaction({
+        state: view.state,
+        ctx,
+        coords,
+        initialCursorPos: options.initialCursorPos,
+    });
     if (!spec) return false;
 
     view.dispatch(spec);
@@ -169,8 +157,12 @@ export function activateTableCell(
  * The request suppresses navigation keys: until the nested editor mounts and takes focus,
  * the main editor still owns the keyboard with the caret parked in the table's replaced
  * range, so key repeat would otherwise walk it through the hidden Markdown.
+ *
+ * Any normalization the table needs is folded into this same transaction, so the whole
+ * entry is one document change dispatched from the event that asked for it.
  */
 export function prepareCellEntryTransaction(params: {
+    state: EditorState;
     ctx: TableContext;
     coords: CellCoords;
     initialCursorPos?: InitialCursorPos;
@@ -181,8 +173,8 @@ export function prepareCellEntryTransaction(params: {
     }
 
     return prepareOpenCellRequestTransaction({
-        target: { resolvedCell },
-        normalizeIfNeeded: true,
+        state: params.state,
+        resolvedCell,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: true,
     });

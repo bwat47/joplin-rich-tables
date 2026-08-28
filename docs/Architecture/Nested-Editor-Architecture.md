@@ -18,8 +18,13 @@ Managed by `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts`.
 
 `setActiveCellEffect` stores stable logical cell identity: `tableFrom` plus `section/row/col`. Any cursor placement for
 opening is passed separately as transient selection-anchor data. The lifecycle plugin resolves raw table/cell offsets from
-current editor state immediately before opening the isolated editor, including the one-time normalization-before-open
-check for user-driven entry. Ongoing mount/sync/close behavior is handled by `nestedEditor/nestedEditorController.ts`.
+current editor state immediately before opening the isolated editor. Ongoing mount/sync/close behavior is handled by
+`nestedEditor/nestedEditorController.ts`.
+
+Entry transactions carry any canonical-form repair the table needs (`tableRuntime/tableCanonicalForm.ts`), so the whole
+entry is one document change belonging to the event that asked for it. Repairing a frame later instead reaches the host
+as an update it cannot order against the surrounding keystrokes, and Joplin writes a stale note body back over the
+editor — which tears down the nested editor.
 
 Mounting: ensureSyntaxTree (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
@@ -49,9 +54,8 @@ lifecycle plugin owns nested-editor side effects.
 1. User types in the isolated editor.
 2. `NestedEditorSession` uses `editorBridge/cellTextCodec.ts` to sanitize local display text (`\n` -> `<br>`, `|` -> `\|`) and map the local selection into root cell coordinates.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
-4. If normalization rewrites the whole table first, it also dispatches a reopen intent so lifecycle can reopen after rebuild.
-5. After root dispatch, the session refreshes its `ResolvedActiveCell` from the current active-cell identity.
-6. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
+4. After root dispatch, the session refreshes its `ResolvedActiveCell` from the current active-cell identity.
+5. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
 
 ### Selection Sync
 

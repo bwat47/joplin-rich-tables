@@ -65,8 +65,7 @@ export function navigateCell(
     }
 
     requestOpenCell(view, {
-        target: { resolvedCell: nextResolvedCell },
-        normalizeIfNeeded: true,
+        resolvedCell: nextResolvedCell,
         initialCursorPos: options.initialCursorPos,
         suppressKeys: true,
     });

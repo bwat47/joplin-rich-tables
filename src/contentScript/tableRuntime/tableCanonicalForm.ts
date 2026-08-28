@@ -1,22 +1,18 @@
 import { Annotation } from '@codemirror/state';
-import type { EditorState, TransactionSpec } from '@codemirror/state';
-import type { TableContext } from '../../tableModel/tableContext';
-import { setActiveCellEffect } from '../../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import {
-    beginOpenCellRequestEffect,
-    getOpenCellRequestById,
-    triggerOpenCellRequestEffect,
-    type OpenCellRequest,
-} from '../openCellRequest';
+import type { EditorState } from '@codemirror/state';
+import type { TableContext } from '../tableModel/tableContext';
+import type { CellCoords } from '../tableModel/types';
+import { createActiveCellForTableText, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
 import {
     countLeadingBlankLinesAfterBoundary,
     countTrailingBlankLinesBeforeBoundary,
     REQUIRED_TABLE_BOUNDARY_BLANK_LINES,
-} from '../tableBoundarySpacing';
+} from './tableBoundarySpacing';
 
+/**
+ * Marks a transaction that rewrites a table into canonical form as part of entering it.
+ * Widget and guard policies use it to tell that rewrite apart from a user edit.
+ */
 export const normalizeBeforeEditAnnotation = Annotation.define<boolean>();
 
 interface NormalizedTableReplacement {
@@ -33,8 +29,12 @@ interface TableBoundaryPadding {
     suffix: string;
 }
 
-export type NormalizeTableBeforeOpenPlan =
-    { type: 'not-needed' } | { type: 'aborted' } | { type: 'dispatch'; spec: TransactionSpec };
+/** Canonical-form repair to fold into the transaction that enters a cell. */
+export interface CellEntryNormalization {
+    changes: { from: number; to: number; insert: string };
+    /** Where the entered cell lands once the replacement is applied. */
+    target: ActiveCellSelectionTarget;
+}
 
 /**
  * Blank-line padding the table needs to stay separated from its surroundings.
@@ -83,55 +83,39 @@ function getNormalizedTableReplacementIfChanged(
     };
 }
 
-export function planNormalizeTableBeforeOpen(params: {
+/**
+ * Normalization to apply in the same transaction that enters `coords`, or null when the
+ * table is already canonical or `coords` cannot be mapped into the repaired text.
+ *
+ * Entry transactions are dispatched from the event that triggered them, so folding the
+ * repair in keeps the document change on that event. Repairing a frame later instead
+ * leaves the host holding a note body the editor has already moved past, which it then
+ * writes back over the newer document.
+ */
+export function planCellEntryNormalization(params: {
     state: EditorState;
-    resolvedActiveCell: ResolvedActiveCell;
-    request: OpenCellRequest;
-}): NormalizeTableBeforeOpenPlan {
-    const currentRequest = getOpenCellRequestById(params.state, params.request.requestId);
-    if (!currentRequest) {
-        return { type: 'aborted' };
-    }
-
-    if (!currentRequest.normalizeIfNeeded) {
-        return { type: 'not-needed' };
-    }
-
-    const replacement = getNormalizedTableReplacementIfChanged(params.state, params.resolvedActiveCell.ctx);
+    ctx: Pick<TableContext, 'from' | 'to' | 'table' | 'text'>;
+    coords: CellCoords;
+}): CellEntryNormalization | null {
+    const replacement = getNormalizedTableReplacementIfChanged(params.state, params.ctx);
     if (!replacement) {
-        return { type: 'not-needed' };
+        return null;
     }
 
-    const nextActiveCell = createActiveCellForTableText({
+    const target = createActiveCellForTableText({
         tableFrom: replacement.tableFrom,
         tableText: replacement.tableText,
-        target: params.resolvedActiveCell.activeCell,
+        target: params.coords,
     });
-    if (!nextActiveCell) {
-        return { type: 'aborted' };
+    // Dropping the repair keeps the entry alive: the cell still opens, against the table as it
+    // stands. `serialize()` widens rows rather than dropping columns, so a source-backed cell
+    // always maps - this is a guard, not an expected path.
+    if (!target) {
+        return null;
     }
 
     return {
-        type: 'dispatch',
-        spec: {
-            changes: {
-                from: replacement.from,
-                to: replacement.to,
-                insert: replacement.insert,
-            },
-            selection: { anchor: nextActiveCell.selectionAnchor },
-            effects: [
-                setActiveCellEffect.of(nextActiveCell.activeCell),
-                beginOpenCellRequestEffect.of({
-                    ...currentRequest,
-                    activeCell: nextActiveCell.activeCell,
-                    normalizeIfNeeded: false,
-                }),
-                triggerOpenCellRequestEffect.of({ requestId: currentRequest.requestId }),
-                rebuildTableWidgetsEffect.of(undefined),
-            ],
-            annotations: normalizeBeforeEditAnnotation.of(true),
-            scrollIntoView: false,
-        },
+        changes: { from: replacement.from, to: replacement.to, insert: replacement.insert },
+        target,
     };
 }

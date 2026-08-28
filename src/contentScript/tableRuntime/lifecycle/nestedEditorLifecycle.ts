@@ -11,7 +11,7 @@ import {
 } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { rebuildAllTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -22,7 +22,6 @@ import { findCellElement } from '../../tableWidget/domHelpers';
 import { makeTableId } from '../../tableModel/types';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
-import { planNormalizeTableBeforeOpen } from './tableNormalization';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
@@ -47,7 +46,6 @@ function ensureCursorVisible(view: EditorView): void {
 
 interface OpenRequestExecutionGuardResult {
     request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
-    resolvedActiveCell: ResolvedActiveCell;
     cellElement: HTMLElement;
 }
 
@@ -141,8 +139,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 if (!activateOptions.clearIfOutside && isEffectiveRawMode(this.view.state)) return;
                 activateCellAtPosition(this.view, cursorPos, {
                     clearIfOutside: activateOptions.clearIfOutside,
-                    normalizeIfNeeded: activateOptions.normalizeIfNeeded,
-                    preserveMainSelection: activateOptions.preserveMainSelection,
+                    entryMode: activateOptions.entryMode,
                     preferredActiveCell,
                 });
                 if (activateOptions.ensureCursorVisibleIfNotActivated && !getActiveCell(this.view.state)) {
@@ -166,20 +163,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             requestViewAnimationFrame(this.view, () => {
                 const guardResult = this.validateOpenRequestForExecution(requestId);
                 if (!guardResult) {
-                    return;
-                }
-
-                const normalizePlan = planNormalizeTableBeforeOpen({
-                    state: this.view.state,
-                    resolvedActiveCell: guardResult.resolvedActiveCell,
-                    request: guardResult.request,
-                });
-                if (normalizePlan.type === 'dispatch') {
-                    this.view.dispatch(normalizePlan.spec);
-                    return;
-                }
-                if (normalizePlan.type === 'aborted') {
-                    this.failOpenRequest(requestId);
                     return;
                 }
 
@@ -234,7 +217,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             return {
                 request,
-                resolvedActiveCell,
                 cellElement,
             };
         }
