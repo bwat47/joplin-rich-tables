@@ -36,6 +36,13 @@ interface BoundaryEntryTarget {
     side: TableSide;
 }
 
+/** An old-document range a deletion removes, and whether it also inserts. */
+interface DeletedSpan {
+    from: number;
+    to: number;
+    insertsText: boolean;
+}
+
 // A rendered widget implies that table parsing has already completed. Keyboard
 // entry must never block waiting for syntax work on the keyboard event path.
 const TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS = 0;
@@ -70,6 +77,11 @@ function getDeletionDirection(transaction: Transaction): DeletionDirection | nul
     }
 
     return null;
+}
+
+/** Offset of the character a one-step deletion at `head` removes. */
+function deletedCharOffset(head: number, direction: DeletionDirection): number {
+    return direction === 'forward' ? head : head - 1;
 }
 
 function resolveSourceEdgeCellCoords(ctx: TableContext, edges: EdgeCellTarget): CellCoords | null {
@@ -138,7 +150,7 @@ function resolveDeletionTargetTable(
     }
 
     const state = transaction.startState;
-    const deletedCharFrom = range.head + (direction === 'forward' ? 0 : -1);
+    const deletedCharFrom = deletedCharOffset(range.head, direction);
     if (deletedCharFrom < 0 || deletedCharFrom >= state.doc.length) {
         return null;
     }
@@ -186,15 +198,18 @@ function countNewlinesForward(state: EditorState, pos: number, limit: number): n
     return count;
 }
 
-/** True when a changed old-document range strictly overlaps `[from, to)`. */
-function changesOverlapRange(transaction: Transaction, from: number, to: number): boolean {
-    let overlaps = false;
-    transaction.changes.iterChangedRanges((changedFrom, changedTo) => {
+/**
+ * The changed old-document range strictly overlapping `[from, to)`, or null.
+ * Change ranges are disjoint, so at most one can overlap a single character.
+ */
+function resolveOverlappingChange(transaction: Transaction, from: number, to: number): DeletedSpan | null {
+    let overlapping: DeletedSpan | null = null;
+    transaction.changes.iterChanges((changedFrom, changedTo, _insertedFrom, _insertedTo, inserted) => {
         if (changedFrom < to && changedTo > from) {
-            overlaps = true;
+            overlapping = { from: changedFrom, to: changedTo, insertsText: inserted.length > 0 };
         }
     });
-    return overlaps;
+    return overlapping;
 }
 
 /**
@@ -218,6 +233,14 @@ function resolveAdjoiningTable(
     }
 
     return null;
+}
+
+/** The newlines beside the table edge that a deletion moving away from it must leave in place. */
+function resolveProtectedSeparator(state: EditorState, target: BoundaryEntryTarget): { from: number; to: number } {
+    const { ctx, side } = target;
+    return side === 'after'
+        ? { from: ctx.from - countNewlinesBackward(state, ctx.from, PROTECTED_BOUNDARY_NEWLINES), to: ctx.from }
+        : { from: ctx.to, to: ctx.to + countNewlinesForward(state, ctx.to, PROTECTED_BOUNDARY_NEWLINES) };
 }
 
 /**
@@ -245,16 +268,16 @@ function resolveBoundarySeparatorTable(
     }
 
     const state = transaction.startState;
-    const deletedFrom = range.head + (direction === 'forward' ? 0 : -1);
+    const deletedFrom = deletedCharOffset(range.head, direction);
     if (deletedFrom < 0 || deletedFrom >= state.doc.length) {
         return null;
     }
     if (state.doc.sliceString(deletedFrom, deletedFrom + 1) !== '\n') {
         return null;
     }
-    // `touchesRange` includes changes adjacent to either endpoint. Boundary protection only
-    // applies when the deletion actually consumes this newline.
-    if (!changesOverlapRange(transaction, deletedFrom, deletedFrom + 1)) {
+    // Boundary protection only applies when the deletion actually consumes this newline,
+    // not when it merely stops next to it.
+    if (!resolveOverlappingChange(transaction, deletedFrom, deletedFrom + 1)) {
         return null;
     }
 
@@ -273,17 +296,63 @@ function resolveBoundarySeparatorTable(
     return resolveAdjoiningTable(state, runFrom, runTo, direction);
 }
 
+/**
+ * Replacement for a deletion moving away from a table boundary: keep the separator, apply
+ * whatever else the deletion covered, and otherwise make the one-position move the key asked
+ * for so it is not dead.
+ *
+ * A deletion command removes one contiguous range anchored at the caret, so the separator sits
+ * at its caret-facing end and trimming it leaves the rest contiguous. A deletion that also
+ * inserts is not shaped like that, so it passes through untouched.
+ */
+function prepareSeparatorPreservingDeletion(
+    transaction: Transaction,
+    range: SelectionRange,
+    direction: DeletionDirection,
+    target: BoundaryEntryTarget
+): TransactionSpec | null {
+    const state = transaction.startState;
+    // Mapping multiple ranges would be surprising and is not needed for entry.
+    if (state.selection.ranges.length > 1) {
+        return null;
+    }
+
+    const separatorFrom = deletedCharOffset(range.head, direction);
+    const deleted = resolveOverlappingChange(transaction, separatorFrom, separatorFrom + 1);
+    if (!deleted || deleted.insertsText) {
+        return null;
+    }
+
+    const isBackward = direction === 'backward';
+    const protectedSeparator = resolveProtectedSeparator(state, target);
+    const trimmedFrom = isBackward ? deleted.from : Math.max(deleted.from, protectedSeparator.to);
+    const trimmedTo = isBackward ? Math.min(deleted.to, protectedSeparator.from) : deleted.to;
+    if (trimmedTo <= trimmedFrom) {
+        return {
+            selection: { anchor: range.head + (isBackward ? -1 : 1) },
+            scrollIntoView: transaction.scrollIntoView,
+        };
+    }
+
+    return {
+        changes: { from: trimmedFrom, to: trimmedTo },
+        selection: { anchor: trimmedFrom },
+        scrollIntoView: transaction.scrollIntoView,
+    };
+}
+
 /** Replacement transaction for a deletion that reaches a table boundary, or null to pass it through. */
 function prepareTableBoundaryDeletion(
     transaction: Transaction,
     range: SelectionRange,
     direction: DeletionDirection
 ): TransactionSpec | null {
+    const state = transaction.startState;
     const isBackward = direction === 'backward';
     const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
     const deletionTarget = resolveDeletionTargetTable(transaction, range, direction);
     if (deletionTarget) {
-        return prepareEdgeCellEntry(transaction.startState, deletionTarget, edges, isBackward ? 'end' : 'start');
+        return prepareEdgeCellEntry(state, deletionTarget, edges, isBackward ? 'end' : 'start');
     }
 
     const boundaryTarget = resolveBoundarySeparatorTable(transaction, range, direction);
@@ -291,23 +360,11 @@ function prepareTableBoundaryDeletion(
         return null;
     }
 
-    const movesTowardTable =
-        (isBackward && boundaryTarget.side === 'before') ||
-        (direction === 'forward' && boundaryTarget.side === 'after');
-    if (movesTowardTable) {
-        return prepareEdgeCellEntry(transaction.startState, boundaryTarget.ctx, edges, isBackward ? 'end' : 'start');
+    if (boundaryTarget.side === (isBackward ? 'before' : 'after')) {
+        return prepareEdgeCellEntry(state, boundaryTarget.ctx, edges, isBackward ? 'end' : 'start');
     }
 
-    if (transaction.startState.selection.ranges.length > 1) {
-        return null;
-    }
-
-    // Preserve the separator while making the one-position caret move requested by the key.
-    // Mapping multiple ranges would be surprising and is not needed for entry.
-    return {
-        selection: { anchor: range.head + (isBackward ? -1 : 1) },
-        scrollIntoView: transaction.scrollIntoView,
-    };
+    return prepareSeparatorPreservingDeletion(transaction, range, direction, boundaryTarget);
 }
 
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {

@@ -655,6 +655,38 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
+    // No shipped key deletes past a boundary in one press, so drive the filter directly.
+    it('keeps the separator and applies the rest of a multi-character deletion above a table', () => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const view = mountView(doc, doc.indexOf(TABLE));
+
+        view.dispatch({
+            changes: { from: 0, to: doc.indexOf(TABLE) },
+            userEvent: 'delete.backward',
+        });
+
+        expect(view.state.doc.toString()).toBe(`\n\n${TABLE}\n`);
+        expect(view.state.selection.main.head).toBe(0);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('keeps the separator and applies the rest of a multi-character deletion below a table', () => {
+        const doc = `\n${TABLE}\n\n\n${AFTER}`;
+        const tableTo = doc.indexOf(TABLE) + TABLE.length;
+        const view = mountView(doc, tableTo);
+
+        view.dispatch({
+            changes: { from: tableTo, to: doc.length },
+            userEvent: 'delete.forward',
+        });
+
+        expect(view.state.doc.toString()).toBe(`\n${TABLE}\n\n`);
+        expect(view.state.selection.main.head).toBe(tableTo + 2);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
     it('enters the first table in document order when carets reach two of them', () => {
         const doc = `\n${TABLE}\n\nbetween\n\n${TABLE}\n\n${AFTER}`;
         const view = mountView(doc, doc.indexOf('between'));

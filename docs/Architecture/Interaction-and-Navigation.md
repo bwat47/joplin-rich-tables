@@ -43,10 +43,10 @@ Rules that hold across both halves:
 - For a ragged table the target is the edge cell that has a source range; the entry transaction squares the table and
   remaps that cell in one step.
 - The blank line a table needs on each side counts as part of its boundary. A deletion toward the table enters its edge
-  cell, while a deletion away from it becomes a one-position caret move; neither consumes the required separator. A
-  newline sitting directly against a table edge is protected the same way even when surplus blank lines remain, since
-  removing it would leave the caret parked on the widget edge. Surplus blank lines further out are ordinary text and
-  still delete one press at a time.
+  cell, while a deletion away from it is trimmed to spare the separator - becoming a one-position caret move when the
+  separator was all it covered; neither consumes the required separation. A newline sitting directly against a table
+  edge is protected the same way even when surplus blank lines remain, since removing it would leave the caret parked
+  on the widget edge. Surplus blank lines further out are ordinary text and still delete one press at a time.
 - Arrow entry requires a lone empty caret in rendered mode with no live cell selection — anything else stays with the
   main editor. Vertical entry also has to recover the table a movement _skipped_, since CodeMirror scans past block
   widgets; see `resolveSkippedTableBlock`.
