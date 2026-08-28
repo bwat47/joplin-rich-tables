@@ -17,7 +17,31 @@ import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
+const BEFORE = 'before';
+const AFTER = 'after';
 const mountedViews: EditorView[] = [];
+
+/**
+ * Canonically spaced fixtures: a table needs a blank line on each side, and entering a
+ * cell repairs missing spacing in the same transaction. Starting from a document that
+ * already has it keeps "the document did not change" an assertion about the deletion
+ * filter rather than about normalization.
+ */
+function docBelowTable(table: string = TABLE): string {
+    return `\n${table}\n\n${AFTER}`;
+}
+
+function docAboveTable(table: string = TABLE): string {
+    return `${BEFORE}\n\n${table}\n`;
+}
+
+const BELOW_TABLE_DOC = docBelowTable();
+const ABOVE_TABLE_DOC = docAboveTable();
+
+/** The table's offset in the document as it stands, which entry may have normalized. */
+function currentTableFrom(view: EditorView, table: string = TABLE): number {
+    return view.state.doc.toString().indexOf(table);
+}
 
 /** TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver. */
 class ResizeObserverMock {
@@ -103,8 +127,8 @@ function expectCellOpen(
 
 describe('mainEditorTableEntry deletion protection', () => {
     it('opens the final cell when Backspace reaches the table from below', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
+        const doc = BELOW_TABLE_DOC;
+        const view = mountView(doc, doc.indexOf(AFTER));
 
         pressKey(view, 'Backspace');
 
@@ -113,9 +137,8 @@ describe('mainEditorTableEntry deletion protection', () => {
     });
 
     it('leaves a deletion elsewhere in the document alone while a request is in flight', () => {
-        const suffix = 'after';
-        const doc = `${TABLE}\n${suffix}`;
-        const view = mountView(doc, TABLE.length + 1);
+        const doc = BELOW_TABLE_DOC;
+        const view = mountView(doc, doc.indexOf(AFTER));
 
         pressKey(view, 'Backspace');
         view.dispatch({
@@ -123,12 +146,12 @@ describe('mainEditorTableEntry deletion protection', () => {
             userEvent: 'delete.backward',
         });
 
-        expect(view.state.doc.toString()).toBe(`${TABLE}\n${suffix.slice(0, -1)}`);
+        expect(view.state.doc.toString()).toBe(doc.slice(0, -1));
     });
 
     it('drops repeat deletions while the open-cell request is still in flight', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
+        const doc = BELOW_TABLE_DOC;
+        const view = mountView(doc, doc.indexOf(AFTER));
 
         // The nested editor mounts a frame later, so the main editor still owns these.
         pressKey(view, 'Backspace');
@@ -140,9 +163,8 @@ describe('mainEditorTableEntry deletion protection', () => {
     });
 
     it('opens the first cell when Delete reaches the table from above', () => {
-        const prefix = 'before';
-        const doc = `${prefix}\n${TABLE}`;
-        const view = mountView(doc, prefix.length);
+        const doc = ABOVE_TABLE_DOC;
+        const view = mountView(doc, BEFORE.length);
 
         pressKey(view, 'Delete');
 
@@ -152,14 +174,14 @@ describe('mainEditorTableEntry deletion protection', () => {
 
     it('opens the final header cell when Backspace reaches a table with no body rows', () => {
         const headerOnlyTable = ['| H1 | H2 |', '| --- | --- |'].join('\n');
-        const doc = `${headerOnlyTable}\nafter`;
-        const view = mountView(doc, headerOnlyTable.length + 1);
+        const doc = docBelowTable(headerOnlyTable);
+        const view = mountView(doc, doc.indexOf(AFTER));
 
         pressKey(view, 'Backspace');
 
         expect(view.state.doc.toString()).toBe(doc);
         expect(getActiveCell(view.state)).toEqual({
-            tableFrom: 0,
+            tableFrom: doc.indexOf(headerOnlyTable),
             section: 'header',
             row: 0,
             col: 1,
@@ -172,22 +194,25 @@ describe('mainEditorTableEntry deletion protection', () => {
         {
             label: 'shorter than the header',
             table: ['| H1 | H2 |', '| --- | --- |', '| a1 |'].join('\n'),
+            normalized: ['| H1 | H2 |', '| --- | --- |', '| a1 |  |'].join('\n'),
             expectedCol: 0,
         },
         {
             label: 'wider than the header',
             table: ['| H1 |', '| --- |', '| a1 | a2 |'].join('\n'),
+            normalized: ['| H1 |  |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
             expectedCol: 1,
         },
-    ])('opens the final source-backed cell when the last row is $label', ({ table, expectedCol }) => {
-        const doc = `${table}\nafter`;
-        const view = mountView(doc, table.length + 1);
+    ])('opens the final source-backed cell when the last row is $label', ({ table, normalized, expectedCol }) => {
+        const doc = docBelowTable(table);
+        const view = mountView(doc, doc.indexOf(AFTER));
 
         pressKey(view, 'Backspace');
 
-        expect(view.state.doc.toString()).toBe(doc);
+        // A ragged table is not canonical, so entry rewrites it in the same transaction.
+        expect(view.state.doc.toString()).toBe(docBelowTable(normalized));
         expect(getActiveCell(view.state)).toEqual({
-            tableFrom: 0,
+            tableFrom: currentTableFrom(view, normalized),
             section: 'body',
             row: 0,
             col: expectedCol,
@@ -196,25 +221,60 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('deletes extra blank lines normally before protecting the final table boundary', () => {
-        const doc = `${TABLE}\n\nafter`;
-        const view = mountView(doc, TABLE.length + 2);
+    it('deletes surplus blank lines but keeps the separation the table needs', () => {
+        const doc = `\n${TABLE}\n\n\n${AFTER}`;
+        const view = mountView(doc, doc.indexOf(AFTER));
 
         pressKey(view, 'Backspace');
-        expect(view.state.doc.toString()).toBe(`${TABLE}\nafter`);
+        expect(view.state.doc.toString()).toBe(BELOW_TABLE_DOC);
         expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
 
         pressKey(view, 'Backspace');
-        expect(view.state.doc.toString()).toBe(`${TABLE}\nafter`);
+        expect(view.state.doc.toString()).toBe(BELOW_TABLE_DOC);
         expectBoundaryCellOpen(view, 'end');
     });
 
+    it('deletes a surplus blank line above the table before protecting the boundary', () => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const view = mountView(doc, BEFORE.length);
+
+        pressKey(view, 'Delete');
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expect(getActiveCell(view.state)).toBeNull();
+
+        pressKey(view, 'Delete');
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expectBoundaryCellOpen(view, 'start');
+    });
+
+    it('repairs an unspaced table in the transaction that enters it', () => {
+        const doc = `${BEFORE}\n${TABLE}\n${AFTER}`;
+        const view = mountView(doc, BEFORE.length);
+
+        pressKey(view, 'Delete');
+
+        // The spacing the table is missing is restored as part of entry rather than by a
+        // follow-up a frame later, so the document settles within the keystroke.
+        expect(view.state.doc.toString()).toBe(`${BEFORE}\n\n${TABLE}\n\n${AFTER}`);
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({ normalizeIfNeeded: false });
+    });
+
+    it('leaves no repair owed when it enters an already canonical table', () => {
+        const view = mountView(ABOVE_TABLE_DOC, BEFORE.length);
+
+        pressKey(view, 'Delete');
+
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({ normalizeIfNeeded: false });
+    });
+
     it('protects the table from a semantic deletion transaction without a physical key event', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
+        const doc = BELOW_TABLE_DOC;
+        const caret = doc.indexOf(AFTER);
+        const view = mountView(doc, caret);
 
         view.dispatch({
-            changes: { from: TABLE.length, to: TABLE.length + 1 },
+            changes: { from: caret - 1, to: caret },
             userEvent: 'delete.backward',
         });
 
@@ -282,24 +342,24 @@ describe('mainEditorTableEntry deletion protection', () => {
             label: 'Ctrl+Backspace',
             key: 'Backspace',
             modifiers: { ctrlKey: true },
-            doc: `${TABLE}\nafter`,
-            caret: TABLE.length + 1,
+            doc: BELOW_TABLE_DOC,
+            caret: BELOW_TABLE_DOC.indexOf(AFTER),
             edge: 'end' as const,
         },
         {
             label: 'Ctrl+Delete',
             key: 'Delete',
             modifiers: { ctrlKey: true },
-            doc: `before\n${TABLE}`,
-            caret: 'before'.length,
+            doc: ABOVE_TABLE_DOC,
+            caret: BEFORE.length,
             edge: 'start' as const,
         },
         {
             label: 'Shift+Backspace',
             key: 'Backspace',
             modifiers: { shiftKey: true },
-            doc: `${TABLE}\nafter`,
-            caret: TABLE.length + 1,
+            doc: BELOW_TABLE_DOC,
+            caret: BELOW_TABLE_DOC.indexOf(AFTER),
             edge: 'end' as const,
         },
     ])('protects the table from $label', ({ key, modifiers, doc, caret, edge }) => {
@@ -329,12 +389,12 @@ describe('mainEditorTableEntry deletion protection', () => {
     });
 
     it('enters the table one of several carets reaches, collapsing the rest', () => {
-        const doc = `${TABLE}\nafter`;
-        const view = mountView(doc, TABLE.length + 1);
+        const doc = BELOW_TABLE_DOC;
+        const view = mountView(doc, doc.indexOf(AFTER));
         view.dispatch({
             selection: EditorSelection.create([
                 EditorSelection.cursor(doc.length),
-                EditorSelection.cursor(TABLE.length + 1),
+                EditorSelection.cursor(doc.indexOf(AFTER)),
             ]),
         });
 
@@ -346,20 +406,24 @@ describe('mainEditorTableEntry deletion protection', () => {
     });
 
     it('enters the first table in document order when carets reach two of them', () => {
-        const doc = `${TABLE}\n\nbetween\n\n${TABLE}\nafter`;
-        const secondTableFrom = doc.lastIndexOf(TABLE);
-        const view = mountView(doc, TABLE.length + 1);
+        const doc = `\n${TABLE}\n\nbetween\n\n${TABLE}\n\n${AFTER}`;
+        const view = mountView(doc, doc.indexOf('between'));
         view.dispatch({
             selection: EditorSelection.create([
-                EditorSelection.cursor(TABLE.length + 1),
-                EditorSelection.cursor(secondTableFrom + TABLE.length + 1),
+                EditorSelection.cursor(doc.indexOf('between')),
+                EditorSelection.cursor(doc.indexOf(AFTER)),
             ]),
         });
 
         pressKey(view, 'Backspace');
 
         expect(view.state.doc.toString()).toBe(doc);
-        expect(getActiveCell(view.state)).toEqual({ tableFrom: 0, section: 'body', row: 1, col: 1 });
+        expect(getActiveCell(view.state)).toEqual({
+            tableFrom: doc.indexOf(TABLE),
+            section: 'body',
+            row: 1,
+            col: 1,
+        });
     });
 
     it('still deletes when no caret of a multi-range deletion reaches a table', () => {
@@ -383,14 +447,15 @@ describe('mainEditorTableEntry vertical movement', () => {
     it('opens the top-left header cell when ArrowDown skips across the table widget', () => {
         const prefix = 'above';
         const doc = `${prefix}\n${TABLE}\nbelow`;
-        const tableFrom = prefix.length + 1;
         const view = mountView(doc, prefix.length);
-        mockVerticalTarget(view, tableFrom + TABLE.length + 1);
+        mockVerticalTarget(view, prefix.length + 1 + TABLE.length + 1);
 
         pressKey(view, 'ArrowDown');
 
+        // The fixture table has no blank line around it, so entry normalizes as it opens.
+        expect(view.state.doc.toString()).toBe(`${prefix}\n\n${TABLE}\n\nbelow`);
         expect(getActiveCell(view.state)).toEqual({
-            tableFrom,
+            tableFrom: currentTableFrom(view),
             section: 'header',
             row: 0,
             col: 0,
@@ -403,14 +468,13 @@ describe('mainEditorTableEntry vertical movement', () => {
     it('opens the bottom-left body cell when ArrowUp skips across the table widget', () => {
         const prefix = 'above';
         const doc = `${prefix}\n${TABLE}\nbelow`;
-        const tableFrom = prefix.length + 1;
-        const view = mountView(doc, tableFrom + TABLE.length + 1);
+        const view = mountView(doc, prefix.length + 1 + TABLE.length + 1);
         mockVerticalTarget(view, prefix.length);
 
         pressKey(view, 'ArrowUp');
 
         expect(getActiveCell(view.state)).toEqual({
-            tableFrom,
+            tableFrom: currentTableFrom(view),
             section: 'body',
             row: 1,
             col: 0,
@@ -429,7 +493,7 @@ describe('mainEditorTableEntry vertical movement', () => {
         pressKey(view, 'ArrowUp');
 
         expect(getActiveCell(view.state)).toEqual({
-            tableFrom: 0,
+            tableFrom: currentTableFrom(view, headerOnlyTable),
             section: 'header',
             row: 0,
             col: 0,
@@ -542,7 +606,7 @@ describe('mainEditorTableEntry horizontal movement', () => {
 
         pressKey(view, 'ArrowLeft');
 
-        expectCellOpen(view, { tableFrom: 0, section: 'body', row: 1, col: 1 }, 'end');
+        expectCellOpen(view, { tableFrom: currentTableFrom(view), section: 'body', row: 1, col: 1 }, 'end');
     });
 
     it('leaves ordinary horizontal movement to the main editor', () => {
@@ -607,7 +671,7 @@ describe('mainEditorTableEntry key repeat', () => {
         pressKey(view, 'ArrowDown');
 
         expect(view.state.selection.main.head).toBe(headAfterEntry);
-        expectCellOpen(view, { tableFrom: prefix.length + 1, section: 'header', row: 0, col: 0 }, 'start');
+        expectCellOpen(view, { tableFrom: currentTableFrom(view), section: 'header', row: 0, col: 0 }, 'start');
     });
 
     it('pins the caret when an arrow follows a deletion that entered the table', () => {

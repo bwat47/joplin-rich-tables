@@ -2,6 +2,7 @@
  * Shared cell activation logic for activating table cells and opening nested editors.
  * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
+import type { EditorState, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
@@ -10,11 +11,9 @@ import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../../tableModel/tableContext';
 import { createActiveCellFromRanges } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
-import {
-    prepareOpenCellRequestTransaction,
-    requestOpenCell,
-    type PreparedOpenCellRequestTransaction,
-} from '../openCellRequest';
+import { prepareOpenCellRequestTransaction, requestOpenCell } from '../openCellRequest';
+import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from '../lifecycle/tableNormalization';
+import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
@@ -152,7 +151,12 @@ export function activateTableCell(
     const ctx = resolveTableContextAtPos(view.state, tableFrom);
     if (!ctx) return false;
 
-    const spec = prepareCellEntryTransaction({ ctx, coords, initialCursorPos: options.initialCursorPos });
+    const spec = prepareCellEntryTransaction({
+        state: view.state,
+        ctx,
+        coords,
+        initialCursorPos: options.initialCursorPos,
+    });
     if (!spec) return false;
 
     view.dispatch(spec);
@@ -169,12 +173,40 @@ export function activateTableCell(
  * The request suppresses navigation keys: until the nested editor mounts and takes focus,
  * the main editor still owns the keyboard with the caret parked in the table's replaced
  * range, so key repeat would otherwise walk it through the hidden Markdown.
+ *
+ * Any normalization the table needs is folded into this same transaction, so the whole
+ * entry is one document change dispatched from the event that asked for it. The request
+ * therefore never carries `normalizeIfNeeded`.
  */
 export function prepareCellEntryTransaction(params: {
+    state: EditorState;
     ctx: TableContext;
     coords: CellCoords;
     initialCursorPos?: InitialCursorPos;
-}): PreparedOpenCellRequestTransaction | null {
+}): TransactionSpec | null {
+    const normalization = planCellEntryNormalization({
+        state: params.state,
+        ctx: params.ctx,
+        coords: params.coords,
+    });
+
+    if (normalization) {
+        const request = prepareOpenCellRequestTransaction({
+            target: normalization.target,
+            normalizeIfNeeded: false,
+            initialCursorPos: params.initialCursorPos,
+            suppressKeys: true,
+        });
+
+        return {
+            ...request,
+            changes: normalization.changes,
+            effects: [...request.effects, rebuildTableWidgetsEffect.of(undefined)],
+            annotations: normalizeBeforeEditAnnotation.of(true),
+            scrollIntoView: false,
+        };
+    }
+
     const resolvedCell = createResolvedActiveCell({ ctx: params.ctx, coords: params.coords });
     if (!resolvedCell) {
         return null;
@@ -182,7 +214,7 @@ export function prepareCellEntryTransaction(params: {
 
     return prepareOpenCellRequestTransaction({
         target: { resolvedCell },
-        normalizeIfNeeded: true,
+        normalizeIfNeeded: false,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: true,
     });

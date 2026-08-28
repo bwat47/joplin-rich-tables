@@ -3,7 +3,7 @@ import type { EditorState, TransactionSpec } from '@codemirror/state';
 import type { TableContext } from '../../tableModel/tableContext';
 import { setActiveCellEffect } from '../../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { createActiveCellForTableText, type ActiveCellSelectionTarget } from '../activeCell/activeCellFactory';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     beginOpenCellRequestEffect,
@@ -11,6 +11,7 @@ import {
     triggerOpenCellRequestEffect,
     type OpenCellRequest,
 } from '../openCellRequest';
+import type { CellCoords } from '../../tableModel/types';
 import {
     countLeadingBlankLinesAfterBoundary,
     countTrailingBlankLinesBeforeBoundary,
@@ -31,6 +32,13 @@ interface NormalizedTableReplacement {
 interface TableBoundaryPadding {
     prefix: string;
     suffix: string;
+}
+
+/** Canonical-form repair to fold into the transaction that enters a cell. */
+export interface CellEntryNormalization {
+    changes: { from: number; to: number; insert: string };
+    /** Where `coords` lands once the replacement is applied. */
+    target: ActiveCellSelectionTarget;
 }
 
 export type NormalizeTableBeforeOpenPlan =
@@ -80,6 +88,41 @@ function getNormalizedTableReplacementIfChanged(
         insert,
         tableText,
         tableFrom: ctx.from + prefix.length,
+    };
+}
+
+/**
+ * Normalization to apply in the same transaction that enters `coords`, or null when the
+ * table is already canonical.
+ *
+ * Entry transactions are dispatched from the event that triggered them, so folding the
+ * repair in keeps the document change on that event. Repairing a frame later instead
+ * leaves the host holding a note body the editor has already moved past, which it then
+ * writes back over the newer document. See {@link planNormalizeTableBeforeOpen} for the
+ * deferred path still used by entry points that resolve their cell from editor state.
+ */
+export function planCellEntryNormalization(params: {
+    state: EditorState;
+    ctx: Pick<TableContext, 'from' | 'to' | 'table' | 'text'>;
+    coords: CellCoords;
+}): CellEntryNormalization | null {
+    const replacement = getNormalizedTableReplacementIfChanged(params.state, params.ctx);
+    if (!replacement) {
+        return null;
+    }
+
+    const target = createActiveCellForTableText({
+        tableFrom: replacement.tableFrom,
+        tableText: replacement.tableText,
+        target: params.coords,
+    });
+    if (!target) {
+        return null;
+    }
+
+    return {
+        changes: { from: replacement.from, to: replacement.to, insert: replacement.insert },
+        target,
     };
 }
 
