@@ -18,7 +18,10 @@ import { EditorView } from '@codemirror/view';
  * --rt-header-bg           <th> background
  * --rt-toolbar-bg          floating toolbar background
  * --rt-toolbar-color       floating toolbar text
- * --rt-toolbar-shadow      floating toolbar box-shadow color
+ * --rt-toolbar-shadow      floating toolbar box-shadow color (deliberately not theme-derived:
+ *                          a shadow is light occlusion, so it stays dark in every theme.  Joplin's
+ *                          background-color-transparent2 is an overlay scrim that inverts to white
+ *                          on dark themes, which reads as a glow rather than a shadow.)
  * --rt-toolbar-hover-bg    toolbar button hover background
  */
 export const richTableThemeVars = EditorView.baseTheme({
@@ -34,7 +37,7 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-header-bg': 'var(--joplin-table-background-color, rgb(247, 247, 247))',
         '--rt-toolbar-bg': 'var(--joplin-background-color)',
         '--rt-toolbar-color': 'var(--joplin-color)',
-        '--rt-toolbar-shadow': 'var(--joplin-background-color-transparent2)',
+        '--rt-toolbar-shadow': 'rgba(0, 0, 0, 0.2)',
         '--rt-toolbar-hover-bg': 'var(--joplin-selected-color)',
     } as Record<string, string>,
 });
