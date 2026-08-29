@@ -394,6 +394,34 @@ describe('mouse cell drag selection', () => {
         );
     });
 
+    it('tracks the nearest cell when the pointer drags past a fully visible table', () => {
+        const { view, widget, table, cells } = mountGestureView();
+        mockAnimationFrames();
+        setScrollDimensions(widget, { clientWidth: 100, scrollWidth: 100 });
+        setScrollDimensions(view.scrollDOM, { clientHeight: 400, scrollHeight: 400 });
+        vi.spyOn(widget, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+        vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+        vi.spyOn(view.scrollDOM, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 400, 400));
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true,
+            value: vi.fn((_x: number, y: number) => {
+                if (y <= 20) {
+                    return cells.header1;
+                }
+                return y <= 100 ? cells.body1 : null;
+            }),
+        });
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 60, clientY: 10 }));
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'header', row: 0, col: 1 });
+
+        // Below the table, where no edge zone triggers because the table is fully visible.
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 90, clientY: 150 }));
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+    });
+
     it('opens the anchor editor when a rendered-cell drag contracts back to its anchor', () => {
         const { view, cells } = mountGestureView();
         cells.header0.dispatchEvent(

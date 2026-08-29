@@ -112,7 +112,13 @@ class MouseCellDragSelectionController {
             }
             gesture.lastFocus = focus;
         } else {
-            const focus = pointedCell ?? gesture.lastFocus ?? gesture.resolvedCell.activeCell;
+            // Once dragging, a pointer outside the table still tracks the nearest cell, so a
+            // drag past the edge of a fully visible table keeps extending the rectangle.
+            const focus =
+                pointedCell ??
+                this.resolveVisibleCellAtPointer(gesture) ??
+                gesture.lastFocus ??
+                gesture.resolvedCell.activeCell;
             if (
                 !sameCoords(gesture.lastFocus, focus) &&
                 setCellSelectionFromCoords(
