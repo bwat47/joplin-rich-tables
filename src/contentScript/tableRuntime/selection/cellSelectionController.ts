@@ -180,16 +180,15 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     if (!sameCellCoords(selection.focus, selection.anchor) && sameCellCoords(clampedFocus, selection.anchor)) {
         const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
         const resolvedAnchor = ctx ? createResolvedActiveCell({ ctx, coords: selection.anchor }) : null;
-        if (!resolvedAnchor) {
-            return false;
+        if (resolvedAnchor) {
+            requestOpenCell(view, {
+                resolvedCell: resolvedAnchor,
+                clearCellSelection: true,
+                scrollIntoView: false,
+            });
+            return true;
         }
-
-        requestOpenCell(view, {
-            resolvedCell: resolvedAnchor,
-            clearCellSelection: true,
-            scrollIntoView: false,
-        });
-        return true;
+        // Without a resolvable anchor, fall through and just contract the selection.
     }
 
     return dispatchSelection(
