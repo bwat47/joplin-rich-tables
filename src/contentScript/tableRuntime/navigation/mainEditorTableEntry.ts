@@ -14,7 +14,7 @@ import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../openCellRequest';
-import { REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
+import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
 import { resolveTableContextAtPos } from '../tableResolution';
 import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
@@ -41,6 +41,11 @@ interface DeletedSpan {
     from: number;
     to: number;
     insertsText: boolean;
+}
+
+interface NewlineScan {
+    count: number;
+    edge: number;
 }
 
 // A rendered widget implies that table parsing has already completed. Keyboard
@@ -173,26 +178,44 @@ function resolveDeletionTargetTable(
     return resolveTableContextAtPos(state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
 }
 
-/** Number of consecutive newlines immediately before `pos`, capped at `limit`. */
-function countNewlinesBackward(state: EditorState, pos: number, limit: number): number {
+/** Newlines before `pos`, crossing only blank-line whitespace and stopping at `limit`. */
+function scanNewlinesBackward(state: EditorState, pos: number, limit: number): NewlineScan {
+    let cursor = pos;
     let count = 0;
-    while (count < limit && pos - count > 0 && state.doc.sliceString(pos - count - 1, pos - count) === '\n') {
-        count++;
+    let edge = pos;
+    while (count < limit && cursor > 0) {
+        const character = state.doc.sliceString(cursor - 1, cursor);
+        if (character === '\n') {
+            cursor--;
+            edge = cursor;
+            count++;
+        } else if (isBlankLineContent(character)) {
+            cursor--;
+        } else {
+            break;
+        }
     }
-    return count;
+    return { count, edge };
 }
 
-/** Number of consecutive newlines immediately after `pos`, capped at `limit`. */
-function countNewlinesForward(state: EditorState, pos: number, limit: number): number {
+/** Newlines after `pos`, crossing only blank-line whitespace and stopping at `limit`. */
+function scanNewlinesForward(state: EditorState, pos: number, limit: number): NewlineScan {
+    let cursor = pos;
     let count = 0;
-    while (
-        count < limit &&
-        pos + count < state.doc.length &&
-        state.doc.sliceString(pos + count, pos + count + 1) === '\n'
-    ) {
-        count++;
+    let edge = pos;
+    while (count < limit && cursor < state.doc.length) {
+        const character = state.doc.sliceString(cursor, cursor + 1);
+        if (character === '\n') {
+            cursor++;
+            edge = cursor;
+            count++;
+        } else if (isBlankLineContent(character)) {
+            cursor++;
+        } else {
+            break;
+        }
     }
-    return count;
+    return { count, edge };
 }
 
 /**
@@ -236,8 +259,8 @@ function resolveAdjoiningTable(
 function resolveProtectedSeparator(state: EditorState, target: BoundaryEntryTarget): { from: number; to: number } {
     const { ctx, side } = target;
     return side === 'after'
-        ? { from: ctx.from - countNewlinesBackward(state, ctx.from, PROTECTED_BOUNDARY_NEWLINES), to: ctx.from }
-        : { from: ctx.to, to: ctx.to + countNewlinesForward(state, ctx.to, PROTECTED_BOUNDARY_NEWLINES) };
+        ? { from: scanNewlinesBackward(state, ctx.from, PROTECTED_BOUNDARY_NEWLINES).edge, to: ctx.from }
+        : { from: ctx.to, to: scanNewlinesForward(state, ctx.to, PROTECTED_BOUNDARY_NEWLINES).edge };
 }
 
 /**
@@ -284,13 +307,13 @@ function resolveBoundarySeparatorTable(
     }
 
     const limit = PROTECTED_BOUNDARY_NEWLINES + 1;
-    const runFrom = range.head - countNewlinesBackward(state, range.head, limit);
-    const runTo = range.head + countNewlinesForward(state, range.head, limit);
-    if (runTo - runFrom > PROTECTED_BOUNDARY_NEWLINES) {
+    const backward = scanNewlinesBackward(state, range.head, limit);
+    const forward = scanNewlinesForward(state, range.head, limit);
+    if (backward.count + forward.count > PROTECTED_BOUNDARY_NEWLINES) {
         return null;
     }
 
-    return resolveAdjoiningTable(state, runFrom, runTo, direction);
+    return resolveAdjoiningTable(state, backward.edge, forward.edge, direction);
 }
 
 /**

@@ -194,6 +194,41 @@ describe('mainEditorTableEntry deletion protection', () => {
     it.each([
         {
             side: 'above',
+            key: 'Delete',
+            doc: `${BEFORE}\n \t \n${TABLE}\n`,
+            pos: BEFORE.length,
+            edge: 'start',
+        },
+        {
+            side: 'below',
+            key: 'Backspace',
+            doc: `\n${TABLE}\n \t \n${AFTER}`,
+            pos: `\n${TABLE}\n \t \n`.length,
+            edge: 'end',
+        },
+    ] as const)('protects a whitespace-only blank line $side the table', ({ key, doc, pos, edge }) => {
+        const view = mountView(doc, pos);
+
+        pressKey(view, key);
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expectBoundaryCellOpen(view, edge);
+    });
+
+    it('deletes a surplus whitespace-only blank line before protecting the boundary', () => {
+        const doc = `${BEFORE}\n \n \t\n${TABLE}\n`;
+        const view = mountView(doc, BEFORE.length);
+
+        pressKey(view, 'Delete');
+
+        expect(view.state.doc.toString()).toBe(`${BEFORE} \n \t\n${TABLE}\n`);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it.each([
+        {
+            side: 'above',
             key: 'Backspace',
             start: AROUND_TABLE_DOC.indexOf(TABLE),
             positions: [AROUND_TABLE_DOC.indexOf(TABLE) - 1, AROUND_TABLE_DOC.indexOf(TABLE) - 2],
@@ -686,6 +721,39 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
+
+    it.each([
+        {
+            side: 'above',
+            doc: `${BEFORE}\n \t \n${TABLE}\n`,
+            selection: `${BEFORE}\n \t \n`.length,
+            changes: { from: 0, to: `${BEFORE}\n \t \n`.length },
+            userEvent: 'delete.backward',
+            expectedDoc: `\n \t \n${TABLE}\n`,
+            expectedCaret: 0,
+        },
+        {
+            side: 'below',
+            doc: `\n${TABLE}\n \t \n${AFTER}`,
+            selection: `\n${TABLE}`.length,
+            changes: { from: `\n${TABLE}`.length, to: `\n${TABLE}\n \t \n${AFTER}`.length },
+            userEvent: 'delete.forward',
+            expectedDoc: `\n${TABLE}\n \t \n`,
+            expectedCaret: `\n${TABLE}\n \t \n`.length,
+        },
+    ] as const)(
+        'preserves a whitespace-only separator during a multi-character deletion $side the table',
+        ({ doc, selection, changes, userEvent, expectedDoc, expectedCaret }) => {
+            const view = mountView(doc, selection);
+
+            view.dispatch({ changes, userEvent });
+
+            expect(view.state.doc.toString()).toBe(expectedDoc);
+            expect(view.state.selection.main.head).toBe(expectedCaret);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        }
+    );
 
     it('enters the first table in document order when carets reach two of them', () => {
         const doc = `\n${TABLE}\n\nbetween\n\n${TABLE}\n\n${AFTER}`;
