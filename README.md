@@ -53,6 +53,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Line breaks are automatically inserted above/below inserted tables.
 - Line breaks are automatically added around existing tables as needed (triggered when interacting with a table or typing text immediately above/below the table).
 - Tables are normalized to a consistent format (one space padding).
+- The blank-line boundary around a rendered table is protected from incidental deletion.
 
 ### Formatting commands
 

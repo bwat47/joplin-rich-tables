@@ -1,116 +1,82 @@
 # Interaction and Navigation
 
+The main editor owns document state and history, while a transient nested editor owns interaction inside the active
+cell. Navigation coordinates the handoff between those editors and the table widget's multi-cell selection mode.
+
 ## Keyboard Navigation
 
-Cells are separate editor instances (or `<td>` when inactive). Key events are intercepted to simulate natural navigation.
+The active cell hosts a separate editor instance, while inactive cells remain ordinary `<td>` or `<th>` elements. Key
+handling makes the cells behave like a single grid.
 
-| Key                 | Action        | At the cell boundary                                                        |
-| :------------------ | :------------ | :-------------------------------------------------------------------------- |
-| **Tab**             | Next cell     | Last cell creates a new row.                                                |
-| **Shift+Tab**       | Previous cell | First cell is blocked.                                                      |
-| **Enter**           | Cell below    | Last row creates a new row.                                                 |
-| **ArrowLeft/Right** | Move by char  | Cell edge moves to the previous/next cell; grid edge exits the table.       |
-| **ArrowUp/Down**    | Move by line  | Visual top/bottom moves to the cell above/below; grid edge exits the table. |
+| Key                 | Action        | At the cell boundary                                               |
+| :------------------ | :------------ | :----------------------------------------------------------------- |
+| **Tab**             | Next cell     | The final cell creates a row.                                      |
+| **Shift+Tab**       | Previous cell | The first cell is blocked.                                         |
+| **Enter**           | Cell below    | The final row creates a row.                                       |
+| **ArrowLeft/Right** | Move by char  | A cell edge moves horizontally; a table edge exits the table.      |
+| **ArrowUp/Down**    | Move by line  | A visual line edge moves vertically; a table edge exits the table. |
 
 ### Crossing the Table Boundary
 
-A rendered table is a block replace decoration, so the main editor's caret is only ever adjacent to a table, never
-usefully inside one. Entry and exit are the two halves of that crossing, and the opposite key reverses it.
+A rendered table is a block replacement in the main editor, so entry and exit must be handled explicitly rather than
+by normal caret movement.
 
-**Entry** (`tableRuntime/navigation/mainEditorTableEntry.ts`): deletion and plain arrow movement toward a table open a
-cell instead of moving the caret into the replaced range. Extra blank lines in between stay ordinary editable text.
+- **Entry**: Arrow or deletion movement toward an adjacent table opens the nearest edge cell. Vertical entry preserves
+  the expected visual direction by choosing the first or last row as appropriate.
+- **Exit**: Arrow movement beyond the outermost cell closes the nested editor, places the main-editor caret on the
+  adjacent line, and restores main-editor focus. At a document edge, where no adjacent line exists, the movement is
+  blocked.
+- **Separation**: The blank line required between a rendered table and neighbouring content is protected from
+  incidental deletion. Ordinary typing or pasting into that boundary restores valid separation in the same main-editor
+  transaction, keeping the document valid and undo behavior atomic. Composition input is left unchanged and repaired
+  on a later cell entry.
+- **Eligibility**: Arrow entry applies only to a single empty caret in rendered mode when no cell selection is active.
+  Explicit range edits remain main-editor operations.
 
-| Caret is        | Key                           | Opens                                                            |
-| :-------------- | :---------------------------- | :--------------------------------------------------------------- |
-| Above the table | Delete, ArrowRight, ArrowDown | First header cell, caret at its start                            |
-| Below the table | Backspace, ArrowLeft          | Final cell, caret at its end                                     |
-| Below the table | ArrowUp                       | First cell of the final row, caret at the start of its last line |
+`tableRuntime/navigation/mainEditorTableEntry.ts` owns entry from the main editor, while
+`tableRuntime/navigation/tableExit.ts` owns exit from a nested editor. Boundary-preserving document edits are handled
+by `tableRuntime/tableBoundaryMaintenance.ts`.
 
-**Exit** (`tableRuntime/navigation/tableExit.ts`): a nested-editor arrow key that walks off the grid clears the active
-cell, moves the caret to the adjacent line, closes the nested editor through the normal lifecycle, and returns focus to
-the main editor. ArrowUp from the header's visual top and ArrowLeft from the first cell's start exit above; ArrowDown
-from the final row's visual bottom and ArrowRight from the final cell's end exit below. A table against a document edge
-has no adjacent line, so the key is swallowed instead.
+### Navigation Requests
 
-Rules that hold across both halves:
+Opening a cell spans a main-editor transaction, widget rendering, and nested-editor mounting. The pending intent is
+therefore stored in editor state (`tableRuntime/openCellRequest.ts`) rather than module-global state. A request records
+the logical target and desired caret placement; the lifecycle resolves current document positions when it mounts the
+nested editor and then completes or fails the request.
 
-- Deletion protection keys off CodeMirror's semantic `delete.backward`/`delete.forward` transactions rather than
-  physical key bindings, so word- and line-wise deletes are covered while IME and soft-keyboard `input.type` stays under
-  CodeMirror's platform behavior. A native cut with no explicit selection is CodeMirror's linewise `delete.cut`, which
-  removes whole lines: it is judged per line rather than per caret, and cancelled outright when any caret sits on a
-  table's source line or on a blank line the table needs, since a cut applied in part would leave a table half cut. The
-  caret does not move and the clipboard still holds the lines. An explicit cut selection remains a deliberate range
-  deletion.
-- A cell editor holds one caret, so only one may enter: a multi-cursor deletion enters the first table in document order
-  and drops the rest. Once entry is requested, key repeat is suppressed until the nested editor takes focus, so a held
-  key cannot walk the main caret through the hidden Markdown.
-- For a ragged table the target is the edge cell that has a source range; the entry transaction squares the table and
-  remaps that cell in one step.
-- The blank line a table needs on each side counts as part of its boundary. A deletion toward the table enters its edge
-  cell, while a deletion away from it is trimmed to spare the separator - becoming a one-position caret move when the
-  separator was all it covered; neither consumes the required separation. A newline sitting directly against a table
-  edge is protected the same way even when surplus blank lines remain, since removing it would leave the caret parked
-  on the widget edge. Surplus blank lines further out are ordinary text and still delete one press at a time.
-- Typing or pasting into that blank line is answered instead of blocked: `tableRuntime/tableBoundaryMaintenance.ts`
-  folds a replacement newline into the same transaction, so the host never sees the unseparated document and one undo
-  takes both back. The decision is made against the post-change document, so a rewrite that already spaced the table -
-  a table paste, or padding for a neighbouring table - cannot pad it twice. Composition (`input.type.compose`) is left
-  alone to keep IME input intact; cell entry normalization repairs that boundary later.
-- Arrow entry requires a lone empty caret in rendered mode with no live cell selection — anything else stays with the
-  main editor. Vertical entry also has to recover the table a movement _skipped_, since CodeMirror scans past block
-  widgets; see `resolveSkippedTableBlock`.
-
-### Cell Selection Caret
-
-- The caret is parked at the focus cell's document position so clipboard and shortcut handling keep working, and the
-  main editor's caret is hidden so the highlight alone conveys the state.
-- An unmodified arrow key collapses the selection and moves the caret out of the table, the way an arrow key collapses
-  a text selection; Shift+Arrow extends it instead.
-- Any other command that moves the caret outside the selected table drops the selection.
+Cell navigation, table entry, row creation, and structural operations share this request path. This keeps document
+changes, active-cell state, and reopen intent coordinated.
 
 ### Scrolling
 
-Primary cell navigation opens the target nested editor, then focuses its `contentDOM`. The browser scrolls that focused
-cell into view as needed, which works more reliably on mobile than explicitly calling `scrollIntoView`.
+Opening a target cell relies on focusing its nested editor, allowing the browser to reveal it naturally. Other paths
+scroll explicitly, including table exit, multi-cell selection movement, anchor jumps, and raw-mode cursor visibility.
 
-The plugin still uses explicit `scrollIntoView` for other paths such as anchor jumps and source/raw-mode cursor
-visibility.
+## Selection Modes
 
-### Open-Cell Request State
+### Active-Cell Selection Sync
 
-Rapid navigation races a new request against the previously requested cell mounting, so open-cell transitions are
-tracked in a `StateField` (`tableRuntime/openCellRequest.ts`) rather than a module-global lock.
+While a nested editor is active, its visible selection is mirrored into the hidden main-editor selection. The main
+editor remains the integration point for document commands and Joplin toolbar actions. Cross-editor synchronization
+must use `syncAnnotation` to avoid feedback loops.
 
-- The initiating action dispatches a request carrying target cell, cursor placement, and key-suppression state, plus
-  any canonical-form repair the table needed; the lifecycle trigger carries only the request id. Requests built from
-  bare coordinates (a structural mutation naming a table it is about to write) cannot be repaired this way, so they use
-  a separate builder returning selection and effects only, which the caller merges into its own transaction.
-- Lifecycle re-reads the pending request, then completes it once the nested editor is open and focus has been handed
-  off, or fails it when the open path aborts. A watchdog `ViewPlugin` fails stuck requests after 1 second.
-- Row creation uses the same path: one transaction updates table text, main-editor selection, active-cell state, and
-  open intent together, and Tab/Enter suppression reads the pending request.
+### Multi-Cell Selection
 
-## Selection Sync
+Multi-cell selection is stored in main-editor state and rendered on the table widget rather than being owned by the
+nested editor. The main-editor caret tracks the focus cell for clipboard and command integration, but is hidden while
+the rectangular selection is visible.
 
-Two active selections exist: hidden main editor selection and visible nested editor selection.
+- **Shift+Arrow** starts or extends the selection.
+- **Arrow** collapses the selection and leaves the table; **Enter/Tab** activates its focus cell.
+- **Escape** clears the selection.
+- **Delete/Backspace** clears selected content, or removes fully selected empty rows, columns, or the whole table.
+- **Copy/Cut/Paste** operates on the selected rectangle and may expand the table when pasting.
+- **Undo/Redo** is forwarded to main-editor history.
 
-- **Nested → Main**: Selection in cell maps to corresponding main document range. Enables Joplin toolbar (Bold, Italic, Link) to work.
-- **Android focus guard**: Reclaims focus when toolbar actions steal it.
-
-## Multi-Cell Selection Shortcuts
-
-When multi-cell selection mode is active, keyboard handling is routed through the table widget rather than a nested editor.
-
-- **Shift+Arrow**: Start or extend a rectangular selection.
-- **Enter/Tab**: Activate the focused cell and reopen the nested editor.
-- **Escape**: Clear the multi-cell selection.
-- **Delete/Backspace**: Remove the selected range. Non-empty cells are cleared; fully-selected empty rows/columns are structurally deleted instead.
-- **Ctrl + C**: Copy selected cells to clipboard.
-- **Ctrl + X**: Clear selected cells and copy them to clipboard. If selection only contains entirely empty rows/columns, delete the rows/columns instead of clearing cell content.
-- **Ctrl + V**: Paste selected cells into table, expanding as needed.
-- **Undo/Redo**: `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, and `Ctrl+Y` are forwarded to the main editor history while selection mode is active.
+Commands that move the main-editor caret outside the selected table clear the selection.
 
 ## Mouse Interaction
 
-- **Links**: `[text](url)` routes through the content-script link opener, which delegates the actual open action to the main plugin side.
-- **Anchors/Footnotes**: `#heading` scrolls main editor via `scrollToAnchor`.
+- Clicking a cell activates it or updates the current multi-cell selection.
+- Links delegate to the content-script link opener and then to the main plugin.
+- Heading and footnote anchors scroll the main editor through `scrollToAnchor`.
