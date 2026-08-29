@@ -20,6 +20,8 @@ import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 type DeletionDirection = 'backward' | 'forward';
+/** A native cut with no selection removes whole lines, so it is not a directed deletion. */
+type DeletionKind = DeletionDirection | 'linewiseCut';
 type TableSide = 'before' | 'after';
 type VerticalEntryDirection = 'up' | 'down';
 type HorizontalEntryDirection = 'left' | 'right';
@@ -72,13 +74,22 @@ function canEnterFromArrowMovement(state: EditorState): boolean {
     return canEnterRenderedTable(state) && state.selection.ranges.length === 1 && state.selection.main.empty;
 }
 
-function getDeletionDirection(transaction: Transaction): DeletionDirection | null {
+function resolveDeletionKind(transaction: Transaction): DeletionKind | null {
     if (transaction.isUserEvent('delete.backward')) {
         return 'backward';
     }
 
     if (transaction.isUserEvent('delete.forward')) {
         return 'forward';
+    }
+
+    // CodeMirror cuts linewise when nothing is selected, so the caret's column has no
+    // bearing on what disappears.
+    if (
+        transaction.isUserEvent('delete.cut') &&
+        transaction.startState.selection.ranges.every((range) => range.empty)
+    ) {
+        return 'linewiseCut';
     }
 
     return null;
@@ -149,11 +160,6 @@ function resolveDeletionTargetTable(
     range: SelectionRange,
     direction: DeletionDirection
 ): TableContext | null {
-    // An explicit selection is a deliberate range deletion, a table-spanning one included.
-    if (!range.empty) {
-        return null;
-    }
-
     const state = transaction.startState;
     const deletedCharFrom = deletedCharOffset(range.head, direction);
     if (deletedCharFrom < 0 || deletedCharFrom >= state.doc.length) {
@@ -280,15 +286,11 @@ function resolveProtectedSeparator(state: EditorState, target: BoundaryEntryTarg
  */
 function resolveBoundarySeparatorTable(
     transaction: Transaction,
-    range: SelectionRange,
+    head: number,
     direction: DeletionDirection
 ): BoundaryEntryTarget | null {
-    if (!range.empty) {
-        return null;
-    }
-
     const state = transaction.startState;
-    const deletedFrom = deletedCharOffset(range.head, direction);
+    const deletedFrom = deletedCharOffset(head, direction);
     if (deletedFrom < 0 || deletedFrom >= state.doc.length) {
         return null;
     }
@@ -307,8 +309,8 @@ function resolveBoundarySeparatorTable(
     }
 
     const limit = PROTECTED_BOUNDARY_NEWLINES + 1;
-    const backward = scanNewlinesBackward(state, range.head, limit);
-    const forward = scanNewlinesForward(state, range.head, limit);
+    const backward = scanNewlinesBackward(state, head, limit);
+    const forward = scanNewlinesForward(state, head, limit);
     if (backward.count + forward.count > PROTECTED_BOUNDARY_NEWLINES) {
         return null;
     }
@@ -367,6 +369,11 @@ function prepareTableBoundaryDeletion(
     range: SelectionRange,
     direction: DeletionDirection
 ): TransactionSpec | null {
+    // An explicit selection is a deliberate range deletion, a table-spanning one included.
+    if (!range.empty) {
+        return null;
+    }
+
     const state = transaction.startState;
     const isBackward = direction === 'backward';
     const edges: EdgeCellTarget = isBackward ? { row: 'last', col: 'last' } : { row: 'first', col: 'first' };
@@ -375,7 +382,7 @@ function prepareTableBoundaryDeletion(
         return prepareEdgeCellEntry(state, deletionTarget, edges, isBackward ? 'end' : 'start');
     }
 
-    const boundaryTarget = resolveBoundarySeparatorTable(transaction, range, direction);
+    const boundaryTarget = resolveBoundarySeparatorTable(transaction, range.head, direction);
     if (!boundaryTarget) {
         return null;
     }
@@ -387,9 +394,34 @@ function prepareTableBoundaryDeletion(
     return prepareSeparatorPreservingDeletion(transaction, range, direction, boundaryTarget);
 }
 
+/**
+ * True when a linewise cut would take a line the table needs.
+ *
+ * A cut removes whole lines, so protection is decided per line rather than per character.
+ * Dropping a line that holds text leaves the blank lines around it in place, so only two
+ * shapes are unsafe: a line holding hidden table source, and a blank line that keeps a table
+ * clear of its neighbour.
+ */
+function hasUncuttableLine(transaction: Transaction): boolean {
+    const state = transaction.startState;
+    return state.selection.ranges.some((range) => {
+        if (resolveTableContextAtPos(state, range.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS)) {
+            return true;
+        }
+
+        const line = state.doc.lineAt(range.head);
+        if (!isBlankLineContent(line.text)) {
+            return false;
+        }
+
+        // The line's own break is what separates the table; the caret may sit before it.
+        return Boolean(resolveBoundarySeparatorTable(transaction, line.to, 'forward'));
+    });
+}
+
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
-    const direction = getDeletionDirection(transaction);
-    if (!direction || !transaction.docChanged) {
+    const kind = resolveDeletionKind(transaction);
+    if (!kind || !transaction.docChanged) {
         return transaction;
     }
 
@@ -402,11 +434,18 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
         return transaction;
     }
 
+    // A cut is one gesture over whole lines, so it is answered as a whole: dropping it in
+    // part would leave a table half cut. Cancelling keeps every caret where it was, and the
+    // clipboard still holds the lines.
+    if (kind === 'linewiseCut') {
+        return hasUncuttableLine(transaction) ? [] : transaction;
+    }
+
     // Several carets can reach tables in one gesture. A deletion toward a table enters the
     // first in document order and drops the rest because a cell editor holds one caret. An
     // away-from-table caret move requires a lone caret; multi-range deletion passes through.
     for (const range of transaction.startState.selection.ranges) {
-        const spec = prepareTableBoundaryDeletion(transaction, range, direction);
+        const spec = prepareTableBoundaryDeletion(transaction, range, kind);
         if (spec) {
             return spec;
         }
