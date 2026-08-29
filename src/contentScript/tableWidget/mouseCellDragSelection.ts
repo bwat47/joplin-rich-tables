@@ -23,6 +23,10 @@ const EDGE_SCROLL_MAX_FRAME_MS = 50;
 // from having reached a scroll boundary.
 const EDGE_SCROLL_MIN_FRAME_MS = 1;
 const HIT_TEST_INSET_PX = 1;
+// How far past the anchor cell's border a text-selection drag must travel before it
+// becomes a cell selection, so grazing the border does not tear down the nested editor.
+const BOUNDARY_EXIT_DISTANCE_PX = 8;
+const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT_DISTANCE_PX;
 
 interface MouseCellGesture {
     origin: 'renderedCell' | 'activeEditor';
@@ -31,7 +35,7 @@ interface MouseCellGesture {
     startY: number;
     widget: HTMLElement;
     table: HTMLTableElement;
-    captureTarget: HTMLElement | null;
+    anchorCell: HTMLElement;
     resolvedCell: ResolvedActiveCell;
     dragged: boolean;
     lastFocus: CellCoords | null;
@@ -43,6 +47,13 @@ interface MouseCellGesture {
 
 function sameCoords(left: CellCoords | null, right: CellCoords): boolean {
     return left?.section === right.section && left.row === right.row && left.col === right.col;
+}
+
+/** Squared distance from the pointer to the nearest point of `rect`; zero while inside it. */
+function distanceOutsideRectSquared(rect: DOMRect, event: PointerEvent): number {
+    const deltaX = Math.max(rect.left - event.clientX, 0, event.clientX - rect.right);
+    const deltaY = Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom);
+    return deltaX * deltaX + deltaY * deltaY;
 }
 
 function distanceSquared(event: PointerEvent, gesture: MouseCellGesture): number {
@@ -90,9 +101,15 @@ class MouseCellDragSelectionController {
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         if (!gesture.dragged) {
             if (gesture.origin === 'activeEditor') {
-                // Until the pointer enters another cell, the nested editor retains full
-                // ownership so its native text-selection drag continues uninterrupted.
-                if (!pointedCell || sameCoords(gesture.resolvedCell.activeCell, pointedCell)) {
+                // Until the pointer clears the anchor cell's border by a margin, the nested
+                // editor retains full ownership so its native text-selection drag continues
+                // uninterrupted.
+                if (
+                    !pointedCell ||
+                    sameCoords(gesture.resolvedCell.activeCell, pointedCell) ||
+                    distanceOutsideRectSquared(gesture.anchorCell.getBoundingClientRect(), event) <
+                        BOUNDARY_EXIT_DISTANCE_SQUARED
+                ) {
                     return;
                 }
                 this.capturePointer(gesture);
@@ -209,7 +226,7 @@ class MouseCellDragSelectionController {
             startY: event.clientY,
             widget,
             table,
-            captureTarget: cell,
+            anchorCell: cell,
             resolvedCell,
             dragged: false,
             lastFocus: null,
@@ -244,7 +261,7 @@ class MouseCellDragSelectionController {
             startY: event.clientY,
             widget,
             table,
-            captureTarget: cell,
+            anchorCell: cell,
             resolvedCell,
             dragged: false,
             lastFocus: null,
@@ -394,7 +411,7 @@ class MouseCellDragSelectionController {
         }
 
         try {
-            gesture.captureTarget?.setPointerCapture?.(gesture.pointerId);
+            gesture.anchorCell.setPointerCapture?.(gesture.pointerId);
         } catch {
             // Pointer capture is an enhancement. Document listeners still finish the gesture.
         }
@@ -418,7 +435,7 @@ class MouseCellDragSelectionController {
         }
 
         try {
-            gesture.captureTarget?.releasePointerCapture?.(gesture.pointerId);
+            gesture.anchorCell.releasePointerCapture?.(gesture.pointerId);
         } catch {
             // The browser may already have released capture on pointerup/cancel.
         }
