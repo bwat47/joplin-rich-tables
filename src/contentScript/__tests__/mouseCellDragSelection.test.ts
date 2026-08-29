@@ -352,6 +352,31 @@ describe('mouse cell drag selection', () => {
         expect(frames.pendingCount()).toBe(0);
     });
 
+    it('keeps auto-scrolling across a frame that reports no elapsed time', () => {
+        const { view, widget, table, cells } = mountGestureView();
+        const frames = mockAnimationFrames();
+        setScrollDimensions(widget, { clientWidth: 100, scrollWidth: 300 });
+        setScrollDimensions(view.scrollDOM, { clientHeight: 100, scrollHeight: 100 });
+        vi.spyOn(widget, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+        vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 300, 100));
+        vi.spyOn(view.scrollDOM, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 50 }));
+        elementAtPoint = cells.header1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 95, clientY: 50 }));
+
+        frames.runNext(16);
+        const afterFirstFrame = widget.scrollLeft;
+        expect(afterFirstFrame).toBeGreaterThan(0);
+
+        // Two callbacks sharing a timestamp must not read as having hit the scroll boundary.
+        frames.runNext(16);
+        expect(widget.scrollLeft).toBeGreaterThan(afterFirstFrame);
+        expect(frames.pendingCount()).toBe(1);
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 95, clientY: 50 }));
+    });
+
     it('scrolls the editor vertically only while more of the table is hidden beyond the edge', () => {
         const { view, widget, table, cells } = mountGestureView();
         const frames = mockAnimationFrames();

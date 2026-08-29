@@ -19,6 +19,9 @@ const EDGE_SCROLL_ZONE_PX = 48;
 const EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND = 900;
 const EDGE_SCROLL_DEFAULT_FRAME_MS = 1000 / 60;
 const EDGE_SCROLL_MAX_FRAME_MS = 50;
+// A zero-length frame would produce a zero delta, which the loop cannot tell apart
+// from having reached a scroll boundary.
+const EDGE_SCROLL_MIN_FRAME_MS = 1;
 const HIT_TEST_INSET_PX = 1;
 
 interface MouseCellGesture {
@@ -343,7 +346,11 @@ class MouseCellDragSelectionController {
         const elapsedMs =
             gesture.lastAutoScrollTimestamp === null
                 ? EDGE_SCROLL_DEFAULT_FRAME_MS
-                : clamp(timestamp - gesture.lastAutoScrollTimestamp, 0, EDGE_SCROLL_MAX_FRAME_MS);
+                : clamp(
+                      timestamp - gesture.lastAutoScrollTimestamp,
+                      EDGE_SCROLL_MIN_FRAME_MS,
+                      EDGE_SCROLL_MAX_FRAME_MS
+                  );
         gesture.lastAutoScrollTimestamp = timestamp;
         const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
         const didScrollHorizontally = applyScrollDelta(gesture.widget, 'horizontal', horizontalIntensity * maxDelta);
