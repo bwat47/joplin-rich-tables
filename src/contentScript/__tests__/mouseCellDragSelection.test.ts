@@ -403,12 +403,16 @@ describe('mouse cell drag selection', () => {
         );
 
         frames.runNext(16);
-        expect(view.scrollDOM.scrollTop).toBeGreaterThan(0);
+        const afterFirstFrame = view.scrollDOM.scrollTop;
+        expect(afterFirstFrame).toBeGreaterThan(0);
         expect(frames.pendingCount()).toBe(1);
 
+        // Once the table's bottom is inside the viewport there is nothing left to reveal, so
+        // the frame loop keeps running for hit-testing but stops scrolling.
         tableRectSpy.mockReturnValue(makeRect(0, -200, 100, 100));
         frames.runNext(32);
-        expect(frames.pendingCount()).toBe(0);
+        expect(view.scrollDOM.scrollTop).toBe(afterFirstFrame);
+        expect(frames.pendingCount()).toBe(1);
 
         document.dispatchEvent(
             pointerEvent('pointerup', {
@@ -445,6 +449,30 @@ describe('mouse cell drag selection', () => {
         document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 90, clientY: 150 }));
 
         expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+    });
+
+    it('re-resolves the focus when the table reflows under a stationary pointer', () => {
+        const { view, cells } = mountGestureView();
+        const frames = mockAnimationFrames();
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        elementAtPoint = cells.header1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 40, clientY: 10 }));
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'header', row: 0, col: 1 });
+
+        // Tearing down the nested editor re-renders the cells, so a different cell can land
+        // under the unmoved pointer. No pointermove follows to report it.
+        elementAtPoint = cells.body1;
+        frames.runNext(16);
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+        expect(frames.pendingCount()).toBe(1);
+
+        // A second, later reflow (the async markdown render landing) is picked up too.
+        elementAtPoint = cells.body0;
+        frames.runNext(32);
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 0 });
     });
 
     it('opens the anchor editor when a rendered-cell drag contracts back to its anchor', () => {

@@ -84,7 +84,9 @@ Commands that move the main-editor caret outside the selected table clear the se
   releasing a drag back over its anchor opens that cell's editor.
 - A drag that starts inside the active nested editor remains ordinary text selection while it stays in that cell. When
   it travels a short margin past that cell's border into another cell, ownership switches to rectangular cell selection
-  with the active cell as its anchor; the margin keeps a graze past the border from tearing down the editor. Shift+Arrow similarly reopens the anchor editor when it contracts a multi-cell selection back to that one
+  with the active cell as its anchor; the margin keeps a graze past the border from tearing down the editor.
+  Closing the editor re-renders the cells and can reflow the table, so a drag re-resolves the cell under the pointer
+  every frame rather than only on pointer movement. Shift+Arrow similarly reopens the anchor editor when it contracts a multi-cell selection back to that one
   cell.
 - Links delegate to the content-script link opener and then to the main plugin.
 - Heading and footnote anchors scroll the main editor through `scrollToAnchor`.

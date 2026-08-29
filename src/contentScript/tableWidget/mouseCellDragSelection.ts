@@ -40,8 +40,8 @@ interface MouseCellGesture {
     lastFocus: CellCoords | null;
     lastClientX: number;
     lastClientY: number;
-    autoScrollFrameId: number | null;
-    lastAutoScrollTimestamp: number | null;
+    dragFrameId: number | null;
+    lastFrameTimestamp: number | null;
 }
 
 /** Squared distance from the pointer to the nearest point of `rect`; zero while inside it. */
@@ -57,13 +57,13 @@ function distanceSquared(event: PointerEvent, gesture: MouseCellGesture): number
     return deltaX * deltaX + deltaY * deltaY;
 }
 
-function applyScrollDelta(element: HTMLElement, axis: 'horizontal' | 'vertical', delta: number): boolean {
+function applyScrollDelta(element: HTMLElement, axis: 'horizontal' | 'vertical', delta: number): void {
     const current = axis === 'horizontal' ? element.scrollLeft : element.scrollTop;
     const scrollSize = axis === 'horizontal' ? element.scrollWidth : element.scrollHeight;
     const clientSize = axis === 'horizontal' ? element.clientWidth : element.clientHeight;
     const next = clamp(current + delta, 0, Math.max(0, scrollSize - clientSize));
     if (next === current) {
-        return false;
+        return;
     }
 
     if (axis === 'horizontal') {
@@ -71,7 +71,6 @@ function applyScrollDelta(element: HTMLElement, axis: 'horizontal' | 'vertical',
     } else {
         element.scrollTop = next;
     }
-    return true;
 }
 
 class MouseCellDragSelectionController {
@@ -127,28 +126,10 @@ class MouseCellDragSelectionController {
             }
             gesture.lastFocus = focus;
         } else {
-            // Once dragging, a pointer outside the table still tracks the nearest cell, so a
-            // drag past the edge of a fully visible table keeps extending the rectangle.
-            const focus =
-                pointedCell ??
-                this.resolveVisibleCellAtPointer(gesture) ??
-                gesture.lastFocus ??
-                gesture.resolvedCell.activeCell;
-            if (
-                !isSameCellCoords(gesture.lastFocus, focus) &&
-                setCellSelectionFromCoords(
-                    this.view,
-                    gesture.resolvedCell.tableFrom,
-                    gesture.resolvedCell.activeCell,
-                    focus,
-                    { scrollFocusIntoView: false }
-                )
-            ) {
-                gesture.lastFocus = focus;
-            }
+            this.applyDragFocus(gesture, this.resolveDragFocus(gesture));
         }
 
-        this.scheduleAutoScroll(gesture);
+        this.scheduleDragFrame(gesture);
         event.preventDefault();
         event.stopPropagation();
     };
@@ -226,8 +207,8 @@ class MouseCellDragSelectionController {
             lastFocus: null,
             lastClientX: event.clientX,
             lastClientY: event.clientY,
-            autoScrollFrameId: null,
-            lastAutoScrollTimestamp: null,
+            dragFrameId: null,
+            lastFrameTimestamp: null,
         });
 
         this.capturePointer(this.gesture);
@@ -261,8 +242,8 @@ class MouseCellDragSelectionController {
             lastFocus: null,
             lastClientX: event.clientX,
             lastClientY: event.clientY,
-            autoScrollFrameId: null,
-            lastAutoScrollTimestamp: null,
+            dragFrameId: null,
+            lastFrameTimestamp: null,
         });
         return true;
     }
@@ -316,21 +297,27 @@ class MouseCellDragSelectionController {
         );
     }
 
-    private scheduleAutoScroll(gesture: MouseCellGesture): void {
-        if (!gesture.dragged || gesture.autoScrollFrameId !== null) {
+    /**
+     * The cell under a stationary pointer changes whenever the table reflows, which this
+     * gesture causes itself: tearing down the nested editor swaps raw markdown for rendered
+     * HTML, and an uncached cell renders again asynchronously after that. So the focus is
+     * re-resolved every frame for the life of the drag rather than only on pointer movement.
+     */
+    private scheduleDragFrame(gesture: MouseCellGesture): void {
+        if (!gesture.dragged || gesture.dragFrameId !== null) {
             return;
         }
 
-        gesture.autoScrollFrameId = requestViewAnimationFrame(this.view, (timestamp) => {
-            this.runAutoScrollFrame(gesture, timestamp);
+        gesture.dragFrameId = requestViewAnimationFrame(this.view, (timestamp) => {
+            this.runDragFrame(gesture, timestamp);
         });
     }
 
-    private runAutoScrollFrame(gesture: MouseCellGesture, timestamp: number): void {
+    private runDragFrame(gesture: MouseCellGesture, timestamp: number): void {
         if (this.gesture !== gesture || !gesture.dragged) {
             return;
         }
-        gesture.autoScrollFrameId = null;
+        gesture.dragFrameId = null;
 
         const widgetRect = gesture.widget.getBoundingClientRect();
         const tableRect = gesture.table.getBoundingClientRect();
@@ -355,29 +342,39 @@ class MouseCellDragSelectionController {
         }
 
         const elapsedMs =
-            gesture.lastAutoScrollTimestamp === null
+            gesture.lastFrameTimestamp === null
                 ? EDGE_SCROLL_DEFAULT_FRAME_MS
-                : clamp(
-                      timestamp - gesture.lastAutoScrollTimestamp,
-                      EDGE_SCROLL_MIN_FRAME_MS,
-                      EDGE_SCROLL_MAX_FRAME_MS
-                  );
-        gesture.lastAutoScrollTimestamp = timestamp;
+                : clamp(timestamp - gesture.lastFrameTimestamp, EDGE_SCROLL_MIN_FRAME_MS, EDGE_SCROLL_MAX_FRAME_MS);
+        gesture.lastFrameTimestamp = timestamp;
         const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
         // The widget is the table's horizontal scroller; the editor's scrollDOM is the vertical
         // one. If either ever stops being scrollable, that axis simply reports no movement.
-        const didScrollHorizontally = applyScrollDelta(gesture.widget, 'horizontal', horizontalIntensity * maxDelta);
-        const didScrollVertically = applyScrollDelta(this.view.scrollDOM, 'vertical', verticalIntensity * maxDelta);
+        applyScrollDelta(gesture.widget, 'horizontal', horizontalIntensity * maxDelta);
+        applyScrollDelta(this.view.scrollDOM, 'vertical', verticalIntensity * maxDelta);
 
-        if (!didScrollHorizontally && !didScrollVertically) {
-            gesture.lastAutoScrollTimestamp = null;
+        this.applyDragFocus(gesture, this.resolveDragFocus(gesture));
+        this.scheduleDragFrame(gesture);
+    }
+
+    /**
+     * The cell under the pointer, falling back to the nearest visible one so a drag past the
+     * edge of a fully visible table keeps extending the rectangle.
+     */
+    private resolveDragFocus(gesture: MouseCellGesture): CellCoords {
+        return (
+            this.resolveCellAtClientPoint(gesture.lastClientX, gesture.lastClientY, gesture) ??
+            this.resolveVisibleCellAtPointer(gesture) ??
+            gesture.lastFocus ??
+            gesture.resolvedCell.activeCell
+        );
+    }
+
+    private applyDragFocus(gesture: MouseCellGesture, focus: CellCoords): void {
+        if (isSameCellCoords(gesture.lastFocus, focus)) {
             return;
         }
 
-        const focus = this.resolveVisibleCellAtPointer(gesture);
         if (
-            focus &&
-            !isSameCellCoords(gesture.lastFocus, focus) &&
             setCellSelectionFromCoords(
                 this.view,
                 gesture.resolvedCell.tableFrom,
@@ -388,7 +385,6 @@ class MouseCellDragSelectionController {
         ) {
             gesture.lastFocus = focus;
         }
-        this.scheduleAutoScroll(gesture);
     }
 
     private beginGesture(gesture: MouseCellGesture): void {
@@ -425,9 +421,9 @@ class MouseCellDragSelectionController {
         doc.removeEventListener('pointerup', this.onPointerUp, true);
         doc.removeEventListener('pointercancel', this.onPointerCancel, true);
 
-        if (gesture.autoScrollFrameId !== null) {
-            getViewWindow(this.view).cancelAnimationFrame(gesture.autoScrollFrameId);
-            gesture.autoScrollFrameId = null;
+        if (gesture.dragFrameId !== null) {
+            getViewWindow(this.view).cancelAnimationFrame(gesture.dragFrameId);
+            gesture.dragFrameId = null;
         }
 
         try {
