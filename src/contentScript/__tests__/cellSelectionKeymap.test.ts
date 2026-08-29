@@ -199,6 +199,64 @@ describe('cellSelectionKeymap', () => {
         expect(view.state.doc.toString()).toBe(initialDoc);
     });
 
+    it.each([
+        { label: 'Ctrl+X', init: { key: 'x', ctrlKey: true } },
+        { label: 'Command+X', init: { key: 'x', metaKey: true } },
+        { label: 'Shift+Delete', init: { key: 'Delete', shiftKey: true } },
+        { label: 'Ctrl+Insert', init: { key: 'Insert', ctrlKey: true } },
+        { label: 'Shift+Insert', init: { key: 'Insert', shiftKey: true } },
+    ])('isolates $label from the root editor without suppressing its clipboard event', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+        view.focus();
+
+        const rootKeyDown = vi.fn();
+        view.contentDOM.addEventListener('keydown', rootKeyDown);
+        const event = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            ...init,
+        });
+        view.contentDOM.dispatchEvent(event);
+
+        expect(rootKeyDown).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).not.toBeNull();
+    });
+
+    it('does not isolate clipboard shortcuts when focus belongs to an external control', () => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
+        const inputKeyDown = vi.fn();
+        externalInput.addEventListener('keydown', inputKeyDown);
+        externalInput.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                bubbles: true,
+                cancelable: true,
+                key: 'x',
+                ctrlKey: true,
+            })
+        );
+
+        expect(inputKeyDown).toHaveBeenCalledTimes(1);
+    });
+
     it('focuses the main editor after deleting an emptied table via multi-cell selection', () => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         const focusSpy = vi.spyOn(view, 'focus');

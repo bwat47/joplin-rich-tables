@@ -116,6 +116,25 @@ function hasNoModifiers(event: KeyboardEvent): boolean {
 }
 
 /**
+ * Clipboard chords must reach the browser's native default action so it emits the
+ * corresponding clipboard event, but must not reach CodeMirror's root-editor keymaps.
+ * The clipboard event is where the table selection is serialized and rewritten.
+ */
+function isNativeClipboardShortcut(event: KeyboardEvent): boolean {
+    if (event.altKey) {
+        return false;
+    }
+
+    const key = event.key.toLowerCase();
+    const isModShortcut = (event.ctrlKey || event.metaKey) && ['c', 'v', 'x'].includes(key);
+    const isCtrlInsert = event.ctrlKey && !event.metaKey && !event.shiftKey && event.key === 'Insert';
+    const isShiftInsertOrDelete =
+        event.shiftKey && !event.ctrlKey && !event.metaKey && (event.key === 'Insert' || event.key === 'Delete');
+
+    return isModShortcut || isCtrlInsert || isShiftInsertOrDelete;
+}
+
+/**
  * Shift+Arrow extends the selection; a bare arrow collapses it and leaves the table.
  * Modified arrows (word/line movement) are left to the main editor, which moves the
  * caret out of the table's range and lets the selection guard drop the highlight.
@@ -162,6 +181,13 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
         constructor(private readonly view: EditorView) {
             this.onKeyDown = (event) => {
                 if (!getCellSelection(this.view.state)) {
+                    return;
+                }
+
+                if (isNativeClipboardShortcut(event) && canHandleTableSelectionKeydown(this.view)) {
+                    // Preserve the native default so copy/cut/paste still fires. Stopping
+                    // propagation prevents the root editor from acting on its parked caret first.
+                    event.stopPropagation();
                     return;
                 }
 
