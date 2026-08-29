@@ -18,8 +18,13 @@ import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 import { makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
+import { requestOpenCell } from '../openCellRequest';
+
+function sameCellCoords(left: CellCoords, right: CellCoords): boolean {
+    return left.section === right.section && left.row === right.row && left.col === right.col;
+}
 
 function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
     const bounds = getTableGridBounds(ctx);
@@ -170,6 +175,21 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     const clampedFocus = clampSelectionFocus(view, selection.tableFrom, moveCellCoords(selection.focus, direction));
     if (!clampedFocus) {
         return false;
+    }
+
+    if (!sameCellCoords(selection.focus, selection.anchor) && sameCellCoords(clampedFocus, selection.anchor)) {
+        const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+        const resolvedAnchor = ctx ? createResolvedActiveCell({ ctx, coords: selection.anchor }) : null;
+        if (!resolvedAnchor) {
+            return false;
+        }
+
+        requestOpenCell(view, {
+            resolvedCell: resolvedAnchor,
+            clearCellSelection: true,
+            scrollIntoView: false,
+        });
+        return true;
     }
 
     return dispatchSelection(

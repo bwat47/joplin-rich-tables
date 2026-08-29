@@ -385,6 +385,39 @@ describe('cellSelectionKeymap', () => {
         expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: expected });
     });
 
+    it('reopens the anchor editor when Shift+Arrow contracts a multi-cell selection to one cell', () => {
+        const prefix = 'above\n\n';
+        const view = mountSelectionView(`${prefix}${GRID_DOC}\n\nbelow`);
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: prefix.length,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        pressKey({ key: 'ArrowLeft', shiftKey: true });
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            tableFrom: prefix.length,
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+    });
+
+    it('keeps a one-cell selection when Shift+Arrow is clamped at its anchor', () => {
+        const view = mountSelectionView(GRID_DOC);
+        const anchor = { section: 'header', row: 0, col: 0 } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }) });
+
+        pressKey({ key: 'ArrowLeft', shiftKey: true });
+
+        expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: anchor });
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
     it.each([
         { key: 'ArrowDown', edge: 'after' },
         { key: 'ArrowRight', edge: 'after' },

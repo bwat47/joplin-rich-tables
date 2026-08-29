@@ -1,8 +1,9 @@
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import type { CellCoords } from '../tableModel/types';
-import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { setCellSelectionFromCoords } from '../tableRuntime/selection/cellSelectionController';
+import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { getCellSelection } from '../tableState/cellSelectionState';
 import { flushNestedEditorState } from '../nestedEditor/nestedEditorController';
 import { getWidgetSelector, readCellCoords } from './domHelpers';
@@ -95,6 +96,9 @@ class MouseCellDragSelectionController {
             return;
         }
 
+        const pointedCell = this.resolveCellAtPoint(event, gesture);
+        const shouldReactivateAnchor =
+            gesture.dragged && pointedCell !== null && sameCoords(gesture.resolvedCell.activeCell, pointedCell);
         const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
         if (shouldConsume) {
             event.preventDefault();
@@ -107,6 +111,21 @@ class MouseCellDragSelectionController {
                 resolvedCell: gesture.resolvedCell,
                 clearCellSelection: Boolean(getCellSelection(this.view.state)),
             });
+        } else if (shouldReactivateAnchor) {
+            const currentContext = resolveTableContextAtPos(this.view.state, gesture.resolvedCell.tableFrom);
+            const resolvedAnchor = currentContext
+                ? createResolvedActiveCell({
+                      ctx: currentContext,
+                      coords: gesture.resolvedCell.activeCell,
+                  })
+                : null;
+            if (resolvedAnchor) {
+                requestOpenCell(this.view, {
+                    resolvedCell: resolvedAnchor,
+                    clearCellSelection: true,
+                    scrollIntoView: false,
+                });
+            }
         }
     };
 

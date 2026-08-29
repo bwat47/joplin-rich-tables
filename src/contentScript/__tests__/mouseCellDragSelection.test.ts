@@ -243,6 +243,59 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
+    it('opens the anchor editor when a rendered-cell drag contracts back to its anchor', () => {
+        const { view, cells } = mountGestureView();
+        cells.header0.dispatchEvent(
+            pointerEvent('pointerdown', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+
+        elementAtPoint = cells.header1;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 20,
+                clientY: 20,
+            })
+        );
+        elementAtPoint = cells.header0;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+        expect(getCellSelection(view.state)?.focus).toEqual({
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+
+        const up = pointerEvent('pointerup', {
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+        });
+        document.dispatchEvent(up);
+
+        expect(up.defaultPrevented).toBe(true);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+        expect(getPendingOpenCellRequest(view.state)?.activeCell).toMatchObject({
+            section: 'header',
+            row: 0,
+            col: 0,
+        });
+    });
+
     it('leaves an active editor in native text-selection mode while the pointer stays in its cell', () => {
         const { view, cells } = mountGestureView();
         view.dispatch({
@@ -350,6 +403,117 @@ describe('mouse cell drag selection', () => {
 
         expect(up.defaultPrevented).toBe(true);
         expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('reopens the active editor when its cell-selection drag is released over the anchor', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(
+            pointerEvent('pointerdown', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 20,
+                clientY: 20,
+            })
+        );
+        elementAtPoint = cells.body0;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+        expect(getCellSelection(view.state)?.focus).toEqual({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+
+        const up = pointerEvent('pointerup', {
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+        });
+        document.dispatchEvent(up);
+
+        expect(up.defaultPrevented).toBe(true);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+        expect(getPendingOpenCellRequest(view.state)?.activeCell).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+    });
+
+    it('keeps the single-cell selection when an active-editor drag is released outside its anchor', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(
+            pointerEvent('pointerdown', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 20,
+                clientY: 20,
+            })
+        );
+        elementAtPoint = cells.body0;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+        elementAtPoint = null;
+        document.dispatchEvent(
+            pointerEvent('pointerup', {
+                button: 0,
+                clientX: 30,
+                clientY: 30,
+            })
+        );
+
+        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
