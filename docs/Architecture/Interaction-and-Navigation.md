@@ -78,5 +78,8 @@ Commands that move the main-editor caret outside the selected table clear the se
 ## Mouse Interaction
 
 - Clicking a cell activates it or updates the current multi-cell selection.
+- Dragging from one cell to another with a desktop mouse creates a rectangular selection. A movement threshold keeps
+  ordinary clicks distinct from drags. Touch and pen pointers retain native scrolling/tap behaviour and do not start
+  drag selection; dragging does not auto-scroll the editor or the table.
 - Links delegate to the content-script link opener and then to the main plugin.
 - Heading and footnote anchors scroll the main editor through `scrollToAnchor`.

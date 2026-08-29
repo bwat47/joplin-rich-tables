@@ -49,8 +49,12 @@ import {
     rootEditorActiveCellAttribute,
     rootEditorSelectionSuppression,
 } from '../nestedEditor/rootEditorSelectionTheme';
+import { mouseCellDragSelectionPlugin } from './mouseCellDragSelection';
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
+    pointerdown: (event, view) => {
+        return handleTableInteraction(view, event);
+    },
     mousedown: (event, view) => {
         return handleTableInteraction(view, event);
     },
@@ -128,6 +132,7 @@ async function registerTableWidgetExtension(
         openCellRequestKeymap,
         openCellRequestTimeoutPlugin,
 
+        mouseCellDragSelectionPlugin,
         tableWidgetInteractionHandlers,
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,
