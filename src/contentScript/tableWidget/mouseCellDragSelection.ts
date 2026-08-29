@@ -74,6 +74,13 @@ class MouseCellDragSelectionController {
             return;
         }
 
+        // The button is already up, so the pointerup was lost (released outside the window).
+        // Without this a bare hover would keep driving the gesture.
+        if (event.buttons === 0) {
+            this.finishGesture();
+            return;
+        }
+
         gesture.lastClientX = event.clientX;
         gesture.lastClientY = event.clientY;
 
@@ -173,7 +180,7 @@ class MouseCellDragSelectionController {
     constructor(private readonly view: EditorView) {}
 
     startRenderedCell(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
-        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary || this.gesture) {
+        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary) {
             return false;
         }
 
@@ -209,7 +216,7 @@ class MouseCellDragSelectionController {
     }
 
     observeActiveEditor(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
-        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary || this.gesture) {
+        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary) {
             return false;
         }
 
@@ -359,6 +366,8 @@ class MouseCellDragSelectionController {
     }
 
     private beginGesture(gesture: MouseCellGesture): void {
+        // A fresh pointerdown proves any earlier gesture is over, even if its pointerup was lost.
+        this.finishGesture();
         this.gesture = gesture;
         const doc = this.view.dom.ownerDocument;
         doc.addEventListener('pointermove', this.onPointerMove, true);

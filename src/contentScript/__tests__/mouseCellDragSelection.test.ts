@@ -32,6 +32,8 @@ const mountedViews: EditorView[] = [];
 let elementAtPoint: Element | null = null;
 let originalElementFromPoint: PropertyDescriptor | undefined;
 
+const POINTER_RELEASE_TYPES = ['pointerup', 'pointercancel'];
+
 function pointerEvent(
     type: string,
     init: MouseEventInit & { pointerId?: number; pointerType?: string; isPrimary?: boolean }
@@ -39,6 +41,9 @@ function pointerEvent(
     const event = new MouseEvent(type, {
         bubbles: true,
         cancelable: true,
+        // Mirror a held primary button unless the caller says otherwise, so `buttons`
+        // reflects reality the way a real pointer sequence does.
+        buttons: init.buttons ?? (POINTER_RELEASE_TYPES.includes(type) ? 0 : 1),
         ...init,
     });
     Object.defineProperties(event, {
@@ -781,6 +786,35 @@ describe('mouse cell drag selection', () => {
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,
             anchor: { section: 'header', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        });
+    });
+    it('stops tracking a gesture whose pointerup was lost, instead of following a bare hover', () => {
+        const { view, cells } = mountGestureView();
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        // The release happened outside the window, so no pointerup ever arrived.
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, buttons: 0, clientX: 40, clientY: 40 }));
+        expect(getCellSelection(view.state)).toBeNull();
+
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 50, clientY: 50 }));
+        expect(getCellSelection(view.state)).toBeNull();
+    });
+
+    it('replaces a stale gesture when a new pointerdown arrives', () => {
+        const { view, cells } = mountGestureView();
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        // A second press with no intervening pointerup re-anchors rather than being ignored.
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 40 }));
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 40, clientY: 40 }));
+
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
             focus: { section: 'body', row: 0, col: 1 },
         });
     });
