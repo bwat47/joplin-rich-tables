@@ -36,7 +36,8 @@ Rules that hold across both halves:
 
 - Deletion protection keys off CodeMirror's semantic `delete.backward`/`delete.forward` transactions rather than
   physical key bindings, so word- and line-wise deletes are covered while IME and soft-keyboard `input.type` stays under
-  CodeMirror's platform behavior.
+  CodeMirror's platform behavior. A native cut with no explicit selection is CodeMirror's linewise `delete.cut`; it is
+  protected as a forward deletion, while an explicit cut selection remains a deliberate range deletion.
 - A cell editor holds one caret, so only one may enter: a multi-cursor deletion enters the first table in document order
   and drops the rest. Once entry is requested, key repeat is suppressed until the nested editor takes focus, so a held
   key cannot walk the main caret through the hidden Markdown.

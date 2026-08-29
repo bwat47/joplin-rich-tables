@@ -77,7 +77,13 @@ function getDeletionDirection(transaction: Transaction): DeletionDirection | nul
         return 'backward';
     }
 
-    if (transaction.isUserEvent('delete.forward')) {
+    // With no explicit selection, CodeMirror implements native cut as a linewise
+    // deletion. Its range runs through the current line's trailing newline, so it
+    // reaches a table boundary in the same direction as a forward deletion.
+    if (
+        transaction.isUserEvent('delete.forward') ||
+        (transaction.isUserEvent('delete.cut') && transaction.startState.selection.ranges.every((range) => range.empty))
+    ) {
         return 'forward';
     }
 
@@ -387,6 +393,35 @@ function prepareTableBoundaryDeletion(
     return prepareSeparatorPreservingDeletion(transaction, range, direction, boundaryTarget);
 }
 
+/**
+ * Protects a table's final source row when a linewise cut starts at its end.
+ *
+ * Forward deletion normally discovers the protected separator at the caret. At the
+ * document end there is no character to probe, while CodeMirror's linewise cut still
+ * removes the entire final row behind the caret. A directly adjoining character can
+ * create the same shape in malformed, unspaced input, so use the table range itself as
+ * the fallback signal.
+ */
+function prepareTrailingTableLineCutProtection(
+    transaction: Transaction,
+    range: SelectionRange
+): TransactionSpec | null {
+    if (!transaction.isUserEvent('delete.cut') || !range.empty) {
+        return null;
+    }
+
+    const state = transaction.startState;
+    const ctx = resolveTableContextAtPos(state, range.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    if (ctx?.to !== range.head || !resolveOverlappingChange(transaction, range.head - 1, range.head)) {
+        return null;
+    }
+
+    return {
+        selection: { anchor: Math.min(range.head + 1, state.doc.length) },
+        scrollIntoView: transaction.scrollIntoView,
+    };
+}
+
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
     const direction = getDeletionDirection(transaction);
     if (!direction || !transaction.docChanged) {
@@ -404,9 +439,13 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
 
     // Several carets can reach tables in one gesture. A deletion toward a table enters the
     // first in document order and drops the rest because a cell editor holds one caret. An
-    // away-from-table caret move requires a lone caret; multi-range deletion passes through.
+    // ordinary away-from-table caret move requires a lone caret; multi-range deletion passes
+    // through. Linewise cut is also stopped when it would remove a trailing table row, since
+    // that hidden structural deletion cannot safely be applied in part.
     for (const range of transaction.startState.selection.ranges) {
-        const spec = prepareTableBoundaryDeletion(transaction, range, direction);
+        const spec =
+            prepareTableBoundaryDeletion(transaction, range, direction) ??
+            prepareTrailingTableLineCutProtection(transaction, range);
         if (spec) {
             return spec;
         }

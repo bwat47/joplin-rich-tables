@@ -89,6 +89,26 @@ function pressKey(view: EditorView, key: string, modifiers: KeyboardEventInit = 
     );
 }
 
+function cutCurrentLine(view: EditorView): void {
+    const line = view.state.doc.lineAt(view.state.selection.main.head);
+    view.dispatch({
+        changes: { from: line.from, to: Math.min(view.state.doc.length, line.to + 1) },
+        userEvent: 'delete.cut',
+    });
+}
+
+function dispatchCutEvent(view: EditorView): void {
+    view.focus();
+    const event = new Event('cut', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+        value: {
+            clearData: vi.fn(),
+            setData: vi.fn(),
+        },
+    });
+    view.contentDOM.dispatchEvent(event);
+}
+
 function expectBoundaryCellOpen(view: EditorView, edge: 'start' | 'end'): void {
     const tableFrom = view.state.doc.toString().indexOf(TABLE);
     expect(getActiveCell(view.state)).toEqual(
@@ -127,6 +147,104 @@ function expectCellOpen(
 }
 
 describe('mainEditorTableEntry deletion protection', () => {
+    it('protects the boundary above a table from a native linewise cut', () => {
+        const tableFrom = AROUND_TABLE_DOC.indexOf(TABLE);
+        const view = mountView(AROUND_TABLE_DOC, tableFrom - 1);
+
+        dispatchCutEvent(view);
+
+        expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
+        expectBoundaryCellOpen(view, 'start');
+    });
+
+    it.each([
+        {
+            caret: 'blank line above the table',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1,
+            expected: { kind: 'entry', edge: 'start' },
+        },
+        {
+            caret: 'table start',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE),
+            expected: { kind: 'entry', edge: 'start' },
+        },
+        {
+            caret: 'table end',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length,
+            expected: { kind: 'move', offset: 1 },
+        },
+        {
+            caret: 'blank line below the table',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
+            expected: { kind: 'move', offset: 1 },
+        },
+    ] as const)('linewise cut at $caret preserves the boundary', ({ pos, expected }) => {
+        const view = mountView(AROUND_TABLE_DOC, pos);
+
+        cutCurrentLine(view);
+
+        expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
+        if (expected.kind === 'entry') {
+            expectBoundaryCellOpen(view, expected.edge);
+        } else {
+            expect(view.state.selection.main.head).toBe(pos + expected.offset);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        }
+    });
+
+    it('protects the final table row from linewise cut at the document end', () => {
+        const doc = `\n${TABLE}`;
+        const view = mountView(doc, doc.length);
+
+        cutCurrentLine(view);
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expect(view.state.selection.main.head).toBe(doc.length);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('allows linewise cut to remove a surplus blank line', () => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const view = mountView(doc, BEFORE.length + 1);
+
+        cutCurrentLine(view);
+
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it.each([
+        { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
+        { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
+    ])('leaves linewise cut unchanged in $label', ({ effect }) => {
+        const doc = `${TABLE}\nafter`;
+        const view = mountView(doc, 0);
+        view.dispatch({ effects: effect });
+
+        cutCurrentLine(view);
+
+        expect(view.state.doc.toString()).toBe(`${TABLE.split('\n').slice(1).join('\n')}\nafter`);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('leaves an explicit cut selection deliberate', () => {
+        const firstRowTo = TABLE.indexOf('\n') + 1;
+        const view = mountView(TABLE, { anchor: 0, head: firstRowTo });
+
+        view.dispatch({
+            changes: { from: 0, to: firstRowTo },
+            userEvent: 'delete.cut',
+        });
+
+        expect(view.state.doc.toString()).toBe(TABLE.slice(firstRowTo));
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
     it.each([
         {
             caret: 'blank line above the table',
