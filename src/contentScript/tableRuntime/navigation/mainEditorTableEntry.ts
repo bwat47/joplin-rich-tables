@@ -7,14 +7,22 @@ import {
     type TransactionSpec,
 } from '@codemirror/state';
 import { BlockType, Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
-import { getActiveCell } from '../../tableState/activeCellState';
-import { fromUnifiedRow, getCellSelection } from '../../tableState/cellSelectionState';
+import { fromUnifiedRow } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../openCellRequest';
+import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
+import {
+    resolveAdjoiningTable,
+    scanNewlinesBackward,
+    scanNewlinesForward,
+    TABLE_LOOKUP_TIMEOUT_MS,
+    type AdjoiningTable,
+    type TableSide,
+} from '../tableBoundaryResolution';
 import { resolveTableContextAtPos } from '../tableResolution';
 import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
@@ -22,7 +30,6 @@ import type { InitialCursorPos } from '../../shared/cursorPlacement';
 type DeletionDirection = 'backward' | 'forward';
 /** A native cut with no selection removes whole lines, so it is not a directed deletion. */
 type DeletionKind = DeletionDirection | 'linewiseCut';
-type TableSide = 'before' | 'after';
 type VerticalEntryDirection = 'up' | 'down';
 type HorizontalEntryDirection = 'left' | 'right';
 /** Which end of a grid axis an entry lands on. */
@@ -33,11 +40,6 @@ interface EdgeCellTarget {
     col: GridEdge;
 }
 
-interface BoundaryEntryTarget {
-    ctx: TableContext;
-    side: TableSide;
-}
-
 /** An old-document range a deletion removes, and whether it also inserts. */
 interface DeletedSpan {
     from: number;
@@ -45,33 +47,15 @@ interface DeletedSpan {
     insertsText: boolean;
 }
 
-interface NewlineScan {
-    count: number;
-    edge: number;
-}
-
-// A rendered widget implies that table parsing has already completed. Keyboard
-// entry must never block waiting for syntax work on the keyboard event path.
-const TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS = 0;
-
 /**
  * Newlines between a table and its neighbouring text that a deletion may not consume:
  * the required blank lines plus the line break that ends the adjoining line.
  */
 const PROTECTED_BOUNDARY_NEWLINES = REQUIRED_TABLE_BOUNDARY_BLANK_LINES + 1;
 
-function canEnterRenderedTable(state: EditorState): boolean {
-    return (
-        !isEffectiveRawMode(state) &&
-        !getCellSelection(state) &&
-        !getActiveCell(state) &&
-        !getPendingOpenCellRequest(state)
-    );
-}
-
 /** Arrow entry reads one movement target off the main range, so it needs a lone caret. */
 function canEnterFromArrowMovement(state: EditorState): boolean {
-    return canEnterRenderedTable(state) && state.selection.ranges.length === 1 && state.selection.main.empty;
+    return hasPlainRenderedTableCaret(state) && state.selection.ranges.length === 1 && state.selection.main.empty;
 }
 
 function resolveDeletionKind(transaction: Transaction): DeletionKind | null {
@@ -181,47 +165,7 @@ function resolveDeletionTargetTable(
         return null;
     }
 
-    return resolveTableContextAtPos(state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-}
-
-/** Newlines before `pos`, crossing only blank-line whitespace and stopping at `limit`. */
-function scanNewlinesBackward(state: EditorState, pos: number, limit: number): NewlineScan {
-    let cursor = pos;
-    let count = 0;
-    let edge = pos;
-    while (count < limit && cursor > 0) {
-        const character = state.doc.sliceString(cursor - 1, cursor);
-        if (character === '\n') {
-            cursor--;
-            edge = cursor;
-            count++;
-        } else if (isBlankLineContent(character)) {
-            cursor--;
-        } else {
-            break;
-        }
-    }
-    return { count, edge };
-}
-
-/** Newlines after `pos`, crossing only blank-line whitespace and stopping at `limit`. */
-function scanNewlinesForward(state: EditorState, pos: number, limit: number): NewlineScan {
-    let cursor = pos;
-    let count = 0;
-    let edge = pos;
-    while (count < limit && cursor < state.doc.length) {
-        const character = state.doc.sliceString(cursor, cursor + 1);
-        if (character === '\n') {
-            cursor++;
-            edge = cursor;
-            count++;
-        } else if (isBlankLineContent(character)) {
-            cursor++;
-        } else {
-            break;
-        }
-    }
-    return { count, edge };
+    return resolveTableContextAtPos(state, targetPos, TABLE_LOOKUP_TIMEOUT_MS);
 }
 
 /**
@@ -238,31 +182,8 @@ function resolveOverlappingChange(transaction: Transaction, from: number, to: nu
     return overlapping;
 }
 
-/**
- * The table that the newline span `[from, to)` separates from its neighbour, or null.
- *
- * A span between two tables separates both, so the table the deletion moves toward wins.
- */
-function resolveAdjoiningTable(
-    state: EditorState,
-    from: number,
-    to: number,
-    direction: DeletionDirection
-): BoundaryEntryTarget | null {
-    const sides: TableSide[] = direction === 'backward' ? ['before', 'after'] : ['after', 'before'];
-    for (const side of sides) {
-        const boundary = side === 'before' ? from : to;
-        const ctx = resolveTableContextAtPos(state, boundary, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
-        if (ctx && (side === 'before' ? ctx.to === boundary : ctx.from === boundary)) {
-            return { ctx, side };
-        }
-    }
-
-    return null;
-}
-
 /** The newlines beside the table edge that a deletion moving away from it must leave in place. */
-function resolveProtectedSeparator(state: EditorState, target: BoundaryEntryTarget): { from: number; to: number } {
+function resolveProtectedSeparator(state: EditorState, target: AdjoiningTable): { from: number; to: number } {
     const { ctx, side } = target;
     return side === 'after'
         ? { from: scanNewlinesBackward(state, ctx.from, PROTECTED_BOUNDARY_NEWLINES).edge, to: ctx.from }
@@ -288,8 +209,10 @@ function resolveBoundarySeparatorTable(
     transaction: Transaction,
     head: number,
     direction: DeletionDirection
-): BoundaryEntryTarget | null {
+): AdjoiningTable | null {
     const state = transaction.startState;
+    // A deletion reaches the table it moves toward first, so that side wins a tie.
+    const preferredSide: TableSide = direction === 'backward' ? 'before' : 'after';
     const deletedFrom = deletedCharOffset(head, direction);
     if (deletedFrom < 0 || deletedFrom >= state.doc.length) {
         return null;
@@ -303,7 +226,7 @@ function resolveBoundarySeparatorTable(
         return null;
     }
 
-    const edgeAdjacent = resolveAdjoiningTable(state, deletedFrom, deletedFrom + 1, direction);
+    const edgeAdjacent = resolveAdjoiningTable(state, deletedFrom, deletedFrom + 1, preferredSide);
     if (edgeAdjacent) {
         return edgeAdjacent;
     }
@@ -315,7 +238,7 @@ function resolveBoundarySeparatorTable(
         return null;
     }
 
-    return resolveAdjoiningTable(state, backward.edge, forward.edge, direction);
+    return resolveAdjoiningTable(state, backward.edge, forward.edge, preferredSide);
 }
 
 /**
@@ -331,7 +254,7 @@ function prepareSeparatorPreservingDeletion(
     transaction: Transaction,
     range: SelectionRange,
     direction: DeletionDirection,
-    target: BoundaryEntryTarget
+    target: AdjoiningTable
 ): TransactionSpec | null {
     const state = transaction.startState;
     // Mapping multiple ranges would be surprising and is not needed for entry.
@@ -405,7 +328,7 @@ function prepareTableBoundaryDeletion(
 function hasUncuttableLine(transaction: Transaction): boolean {
     const state = transaction.startState;
     return state.selection.ranges.some((range) => {
-        if (resolveTableContextAtPos(state, range.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS)) {
+        if (resolveTableContextAtPos(state, range.head, TABLE_LOOKUP_TIMEOUT_MS)) {
             return true;
         }
 
@@ -430,7 +353,7 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
         return [];
     }
 
-    if (!canEnterRenderedTable(transaction.startState)) {
+    if (!hasPlainRenderedTableCaret(transaction.startState)) {
         return transaction;
     }
 
@@ -513,7 +436,7 @@ function resolveSkippedTableBlock(
         return null;
     }
 
-    return resolveTableContextAtPos(view.state, skippedBlock.from, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    return resolveTableContextAtPos(view.state, skippedBlock.from, TABLE_LOOKUP_TIMEOUT_MS);
 }
 
 /**
@@ -530,7 +453,7 @@ function resolveVerticalEntryContext(
         return null;
     }
 
-    const directCtx = resolveTableContextAtPos(view.state, targetPos, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    const directCtx = resolveTableContextAtPos(view.state, targetPos, TABLE_LOOKUP_TIMEOUT_MS);
     if (directCtx && entersTableFromExpectedSide(currentPos, directCtx, direction)) {
         return directCtx;
     }
@@ -590,7 +513,7 @@ function activateTableAtHorizontalTarget(view: EditorView, direction: Horizontal
         return false;
     }
 
-    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_ENTRY_SYNTAX_TREE_TIMEOUT_MS);
+    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_LOOKUP_TIMEOUT_MS);
     if (!ctx || (movesForward ? current.head >= ctx.from : current.head <= ctx.to)) {
         return false;
     }

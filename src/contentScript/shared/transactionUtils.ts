@@ -27,3 +27,17 @@ export function isFullDocumentReplace(tr: Transaction): boolean {
 
     return isFullReplace && changeCount === 1;
 }
+
+/** True when any change strictly overlaps `[from, to)`. Touching an endpoint does not count. */
+export function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
+    let overlaps = false;
+    tr.changes.iterChanges((fromA, toA) => {
+        if (overlaps) {
+            return;
+        }
+        if (fromA < to && toA > from) {
+            overlaps = true;
+        }
+    });
+    return overlaps;
+}

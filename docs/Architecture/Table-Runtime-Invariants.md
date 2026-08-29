@@ -39,6 +39,14 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 - Explicit open requests take priority over generic lifecycle reactions such as close, clear, reposition, or cursor restoration.
 - Lifecycle inference is only a fallback for cases without a command-level destination, such as source-mode exit or undo/redo repositioning.
 
+## Boundary Spacing
+
+- A rendered table keeps `REQUIRED_TABLE_BOUNDARY_BLANK_LINES` blank lines between itself and its neighbouring text.
+- The invariant is enforced at three points: table insertion and paste, cell entry normalization, and boundary
+  maintenance for typed or pasted text. Repairs belong in the transaction that broke it, never in a later dispatch.
+- Deletion protects the separation instead of repairing it, since the caret has somewhere to go.
+- Maintenance decides from the post-change document, so enforcement points cannot stack.
+
 ## Widget Rebuilds
 
 - Decoration policy owns only the table projection decision: keep, map, rebuild, or hide widgets.
