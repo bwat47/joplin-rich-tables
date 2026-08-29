@@ -1,5 +1,5 @@
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import type { CellCoords } from '../tableModel/types';
+import { isSameCellCoords, type CellCoords } from '../tableModel/types';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { setCellSelectionFromCoords } from '../tableRuntime/selection/cellSelectionController';
@@ -8,11 +8,10 @@ import { getCellSelection } from '../tableState/cellSelectionState';
 import { flushNestedEditorState } from '../nestedEditor/nestedEditorController';
 import { getViewWindow, requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
-import { getWidgetSelector, readCellCoords } from './domHelpers';
+import { MOUSE_BUTTON_LEFT } from '../shared/mouseButtons';
+import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
 import { calculateEdgeScrollIntensity } from './mouseCellDragAutoScroll';
 
-const SELECTOR_CELL = 'td, th';
-const MOUSE_BUTTON_LEFT = 0;
 const DRAG_START_DISTANCE_PX = 5;
 const DRAG_START_DISTANCE_SQUARED = DRAG_START_DISTANCE_PX * DRAG_START_DISTANCE_PX;
 const EDGE_SCROLL_ZONE_PX = 48;
@@ -43,10 +42,6 @@ interface MouseCellGesture {
     lastClientY: number;
     autoScrollFrameId: number | null;
     lastAutoScrollTimestamp: number | null;
-}
-
-function sameCoords(left: CellCoords | null, right: CellCoords): boolean {
-    return left?.section === right.section && left.row === right.row && left.col === right.col;
 }
 
 /** Squared distance from the pointer to the nearest point of `rect`; zero while inside it. */
@@ -106,7 +101,7 @@ class MouseCellDragSelectionController {
                 // uninterrupted.
                 if (
                     !pointedCell ||
-                    sameCoords(gesture.resolvedCell.activeCell, pointedCell) ||
+                    isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell) ||
                     distanceOutsideRectSquared(gesture.anchorCell.getBoundingClientRect(), event) <
                         BOUNDARY_EXIT_DISTANCE_SQUARED
                 ) {
@@ -140,7 +135,7 @@ class MouseCellDragSelectionController {
                 gesture.lastFocus ??
                 gesture.resolvedCell.activeCell;
             if (
-                !sameCoords(gesture.lastFocus, focus) &&
+                !isSameCellCoords(gesture.lastFocus, focus) &&
                 setCellSelectionFromCoords(
                     this.view,
                     gesture.resolvedCell.tableFrom,
@@ -166,7 +161,7 @@ class MouseCellDragSelectionController {
 
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         const shouldReactivateAnchor =
-            gesture.dragged && pointedCell !== null && sameCoords(gesture.resolvedCell.activeCell, pointedCell);
+            gesture.dragged && pointedCell !== null && isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell);
         const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
         if (shouldConsume) {
             event.preventDefault();
@@ -191,7 +186,6 @@ class MouseCellDragSelectionController {
                 requestOpenCell(this.view, {
                     resolvedCell: resolvedAnchor,
                     clearCellSelection: true,
-                    scrollIntoView: false,
                 });
             }
         }
@@ -370,6 +364,8 @@ class MouseCellDragSelectionController {
                   );
         gesture.lastAutoScrollTimestamp = timestamp;
         const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
+        // The widget is the table's horizontal scroller; the editor's scrollDOM is the vertical
+        // one. If either ever stops being scrollable, that axis simply reports no movement.
         const didScrollHorizontally = applyScrollDelta(gesture.widget, 'horizontal', horizontalIntensity * maxDelta);
         const didScrollVertically = applyScrollDelta(this.view.scrollDOM, 'vertical', verticalIntensity * maxDelta);
 
@@ -381,7 +377,7 @@ class MouseCellDragSelectionController {
         const focus = this.resolveVisibleCellAtPointer(gesture);
         if (
             focus &&
-            !sameCoords(gesture.lastFocus, focus) &&
+            !isSameCellCoords(gesture.lastFocus, focus) &&
             setCellSelectionFromCoords(
                 this.view,
                 gesture.resolvedCell.tableFrom,

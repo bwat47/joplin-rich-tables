@@ -1,5 +1,5 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
-import type { CellCoords } from '../tableModel/types';
+import { isSameCellCoords, type CellCoords } from '../tableModel/types';
 
 export interface ActiveCell extends CellCoords {
     tableFrom: number;
@@ -9,7 +9,7 @@ export interface ActiveCell extends CellCoords {
 export function isSameActiveCell(a: ActiveCell | null, b: ActiveCell | null): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
-    return a.tableFrom === b.tableFrom && a.section === b.section && a.row === b.row && a.col === b.col;
+    return a.tableFrom === b.tableFrom && isSameCellCoords(a, b);
 }
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();

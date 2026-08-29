@@ -16,15 +16,11 @@ import {
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
-import { makeTableId, type CellCoords } from '../../tableModel/types';
+import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
-
-function sameCellCoords(left: CellCoords, right: CellCoords): boolean {
-    return left.section === right.section && left.row === right.row && left.col === right.col;
-}
 
 function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
     const bounds = getTableGridBounds(ctx);
@@ -77,7 +73,7 @@ function dispatchSelectionWithContext(
     });
 
     const cellElement =
-        options.scrollFocusIntoView === false ? null : findCellElement(view, makeTableId(ctx.from), selection.focus);
+        (options.scrollFocusIntoView ?? true) ? findCellElement(view, makeTableId(ctx.from), selection.focus) : null;
     if (cellElement) {
         view.requestMeasure({
             read: () => cellElement.isConnected,
@@ -177,14 +173,13 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
         return false;
     }
 
-    if (!sameCellCoords(selection.focus, selection.anchor) && sameCellCoords(clampedFocus, selection.anchor)) {
+    if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
         const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
         const resolvedAnchor = ctx ? createResolvedActiveCell({ ctx, coords: selection.anchor }) : null;
         if (resolvedAnchor) {
             requestOpenCell(view, {
                 resolvedCell: resolvedAnchor,
                 clearCellSelection: true,
-                scrollIntoView: false,
             });
             return true;
         }

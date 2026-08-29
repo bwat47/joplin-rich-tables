@@ -7,7 +7,8 @@ import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSe
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
-import { getWidgetSelector, readCellCoords } from './domHelpers';
+import { MOUSE_BUTTON_LEFT } from '../shared/mouseButtons';
+import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
@@ -25,9 +26,6 @@ const HEADING_REGEX = /^(#{1,6})\s+(.*)/;
 const ANCHOR_HREF_PREFIX = '#';
 
 const SELECTOR_LINK = 'a';
-const SELECTOR_CELL = 'td, th';
-
-const MOUSE_BUTTON_LEFT = 0;
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest(SELECTOR_LINK);
