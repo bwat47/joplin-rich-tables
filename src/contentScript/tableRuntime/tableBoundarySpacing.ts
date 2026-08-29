@@ -1,3 +1,5 @@
+import type { Text } from '@codemirror/state';
+
 export const REQUIRED_TABLE_BOUNDARY_BLANK_LINES = 1;
 
 /** True when text contains only whitespace and can therefore form a blank line. */
@@ -37,4 +39,40 @@ export function countLeadingBlankLinesAfterBoundary(text: string): number {
     }
 
     return blankLineCount;
+}
+
+/**
+ * True when `pos` already has the required blank lines above its line.
+ *
+ * The document start counts as separated: there is no neighbouring text to run into.
+ * Line lookups keep this cheap enough to run on every keystroke, unlike the slice-based
+ * counters above.
+ */
+export function hasRequiredBlankLinesBefore(doc: Text, pos: number): boolean {
+    let lineNumber = doc.lineAt(pos).number;
+    for (let remaining = REQUIRED_TABLE_BOUNDARY_BLANK_LINES; remaining > 0; remaining--) {
+        lineNumber--;
+        if (lineNumber < 1) {
+            return true;
+        }
+        if (!isBlankLineContent(doc.line(lineNumber).text)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/** True when `pos` already has the required blank lines below its line. */
+export function hasRequiredBlankLinesAfter(doc: Text, pos: number): boolean {
+    let lineNumber = doc.lineAt(pos).number;
+    for (let remaining = REQUIRED_TABLE_BOUNDARY_BLANK_LINES; remaining > 0; remaining--) {
+        lineNumber++;
+        if (lineNumber > doc.lines) {
+            return true;
+        }
+        if (!isBlankLineContent(doc.line(lineNumber).text)) {
+            return false;
+        }
+    }
+    return true;
 }

@@ -38,6 +38,7 @@ import {
 import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
+import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
 import {
     closeOnOutsideMouseDown,
     outsideInteractionCapturePlugin,
@@ -120,6 +121,9 @@ async function registerTableWidgetExtension(
         insertedTableActivationField,
         cellSelectionField,
         mainEditorTableEntryExtension,
+        // Registered ahead of the guard so its paste rewrites are already spaced when
+        // boundary maintenance inspects the result.
+        tableBoundaryMaintenanceExtension,
         createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
         openCellRequestKeymap,
         openCellRequestTimeoutPlugin,

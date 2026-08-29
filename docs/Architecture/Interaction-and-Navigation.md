@@ -51,6 +51,11 @@ Rules that hold across both halves:
   separator was all it covered; neither consumes the required separation. A newline sitting directly against a table
   edge is protected the same way even when surplus blank lines remain, since removing it would leave the caret parked
   on the widget edge. Surplus blank lines further out are ordinary text and still delete one press at a time.
+- Typing or pasting into that blank line is answered instead of blocked: `tableRuntime/tableBoundaryMaintenance.ts`
+  folds a replacement newline into the same transaction, so the host never sees the unseparated document and one undo
+  takes both back. The decision is made against the post-change document, so a rewrite that already spaced the table -
+  a table paste, or padding for a neighbouring table - cannot pad it twice. Composition (`input.type.compose`) is left
+  alone to keep IME input intact; cell entry normalization repairs that boundary later.
 - Arrow entry requires a lone empty caret in rendered mode with no live cell selection — anything else stays with the
   main editor. Vertical entry also has to recover the table a movement _skipped_, since CodeMirror scans past block
   widgets; see `resolveSkippedTableBlock`.
