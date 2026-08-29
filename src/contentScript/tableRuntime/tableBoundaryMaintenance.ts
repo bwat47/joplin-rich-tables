@@ -1,8 +1,6 @@
 import {
-    Annotation,
     ChangeSet,
     EditorState,
-    StateEffect,
     Transaction,
     type Extension,
     type Line,
@@ -129,38 +127,20 @@ function collectBoundaryPadding(transaction: Transaction): BoundaryPadding[] {
     return padding.sort((a, b) => a.from - b.from);
 }
 
-/**
- * The annotations a rewritten input transaction must keep. A filter cannot copy annotations
- * wholesale, and dropping these would cost undo grouping and the transaction's origin.
- */
-function preservedAnnotations(transaction: Transaction): Annotation<unknown>[] {
-    const annotations: Annotation<unknown>[] = [];
-    const userEvent = transaction.annotation(Transaction.userEvent);
-    if (userEvent !== undefined) {
-        annotations.push(Transaction.userEvent.of(userEvent));
-    }
-    const addToHistory = transaction.annotation(Transaction.addToHistory);
-    if (addToHistory !== undefined) {
-        annotations.push(Transaction.addToHistory.of(addToHistory));
-    }
-    const remote = transaction.annotation(Transaction.remote);
-    if (remote !== undefined) {
-        annotations.push(Transaction.remote.of(remote));
-    }
-    return annotations;
-}
-
-function buildPaddedTransaction(transaction: Transaction, padding: BoundaryPadding[]): TransactionSpec {
+function buildPaddedTransaction(transaction: Transaction, padding: BoundaryPadding[]): readonly TransactionSpec[] {
     const changes = ChangeSet.of(padding, transaction.newDoc.length);
-    return {
-        changes: transaction.changes.compose(changes),
-        // Padding is always inserted on the far side of a table edge from the text that
-        // was typed, so the caret keeps its place beside that text.
-        selection: transaction.newSelection.map(changes, -1),
-        effects: StateEffect.mapEffects(transaction.effects, changes),
-        scrollIntoView: transaction.scrollIntoView,
-        annotations: preservedAnnotations(transaction),
-    };
+    // Keeping the original transaction as the first spec preserves all annotations and lets
+    // CodeMirror map its effects through the sequential padding change.
+    return [
+        transaction,
+        {
+            changes,
+            sequential: true,
+            // Padding is always inserted on the far side of a table edge from the text that
+            // was typed, so the caret keeps its place beside that text.
+            selection: transaction.newSelection.map(changes, -1),
+        },
+    ];
 }
 
 /**

@@ -1,5 +1,5 @@
 import { history, redo, undo } from '@codemirror/commands';
-import { EditorState, type Extension, type StateEffect, type Transaction } from '@codemirror/state';
+import { Annotation, EditorState, type Extension, type StateEffect, type Transaction } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
@@ -73,6 +73,21 @@ describe('table boundary maintenance', () => {
 
         expect(transaction.state.selection.main.head).toBe(pos + 'xy'.length);
         expect(transaction.state.doc.lineAt(transaction.state.selection.main.head).text).toBe('xy');
+    });
+
+    it('preserves arbitrary annotations when padding the transaction', () => {
+        const inputOrigin = Annotation.define<string>();
+        const doc = `intro\n\n${TABLE}\n`;
+        const pos = blankLinePos(doc, TABLE);
+        const transaction = createState(doc).update({
+            changes: { from: pos, insert: 'x' },
+            selection: { anchor: pos + 1 },
+            annotations: inputOrigin.of('host-input'),
+            userEvent: 'input.type',
+        });
+
+        expect(transaction.annotation(inputOrigin)).toBe('host-input');
+        expect(transaction.state.doc.toString()).toBe(`intro\nx\n\n${TABLE}\n`);
     });
 
     it('pads both sides when the filled line separates two tables', () => {
