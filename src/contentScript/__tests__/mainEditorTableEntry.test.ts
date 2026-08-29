@@ -37,6 +37,7 @@ function docAboveTable(table: string = TABLE): string {
 
 const BELOW_TABLE_DOC = docBelowTable();
 const ABOVE_TABLE_DOC = docAboveTable();
+const AROUND_TABLE_DOC = `${BEFORE}\n\n${TABLE}\n\n${AFTER}`;
 
 /** The table's offset in the document as it stands, which entry may have normalized. */
 function currentTableFrom(view: EditorView, table: string = TABLE): number {
@@ -126,6 +127,271 @@ function expectCellOpen(
 }
 
 describe('mainEditorTableEntry deletion protection', () => {
+    it.each([
+        {
+            caret: 'blank line above the table',
+            key: 'Backspace',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1,
+            expected: { kind: 'move', offset: -1 },
+        },
+        {
+            caret: 'blank line above the table',
+            key: 'Delete',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1,
+            expected: { kind: 'entry', edge: 'start' },
+        },
+        {
+            caret: 'table start',
+            key: 'Backspace',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE),
+            expected: { kind: 'move', offset: -1 },
+        },
+        {
+            caret: 'table start',
+            key: 'Delete',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE),
+            expected: { kind: 'entry', edge: 'start' },
+        },
+        {
+            caret: 'blank line below the table',
+            key: 'Backspace',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
+            expected: { kind: 'entry', edge: 'end' },
+        },
+        {
+            caret: 'blank line below the table',
+            key: 'Delete',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
+            expected: { kind: 'move', offset: 1 },
+        },
+        {
+            caret: 'table end',
+            key: 'Backspace',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length,
+            expected: { kind: 'entry', edge: 'end' },
+        },
+        {
+            caret: 'table end',
+            key: 'Delete',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length,
+            expected: { kind: 'move', offset: 1 },
+        },
+    ] as const)('$key at $caret preserves the boundary', ({ key, pos, expected }) => {
+        const view = mountView(AROUND_TABLE_DOC, pos);
+
+        pressKey(view, key);
+
+        expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
+        if (expected.kind === 'entry') {
+            expectBoundaryCellOpen(view, expected.edge);
+        } else {
+            expect(view.state.selection.main.head).toBe(pos + expected.offset);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        }
+    });
+
+    it.each([
+        {
+            side: 'above',
+            key: 'Delete',
+            doc: `${BEFORE}\n \t \n${TABLE}\n`,
+            pos: BEFORE.length,
+            edge: 'start',
+        },
+        {
+            side: 'below',
+            key: 'Backspace',
+            doc: `\n${TABLE}\n \t \n${AFTER}`,
+            pos: `\n${TABLE}\n \t \n`.length,
+            edge: 'end',
+        },
+    ] as const)('protects a whitespace-only blank line $side the table', ({ key, doc, pos, edge }) => {
+        const view = mountView(doc, pos);
+
+        pressKey(view, key);
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expectBoundaryCellOpen(view, edge);
+    });
+
+    it('deletes a surplus whitespace-only blank line before protecting the boundary', () => {
+        const doc = `${BEFORE}\n \n \t\n${TABLE}\n`;
+        const view = mountView(doc, BEFORE.length);
+
+        pressKey(view, 'Delete');
+
+        expect(view.state.doc.toString()).toBe(`${BEFORE} \n \t\n${TABLE}\n`);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it.each([
+        {
+            side: 'above',
+            key: 'Backspace',
+            start: AROUND_TABLE_DOC.indexOf(TABLE),
+            positions: [AROUND_TABLE_DOC.indexOf(TABLE) - 1, AROUND_TABLE_DOC.indexOf(TABLE) - 2],
+        },
+        {
+            side: 'below',
+            key: 'Delete',
+            start: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length,
+            positions: [
+                AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
+                AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 2,
+            ],
+        },
+    ] as const)('walks the caret out from the table boundary $side without deleting', ({ key, start, positions }) => {
+        const view = mountView(AROUND_TABLE_DOC, start);
+
+        for (const position of positions) {
+            pressKey(view, key);
+            expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
+            expect(view.state.selection.main.head).toBe(position);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        }
+    });
+
+    it.each([
+        {
+            side: 'above',
+            key: 'Backspace',
+            start: AROUND_TABLE_DOC.indexOf(TABLE) - 1,
+            expectedDoc: `${BEFORE.slice(0, -1)}\n\n${TABLE}\n\n${AFTER}`,
+            expectedCaret: BEFORE.length - 1,
+        },
+        {
+            side: 'below',
+            key: 'Delete',
+            start: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
+            expectedDoc: `${BEFORE}\n\n${TABLE}\n\n${AFTER.slice(1)}`,
+            expectedCaret: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 2,
+        },
+    ] as const)(
+        'deletes text on the next $key after moving away $side',
+        ({ key, start, expectedDoc, expectedCaret }) => {
+            const view = mountView(AROUND_TABLE_DOC, start);
+
+            pressKey(view, key);
+            pressKey(view, key);
+
+            expect(view.state.doc.toString()).toBe(expectedDoc);
+            expect(view.state.selection.main.head).toBe(expectedCaret);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        }
+    );
+
+    it.each([
+        { key: 'Delete', offset: 0 },
+        { key: 'Backspace', offset: 1 },
+        { key: 'Delete', offset: 1 },
+        { key: 'Backspace', offset: 2 },
+    ] as const)('deletes a surplus blank line from run offset $offset with $key', ({ key, offset }) => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const view = mountView(doc, BEFORE.length + offset);
+
+        pressKey(view, key);
+
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('enters the first cell when Delete would consume the newline against the table', () => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const view = mountView(doc, doc.indexOf(TABLE) - 1);
+
+        pressKey(view, 'Delete');
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expectBoundaryCellOpen(view, 'start');
+    });
+
+    it('moves off the table start instead of consuming the newline against it', () => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const tableFrom = doc.indexOf(TABLE);
+        const view = mountView(doc, tableFrom);
+
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(doc);
+        expect(view.state.selection.main.head).toBe(tableFrom - 1);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it.each([
+        {
+            key: 'Backspace',
+            edge: 'end',
+            expectedTable: 0,
+            caretOffset: 2,
+        },
+        {
+            key: 'Delete',
+            edge: 'start',
+            expectedTable: 1,
+            caretOffset: 2,
+        },
+    ] as const)(
+        'enters the edge cell with $key once a surplus run between two tables is trimmed',
+        ({ key, edge, expectedTable, caretOffset }) => {
+            const doc = `\n${TABLE}\n\n\n\n${TABLE}\n`;
+            const firstTableFrom = doc.indexOf(TABLE);
+            const view = mountView(doc, firstTableFrom + TABLE.length + caretOffset);
+
+            // The surplus blank lines are ordinary text: each press removes one until only
+            // the required separation is left.
+            pressKey(view, key);
+            expect(view.state.doc.toString()).toBe(`\n${TABLE}\n\n\n${TABLE}\n`);
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+            pressKey(view, key);
+
+            expect(view.state.doc.toString()).toBe(`\n${TABLE}\n\n\n${TABLE}\n`);
+            const currentFirstTableFrom = view.state.doc.toString().indexOf(TABLE);
+            const tableFrom =
+                expectedTable === 0
+                    ? currentFirstTableFrom
+                    : view.state.doc.toString().indexOf(TABLE, currentFirstTableFrom + TABLE.length);
+            expectCellOpen(
+                view,
+                edge === 'start'
+                    ? { tableFrom, section: 'header', row: 0, col: 0 }
+                    : { tableFrom, section: 'body', row: 1, col: 1 },
+                edge
+            );
+        }
+    );
+
+    it.each([
+        { key: 'Backspace', edge: 'end', expectedTable: 0 },
+        { key: 'Delete', edge: 'start', expectedTable: 1 },
+    ] as const)(
+        'enters the table toward $key from a separator shared by two tables',
+        ({ key, edge, expectedTable }) => {
+            const doc = `\n${TABLE}\n\n${TABLE}\n`;
+            const firstTableFrom = doc.indexOf(TABLE);
+            const secondTableFrom = doc.indexOf(TABLE, firstTableFrom + TABLE.length);
+            const tableFrom = expectedTable === 0 ? firstTableFrom : secondTableFrom;
+            const view = mountView(doc, firstTableFrom + TABLE.length + 1);
+
+            pressKey(view, key);
+
+            expect(view.state.doc.toString()).toBe(doc);
+            expectCellOpen(
+                view,
+                edge === 'start'
+                    ? { tableFrom, section: 'header', row: 0, col: 0 }
+                    : { tableFrom, section: 'body', row: 1, col: 1 },
+                edge
+            );
+        }
+    );
+
     it('opens the final cell when Backspace reaches the table from below', () => {
         const doc = BELOW_TABLE_DOC;
         const view = mountView(doc, doc.indexOf(AFTER));
@@ -405,6 +671,89 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(view.state.selection.ranges).toHaveLength(1);
         expectBoundaryCellOpen(view, 'end');
     });
+
+    it('leaves away-from-table boundary deletion unchanged for multiple carets', () => {
+        const tableFrom = AROUND_TABLE_DOC.indexOf(TABLE);
+        const view = mountView(AROUND_TABLE_DOC, tableFrom);
+        view.dispatch({
+            selection: EditorSelection.create([
+                EditorSelection.cursor(tableFrom),
+                EditorSelection.cursor(AROUND_TABLE_DOC.length),
+            ]),
+        });
+
+        pressKey(view, 'Backspace');
+
+        expect(view.state.doc.toString()).toBe(`${BEFORE}\n${TABLE}\n\n${AFTER.slice(0, -1)}`);
+        expect(view.state.selection.ranges).toHaveLength(2);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    // No shipped key deletes past a boundary in one press, so drive the filter directly.
+    it('keeps the separator and applies the rest of a multi-character deletion above a table', () => {
+        const doc = `${BEFORE}\n\n\n${TABLE}\n`;
+        const view = mountView(doc, doc.indexOf(TABLE));
+
+        view.dispatch({
+            changes: { from: 0, to: doc.indexOf(TABLE) },
+            userEvent: 'delete.backward',
+        });
+
+        expect(view.state.doc.toString()).toBe(`\n\n${TABLE}\n`);
+        expect(view.state.selection.main.head).toBe(0);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('keeps the separator and applies the rest of a multi-character deletion below a table', () => {
+        const doc = `\n${TABLE}\n\n\n${AFTER}`;
+        const tableTo = doc.indexOf(TABLE) + TABLE.length;
+        const view = mountView(doc, tableTo);
+
+        view.dispatch({
+            changes: { from: tableTo, to: doc.length },
+            userEvent: 'delete.forward',
+        });
+
+        expect(view.state.doc.toString()).toBe(`\n${TABLE}\n\n`);
+        expect(view.state.selection.main.head).toBe(tableTo + 2);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it.each([
+        {
+            side: 'above',
+            doc: `${BEFORE}\n \t \n${TABLE}\n`,
+            selection: `${BEFORE}\n \t \n`.length,
+            changes: { from: 0, to: `${BEFORE}\n \t \n`.length },
+            userEvent: 'delete.backward',
+            expectedDoc: `\n \t \n${TABLE}\n`,
+            expectedCaret: 0,
+        },
+        {
+            side: 'below',
+            doc: `\n${TABLE}\n \t \n${AFTER}`,
+            selection: `\n${TABLE}`.length,
+            changes: { from: `\n${TABLE}`.length, to: `\n${TABLE}\n \t \n${AFTER}`.length },
+            userEvent: 'delete.forward',
+            expectedDoc: `\n${TABLE}\n \t \n`,
+            expectedCaret: `\n${TABLE}\n \t \n`.length,
+        },
+    ] as const)(
+        'preserves a whitespace-only separator during a multi-character deletion $side the table',
+        ({ doc, selection, changes, userEvent, expectedDoc, expectedCaret }) => {
+            const view = mountView(doc, selection);
+
+            view.dispatch({ changes, userEvent });
+
+            expect(view.state.doc.toString()).toBe(expectedDoc);
+            expect(view.state.selection.main.head).toBe(expectedCaret);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        }
+    );
 
     it('enters the first table in document order when carets reach two of them', () => {
         const doc = `\n${TABLE}\n\nbetween\n\n${TABLE}\n\n${AFTER}`;
