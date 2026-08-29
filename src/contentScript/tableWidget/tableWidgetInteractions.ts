@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
 import { parseFootnoteHref } from '../shared/footnoteAnchor';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
@@ -10,7 +10,11 @@ import { linkOpenerFacet } from '../services/linkOpener';
 import { getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { beginMouseCellGesture, consumeMouseCellGestureMouseDown } from './mouseCellDragSelection';
+import {
+    beginMouseCellGesture,
+    consumeMouseCellGestureMouseDown,
+    observeActiveEditorMouseGesture,
+} from './mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
@@ -220,6 +224,27 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
     return beginMouseCellGesture(view, event, cell, resolvedCell);
 }
 
+/** Passively observes a text-selection drag until it crosses into another table cell. */
+function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): void {
+    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    if (!cell) {
+        return;
+    }
+
+    const coords = readCellCoords(cell);
+    const ctx = resolveTableContextFromEventTarget(view, cell);
+    if (!coords || !ctx) {
+        return;
+    }
+
+    const resolvedCell = createResolvedActiveCell({ ctx, coords });
+    if (!resolvedCell || !isSameActiveCell(getActiveCell(view.state), resolvedCell.activeCell)) {
+        return;
+    }
+
+    observeActiveEditorMouseGesture(view, event, cell, resolvedCell);
+}
+
 /** Extend the cell selection (shift-click) or open the clicked cell. */
 function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HTMLElement): boolean {
     const coords = readCellCoords(cell);
@@ -265,8 +290,12 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    // Let the nested editor handle its own events.
+    // Let the nested editor handle its own events. Pointerdown is observed passively so
+    // a text-selection drag can become a cell-selection drag after crossing a cell boundary.
     if (target.closest(`.${CLASS_CELL_EDITOR}`)) {
+        if (event.type === 'pointerdown') {
+            observeActiveEditorPointerDown(view, event as PointerEvent, target);
+        }
         return false;
     }
 

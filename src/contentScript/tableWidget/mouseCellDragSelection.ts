@@ -4,6 +4,7 @@ import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActi
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { setCellSelectionFromCoords } from '../tableRuntime/selection/cellSelectionController';
 import { getCellSelection } from '../tableState/cellSelectionState';
+import { flushNestedEditorState } from '../nestedEditor/nestedEditorController';
 import { getWidgetSelector, readCellCoords } from './domHelpers';
 
 const SELECTOR_CELL = 'td, th';
@@ -12,11 +13,12 @@ const DRAG_START_DISTANCE_PX = 5;
 const DRAG_START_DISTANCE_SQUARED = DRAG_START_DISTANCE_PX * DRAG_START_DISTANCE_PX;
 
 interface MouseCellGesture {
+    origin: 'renderedCell' | 'activeEditor';
     pointerId: number;
     startX: number;
     startY: number;
     widget: HTMLElement;
-    captureTarget: HTMLElement;
+    captureTarget: HTMLElement | null;
     resolvedCell: ResolvedActiveCell;
     dragged: boolean;
     lastFocus: CellCoords | null;
@@ -41,12 +43,20 @@ class MouseCellDragSelectionController {
             return;
         }
 
-        if (!gesture.dragged && distanceSquared(event, gesture) < DRAG_START_DISTANCE_SQUARED) {
-            return;
-        }
-
-        const focus = this.resolveCellAtPoint(event, gesture) ?? gesture.lastFocus ?? gesture.resolvedCell.activeCell;
+        const pointedCell = this.resolveCellAtPoint(event, gesture);
         if (!gesture.dragged) {
+            if (gesture.origin === 'activeEditor') {
+                // Until the pointer enters another cell, the nested editor retains full
+                // ownership so its native text-selection drag continues uninterrupted.
+                if (!pointedCell || sameCoords(gesture.resolvedCell.activeCell, pointedCell)) {
+                    return;
+                }
+                flushNestedEditorState(this.view);
+            } else if (distanceSquared(event, gesture) < DRAG_START_DISTANCE_SQUARED) {
+                return;
+            }
+
+            const focus = pointedCell ?? gesture.resolvedCell.activeCell;
             gesture.dragged = setCellSelectionFromCoords(
                 this.view,
                 gesture.resolvedCell.tableFrom,
@@ -59,17 +69,20 @@ class MouseCellDragSelectionController {
                 return;
             }
             gesture.lastFocus = focus;
-        } else if (
-            !sameCoords(gesture.lastFocus, focus) &&
-            setCellSelectionFromCoords(
-                this.view,
-                gesture.resolvedCell.tableFrom,
-                gesture.resolvedCell.activeCell,
-                focus,
-                { scrollFocusIntoView: false }
-            )
-        ) {
-            gesture.lastFocus = focus;
+        } else {
+            const focus = pointedCell ?? gesture.lastFocus ?? gesture.resolvedCell.activeCell;
+            if (
+                !sameCoords(gesture.lastFocus, focus) &&
+                setCellSelectionFromCoords(
+                    this.view,
+                    gesture.resolvedCell.tableFrom,
+                    gesture.resolvedCell.activeCell,
+                    focus,
+                    { scrollFocusIntoView: false }
+                )
+            ) {
+                gesture.lastFocus = focus;
+            }
         }
 
         event.preventDefault();
@@ -82,11 +95,14 @@ class MouseCellDragSelectionController {
             return;
         }
 
-        event.preventDefault();
-        event.stopPropagation();
+        const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
+        if (shouldConsume) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         this.finishGesture();
 
-        if (!gesture.dragged) {
+        if (gesture.origin === 'renderedCell' && !gesture.dragged) {
             requestOpenCell(this.view, {
                 resolvedCell: gesture.resolvedCell,
                 clearCellSelection: Boolean(getCellSelection(this.view.state)),
@@ -102,7 +118,7 @@ class MouseCellDragSelectionController {
 
     constructor(private readonly view: EditorView) {}
 
-    start(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
+    startRenderedCell(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
         if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary || this.gesture) {
             return false;
         }
@@ -115,7 +131,8 @@ class MouseCellDragSelectionController {
         event.preventDefault();
         event.stopPropagation();
 
-        this.gesture = {
+        this.beginGesture({
+            origin: 'renderedCell',
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
@@ -124,12 +141,7 @@ class MouseCellDragSelectionController {
             resolvedCell,
             dragged: false,
             lastFocus: null,
-        };
-
-        const doc = this.view.dom.ownerDocument;
-        doc.addEventListener('pointermove', this.onPointerMove, true);
-        doc.addEventListener('pointerup', this.onPointerUp, true);
-        doc.addEventListener('pointercancel', this.onPointerCancel, true);
+        });
 
         try {
             cell.setPointerCapture?.(event.pointerId);
@@ -140,8 +152,34 @@ class MouseCellDragSelectionController {
         return true;
     }
 
+    observeActiveEditor(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
+        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary || this.gesture) {
+            return false;
+        }
+
+        const widget = cell.closest(getWidgetSelector()) as HTMLElement | null;
+        if (!widget) {
+            return false;
+        }
+
+        // This mode is deliberately passive: no preventDefault, propagation stop, or
+        // pointer capture until movement crosses into a different table cell.
+        this.beginGesture({
+            origin: 'activeEditor',
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            widget,
+            captureTarget: null,
+            resolvedCell,
+            dragged: false,
+            lastFocus: null,
+        });
+        return true;
+    }
+
     consumeCompatibilityMouseDown(event: MouseEvent): boolean {
-        if (!this.gesture || event.button !== MOUSE_BUTTON_LEFT) {
+        if (this.gesture?.origin !== 'renderedCell' || event.button !== MOUSE_BUTTON_LEFT) {
             return false;
         }
 
@@ -164,6 +202,14 @@ class MouseCellDragSelectionController {
         return readCellCoords(cell);
     }
 
+    private beginGesture(gesture: MouseCellGesture): void {
+        this.gesture = gesture;
+        const doc = this.view.dom.ownerDocument;
+        doc.addEventListener('pointermove', this.onPointerMove, true);
+        doc.addEventListener('pointerup', this.onPointerUp, true);
+        doc.addEventListener('pointercancel', this.onPointerCancel, true);
+    }
+
     private finishGesture(): void {
         const gesture = this.gesture;
         if (!gesture) {
@@ -177,7 +223,7 @@ class MouseCellDragSelectionController {
         doc.removeEventListener('pointercancel', this.onPointerCancel, true);
 
         try {
-            gesture.captureTarget.releasePointerCapture?.(gesture.pointerId);
+            gesture.captureTarget?.releasePointerCapture?.(gesture.pointerId);
         } catch {
             // The browser may already have released capture on pointerup/cancel.
         }
@@ -192,7 +238,16 @@ export function beginMouseCellGesture(
     cell: HTMLElement,
     resolvedCell: ResolvedActiveCell
 ): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.start(event, cell, resolvedCell) ?? false;
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.startRenderedCell(event, cell, resolvedCell) ?? false;
+}
+
+export function observeActiveEditorMouseGesture(
+    view: EditorView,
+    event: PointerEvent,
+    cell: HTMLElement,
+    resolvedCell: ResolvedActiveCell
+): boolean {
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.observeActiveEditor(event, cell, resolvedCell) ?? false;
 }
 
 export function consumeMouseCellGestureMouseDown(view: EditorView, event: MouseEvent): boolean {
