@@ -5,7 +5,7 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
+import { changesOverlapRange, isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import {
     buildMultiCellPasteRewrite,
@@ -98,19 +98,6 @@ function decidePasteTransaction(tr: Transaction, nestedEditorOpen: boolean): Gua
     }
 
     return nestedEditorOpen ? decideNestedEditorPaste(tr, change.insertedText) : decideRootEditorPaste(tr, change);
-}
-
-function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
-    let overlaps = false;
-    tr.changes.iterChanges((fromA, toA) => {
-        if (overlaps) {
-            return;
-        }
-        if (fromA < to && toA > from) {
-            overlaps = true;
-        }
-    });
-    return overlaps;
 }
 
 function clearActiveCellDecision(tr: Transaction): GuardDecision {
