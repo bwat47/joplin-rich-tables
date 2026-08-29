@@ -48,9 +48,11 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Delete table
 - Select multiple table cells and cut/copy/paste/clear/delete (desktop only).
 
-> [!note]
->
-> The plugin does not provide handling for ctrl + clicking links while editing a table cell. However, you can left click links on table cells that aren't actively being edited, and you can get right click context menu options for links using plugins like Rich Markdown or Context Utils.
+### Table formatting/Boundaries
+
+- Line breaks are automatically inserted above/below inserted tables.
+- Line breaks are automatically added around existing tables as needed (triggered when interacting with a table or typing text immediately above/below the table).
+- Tables are normalized to a consistent format (one space padding).
 
 ### Formatting commands
 
@@ -60,7 +62,7 @@ Editor commands provided by plugins also work (as long as they don't touch conte
 
 ### Undo/Redo
 
-Fully supports undo/redo while editing tables (using the main editor's Undo/Redo history).
+Fully supports undo/redo while editing tables (using the main editor's native Undo/Redo history).
 
 ### Search integration
 
@@ -75,13 +77,13 @@ The table editor provides a Context-aware toolbar with table manipulation contro
 General keyboard controls for navigation/editing:
 
 - **Tab/Shift Tab:** Cycle through table cells in order/reverse order. Tab on last row/column will create a new row.
-- **Arrow Keys:** Navigate within text in table cell, and navigate to next cell (based on arrow direction) when reaching cell boundary.
+- **Arrow Keys:** Navigate within text in table cell, navigate to next cell (based on arrow direction) when reaching cell boundary, and exit/enter tables on boundary cells (e.g. cursor in table cell on bottom row > down arrow > cursor moves to line below the table).
 - **Enter Key:** Moves to next row, or creates new row on last row.
 - **Shift + Enter:** Insert `<br>` (line break).
 - **Shift + Click:** Select multiple table cells.
 - **Shift + Arrow:** Select multiple table cells.
 
-All table editing commands can be assigned keyboard shortcuts, the defaults are below:
+The below table editing commands can be assigned keyboard shortcuts, the defaults are below:
 
 | Action                       | Shortcut                       |
 | :--------------------------- | :----------------------------- |
