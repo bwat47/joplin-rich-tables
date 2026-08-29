@@ -6,12 +6,20 @@ import { setCellSelectionFromCoords } from '../tableRuntime/selection/cellSelect
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { getCellSelection } from '../tableState/cellSelectionState';
 import { flushNestedEditorState } from '../nestedEditor/nestedEditorController';
+import { getViewWindow, requestViewAnimationFrame } from '../shared/domContext';
+import { clamp } from '../shared/numberUtils';
 import { getWidgetSelector, readCellCoords } from './domHelpers';
+import { calculateEdgeScrollIntensity } from './mouseCellDragAutoScroll';
 
 const SELECTOR_CELL = 'td, th';
 const MOUSE_BUTTON_LEFT = 0;
 const DRAG_START_DISTANCE_PX = 5;
 const DRAG_START_DISTANCE_SQUARED = DRAG_START_DISTANCE_PX * DRAG_START_DISTANCE_PX;
+const EDGE_SCROLL_ZONE_PX = 48;
+const EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND = 900;
+const EDGE_SCROLL_DEFAULT_FRAME_MS = 1000 / 60;
+const EDGE_SCROLL_MAX_FRAME_MS = 50;
+const HIT_TEST_INSET_PX = 1;
 
 interface MouseCellGesture {
     origin: 'renderedCell' | 'activeEditor';
@@ -19,10 +27,15 @@ interface MouseCellGesture {
     startX: number;
     startY: number;
     widget: HTMLElement;
+    table: HTMLTableElement;
     captureTarget: HTMLElement | null;
     resolvedCell: ResolvedActiveCell;
     dragged: boolean;
     lastFocus: CellCoords | null;
+    lastClientX: number;
+    lastClientY: number;
+    autoScrollFrameId: number | null;
+    lastAutoScrollTimestamp: number | null;
 }
 
 function sameCoords(left: CellCoords | null, right: CellCoords): boolean {
@@ -35,6 +48,23 @@ function distanceSquared(event: PointerEvent, gesture: MouseCellGesture): number
     return deltaX * deltaX + deltaY * deltaY;
 }
 
+function applyScrollDelta(element: HTMLElement, axis: 'horizontal' | 'vertical', delta: number): boolean {
+    const current = axis === 'horizontal' ? element.scrollLeft : element.scrollTop;
+    const scrollSize = axis === 'horizontal' ? element.scrollWidth : element.scrollHeight;
+    const clientSize = axis === 'horizontal' ? element.clientWidth : element.clientHeight;
+    const next = clamp(current + delta, 0, Math.max(0, scrollSize - clientSize));
+    if (next === current) {
+        return false;
+    }
+
+    if (axis === 'horizontal') {
+        element.scrollLeft = next;
+    } else {
+        element.scrollTop = next;
+    }
+    return true;
+}
+
 class MouseCellDragSelectionController {
     private gesture: MouseCellGesture | null = null;
 
@@ -44,6 +74,9 @@ class MouseCellDragSelectionController {
             return;
         }
 
+        gesture.lastClientX = event.clientX;
+        gesture.lastClientY = event.clientY;
+
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         if (!gesture.dragged) {
             if (gesture.origin === 'activeEditor') {
@@ -52,6 +85,7 @@ class MouseCellDragSelectionController {
                 if (!pointedCell || sameCoords(gesture.resolvedCell.activeCell, pointedCell)) {
                     return;
                 }
+                this.capturePointer(gesture);
                 flushNestedEditorState(this.view);
             } else if (distanceSquared(event, gesture) < DRAG_START_DISTANCE_SQUARED) {
                 return;
@@ -86,6 +120,7 @@ class MouseCellDragSelectionController {
             }
         }
 
+        this.scheduleAutoScroll(gesture);
         event.preventDefault();
         event.stopPropagation();
     };
@@ -143,7 +178,8 @@ class MouseCellDragSelectionController {
         }
 
         const widget = cell.closest(getWidgetSelector()) as HTMLElement | null;
-        if (!widget) {
+        const table = cell.closest('table') as HTMLTableElement | null;
+        if (!widget || !table || table.closest(getWidgetSelector()) !== widget) {
             return false;
         }
 
@@ -156,17 +192,18 @@ class MouseCellDragSelectionController {
             startX: event.clientX,
             startY: event.clientY,
             widget,
+            table,
             captureTarget: cell,
             resolvedCell,
             dragged: false,
             lastFocus: null,
+            lastClientX: event.clientX,
+            lastClientY: event.clientY,
+            autoScrollFrameId: null,
+            lastAutoScrollTimestamp: null,
         });
 
-        try {
-            cell.setPointerCapture?.(event.pointerId);
-        } catch {
-            // Pointer capture is an enhancement. Document listeners still finish the gesture.
-        }
+        this.capturePointer(this.gesture);
 
         return true;
     }
@@ -177,7 +214,8 @@ class MouseCellDragSelectionController {
         }
 
         const widget = cell.closest(getWidgetSelector()) as HTMLElement | null;
-        if (!widget) {
+        const table = cell.closest('table') as HTMLTableElement | null;
+        if (!widget || !table || table.closest(getWidgetSelector()) !== widget) {
             return false;
         }
 
@@ -189,10 +227,15 @@ class MouseCellDragSelectionController {
             startX: event.clientX,
             startY: event.clientY,
             widget,
-            captureTarget: null,
+            table,
+            captureTarget: cell,
             resolvedCell,
             dragged: false,
             lastFocus: null,
+            lastClientX: event.clientX,
+            lastClientY: event.clientY,
+            autoScrollFrameId: null,
+            lastAutoScrollTimestamp: null,
         });
         return true;
     }
@@ -212,7 +255,11 @@ class MouseCellDragSelectionController {
     }
 
     private resolveCellAtPoint(event: PointerEvent, gesture: MouseCellGesture): CellCoords | null {
-        const element = this.view.dom.ownerDocument.elementFromPoint(event.clientX, event.clientY);
+        return this.resolveCellAtClientPoint(event.clientX, event.clientY, gesture);
+    }
+
+    private resolveCellAtClientPoint(clientX: number, clientY: number, gesture: MouseCellGesture): CellCoords | null {
+        const element = this.view.dom.ownerDocument.elementFromPoint(clientX, clientY);
         const cell = element?.closest(SELECTOR_CELL) as HTMLElement | null;
         if (!cell || cell.closest(getWidgetSelector()) !== gesture.widget) {
             return null;
@@ -221,12 +268,114 @@ class MouseCellDragSelectionController {
         return readCellCoords(cell);
     }
 
+    private resolveVisibleCellAtPointer(gesture: MouseCellGesture): CellCoords | null {
+        const tableRect = gesture.table.getBoundingClientRect();
+        const widgetRect = gesture.widget.getBoundingClientRect();
+        const scrollRect = this.view.scrollDOM.getBoundingClientRect();
+        const left = Math.max(tableRect.left, widgetRect.left, scrollRect.left);
+        const right = Math.min(tableRect.right, widgetRect.right, scrollRect.right);
+        const top = Math.max(tableRect.top, widgetRect.top, scrollRect.top);
+        const bottom = Math.min(tableRect.bottom, widgetRect.bottom, scrollRect.bottom);
+        if (right <= left || bottom <= top) {
+            return null;
+        }
+
+        const insetX = Math.min(HIT_TEST_INSET_PX, (right - left) / 2);
+        const insetY = Math.min(HIT_TEST_INSET_PX, (bottom - top) / 2);
+        return this.resolveCellAtClientPoint(
+            clamp(gesture.lastClientX, left + insetX, right - insetX),
+            clamp(gesture.lastClientY, top + insetY, bottom - insetY),
+            gesture
+        );
+    }
+
+    private scheduleAutoScroll(gesture: MouseCellGesture): void {
+        if (!gesture.dragged || gesture.autoScrollFrameId !== null) {
+            return;
+        }
+
+        gesture.autoScrollFrameId = requestViewAnimationFrame(this.view, (timestamp) => {
+            this.runAutoScrollFrame(gesture, timestamp);
+        });
+    }
+
+    private runAutoScrollFrame(gesture: MouseCellGesture, timestamp: number): void {
+        if (this.gesture !== gesture || !gesture.dragged) {
+            return;
+        }
+        gesture.autoScrollFrameId = null;
+
+        const widgetRect = gesture.widget.getBoundingClientRect();
+        const tableRect = gesture.table.getBoundingClientRect();
+        const scrollRect = this.view.scrollDOM.getBoundingClientRect();
+        const horizontalIntensity = calculateEdgeScrollIntensity(
+            gesture.lastClientX,
+            widgetRect.left,
+            widgetRect.right,
+            EDGE_SCROLL_ZONE_PX
+        );
+        let verticalIntensity = calculateEdgeScrollIntensity(
+            gesture.lastClientY,
+            scrollRect.top,
+            scrollRect.bottom,
+            EDGE_SCROLL_ZONE_PX
+        );
+        if (
+            (verticalIntensity < 0 && tableRect.top >= scrollRect.top) ||
+            (verticalIntensity > 0 && tableRect.bottom <= scrollRect.bottom)
+        ) {
+            verticalIntensity = 0;
+        }
+
+        const elapsedMs =
+            gesture.lastAutoScrollTimestamp === null
+                ? EDGE_SCROLL_DEFAULT_FRAME_MS
+                : clamp(timestamp - gesture.lastAutoScrollTimestamp, 0, EDGE_SCROLL_MAX_FRAME_MS);
+        gesture.lastAutoScrollTimestamp = timestamp;
+        const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
+        const didScrollHorizontally = applyScrollDelta(gesture.widget, 'horizontal', horizontalIntensity * maxDelta);
+        const didScrollVertically = applyScrollDelta(this.view.scrollDOM, 'vertical', verticalIntensity * maxDelta);
+
+        if (!didScrollHorizontally && !didScrollVertically) {
+            gesture.lastAutoScrollTimestamp = null;
+            return;
+        }
+
+        const focus = this.resolveVisibleCellAtPointer(gesture);
+        if (
+            focus &&
+            !sameCoords(gesture.lastFocus, focus) &&
+            setCellSelectionFromCoords(
+                this.view,
+                gesture.resolvedCell.tableFrom,
+                gesture.resolvedCell.activeCell,
+                focus,
+                { scrollFocusIntoView: false }
+            )
+        ) {
+            gesture.lastFocus = focus;
+        }
+        this.scheduleAutoScroll(gesture);
+    }
+
     private beginGesture(gesture: MouseCellGesture): void {
         this.gesture = gesture;
         const doc = this.view.dom.ownerDocument;
         doc.addEventListener('pointermove', this.onPointerMove, true);
         doc.addEventListener('pointerup', this.onPointerUp, true);
         doc.addEventListener('pointercancel', this.onPointerCancel, true);
+    }
+
+    private capturePointer(gesture: MouseCellGesture | null): void {
+        if (!gesture) {
+            return;
+        }
+
+        try {
+            gesture.captureTarget?.setPointerCapture?.(gesture.pointerId);
+        } catch {
+            // Pointer capture is an enhancement. Document listeners still finish the gesture.
+        }
     }
 
     private finishGesture(): void {
@@ -240,6 +389,11 @@ class MouseCellDragSelectionController {
         doc.removeEventListener('pointermove', this.onPointerMove, true);
         doc.removeEventListener('pointerup', this.onPointerUp, true);
         doc.removeEventListener('pointercancel', this.onPointerCancel, true);
+
+        if (gesture.autoScrollFrameId !== null) {
+            getViewWindow(this.view).cancelAnimationFrame(gesture.autoScrollFrameId);
+            gesture.autoScrollFrameId = null;
+        }
 
         try {
             gesture.captureTarget?.releasePointerCapture?.(gesture.pointerId);

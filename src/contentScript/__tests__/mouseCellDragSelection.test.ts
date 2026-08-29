@@ -18,6 +18,8 @@ const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 interface MountedGestureView {
     view: EditorView;
+    widget: HTMLElement;
+    table: HTMLTableElement;
     cells: {
         header0: HTMLTableCellElement;
         header1: HTMLTableCellElement;
@@ -98,7 +100,61 @@ function mountGestureView(): MountedGestureView {
         handleTableInteraction(view, event);
     });
 
-    return { view, cells };
+    return { view, widget, table, cells };
+}
+
+function makeRect(left: number, top: number, right: number, bottom: number): DOMRect {
+    return {
+        x: left,
+        y: top,
+        left,
+        top,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom - top,
+        toJSON: () => ({}),
+    };
+}
+
+function setScrollDimensions(
+    element: HTMLElement,
+    dimensions: Partial<Record<'clientWidth' | 'clientHeight' | 'scrollWidth' | 'scrollHeight', number>>
+): void {
+    for (const [property, value] of Object.entries(dimensions)) {
+        Object.defineProperty(element, property, { configurable: true, value });
+    }
+}
+
+function mockAnimationFrames(): {
+    cancelSpy: ReturnType<typeof vi.spyOn>;
+    pendingCount: () => number;
+    runNext: (timestamp: number) => void;
+} {
+    let nextId = 1;
+    const callbacks = new Map<number, FrameRequestCallback>();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        const id = nextId;
+        nextId += 1;
+        callbacks.set(id, callback);
+        return id;
+    });
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+        callbacks.delete(id);
+    });
+
+    return {
+        cancelSpy,
+        pendingCount: () => callbacks.size,
+        runNext: (timestamp) => {
+            const next = callbacks.entries().next().value as [number, FrameRequestCallback] | undefined;
+            if (!next) {
+                throw new Error('Expected a pending animation frame');
+            }
+            callbacks.delete(next[0]);
+            next[1](timestamp);
+        },
+    };
 }
 
 function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
@@ -243,6 +299,96 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
+    it('scrolls horizontally and advances the selection while the pointer stays at the edge', () => {
+        const { view, widget, table, cells } = mountGestureView();
+        const frames = mockAnimationFrames();
+        setScrollDimensions(widget, { clientWidth: 100, scrollWidth: 300 });
+        setScrollDimensions(view.scrollDOM, { clientHeight: 100, scrollHeight: 100 });
+        vi.spyOn(widget, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+        vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 300, 100));
+        vi.spyOn(view.scrollDOM, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+
+        cells.header0.dispatchEvent(
+            pointerEvent('pointerdown', {
+                button: 0,
+                clientX: 10,
+                clientY: 50,
+            })
+        );
+        elementAtPoint = cells.header1;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 95,
+                clientY: 50,
+            })
+        );
+        expect(frames.pendingCount()).toBe(1);
+
+        elementAtPoint = cells.body1;
+        frames.runNext(16);
+
+        expect(widget.scrollLeft).toBeGreaterThan(0);
+        expect(getCellSelection(view.state)?.focus).toEqual({
+            section: 'body',
+            row: 0,
+            col: 1,
+        });
+        expect(frames.pendingCount()).toBe(1);
+
+        document.dispatchEvent(
+            pointerEvent('pointerup', {
+                button: 0,
+                clientX: 95,
+                clientY: 50,
+            })
+        );
+        expect(frames.cancelSpy).toHaveBeenCalledOnce();
+        expect(frames.pendingCount()).toBe(0);
+    });
+
+    it('scrolls the editor vertically only while more of the table is hidden beyond the edge', () => {
+        const { view, widget, table, cells } = mountGestureView();
+        const frames = mockAnimationFrames();
+        setScrollDimensions(widget, { clientWidth: 100, scrollWidth: 100 });
+        setScrollDimensions(view.scrollDOM, { clientHeight: 100, scrollHeight: 300 });
+        vi.spyOn(widget, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        const tableRectSpy = vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        vi.spyOn(view.scrollDOM, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 100));
+
+        cells.header0.dispatchEvent(
+            pointerEvent('pointerdown', {
+                button: 0,
+                clientX: 50,
+                clientY: 10,
+            })
+        );
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                clientX: 50,
+                clientY: 95,
+            })
+        );
+
+        frames.runNext(16);
+        expect(view.scrollDOM.scrollTop).toBeGreaterThan(0);
+        expect(frames.pendingCount()).toBe(1);
+
+        tableRectSpy.mockReturnValue(makeRect(0, -200, 100, 100));
+        frames.runNext(32);
+        expect(frames.pendingCount()).toBe(0);
+
+        document.dispatchEvent(
+            pointerEvent('pointerup', {
+                button: 0,
+                clientX: 50,
+                clientY: 95,
+            })
+        );
+    });
+
     it('opens the anchor editor when a rendered-cell drag contracts back to its anchor', () => {
         const { view, cells } = mountGestureView();
         cells.header0.dispatchEvent(
@@ -361,6 +507,8 @@ describe('mouse cell drag selection', () => {
 
     it('switches an active-editor text drag to cell selection after entering another cell', () => {
         const { view, cells } = mountGestureView();
+        const captureSpy = vi.fn();
+        cells.body0.setPointerCapture = captureSpy;
         view.dispatch({
             effects: setActiveCellEffect.of({
                 tableFrom: 0,
@@ -377,6 +525,7 @@ describe('mouse cell drag selection', () => {
                 clientY: 10,
             })
         );
+        expect(captureSpy).not.toHaveBeenCalled();
 
         elementAtPoint = cells.body1;
         const crossBoundary = pointerEvent('pointermove', {
@@ -387,6 +536,7 @@ describe('mouse cell drag selection', () => {
         document.dispatchEvent(crossBoundary);
 
         expect(crossBoundary.defaultPrevented).toBe(true);
+        expect(captureSpy).toHaveBeenCalledWith(1);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,
