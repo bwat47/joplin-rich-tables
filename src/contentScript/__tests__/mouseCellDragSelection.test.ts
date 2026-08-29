@@ -4,13 +4,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorView } from '@codemirror/view';
-import { activeCellField, getActiveCell } from '../tableState/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableWidget/mouseCellDragSelection';
 import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { createMarkdownState } from './testMarkdownState';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -61,6 +63,7 @@ function mountGestureView(): MountedGestureView {
         parent,
         state: createMarkdownState(GRID_DOC, [
             activeCellField,
+            resolvedActiveCellField,
             cellSelectionField,
             openCellRequestField,
             mouseCellDragSelectionPlugin,
@@ -96,6 +99,16 @@ function mountGestureView(): MountedGestureView {
     });
 
     return { view, cells };
+}
+
+function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
+    const host = document.createElement('div');
+    host.className = CLASS_CELL_EDITOR;
+    const content = document.createElement('div');
+    content.setAttribute('contenteditable', 'true');
+    host.appendChild(content);
+    cell.appendChild(host);
+    return content;
 }
 
 beforeEach(() => {
@@ -228,6 +241,150 @@ describe('mouse cell drag selection', () => {
 
         expect(getCellSelection(view.state)).not.toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('leaves an active editor in native text-selection mode while the pointer stays in its cell', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        const down = pointerEvent('pointerdown', {
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+        });
+        nestedContent.dispatchEvent(down);
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        });
+        nestedContent.dispatchEvent(mouseDown);
+
+        elementAtPoint = nestedContent;
+        const moveWithinCell = pointerEvent('pointermove', {
+            button: 0,
+            clientX: 20,
+            clientY: 20,
+        });
+        document.dispatchEvent(moveWithinCell);
+
+        expect(down.defaultPrevented).toBe(false);
+        expect(mouseDown.defaultPrevented).toBe(false);
+        expect(moveWithinCell.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+
+        elementAtPoint = null;
+        const moveOutsideTable = pointerEvent('pointermove', {
+            button: 0,
+            clientX: 30,
+            clientY: 30,
+        });
+        document.dispatchEvent(moveOutsideTable);
+        expect(moveOutsideTable.defaultPrevented).toBe(false);
+
+        const up = pointerEvent('pointerup', {
+            button: 0,
+            clientX: 30,
+            clientY: 30,
+        });
+        document.dispatchEvent(up);
+
+        expect(up.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('switches an active-editor text drag to cell selection after entering another cell', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(
+            pointerEvent('pointerdown', {
+                button: 0,
+                clientX: 10,
+                clientY: 10,
+            })
+        );
+
+        elementAtPoint = cells.body1;
+        const crossBoundary = pointerEvent('pointermove', {
+            button: 0,
+            clientX: 20,
+            clientY: 20,
+        });
+        document.dispatchEvent(crossBoundary);
+
+        expect(crossBoundary.defaultPrevented).toBe(true);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        });
+
+        const up = pointerEvent('pointerup', {
+            button: 0,
+            clientX: 20,
+            clientY: 20,
+        });
+        document.dispatchEvent(up);
+
+        expect(up.defaultPrevented).toBe(true);
+        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('does not observe active-editor drags from touch pointers', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        const down = pointerEvent('pointerdown', {
+            button: 0,
+            pointerType: 'touch',
+            clientX: 10,
+            clientY: 10,
+        });
+        nestedContent.dispatchEvent(down);
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(
+            pointerEvent('pointermove', {
+                button: 0,
+                pointerType: 'touch',
+                clientX: 20,
+                clientY: 20,
+            })
+        );
+
+        expect(down.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).not.toBeNull();
     });
 
     it('does not start drag selection for touch pointers', () => {
