@@ -29,7 +29,7 @@ const BOUNDARY_PADDING_NEWLINE = '\n';
  * Transactions this filter inspects: user input that is not already a plugin rewrite.
  *
  * Composition is excluded because rewriting the document mid-composition breaks IME and
- * soft-keyboard input; that boundary is repaired by the next ordinary edit or on cell entry.
+ * soft-keyboard input; if composition fills the boundary, cell entry normalization repairs it later.
  * Deletions are excluded too - they are protected by `mainEditorTableEntry` instead, and
  * undo must be able to reach the document as the user last left it.
  */
