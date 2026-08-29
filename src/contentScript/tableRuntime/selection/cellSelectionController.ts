@@ -46,7 +46,7 @@ function dispatchSelectionWithContext(
     view: EditorView,
     ctx: TableContext,
     selection: CellSelection,
-    options: { clearActiveCell: boolean }
+    options: { clearActiveCell: boolean; scrollFocusIntoView?: boolean }
 ): boolean {
     const focusRange = resolveCellDocRange({
         tableFrom: ctx.from,
@@ -71,7 +71,8 @@ function dispatchSelectionWithContext(
         scrollIntoView: false,
     });
 
-    const cellElement = findCellElement(view, makeTableId(ctx.from), selection.focus);
+    const cellElement =
+        options.scrollFocusIntoView === false ? null : findCellElement(view, makeTableId(ctx.from), selection.focus);
     if (cellElement) {
         view.requestMeasure({
             read: () => cellElement.isConnected,
@@ -86,13 +87,51 @@ function dispatchSelectionWithContext(
     return true;
 }
 
-function dispatchSelection(view: EditorView, selection: CellSelection, options: { clearActiveCell: boolean }): boolean {
+function dispatchSelection(
+    view: EditorView,
+    selection: CellSelection,
+    options: { clearActiveCell: boolean; scrollFocusIntoView?: boolean }
+): boolean {
     const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }
 
     return dispatchSelectionWithContext(view, ctx, selection, options);
+}
+
+/** Replaces the current selection with an explicit rectangle, such as a mouse drag. */
+export function setCellSelectionFromCoords(
+    view: EditorView,
+    tableFrom: number,
+    anchor: CellCoords,
+    focus: CellCoords,
+    options: { scrollFocusIntoView: boolean }
+): boolean {
+    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    if (!ctx) {
+        return false;
+    }
+
+    const clampedAnchor = clampSelectionFocusWithinContext(ctx, anchor);
+    const clampedFocus = clampSelectionFocusWithinContext(ctx, focus);
+    if (!clampedAnchor || !clampedFocus) {
+        return false;
+    }
+
+    return dispatchSelectionWithContext(
+        view,
+        ctx,
+        {
+            tableFrom: ctx.from,
+            anchor: clampedAnchor,
+            focus: clampedFocus,
+        },
+        {
+            clearActiveCell: true,
+            scrollFocusIntoView: options.scrollFocusIntoView,
+        }
+    );
 }
 
 export function startCellSelectionFromActiveCell(view: EditorView, direction: CellSelectionDirection): boolean {

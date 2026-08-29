@@ -10,6 +10,7 @@ import { linkOpenerFacet } from '../services/linkOpener';
 import { getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { beginMouseCellGesture, consumeMouseCellGestureMouseDown } from './mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
@@ -152,6 +153,13 @@ function handleWidgetClick(view: EditorView, event: MouseEvent, target: HTMLElem
 
 /** Mousedown events: cell activation. */
 function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
+    // A mouse pointerdown starts a provisional click-or-drag gesture. Some browsers still
+    // emit the compatibility mousedown even though pointerdown was prevented; consume it so
+    // the nested editor is not opened before the gesture resolves on pointerup.
+    if (consumeMouseCellGestureMouseDown(view, event)) {
+        return true;
+    }
+
     // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
     // and open the link.
     // If we processed cell activation here, it might swallow the event or change focus
@@ -175,6 +183,41 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
     }
 
     return activateCellFromMouseDown(view, event, cell);
+}
+
+/** Starts a desktop-mouse gesture that becomes either cell activation or drag selection. */
+function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
+    if (
+        event.pointerType !== 'mouse' ||
+        event.button !== MOUSE_BUTTON_LEFT ||
+        !event.isPrimary ||
+        event.shiftKey ||
+        target.closest(SELECTOR_LINK)
+    ) {
+        return false;
+    }
+
+    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    if (!cell) {
+        return false;
+    }
+
+    const coords = readCellCoords(cell);
+    if (!coords) {
+        return false;
+    }
+
+    const ctx = resolveTableContextFromEventTarget(view, cell);
+    if (!ctx) {
+        return false;
+    }
+
+    const resolvedCell = createResolvedActiveCell({ ctx, coords });
+    if (!resolvedCell) {
+        return false;
+    }
+
+    return beginMouseCellGesture(view, event, cell, resolvedCell);
 }
 
 /** Extend the cell selection (shift-click) or open the clicked cell. */
@@ -233,6 +276,10 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     if (event.type === 'mousedown') {
         return handleWidgetMouseDown(view, event as MouseEvent, target);
+    }
+
+    if (event.type === 'pointerdown') {
+        return handleWidgetPointerDown(view, event as PointerEvent, target);
     }
 
     return false;
