@@ -35,6 +35,9 @@ export function getWidgetSelector(): string {
     return `.${CLASS_TABLE_WIDGET}`;
 }
 
+/** Matches every cell element a table widget renders. */
+export const SELECTOR_CELL = 'td, th';
+
 /**
  * Returns the CSS selector for a specific cell within a table widget.
  *

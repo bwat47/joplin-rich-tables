@@ -24,6 +24,18 @@ export interface CellCoords {
     col: number; // 0-based index
 }
 
+/** Cell-coordinate equality. Two nulls compare equal, matching `isSameActiveCell`. */
+export function isSameCellCoords(a: CellCoords | null, b: CellCoords | null): boolean {
+    if (a === b) {
+        return true;
+    }
+    if (!a || !b) {
+        return false;
+    }
+
+    return a.section === b.section && a.row === b.row && a.col === b.col;
+}
+
 export interface TableRect {
     minRow: number; // unified row index; header = 0, body = 1+
     maxRow: number;
