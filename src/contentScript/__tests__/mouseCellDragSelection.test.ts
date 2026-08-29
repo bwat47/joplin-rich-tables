@@ -563,10 +563,11 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it('switches an active-editor text drag to cell selection after entering another cell', () => {
+    it('switches an active-editor text drag to cell selection after clearing the anchor border', () => {
         const { view, cells } = mountGestureView();
         const captureSpy = vi.fn();
         cells.body0.setPointerCapture = captureSpy;
+        vi.spyOn(cells.body0, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 50, 20));
         view.dispatch({
             effects: setActiveCellEffect.of({
                 tableFrom: 0,
@@ -588,8 +589,8 @@ describe('mouse cell drag selection', () => {
         elementAtPoint = cells.body1;
         const crossBoundary = pointerEvent('pointermove', {
             button: 0,
-            clientX: 20,
-            clientY: 20,
+            clientX: 70,
+            clientY: 10,
         });
         document.dispatchEvent(crossBoundary);
 
@@ -604,14 +605,41 @@ describe('mouse cell drag selection', () => {
 
         const up = pointerEvent('pointerup', {
             button: 0,
-            clientX: 20,
-            clientY: 20,
+            clientX: 70,
+            clientY: 10,
         });
         document.dispatchEvent(up);
 
         expect(up.defaultPrevented).toBe(true);
         expect(getCellSelection(view.state)).not.toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('keeps an active-editor text drag that only grazes the neighbouring cell', () => {
+        const { view, cells } = mountGestureView();
+        const captureSpy = vi.fn();
+        cells.body0.setPointerCapture = captureSpy;
+        vi.spyOn(cells.body0, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 50, 20));
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 40, clientY: 10 }));
+
+        // Three pixels past the border: an overshoot while selecting text, not a cell drag.
+        elementAtPoint = cells.body1;
+        const graze = pointerEvent('pointermove', { button: 0, clientX: 53, clientY: 10 });
+        document.dispatchEvent(graze);
+
+        expect(graze.defaultPrevented).toBe(false);
+        expect(captureSpy).not.toHaveBeenCalled();
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).not.toBeNull();
+
+        // Travelling clearly past the border still converts.
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
     });
 
     it('reopens the active editor when its cell-selection drag is released over the anchor', () => {
