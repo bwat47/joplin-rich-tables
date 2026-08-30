@@ -123,8 +123,8 @@ joplin.plugins.register({
         });
 
         // Create menu items with keyboard shortcuts
-        const structuralMenuItems = STRUCTURAL_COMMANDS.map(({ commandName, label, menuLabel, accelerator }) => ({
-            label: menuLabel ?? label,
+        const structuralMenuItems = STRUCTURAL_COMMANDS.map(({ commandName, label, accelerator }) => ({
+            label,
             commandName,
             ...(accelerator ? { accelerator } : {}),
         }));

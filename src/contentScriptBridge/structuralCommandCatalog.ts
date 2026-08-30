@@ -14,10 +14,8 @@ import type { StructuralActionId } from '../contentScript/tableRuntime/operation
 interface StructuralCommandDescriptor {
     /** Registered on the host and on the editor. Treat as a stable public identifier. */
     commandName: string;
-    /** Host command label, shown in the command palette and keyboard shortcut settings. */
+    /** Shown in the command palette, keyboard shortcut settings, and Tools menu. */
     label: string;
-    /** Tools menu label, when it should read differently from the palette label. */
-    menuLabel?: string;
     /** Default Tools menu accelerator. Omitted commands ship without a binding. */
     accelerator?: string;
 }
@@ -74,19 +72,16 @@ const structuralCommands = {
     alignLeft: {
         commandName: 'richTables.alignLeft',
         label: 'Align column left',
-        menuLabel: 'Align left',
         accelerator: 'Alt+Shift+Q',
     },
     alignCenter: {
         commandName: 'richTables.alignCenter',
         label: 'Align column center',
-        menuLabel: 'Align center',
         accelerator: 'Alt+Shift+W',
     },
     alignRight: {
         commandName: 'richTables.alignRight',
         label: 'Align column right',
-        menuLabel: 'Align right',
         accelerator: 'Alt+Shift+E',
     },
     moveRowUp: {

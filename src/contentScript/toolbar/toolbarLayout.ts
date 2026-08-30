@@ -124,19 +124,19 @@ const clearTableButton: ToolbarButtonDescriptor = {
 const alignmentButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'alignLeft',
-        title: 'Align left',
+        title: 'Align column left',
         ariaLabel: 'Align column left',
         iconFactory: alignLeftIcon,
     },
     {
         actionId: 'alignCenter',
-        title: 'Align center',
+        title: 'Align column center',
         ariaLabel: 'Align column center',
         iconFactory: alignCenterIcon,
     },
     {
         actionId: 'alignRight',
-        title: 'Align right',
+        title: 'Align column right',
         ariaLabel: 'Align column right',
         iconFactory: alignRightIcon,
     },
