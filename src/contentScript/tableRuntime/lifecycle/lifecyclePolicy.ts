@@ -197,11 +197,12 @@ function shouldClearStaleActiveCell(facts: TableRuntimeFacts): boolean {
     return facts.activeCell.status === 'resolved' && !facts.nestedEditorOpen;
 }
 
+// A drag parks the main caret in the cell under the pointer; syncing the open cell from it
+// would overwrite the cell's text with the drag's own selection.
 function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
     return (
         facts.nestedEditorOpen &&
         !facts.isSync &&
-        !facts.isCellSelectionTransition &&
         !facts.cellDragInProgress &&
         facts.activeCell.status === 'resolved' &&
         (facts.docChanged || (facts.selectionChanged && facts.activeCellIdentityUnchanged))

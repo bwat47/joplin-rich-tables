@@ -783,6 +783,7 @@ describe('tableRuntimePolicies', () => {
             activeCellIdentityUnchanged: true,
             selectionChanged: true,
             isCellSelectionTransition: true,
+            cellDragInProgress: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([]);
