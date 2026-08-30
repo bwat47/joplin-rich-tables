@@ -72,7 +72,7 @@ class MouseCellDragSelectionController {
         // The button is already up, so the pointerup was lost (released outside the window).
         // Without this a bare hover would keep driving the gesture.
         if (event.buttons === 0) {
-            this.finishGesture();
+            this.finishGesture({ focusSelection: true });
             return;
         }
 
@@ -140,6 +140,8 @@ class MouseCellDragSelectionController {
         const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
         const shouldReactivateAnchor =
             gesture.dragged && pointedCell !== null && isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell);
+        const willReactivateAnchor =
+            shouldReactivateAnchor && (gesture.origin === 'activeEditor' || resolvedAnchor !== null);
         const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
         if (shouldConsume) {
             event.preventDefault();
@@ -147,7 +149,10 @@ class MouseCellDragSelectionController {
         }
         // Only an active-editor drag can hand its own still-open anchor back; a rendered-cell
         // drag reopens the anchor below, so whatever cell it left active is cleared first.
-        this.finishGesture({ keepActiveCell: shouldReactivateAnchor && gesture.origin === 'activeEditor' });
+        this.finishGesture({
+            keepActiveCell: shouldReactivateAnchor && gesture.origin === 'activeEditor',
+            focusSelection: !willReactivateAnchor,
+        });
 
         if (gesture.origin === 'renderedCell' && !gesture.dragged) {
             if (resolvedAnchor) {
@@ -401,7 +406,7 @@ class MouseCellDragSelectionController {
         return gesture;
     }
 
-    private finishGesture(options: { keepActiveCell?: boolean } = {}): void {
+    private finishGesture(options: { keepActiveCell?: boolean; focusSelection?: boolean } = {}): void {
         const gesture = this.detachGesture();
         if (!gesture?.dragged) {
             return;
@@ -410,6 +415,11 @@ class MouseCellDragSelectionController {
         // The rectangle is final and pointer hit-testing is over, so the deferred teardown of
         // the cell that stayed open through the drag can run without moving the table.
         endCellDragSelection(this.view, { keepActiveCell: Boolean(options.keepActiveCell) });
+        if (options.focusSelection && getCellSelection(this.view.state)) {
+            // Preventing the initial pointerdown kept the browser from focusing CodeMirror.
+            // Transfer ownership now that the rectangle is final and ready for commands.
+            this.view.focus();
+        }
     }
 }
 

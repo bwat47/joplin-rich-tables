@@ -10,6 +10,7 @@ import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
+import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { getCellSelector } from '../tableWidget/domHelpers';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
@@ -372,6 +373,26 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
+    it('focuses the main editor when a drag selection completes from outside editor focus', () => {
+        const { view, cells } = mountGestureView();
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 }));
+
+        expect(document.activeElement).toBe(externalInput);
+        expect(canHandleTableSelectionKeydown(view)).toBe(false);
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 20, clientY: 20 }));
+
+        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(document.activeElement).toBe(view.contentDOM);
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
+    });
+
     it("defers another cell's editor teardown until a rendered-cell drag is released", () => {
         const { view, cells } = mountGestureView();
         view.dispatch({
@@ -540,6 +561,9 @@ describe('mouse cell drag selection', () => {
 
     it('opens the anchor editor when a rendered-cell drag contracts back to its anchor', () => {
         const { view, cells } = mountGestureView();
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
         cells.header0.dispatchEvent(
             pointerEvent('pointerdown', {
                 button: 0,
@@ -589,6 +613,7 @@ describe('mouse cell drag selection', () => {
             row: 0,
             col: 0,
         });
+        expect(document.activeElement).toBe(externalInput);
     });
 
     it('leaves an active editor in native text-selection mode while the pointer stays in its cell', () => {
@@ -1080,6 +1105,9 @@ describe('mouse cell drag selection', () => {
 
     it('keeps the last drag selection and stops tracking after pointer cancellation', () => {
         const { view, cells } = mountGestureView();
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
         cells.header0.dispatchEvent(
             pointerEvent('pointerdown', {
                 button: 0,
@@ -1127,7 +1155,26 @@ describe('mouse cell drag selection', () => {
             anchor: { section: 'header', row: 0, col: 0 },
             focus: { section: 'body', row: 0, col: 1 },
         });
+        expect(document.activeElement).toBe(externalInput);
     });
+
+    it('focuses the main editor when a started drag detects a lost pointerup', () => {
+        const { view, cells } = mountGestureView();
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 }));
+        expect(document.activeElement).toBe(externalInput);
+
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, buttons: 0, clientX: 20, clientY: 20 }));
+
+        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(document.activeElement).toBe(view.contentDOM);
+    });
+
     it('stops tracking a gesture whose pointerup was lost, instead of following a bare hover', () => {
         const { view, cells } = mountGestureView();
         cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));

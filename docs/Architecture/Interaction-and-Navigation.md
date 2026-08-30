@@ -81,7 +81,8 @@ Commands that move the main-editor caret outside the selected table clear the se
 - Dragging from one cell to another with a desktop mouse creates a rectangular selection. A movement threshold keeps
   ordinary clicks distinct from drags. Touch and pen pointers retain native scrolling/tap behaviour and do not start
   drag selection. Holding a cell drag near an edge auto-scrolls the table horizontally or the editor vertically;
-  releasing a drag back over its anchor opens that cell's editor.
+  releasing a drag back over its anchor opens that cell's editor. A completed rectangular selection focuses the main
+  editor on release so its keyboard and clipboard commands work even when focus started outside the editor.
 - Once a gesture becomes a rectangular selection it records itself in `cellDragField` until release. See
   [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership) for what that ownership means; the
   gesture settles the deferred state on release, clearing the active cell unless the drag contracts back to its anchor.
