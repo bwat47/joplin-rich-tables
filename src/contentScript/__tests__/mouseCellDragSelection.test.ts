@@ -10,7 +10,12 @@ import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
-import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
+import { getCellSelector } from '../tableWidget/domHelpers';
+import { TableWidget } from '../tableWidget/TableWidget';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
+import type { CellCoords } from '../tableModel/types';
+import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
@@ -55,12 +60,18 @@ function pointerEvent(
     return event as unknown as PointerEvent;
 }
 
-function createCell(section: 'header' | 'body', row: number, col: number): HTMLTableCellElement {
-    const cell = document.createElement(section === 'header' ? 'th' : 'td');
-    cell.dataset.section = section;
-    cell.dataset.row = String(row);
-    cell.dataset.col = String(col);
-    return cell;
+class ResizeObserverMock {
+    observe = vi.fn();
+    disconnect = vi.fn();
+}
+
+/** Reads a cell out of a rendered widget, so tests bind to `TableWidget`'s own attributes. */
+function findCell(widget: HTMLElement, coords: CellCoords): HTMLTableCellElement {
+    const cell = widget.querySelector(getCellSelector(coords));
+    if (!cell) {
+        throw new Error(`Expected a rendered cell at ${JSON.stringify(coords)}`);
+    }
+    return cell as HTMLTableCellElement;
 }
 
 function mountGestureView(): MountedGestureView {
@@ -70,6 +81,11 @@ function mountGestureView(): MountedGestureView {
     const view = new EditorView({
         parent,
         state: createMarkdownState(GRID_DOC, [
+            markdownRenderServiceFacet.of({
+                getCached: vi.fn(() => undefined),
+                render: vi.fn(async () => ''),
+                clear: vi.fn(),
+            }),
             activeCellField,
             resolvedActiveCellField,
             cellSelectionField,
@@ -82,21 +98,23 @@ function mountGestureView(): MountedGestureView {
 
     vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
 
-    const widget = document.createElement('div');
-    widget.className = CLASS_TABLE_WIDGET;
-    const table = document.createElement('table');
-    const cells = {
-        header0: createCell('header', 0, 0),
-        header1: createCell('header', 0, 1),
-        body0: createCell('body', 0, 0),
-        body1: createCell('body', 0, 1),
-    };
-    const headerRow = table.createTHead().insertRow();
-    headerRow.append(cells.header0, cells.header1);
-    const bodyRow = table.createTBody().insertRow();
-    bodyRow.append(cells.body0, cells.body1);
-    widget.appendChild(table);
+    // The widget is built the way production builds it, so these tests fail if the cell
+    // attribute contract the gesture hit-tests against ever changes.
+    const table = MarkdownTable.parse(GRID_DOC);
+    const cellRanges = computeMarkdownTableCellRanges(GRID_DOC);
+    if (!table || !cellRanges) {
+        throw new Error('Expected the test table to parse');
+    }
+    const widget = new TableWidget(table, cellRanges, GRID_DOC, 0).toDOM(view);
     view.dom.appendChild(widget);
+
+    const cells = {
+        header0: findCell(widget, { section: 'header', row: 0, col: 0 }),
+        header1: findCell(widget, { section: 'header', row: 0, col: 1 }),
+        body0: findCell(widget, { section: 'body', row: 0, col: 0 }),
+        body1: findCell(widget, { section: 'body', row: 0, col: 1 }),
+    };
+
     view.dom.addEventListener('pointerdown', (event) => {
         handleTableInteraction(view, event);
     });
@@ -107,7 +125,7 @@ function mountGestureView(): MountedGestureView {
         handleTableInteraction(view, event);
     });
 
-    return { view, widget, table, cells };
+    return { view, widget, table: widget.querySelector('table') as HTMLTableElement, cells };
 }
 
 function makeRect(left: number, top: number, right: number, bottom: number): DOMRect {
@@ -176,6 +194,7 @@ function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
 }
 
 beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     originalElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
     Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
@@ -190,6 +209,7 @@ afterEach(() => {
     }
     document.body.replaceChildren();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
 
     if (originalElementFromPoint) {
         Object.defineProperty(document, 'elementFromPoint', originalElementFromPoint);
@@ -1111,6 +1131,53 @@ describe('mouse cell drag selection', () => {
         expect(getCellSelection(view.state)).toBeNull();
 
         document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 50, clientY: 50 }));
+        expect(getCellSelection(view.state)).toBeNull();
+    });
+
+    it('leaves a shift-click to the selection-extending mousedown path', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'header', row: 0, col: 0 }),
+        });
+
+        const down = pointerEvent('pointerdown', { button: 0, shiftKey: true, clientX: 10, clientY: 10 });
+        cells.body1.dispatchEvent(down);
+        expect(down.defaultPrevented).toBe(false);
+
+        const compatibilityMouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            shiftKey: true,
+        });
+        cells.body1.dispatchEvent(compatibilityMouseDown);
+
+        const extended = {
+            tableFrom: 0,
+            anchor: { section: 'header', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        };
+        expect(getCellSelection(view.state)).toEqual(extended);
+
+        // No gesture is tracking, so moving the pointer cannot redraw the rectangle.
+        elementAtPoint = cells.body0;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 40, clientY: 40 }));
+        expect(getCellSelection(view.state)).toEqual(extended);
+    });
+
+    it('stops tracking a gesture when the view is destroyed', () => {
+        const { view, cells } = mountGestureView();
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        mountedViews.splice(mountedViews.indexOf(view), 1);
+        view.destroy();
+
+        elementAtPoint = cells.body1;
+        const drag = pointerEvent('pointermove', { button: 0, clientX: 40, clientY: 40 });
+        document.dispatchEvent(drag);
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 40, clientY: 40 }));
+
+        expect(drag.defaultPrevented).toBe(false);
         expect(getCellSelection(view.state)).toBeNull();
     });
 
