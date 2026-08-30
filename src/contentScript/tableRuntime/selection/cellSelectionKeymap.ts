@@ -14,7 +14,7 @@ import {
 } from './cellSelectionController';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
-import { handleSelectionDelete } from './cellSelectionClipboard';
+import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
 
 type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
@@ -113,25 +113,6 @@ function handleActivateKey(view: EditorView, event: KeyboardEvent): boolean {
 
 function hasNoModifiers(event: KeyboardEvent): boolean {
     return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
-}
-
-/**
- * Clipboard chords must reach the browser's native default action so it emits the
- * corresponding clipboard event, but must not reach CodeMirror's root-editor keymaps.
- * The clipboard event is where the table selection is serialized and rewritten.
- */
-function isNativeClipboardShortcut(event: KeyboardEvent): boolean {
-    if (event.altKey) {
-        return false;
-    }
-
-    const key = event.key.toLowerCase();
-    const isModShortcut = (event.ctrlKey || event.metaKey) && ['c', 'v', 'x'].includes(key);
-    const isCtrlInsert = event.ctrlKey && !event.metaKey && !event.shiftKey && event.key === 'Insert';
-    const isShiftInsertOrDelete =
-        event.shiftKey && !event.ctrlKey && !event.metaKey && (event.key === 'Insert' || event.key === 'Delete');
-
-    return isModShortcut || isCtrlInsert || isShiftInsertOrDelete;
 }
 
 /**
