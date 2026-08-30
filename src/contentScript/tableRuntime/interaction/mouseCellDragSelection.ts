@@ -129,10 +129,11 @@ class MouseCellDragSelectionController {
                 return;
             }
 
-            const focus = pointedCell ?? gesture.resolvedCell.activeCell;
-            gesture.dragged = this.applyFocus(gesture, focus);
+            // A rectangle that cannot be dispatched — the table moved or was rewritten under
+            // the gesture — leaves the press provisional rather than dropping it, so release
+            // still opens the pressed cell instead of swallowing the click.
+            gesture.dragged = this.applyFocus(gesture, pointedCell ?? gesture.resolvedCell.activeCell);
             if (!gesture.dragged) {
-                this.finishGesture();
                 return;
             }
         } else {

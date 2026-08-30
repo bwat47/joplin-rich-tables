@@ -249,6 +249,30 @@ describe('mouse cell drag selection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
+    it('keeps the press provisional when the table moves out from under the drag', () => {
+        const { view, cells } = mountGestureView();
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        // The gesture recorded tableFrom 0 on pointerdown; pushing the table down the document
+        // makes that stale, so no rectangle can be dispatched.
+        view.dispatch({ changes: { from: 0, insert: 'prose\n\n' } });
+
+        elementAtPoint = cells.body1;
+        const drag = pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 });
+        document.dispatchEvent(drag);
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(drag.defaultPrevented).toBe(false);
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 20, clientY: 20 }));
+
+        expect(getPendingOpenCellRequest(view.state)?.activeCell).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+    });
+
     it('starts a rectangular selection after the mouse crosses the movement threshold', () => {
         const { view, cells } = mountGestureView();
         view.dispatch({
