@@ -6,6 +6,7 @@ import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
 
 const INLINE_CODE_NODE_NAME = 'InlineCode';
 const LINK_NODE_NAME = 'Link';
+const IMAGE_NODE_NAME = 'Image';
 const URL_NODE_NAME = 'URL';
 
 type SyntaxNodePredicate = (node: SyntaxNodeRef) => boolean;
@@ -61,15 +62,19 @@ function createSyntaxMarkPlugin(className: string, matches: SyntaxNodePredicate)
  */
 export const inlineCodePlugin = createSyntaxMarkPlugin('cm-inline-code', (node) => node.name === INLINE_CODE_NODE_NAME);
 
+const WRAPPED_DESTINATION_PARENTS = new Set([LINK_NODE_NAME, IMAGE_NODE_NAME]);
+
 /**
- * Marks only the destinations in `[label](destination)` links, so the theme rule for
- * `CLASS_NESTED_EDITOR_URL` in `nestedEditorTheme.ts` can wrap them aggressively.
- * That `overflow-wrap: anywhere` rule is the actual fix; this plugin only tags the ranges.
+ * Marks only the destinations in `[label](destination)` links and `![alt](destination)`
+ * images, so the theme rule for `CLASS_NESTED_EDITOR_URL` in `nestedEditorTheme.ts` can wrap
+ * them aggressively. That `overflow-wrap: anywhere` rule is the actual fix; this plugin only
+ * tags the ranges. Bare URLs are excluded: they render in full, so the rendered cell already
+ * reserves their width.
  */
-export const linkDestinationWrapPlugin = createSyntaxMarkPlugin(
-    CLASS_NESTED_EDITOR_URL,
-    (node) => node.name === URL_NODE_NAME && node.node.parent?.name === LINK_NODE_NAME
-);
+export const linkDestinationWrapPlugin = createSyntaxMarkPlugin(CLASS_NESTED_EDITOR_URL, (node) => {
+    const parentName = node.node.parent?.name;
+    return node.name === URL_NODE_NAME && parentName !== undefined && WRAPPED_DESTINATION_PARENTS.has(parentName);
+});
 
 /**
  * Decorates `==mark==` syntax with a highlight class.
