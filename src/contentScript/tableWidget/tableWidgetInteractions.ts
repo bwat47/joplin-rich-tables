@@ -212,7 +212,11 @@ function resolveCellTarget(view: EditorView, target: HTMLElement): ResolvedCellT
     return cell && resolvedCell ? { cell, resolvedCell } : null;
 }
 
-/** Starts a desktop-mouse gesture that becomes either cell activation or drag selection. */
+/**
+ * Starts a desktop-mouse gesture that becomes either cell activation or drag selection.
+ *
+ * Declining leaves the press to the compatibility mousedown; see `handleTableInteraction`.
+ */
 function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
     if (!isPrimaryMousePointer(event) || event.shiftKey || target.closest(SELECTOR_LINK)) {
         return false;
@@ -276,6 +280,21 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     return true;
 }
 
+/**
+ * Routes a widget event to the handler that owns it.
+ *
+ * A cell press is split across two events by input type. Pointerdown claims only a plain
+ * left-mouse press — the one that can become a drag — and declines the rest, which the
+ * compatibility mousedown behind it then handles:
+ *
+ * - left mouse, no shift: pointerdown starts a click-or-drag gesture
+ * - shift-click: mousedown extends the cell selection
+ * - right click: mousedown opens the cell; preventing its pointerdown would suppress the
+ *   context menu
+ * - touch and pen: mousedown opens the cell; their pointerdown must stay native or the
+ *   page cannot scroll
+ * - links: click opens them, and mousedown only clears a stale selection
+ */
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
     if (!target) {
@@ -288,12 +307,20 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    // Let the nested editor handle its own events. Pointerdown is observed passively so
-    // a text-selection drag can become a cell-selection drag after crossing a cell boundary.
-    if (target.closest(`.${CLASS_CELL_EDITOR}`)) {
-        if (event.type === 'pointerdown') {
+    const insideNestedEditor = Boolean(target.closest(`.${CLASS_CELL_EDITOR}`));
+    if (event.type === 'pointerdown') {
+        if (insideNestedEditor) {
+            // Observed but never claimed, so the nested editor keeps its native text-selection
+            // drag until the pointer crosses into another cell.
             observeActiveEditorPointerDown(view, event as PointerEvent, target);
+            return false;
         }
+
+        return handleWidgetPointerDown(view, event as PointerEvent, target);
+    }
+
+    // The nested editor owns the rest of its own events.
+    if (insideNestedEditor) {
         return false;
     }
 
@@ -303,10 +330,6 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     if (event.type === 'mousedown') {
         return handleWidgetMouseDown(view, event as MouseEvent, target);
-    }
-
-    if (event.type === 'pointerdown') {
-        return handleWidgetPointerDown(view, event as PointerEvent, target);
     }
 
     return false;
