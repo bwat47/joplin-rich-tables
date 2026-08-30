@@ -1,7 +1,7 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { inlineCodePlugin, insertPlugin, markPlugin } from './decorationPlugins';
+import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin } from './decorationPlugins';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSelectionToMain } from './domHandlers';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
@@ -148,6 +148,7 @@ class NestedEditorController {
                 }),
                 createNestedEditorMarkdownExtension(),
                 inlineCodePlugin,
+                linkDestinationWrapPlugin,
                 markPlugin,
                 insertPlugin,
                 createJoplinSyntaxHighlighting(isDarkTheme),
