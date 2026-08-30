@@ -103,12 +103,10 @@ export function resolveTableClipboardTarget(
     state: EditorState,
     options: { nestedEditorOpen: boolean }
 ): TableClipboardTarget | null {
-    if (options.nestedEditorOpen) {
-        const resolvedActiveCell = getResolvedActiveCell(state);
-        if (!resolvedActiveCell) {
-            return null;
-        }
-
+    // An open nested editor owns its own cell, even when a mouse drag left a selection behind
+    // it. An active cell that no longer resolves owns nothing, so a selection still applies.
+    const resolvedActiveCell = options.nestedEditorOpen ? getResolvedActiveCell(state) : null;
+    if (resolvedActiveCell) {
         const activeCell = resolvedActiveCell.activeCell;
         return {
             tableFrom: resolvedActiveCell.tableFrom,
