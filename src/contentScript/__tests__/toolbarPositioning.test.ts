@@ -6,32 +6,17 @@ import {
     isObscuringTopPlacement,
     isTableOutsideViewport,
     resolveToolbarPlacementMode,
-    resolveViewportBounds,
     shouldPinAbove,
     TOOLBAR_VIEWPORT_PADDING_PX,
     type ToolbarRect,
-    type ViewportBounds,
 } from '../toolbar/toolbarPositioning';
+import type { ViewportBounds } from '../shared/editorViewport';
 
 function rect(partial: Partial<ToolbarRect>): ToolbarRect {
     return { top: 0, bottom: 0, left: 0, width: 0, height: 0, ...partial };
 }
 
 const TOOLBAR_HEIGHT = 30;
-
-describe('resolveViewportBounds', () => {
-    it('uses the scroller rect when the editor scrolls internally', () => {
-        const bounds = resolveViewportBounds(true, rect({ top: 40, bottom: 640, height: 600 }), 1000);
-
-        expect(bounds).toEqual({ top: 40, bottom: 640, height: 600 });
-    });
-
-    it('anchors to the page top when the surrounding view scrolls', () => {
-        const bounds = resolveViewportBounds(false, rect({ top: -200, bottom: 400, height: 600 }), 800);
-
-        expect(bounds).toEqual({ top: 0, bottom: 800, height: 800 });
-    });
-});
 
 describe('isTableOutsideViewport', () => {
     const viewport: ViewportBounds = { top: 100, bottom: 500, height: 400 };

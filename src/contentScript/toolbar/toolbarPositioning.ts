@@ -1,3 +1,4 @@
+import type { ViewportBounds } from '../shared/editorViewport';
 import { clamp } from '../shared/numberUtils';
 
 export const TOOLBAR_OFFSET_PX = 5;
@@ -10,13 +11,6 @@ export interface ToolbarRect {
     bottom: number;
     left: number;
     width: number;
-    height: number;
-}
-
-/** Vertical bounds of the area the toolbar must stay inside, in viewport coordinates. */
-export interface ViewportBounds {
-    top: number;
-    bottom: number;
     height: number;
 }
 
@@ -35,23 +29,6 @@ export interface ToolbarPlacement extends ToolbarPoint {
  * anchor to is off-screen, so the toolbar sticks to the viewport edge instead.
  */
 export type ToolbarPlacementMode = 'top-start' | 'bottom-start' | 'pinned';
-
-/**
- * Desktop uses internal CodeMirror scrolling, so the visible area is the scroller rect.
- * Mobile scrolls the surrounding WebView, so the visible area is the window/visual viewport
- * anchored to the top of the page.
- */
-export function resolveViewportBounds(
-    isInternalScroll: boolean,
-    scrollDOMRect: ToolbarRect,
-    externalViewportHeight: number
-): ViewportBounds {
-    if (isInternalScroll) {
-        return { top: scrollDOMRect.top, bottom: scrollDOMRect.bottom, height: scrollDOMRect.height };
-    }
-
-    return { top: 0, bottom: externalViewportHeight, height: externalViewportHeight };
-}
 
 /** True when the table has scrolled entirely past either viewport edge. */
 export function isTableOutsideViewport(tableRect: ToolbarRect, viewport: ViewportBounds): boolean {

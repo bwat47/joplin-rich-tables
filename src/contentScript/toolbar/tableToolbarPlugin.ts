@@ -19,13 +19,17 @@ import {
     isObscuringTopPlacement,
     isTableOutsideViewport,
     resolveToolbarPlacementMode,
-    resolveViewportBounds,
     shouldPinAbove,
     TOOLBAR_OFFSET_PX,
     TOOLBAR_VIEWPORT_PADDING_PX,
     type ToolbarPlacement,
-    type ViewportBounds,
 } from './toolbarPositioning';
+import {
+    getViewportHeight,
+    getViewportWidth,
+    resolveViewportBounds,
+    type ViewportBounds,
+} from '../shared/editorViewport';
 
 /** Everything resolved once per `autoUpdate` registration and reused by every reposition. */
 interface PositioningContext {
@@ -315,16 +319,10 @@ export class TableToolbarPlugin {
     }
 
     private readGeometry(ctx: PositioningContext): ToolbarGeometry {
-        const visualViewport = ctx.viewWindow.visualViewport;
-
         return {
             toolbarRect: this.dom.getBoundingClientRect(),
             tableRect: ctx.referenceElement.getBoundingClientRect(),
-            viewport: resolveViewportBounds(
-                ctx.isInternalScroll,
-                ctx.scrollDOM.getBoundingClientRect(),
-                visualViewport?.height ?? ctx.viewWindow.innerHeight
-            ),
+            viewport: resolveViewportBounds(ctx.scrollDOM.getBoundingClientRect(), getViewportHeight(ctx.viewWindow)),
         };
     }
 
@@ -379,7 +377,7 @@ export class TableToolbarPlugin {
                   tableRect,
                   toolbarRect,
                   viewport,
-                  viewportWidth: ctx.viewWindow.visualViewport?.width ?? ctx.viewWindow.innerWidth,
+                  viewportWidth: getViewportWidth(ctx.viewWindow),
                   pinAbove,
               });
 

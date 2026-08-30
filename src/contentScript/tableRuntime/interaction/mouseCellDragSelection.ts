@@ -7,10 +7,11 @@ import { resolveTableContextAtPos } from '../tableResolution';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';
+import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
-import { CellDragAutoScroller, resolveVerticalScrollBounds } from './mouseCellDragAutoScroll';
+import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
 const DRAG_START_DISTANCE_PX = 5;
 const DRAG_START_DISTANCE_SQUARED = DRAG_START_DISTANCE_PX * DRAG_START_DISTANCE_PX;
@@ -292,7 +293,7 @@ class MouseCellDragSelectionController {
         const widgetRect = gesture.widget.getBoundingClientRect();
         const scrollRect = this.view.scrollDOM.getBoundingClientRect();
         // Vertically the scroller rect is not the visible band when the page scrolls instead.
-        const verticalBounds = resolveVerticalScrollBounds(this.view);
+        const verticalBounds = resolveViewportBounds(scrollRect, getViewportHeight(getViewWindow(this.view)));
         const left = Math.max(tableRect.left, widgetRect.left, scrollRect.left);
         const right = Math.min(tableRect.right, widgetRect.right, scrollRect.right);
         const top = Math.max(tableRect.top, widgetRect.top, verticalBounds.top);

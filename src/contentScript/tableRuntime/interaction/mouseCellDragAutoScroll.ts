@@ -1,5 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { getViewWindow, requestViewAnimationFrame } from '../../shared/domContext';
+import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
 
 const EDGE_SCROLL_ZONE_PX = 48;
@@ -9,6 +10,8 @@ const EDGE_SCROLL_MAX_FRAME_MS = 50;
 // A zero-length frame would produce a zero delta, which the loop cannot tell apart
 // from having reached a scroll boundary.
 const EDGE_SCROLL_MIN_FRAME_MS = 1;
+// Subpixel layout can leave scrollHeight a hair above clientHeight with nothing to scroll.
+const INTERNAL_SCROLL_TOLERANCE_PX = 1;
 
 export interface AutoScrollContext {
     /** The table widget: the horizontal scroller, and the range the pointer's X is measured against. */
@@ -22,27 +25,20 @@ export interface AutoScrollContext {
 }
 
 /**
- * Vertical bounds of the band a drag scrolls toward, in client coordinates.
+ * The element a vertical drag scroll has to move.
  *
- * CodeMirror scrolls internally on desktop, but the web app scrolls the page instead and lets
- * `scrollDOM` grow to the full document height. Intersecting the two leaves the visible band
- * either way: the desktop scroller already sits inside the window, so this returns its rect.
+ * Internal and external scrolling are mutually exclusive: `scrollDOM` scrolls only where
+ * something constrains the editor's height, and where nothing does it grows to the whole
+ * document and the document root scrolls instead. Exactly one of the two can move.
  */
-export function resolveVerticalScrollBounds(view: EditorView): { top: number; bottom: number } {
-    const scrollRect = view.scrollDOM.getBoundingClientRect();
-    const viewWindow = getViewWindow(view);
-    const viewportHeight = viewWindow.visualViewport?.height ?? viewWindow.innerHeight;
+function getVerticalScroller(view: EditorView): HTMLElement {
+    const scrollDOM = view.scrollDOM;
+    if (scrollDOM.scrollHeight > scrollDOM.clientHeight + INTERNAL_SCROLL_TOLERANCE_PX) {
+        return scrollDOM;
+    }
 
-    return {
-        top: Math.max(scrollRect.top, 0),
-        bottom: Math.min(scrollRect.bottom, viewportHeight),
-    };
-}
-
-/** The element that scrolls the page when the editor does not scroll internally. */
-function getPageScroller(view: EditorView): HTMLElement | null {
     const doc = view.dom.ownerDocument;
-    return (doc.scrollingElement ?? doc.documentElement) as HTMLElement | null;
+    return (doc.scrollingElement as HTMLElement | null) ?? doc.documentElement;
 }
 
 /**
@@ -125,7 +121,10 @@ export class CellDragAutoScroller {
         const pointer = context.pointer();
         const widgetRect = context.widget.getBoundingClientRect();
         const tableRect = context.table.getBoundingClientRect();
-        const verticalBounds = resolveVerticalScrollBounds(this.view);
+        const verticalBounds = resolveViewportBounds(
+            this.view.scrollDOM.getBoundingClientRect(),
+            getViewportHeight(getViewWindow(this.view))
+        );
 
         const horizontalIntensity = calculateEdgeScrollIntensity(
             pointer.x,
@@ -153,15 +152,15 @@ export class CellDragAutoScroller {
         this.lastTimestamp = timestamp;
         const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
 
-        // The widget is the table's horizontal scroller. Vertically the editor's own scroller
-        // wins where it can move, and the page takes over where it cannot — which is every
-        // frame in the web app, whose editor does not scroll internally at all.
-        const verticalDelta = verticalIntensity * maxDelta;
-        const pageScroller = getPageScroller(this.view);
+        // The widget is the table's horizontal scroller; whichever element owns vertical
+        // scrolling is the vertical one. If either has nothing left to move, that axis
+        // simply reports no movement.
         const didScrollHorizontally = applyScrollDelta(context.widget, 'horizontal', horizontalIntensity * maxDelta);
-        const didScrollVertically =
-            applyScrollDelta(this.view.scrollDOM, 'vertical', verticalDelta) ||
-            (pageScroller !== null && applyScrollDelta(pageScroller, 'vertical', verticalDelta));
+        const didScrollVertically = applyScrollDelta(
+            getVerticalScroller(this.view),
+            'vertical',
+            verticalIntensity * maxDelta
+        );
         if (!didScrollHorizontally && !didScrollVertically) {
             this.lastTimestamp = null;
             return;
