@@ -14,7 +14,6 @@ import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRunti
 import {
     beginMouseCellGesture,
     consumeMouseCellGestureMouseDown,
-    observeActiveCellMouseGesture,
 } from '../tableRuntime/interaction/mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
@@ -229,12 +228,16 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
         cell.classList.contains(CLASS_CELL_ACTIVE) &&
         isSameActiveCell(getActiveCell(view.state), resolvedCell.activeCell)
     ) {
-        return observeActiveCellMouseGesture(view, event, cell, resolvedCell, {
+        return beginMouseCellGesture(view, event, cell, resolvedCell, {
+            origin: 'activeEditor',
             consumeInitialEvents: true,
         });
     }
 
-    return beginMouseCellGesture(view, event, cell, resolvedCell);
+    return beginMouseCellGesture(view, event, cell, resolvedCell, {
+        origin: 'renderedCell',
+        consumeInitialEvents: true,
+    });
 }
 
 /** Passively observes a text-selection drag until it crosses into another table cell. */
@@ -244,7 +247,8 @@ function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, t
         return;
     }
 
-    observeActiveCellMouseGesture(view, event, activeTarget.cell, activeTarget.resolvedCell, {
+    beginMouseCellGesture(view, event, activeTarget.cell, activeTarget.resolvedCell, {
+        origin: 'activeEditor',
         consumeInitialEvents: false,
     });
 }

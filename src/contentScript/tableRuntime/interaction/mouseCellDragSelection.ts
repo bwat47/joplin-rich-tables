@@ -19,8 +19,17 @@ const HIT_TEST_INSET_PX = 1;
 const BOUNDARY_EXIT_DISTANCE_PX = 8;
 const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT_DISTANCE_PX;
 
+type MouseCellGestureOrigin = 'renderedCell' | 'activeEditor';
+
+export interface MouseCellGestureOptions {
+    /** Where the press landed: a rendered cell, or the active cell that already owns an editor. */
+    origin: MouseCellGestureOrigin;
+    /** Claim the pointerdown and its compatibility mousedown rather than leaving them native. */
+    consumeInitialEvents: boolean;
+}
+
 interface MouseCellGesture {
-    origin: 'renderedCell' | 'activeEditor';
+    origin: MouseCellGestureOrigin;
     consumeCompatibilityMouseDown: boolean;
     pointerId: number;
     startX: number;
@@ -189,46 +198,11 @@ class MouseCellDragSelectionController {
         this.autoScroller = new CellDragAutoScroller(view);
     }
 
-    startRenderedCell(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
-        if (!isPrimaryMousePointer(event)) {
-            return false;
-        }
-
-        const widget = cell.closest(getWidgetSelector()) as HTMLElement | null;
-        const table = cell.closest('table') as HTMLTableElement | null;
-        if (!widget || !table || table.closest(getWidgetSelector()) !== widget) {
-            return false;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        this.beginGesture({
-            origin: 'renderedCell',
-            consumeCompatibilityMouseDown: true,
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            widget,
-            table,
-            anchorCell: cell,
-            resolvedCell,
-            dragged: false,
-            lastFocus: null,
-            lastClientX: event.clientX,
-            lastClientY: event.clientY,
-        });
-
-        this.capturePointer(this.gesture);
-
-        return true;
-    }
-
-    observeActiveCell(
+    begin(
         event: PointerEvent,
         cell: HTMLElement,
         resolvedCell: ResolvedActiveCell,
-        options: { consumeInitialEvents: boolean }
+        options: MouseCellGestureOptions
     ): boolean {
         if (!isPrimaryMousePointer(event)) {
             return false;
@@ -240,16 +214,17 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        // Editable content retains native pointer and mouse handling. Cell padding has
-        // no native text-selection behavior to preserve, so claim its initial events to
-        // keep the outer editor from moving its caret or reopening the active cell.
+        // Editable content retains native pointer and mouse handling. Everything else — a
+        // rendered cell, or the active cell's row-height padding — has no native text-selection
+        // behavior to preserve, so claim its initial events to keep the outer editor from
+        // moving its caret or reopening the cell.
         if (options.consumeInitialEvents) {
             event.preventDefault();
             event.stopPropagation();
         }
 
         this.beginGesture({
-            origin: 'activeEditor',
+            origin: options.origin,
             consumeCompatibilityMouseDown: options.consumeInitialEvents,
             pointerId: event.pointerId,
             startX: event.clientX,
@@ -263,6 +238,13 @@ class MouseCellDragSelectionController {
             lastClientX: event.clientX,
             lastClientY: event.clientY,
         });
+
+        if (options.origin === 'renderedCell') {
+            // No nested editor to share the pointer with, so the gesture owns it from the
+            // start. An active-editor drag only takes the pointer when it converts.
+            this.capturePointer(this.gesture);
+        }
+
         return true;
     }
 
@@ -414,19 +396,10 @@ export function beginMouseCellGesture(
     view: EditorView,
     event: PointerEvent,
     cell: HTMLElement,
-    resolvedCell: ResolvedActiveCell
-): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.startRenderedCell(event, cell, resolvedCell) ?? false;
-}
-
-export function observeActiveCellMouseGesture(
-    view: EditorView,
-    event: PointerEvent,
-    cell: HTMLElement,
     resolvedCell: ResolvedActiveCell,
-    options: { consumeInitialEvents: boolean }
+    options: MouseCellGestureOptions
 ): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.observeActiveCell(event, cell, resolvedCell, options) ?? false;
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, options) ?? false;
 }
 
 export function consumeMouseCellGestureMouseDown(view: EditorView, event: MouseEvent): boolean {
