@@ -16,6 +16,7 @@ import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '..
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const markdownExtension = markdown({
     extensions: [GFM],
@@ -55,6 +56,33 @@ afterEach(() => {
 });
 
 describe('cellSelectionKeymap', () => {
+    it('leaves key ownership with an active editor during a mouse-drag selection transition', () => {
+        const view = mountSelectionView(GRID_DOC);
+        const anchor = { section: 'body', row: 0, col: 0 } as const;
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of({ tableFrom: 0, ...anchor }),
+                setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor,
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+            ],
+        });
+        const editorHost = document.createElement('div');
+        editorHost.className = CLASS_CELL_EDITOR;
+        const nestedContent = document.createElement('div');
+        nestedContent.tabIndex = 0;
+        editorHost.appendChild(nestedContent);
+        view.dom.appendChild(editorHost);
+        nestedContent.focus();
+
+        pressKey({ key: 'Escape' });
+
+        expect(getActiveCell(view.state)).toMatchObject(anchor);
+        expect(getCellSelection(view.state)).not.toBeNull();
+    });
+
     it('routes undo through the main editor while a multi-cell selection is active', () => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
 

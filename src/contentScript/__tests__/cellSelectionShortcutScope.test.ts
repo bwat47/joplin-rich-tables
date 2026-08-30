@@ -111,7 +111,7 @@ describe('cellSelectionShortcutScope', () => {
         expect(canHandleTableSelectionKeydown(view)).toBe(false);
     });
 
-    it('allows clipboard shortcuts when focus is inside the nested editor', () => {
+    it('leaves selection keys with the nested editor while allowing table-aware clipboard handling', () => {
         const { view, root } = createViewHarness();
         const editorHost = document.createElement('div');
         editorHost.className = CLASS_CELL_EDITOR;
@@ -122,6 +122,7 @@ describe('cellSelectionShortcutScope', () => {
         setActiveElement(nestedContent);
 
         expect(canHandleTableClipboardShortcut(view)).toBe(true);
+        expect(canHandleTableSelectionKeydown(view)).toBe(false);
     });
 
     it('rejects shortcuts when there is no table interaction state', () => {

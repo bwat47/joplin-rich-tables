@@ -103,34 +103,34 @@ export function resolveTableClipboardTarget(
     state: EditorState,
     options: { nestedEditorOpen: boolean }
 ): TableClipboardTarget | null {
-    const selection = getCellSelection(state);
-    if (selection) {
-        const rect = toSelectionRect(selection);
+    if (options.nestedEditorOpen) {
+        const resolvedActiveCell = getResolvedActiveCell(state);
+        if (!resolvedActiveCell) {
+            return null;
+        }
+
+        const activeCell = resolvedActiveCell.activeCell;
         return {
-            tableFrom: selection.tableFrom,
-            anchor: fromUnifiedRow(rect.minRow, rect.minCol),
-            source: 'selection',
+            tableFrom: resolvedActiveCell.tableFrom,
+            anchor: {
+                section: activeCell.section,
+                row: activeCell.row,
+                col: activeCell.col,
+            },
+            source: 'activeCell',
         };
     }
 
-    if (!options.nestedEditorOpen) {
+    const selection = getCellSelection(state);
+    if (!selection) {
         return null;
     }
 
-    const resolvedActiveCell = getResolvedActiveCell(state);
-    if (!resolvedActiveCell) {
-        return null;
-    }
-
-    const activeCell = resolvedActiveCell.activeCell;
+    const rect = toSelectionRect(selection);
     return {
-        tableFrom: resolvedActiveCell.tableFrom,
-        anchor: {
-            section: activeCell.section,
-            row: activeCell.row,
-            col: activeCell.col,
-        },
-        source: 'activeCell',
+        tableFrom: selection.tableFrom,
+        anchor: fromUnifiedRow(rect.minRow, rect.minCol),
+        source: 'selection',
     };
 }
 

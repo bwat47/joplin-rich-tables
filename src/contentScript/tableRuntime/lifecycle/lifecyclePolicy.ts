@@ -199,6 +199,7 @@ function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
     return (
         facts.nestedEditorOpen &&
         !facts.isSync &&
+        !facts.isCellSelectionTransition &&
         facts.activeCell.status === 'resolved' &&
         (facts.docChanged || (facts.selectionChanged && facts.activeCellIdentityUnchanged))
     );
