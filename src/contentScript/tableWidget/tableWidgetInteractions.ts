@@ -10,7 +10,7 @@ import { linkOpenerFacet } from '../services/linkOpener';
 import { MOUSE_BUTTON_LEFT } from '../shared/mouseButtons';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
-import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
     beginMouseCellGesture,
     consumeMouseCellGestureMouseDown,
@@ -187,6 +187,32 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
     return activateCellFromMouseDown(view, event, cell);
 }
 
+interface ResolvedCellTarget {
+    cell: HTMLElement;
+    resolvedCell: ResolvedActiveCell;
+}
+
+/**
+ * Resolves a widget cell element against the current document.
+ *
+ * Returns null for anything that is not one of `TableWidget`'s own cells, or whose
+ * coordinates no longer map onto the parsed table.
+ */
+function resolveCell(view: EditorView, cell: HTMLElement): ResolvedActiveCell | null {
+    const coords = readCellCoords(cell);
+    const ctx = coords ? resolveTableContextFromEventTarget(view, cell) : null;
+
+    return coords && ctx ? createResolvedActiveCell({ ctx, coords }) : null;
+}
+
+/** As {@link resolveCell}, starting from the element an event landed on. */
+function resolveCellTarget(view: EditorView, target: HTMLElement): ResolvedCellTarget | null {
+    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    const resolvedCell = cell ? resolveCell(view, cell) : null;
+
+    return cell && resolvedCell ? { cell, resolvedCell } : null;
+}
+
 /** Starts a desktop-mouse gesture that becomes either cell activation or drag selection. */
 function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
     if (
@@ -199,26 +225,12 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
         return false;
     }
 
-    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
-    if (!cell) {
+    const pressed = resolveCellTarget(view, target);
+    if (!pressed) {
         return false;
     }
 
-    const coords = readCellCoords(cell);
-    if (!coords) {
-        return false;
-    }
-
-    const ctx = resolveTableContextFromEventTarget(view, cell);
-    if (!ctx) {
-        return false;
-    }
-
-    const resolvedCell = createResolvedActiveCell({ ctx, coords });
-    if (!resolvedCell) {
-        return false;
-    }
-
+    const { cell, resolvedCell } = pressed;
     if (
         cell.classList.contains(CLASS_CELL_ACTIVE) &&
         isSameActiveCell(getActiveCell(view.state), resolvedCell.activeCell)
@@ -233,40 +245,19 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
 
 /** Passively observes a text-selection drag until it crosses into another table cell. */
 function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): void {
-    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
-    if (!cell) {
+    const activeTarget = resolveCellTarget(view, target);
+    if (!activeTarget || !isSameActiveCell(getActiveCell(view.state), activeTarget.resolvedCell.activeCell)) {
         return;
     }
 
-    const coords = readCellCoords(cell);
-    const ctx = resolveTableContextFromEventTarget(view, cell);
-    if (!coords || !ctx) {
-        return;
-    }
-
-    const resolvedCell = createResolvedActiveCell({ ctx, coords });
-    if (!resolvedCell || !isSameActiveCell(getActiveCell(view.state), resolvedCell.activeCell)) {
-        return;
-    }
-
-    observeActiveCellMouseGesture(view, event, cell, resolvedCell, {
+    observeActiveCellMouseGesture(view, event, activeTarget.cell, activeTarget.resolvedCell, {
         consumeInitialEvents: false,
     });
 }
 
 /** Extend the cell selection (shift-click) or open the clicked cell. */
 function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HTMLElement): boolean {
-    const coords = readCellCoords(cell);
-    if (!coords) {
-        return false;
-    }
-
-    const ctx = resolveTableContextFromEventTarget(view, cell);
-    if (!ctx) {
-        return false;
-    }
-
-    const resolvedCell = createResolvedActiveCell({ ctx, coords });
+    const resolvedCell = resolveCell(view, cell);
     if (!resolvedCell) {
         return false;
     }
@@ -275,7 +266,7 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     event.stopPropagation();
 
     const hasSelection = Boolean(getCellSelection(view.state));
-    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, coords, ctx.from)) {
+    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, resolvedCell.activeCell, resolvedCell.tableFrom)) {
         return true;
     }
 
