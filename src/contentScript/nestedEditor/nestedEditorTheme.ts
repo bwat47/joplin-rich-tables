@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
+import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
 
 /**
  * Creates a theme for the nested cell editor that adapts to light/dark mode.
@@ -57,6 +58,12 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
         '.cm-inserted': {
             textDecoration: 'underline',
             textDecorationStyle: 'solid',
+        },
+        [`.${CLASS_NESTED_EDITOR_URL}`]: {
+            // URL source can be substantially wider than its rendered link label. Allowing
+            // breaks at any character keeps it from increasing the table's intrinsic width.
+            overflowWrap: 'anywhere',
+            wordBreak: 'normal',
         },
     });
 }
