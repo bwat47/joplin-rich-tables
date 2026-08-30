@@ -27,7 +27,11 @@ User Action (keyboard/toolbar)
 
 ### 1. Entry Point (`tableCommands.ts`)
 
-- **Joplin Registration**: `richTables.insertRowBelow`, etc.
+- **Joplin Registration**: derived from `contentScriptBridge/structuralCommandCatalog.ts`, the shared source of
+  truth for structural command names, labels, and menu accelerators. The host (`src/index.ts`) builds its command
+  and menu registrations from the same catalog, so the two sides cannot drift across the bundle boundary.
+  Catalog keys are `StructuralActionId`s, so a new action fails to compile until it has a command. Command names
+  are persisted in the user's Joplin keymap - renaming one orphans their custom shortcut.
 - **Active Cell Resolution**: Resolves the current active cell once with `getResolvedActiveCell()`.
 - **Delegation Only**: Dispatches through the shared structural action registry.
 

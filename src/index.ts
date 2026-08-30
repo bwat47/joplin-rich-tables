@@ -8,6 +8,7 @@ import {
     TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
     TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
 } from './contentScriptBridge/hostEditorConfigBridge';
+import { STRUCTURAL_COMMANDS } from './contentScriptBridge/structuralCommandCatalog';
 
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 const SETTINGS_SECTION = 'richTables';
@@ -104,23 +105,9 @@ joplin.plugins.register({
             });
         };
 
-        await registerTableCommand('richTables.addRowAbove', 'Insert row above');
-        await registerTableCommand('richTables.addRowBelow', 'Insert row below');
-        await registerTableCommand('richTables.addColumnLeft', 'Insert column left');
-        await registerTableCommand('richTables.addColumnRight', 'Insert column right');
-        await registerTableCommand('richTables.deleteRow', 'Delete row');
-        await registerTableCommand('richTables.deleteColumn', 'Delete column');
-        await registerTableCommand('richTables.clearRow', 'Clear row');
-        await registerTableCommand('richTables.clearColumn', 'Clear column');
-        await registerTableCommand('richTables.alignLeft', 'Align column left');
-        await registerTableCommand('richTables.alignCenter', 'Align column center');
-        await registerTableCommand('richTables.alignRight', 'Align column right');
-        await registerTableCommand('richTables.moveRowUp', 'Move row up');
-        await registerTableCommand('richTables.moveRowDown', 'Move row down');
-        await registerTableCommand('richTables.moveColumnLeft', 'Move column left');
-        await registerTableCommand('richTables.moveColumnRight', 'Move column right');
-        await registerTableCommand('richTables.clearTable', 'Clear table');
-        await registerTableCommand('richTables.deleteTable', 'Delete table');
+        for (const { commandName, label } of STRUCTURAL_COMMANDS) {
+            await registerTableCommand(commandName, label);
+        }
 
         // Register source mode toggle (shows all tables as raw markdown)
         const TOGGLE_SOURCE_MODE_COMMAND = 'richTables.toggleSourceMode';
@@ -136,6 +123,12 @@ joplin.plugins.register({
         });
 
         // Create menu items with keyboard shortcuts
+        const structuralMenuItems = STRUCTURAL_COMMANDS.map(({ commandName, label, menuLabel, accelerator }) => ({
+            label: menuLabel ?? label,
+            commandName,
+            ...(accelerator ? { accelerator } : {}),
+        }));
+
         await joplin.views.menus.create(
             'richTablesMenu',
             'Rich Tables',
@@ -145,89 +138,7 @@ joplin.plugins.register({
                     commandName: INSERT_TABLE_COMMAND,
                     accelerator: 'Alt+Shift+T',
                 },
-                {
-                    label: 'Insert row above',
-                    commandName: 'richTables.addRowAbove',
-                    accelerator: 'Alt+Shift+Up',
-                },
-                {
-                    label: 'Insert row below',
-                    commandName: 'richTables.addRowBelow',
-                    accelerator: 'Alt+Shift+Down',
-                },
-                {
-                    label: 'Insert column left',
-                    commandName: 'richTables.addColumnLeft',
-                    accelerator: 'Alt+Shift+Left',
-                },
-                {
-                    label: 'Insert column right',
-                    commandName: 'richTables.addColumnRight',
-                    accelerator: 'Alt+Shift+Right',
-                },
-                {
-                    label: 'Delete row',
-                    commandName: 'richTables.deleteRow',
-                    accelerator: 'Alt+Shift+D',
-                },
-                {
-                    label: 'Clear row',
-                    commandName: 'richTables.clearRow',
-                    accelerator: 'Alt+Shift+C',
-                },
-                {
-                    label: 'Delete column',
-                    commandName: 'richTables.deleteColumn',
-                    accelerator: 'CmdOrCtrl+Alt+Shift+D',
-                },
-                {
-                    label: 'Clear column',
-                    commandName: 'richTables.clearColumn',
-                    accelerator: 'CmdOrCtrl+Alt+Shift+C',
-                },
-                {
-                    label: 'Align left',
-                    commandName: 'richTables.alignLeft',
-                    accelerator: 'Alt+Shift+Q',
-                },
-                {
-                    label: 'Align center',
-                    commandName: 'richTables.alignCenter',
-                    accelerator: 'Alt+Shift+W',
-                },
-                {
-                    label: 'Align right',
-                    commandName: 'richTables.alignRight',
-                    accelerator: 'Alt+Shift+E',
-                },
-                {
-                    label: 'Move row up',
-                    commandName: 'richTables.moveRowUp',
-                    accelerator: 'CmdOrCtrl+Alt+Up',
-                },
-                {
-                    label: 'Move row down',
-                    commandName: 'richTables.moveRowDown',
-                    accelerator: 'CmdOrCtrl+Alt+Down',
-                },
-                {
-                    label: 'Move column left',
-                    commandName: 'richTables.moveColumnLeft',
-                    accelerator: 'CmdOrCtrl+Alt+Left',
-                },
-                {
-                    label: 'Move column right',
-                    commandName: 'richTables.moveColumnRight',
-                    accelerator: 'CmdOrCtrl+Alt+Right',
-                },
-                {
-                    label: 'Clear table',
-                    commandName: 'richTables.clearTable',
-                },
-                {
-                    label: 'Delete table',
-                    commandName: 'richTables.deleteTable',
-                },
+                ...structuralMenuItems,
                 {
                     label: 'Toggle source mode',
                     commandName: TOGGLE_SOURCE_MODE_COMMAND,

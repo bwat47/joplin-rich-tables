@@ -3,6 +3,7 @@ import { toggleSourceMode } from '../tableRuntime/sourceModeController';
 import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
+import { STRUCTURAL_COMMANDS } from '../../contentScriptBridge/structuralCommandCatalog';
 
 /**
  * Editor control interface provided by Joplin
@@ -23,27 +24,9 @@ export function registerTableCommands(editorControl: EditorControl): void {
         });
     };
 
-    // Register table manipulation commands
-    registerCellCommand('richTables.addRowAbove', 'insertRowBefore');
-    registerCellCommand('richTables.addRowBelow', 'insertRowAfter');
-    registerCellCommand('richTables.addColumnLeft', 'insertColumnBefore');
-    registerCellCommand('richTables.addColumnRight', 'insertColumnAfter');
-    registerCellCommand('richTables.deleteRow', 'deleteRow');
-    registerCellCommand('richTables.deleteColumn', 'deleteColumn');
-
-    registerCellCommand('richTables.alignLeft', 'alignLeft');
-    registerCellCommand('richTables.alignRight', 'alignRight');
-    registerCellCommand('richTables.alignCenter', 'alignCenter');
-
-    registerCellCommand('richTables.moveRowUp', 'moveRowUp');
-    registerCellCommand('richTables.moveRowDown', 'moveRowDown');
-    registerCellCommand('richTables.moveColumnLeft', 'moveColumnLeft');
-    registerCellCommand('richTables.moveColumnRight', 'moveColumnRight');
-
-    registerCellCommand('richTables.clearRow', 'clearRow');
-    registerCellCommand('richTables.clearColumn', 'clearColumn');
-    registerCellCommand('richTables.clearTable', 'clearTable');
-    registerCellCommand('richTables.deleteTable', 'deleteTable');
+    for (const { commandName, actionId } of STRUCTURAL_COMMANDS) {
+        registerCellCommand(commandName, actionId);
+    }
 
     // Register insert table command that activates the first cell
     editorControl.registerCommand('richTables.insertTableAndActivate', () => {
