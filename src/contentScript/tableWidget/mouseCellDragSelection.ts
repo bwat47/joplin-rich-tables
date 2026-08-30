@@ -30,6 +30,7 @@ const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT
 
 interface MouseCellGesture {
     origin: 'renderedCell' | 'activeEditor';
+    consumeCompatibilityMouseDown: boolean;
     pointerId: number;
     startX: number;
     startY: number;
@@ -227,6 +228,7 @@ class MouseCellDragSelectionController {
 
         this.beginGesture({
             origin: 'renderedCell',
+            consumeCompatibilityMouseDown: true,
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
@@ -247,7 +249,12 @@ class MouseCellDragSelectionController {
         return true;
     }
 
-    observeActiveEditor(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
+    observeActiveCell(
+        event: PointerEvent,
+        cell: HTMLElement,
+        resolvedCell: ResolvedActiveCell,
+        options: { consumeInitialEvents: boolean }
+    ): boolean {
         if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary) {
             return false;
         }
@@ -258,10 +265,17 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        // This mode is deliberately passive: no preventDefault, propagation stop, or
-        // pointer capture until movement crosses into a different table cell.
+        // Editable content retains native pointer and mouse handling. Cell padding has
+        // no native text-selection behavior to preserve, so claim its initial events to
+        // keep the outer editor from moving its caret or reopening the active cell.
+        if (options.consumeInitialEvents) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         this.beginGesture({
             origin: 'activeEditor',
+            consumeCompatibilityMouseDown: options.consumeInitialEvents,
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
@@ -280,7 +294,7 @@ class MouseCellDragSelectionController {
     }
 
     consumeCompatibilityMouseDown(event: MouseEvent): boolean {
-        if (this.gesture?.origin !== 'renderedCell' || event.button !== MOUSE_BUTTON_LEFT) {
+        if (!this.gesture?.consumeCompatibilityMouseDown || event.button !== MOUSE_BUTTON_LEFT) {
             return false;
         }
 
@@ -478,13 +492,14 @@ export function beginMouseCellGesture(
     return view.plugin?.(mouseCellDragSelectionPlugin)?.startRenderedCell(event, cell, resolvedCell) ?? false;
 }
 
-export function observeActiveEditorMouseGesture(
+export function observeActiveCellMouseGesture(
     view: EditorView,
     event: PointerEvent,
     cell: HTMLElement,
-    resolvedCell: ResolvedActiveCell
+    resolvedCell: ResolvedActiveCell,
+    options: { consumeInitialEvents: boolean }
 ): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.observeActiveEditor(event, cell, resolvedCell) ?? false;
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.observeActiveCell(event, cell, resolvedCell, options) ?? false;
 }
 
 export function consumeMouseCellGestureMouseDown(view: EditorView, event: MouseEvent): boolean {

@@ -1,5 +1,5 @@
 import type { EditorView } from '@codemirror/view';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
 import { parseFootnoteHref } from '../shared/footnoteAnchor';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
@@ -14,7 +14,7 @@ import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedAct
 import {
     beginMouseCellGesture,
     consumeMouseCellGestureMouseDown,
-    observeActiveEditorMouseGesture,
+    observeActiveCellMouseGesture,
 } from './mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
@@ -219,6 +219,15 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
         return false;
     }
 
+    if (
+        cell.classList.contains(CLASS_CELL_ACTIVE) &&
+        isSameActiveCell(getActiveCell(view.state), resolvedCell.activeCell)
+    ) {
+        return observeActiveCellMouseGesture(view, event, cell, resolvedCell, {
+            consumeInitialEvents: true,
+        });
+    }
+
     return beginMouseCellGesture(view, event, cell, resolvedCell);
 }
 
@@ -240,7 +249,9 @@ function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, t
         return;
     }
 
-    observeActiveEditorMouseGesture(view, event, cell, resolvedCell);
+    observeActiveCellMouseGesture(view, event, cell, resolvedCell, {
+        consumeInitialEvents: false,
+    });
 }
 
 /** Extend the cell selection (shift-click) or open the clicked cell. */

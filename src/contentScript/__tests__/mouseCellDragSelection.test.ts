@@ -12,7 +12,7 @@ import { mouseCellDragSelectionPlugin } from '../tableWidget/mouseCellDragSelect
 import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { createMarkdownState } from './testMarkdownState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -163,6 +163,7 @@ function mockAnimationFrames(): {
 }
 
 function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
+    cell.classList.add(CLASS_CELL_ACTIVE);
     const host = document.createElement('div');
     host.className = CLASS_CELL_EDITOR;
     const content = document.createElement('div');
@@ -559,6 +560,75 @@ describe('mouse cell drag selection', () => {
         document.dispatchEvent(up);
 
         expect(up.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('keeps the active editor mounted when a cell drag starts in row-height padding', () => {
+        const { view, cells } = mountGestureView();
+        const captureSpy = vi.fn();
+        cells.body0.setPointerCapture = captureSpy;
+        vi.spyOn(cells.body0, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 50, 100));
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        mountNestedEditorHost(cells.body0);
+
+        // The cell itself represents empty row-height padding outside .rt-cell-editor.
+        const down = pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 90 });
+        cells.body0.dispatchEvent(down);
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        });
+        cells.body0.dispatchEvent(mouseDown);
+
+        expect(down.defaultPrevented).toBe(true);
+        expect(mouseDown.defaultPrevented).toBe(true);
+        expect(getActiveCell(view.state)).not.toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        elementAtPoint = cells.body1;
+        const crossBoundary = pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 90 });
+        document.dispatchEvent(crossBoundary);
+
+        expect(crossBoundary.defaultPrevented).toBe(true);
+        expect(captureSpy).toHaveBeenCalledWith(1);
+        expect(getActiveCell(view.state)).not.toBeNull();
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        });
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 70, clientY: 90 }));
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getCellSelection(view.state)).not.toBeNull();
+    });
+
+    it('does not reopen the active editor when its row-height padding is clicked', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        mountNestedEditorHost(cells.body0);
+
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 90 }));
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        });
+        cells.body0.dispatchEvent(mouseDown);
+        elementAtPoint = cells.body0;
+        const up = pointerEvent('pointerup', { button: 0, clientX: 10, clientY: 90 });
+        document.dispatchEvent(up);
+
+        expect(mouseDown.defaultPrevented).toBe(true);
+        expect(up.defaultPrevented).toBe(false);
+        expect(getActiveCell(view.state)).toMatchObject({ section: 'body', row: 0, col: 0 });
         expect(getCellSelection(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
