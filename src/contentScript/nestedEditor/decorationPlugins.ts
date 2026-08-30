@@ -67,8 +67,7 @@ const WRAPPED_DESTINATION_PARENTS = new Set([LINK_NODE_NAME, IMAGE_NODE_NAME]);
 /**
  * Marks only the destinations in `[label](destination)` links and `![alt](destination)`
  * images, so the theme rule for `CLASS_NESTED_EDITOR_URL` in `nestedEditorTheme.ts` can wrap
- * them aggressively. That `overflow-wrap: anywhere` rule is the actual fix; this plugin only
- * tags the ranges. Bare URLs are excluded: they render in full, so the rendered cell already
+ * them aggressively. Bare URLs are excluded: they render in full, so the rendered cell already
  * reserves their width.
  */
 export const linkDestinationWrapPlugin = createSyntaxMarkPlugin(CLASS_NESTED_EDITOR_URL, (node) => {
