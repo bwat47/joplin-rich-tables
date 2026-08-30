@@ -7,7 +7,7 @@ import { resolveTableContextAtPos } from '../tableResolution';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { clamp } from '../../shared/numberUtils';
-import { MOUSE_BUTTON_LEFT } from '../../shared/mouseButtons';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
@@ -35,16 +35,17 @@ interface MouseCellGesture {
     lastClientY: number;
 }
 
-/** Squared distance from the pointer to the nearest point of `rect`; zero while inside it. */
-function distanceOutsideRectSquared(rect: DOMRect, event: PointerEvent): number {
-    const deltaX = Math.max(rect.left - event.clientX, 0, event.clientX - rect.right);
-    const deltaY = Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom);
+/** Squared distance between two points. */
+function distanceSquared(x: number, y: number, fromX: number, fromY: number): number {
+    const deltaX = x - fromX;
+    const deltaY = y - fromY;
     return deltaX * deltaX + deltaY * deltaY;
 }
 
-function distanceSquared(event: PointerEvent, gesture: MouseCellGesture): number {
-    const deltaX = event.clientX - gesture.startX;
-    const deltaY = event.clientY - gesture.startY;
+/** Squared distance from a point to the nearest point of `rect`; zero while inside it. */
+function distanceOutsideRectSquared(x: number, y: number, rect: DOMRect): number {
+    const deltaX = Math.max(rect.left - x, 0, x - rect.right);
+    const deltaY = Math.max(rect.top - y, 0, y - rect.bottom);
     return deltaX * deltaX + deltaY * deltaY;
 }
 
@@ -92,14 +93,20 @@ class MouseCellDragSelectionController {
                 if (
                     !pointedCell ||
                     isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell) ||
-                    distanceOutsideRectSquared(gesture.anchorCell.getBoundingClientRect(), event) <
-                        BOUNDARY_EXIT_DISTANCE_SQUARED
+                    distanceOutsideRectSquared(
+                        event.clientX,
+                        event.clientY,
+                        gesture.anchorCell.getBoundingClientRect()
+                    ) < BOUNDARY_EXIT_DISTANCE_SQUARED
                 ) {
                     return;
                 }
                 this.capturePointer(gesture);
                 flushNestedEditorState(this.view);
-            } else if (distanceSquared(event, gesture) < DRAG_START_DISTANCE_SQUARED) {
+            } else if (
+                distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) <
+                DRAG_START_DISTANCE_SQUARED
+            ) {
                 return;
             }
 
@@ -183,7 +190,7 @@ class MouseCellDragSelectionController {
     }
 
     startRenderedCell(event: PointerEvent, cell: HTMLElement, resolvedCell: ResolvedActiveCell): boolean {
-        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary) {
+        if (!isPrimaryMousePointer(event)) {
             return false;
         }
 
@@ -223,7 +230,7 @@ class MouseCellDragSelectionController {
         resolvedCell: ResolvedActiveCell,
         options: { consumeInitialEvents: boolean }
     ): boolean {
-        if (event.pointerType !== 'mouse' || event.button !== MOUSE_BUTTON_LEFT || !event.isPrimary) {
+        if (!isPrimaryMousePointer(event)) {
             return false;
         }
 
@@ -260,7 +267,7 @@ class MouseCellDragSelectionController {
     }
 
     consumeCompatibilityMouseDown(event: MouseEvent): boolean {
-        if (!this.gesture?.consumeCompatibilityMouseDown || event.button !== MOUSE_BUTTON_LEFT) {
+        if (!this.gesture?.consumeCompatibilityMouseDown || !isPrimaryMouseButton(event)) {
             return false;
         }
 

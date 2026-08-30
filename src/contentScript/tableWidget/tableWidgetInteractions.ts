@@ -7,7 +7,7 @@ import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSe
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
-import { MOUSE_BUTTON_LEFT } from '../shared/mouseButtons';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -130,7 +130,7 @@ function escapeRegex(str: string): string {
 /** Click events: strict link opening. */
 function handleWidgetClick(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
     // Only handle left clicks
-    if (event.button !== MOUSE_BUTTON_LEFT) {
+    if (!isPrimaryMouseButton(event)) {
         return false;
     }
 
@@ -168,7 +168,7 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
     // in a way that prevents the click.
     // However, allow RIGHT click (button 2) to fall through to cell activation so we can open the editor
     // and see the context menu.
-    if (event.button === MOUSE_BUTTON_LEFT && target.closest(SELECTOR_LINK)) {
+    if (isPrimaryMouseButton(event) && target.closest(SELECTOR_LINK)) {
         if (getCellSelection(view.state)) {
             view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
         }
@@ -215,13 +215,7 @@ function resolveCellTarget(view: EditorView, target: HTMLElement): ResolvedCellT
 
 /** Starts a desktop-mouse gesture that becomes either cell activation or drag selection. */
 function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
-    if (
-        event.pointerType !== 'mouse' ||
-        event.button !== MOUSE_BUTTON_LEFT ||
-        !event.isPrimary ||
-        event.shiftKey ||
-        target.closest(SELECTOR_LINK)
-    ) {
+    if (!isPrimaryMousePointer(event) || event.shiftKey || target.closest(SELECTOR_LINK)) {
         return false;
     }
 
