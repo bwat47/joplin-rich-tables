@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -19,6 +19,7 @@ import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolutio
 import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { endCellDragEffect, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
 
@@ -43,11 +44,17 @@ function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoo
     return clampSelectionFocusWithinContext(ctx, focus);
 }
 
+interface SelectionDispatchOptions {
+    clearActiveCell: boolean;
+    scrollFocusIntoView?: boolean;
+    extraEffects?: readonly StateEffect<unknown>[];
+}
+
 function dispatchSelectionWithContext(
     view: EditorView,
     ctx: TableContext,
     selection: CellSelection,
-    options: { clearActiveCell: boolean; scrollFocusIntoView?: boolean }
+    options: SelectionDispatchOptions
 ): boolean {
     const focusRange = resolveCellDocRange({
         tableFrom: ctx.from,
@@ -67,6 +74,7 @@ function dispatchSelectionWithContext(
                 focus: normalizeCellCoords(selection.focus),
             }),
             ...(options.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+            ...(options.extraEffects ?? []),
         ],
         annotations: cellSelectionTransitionAnnotation.of(true),
         scrollIntoView: false,
@@ -88,11 +96,7 @@ function dispatchSelectionWithContext(
     return true;
 }
 
-function dispatchSelection(
-    view: EditorView,
-    selection: CellSelection,
-    options: { clearActiveCell: boolean; scrollFocusIntoView?: boolean }
-): boolean {
+function dispatchSelection(view: EditorView, selection: CellSelection, options: SelectionDispatchOptions): boolean {
     const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
@@ -101,13 +105,18 @@ function dispatchSelection(
     return dispatchSelectionWithContext(view, ctx, selection, options);
 }
 
-/** Replaces the current selection with an explicit rectangle, such as a mouse drag. */
-export function setCellSelectionFromCoords(
+/**
+ * Sets the rectangle a mouse drag has swept out so far.
+ *
+ * The active cell is deliberately left alone: closing its nested editor would re-render the
+ * cell and reflow the table the gesture is still hit-testing. `cellDragField` records that
+ * the drag owns the table until it settles, and the gesture clears the active cell on release.
+ */
+export function setCellDragSelection(
     view: EditorView,
     tableFrom: number,
     anchor: CellCoords,
-    focus: CellCoords,
-    options: { clearActiveCell: boolean; scrollFocusIntoView: boolean }
+    focus: CellCoords
 ): boolean {
     const ctx = resolveTableContextAtPos(view.state, tableFrom);
     if (!ctx) {
@@ -129,10 +138,21 @@ export function setCellSelectionFromCoords(
             focus: clampedFocus,
         },
         {
-            clearActiveCell: options.clearActiveCell,
-            scrollFocusIntoView: options.scrollFocusIntoView,
+            clearActiveCell: false,
+            scrollFocusIntoView: false,
+            extraEffects: [startCellDragEffect.of(undefined)],
         }
     );
+}
+
+/** Settles the state a drag left behind, on release or cancellation. */
+export function endCellDragSelection(view: EditorView, options: { keepActiveCell: boolean }): void {
+    view.dispatch({
+        effects: [
+            endCellDragEffect.of(undefined),
+            ...(options.keepActiveCell ? [] : [clearActiveCellEffect.of(undefined)]),
+        ],
+    });
 }
 
 export function startCellSelectionFromActiveCell(view: EditorView, direction: CellSelectionDirection): boolean {

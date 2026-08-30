@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateEdgeScrollIntensity } from '../tableWidget/mouseCellDragAutoScroll';
+import { calculateEdgeScrollIntensity } from '../tableRuntime/interaction/mouseCellDragAutoScroll';
 
 describe('calculateEdgeScrollIntensity', () => {
     it('returns zero outside the edge zones', () => {

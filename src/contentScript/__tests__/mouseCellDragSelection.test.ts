@@ -6,9 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorView } from '@codemirror/view';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
-import { mouseCellDragSelectionPlugin } from '../tableWidget/mouseCellDragSelection';
+import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { createMarkdownState } from './testMarkdownState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -72,6 +73,7 @@ function mountGestureView(): MountedGestureView {
             activeCellField,
             resolvedActiveCellField,
             cellSelectionField,
+            cellDragField,
             openCellRequestField,
             mouseCellDragSelectionPlugin,
         ]),
@@ -303,6 +305,29 @@ describe('mouse cell drag selection', () => {
 
         expect(getCellSelection(view.state)).not.toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it("defers another cell's editor teardown until a rendered-cell drag is released", () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        mountNestedEditorHost(cells.body0);
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        elementAtPoint = cells.header1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 }));
+
+        // The open editor stays put so the table cannot reflow under the pointer mid-drag.
+        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({ section: 'body', row: 0, col: 0 });
+        expect(isCellDragInProgress(view.state)).toBe(true);
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 20, clientY: 20 }));
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(isCellDragInProgress(view.state)).toBe(false);
+        expect(getCellSelection(view.state)).not.toBeNull();
     });
 
     it('scrolls horizontally and advances the selection while the pointer stays at the edge', () => {

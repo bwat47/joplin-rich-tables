@@ -6,6 +6,7 @@ import { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
 import {
     canHandleTableClipboardShortcut,
     canHandleTableSelectionKeydown,
@@ -13,9 +14,9 @@ import {
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 
-function createViewHarness(options: { activeCell?: boolean; selection?: boolean } = {}) {
-    const { activeCell = true, selection = true } = options;
-    let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField]);
+function createViewHarness(options: { activeCell?: boolean; selection?: boolean; dragging?: boolean } = {}) {
+    const { activeCell = true, selection = true, dragging = false } = options;
+    let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField, cellDragField]);
     state = state.update({
         effects: [
             ...(activeCell
@@ -37,6 +38,7 @@ function createViewHarness(options: { activeCell?: boolean; selection?: boolean 
                       }),
                   ]
                 : []),
+            ...(dragging ? [startCellDragEffect.of(undefined)] : []),
         ],
     }).state;
 
@@ -120,6 +122,14 @@ describe('cellSelectionShortcutScope', () => {
         editorHost.appendChild(nestedContent);
         root.appendChild(editorHost);
         setActiveElement(nestedContent);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(true);
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
+    });
+
+    it('withholds selection keys while a mouse drag owns the table', () => {
+        const { view } = createViewHarness({ dragging: true });
+        setActiveElement(document.body);
 
         expect(canHandleTableClipboardShortcut(view)).toBe(true);
         expect(canHandleTableSelectionKeydown(view)).toBe(false);

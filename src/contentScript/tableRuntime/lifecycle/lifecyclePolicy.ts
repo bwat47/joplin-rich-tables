@@ -18,6 +18,8 @@ export interface TableRuntimeFacts {
 
     // External facts supplied by the lifecycle plugin
     nestedEditorOpen: boolean;
+    // A mouse drag is sweeping out a cell selection and owns the table's geometry until release.
+    cellDragInProgress: boolean;
     pendingFullReplaceRebuild: boolean;
 
     // Transaction facts
@@ -200,6 +202,7 @@ function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
         facts.nestedEditorOpen &&
         !facts.isSync &&
         !facts.isCellSelectionTransition &&
+        !facts.cellDragInProgress &&
         facts.activeCell.status === 'resolved' &&
         (facts.docChanged || (facts.selectionChanged && facts.activeCellIdentityUnchanged))
     );
@@ -215,11 +218,15 @@ function requiresCellReposition(facts: TableRuntimeFacts): boolean {
         : facts.isUndoRedoInsideTable;
 }
 
+// A drag parks the main caret in the cell under the pointer, so the active cell it left open
+// always reads as "selection left the table". Closing it would reflow the table mid-gesture;
+// the drag clears the active cell itself on release.
 function shouldClearActiveCellWhenSelectionLeavesTable(facts: TableRuntimeFacts): boolean {
     return (
         facts.selectionChanged &&
         !facts.isSync &&
         !facts.isCellSelectionTransition &&
+        !facts.cellDragInProgress &&
         !facts.effectiveRawMode &&
         facts.nestedEditorOpen &&
         facts.activeCell.status === 'resolved' &&

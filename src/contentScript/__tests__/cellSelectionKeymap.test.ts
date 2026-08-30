@@ -13,10 +13,10 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
+import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const markdownExtension = markdown({
     extensions: [GFM],
@@ -33,7 +33,14 @@ function mountSelectionView(doc: string): EditorView {
 
     const view = new EditorView({
         parent,
-        extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+        extensions: [
+            markdownExtension,
+            history(),
+            activeCellField,
+            cellSelectionField,
+            cellDragField,
+            cellSelectionKeyCapturePlugin,
+        ],
         doc,
     });
     mountedViews.push(view);
@@ -56,7 +63,7 @@ afterEach(() => {
 });
 
 describe('cellSelectionKeymap', () => {
-    it('leaves key ownership with an active editor during a mouse-drag selection transition', () => {
+    it('leaves key ownership with the anchor cell while a mouse drag is in progress', () => {
         const view = mountSelectionView(GRID_DOC);
         const anchor = { section: 'body', row: 0, col: 0 } as const;
         view.dispatch({
@@ -67,20 +74,33 @@ describe('cellSelectionKeymap', () => {
                     anchor,
                     focus: { section: 'body', row: 0, col: 1 },
                 }),
+                startCellDragEffect.of(undefined),
             ],
         });
-        const editorHost = document.createElement('div');
-        editorHost.className = CLASS_CELL_EDITOR;
-        const nestedContent = document.createElement('div');
-        nestedContent.tabIndex = 0;
-        editorHost.appendChild(nestedContent);
-        view.dom.appendChild(editorHost);
-        nestedContent.focus();
 
         pressKey({ key: 'Escape' });
 
         expect(getActiveCell(view.state)).toMatchObject(anchor);
         expect(getCellSelection(view.state)).not.toBeNull();
+    });
+
+    it('returns key ownership to the selection once the drag ends', () => {
+        const view = mountSelectionView(GRID_DOC);
+        view.dispatch({
+            effects: [
+                setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'body', row: 0, col: 0 },
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+                startCellDragEffect.of(undefined),
+            ],
+        });
+        view.dispatch({ effects: endCellDragEffect.of(undefined) });
+
+        pressKey({ key: 'Escape' });
+
+        expect(getCellSelection(view.state)).toBeNull();
     });
 
     it('routes undo through the main editor while a multi-cell selection is active', () => {

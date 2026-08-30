@@ -2,6 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { getCellSelection, type CellSelection } from '../../tableState/cellSelectionState';
+import { isCellDragInProgress } from '../../tableState/cellDragState';
 import { makeTableId } from '../../tableModel/types';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from '../../tableWidget/domHelpers';
 
@@ -154,10 +155,9 @@ export function canHandleTableClipboardShortcut(view: EditorView): boolean {
  * Stricter than `canHandleTableClipboardShortcut`: requires an active cell selection.
  */
 export function canHandleTableSelectionKeydown(view: EditorView): boolean {
-    // Mouse drags from a nested editor temporarily retain both states to keep table
-    // geometry stable. During that overlap the nested editor still owns key input.
-    const activeElement = view.dom.ownerDocument.activeElement;
-    if (activeElement && isNestedEditorElement(activeElement) && view.dom.contains(activeElement)) {
+    // A drag keeps its anchor cell open, so both states exist at once. Key input still
+    // belongs to whoever owned it before the drag; the gesture settles this on release.
+    if (isCellDragInProgress(view.state)) {
         return false;
     }
 

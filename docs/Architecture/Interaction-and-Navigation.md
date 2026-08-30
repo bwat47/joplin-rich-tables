@@ -82,15 +82,15 @@ Commands that move the main-editor caret outside the selected table clear the se
   ordinary clicks distinct from drags. Touch and pen pointers retain native scrolling/tap behaviour and do not start
   drag selection. Holding a cell drag near an edge auto-scrolls the table horizontally or the editor vertically;
   releasing a drag back over its anchor opens that cell's editor.
+- Once a gesture becomes a rectangular selection it records itself in `cellDragField` until release. See
+  [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership) for what that ownership means; the
+  gesture settles the deferred state on release, clearing the active cell unless the drag contracts back to its anchor.
 - A drag that starts anywhere in the active cell—including row-height padding outside the nested editor—keeps the
   nested editor open while it stays in that cell. Drags beginning on editable content retain native text selection. When
   the pointer travels a short margin past the cell's border into another cell, ownership switches to rectangular cell
   selection with the active cell as its anchor; the margin keeps a graze past the border from converting the gesture.
-  The nested editor stays mounted during this drag so rendered Markdown cannot reflow the table before pointer
-  hit-testing is complete. After conversion, compatibility mouse-move events are withheld from the nested CodeMirror so
-  its native selection scrolling cannot compete with rectangular-selection auto-scroll; mouseup remains native for
-  cleanup. The active cell is cleared on release unless the drag contracts back to its anchor. During this temporary
-  active-cell/selection overlap, the nested editor retains keyboard and clipboard ownership. Shift+Arrow similarly
-  reopens the anchor editor when it contracts a multi-cell selection back to that one cell.
+  After conversion, compatibility mouse-move events are withheld from the nested CodeMirror so its native selection
+  scrolling cannot compete with rectangular-selection auto-scroll; mouseup remains native for cleanup.
+- Shift+Arrow reopens the anchor editor when it contracts a multi-cell selection back to that one cell.
 - Links delegate to the content-script link opener and then to the main plugin.
 - Heading and footnote anchors scroll the main editor through `scrollToAnchor`.

@@ -76,6 +76,21 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 - Selection transitions must be annotated so lifecycle logic does not treat them as ordinary cursor movement outside the table.
 - Pasting over a selected range should produce one table rewrite and one explicit post-rewrite selection or open intent.
 
+## Cell Drag Ownership
+
+- Once a mouse gesture becomes a rectangular cell selection it owns the table's rendered geometry until the pointer
+  is released, recorded in `cellDragField`.
+- The gesture hit-tests the rendered table on every pointer move, so lifecycle policy must not mistake the caret it
+  parks in the cell under the pointer for the user leaving the open cell: neither closing that cell's nested editor nor
+  synchronizing it from the parked caret. Document-driven teardown still runs — a table that actually changed under the
+  pointer invalidates the gesture anyway.
+- An active cell and a cell selection therefore coexist for the length of a drag. This is the only state in which they
+  do; every other path clears one when setting the other.
+- During the overlap, keyboard and clipboard input stays with whoever owned it before the drag.
+- The gesture is the single writer of the resolution: on release it clears the active cell, or keeps it when the drag
+  contracted back to its own anchor. The flag also clears with the selection it belongs to, so a gesture torn down
+  without its release event cannot strand it.
+
 ## Lifecycle Policy Boundary
 
 - Edge modules should report facts or intents; lifecycle policy decides consequences.

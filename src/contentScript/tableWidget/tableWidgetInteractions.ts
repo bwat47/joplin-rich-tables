@@ -15,7 +15,7 @@ import {
     beginMouseCellGesture,
     consumeMouseCellGestureMouseDown,
     observeActiveCellMouseGesture,
-} from './mouseCellDragSelection';
+} from '../tableRuntime/interaction/mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;

@@ -1,16 +1,15 @@
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { isSameCellCoords, type CellCoords } from '../tableModel/types';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { requestOpenCell } from '../tableRuntime/openCellRequest';
-import { setCellSelectionFromCoords } from '../tableRuntime/selection/cellSelectionController';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
-import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
-import { flushNestedEditorState, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
-import { getViewWindow, requestViewAnimationFrame } from '../shared/domContext';
-import { clamp } from '../shared/numberUtils';
-import { MOUSE_BUTTON_LEFT } from '../shared/mouseButtons';
-import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
+import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { requestOpenCell } from '../openCellRequest';
+import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
+import { resolveTableContextAtPos } from '../tableResolution';
+import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
+import { getViewWindow, requestViewAnimationFrame } from '../../shared/domContext';
+import { clamp } from '../../shared/numberUtils';
+import { MOUSE_BUTTON_LEFT } from '../../shared/mouseButtons';
+import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
 import { calculateEdgeScrollIntensity } from './mouseCellDragAutoScroll';
 
 const DRAG_START_DISTANCE_PX = 5;
@@ -131,44 +130,21 @@ class MouseCellDragSelectionController {
             }
 
             const focus = pointedCell ?? gesture.resolvedCell.activeCell;
-            gesture.dragged = setCellSelectionFromCoords(
-                this.view,
-                gesture.resolvedCell.tableFrom,
-                gesture.resolvedCell.activeCell,
-                focus,
-                {
-                    clearActiveCell: gesture.origin !== 'activeEditor',
-                    scrollFocusIntoView: false,
-                }
-            );
+            gesture.dragged = this.applyFocus(gesture, focus);
             if (!gesture.dragged) {
                 this.finishGesture();
                 return;
             }
-            gesture.lastFocus = focus;
         } else {
             // Once dragging, a pointer outside the table still tracks the nearest cell, so a
             // drag past the edge of a fully visible table keeps extending the rectangle.
-            const focus =
+            this.applyFocus(
+                gesture,
                 pointedCell ??
-                this.resolveVisibleCellAtPointer(gesture) ??
-                gesture.lastFocus ??
-                gesture.resolvedCell.activeCell;
-            if (
-                !isSameCellCoords(gesture.lastFocus, focus) &&
-                setCellSelectionFromCoords(
-                    this.view,
-                    gesture.resolvedCell.tableFrom,
-                    gesture.resolvedCell.activeCell,
-                    focus,
-                    {
-                        clearActiveCell: gesture.origin !== 'activeEditor',
-                        scrollFocusIntoView: false,
-                    }
-                )
-            ) {
-                gesture.lastFocus = focus;
-            }
+                    this.resolveVisibleCellAtPointer(gesture) ??
+                    gesture.lastFocus ??
+                    gesture.resolvedCell.activeCell
+            );
         }
 
         this.scheduleAutoScroll(gesture);
@@ -190,7 +166,9 @@ class MouseCellDragSelectionController {
             event.preventDefault();
             event.stopPropagation();
         }
-        this.finishGesture({ preserveActiveCell: shouldReactivateAnchor });
+        // Only an active-editor drag can hand its own still-open anchor back; a rendered-cell
+        // drag reopens the anchor below, so whatever cell it left active is cleared first.
+        this.finishGesture({ keepActiveCell: shouldReactivateAnchor && gesture.origin === 'activeEditor' });
 
         if (gesture.origin === 'renderedCell' && !gesture.dragged) {
             requestOpenCell(this.view, {
@@ -319,9 +297,8 @@ class MouseCellDragSelectionController {
     }
 
     destroy(): void {
-        // The containing view owns state cleanup during destruction; dispatching from a
-        // plugin destroy hook is not safe.
-        this.finishGesture({ preserveActiveCell: true });
+        // Dispatching from a destroy hook is not safe; `cellDragField` clears itself instead.
+        this.detachGesture();
     }
 
     private resolveCellAtPoint(event: PointerEvent, gesture: MouseCellGesture): CellCoords | null {
@@ -357,6 +334,20 @@ class MouseCellDragSelectionController {
             clamp(gesture.lastClientY, top + insetY, bottom - insetY),
             gesture
         );
+    }
+
+    /** Extends the drag rectangle to `focus`, if it moved. Returns whether a selection now exists. */
+    private applyFocus(gesture: MouseCellGesture, focus: CellCoords): boolean {
+        if (isSameCellCoords(gesture.lastFocus, focus)) {
+            return true;
+        }
+
+        if (!setCellDragSelection(this.view, gesture.resolvedCell.tableFrom, gesture.resolvedCell.activeCell, focus)) {
+            return false;
+        }
+
+        gesture.lastFocus = focus;
+        return true;
     }
 
     private scheduleAutoScroll(gesture: MouseCellGesture): void {
@@ -418,21 +409,8 @@ class MouseCellDragSelectionController {
         }
 
         const focus = this.resolveVisibleCellAtPointer(gesture);
-        if (
-            focus &&
-            !isSameCellCoords(gesture.lastFocus, focus) &&
-            setCellSelectionFromCoords(
-                this.view,
-                gesture.resolvedCell.tableFrom,
-                gesture.resolvedCell.activeCell,
-                focus,
-                {
-                    clearActiveCell: gesture.origin !== 'activeEditor',
-                    scrollFocusIntoView: false,
-                }
-            )
-        ) {
-            gesture.lastFocus = focus;
+        if (focus) {
+            this.applyFocus(gesture, focus);
         }
         this.scheduleAutoScroll(gesture);
     }
@@ -460,10 +438,11 @@ class MouseCellDragSelectionController {
         }
     }
 
-    private finishGesture(options: { preserveActiveCell?: boolean } = {}): void {
+    /** Releases the gesture's listeners, capture, and scroll loop without touching editor state. */
+    private detachGesture(): MouseCellGesture | null {
         const gesture = this.gesture;
         if (!gesture) {
-            return;
+            return null;
         }
 
         this.gesture = null;
@@ -484,17 +463,18 @@ class MouseCellDragSelectionController {
             // The browser may already have released capture on pointerup/cancel.
         }
 
-        if (
-            gesture.origin === 'activeEditor' &&
-            gesture.dragged &&
-            !options.preserveActiveCell &&
-            isSameActiveCell(getActiveCell(this.view.state), gesture.resolvedCell.activeCell)
-        ) {
-            // The selection is already final and pointer hit-testing is over. Clearing now
-            // lets the lifecycle replace the nested editor with rendered Markdown without
-            // changing the geometry that determined the drag rectangle.
-            this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+        return gesture;
+    }
+
+    private finishGesture(options: { keepActiveCell?: boolean } = {}): void {
+        const gesture = this.detachGesture();
+        if (!gesture?.dragged) {
+            return;
         }
+
+        // The rectangle is final and pointer hit-testing is over, so the deferred teardown of
+        // the cell that stayed open through the drag can run without moving the table.
+        endCellDragSelection(this.view, { keepActiveCell: Boolean(options.keepActiveCell) });
     }
 }
 

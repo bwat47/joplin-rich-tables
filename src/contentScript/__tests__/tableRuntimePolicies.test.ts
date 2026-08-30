@@ -72,6 +72,7 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
         isSync: false,
         isNormalizeBeforeEdit: false,
         isCellSelectionTransition: false,
+        cellDragInProgress: false,
         rawModeTransition: {
             enteredRawMode: false,
             exitedRawMode: false,
@@ -253,6 +254,18 @@ describe('tableRuntimePolicies', () => {
                 activeCellIdentityUnchanged: true,
             },
             expected: [{ type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' }, { type: 'clearActiveCell' }],
+        },
+        {
+            name: 'a mouse cell drag keeps its anchor editor open while the caret follows the pointer',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                selectionChanged: true,
+                activeCellIdentityUnchanged: true,
+                cellDragInProgress: true,
+            },
+            expected: [],
         },
         {
             name: 'continuing active-cell removal follows accumulated full-replace rebuild work',

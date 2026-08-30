@@ -13,6 +13,7 @@ import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { cellSelectionField } from '../tableState/cellSelectionState';
+import { cellDragField } from '../tableState/cellDragState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
 import { insertedTableActivationField } from '../tableState/insertedTableActivation';
@@ -49,7 +50,7 @@ import {
     rootEditorActiveCellAttribute,
     rootEditorSelectionSuppression,
 } from '../nestedEditor/rootEditorSelectionTheme';
-import { mouseCellDragSelectionPlugin } from './mouseCellDragSelection';
+import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     pointerdown: (event, view) => {
@@ -124,6 +125,7 @@ async function registerTableWidgetExtension(
         openCellRequestField,
         insertedTableActivationField,
         cellSelectionField,
+        cellDragField,
         mainEditorTableEntryExtension,
         // Registered ahead of the guard so its paste rewrites are already spaced when
         // boundary maintenance inspects the result.

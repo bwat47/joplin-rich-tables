@@ -120,6 +120,7 @@ describe('runtimeEventClassifier', () => {
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             activeCellBefore: 'resolved',
             activeCellIdentityUnchanged: true,
+            cellDragInProgress: false,
             effectiveRawMode: false,
             nestedEditorOpen: true,
             pendingFullReplaceRebuild: true,
@@ -322,6 +323,7 @@ describe('runtimeEventClassifier', () => {
             isCellSelectionTransition: true,
             hasInsertedTableActivation: true,
             activeCellIdentityUnchanged: true,
+            cellDragInProgress: false,
         });
     });
 });
