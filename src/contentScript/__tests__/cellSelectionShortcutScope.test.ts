@@ -5,8 +5,8 @@
 import { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
+import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellDragField, isCellDragInProgress, startCellDragEffect } from '../tableState/cellDragState';
 import {
     canHandleTableClipboardShortcut,
     canHandleTableSelectionKeydown,
@@ -133,6 +133,34 @@ describe('cellSelectionShortcutScope', () => {
 
         expect(canHandleTableClipboardShortcut(view)).toBe(true);
         expect(canHandleTableSelectionKeydown(view)).toBe(false);
+    });
+
+    it.each([
+        { label: 'the selection is cleared', effect: () => clearCellSelectionEffect.of(undefined) },
+        {
+            label: 'a cell is activated',
+            effect: () => setActiveCellEffect.of({ tableFrom: 0, section: 'header' as const, row: 0, col: 0 }),
+        },
+    ])('reports no drag in progress once $label, even with the flag left set', ({ effect }) => {
+        let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField, cellDragField]);
+        state = state.update({
+            effects: [
+                setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'header', row: 0, col: 0 },
+                    focus: { section: 'body', row: 0, col: 0 },
+                }),
+                startCellDragEffect.of(undefined),
+            ],
+        }).state;
+        expect(isCellDragInProgress(state)).toBe(true);
+
+        // The gesture cannot always dispatch its own end, so the drag must not survive the
+        // selection it belongs to.
+        state = state.update({ effects: effect() }).state;
+
+        expect(state.field(cellDragField)).toBe(true);
+        expect(isCellDragInProgress(state)).toBe(false);
     });
 
     it('rejects shortcuts when there is no table interaction state', () => {

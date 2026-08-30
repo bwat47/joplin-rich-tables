@@ -88,8 +88,9 @@ The table runtime behaves like a cross-file state machine. These invariants defi
   do; every other path clears one when setting the other.
 - During the overlap, keyboard and clipboard input stays with whoever owned it before the drag.
 - The gesture is the single writer of the resolution: on release it clears the active cell, or keeps it when the drag
-  contracted back to its own anchor. The flag also clears with the selection it belongs to, so a gesture torn down
-  without its release event cannot strand it.
+  contracted back to its own anchor.
+- A drag cannot outlive the selection it is sweeping out, so a gesture torn down without its release event cannot
+  strand the flag.
 
 ## Lifecycle Policy Boundary
 

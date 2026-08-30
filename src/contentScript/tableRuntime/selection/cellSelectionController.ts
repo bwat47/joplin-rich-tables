@@ -109,7 +109,7 @@ function dispatchSelection(view: EditorView, selection: CellSelection, options: 
  * Sets the rectangle a mouse drag has swept out so far.
  *
  * The active cell is deliberately left alone: closing its nested editor would re-render the
- * cell and reflow the table the gesture is still hit-testing. `cellDragField` records that
+ * cell and reflow the table the gesture is still hit-testing. `isCellDragInProgress` reports that
  * the drag owns the table until it settles, and the gesture clears the active cell on release.
  */
 export function setCellDragSelection(

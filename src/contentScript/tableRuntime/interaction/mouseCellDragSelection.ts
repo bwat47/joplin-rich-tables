@@ -259,7 +259,8 @@ class MouseCellDragSelectionController {
     }
 
     destroy(): void {
-        // Dispatching from a destroy hook is not safe; `cellDragField` clears itself instead.
+        // Dispatching from a destroy hook is not safe. A drag flag left set reads as finished
+        // anyway once its selection goes, so nothing needs to be cleared here.
         this.detachGesture();
     }
 
