@@ -470,9 +470,15 @@ export const tableToolbarTheme = EditorView.baseTheme({
         padding: '4px 6px',
         lineHeight: '0',
     },
-    '.cm-table-toolbar-btn:hover': {
+    '.cm-table-toolbar-btn:active': {
         backgroundColor: 'var(--rt-toolbar-hover-bg)',
         borderColor: 'var(--rt-border-color)',
+    },
+    '@media (hover: hover) and (pointer: fine)': {
+        '.cm-table-toolbar-btn:hover': {
+            backgroundColor: 'var(--rt-toolbar-hover-bg)',
+            borderColor: 'var(--rt-border-color)',
+        },
     },
     '.cm-table-toolbar-separator': {
         width: '1px',
