@@ -107,7 +107,7 @@ export function setCellSelectionFromCoords(
     tableFrom: number,
     anchor: CellCoords,
     focus: CellCoords,
-    options: { scrollFocusIntoView: boolean }
+    options: { clearActiveCell: boolean; scrollFocusIntoView: boolean }
 ): boolean {
     const ctx = resolveTableContextAtPos(view.state, tableFrom);
     if (!ctx) {
@@ -129,7 +129,7 @@ export function setCellSelectionFromCoords(
             focus: clampedFocus,
         },
         {
-            clearActiveCell: true,
+            clearActiveCell: options.clearActiveCell,
             scrollFocusIntoView: options.scrollFocusIntoView,
         }
     );

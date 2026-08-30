@@ -596,7 +596,11 @@ describe('mouse cell drag selection', () => {
 
         expect(crossBoundary.defaultPrevented).toBe(true);
         expect(captureSpy).toHaveBeenCalledWith(1);
-        expect(getActiveCell(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,
             anchor: { section: 'body', row: 0, col: 0 },
@@ -612,6 +616,37 @@ describe('mouse cell drag selection', () => {
 
         expect(up.defaultPrevented).toBe(true);
         expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('hit-tests pointerup before active-editor teardown can reflow the table', () => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        // Model a Markdown-rendering reflow: while the editor is mounted this point is
+        // body1, but after teardown the same point would land back on the anchor cell.
+        vi.mocked(document.elementFromPoint).mockImplementation(() =>
+            getActiveCell(view.state) ? cells.body1 : cells.body0
+        );
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
+
+        expect(getActiveCell(view.state)).not.toBeNull();
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 70, clientY: 10 }));
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+        expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
@@ -640,9 +675,10 @@ describe('mouse cell drag selection', () => {
         document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
 
         expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+        expect(getActiveCell(view.state)).not.toBeNull();
     });
 
-    it('reopens the active editor when its cell-selection drag is released over the anchor', () => {
+    it('keeps the active editor open when its cell-selection drag is released over the anchor', () => {
         const { view, cells } = mountGestureView();
         view.dispatch({
             effects: setActiveCellEffect.of({
@@ -697,11 +733,7 @@ describe('mouse cell drag selection', () => {
             row: 0,
             col: 0,
         });
-        expect(getPendingOpenCellRequest(view.state)?.activeCell).toMatchObject({
-            section: 'body',
-            row: 0,
-            col: 0,
-        });
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
     it('keeps the single-cell selection when an active-editor drag is released outside its anchor', () => {
@@ -751,6 +783,36 @@ describe('mouse cell drag selection', () => {
         expect(getCellSelection(view.state)).not.toBeNull();
         expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it.each([
+        {
+            label: 'pointer cancellation',
+            finish: () => document.dispatchEvent(pointerEvent('pointercancel', { button: 0 })),
+        },
+        {
+            label: 'a lost pointerup',
+            finish: () =>
+                document.dispatchEvent(
+                    pointerEvent('pointermove', { button: 0, buttons: 0, clientX: 70, clientY: 10 })
+                ),
+        },
+    ])('ends the active-editor overlap after $label', ({ finish }) => {
+        const { view, cells } = mountGestureView();
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
+        expect(getActiveCell(view.state)).not.toBeNull();
+
+        finish();
+
+        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
     });
 
     it('does not observe active-editor drags from touch pointers', () => {

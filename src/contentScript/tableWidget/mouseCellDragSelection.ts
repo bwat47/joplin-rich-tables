@@ -4,8 +4,9 @@ import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRunti
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { setCellSelectionFromCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
-import { getCellSelection } from '../tableState/cellSelectionState';
-import { flushNestedEditorState } from '../nestedEditor/nestedEditorController';
+import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import { flushNestedEditorState, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getViewWindow, requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
 import { MOUSE_BUTTON_LEFT } from '../shared/mouseButtons';
@@ -119,7 +120,10 @@ class MouseCellDragSelectionController {
                 gesture.resolvedCell.tableFrom,
                 gesture.resolvedCell.activeCell,
                 focus,
-                { scrollFocusIntoView: false }
+                {
+                    clearActiveCell: gesture.origin !== 'activeEditor',
+                    scrollFocusIntoView: false,
+                }
             );
             if (!gesture.dragged) {
                 this.finishGesture();
@@ -141,7 +145,10 @@ class MouseCellDragSelectionController {
                     gesture.resolvedCell.tableFrom,
                     gesture.resolvedCell.activeCell,
                     focus,
-                    { scrollFocusIntoView: false }
+                    {
+                        clearActiveCell: gesture.origin !== 'activeEditor',
+                        scrollFocusIntoView: false,
+                    }
                 )
             ) {
                 gesture.lastFocus = focus;
@@ -167,14 +174,14 @@ class MouseCellDragSelectionController {
             event.preventDefault();
             event.stopPropagation();
         }
-        this.finishGesture();
+        this.finishGesture({ preserveActiveCell: shouldReactivateAnchor });
 
         if (gesture.origin === 'renderedCell' && !gesture.dragged) {
             requestOpenCell(this.view, {
                 resolvedCell: gesture.resolvedCell,
                 clearCellSelection: Boolean(getCellSelection(this.view.state)),
             });
-        } else if (shouldReactivateAnchor) {
+        } else if (shouldReactivateAnchor && gesture.origin === 'renderedCell') {
             const currentContext = resolveTableContextAtPos(this.view.state, gesture.resolvedCell.tableFrom);
             const resolvedAnchor = currentContext
                 ? createResolvedActiveCell({
@@ -188,6 +195,11 @@ class MouseCellDragSelectionController {
                     clearCellSelection: true,
                 });
             }
+        } else if (shouldReactivateAnchor) {
+            // The anchor editor never left the DOM, so contracting back to it only needs
+            // to discard the provisional rectangle and restore keyboard focus.
+            this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+            refocusNestedEditor(this.view);
         }
     };
 
@@ -278,7 +290,9 @@ class MouseCellDragSelectionController {
     }
 
     destroy(): void {
-        this.finishGesture();
+        // The containing view owns state cleanup during destruction; dispatching from a
+        // plugin destroy hook is not safe.
+        this.finishGesture({ preserveActiveCell: true });
     }
 
     private resolveCellAtPoint(event: PointerEvent, gesture: MouseCellGesture): CellCoords | null {
@@ -383,7 +397,10 @@ class MouseCellDragSelectionController {
                 gesture.resolvedCell.tableFrom,
                 gesture.resolvedCell.activeCell,
                 focus,
-                { scrollFocusIntoView: false }
+                {
+                    clearActiveCell: gesture.origin !== 'activeEditor',
+                    scrollFocusIntoView: false,
+                }
             )
         ) {
             gesture.lastFocus = focus;
@@ -413,7 +430,7 @@ class MouseCellDragSelectionController {
         }
     }
 
-    private finishGesture(): void {
+    private finishGesture(options: { preserveActiveCell?: boolean } = {}): void {
         const gesture = this.gesture;
         if (!gesture) {
             return;
@@ -434,6 +451,18 @@ class MouseCellDragSelectionController {
             gesture.anchorCell.releasePointerCapture?.(gesture.pointerId);
         } catch {
             // The browser may already have released capture on pointerup/cancel.
+        }
+
+        if (
+            gesture.origin === 'activeEditor' &&
+            gesture.dragged &&
+            !options.preserveActiveCell &&
+            isSameActiveCell(getActiveCell(this.view.state), gesture.resolvedCell.activeCell)
+        ) {
+            // The selection is already final and pointer hit-testing is over. Clearing now
+            // lets the lifecycle replace the nested editor with rendered Markdown without
+            // changing the geometry that determined the drag rectangle.
+            this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
         }
     }
 }
