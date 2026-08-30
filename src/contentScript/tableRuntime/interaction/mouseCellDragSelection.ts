@@ -107,8 +107,8 @@ class MouseCellDragSelectionController {
             }
 
             // A rectangle that cannot be dispatched — the table moved or was rewritten under
-            // the gesture — leaves the press provisional rather than dropping it, so release
-            // still opens the pressed cell instead of swallowing the click.
+            // the gesture — leaves the press provisional. Release re-resolves the pressed
+            // widget and opens it only if it still identifies a current table.
             gesture.dragged = this.applyFocus(gesture, pointedCell ?? gesture.resolvedCell.activeCell);
             if (!gesture.dragged) {
                 return;
@@ -137,6 +137,7 @@ class MouseCellDragSelectionController {
         }
 
         const pointedCell = this.resolveCellAtPoint(event, gesture);
+        const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
         const shouldReactivateAnchor =
             gesture.dragged && pointedCell !== null && isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell);
         const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
@@ -149,18 +150,13 @@ class MouseCellDragSelectionController {
         this.finishGesture({ keepActiveCell: shouldReactivateAnchor && gesture.origin === 'activeEditor' });
 
         if (gesture.origin === 'renderedCell' && !gesture.dragged) {
-            requestOpenCell(this.view, {
-                resolvedCell: gesture.resolvedCell,
-                clearCellSelection: Boolean(getCellSelection(this.view.state)),
-            });
+            if (resolvedAnchor) {
+                requestOpenCell(this.view, {
+                    resolvedCell: resolvedAnchor,
+                    clearCellSelection: Boolean(getCellSelection(this.view.state)),
+                });
+            }
         } else if (shouldReactivateAnchor && gesture.origin === 'renderedCell') {
-            const currentContext = resolveTableContextAtPos(this.view.state, gesture.resolvedCell.tableFrom);
-            const resolvedAnchor = currentContext
-                ? createResolvedActiveCell({
-                      ctx: currentContext,
-                      coords: gesture.resolvedCell.activeCell,
-                  })
-                : null;
             if (resolvedAnchor) {
                 requestOpenCell(this.view, {
                     resolvedCell: resolvedAnchor,
@@ -263,6 +259,27 @@ class MouseCellDragSelectionController {
         }
 
         return readCellCoords(cell);
+    }
+
+    /** Resolves the pressed anchor from the widget's current document position. */
+    private resolveCurrentRenderedAnchor(gesture: MouseCellGesture): ResolvedActiveCell | null {
+        if (!gesture.widget.isConnected || !this.view.dom.contains(gesture.widget)) {
+            return null;
+        }
+
+        try {
+            const tablePos = this.view.posAtDOM(gesture.widget, 0);
+            const ctx = resolveTableContextAtPos(this.view.state, tablePos);
+            return ctx
+                ? createResolvedActiveCell({
+                      ctx,
+                      coords: gesture.resolvedCell.activeCell,
+                  })
+                : null;
+        } catch {
+            // A replaced or detached widget cannot safely identify the table that was pressed.
+            return null;
+        }
     }
 
     private resolveVisibleCellAtPointer(gesture: MouseCellGesture): CellCoords | null {

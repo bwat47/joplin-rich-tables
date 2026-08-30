@@ -17,7 +17,7 @@ import type { CellCoords } from '../tableModel/types';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -269,13 +269,15 @@ describe('mouse cell drag selection', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('keeps the press provisional when the table moves out from under the drag', () => {
+    it('re-resolves a provisional press when the table moves before release', () => {
         const { view, cells } = mountGestureView();
         cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
 
         // The gesture recorded tableFrom 0 on pointerdown; pushing the table down the document
         // makes that stale, so no rectangle can be dispatched.
-        view.dispatch({ changes: { from: 0, insert: 'prose\n\n' } });
+        const prefix = 'prose\n\n';
+        view.dispatch({ changes: { from: 0, insert: prefix } });
+        vi.mocked(view.posAtDOM).mockReturnValue(prefix.length);
 
         elementAtPoint = cells.body1;
         const drag = pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 });
@@ -286,11 +288,30 @@ describe('mouse cell drag selection', () => {
 
         document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 20, clientY: 20 }));
 
-        expect(getPendingOpenCellRequest(view.state)?.activeCell).toMatchObject({
+        expect(view.state.doc.toString()).toBe(`${prefix}${GRID_DOC}\n`);
+        expect(getPendingOpenCellRequest(view.state)?.activeCell).toEqual({
+            tableFrom: prefix.length,
             section: 'body',
             row: 0,
             col: 0,
         });
+        expect(getResolvedActiveCell(view.state)?.tableFrom).toBe(prefix.length);
+    });
+
+    it('abandons a provisional press when its widget no longer identifies a table', () => {
+        const { view, cells } = mountGestureView();
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        const prefix = 'prose\n\n';
+        view.dispatch({ changes: { from: 0, insert: prefix } });
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 }));
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 20, clientY: 20 }));
+
+        expect(view.state.doc.toString()).toBe(`${prefix}${GRID_DOC}`);
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
     });
 
     it('starts a rectangular selection after the mouse crosses the movement threshold', () => {
