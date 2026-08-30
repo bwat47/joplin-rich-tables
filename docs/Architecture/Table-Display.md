@@ -89,3 +89,19 @@ See [ADR-004](../ADR/004-global-source-mode.md) for the rationale behind global 
 ### Search Override
 
 `Ctrl+F` forces raw Markdown mode so native search highlighting works on hidden table text.
+
+## Host Scroll Modes
+
+Joplin hosts the editor two ways, and internal and external scrolling are mutually exclusive:
+
+- **Desktop** pins CodeMirror to a fixed-height container, so `scrollDOM` scrolls internally.
+- **Mobile and web** leave the editor's height unconstrained, so `scrollDOM` grows to the whole document and the
+  document root scrolls instead.
+
+`shared/editorViewport.ts` resolves both cases without a mode flag. `resolveViewportBounds` intersects the scroller
+rect with the window: a scroller that already sits inside the window survives unchanged, and one that spans the
+document is clipped back to the window. The floating toolbar uses those bounds to decide visibility and placement;
+cell-drag auto-scroll uses them for its edge zones and for clamping its hit test.
+
+Auto-scroll picks its scroll target from the same distinction, testing whether `scrollDOM` has any overflow to move
+and falling back to `document.scrollingElement` when it does not.

@@ -7,6 +7,7 @@ import { resolveTableContextAtPos } from '../tableResolution';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';
+import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
@@ -291,10 +292,12 @@ class MouseCellDragSelectionController {
         const tableRect = gesture.table.getBoundingClientRect();
         const widgetRect = gesture.widget.getBoundingClientRect();
         const scrollRect = this.view.scrollDOM.getBoundingClientRect();
+        // Vertically the scroller rect is not the visible band when the page scrolls instead.
+        const verticalBounds = resolveViewportBounds(scrollRect, getViewportHeight(getViewWindow(this.view)));
         const left = Math.max(tableRect.left, widgetRect.left, scrollRect.left);
         const right = Math.min(tableRect.right, widgetRect.right, scrollRect.right);
-        const top = Math.max(tableRect.top, widgetRect.top, scrollRect.top);
-        const bottom = Math.min(tableRect.bottom, widgetRect.bottom, scrollRect.bottom);
+        const top = Math.max(tableRect.top, widgetRect.top, verticalBounds.top);
+        const bottom = Math.min(tableRect.bottom, widgetRect.bottom, verticalBounds.bottom);
         if (right <= left || bottom <= top) {
             return null;
         }

@@ -1,5 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { getViewWindow, requestViewAnimationFrame } from '../../shared/domContext';
+import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
 
 const EDGE_SCROLL_ZONE_PX = 48;
@@ -9,6 +10,8 @@ const EDGE_SCROLL_MAX_FRAME_MS = 50;
 // A zero-length frame would produce a zero delta, which the loop cannot tell apart
 // from having reached a scroll boundary.
 const EDGE_SCROLL_MIN_FRAME_MS = 1;
+// Subpixel layout can leave scrollHeight a hair above clientHeight with nothing to scroll.
+const INTERNAL_SCROLL_TOLERANCE_PX = 1;
 
 export interface AutoScrollContext {
     /** The table widget: the horizontal scroller, and the range the pointer's X is measured against. */
@@ -19,6 +22,23 @@ export interface AutoScrollContext {
     pointer: () => { x: number; y: number };
     /** Runs after a frame that actually scrolled, so the caller can re-resolve what the pointer is over. */
     onScrolled: () => void;
+}
+
+/**
+ * The element a vertical drag scroll has to move.
+ *
+ * Internal and external scrolling are mutually exclusive: `scrollDOM` scrolls only where
+ * something constrains the editor's height, and where nothing does it grows to the whole
+ * document and the document root scrolls instead. Exactly one of the two can move.
+ */
+function getVerticalScroller(view: EditorView): HTMLElement {
+    const scrollDOM = view.scrollDOM;
+    if (scrollDOM.scrollHeight > scrollDOM.clientHeight + INTERNAL_SCROLL_TOLERANCE_PX) {
+        return scrollDOM;
+    }
+
+    const doc = view.dom.ownerDocument;
+    return (doc.scrollingElement as HTMLElement | null) ?? doc.documentElement;
 }
 
 /**
@@ -101,7 +121,10 @@ export class CellDragAutoScroller {
         const pointer = context.pointer();
         const widgetRect = context.widget.getBoundingClientRect();
         const tableRect = context.table.getBoundingClientRect();
-        const scrollRect = this.view.scrollDOM.getBoundingClientRect();
+        const verticalBounds = resolveViewportBounds(
+            this.view.scrollDOM.getBoundingClientRect(),
+            getViewportHeight(getViewWindow(this.view))
+        );
 
         const horizontalIntensity = calculateEdgeScrollIntensity(
             pointer.x,
@@ -111,13 +134,13 @@ export class CellDragAutoScroller {
         );
         let verticalIntensity = calculateEdgeScrollIntensity(
             pointer.y,
-            scrollRect.top,
-            scrollRect.bottom,
+            verticalBounds.top,
+            verticalBounds.bottom,
             EDGE_SCROLL_ZONE_PX
         );
         if (
-            (verticalIntensity < 0 && tableRect.top >= scrollRect.top) ||
-            (verticalIntensity > 0 && tableRect.bottom <= scrollRect.bottom)
+            (verticalIntensity < 0 && tableRect.top >= verticalBounds.top) ||
+            (verticalIntensity > 0 && tableRect.bottom <= verticalBounds.bottom)
         ) {
             verticalIntensity = 0;
         }
@@ -129,10 +152,15 @@ export class CellDragAutoScroller {
         this.lastTimestamp = timestamp;
         const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
 
-        // The widget is the table's horizontal scroller; the editor's scrollDOM is the vertical
-        // one. If either ever stops being scrollable, that axis simply reports no movement.
+        // The widget is the table's horizontal scroller; whichever element owns vertical
+        // scrolling is the vertical one. If either has nothing left to move, that axis
+        // simply reports no movement.
         const didScrollHorizontally = applyScrollDelta(context.widget, 'horizontal', horizontalIntensity * maxDelta);
-        const didScrollVertically = applyScrollDelta(this.view.scrollDOM, 'vertical', verticalIntensity * maxDelta);
+        const didScrollVertically = applyScrollDelta(
+            getVerticalScroller(this.view),
+            'vertical',
+            verticalIntensity * maxDelta
+        );
         if (!didScrollHorizontally && !didScrollVertically) {
             this.lastTimestamp = null;
             return;

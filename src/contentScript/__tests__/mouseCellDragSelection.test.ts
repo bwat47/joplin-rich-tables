@@ -152,6 +152,20 @@ function setScrollDimensions(
     }
 }
 
+/** Makes the page itself the scroller, the way the web app's external scrolling behaves. */
+function makePageScroller(dimensions: { clientHeight: number; scrollHeight: number }): HTMLElement {
+    const page = document.documentElement;
+    setScrollDimensions(page, dimensions);
+    Object.defineProperty(page, 'scrollTop', { configurable: true, writable: true, value: 0 });
+    return page;
+}
+
+function resetPageScroller(): void {
+    for (const property of ['clientHeight', 'scrollHeight', 'scrollTop']) {
+        Reflect.deleteProperty(document.documentElement, property);
+    }
+}
+
 function mockAnimationFrames(): {
     cancelSpy: ReturnType<typeof vi.spyOn>;
     pendingCount: () => number;
@@ -205,6 +219,7 @@ beforeEach(() => {
 
 afterEach(() => {
     elementAtPoint = null;
+    resetPageScroller();
     while (mountedViews.length > 0) {
         mountedViews.pop()?.destroy();
     }
@@ -529,6 +544,63 @@ describe('mouse cell drag selection', () => {
                 clientY: 95,
             })
         );
+    });
+
+    it('scrolls the page when the editor does not scroll internally', () => {
+        const { view, widget, table, cells } = mountGestureView();
+        const frames = mockAnimationFrames();
+        // The web app grows scrollDOM to the whole document and scrolls the page around it.
+        vi.stubGlobal('innerHeight', 100);
+        const page = makePageScroller({ clientHeight: 100, scrollHeight: 300 });
+        setScrollDimensions(widget, { clientWidth: 100, scrollWidth: 100 });
+        setScrollDimensions(view.scrollDOM, { clientHeight: 300, scrollHeight: 300 });
+        vi.spyOn(widget, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        vi.spyOn(view.scrollDOM, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 50, clientY: 10 }));
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 50, clientY: 95 }));
+
+        frames.runNext(16);
+
+        expect(page.scrollTop).toBeGreaterThan(0);
+        expect(view.scrollDOM.scrollTop).toBe(0);
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 50, clientY: 95 }));
+    });
+
+    it('clamps the hit test to the window when the page is the scroller', () => {
+        const { view, widget, table, cells } = mountGestureView();
+        mockAnimationFrames();
+        vi.stubGlobal('innerHeight', 100);
+        makePageScroller({ clientHeight: 100, scrollHeight: 300 });
+        setScrollDimensions(widget, { clientWidth: 100, scrollWidth: 100 });
+        setScrollDimensions(view.scrollDOM, { clientHeight: 300, scrollHeight: 300 });
+        vi.spyOn(widget, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        vi.spyOn(table, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        vi.spyOn(view.scrollDOM, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 100, 300));
+        // Only cells inside the window can be hit-tested; below it the browser returns nothing.
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true,
+            value: vi.fn((_x: number, y: number) => {
+                if (y <= 30) {
+                    return cells.header1;
+                }
+                return y <= 100 ? cells.body1 : null;
+            }),
+        });
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 50, clientY: 10 }));
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 50, clientY: 20 }));
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'header', row: 0, col: 1 });
+
+        // Below the window: the clamped hit test must land on the last row still on screen,
+        // not on a point inside the off-screen part of scrollDOM.
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 50, clientY: 250 }));
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 50, clientY: 250 }));
     });
 
     it('tracks the nearest cell when the pointer drags past a fully visible table', () => {
