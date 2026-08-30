@@ -32,6 +32,13 @@ function computeSyntaxMarkDecorations(
     return Decoration.set(marks);
 }
 
+/**
+ * Builds a ViewPlugin that marks every syntax node matching `matches` with `className`.
+ *
+ * Decorations are only recomputed on doc/viewport changes, not on late parse completion.
+ * That is safe because `nestedEditorController` warms the parse tree with `ensureSyntaxTree`
+ * before mounting the view, so the first computation already sees a complete tree.
+ */
 function createSyntaxMarkPlugin(className: string, matches: SyntaxNodePredicate) {
     return ViewPlugin.define(
         (view) => ({
@@ -54,7 +61,11 @@ function createSyntaxMarkPlugin(className: string, matches: SyntaxNodePredicate)
  */
 export const inlineCodePlugin = createSyntaxMarkPlugin('cm-inline-code', (node) => node.name === INLINE_CODE_NODE_NAME);
 
-/** Aggressively wraps only destinations in `[label](destination)` links. */
+/**
+ * Marks only the destinations in `[label](destination)` links, so the theme rule for
+ * `CLASS_NESTED_EDITOR_URL` in `nestedEditorTheme.ts` can wrap them aggressively.
+ * That `overflow-wrap: anywhere` rule is the actual fix; this plugin only tags the ranges.
+ */
 export const linkDestinationWrapPlugin = createSyntaxMarkPlugin(
     CLASS_NESTED_EDITOR_URL,
     (node) => node.name === URL_NODE_NAME && node.node.parent?.name === LINK_NODE_NAME

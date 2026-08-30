@@ -63,7 +63,6 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             // URL source can be substantially wider than its rendered link label. Allowing
             // breaks at any character keeps it from increasing the table's intrinsic width.
             overflowWrap: 'anywhere',
-            wordBreak: 'normal',
         },
     });
 }
