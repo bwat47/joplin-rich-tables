@@ -173,6 +173,29 @@ describe('cellSelectionClipboard', () => {
         });
     });
 
+    it('keeps clipboard ownership with the open nested editor during a drag-selection transition', () => {
+        let state = createMarkdownState(doc, [activeCellField, cellSelectionField]);
+        state = state.update({
+            effects: [
+                setActiveCellEffect.of({
+                    tableFrom: 0,
+                    section: 'body',
+                    row: 0,
+                    col: 1,
+                }),
+                setCellSelectionEffect.of(
+                    selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+                ),
+            ],
+        }).state;
+
+        expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 1 },
+            source: 'activeCell',
+        });
+    });
+
     it('returns no active-cell paste anchor when the nested editor cell no longer resolves', () => {
         let state = createMarkdownState(doc, [activeCellField]);
         state = state.update({
@@ -185,6 +208,24 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toBeNull();
+    });
+
+    it('falls back to the selection when the open nested editor cell no longer resolves', () => {
+        let state = createMarkdownState(doc, [activeCellField, cellSelectionField]);
+        state = state.update({
+            effects: [
+                setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 99 }),
+                setCellSelectionEffect.of(
+                    selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+                ),
+            ],
+        }).state;
+
+        expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 1 },
+            source: 'selection',
+        });
     });
 
     it('returns no anchor when neither a selection nor open nested editor is available', () => {

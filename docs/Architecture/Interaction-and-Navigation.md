@@ -78,5 +78,21 @@ Commands that move the main-editor caret outside the selected table clear the se
 ## Mouse Interaction
 
 - Clicking a cell activates it or updates the current multi-cell selection.
+- Dragging from one cell to another with a desktop mouse creates a rectangular selection. A movement threshold keeps
+  ordinary clicks distinct from drags. Touch and pen pointers retain native scrolling/tap behaviour and do not start
+  drag selection. Holding a cell drag near an edge auto-scrolls the table horizontally or the editor vertically;
+  releasing a drag back over its anchor opens that cell's editor. A completed rectangular selection focuses the main
+  editor on release so its keyboard and clipboard commands work even when focus started outside the editor.
+- Once a gesture becomes a rectangular selection it records itself in `cellDragField` until release. See
+  [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership) for what that ownership means; the
+  gesture settles the deferred state on release, clearing the active cell unless the drag contracts back to its anchor.
+- A drag that starts anywhere in the active cell—including row-height padding outside the nested editor—keeps the
+  nested editor open while it stays in that cell. Drags beginning on editable content retain native text selection. When
+  the pointer travels a short margin past the cell's border into another cell, ownership switches to rectangular cell
+  selection with the active cell as its anchor; the margin keeps a graze past the border from converting the gesture.
+  Conversion ends the nested editor's native text drag by dispatching one mouse move with no button held, which is
+  how CodeMirror tears down its own drag and the interval driving its edge scrolling; nothing is suppressed for the
+  rest of the gesture.
+- Shift+Arrow reopens the anchor editor when it contracts a multi-cell selection back to that one cell.
 - Links delegate to the content-script link opener and then to the main plugin.
 - Heading and footnote anchors scroll the main editor through `scrollToAnchor`.

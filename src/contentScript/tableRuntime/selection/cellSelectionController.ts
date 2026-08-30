@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -16,10 +16,12 @@ import {
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { clamp } from '../../shared/numberUtils';
 import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
-import { makeTableId, type CellCoords } from '../../tableModel/types';
+import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { endCellDragEffect, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
+import { requestOpenCell } from '../openCellRequest';
 
 function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
     const bounds = getTableGridBounds(ctx);
@@ -42,11 +44,17 @@ function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoo
     return clampSelectionFocusWithinContext(ctx, focus);
 }
 
+interface SelectionDispatchOptions {
+    clearActiveCell: boolean;
+    scrollFocusIntoView?: boolean;
+    extraEffects?: readonly StateEffect<unknown>[];
+}
+
 function dispatchSelectionWithContext(
     view: EditorView,
     ctx: TableContext,
     selection: CellSelection,
-    options: { clearActiveCell: boolean }
+    options: SelectionDispatchOptions
 ): boolean {
     const focusRange = resolveCellDocRange({
         tableFrom: ctx.from,
@@ -66,12 +74,14 @@ function dispatchSelectionWithContext(
                 focus: normalizeCellCoords(selection.focus),
             }),
             ...(options.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+            ...(options.extraEffects ?? []),
         ],
         annotations: cellSelectionTransitionAnnotation.of(true),
         scrollIntoView: false,
     });
 
-    const cellElement = findCellElement(view, makeTableId(ctx.from), selection.focus);
+    const cellElement =
+        (options.scrollFocusIntoView ?? true) ? findCellElement(view, makeTableId(ctx.from), selection.focus) : null;
     if (cellElement) {
         view.requestMeasure({
             read: () => cellElement.isConnected,
@@ -86,13 +96,63 @@ function dispatchSelectionWithContext(
     return true;
 }
 
-function dispatchSelection(view: EditorView, selection: CellSelection, options: { clearActiveCell: boolean }): boolean {
+function dispatchSelection(view: EditorView, selection: CellSelection, options: SelectionDispatchOptions): boolean {
     const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }
 
     return dispatchSelectionWithContext(view, ctx, selection, options);
+}
+
+/**
+ * Sets the rectangle a mouse drag has swept out so far.
+ *
+ * The active cell is deliberately left alone: closing its nested editor would re-render the
+ * cell and reflow the table the gesture is still hit-testing. `isCellDragInProgress` reports that
+ * the drag owns the table until it settles, and the gesture clears the active cell on release.
+ */
+export function setCellDragSelection(
+    view: EditorView,
+    tableFrom: number,
+    anchor: CellCoords,
+    focus: CellCoords
+): boolean {
+    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    if (!ctx) {
+        return false;
+    }
+
+    const clampedAnchor = clampSelectionFocusWithinContext(ctx, anchor);
+    const clampedFocus = clampSelectionFocusWithinContext(ctx, focus);
+    if (!clampedAnchor || !clampedFocus) {
+        return false;
+    }
+
+    return dispatchSelectionWithContext(
+        view,
+        ctx,
+        {
+            tableFrom: ctx.from,
+            anchor: clampedAnchor,
+            focus: clampedFocus,
+        },
+        {
+            clearActiveCell: false,
+            scrollFocusIntoView: false,
+            extraEffects: [startCellDragEffect.of(undefined)],
+        }
+    );
+}
+
+/** Settles the state a drag left behind, on release or cancellation. */
+export function endCellDragSelection(view: EditorView, options: { keepActiveCell: boolean }): void {
+    view.dispatch({
+        effects: [
+            endCellDragEffect.of(undefined),
+            ...(options.keepActiveCell ? [] : [clearActiveCellEffect.of(undefined)]),
+        ],
+    });
 }
 
 export function startCellSelectionFromActiveCell(view: EditorView, direction: CellSelectionDirection): boolean {
@@ -131,6 +191,19 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     const clampedFocus = clampSelectionFocus(view, selection.tableFrom, moveCellCoords(selection.focus, direction));
     if (!clampedFocus) {
         return false;
+    }
+
+    if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
+        const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+        const resolvedAnchor = ctx ? createResolvedActiveCell({ ctx, coords: selection.anchor }) : null;
+        if (resolvedAnchor) {
+            requestOpenCell(view, {
+                resolvedCell: resolvedAnchor,
+                clearCellSelection: true,
+            });
+            return true;
+        }
+        // Without a resolvable anchor, fall through and just contract the selection.
     }
 
     return dispatchSelection(

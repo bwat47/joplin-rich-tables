@@ -287,6 +287,10 @@ export function createNestedEditorDomHandlers(
                 // The nested editor is mounted inside the main editor DOM. If this bubbles,
                 // the outer CodeMirror instance can treat clicks on selection layers as
                 // outside-widget interactions and move the root cursor out of the table.
+                //
+                // Deliberately no matching `pointerdown` handler: mouseCellDragSelection
+                // observes that event here to turn a text drag into a cell-selection drag,
+                // so stopping its propagation would silently disable the feature.
                 e.stopPropagation();
                 return false;
             },

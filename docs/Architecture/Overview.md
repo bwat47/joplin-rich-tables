@@ -6,7 +6,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 - `tableModel/`: pure table parsing, serialization, and table math.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions and selectors.
-- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/`, `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
+- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (pointer gestures and outside-interaction handling), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.

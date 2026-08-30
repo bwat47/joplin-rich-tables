@@ -99,38 +99,59 @@ export function parseMarkdownTableClipboard(text: string): ClipboardTableFragmen
     };
 }
 
+/**
+ * The chords that make the browser emit a clipboard event, which is where a table
+ * selection is serialized and rewritten.
+ *
+ * Shift is excluded from the modifier-letter chords: those are the platform's plain
+ * copy/cut/paste, while Ctrl+Shift+C and friends belong to other handlers. A chord left
+ * out here still pastes correctly — the clipboard event is handled on its own listener —
+ * it just no longer stops the root editor from also seeing the keydown.
+ */
+export function isNativeClipboardShortcut(event: KeyboardEvent): boolean {
+    if (event.altKey) {
+        return false;
+    }
+
+    const isModShortcut =
+        (event.ctrlKey || event.metaKey) && !event.shiftKey && ['c', 'v', 'x'].includes(event.key.toLowerCase());
+    const isCtrlInsert = event.ctrlKey && !event.metaKey && !event.shiftKey && event.key === 'Insert';
+    const isShiftInsertOrDelete =
+        event.shiftKey && !event.ctrlKey && !event.metaKey && (event.key === 'Insert' || event.key === 'Delete');
+
+    return isModShortcut || isCtrlInsert || isShiftInsertOrDelete;
+}
+
 export function resolveTableClipboardTarget(
     state: EditorState,
     options: { nestedEditorOpen: boolean }
 ): TableClipboardTarget | null {
-    const selection = getCellSelection(state);
-    if (selection) {
-        const rect = toSelectionRect(selection);
+    // An open nested editor owns its own cell, even when a mouse drag left a selection behind
+    // it. An active cell that no longer resolves owns nothing, so a selection still applies.
+    const resolvedActiveCell = options.nestedEditorOpen ? getResolvedActiveCell(state) : null;
+    if (resolvedActiveCell) {
+        const activeCell = resolvedActiveCell.activeCell;
         return {
-            tableFrom: selection.tableFrom,
-            anchor: fromUnifiedRow(rect.minRow, rect.minCol),
-            source: 'selection',
+            tableFrom: resolvedActiveCell.tableFrom,
+            anchor: {
+                section: activeCell.section,
+                row: activeCell.row,
+                col: activeCell.col,
+            },
+            source: 'activeCell',
         };
     }
 
-    if (!options.nestedEditorOpen) {
+    const selection = getCellSelection(state);
+    if (!selection) {
         return null;
     }
 
-    const resolvedActiveCell = getResolvedActiveCell(state);
-    if (!resolvedActiveCell) {
-        return null;
-    }
-
-    const activeCell = resolvedActiveCell.activeCell;
+    const rect = toSelectionRect(selection);
     return {
-        tableFrom: resolvedActiveCell.tableFrom,
-        anchor: {
-            section: activeCell.section,
-            row: activeCell.row,
-            col: activeCell.col,
-        },
-        source: 'activeCell',
+        tableFrom: selection.tableFrom,
+        anchor: fromUnifiedRow(rect.minRow, rect.minCol),
+        source: 'selection',
     };
 }
 

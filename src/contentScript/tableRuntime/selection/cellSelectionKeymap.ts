@@ -14,7 +14,7 @@ import {
 } from './cellSelectionController';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
-import { handleSelectionDelete } from './cellSelectionClipboard';
+import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
 
 type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
@@ -162,6 +162,13 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
         constructor(private readonly view: EditorView) {
             this.onKeyDown = (event) => {
                 if (!getCellSelection(this.view.state)) {
+                    return;
+                }
+
+                if (isNativeClipboardShortcut(event) && canHandleTableSelectionKeydown(this.view)) {
+                    // Preserve the native default so copy/cut/paste still fires. Stopping
+                    // propagation prevents the root editor from acting on its parked caret first.
+                    event.stopPropagation();
                     return;
                 }
 

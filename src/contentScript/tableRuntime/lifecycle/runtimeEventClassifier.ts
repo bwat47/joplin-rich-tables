@@ -1,5 +1,6 @@
 import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
+import { isCellDragInProgress } from '../../tableState/cellDragState';
 import {
     exitSearchForceSourceModeEffect,
     setSearchForceSourceModeEffect,
@@ -43,6 +44,7 @@ export function classifyTableRuntimeFacts(
         activeCellIdentityUnchanged: isSameActiveCell(activeCellBefore, activeCellAfter),
         effectiveRawMode,
         nestedEditorOpen: externalFacts.nestedEditorOpen,
+        cellDragInProgress: isCellDragInProgress(update.state),
         pendingFullReplaceRebuild: externalFacts.pendingFullReplaceRebuild,
         docChanged: update.docChanged,
         selectionChanged: update.selectionSet,

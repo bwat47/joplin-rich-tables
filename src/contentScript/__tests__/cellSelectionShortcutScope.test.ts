@@ -5,7 +5,8 @@
 import { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellDragField, isCellDragInProgress, startCellDragEffect } from '../tableState/cellDragState';
 import {
     canHandleTableClipboardShortcut,
     canHandleTableSelectionKeydown,
@@ -13,9 +14,9 @@ import {
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 
-function createViewHarness(options: { activeCell?: boolean; selection?: boolean } = {}) {
-    const { activeCell = true, selection = true } = options;
-    let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField]);
+function createViewHarness(options: { activeCell?: boolean; selection?: boolean; dragging?: boolean } = {}) {
+    const { activeCell = true, selection = true, dragging = false } = options;
+    let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField, cellDragField]);
     state = state.update({
         effects: [
             ...(activeCell
@@ -37,6 +38,7 @@ function createViewHarness(options: { activeCell?: boolean; selection?: boolean 
                       }),
                   ]
                 : []),
+            ...(dragging ? [startCellDragEffect.of(undefined)] : []),
         ],
     }).state;
 
@@ -111,7 +113,7 @@ describe('cellSelectionShortcutScope', () => {
         expect(canHandleTableSelectionKeydown(view)).toBe(false);
     });
 
-    it('allows clipboard shortcuts when focus is inside the nested editor', () => {
+    it('leaves selection keys with the nested editor while allowing table-aware clipboard handling', () => {
         const { view, root } = createViewHarness();
         const editorHost = document.createElement('div');
         editorHost.className = CLASS_CELL_EDITOR;
@@ -122,6 +124,43 @@ describe('cellSelectionShortcutScope', () => {
         setActiveElement(nestedContent);
 
         expect(canHandleTableClipboardShortcut(view)).toBe(true);
+        expect(canHandleTableSelectionKeydown(view)).toBe(true);
+    });
+
+    it('withholds selection keys while a mouse drag owns the table', () => {
+        const { view } = createViewHarness({ dragging: true });
+        setActiveElement(document.body);
+
+        expect(canHandleTableClipboardShortcut(view)).toBe(true);
+        expect(canHandleTableSelectionKeydown(view)).toBe(false);
+    });
+
+    it.each([
+        { label: 'the selection is cleared', effect: () => clearCellSelectionEffect.of(undefined) },
+        {
+            label: 'a cell is activated',
+            effect: () => setActiveCellEffect.of({ tableFrom: 0, section: 'header' as const, row: 0, col: 0 }),
+        },
+    ])('reports no drag in progress once $label, even with the flag left set', ({ effect }) => {
+        let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField, cellDragField]);
+        state = state.update({
+            effects: [
+                setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'header', row: 0, col: 0 },
+                    focus: { section: 'body', row: 0, col: 0 },
+                }),
+                startCellDragEffect.of(undefined),
+            ],
+        }).state;
+        expect(isCellDragInProgress(state)).toBe(true);
+
+        // The gesture cannot always dispatch its own end, so the drag must not survive the
+        // selection it belongs to.
+        state = state.update({ effects: effect() }).state;
+
+        expect(state.field(cellDragField)).toBe(true);
+        expect(isCellDragInProgress(state)).toBe(false);
     });
 
     it('rejects shortcuts when there is no table interaction state', () => {

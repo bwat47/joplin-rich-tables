@@ -72,6 +72,7 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
         isSync: false,
         isNormalizeBeforeEdit: false,
         isCellSelectionTransition: false,
+        cellDragInProgress: false,
         rawModeTransition: {
             enteredRawMode: false,
             exitedRawMode: false,
@@ -253,6 +254,18 @@ describe('tableRuntimePolicies', () => {
                 activeCellIdentityUnchanged: true,
             },
             expected: [{ type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' }, { type: 'clearActiveCell' }],
+        },
+        {
+            name: 'a mouse cell drag keeps its anchor editor open while the caret follows the pointer',
+            overrides: {
+                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
+                selectionChanged: true,
+                activeCellIdentityUnchanged: true,
+                cellDragInProgress: true,
+            },
+            expected: [],
         },
         {
             name: 'continuing active-cell removal follows accumulated full-replace rebuild work',
@@ -760,6 +773,20 @@ describe('tableRuntimePolicies', () => {
             reduceTableRuntime({ ...facts, selectionChanged: true, activeCellIdentityUnchanged: true })
         ).toContainEqual({ type: 'syncMainToNested' });
         expect(reduceTableRuntime({ ...facts, selectionChanged: true })).toEqual([]);
+    });
+
+    it('does not mirror cell-drag selection transitions into the retained nested editor', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            nestedEditorOpen: true,
+            activeCellBefore: 'resolved',
+            activeCellIdentityUnchanged: true,
+            selectionChanged: true,
+            isCellSelectionTransition: true,
+            cellDragInProgress: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([]);
     });
 
     it('prefers an explicit open request over generic branches', () => {

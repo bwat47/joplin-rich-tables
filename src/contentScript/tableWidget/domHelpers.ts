@@ -35,6 +35,17 @@ export function getWidgetSelector(): string {
     return `.${CLASS_TABLE_WIDGET}`;
 }
 
+/** Matches the coordinate attributes `TableWidget` writes on every cell it renders. */
+const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${DATA_COL}]`;
+
+/**
+ * Matches a table widget's own cells, and only those.
+ *
+ * The attributes are required so `closest()` walks past `td`/`th` belonging to a raw HTML
+ * table inside a cell's rendered Markdown, which carry no coordinates of their own.
+ */
+export const SELECTOR_CELL = `td${CELL_COORDS_ATTRIBUTES}, th${CELL_COORDS_ATTRIBUTES}`;
+
 /**
  * Returns the CSS selector for a specific cell within a table widget.
  *

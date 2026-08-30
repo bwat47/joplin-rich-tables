@@ -1,15 +1,20 @@
 import type { EditorView } from '@codemirror/view';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
 import { parseFootnoteHref } from '../shared/footnoteAnchor';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
-import { getWidgetSelector, readCellCoords } from './domHelpers';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../shared/mouseEvents';
+import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
-import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import {
+    beginMouseCellGesture,
+    consumeMouseCellGestureMouseDown,
+} from '../tableRuntime/interaction/mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
@@ -20,9 +25,6 @@ const HEADING_REGEX = /^(#{1,6})\s+(.*)/;
 const ANCHOR_HREF_PREFIX = '#';
 
 const SELECTOR_LINK = 'a';
-const SELECTOR_CELL = 'td, th';
-
-const MOUSE_BUTTON_LEFT = 0;
 
 function getLinkHrefFromTarget(target: HTMLElement): string | null {
     const link = target.closest(SELECTOR_LINK);
@@ -127,7 +129,7 @@ function escapeRegex(str: string): string {
 /** Click events: strict link opening. */
 function handleWidgetClick(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
     // Only handle left clicks
-    if (event.button !== MOUSE_BUTTON_LEFT) {
+    if (!isPrimaryMouseButton(event)) {
         return false;
     }
 
@@ -152,13 +154,20 @@ function handleWidgetClick(view: EditorView, event: MouseEvent, target: HTMLElem
 
 /** Mousedown events: cell activation. */
 function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
+    // A mouse pointerdown starts a provisional click-or-drag gesture. Some browsers still
+    // emit the compatibility mousedown even though pointerdown was prevented; consume it so
+    // the nested editor is not opened before the gesture resolves on pointerup.
+    if (consumeMouseCellGestureMouseDown(view, event)) {
+        return true;
+    }
+
     // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
     // and open the link.
     // If we processed cell activation here, it might swallow the event or change focus
     // in a way that prevents the click.
     // However, allow RIGHT click (button 2) to fall through to cell activation so we can open the editor
     // and see the context menu.
-    if (event.button === MOUSE_BUTTON_LEFT && target.closest(SELECTOR_LINK)) {
+    if (isPrimaryMouseButton(event) && target.closest(SELECTOR_LINK)) {
         if (getCellSelection(view.state)) {
             view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
         }
@@ -177,19 +186,80 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
     return activateCellFromMouseDown(view, event, cell);
 }
 
+interface ResolvedCellTarget {
+    cell: HTMLElement;
+    resolvedCell: ResolvedActiveCell;
+}
+
+/**
+ * Resolves a widget cell element against the current document.
+ *
+ * Returns null for anything that is not one of `TableWidget`'s own cells, or whose
+ * coordinates no longer map onto the parsed table.
+ */
+function resolveCell(view: EditorView, cell: HTMLElement): ResolvedActiveCell | null {
+    const coords = readCellCoords(cell);
+    const ctx = coords ? resolveTableContextFromEventTarget(view, cell) : null;
+
+    return coords && ctx ? createResolvedActiveCell({ ctx, coords }) : null;
+}
+
+/** As {@link resolveCell}, starting from the element an event landed on. */
+function resolveCellTarget(view: EditorView, target: HTMLElement): ResolvedCellTarget | null {
+    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    const resolvedCell = cell ? resolveCell(view, cell) : null;
+
+    return cell && resolvedCell ? { cell, resolvedCell } : null;
+}
+
+/**
+ * Starts a desktop-mouse gesture that becomes either cell activation or drag selection.
+ *
+ * Declining leaves the press to the compatibility mousedown; see `handleTableInteraction`.
+ */
+function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
+    if (!isPrimaryMousePointer(event) || event.shiftKey || target.closest(SELECTOR_LINK)) {
+        return false;
+    }
+
+    const pressed = resolveCellTarget(view, target);
+    if (!pressed) {
+        return false;
+    }
+
+    const { cell, resolvedCell } = pressed;
+    if (
+        cell.classList.contains(CLASS_CELL_ACTIVE) &&
+        isSameActiveCell(getActiveCell(view.state), resolvedCell.activeCell)
+    ) {
+        return beginMouseCellGesture(view, event, cell, resolvedCell, {
+            origin: 'activeEditor',
+            consumeInitialEvents: true,
+        });
+    }
+
+    return beginMouseCellGesture(view, event, cell, resolvedCell, {
+        origin: 'renderedCell',
+        consumeInitialEvents: true,
+    });
+}
+
+/** Passively observes a text-selection drag until it crosses into another table cell. */
+function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): void {
+    const activeTarget = resolveCellTarget(view, target);
+    if (!activeTarget || !isSameActiveCell(getActiveCell(view.state), activeTarget.resolvedCell.activeCell)) {
+        return;
+    }
+
+    beginMouseCellGesture(view, event, activeTarget.cell, activeTarget.resolvedCell, {
+        origin: 'activeEditor',
+        consumeInitialEvents: false,
+    });
+}
+
 /** Extend the cell selection (shift-click) or open the clicked cell. */
 function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HTMLElement): boolean {
-    const coords = readCellCoords(cell);
-    if (!coords) {
-        return false;
-    }
-
-    const ctx = resolveTableContextFromEventTarget(view, cell);
-    if (!ctx) {
-        return false;
-    }
-
-    const resolvedCell = createResolvedActiveCell({ ctx, coords });
+    const resolvedCell = resolveCell(view, cell);
     if (!resolvedCell) {
         return false;
     }
@@ -198,7 +268,7 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     event.stopPropagation();
 
     const hasSelection = Boolean(getCellSelection(view.state));
-    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, coords, ctx.from)) {
+    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, resolvedCell.activeCell, resolvedCell.tableFrom)) {
         return true;
     }
 
@@ -210,6 +280,25 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     return true;
 }
 
+/**
+ * Routes a widget event to the handler that owns it.
+ *
+ * A cell press is split across two events by input type. Pointerdown claims only a plain
+ * left-mouse press — the one that can become a drag — and declines the rest, which the
+ * compatibility mousedown behind it then handles:
+ *
+ * - left mouse, no shift: pointerdown starts a click-or-drag gesture
+ * - shift-click: mousedown extends the cell selection
+ * - right click: mousedown opens the cell; preventing its pointerdown would suppress the
+ *   context menu
+ * - touch and pen: mousedown opens the cell; their pointerdown must stay native or the
+ *   page cannot scroll
+ * - links: click opens them, and mousedown only clears a stale selection
+ *
+ * Inside an open nested editor the press is only observed, never claimed, so shift is not
+ * excluded there as it is above: shift-click extends the cell's own text selection, and the
+ * gesture stays out of the way unless the pointer crosses into another cell.
+ */
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
     if (!target) {
@@ -222,8 +311,20 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
         return false;
     }
 
-    // Let the nested editor handle its own events.
-    if (target.closest(`.${CLASS_CELL_EDITOR}`)) {
+    const insideNestedEditor = Boolean(target.closest(`.${CLASS_CELL_EDITOR}`));
+    if (event.type === 'pointerdown') {
+        if (insideNestedEditor) {
+            // Observed but never claimed, so the nested editor keeps its native text-selection
+            // drag until the pointer crosses into another cell.
+            observeActiveEditorPointerDown(view, event as PointerEvent, target);
+            return false;
+        }
+
+        return handleWidgetPointerDown(view, event as PointerEvent, target);
+    }
+
+    // The nested editor owns the rest of its own events.
+    if (insideNestedEditor) {
         return false;
     }
 

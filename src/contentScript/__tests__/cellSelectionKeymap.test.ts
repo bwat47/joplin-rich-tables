@@ -13,6 +13,7 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
+import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -32,7 +33,14 @@ function mountSelectionView(doc: string): EditorView {
 
     const view = new EditorView({
         parent,
-        extensions: [markdownExtension, history(), activeCellField, cellSelectionField, cellSelectionKeyCapturePlugin],
+        extensions: [
+            markdownExtension,
+            history(),
+            activeCellField,
+            cellSelectionField,
+            cellDragField,
+            cellSelectionKeyCapturePlugin,
+        ],
         doc,
     });
     mountedViews.push(view);
@@ -55,6 +63,46 @@ afterEach(() => {
 });
 
 describe('cellSelectionKeymap', () => {
+    it('leaves key ownership with the anchor cell while a mouse drag is in progress', () => {
+        const view = mountSelectionView(GRID_DOC);
+        const anchor = { section: 'body', row: 0, col: 0 } as const;
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of({ tableFrom: 0, ...anchor }),
+                setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor,
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+                startCellDragEffect.of(undefined),
+            ],
+        });
+
+        pressKey({ key: 'Escape' });
+
+        expect(getActiveCell(view.state)).toMatchObject(anchor);
+        expect(getCellSelection(view.state)).not.toBeNull();
+    });
+
+    it('returns key ownership to the selection once the drag ends', () => {
+        const view = mountSelectionView(GRID_DOC);
+        view.dispatch({
+            effects: [
+                setCellSelectionEffect.of({
+                    tableFrom: 0,
+                    anchor: { section: 'body', row: 0, col: 0 },
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+                startCellDragEffect.of(undefined),
+            ],
+        });
+        view.dispatch({ effects: endCellDragEffect.of(undefined) });
+
+        pressKey({ key: 'Escape' });
+
+        expect(getCellSelection(view.state)).toBeNull();
+    });
+
     it('routes undo through the main editor while a multi-cell selection is active', () => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
 
@@ -199,6 +247,85 @@ describe('cellSelectionKeymap', () => {
         expect(view.state.doc.toString()).toBe(initialDoc);
     });
 
+    it.each([
+        { label: 'Ctrl+X', init: { key: 'x', ctrlKey: true } },
+        { label: 'Command+X', init: { key: 'x', metaKey: true } },
+        { label: 'Shift+Delete', init: { key: 'Delete', shiftKey: true } },
+        { label: 'Ctrl+Insert', init: { key: 'Insert', ctrlKey: true } },
+        { label: 'Shift+Insert', init: { key: 'Insert', shiftKey: true } },
+    ])('isolates $label from the root editor without suppressing its clipboard event', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+        view.focus();
+
+        const rootKeyDown = vi.fn();
+        view.contentDOM.addEventListener('keydown', rootKeyDown);
+        const event = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            ...init,
+        });
+        view.contentDOM.dispatchEvent(event);
+
+        expect(rootKeyDown).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).not.toBeNull();
+    });
+
+    it.each([
+        { label: 'Ctrl+Shift+C', init: { key: 'c', ctrlKey: true, shiftKey: true } },
+        { label: 'Ctrl+Shift+V', init: { key: 'v', ctrlKey: true, shiftKey: true } },
+    ])('leaves $label to the root editor, since it is not a plain clipboard chord', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+        view.focus();
+
+        const rootKeyDown = vi.fn();
+        view.contentDOM.addEventListener('keydown', rootKeyDown);
+        view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+
+        expect(rootKeyDown).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not isolate clipboard shortcuts when focus belongs to an external control', () => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
+        const inputKeyDown = vi.fn();
+        externalInput.addEventListener('keydown', inputKeyDown);
+        externalInput.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                bubbles: true,
+                cancelable: true,
+                key: 'x',
+                ctrlKey: true,
+            })
+        );
+
+        expect(inputKeyDown).toHaveBeenCalledTimes(1);
+    });
+
     it('focuses the main editor after deleting an emptied table via multi-cell selection', () => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         const focusSpy = vi.spyOn(view, 'focus');
@@ -325,6 +452,39 @@ describe('cellSelectionKeymap', () => {
         pressKey({ key, shiftKey: true });
 
         expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: expected });
+    });
+
+    it('reopens the anchor editor when Shift+Arrow contracts a multi-cell selection to one cell', () => {
+        const prefix = 'above\n\n';
+        const view = mountSelectionView(`${prefix}${GRID_DOC}\n\nbelow`);
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: prefix.length,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        pressKey({ key: 'ArrowLeft', shiftKey: true });
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({
+            tableFrom: prefix.length,
+            section: 'body',
+            row: 0,
+            col: 0,
+        });
+    });
+
+    it('keeps a one-cell selection when Shift+Arrow is clamped at its anchor', () => {
+        const view = mountSelectionView(GRID_DOC);
+        const anchor = { section: 'header', row: 0, col: 0 } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }) });
+
+        pressKey({ key: 'ArrowLeft', shiftKey: true });
+
+        expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: anchor });
+        expect(getActiveCell(view.state)).toBeNull();
     });
 
     it.each([

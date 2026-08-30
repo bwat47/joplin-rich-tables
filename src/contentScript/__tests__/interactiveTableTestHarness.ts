@@ -1,7 +1,7 @@
 import { vi, type Mock } from 'vitest';
 import { EditorState, type Extension, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { getCellSelector, SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
+import { getCellSelector, SECTION_BODY, SECTION_HEADER, SELECTOR_CELL } from '../tableWidget/domHelpers';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { sourceModeField } from '../tableState/sourceMode';
@@ -73,7 +73,7 @@ export function createInteractiveTableHarness(params?: {
                 col: String(col),
             },
             closest: (selector: string) => {
-                if (selector === 'td, th') {
+                if (selector === SELECTOR_CELL) {
                     return cell;
                 }
                 if (selector === 'a') {

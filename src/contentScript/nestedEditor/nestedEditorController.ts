@@ -499,6 +499,11 @@ export function refocusNestedEditor(view: EditorView): void {
     getController(view)?.refocus();
 }
 
+/** Flushes the nested editor's current text and selection before an external interaction takes ownership. */
+export function flushNestedEditorState(view: EditorView): void {
+    getController(view)?.flushLocalStateToRoot();
+}
+
 export function cleanupHostedNestedEditors(view: EditorView, container: HTMLElement): void {
     getController(view)?.checkAndCloseIfHostedIn(container);
 }
