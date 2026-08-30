@@ -294,6 +294,10 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
  * - touch and pen: mousedown opens the cell; their pointerdown must stay native or the
  *   page cannot scroll
  * - links: click opens them, and mousedown only clears a stale selection
+ *
+ * Inside an open nested editor the press is only observed, never claimed, so shift is not
+ * excluded there as it is above: shift-click extends the cell's own text selection, and the
+ * gesture stays out of the way unless the pointer crosses into another cell.
  */
 export function handleTableInteraction(view: EditorView, event: Event): boolean {
     const target = event.target as HTMLElement | null;
