@@ -559,6 +559,21 @@ describe('mouse cell drag selection', () => {
         expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
     });
 
+    it('extends the rectangle over a cell holding a raw HTML table', () => {
+        const { view, cells } = mountGestureView();
+        // Rendered Markdown may contain its own `td`, which carries no cell coordinates.
+        const nestedTable = document.createElement('table');
+        nestedTable.innerHTML = '<tr><td>nested</td></tr>';
+        cells.body1.appendChild(nestedTable);
+
+        cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        elementAtPoint = nestedTable.querySelector('td');
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 20, clientY: 20 }));
+
+        expect(getCellSelection(view.state)?.focus).toEqual({ section: 'body', row: 0, col: 1 });
+    });
+
     it('opens the anchor editor when a rendered-cell drag contracts back to its anchor', () => {
         const { view, cells } = mountGestureView();
         const externalInput = document.createElement('input');

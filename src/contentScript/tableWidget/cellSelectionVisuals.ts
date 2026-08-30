@@ -1,7 +1,7 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { cellSelectionField, getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
-import { CLASS_CELL_SELECTED, findTableWidgetElement, readCellCoords } from './domHelpers';
+import { CLASS_CELL_SELECTED, SELECTOR_CELL, findTableWidgetElement, readCellCoords } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 
 function collectSelectedCells(view: EditorView): HTMLElement[] {
@@ -16,9 +16,7 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
     }
 
     const rect = toSelectionRect(selection);
-    const cells = widget.querySelectorAll<HTMLElement>(
-        'td[data-section][data-row][data-col], th[data-section][data-row][data-col]'
-    );
+    const cells = widget.querySelectorAll<HTMLElement>(SELECTOR_CELL);
     const selectedCells: HTMLElement[] = [];
 
     for (const cell of cells) {
