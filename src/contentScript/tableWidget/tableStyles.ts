@@ -126,8 +126,11 @@ export const tableStyles = EditorView.baseTheme({
         minHeight: 'unset',
         lineHeight: 'inherit',
         color: 'inherit',
-        // Reset breaking so the nested editor behaves like the rendered table:
-        // wrap at whitespace, but don't aggressively split short words.
+        // Reset wrapping so the nested editor behaves like the rendered table: wrap at
+        // whitespace, don't aggressively split short words, and let a space at a wrap point
+        // hang instead of counting toward the cell's intrinsic width (CodeMirror's
+        // `lineWrapping` default of `break-spaces` would widen the column on activation).
+        whiteSpace: 'pre-wrap',
         wordBreak: 'normal',
         overflowWrap: 'normal',
     },

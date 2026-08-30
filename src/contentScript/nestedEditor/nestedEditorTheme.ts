@@ -32,8 +32,14 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             // CodeMirror injects font-size: 1.1875em on mobile to prevent iOS/Android auto-zoom.
             // Override so the editor font matches the rendered cell (which uses inherit).
             fontSize: 'inherit !important',
-            // CodeMirror's `lineWrapping` uses break-word; override to match rendered-table behavior
-            // (wrap at whitespace, but don't split short words).
+            // CodeMirror's `lineWrapping` uses break-spaces/break-word; override to match
+            // rendered-table behavior (wrap at whitespace, but don't split short words).
+            // `break-spaces` makes a space at a wrap point occupy width and count toward
+            // intrinsic sizing, while the rendered cell (`white-space: normal`) lets it hang
+            // for free, so the same text measured wider and wrapped earlier in the editor,
+            // shifting column widths on activation. `pre-wrap` keeps source spaces intact
+            // while restoring hanging at wrap points.
+            whiteSpace: 'pre-wrap !important',
             wordBreak: 'normal !important',
             overflowWrap: 'normal !important',
         },
