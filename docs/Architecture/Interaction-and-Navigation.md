@@ -89,8 +89,9 @@ Commands that move the main-editor caret outside the selected table clear the se
   nested editor open while it stays in that cell. Drags beginning on editable content retain native text selection. When
   the pointer travels a short margin past the cell's border into another cell, ownership switches to rectangular cell
   selection with the active cell as its anchor; the margin keeps a graze past the border from converting the gesture.
-  After conversion, compatibility mouse-move events are withheld from the nested CodeMirror so its native selection
-  scrolling cannot compete with rectangular-selection auto-scroll; mouseup remains native for cleanup.
+  Conversion ends the nested editor's native text drag by dispatching one mouse move with no button held, which is
+  how CodeMirror tears down its own drag and the interval driving its edge scrolling; nothing is suppressed for the
+  rest of the gesture.
 - Shift+Arrow reopens the anchor editor when it contracts a multi-cell selection back to that one cell.
 - Links delegate to the content-script link opener and then to the main plugin.
 - Heading and footnote anchors scroll the main editor through `scrollToAnchor`.

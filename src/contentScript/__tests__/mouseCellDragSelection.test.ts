@@ -759,7 +759,7 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it('suppresses CodeMirror mouse dragging only after an active-editor drag becomes a cell selection', () => {
+    it('ends the nested text drag at conversion instead of silencing mouse moves', () => {
         const { view, cells } = mountGestureView();
         vi.spyOn(cells.body0, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 50, 20));
         view.dispatch({
@@ -768,45 +768,31 @@ describe('mouse cell drag selection', () => {
         const nestedContent = mountNestedEditorHost(cells.body0);
         nestedContent.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
 
-        const compatibilityTarget = document.createElement('div');
-        document.body.appendChild(compatibilityTarget);
-        const mouseMoveSpy = vi.fn();
-        const mouseUpSpy = vi.fn();
-        compatibilityTarget.addEventListener('mousemove', mouseMoveSpy);
-        compatibilityTarget.addEventListener('mouseup', mouseUpSpy);
-
-        const nativeTextMove = new MouseEvent('mousemove', {
-            bubbles: true,
-            cancelable: true,
-            buttons: 1,
+        // Stands in for CodeMirror's own drag handler, which ends its selection — and the
+        // interval driving its edge scrolling — on the first move with no button held.
+        const heldMoves: number[] = [];
+        const releasedMoves: number[] = [];
+        const documentMoves = vi.fn((event: MouseEvent) => {
+            (event.buttons === 0 ? releasedMoves : heldMoves).push(event.buttons);
         });
-        compatibilityTarget.dispatchEvent(nativeTextMove);
-        expect(nativeTextMove.defaultPrevented).toBe(false);
-        expect(mouseMoveSpy).toHaveBeenCalledTimes(1);
+        document.addEventListener('mousemove', documentMoves);
 
-        elementAtPoint = cells.body1;
-        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
-        expect(getCellSelection(view.state)).not.toBeNull();
+        try {
+            elementAtPoint = cells.body1;
+            document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
+            expect(getCellSelection(view.state)).not.toBeNull();
+            expect(releasedMoves).toEqual([0]);
 
-        const convertedDragMove = new MouseEvent('mousemove', {
-            bubbles: true,
-            cancelable: true,
-            buttons: 1,
-        });
-        compatibilityTarget.dispatchEvent(convertedDragMove);
-        expect(convertedDragMove.defaultPrevented).toBe(true);
-        expect(mouseMoveSpy).toHaveBeenCalledTimes(1);
+            // Unrelated listeners keep receiving moves for the rest of the drag.
+            const duringDrag = new MouseEvent('mousemove', { bubbles: true, cancelable: true, buttons: 1 });
+            document.dispatchEvent(duringDrag);
 
-        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 70, clientY: 10 }));
-        const cleanupMouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0 });
-        compatibilityTarget.dispatchEvent(cleanupMouseUp);
-        const moveAfterRelease = new MouseEvent('mousemove', { bubbles: true, cancelable: true, buttons: 0 });
-        compatibilityTarget.dispatchEvent(moveAfterRelease);
-
-        expect(cleanupMouseUp.defaultPrevented).toBe(false);
-        expect(mouseUpSpy).toHaveBeenCalledTimes(1);
-        expect(moveAfterRelease.defaultPrevented).toBe(false);
-        expect(mouseMoveSpy).toHaveBeenCalledTimes(2);
+            expect(duringDrag.defaultPrevented).toBe(false);
+            expect(heldMoves).toEqual([1]);
+            expect(releasedMoves).toEqual([0]);
+        } finally {
+            document.removeEventListener('mousemove', documentMoves);
+        }
     });
 
     it('hit-tests pointerup before active-editor teardown can reflow the table', () => {

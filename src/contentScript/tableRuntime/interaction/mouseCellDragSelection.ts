@@ -6,6 +6,7 @@ import { endCellDragSelection, setCellDragSelection } from '../selection/cellSel
 import { resolveTableContextAtPos } from '../tableResolution';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
+import { getViewWindow } from '../../shared/domContext';
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
@@ -62,21 +63,6 @@ class MouseCellDragSelectionController {
     private gesture: MouseCellGesture | null = null;
     private readonly autoScroller: CellDragAutoScroller;
 
-    /**
-     * CodeMirror's text-selection gesture is driven by compatibility mouse events.
-     * Once an active-editor drag becomes a cell selection, suppress that event stream
-     * so its native edge scrolling cannot compete with the table's auto-scroll loop.
-     */
-    private readonly onCompatibilityMouseMove = (event: MouseEvent): void => {
-        const gesture = this.gesture;
-        if (!gesture || gesture.origin !== 'activeEditor' || !gesture.dragged) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopImmediatePropagation();
-    };
-
     private readonly onPointerMove = (event: PointerEvent): void => {
         const gesture = this.gesture;
         if (!gesture || event.pointerId !== gesture.pointerId) {
@@ -112,6 +98,7 @@ class MouseCellDragSelectionController {
                 }
                 this.capturePointer(gesture);
                 flushNestedEditorState(this.view);
+                this.endNativeTextDrag(event);
             } else if (
                 distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) <
                 DRAG_START_DISTANCE_SQUARED
@@ -336,10 +323,29 @@ class MouseCellDragSelectionController {
         this.finishGesture();
         this.gesture = gesture;
         const doc = this.view.dom.ownerDocument;
-        doc.addEventListener('mousemove', this.onCompatibilityMouseMove, true);
         doc.addEventListener('pointermove', this.onPointerMove, true);
         doc.addEventListener('pointerup', this.onPointerUp, true);
         doc.addEventListener('pointercancel', this.onPointerCancel, true);
+    }
+
+    /**
+     * Ends CodeMirror's native text-selection drag in the cell the gesture started from.
+     *
+     * Its move handler tears the drag down on the first move with no button held, which also
+     * clears the interval driving its own edge scrolling. Starving that handler of events
+     * would leave the interval running, scrolling the cell against the table's auto-scroll.
+     */
+    private endNativeTextDrag(event: PointerEvent): void {
+        const win = getViewWindow(this.view) as Window & { MouseEvent?: typeof MouseEvent };
+        const MouseEventCtor = win.MouseEvent ?? MouseEvent;
+        this.view.dom.ownerDocument.dispatchEvent(
+            new MouseEventCtor('mousemove', {
+                bubbles: true,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                buttons: 0,
+            })
+        );
     }
 
     private capturePointer(gesture: MouseCellGesture | null): void {
@@ -363,7 +369,6 @@ class MouseCellDragSelectionController {
 
         this.gesture = null;
         const doc = this.view.dom.ownerDocument;
-        doc.removeEventListener('mousemove', this.onCompatibilityMouseMove, true);
         doc.removeEventListener('pointermove', this.onPointerMove, true);
         doc.removeEventListener('pointerup', this.onPointerUp, true);
         doc.removeEventListener('pointercancel', this.onPointerCancel, true);
