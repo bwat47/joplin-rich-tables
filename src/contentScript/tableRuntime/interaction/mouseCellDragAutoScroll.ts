@@ -22,6 +22,30 @@ export interface AutoScrollContext {
 }
 
 /**
+ * Vertical bounds of the band a drag scrolls toward, in client coordinates.
+ *
+ * CodeMirror scrolls internally on desktop, but the web app scrolls the page instead and lets
+ * `scrollDOM` grow to the full document height. Intersecting the two leaves the visible band
+ * either way: the desktop scroller already sits inside the window, so this returns its rect.
+ */
+export function resolveVerticalScrollBounds(view: EditorView): { top: number; bottom: number } {
+    const scrollRect = view.scrollDOM.getBoundingClientRect();
+    const viewWindow = getViewWindow(view);
+    const viewportHeight = viewWindow.visualViewport?.height ?? viewWindow.innerHeight;
+
+    return {
+        top: Math.max(scrollRect.top, 0),
+        bottom: Math.min(scrollRect.bottom, viewportHeight),
+    };
+}
+
+/** The element that scrolls the page when the editor does not scroll internally. */
+function getPageScroller(view: EditorView): HTMLElement | null {
+    const doc = view.dom.ownerDocument;
+    return (doc.scrollingElement ?? doc.documentElement) as HTMLElement | null;
+}
+
+/**
  * Returns edge-scroll intensity from -1 (toward the start edge) to 1 (toward
  * the end edge). Positions outside the range stay at full intensity.
  */
@@ -101,7 +125,7 @@ export class CellDragAutoScroller {
         const pointer = context.pointer();
         const widgetRect = context.widget.getBoundingClientRect();
         const tableRect = context.table.getBoundingClientRect();
-        const scrollRect = this.view.scrollDOM.getBoundingClientRect();
+        const verticalBounds = resolveVerticalScrollBounds(this.view);
 
         const horizontalIntensity = calculateEdgeScrollIntensity(
             pointer.x,
@@ -111,13 +135,13 @@ export class CellDragAutoScroller {
         );
         let verticalIntensity = calculateEdgeScrollIntensity(
             pointer.y,
-            scrollRect.top,
-            scrollRect.bottom,
+            verticalBounds.top,
+            verticalBounds.bottom,
             EDGE_SCROLL_ZONE_PX
         );
         if (
-            (verticalIntensity < 0 && tableRect.top >= scrollRect.top) ||
-            (verticalIntensity > 0 && tableRect.bottom <= scrollRect.bottom)
+            (verticalIntensity < 0 && tableRect.top >= verticalBounds.top) ||
+            (verticalIntensity > 0 && tableRect.bottom <= verticalBounds.bottom)
         ) {
             verticalIntensity = 0;
         }
@@ -129,10 +153,15 @@ export class CellDragAutoScroller {
         this.lastTimestamp = timestamp;
         const maxDelta = (EDGE_SCROLL_MAX_SPEED_PX_PER_SECOND * elapsedMs) / 1000;
 
-        // The widget is the table's horizontal scroller; the editor's scrollDOM is the vertical
-        // one. If either ever stops being scrollable, that axis simply reports no movement.
+        // The widget is the table's horizontal scroller. Vertically the editor's own scroller
+        // wins where it can move, and the page takes over where it cannot — which is every
+        // frame in the web app, whose editor does not scroll internally at all.
+        const verticalDelta = verticalIntensity * maxDelta;
+        const pageScroller = getPageScroller(this.view);
         const didScrollHorizontally = applyScrollDelta(context.widget, 'horizontal', horizontalIntensity * maxDelta);
-        const didScrollVertically = applyScrollDelta(this.view.scrollDOM, 'vertical', verticalIntensity * maxDelta);
+        const didScrollVertically =
+            applyScrollDelta(this.view.scrollDOM, 'vertical', verticalDelta) ||
+            (pageScroller !== null && applyScrollDelta(pageScroller, 'vertical', verticalDelta));
         if (!didScrollHorizontally && !didScrollVertically) {
             this.lastTimestamp = null;
             return;

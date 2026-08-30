@@ -80,7 +80,8 @@ Commands that move the main-editor caret outside the selected table clear the se
 - Clicking a cell activates it or updates the current multi-cell selection.
 - Dragging from one cell to another with a desktop mouse creates a rectangular selection. A movement threshold keeps
   ordinary clicks distinct from drags. Touch and pen pointers retain native scrolling/tap behaviour and do not start
-  drag selection. Holding a cell drag near an edge auto-scrolls the table horizontally or the editor vertically;
+  drag selection. Holding a cell drag near an edge auto-scrolls the table horizontally, and vertically scrolls the
+  editor where it scrolls internally or the page where it does not (the web app);
   releasing a drag back over its anchor opens that cell's editor. A completed rectangular selection focuses the main
   editor on release so its keyboard and clipboard commands work even when focus started outside the editor.
 - Once a gesture becomes a rectangular selection it records itself in `cellDragField` until release. See
