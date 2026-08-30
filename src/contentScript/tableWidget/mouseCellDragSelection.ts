@@ -79,6 +79,21 @@ function applyScrollDelta(element: HTMLElement, axis: 'horizontal' | 'vertical',
 class MouseCellDragSelectionController {
     private gesture: MouseCellGesture | null = null;
 
+    /**
+     * CodeMirror's text-selection gesture is driven by compatibility mouse events.
+     * Once an active-editor drag becomes a cell selection, suppress that event stream
+     * so its native edge scrolling cannot compete with the table's auto-scroll loop.
+     */
+    private readonly onCompatibilityMouseMove = (event: MouseEvent): void => {
+        const gesture = this.gesture;
+        if (!gesture || gesture.origin !== 'activeEditor' || !gesture.dragged) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    };
+
     private readonly onPointerMove = (event: PointerEvent): void => {
         const gesture = this.gesture;
         if (!gesture || event.pointerId !== gesture.pointerId) {
@@ -427,6 +442,7 @@ class MouseCellDragSelectionController {
         this.finishGesture();
         this.gesture = gesture;
         const doc = this.view.dom.ownerDocument;
+        doc.addEventListener('mousemove', this.onCompatibilityMouseMove, true);
         doc.addEventListener('pointermove', this.onPointerMove, true);
         doc.addEventListener('pointerup', this.onPointerUp, true);
         doc.addEventListener('pointercancel', this.onPointerCancel, true);
@@ -452,6 +468,7 @@ class MouseCellDragSelectionController {
 
         this.gesture = null;
         const doc = this.view.dom.ownerDocument;
+        doc.removeEventListener('mousemove', this.onCompatibilityMouseMove, true);
         doc.removeEventListener('pointermove', this.onPointerMove, true);
         doc.removeEventListener('pointerup', this.onPointerUp, true);
         doc.removeEventListener('pointercancel', this.onPointerCancel, true);

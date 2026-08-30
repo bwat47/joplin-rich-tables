@@ -690,6 +690,56 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
+    it('suppresses CodeMirror mouse dragging only after an active-editor drag becomes a cell selection', () => {
+        const { view, cells } = mountGestureView();
+        vi.spyOn(cells.body0, 'getBoundingClientRect').mockReturnValue(makeRect(0, 0, 50, 20));
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        const nestedContent = mountNestedEditorHost(cells.body0);
+        nestedContent.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+
+        const compatibilityTarget = document.createElement('div');
+        document.body.appendChild(compatibilityTarget);
+        const mouseMoveSpy = vi.fn();
+        const mouseUpSpy = vi.fn();
+        compatibilityTarget.addEventListener('mousemove', mouseMoveSpy);
+        compatibilityTarget.addEventListener('mouseup', mouseUpSpy);
+
+        const nativeTextMove = new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            buttons: 1,
+        });
+        compatibilityTarget.dispatchEvent(nativeTextMove);
+        expect(nativeTextMove.defaultPrevented).toBe(false);
+        expect(mouseMoveSpy).toHaveBeenCalledTimes(1);
+
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { button: 0, clientX: 70, clientY: 10 }));
+        expect(getCellSelection(view.state)).not.toBeNull();
+
+        const convertedDragMove = new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            buttons: 1,
+        });
+        compatibilityTarget.dispatchEvent(convertedDragMove);
+        expect(convertedDragMove.defaultPrevented).toBe(true);
+        expect(mouseMoveSpy).toHaveBeenCalledTimes(1);
+
+        document.dispatchEvent(pointerEvent('pointerup', { button: 0, clientX: 70, clientY: 10 }));
+        const cleanupMouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0 });
+        compatibilityTarget.dispatchEvent(cleanupMouseUp);
+        const moveAfterRelease = new MouseEvent('mousemove', { bubbles: true, cancelable: true, buttons: 0 });
+        compatibilityTarget.dispatchEvent(moveAfterRelease);
+
+        expect(cleanupMouseUp.defaultPrevented).toBe(false);
+        expect(mouseUpSpy).toHaveBeenCalledTimes(1);
+        expect(moveAfterRelease.defaultPrevented).toBe(false);
+        expect(mouseMoveSpy).toHaveBeenCalledTimes(2);
+    });
+
     it('hit-tests pointerup before active-editor teardown can reflow the table', () => {
         const { view, cells } = mountGestureView();
         view.dispatch({
