@@ -19,6 +19,7 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
 import { cellSelectionCaretSuppression, cellSelectionVisuals } from './cellSelectionVisuals';
 import { tableSelectionHighlight } from './tableSelectionHighlight';
@@ -144,6 +145,7 @@ async function registerTableWidgetExtension(
         cellSelectionKeyCapturePlugin,
         cellSelectionScopeGuard,
         cellSelectionClipboardPlugin,
+        cellSelectionFocusPlugin,
         cellSelectionVisuals,
         cellSelectionCaretSuppression,
         tableSelectionHighlight,

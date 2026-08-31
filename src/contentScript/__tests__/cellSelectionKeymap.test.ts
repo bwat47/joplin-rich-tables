@@ -15,6 +15,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
 import {
+    cellSelectionFocusPlugin,
     setCellDragSelection,
     startCellSelectionFromActiveCell,
 } from '../tableRuntime/selection/cellSelectionController';
@@ -30,6 +31,13 @@ const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |',
 
 const mountedViews: EditorView[] = [];
 
+/** Waits for CodeMirror's measure cycle, which it schedules on an animation frame. */
+function flushMeasure(): Promise<void> {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => resolve());
+    });
+}
+
 function mountSelectionView(doc: string): EditorView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
@@ -43,6 +51,7 @@ function mountSelectionView(doc: string): EditorView {
             cellSelectionField,
             cellDragField,
             cellSelectionKeyCapturePlugin,
+            cellSelectionFocusPlugin,
         ],
         doc,
     });
@@ -580,9 +589,9 @@ describe('cellSelectionKeymap', () => {
         expect(focusSpy).toHaveBeenCalled();
     });
 
-    it('leaves focus with the anchor cell while a drag is still running', () => {
-        // The drag keeps that cell's editor open for the length of the gesture and hands focus
-        // over on release; taking it here would tear the editor down mid-gesture.
+    it('leaves focus alone while a drag is still running', () => {
+        // A drag does not disturb whatever had focus until the rectangle is final, and hands
+        // focus over itself on release.
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         const focusSpy = vi.spyOn(view, 'focus');
 
@@ -590,6 +599,25 @@ describe('cellSelectionKeymap', () => {
             setCellDragSelection(view, 0, { section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
         ).toBe(true);
         expect(focusSpy).not.toHaveBeenCalled();
+    });
+
+    it('takes focus for a cell selection created outside the controller', async () => {
+        // A paste inside a cell editor becomes a multi-cell paste in a transaction filter, which
+        // has no view to focus with, so the selection arrives with focus on the document body.
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        const focusSpy = vi.spyOn(view, 'focus');
+
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+        expect(focusSpy).not.toHaveBeenCalled();
+
+        await flushMeasure();
+        expect(focusSpy).toHaveBeenCalled();
     });
 
     it('does not start cell selection from a stale active cell', () => {

@@ -1,6 +1,7 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { cellSelectionField, getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
+import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import {
     CELL_TAGS,
     CLASS_CELL_SELECTED,
@@ -54,10 +55,35 @@ const selectedCells = (pseudo = ''): string =>
  */
 const cellSelectionFillTheme = EditorView.baseTheme(selectedCellRules(selectedCells));
 
+/** Marks the editor root while a cell drag is sweeping out a rectangle. */
+const ATTR_CELL_DRAG = 'data-rt-cell-drag';
+
+/**
+ * Keeps a rectangle being dragged out looking focused.
+ *
+ * The fill follows the editor's focus (`richTableThemeVars.ts`), and a drag deliberately leaves
+ * whatever had focus alone until the rectangle is final — an editor in another table, or
+ * something outside the editor entirely — so the selection the user is actively dragging would
+ * otherwise render unfocused, and snap to focused on release. A gesture in progress is as focused
+ * as a selection gets, whatever the DOM says.
+ */
+const cellDragFocusOverride: Extension = [
+    EditorView.editorAttributes.compute([cellDragField], (state): Record<string, string> =>
+        isCellDragInProgress(state) ? { [ATTR_CELL_DRAG]: '' } : {}
+    ),
+    EditorView.baseTheme({
+        [`&[${ATTR_CELL_DRAG}]`]: {
+            '--rt-tint': 'var(--rt-tint-focused)',
+            '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
+        } as Record<string, string>,
+    }),
+];
+
 /** Multi-cell selection visuals: the class on each selected cell, and the fill it carries. */
 export const cellSelectionVisuals: Extension = [
     measuredClassSyncPlugin(CLASS_CELL_SELECTED, collectSelectedCells),
     cellSelectionFillTheme,
+    cellDragFocusOverride,
 ];
 
 /**

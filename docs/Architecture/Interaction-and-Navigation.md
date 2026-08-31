@@ -84,8 +84,14 @@ Creating a selection also hands focus to the main editor, which owns its keyboar
 commands. Every gesture that starts one suppresses the browser's own focusing — shift-click
 preventDefaults its mousedown, and a keyboard selection tears down the nested editor that held focus
 — so without this focus would sit on the document body, and the selection would render as unfocused.
-A running drag is the exception: it keeps its anchor cell's editor open for the length of the
-gesture and hands focus over on release.
+`cellSelectionController.ts` does this as it dispatches; `cellSelectionFocusPlugin` catches the
+selections it does not create, such as the multi-cell paste a transaction filter rewrites a
+cell-editor paste into, which has no view to focus with.
+
+A running drag is the exception: it leaves whatever had focus alone — a cell editor in another
+table, or something outside the editor entirely — until the rectangle is final, and hands focus over
+on release. So that the rectangle being dragged does not render unfocused and then snap, a drag in
+progress asserts the focused tint for itself, in `tableWidget/cellSelectionVisuals.ts`.
 
 ### Whole-Table Selection
 

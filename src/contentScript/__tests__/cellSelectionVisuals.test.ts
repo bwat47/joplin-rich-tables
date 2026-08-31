@@ -7,7 +7,8 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { cellSelectionCaretSuppression } from '../tableWidget/cellSelectionVisuals';
+import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
+import { cellSelectionCaretSuppression, cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC = `above\n${TABLE}\nbelow`;
@@ -22,7 +23,13 @@ function mountView(): EditorView {
     const view = new EditorView({
         parent,
         doc: DOC,
-        extensions: [markdown({ extensions: [GFM] }), cellSelectionField, cellSelectionCaretSuppression],
+        extensions: [
+            markdown({ extensions: [GFM] }),
+            cellSelectionField,
+            cellDragField,
+            cellSelectionCaretSuppression,
+            cellSelectionVisuals,
+        ],
     });
     mountedViews.push(view);
 
@@ -52,5 +59,29 @@ describe('cellSelectionCaretSuppression', () => {
 
         view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
         expect(view.dom.hasAttribute('data-rt-cell-selection')).toBe(false);
+    });
+});
+
+describe('cell drag focus override', () => {
+    it('marks the editor while a drag sweeps out a rectangle and unmarks it afterwards', () => {
+        // The fill follows the editor's focus, but a drag leaves focus wherever it was until the
+        // rectangle is final — so the gesture in progress has to assert focus for itself.
+        const view = mountView();
+        // A drag cannot outlive the selection it is sweeping out, so it only reads as in progress
+        // alongside one.
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: TABLE_FROM,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+        expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
+
+        view.dispatch({ effects: startCellDragEffect.of(undefined) });
+        expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(true);
+
+        view.dispatch({ effects: endCellDragEffect.of(undefined) });
+        expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
     });
 });
