@@ -149,6 +149,80 @@ describe('resolveClickCursorPos', () => {
         );
     });
 
+    it('excludes raw-HTML tags when aligning their visible text', () => {
+        const doc = ['', '| H1 |', '| --- |', '| <code>code</code> |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'code', renderedOffset: 2 })).toBe(
+            '<code>co|de</code>'
+        );
+    });
+
+    it('excludes raw-HTML attributes when aligning identical visible text', () => {
+        const doc = ['', '| H1 |', '| --- |', '| <span title="hello">hello</span> |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'hello', renderedOffset: 2 })).toBe(
+            '<span title="hello">he|llo</span>'
+        );
+    });
+
+    it('excludes HTML comments when aligning later visible text', () => {
+        const doc = ['', '| H1 |', '| --- |', '| <!--hello-->hello |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'hello', renderedOffset: 2 })).toBe(
+            '<!--hello-->he|llo'
+        );
+    });
+
+    it('excludes HTML processing instructions when aligning later visible text', () => {
+        const doc = ['', '| H1 |', '| --- |', '| <?pi hello?>hello |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'hello', renderedOffset: 2 })).toBe(
+            '<?pi hello?>he|llo'
+        );
+    });
+
+    it('keeps tag-shaped inline code and autolinks available to alignment', () => {
+        const inlineCodeDoc = ['', '| H1 |', '| --- |', '| `<code>code</code>` |', ''].join('\n');
+        const autolinkDoc = ['', '| H1 |', '| --- |', '| <https://example.com> |', ''].join('\n');
+
+        expect(
+            placement(
+                inlineCodeDoc,
+                { section: 'body', row: 0, col: 0 },
+                {
+                    renderedText: '<code>code</code>',
+                    renderedOffset: 8,
+                }
+            )
+        ).toBe('`<code>co|de</code>`');
+        expect(
+            placement(
+                autolinkDoc,
+                { section: 'body', row: 0, col: 0 },
+                {
+                    renderedText: 'https://example.com',
+                    renderedOffset: 8,
+                }
+            )
+        ).toBe('<https://|example.com>');
+    });
+
+    it('maps excluded HTML ranges through an earlier escaped pipe', () => {
+        const doc = ['', '| H1 |', '| --- |', '| a \\| <code>code</code> |', ''].join('\n');
+
+        expect(
+            placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'a | code', renderedOffset: 6 })
+        ).toBe('a | <code>co|de</code>');
+    });
+
+    it('maps excluded HTML ranges through an earlier line break', () => {
+        const doc = ['', '| H1 |', '| --- |', '| one<br><code>code</code> |', ''].join('\n');
+
+        expect(
+            placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'one\ncode', renderedOffset: 6 })
+        ).toBe('one\n<code>co|de</code>');
+    });
+
     it('mirrors the main selection when the press produced no caret', () => {
         expect(placement(CANONICAL_DOC, boldCell, null)).toBe('<mirrored>');
     });

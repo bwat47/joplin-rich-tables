@@ -44,9 +44,33 @@ export interface TextAlignment {
     readonly matchedRatio: number;
 }
 
+/** Half-open source range whose characters must not be used as alignment anchors. */
+export interface ExcludedSourceRange {
+    from: number;
+    to: number;
+}
+
+function excludedSourcePositions(sourceLength: number, ranges: readonly ExcludedSourceRange[]): Uint8Array | null {
+    if (ranges.length === 0) {
+        return null;
+    }
+
+    const excluded = new Uint8Array(sourceLength);
+    for (const range of ranges) {
+        const from = Math.max(0, Math.min(range.from, sourceLength));
+        const to = Math.max(from, Math.min(range.to, sourceLength));
+        excluded.fill(1, from, to);
+    }
+    return excluded;
+}
+
 /** Character to ascending list of positions, so block matching can skip non-candidates. */
-function indexCharacterPositions(source: string, excluded?: Uint8Array): Map<string, number[]> {
+function indexCharacterPositions(
+    source: string,
+    excludedRanges: readonly ExcludedSourceRange[]
+): Map<string, number[]> {
     const positions = new Map<string, number[]>();
+    const excluded = excludedSourcePositions(source.length, excludedRanges);
     for (let i = 0; i < source.length; i++) {
         if (excluded?.[i]) {
             continue;
@@ -60,113 +84,6 @@ function indexCharacterPositions(source: string, excluded?: Uint8Array): Map<str
         }
     }
     return positions;
-}
-
-/** Whether `character` can start an HTML tag name, e.g. the `s` in `<span>`. */
-function isAsciiLetter(character: string | undefined): boolean {
-    if (!character) {
-        return false;
-    }
-    const code = character.charCodeAt(0);
-    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
-}
-
-/** Whether `character` can continue an HTML tag name, including custom elements such as `x-note`. */
-function isHtmlTagNameCharacter(character: string | undefined): boolean {
-    if (!character) {
-        return false;
-    }
-    const code = character.charCodeAt(0);
-    return isAsciiLetter(character) || (code >= 48 && code <= 57) || character === '-';
-}
-
-/** A tag name must be followed by whitespace, `/>`, or `>`; this excludes autolinks such as `<https://x>`. */
-function isHtmlTagNameBoundary(character: string | undefined): boolean {
-    return character !== undefined && (/\s/.test(character) || character === '/' || character === '>');
-}
-
-/** Finds a closing `>` without mistaking one inside a quoted attribute value for the end of the tag. */
-function findTagEnd(source: string, from: number): number {
-    let quote: '"' | "'" | null = null;
-    for (let i = from; i < source.length; i++) {
-        const character = source[i];
-        if (quote) {
-            if (character === quote) {
-                quote = null;
-            }
-        } else if (character === '"' || character === "'") {
-            quote = character;
-        } else if (character === '>') {
-            return i + 1;
-        }
-    }
-    return -1;
-}
-
-/** Returns the exclusive end of an HTML token at `from`, or -1 when `<` starts ordinary text such as an autolink. */
-function rawHtmlTokenEnd(source: string, from: number): number {
-    if (source.startsWith('<!--', from)) {
-        const close = source.indexOf('-->', from + 4);
-        return close < 0 ? -1 : close + 3;
-    }
-    if (source.startsWith('<![CDATA[', from)) {
-        const close = source.indexOf(']]>', from + 9);
-        return close < 0 ? -1 : close + 3;
-    }
-    if (source.startsWith('<?', from)) {
-        const close = source.indexOf('?>', from + 2);
-        return close < 0 ? -1 : close + 2;
-    }
-    if (source.startsWith('<!', from)) {
-        return findTagEnd(source, from + 2);
-    }
-
-    let cursor = from + 1;
-    if (source[cursor] === '/') {
-        cursor++;
-    }
-    if (!isAsciiLetter(source[cursor])) {
-        return -1;
-    }
-    cursor++;
-    while (isHtmlTagNameCharacter(source[cursor])) {
-        cursor++;
-    }
-    if (!isHtmlTagNameBoundary(source[cursor])) {
-        return -1;
-    }
-
-    return findTagEnd(source, cursor);
-}
-
-/**
- * Marks probable raw-HTML syntax so visible text prefers the occurrence between tags over an
- * identical tag name, attribute value, or comment that appears earlier in the source.
- *
- * The caller compares this preferred alignment with an unrestricted one. That preserves
- * literal tags rendered by code spans, where excluding the tag-shaped source would lose
- * matches, while fixing raw HTML such as `<code>code</code>`.
- */
-function rawHtmlSyntaxMask(source: string): Uint8Array | null {
-    let mask: Uint8Array | null = null;
-    let i = 0;
-    while (i < source.length) {
-        if (source[i] !== '<') {
-            i++;
-            continue;
-        }
-
-        const to = rawHtmlTokenEnd(source, i);
-        if (to < 0) {
-            i++;
-            continue;
-        }
-
-        mask ??= new Uint8Array(source.length);
-        mask.fill(1, i, to);
-        i = to;
-    }
-    return mask;
 }
 
 /**
@@ -249,10 +166,17 @@ function collectMatchingBlocks(
 /**
  * Aligns rendered text back onto the source it came from.
  *
+ * Characters inside `excludedRanges` cannot anchor a match. Callers use this for syntax that
+ * may duplicate visible text, such as an HTML tag name or attribute value.
+ *
  * Returns null when either side is longer than {@link MAX_ALIGNMENT_LENGTH}; callers treat
  * that as "no better placement is available" rather than as an error.
  */
-export function alignRenderedToSource(rendered: string, source: string): TextAlignment | null {
+export function alignRenderedToSource(
+    rendered: string,
+    source: string,
+    excludedRanges: readonly ExcludedSourceRange[] = []
+): TextAlignment | null {
     if (rendered.length > MAX_ALIGNMENT_LENGTH || source.length > MAX_ALIGNMENT_LENGTH) {
         return null;
     }
@@ -262,33 +186,20 @@ export function alignRenderedToSource(rendered: string, source: string): TextAli
         return { toSource: new Int32Array(), matchedRatio: 1 };
     }
 
-    const align = (excluded?: Uint8Array): TextAlignment => {
-        const toSource = new Int32Array(rendered.length).fill(-1);
-        let matched = 0;
-        for (const block of collectMatchingBlocks(rendered, indexCharacterPositions(source, excluded), source.length)) {
-            for (let k = 0; k < block.length; k++) {
-                toSource[block.renderedFrom + k] = block.sourceFrom + k;
-            }
-            matched += block.length;
+    const toSource = new Int32Array(rendered.length).fill(-1);
+    let matched = 0;
+    for (const block of collectMatchingBlocks(
+        rendered,
+        indexCharacterPositions(source, excludedRanges),
+        source.length
+    )) {
+        for (let k = 0; k < block.length; k++) {
+            toSource[block.renderedFrom + k] = block.sourceFrom + k;
         }
-
-        return { toSource, matchedRatio: matched / rendered.length };
-    };
-
-    const syntaxMask = rawHtmlSyntaxMask(source);
-    if (!syntaxMask) {
-        return align();
+        matched += block.length;
     }
 
-    // Prefer matches outside raw-HTML syntax when that does not sacrifice any rendered text.
-    // If the source contains tag-shaped literal code, the unrestricted alignment wins instead.
-    const preferred = align(syntaxMask);
-    if (preferred.matchedRatio === 1) {
-        return preferred;
-    }
-
-    const unrestricted = align();
-    return preferred.matchedRatio >= unrestricted.matchedRatio ? preferred : unrestricted;
+    return { toSource, matchedRatio: matched / rendered.length };
 }
 
 /**

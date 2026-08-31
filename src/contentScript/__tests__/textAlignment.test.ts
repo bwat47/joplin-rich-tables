@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { alignRenderedToSource, mapCaretToSource } from '../shared/textAlignment';
+import { alignRenderedToSource, mapCaretToSource, type ExcludedSourceRange } from '../shared/textAlignment';
 
 /**
  * Maps a caret in rendered text back to its source offset, expressed as the source split
  * at that point so failures read as text rather than as an integer mismatch.
  */
-function place(rendered: string, source: string, caret: number): string {
-    const alignment = alignRenderedToSource(rendered, source);
+function place(
+    rendered: string,
+    source: string,
+    caret: number,
+    excludedRanges: readonly ExcludedSourceRange[] = []
+): string {
+    const alignment = alignRenderedToSource(rendered, source, excludedRanges);
     if (!alignment) {
         throw new Error('expected an alignment');
     }
@@ -41,16 +46,13 @@ describe('alignRenderedToSource', () => {
         expect(place('code', '`code`', 2)).toBe('`co|de`');
     });
 
-    it('does not align visible raw-HTML text to an identical opening tag', () => {
-        expect(place('code', '<code>code</code>', 2)).toBe('<code>co|de</code>');
-    });
-
-    it('does not align visible raw-HTML text to an identical attribute value', () => {
-        expect(place('hello', '<span title="hello">hello</span>', 2)).toBe('<span title="hello">he|llo</span>');
-    });
-
-    it('does not align visible text to an earlier HTML comment', () => {
-        expect(place('hello', '<!--hello-->hello', 2)).toBe('<!--hello-->he|llo');
+    it('does not use excluded source ranges as alignment anchors', () => {
+        expect(
+            place('code', '<code>code</code>', 2, [
+                { from: 0, to: 6 },
+                { from: 10, to: 17 },
+            ])
+        ).toBe('<code>co|de</code>');
     });
 
     it('still aligns tag-shaped text rendered literally by an inline code span', () => {

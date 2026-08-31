@@ -1,7 +1,8 @@
 import type { EditorState } from '@codemirror/state';
-import { unsanitizeRootText } from '../../editorBridge/cellTextCodec';
+import { syntaxTree } from '@codemirror/language';
+import { toLocalSelection, unsanitizeRootText } from '../../editorBridge/cellTextCodec';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
-import { alignRenderedToSource, mapCaretToSource } from '../../shared/textAlignment';
+import { alignRenderedToSource, mapCaretToSource, type ExcludedSourceRange } from '../../shared/textAlignment';
 import type { RenderedCaretHit } from '../../tableWidget/cellCaretHit';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
@@ -20,6 +21,47 @@ import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
  * "recognisably the same text", not a tuned threshold.
  */
 const MIN_MATCHED_RATIO = 0.5;
+
+/** Markdown syntax whose source text is absent from the rendered cell. */
+const EXCLUDED_SOURCE_NODE_NAMES = new Set(['HTMLTag', 'Comment', 'ProcessingInstruction']);
+
+/**
+ * Raw-HTML syntax ranges in the coordinates of the text the nested editor opens.
+ *
+ * CodeMirror already distinguishes real HTML from tag-shaped inline code and autolinks, so
+ * these ranges are more precise than recognising HTML-shaped strings a second time. Root-cell
+ * ranges are projected through the same pipe and line-break decoding as the nested text.
+ */
+function excludedSourceRanges(
+    state: EditorState,
+    resolvedCell: ResolvedActiveCell,
+    rootText: string,
+    localText: string
+): ExcludedSourceRange[] {
+    const ranges: ExcludedSourceRange[] = [];
+    syntaxTree(state).iterate({
+        from: resolvedCell.editableFrom,
+        to: resolvedCell.editableTo,
+        enter: (node) => {
+            if (!EXCLUDED_SOURCE_NODE_NAMES.has(node.name)) {
+                return;
+            }
+
+            const rootFrom = Math.max(node.from, resolvedCell.editableFrom) - resolvedCell.editableFrom;
+            const rootTo = Math.min(node.to, resolvedCell.editableTo) - resolvedCell.editableFrom;
+            const localRange = toLocalSelection({ anchor: rootFrom, head: rootTo }, rootText);
+            const from = Math.min(localRange.anchor, localRange.head);
+            const to = Math.max(localRange.anchor, localRange.head);
+
+            // `<br>` is HTML syntax in the table source but a real newline in the nested editor
+            // and rendered-text index, so it must remain available as an alignment anchor.
+            if (from < to && localText.slice(from, to) !== '\n') {
+                ranges.push({ from, to });
+            }
+        },
+    });
+    return ranges;
+}
 
 /**
  * Resolves the caret placement for a press on `resolvedCell`.
@@ -43,7 +85,8 @@ export function resolveClickCursorPos(
 
     // The nested editor opens on the unsanitized cell text, so aligning against that text
     // yields an offset in the coordinates the placement is applied in - no further mapping.
-    const localText = unsanitizeRootText(state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo));
+    const rootText = state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo);
+    const localText = unsanitizeRootText(rootText);
     if (hit.renderedText.length === 0 && localText.length > 0) {
         // Images and skipped MathML contribute no rendered text. Their sole flattened offset
         // cannot distinguish a press before the content from one after it, so keep the established
@@ -51,7 +94,11 @@ export function resolveClickCursorPos(
         return undefined;
     }
 
-    const alignment = alignRenderedToSource(hit.renderedText, localText);
+    const alignment = alignRenderedToSource(
+        hit.renderedText,
+        localText,
+        excludedSourceRanges(state, resolvedCell, rootText, localText)
+    );
     if (!alignment || alignment.matchedRatio < MIN_MATCHED_RATIO) {
         return undefined;
     }

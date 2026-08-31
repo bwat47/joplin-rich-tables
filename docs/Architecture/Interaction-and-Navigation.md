@@ -82,8 +82,8 @@ Moving the main-editor caret outside the selected table clears table-owned selec
 A click on a rendered cell opens it with the caret at the clicked point in the Markdown source, so clicking inside a
 bolded word lands between the same two letters once the syntax is visible.
 
-Joplin's `renderMarkup` cannot help with this: its source map (`MdToHtml/rules/source_map.ts`) annotates block-level
-tokens with line numbers only, and a cell is one line. The mapping is instead recovered by aligning text.
+Joplin's `renderMarkup` accepts `mapsToLine`, but the emitted map (`MdToHtml/rules/source_map.ts`) annotates
+block-level tokens with line numbers only, and a cell is one line. The mapping is instead recovered by aligning text.
 
 1. `tableWidget/cellCaretHit.ts` hit-tests the press against the rendered content and flattens that content into the
    text a reader sees, counting `<br>` as the newline it stands for and skipping MathML, whose text transcribes the
@@ -91,8 +91,9 @@ tokens with line numbers only, and a cell is one line. The mapping is instead re
 2. `shared/textAlignment.ts` aligns that text against the cell's own text. Rendering only removes characters, so the
    rendered text is a subsequence of its source for the inline constructs cells contain. Alignment uses `difflib`'s
    recursive longest-matching-block scheme rather than a plain LCS, which is free to scatter its matches across a
-   URL or a repeated word. Matches outside probable raw-HTML tokens win ties, preventing visible text from mapping
-   into a tag or attribute; unrestricted matching remains available for tag-shaped text rendered literally.
+   URL or a repeated word. The runtime excludes raw-HTML tag, comment and processing-instruction ranges identified
+   by CodeMirror's Markdown syntax tree, preventing visible text from mapping into raw-HTML syntax without mistaking
+   inline code or autolinks for HTML.
 3. `tableRuntime/interaction/clickCursorPlacement.ts` converts the aligned offset into an `InitialCursorPos`.
 
 The press is read at pointerdown, before the open request replaces the rendered content, and carried on the gesture
