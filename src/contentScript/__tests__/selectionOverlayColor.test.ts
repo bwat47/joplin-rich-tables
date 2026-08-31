@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { alphaEquivalentLayer, parseHexColor, toCssColor, type Rgb } from '../tableWidget/selectionOverlayColor';
+import {
+    alphaEquivalentLayer,
+    parseHexColor,
+    toPercentageCss,
+    toRgbCss,
+    type Rgb,
+} from '../tableWidget/selectionOverlayColor';
 
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 
@@ -58,7 +64,9 @@ describe('alphaEquivalentLayer', () => {
         expect(alphaEquivalentLayer(WHITE, WHITE)).toEqual({ color: WHITE, alpha: 0 });
     });
 
-    it('renders as a CSS rgba colour', () => {
-        expect(toCssColor({ color: { r: 18, g: 0, b: 166 }, alpha: 0.1686 })).toBe('rgba(18, 0, 166, 0.1686)');
+    it('renders the colour and its alpha as separate CSS values', () => {
+        expect(toRgbCss({ r: 18, g: 0, b: 166 })).toBe('rgb(18, 0, 166)');
+        expect(toPercentageCss(0.1687)).toBe('16.87%');
+        expect(toPercentageCss(0.15)).toBe('15%');
     });
 });

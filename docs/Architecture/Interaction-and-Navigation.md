@@ -94,7 +94,11 @@ because rows and columns are the multi-cell selection's job.
 - `tableWidget/selectionOverlayColor.ts` solves for that overlay: the faintest layer that reproduces the selection
   colour on the painted ground. Being faint and of the opposite tone to the text, it recolours every surface at the
   ground's tone exactly while leaving the text legible — where the selection colour at some chosen alpha would wash
-  the text out and still not reach the opaque surfaces.
+  the text out and still not reach the opaque surfaces. The layer's colour and alpha are published separately, so the
+  same tint can be laid over a base an overlay cannot physically cover: the cell borders take it through their
+  colour, since `border-collapse` shares each inner one and an overlay grown to reach them would darken those twice.
+  Untinted they all but vanish, the divider colour being a light grey chosen to read on the editor background rather
+  than on the darker selection ground.
 - Painting the block ourselves also decouples the highlight from `drawSelection`, whose rects around a selected table
   are unreliable — it measures through `coordsAtPos`, which `TableWidget.coordsAt` answers with cell rectangles. The
   browser's native `::selection` is suppressed inside a widget for the same reason: `drawSelection` only neutralizes

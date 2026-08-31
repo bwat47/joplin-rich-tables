@@ -15,6 +15,8 @@ const CHANNEL_MAX = 255;
 const HEX_COLOR_PATTERN = /^#([0-9a-f]{6})$/i;
 /** Alpha is rounded up at this precision so no channel is pushed back out of range. */
 const ALPHA_PRECISION = 10_000;
+/** Decimal places kept when an alpha is written as a percentage. */
+const PERCENTAGE_DECIMALS = 2;
 
 /**
  * Parses a `#rrggbb` colour.
@@ -91,8 +93,19 @@ export function alphaEquivalentLayer(target: Rgb, ground: Rgb): AlphaLayer {
     };
 }
 
-/** Renders a layer as a CSS `rgba()` colour. */
-export function toCssColor(layer: AlphaLayer): string {
-    const { color, alpha } = layer;
-    return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+/**
+ * Renders a layer's opaque colour and its alpha separately, as CSS.
+ *
+ * Kept apart rather than combined into one `rgba()` so the pair can be laid over more than one
+ * base: `color-mix()` takes the colour at the alpha as a percentage, which composites it over
+ * transparency to give the layer itself, or over an opaque colour to give what that colour looks
+ * like beneath the layer.
+ */
+export function toRgbCss(color: Rgb): string {
+    return `rgb(${color.r}, ${color.g}, ${color.b})`;
+}
+
+/** Renders an alpha as a CSS percentage, for the second half of a `color-mix()`. */
+export function toPercentageCss(alpha: number): string {
+    return `${Number((alpha * 100).toFixed(PERCENTAGE_DECIMALS))}%`;
 }

@@ -75,11 +75,11 @@ const CELL_TAGS = ['td', 'th'] as const;
  * The coordinate attributes keep it off `td`/`th` belonging to a raw HTML table inside a cell's
  * rendered Markdown, which is content the highlight passes over rather than chrome it owns.
  */
-function selectedCells(options: { scope?: string; pseudo?: string } = {}): string {
-    const { scope = '', pseudo = '' } = options;
+function selectedCells(options: { pseudo?: string } = {}): string {
+    const { pseudo = '' } = options;
 
     return CELL_TAGS.map(
-        (tag) => `${scope}${SELECTED_WIDGET} .${CLASS_TABLE_WIDGET_TABLE} ${tag}${CELL_COORDS_ATTRIBUTES}${pseudo}`
+        (tag) => `${SELECTED_WIDGET} .${CLASS_TABLE_WIDGET_TABLE} ${tag}${CELL_COORDS_ATTRIBUTES}${pseudo}`
     ).join(', ');
 }
 
@@ -101,6 +101,16 @@ const NATIVE_SELECTION_RESET = {
 };
 
 /**
+ * Lays the selection tint over `base`.
+ *
+ * `--rt-tint`/`--rt-tint-alpha` describe one layer (see `selectionOverlayColor.ts`), and
+ * `color-mix` composites it over whatever it is given: over transparency it is the layer itself,
+ * over an opaque colour it is what that colour looks like beneath the layer. That second form is
+ * how surfaces the overlay cannot physically cover still get tinted with it.
+ */
+const tinted = (base: string): string => `color-mix(in srgb, var(--rt-tint) var(--rt-tint-alpha), ${base})`;
+
+/**
  * Paints a table the main editor's selection covers as one selected block.
  *
  * Three layers, because a rendered table has surfaces CodeMirror's own selection background can
@@ -110,22 +120,24 @@ const NATIVE_SELECTION_RESET = {
  * 1. The widget root takes the selection colour outright. It is the block box, so this covers
  *    the widget's padding and the strip beside a narrow table, and being a background rather
  *    than a positioned layer it stays put when a wide table scrolls horizontally.
- * 2. Every cell takes the ground the overlay is solved against, replacing the header's own
- *    background. Painting the ground rather than inheriting the theme's is what lets the
- *    overlay be exact (see `selectionOverlayColor.ts`).
+ * 2. Every cell takes the ground the tint is solved against, replacing the header's own
+ *    background. Painting the ground rather than inheriting the theme's is what lets the tint
+ *    be exact (see `selectionOverlayColor.ts`).
  * 3. A cell-sized overlay composites that ground up to the selection colour, and takes
  *    everything the cell renders with it. It hangs off the cells because they are already
  *    positioned (`tableStyles.ts`) and scroll with the table; an overlay on the widget root
  *    would be pinned to the scroll origin and slide off a wide table.
  *
+ * Cell borders sit outside the padding box an overlay can cover, and `border-collapse` makes each
+ * inner one shared, so an overlay grown to reach them would darken those twice over. They are
+ * tinted through their colour instead. Left alone they all but vanish: the divider colour is a
+ * light grey chosen to read on the editor background, and the selection ground is darker than it,
+ * which drops a gridline's contrast against its own cell from about 1.36 to 1.06.
+ *
  * Painting the block ourselves also makes the highlight independent of `drawSelection`, which
  * measures ranges through `coordsAtPos` — answered for a rendered table by
  * `TableWidget.coordsAt` with cell rectangles, so the rects it paints around a selected table
  * are unreliable: sometimes the full block, sometimes a sliver at the table's edge.
- *
- * Cell borders sit outside the padding box the overlay covers, so they keep their own colour and
- * read as grid lines across the fill. Tinting them from both sides would darken them twice,
- * since `border-collapse` makes each one shared.
  */
 const tableSelectionHighlightTheme = EditorView.baseTheme({
     [`${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
@@ -133,14 +145,22 @@ const tableSelectionHighlightTheme = EditorView.baseTheme({
     [`&.cm-focused ${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
     [`&.cm-focused ${getWidgetSelector()} ::selection`]: NATIVE_SELECTION_RESET,
 
+    // Focus is resolved once, into the tint the rules below read, so nothing else needs a
+    // `.cm-focused` copy of itself.
     [SELECTED_WIDGET]: {
+        '--rt-tint': 'var(--rt-tint-blurred)',
+        '--rt-tint-alpha': 'var(--rt-tint-blurred-alpha)',
         backgroundColor: 'var(--rt-selection-blurred-bg)',
-    },
+    } as Record<string, string>,
     [`&.cm-focused ${SELECTED_WIDGET}`]: {
+        '--rt-tint': 'var(--rt-tint-focused)',
+        '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
         backgroundColor: 'var(--rt-selection-focused-bg)',
-    },
+    } as Record<string, string>,
+
     [selectedCells()]: {
         backgroundColor: 'var(--rt-table-selection-ground-bg)',
+        borderColor: tinted('var(--rt-border-color)'),
     },
     [selectedCells({ pseudo: '::after' })]: {
         content: '""',
@@ -152,11 +172,8 @@ const tableSelectionHighlightTheme = EditorView.baseTheme({
         left: '0',
         // Above content the cell positions for itself, which would otherwise paint over the fill.
         zIndex: '1',
-        backgroundColor: 'var(--rt-table-selection-overlay-blurred)',
+        backgroundColor: tinted('transparent'),
         pointerEvents: 'none',
-    },
-    [selectedCells({ scope: '&.cm-focused ', pseudo: '::after' })]: {
-        backgroundColor: 'var(--rt-table-selection-overlay)',
     },
 });
 
