@@ -5,7 +5,7 @@ import {
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
 } from '../shared/tableDomClasses';
-import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
+import { CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
 
 /**
  * Base styles for the table widget, split by responsibility:
@@ -83,11 +83,6 @@ export const tableStyles = EditorView.baseTheme({
         overflowWrap: 'normal',
         boxSizing: 'border-box',
     },
-    [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]:
-        {
-            backgroundColor: 'var(--rt-cell-selection-bg)',
-        },
-
     // -------------------------------------------------------------------------
     // 3. Nested editor DOM resets
     //

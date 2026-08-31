@@ -19,7 +19,7 @@ import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolutio
 import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { endCellDragEffect, startCellDragEffect } from '../../tableState/cellDragState';
+import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
 
@@ -79,6 +79,16 @@ function dispatchSelectionWithContext(
         annotations: cellSelectionTransitionAnnotation.of(true),
         scrollIntoView: false,
     });
+
+    // The main editor owns a cell selection's keyboard and clipboard commands, so it takes focus
+    // for one. The gestures that create a selection all suppress the browser's own focusing —
+    // shift-click preventDefaults its mousedown, and a keyboard selection tears down the nested
+    // editor that had focus — which would otherwise leave focus parked on the document body.
+    // A running drag is the exception: it keeps its anchor cell's editor open for the length of
+    // the gesture, and hands focus over itself on release.
+    if (!isCellDragInProgress(view.state) && !view.hasFocus) {
+        view.focus();
+    }
 
     const cellElement =
         (options.scrollFocusIntoView ?? true) ? findCellElement(view, makeTableId(ctx.from), selection.focus) : null;

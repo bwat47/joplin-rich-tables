@@ -24,15 +24,10 @@ const JOPLIN_SELECTION_COLORS = {
  * self-consistent whatever a theme does: the ground is fully covered by the overlay, which is
  * derived from it, so the two always composite to the selection colour.
  */
-const TABLE_SELECTION_GROUNDS = {
+const SELECTION_GROUNDS = {
     light: '#ffffff',
     dark: '#1d2024',
 } as const;
-
-/**
- * Alpha applied to the multi-cell selection fill.
- */
-const CELL_SELECTION_ALPHA = '60%';
 
 /**
  * The tint that turns a selected table's painted ground into Joplin's selection colour.
@@ -50,7 +45,7 @@ const CELL_SELECTION_ALPHA = '60%';
  * whatever base they have; see `tableWidget/tableSelectionHighlight.ts`.
  */
 function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<string, string> {
-    const ground = parseHexColor(TABLE_SELECTION_GROUNDS[mode]);
+    const ground = parseHexColor(SELECTION_GROUNDS[mode]);
     const tintFor = (target: string) => alphaEquivalentLayer(parseHexColor(target), ground);
     const focused = tintFor(JOPLIN_SELECTION_COLORS[mode].focused);
     const blurred = tintFor(JOPLIN_SELECTION_COLORS[mode].blurred);
@@ -64,11 +59,6 @@ function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<stri
 }
 
 /**
- * Fades a color toward transparent.
- */
-const withAlpha = (color: string, alpha: string): string => `color-mix(in srgb, ${color} ${alpha}, transparent)`;
-
-/**
  * Maps Joplin theme variables to plugin-owned --rt-* custom properties.
  *
  * Defined on the main editor root so all plugin DOM (widget, nested editor, toolbar)
@@ -76,13 +66,16 @@ const withAlpha = (color: string, alpha: string): string => `color-mix(in srgb, 
  * one line here rather than hunting across multiple style files.
  *
  * --rt-border-color        borders, outlines, dividers
- * --rt-cell-selection-bg   multi-cell selection background (painted on the cell, behind its text)
+ * --rt-selection-bg        the selection fill below, resolved for the editor's current focus state
+ * --rt-tint, --rt-tint-alpha  the tint pair below, likewise resolved.  Resolving focus once here
+ *                          keeps the fill and the tint from ever disagreeing about it, and spares
+ *                          every rule that reads them a focused copy of itself.
  * --rt-selection-focused-bg  Joplin's selection background while the editor owning it has focus.
  *                          Painted by the nested editor's drawSelection layer, and as the fill
  *                          behind a rendered table the main editor's selection covers.
  * --rt-selection-blurred-bg  the same fill while that editor is unfocused
- * --rt-table-selection-ground-bg  opaque ground painted on a selected table's cells
- * --rt-tint-focused        colour of the layer laid over a selected table, which composites with
+ * --rt-selection-ground-bg  opaque ground painted on a selected cell, beneath the tint
+ * --rt-tint-focused        colour of the layer laid over a selected cell, which composites with
  *                          that ground to --rt-selection-focused-bg
  * --rt-tint-focused-alpha  the alpha that layer is laid on at, as a percentage
  * --rt-tint-blurred, --rt-tint-blurred-alpha  the same pair for --rt-selection-blurred-bg
@@ -119,19 +112,29 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-toolbar-color': 'var(--joplin-color)',
         '--rt-toolbar-shadow': 'rgba(0, 0, 0, 0.2)',
         '--rt-toolbar-hover-bg': 'var(--joplin-selected-color)',
+        '--rt-selection-bg': 'var(--rt-selection-blurred-bg)',
+        '--rt-tint': 'var(--rt-tint-blurred)',
+        '--rt-tint-alpha': 'var(--rt-tint-blurred-alpha)',
+    } as Record<string, string>,
+    // `:focus-within` rather than `.cm-focused`, which tracks only this editor's own content:
+    // a nested cell editor holds focus on the plugin's behalf, most visibly through a cell drag,
+    // which keeps its anchor cell open for the length of the gesture.  Two components to the
+    // block above's one, so focus wins wherever this sits in source order.
+    '&:focus-within': {
+        '--rt-selection-bg': 'var(--rt-selection-focused-bg)',
+        '--rt-tint': 'var(--rt-tint-focused)',
+        '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
     } as Record<string, string>,
     '&light': {
-        '--rt-cell-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.light.focused, CELL_SELECTION_ALPHA),
         '--rt-selection-focused-bg': JOPLIN_SELECTION_COLORS.light.focused,
         '--rt-selection-blurred-bg': JOPLIN_SELECTION_COLORS.light.blurred,
-        '--rt-table-selection-ground-bg': TABLE_SELECTION_GROUNDS.light,
+        '--rt-selection-ground-bg': SELECTION_GROUNDS.light,
         ...tintProperties('light'),
     } as Record<string, string>,
     '&dark': {
-        '--rt-cell-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.dark.focused, CELL_SELECTION_ALPHA),
         '--rt-selection-focused-bg': JOPLIN_SELECTION_COLORS.dark.focused,
         '--rt-selection-blurred-bg': JOPLIN_SELECTION_COLORS.dark.blurred,
-        '--rt-table-selection-ground-bg': TABLE_SELECTION_GROUNDS.dark,
+        '--rt-selection-ground-bg': SELECTION_GROUNDS.dark,
         ...tintProperties('dark'),
     } as Record<string, string>,
 });

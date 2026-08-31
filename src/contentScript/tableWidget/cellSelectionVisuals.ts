@@ -1,9 +1,17 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { cellSelectionField, getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
-import { CLASS_CELL_SELECTED, SELECTOR_CELL, findTableWidgetElement, readCellCoords } from './domHelpers';
+import {
+    CELL_TAGS,
+    CLASS_CELL_SELECTED,
+    CLASS_TABLE_WIDGET_TABLE,
+    SELECTOR_CELL,
+    findTableWidgetElement,
+    readCellCoords,
+} from './domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { measuredClassSyncPlugin } from './measuredClassSync';
+import { selectedCellRules } from './selectionTint';
 
 function collectSelectedCells(view: EditorView): HTMLElement[] {
     const selection = getCellSelection(view.state);
@@ -32,7 +40,25 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
     return selectedCells;
 }
 
-export const cellSelectionVisualsPlugin = measuredClassSyncPlugin(CLASS_CELL_SELECTED, collectSelectedCells);
+/** The cells of the current multi-cell selection, optionally suffixed with a pseudo-element. */
+const selectedCells = (pseudo = ''): string =>
+    CELL_TAGS.map((tag) => `.${CLASS_TABLE_WIDGET_TABLE} ${tag}.${CLASS_CELL_SELECTED}${pseudo}`).join(', ');
+
+/**
+ * Paints the selected rectangle in Joplin's selection colour.
+ *
+ * Deliberately the same fill the main editor's selection puts on a whole table: both are a
+ * selection over rendered cells, and telling them apart by colour would say nothing useful. What
+ * distinguishes them on screen is their extent — a cell selection stops at the rectangle, while a
+ * whole-table selection also floods the widget's own block (`tableSelectionHighlight.ts`).
+ */
+const cellSelectionFillTheme = EditorView.baseTheme(selectedCellRules(selectedCells));
+
+/** Multi-cell selection visuals: the class on each selected cell, and the fill it carries. */
+export const cellSelectionVisuals: Extension = [
+    measuredClassSyncPlugin(CLASS_CELL_SELECTED, collectSelectedCells),
+    cellSelectionFillTheme,
+];
 
 /**
  * Hides the main editor's caret while a cell selection is active.

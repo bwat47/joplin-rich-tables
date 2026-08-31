@@ -20,7 +20,7 @@ import { insertedTableActivationField } from '../tableState/insertedTableActivat
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
-import { cellSelectionCaretSuppression, cellSelectionVisualsPlugin } from './cellSelectionVisuals';
+import { cellSelectionCaretSuppression, cellSelectionVisuals } from './cellSelectionVisuals';
 import { tableSelectionHighlight } from './tableSelectionHighlight';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
@@ -144,7 +144,7 @@ async function registerTableWidgetExtension(
         cellSelectionKeyCapturePlugin,
         cellSelectionScopeGuard,
         cellSelectionClipboardPlugin,
-        cellSelectionVisualsPlugin,
+        cellSelectionVisuals,
         cellSelectionCaretSuppression,
         tableSelectionHighlight,
         nestedEditorFocusGuard,

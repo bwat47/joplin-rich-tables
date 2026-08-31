@@ -75,6 +75,18 @@ the rectangular selection is visible.
 
 Commands that move the main-editor caret outside the selected table clear the selection.
 
+The selected rectangle is painted with the same fill as a whole-table selection (see below), because
+both are a selection over rendered cells and telling them apart by colour would say nothing useful.
+What distinguishes them is their extent: a cell selection stops at the rectangle, while a whole-table
+selection also floods the widget's own block.
+
+Creating a selection also hands focus to the main editor, which owns its keyboard and clipboard
+commands. Every gesture that starts one suppresses the browser's own focusing — shift-click
+preventDefaults its mousedown, and a keyboard selection tears down the nested editor that held focus
+— so without this focus would sit on the document body, and the selection would render as unfocused.
+A running drag is the exception: it keeps its anchor cell's editor open for the length of the
+gesture and hands focus over on release.
+
 ### Whole-Table Selection
 
 A selection in the main editor covers a rendered table as a single block; it cannot address anything inside one,
@@ -85,20 +97,23 @@ because rows and columns are the multi-cell selection's job.
   onto the widget, because the positions either side of a table belong to its separating blank lines. Carets,
   document changes, raw mode, and any state where a cell editor or cell selection owns the table are left alone.
 - `tableWidget/tableSelectionHighlight.ts` marks the widget roots the selection covers end to end and paints them as
-  one selected block, switching between the focused and blurred colours with the main editor. CodeMirror's selection
-  background sits behind editor text, which a rendered table's own opaque surfaces — the header, inline code,
-  `==highlight==`, images — would stand proud of, so the highlight is layered instead: the selection colour on the
-  widget root for the padding and the strip beside a narrow table, a known ground on each cell, and an overlay that
-  composites that ground up to the selection colour, taking the cell's content with it. The overlay hangs off the
-  cells so it scrolls with a wide table.
+  one selected block. CodeMirror's selection background sits behind editor text, which a rendered table's own opaque
+  surfaces — the header, inline code, `==highlight==`, images — would stand proud of, so the highlight is layered
+  instead: the selection colour on the widget root for the padding and the strip beside a narrow table, and over each
+  cell the fill `tableWidget/selectionTint.ts` shares with the multi-cell selection — a known ground, plus an overlay
+  compositing it up to the selection colour and taking the cell's content with it. The overlay hangs off the cells so
+  it scrolls with a wide table; the cell borders are tinted through their colour, since an overlay grown to reach them
+  would darken each shared one twice. Both fills read `--rt-tint` and `--rt-selection-bg`, resolved once in
+  `tableWidget/richTableThemeVars.ts` so they can never disagree about focus. That resolution tests
+  `:focus-within` rather than `.cm-focused`, which tracks only the root editor's own content: a
+  nested cell editor holds focus on the plugin's behalf, most visibly through a cell drag.
 - `tableWidget/selectionOverlayColor.ts` solves for that overlay: the faintest layer that reproduces the selection
   colour on the painted ground. Being faint and of the opposite tone to the text, it recolours every surface at the
   ground's tone exactly while leaving the text legible — where the selection colour at some chosen alpha would wash
-  the text out and still not reach the opaque surfaces. The layer's colour and alpha are published separately, so the
-  same tint can be laid over a base an overlay cannot physically cover: the cell borders take it through their
-  colour, since `border-collapse` shares each inner one and an overlay grown to reach them would darken those twice.
-  Untinted they all but vanish, the divider colour being a light grey chosen to read on the editor background rather
-  than on the darker selection ground.
+  the text out and still not reach the opaque surfaces. The layer's colour and alpha are published separately so the
+  same tint can also be laid over a base no overlay covers, such as a border colour. Untinted, a gridline all but
+  vanishes: the divider colour is a light grey chosen to read on the editor background rather than on the darker
+  selection ground.
 - Painting the block ourselves also decouples the highlight from `drawSelection`, whose rects around a selected table
   are unreliable — it measures through `coordsAtPos`, which `TableWidget.coordsAt` answers with cell rectangles. The
   browser's native `::selection` is suppressed inside a widget for the same reason: `drawSelection` only neutralizes

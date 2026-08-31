@@ -14,7 +14,10 @@ import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
-import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
+import {
+    setCellDragSelection,
+    startCellSelectionFromActiveCell,
+} from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
@@ -562,6 +565,31 @@ describe('cellSelectionKeymap', () => {
             anchor: { section: 'body', row: 0, col: 0 },
             focus: { section: 'body', row: 0, col: 1 },
         });
+    });
+
+    it('gives the main editor focus when a cell selection starts', () => {
+        // Every gesture that starts a selection suppresses the browser's own focusing, so
+        // without this focus stays parked on the body and the selection renders as unfocused.
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        });
+        const focusSpy = vi.spyOn(view, 'focus');
+
+        expect(startCellSelectionFromActiveCell(view, 'right')).toBe(true);
+        expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it('leaves focus with the anchor cell while a drag is still running', () => {
+        // The drag keeps that cell's editor open for the length of the gesture and hands focus
+        // over on release; taking it here would tear the editor down mid-gesture.
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        const focusSpy = vi.spyOn(view, 'focus');
+
+        expect(
+            setCellDragSelection(view, 0, { section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
+        ).toBe(true);
+        expect(focusSpy).not.toHaveBeenCalled();
     });
 
     it('does not start cell selection from a stale active cell', () => {
