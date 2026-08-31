@@ -87,6 +87,6 @@ export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter
         selection: snapped,
         effects: tr.effects,
         scrollIntoView: tr.scrollIntoView,
-        ...(userEvent ? { annotations: Transaction.userEvent.of(userEvent) } : {}),
+        annotations: userEvent ? Transaction.userEvent.of(userEvent) : [],
     };
 });

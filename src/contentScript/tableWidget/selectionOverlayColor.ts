@@ -5,7 +5,14 @@ export interface Rgb {
     b: number;
 }
 
-/** A translucent layer: an opaque colour and the alpha it is painted at. */
+/**
+ * A translucent layer: an opaque colour and the alpha it is painted at.
+ *
+ * The two halves stay apart rather than combining into one `rgba()` so the pair can be laid over
+ * more than one base.  `color-mix()` takes a colour at an alpha expressed as a percentage, which
+ * composites it over transparency to give the layer itself, or over an opaque colour to give what
+ * that colour looks like beneath the layer.
+ */
 export interface AlphaLayer {
     color: Rgb;
     alpha: number;
@@ -35,7 +42,7 @@ export function parseHexColor(hex: string): Rgb {
     return { r: (value >> 16) & 0xff, g: (value >> 8) & 0xff, b: value & 0xff };
 }
 
-const channelsOf = (color: Rgb): readonly number[] => [color.r, color.g, color.b];
+const CHANNELS = ['r', 'g', 'b'] as const;
 
 /**
  * The smallest alpha at which some opaque colour, painted over `ground`, can produce `target`.
@@ -47,20 +54,13 @@ const channelsOf = (color: Rgb): readonly number[] => [color.r, color.g, color.b
  * decides the layer, and every smaller alpha is unreachable.
  */
 function minimumAlpha(target: Rgb, ground: Rgb): number {
-    let alpha = 0;
-
-    channelsOf(target).forEach((targetChannel, index) => {
-        const groundChannel = channelsOf(ground)[index];
-        const darkening = targetChannel <= groundChannel;
-        const headroom = darkening ? groundChannel : CHANNEL_MAX - groundChannel;
-        if (headroom === 0) {
-            return;
-        }
-
-        alpha = Math.max(alpha, Math.abs(targetChannel - groundChannel) / headroom);
+    const demands = CHANNELS.map((channel) => {
+        const headroom = target[channel] <= ground[channel] ? ground[channel] : CHANNEL_MAX - ground[channel];
+        // A channel with no headroom is already at the end it would have to travel toward.
+        return headroom === 0 ? 0 : Math.abs(target[channel] - ground[channel]) / headroom;
     });
 
-    return Math.ceil(alpha * ALPHA_PRECISION) / ALPHA_PRECISION;
+    return Math.ceil(Math.max(...demands) * ALPHA_PRECISION) / ALPHA_PRECISION;
 }
 
 const clampChannel = (value: number): number => Math.min(CHANNEL_MAX, Math.max(0, Math.round(value)));
@@ -93,14 +93,7 @@ export function alphaEquivalentLayer(target: Rgb, ground: Rgb): AlphaLayer {
     };
 }
 
-/**
- * Renders a layer's opaque colour and its alpha separately, as CSS.
- *
- * Kept apart rather than combined into one `rgba()` so the pair can be laid over more than one
- * base: `color-mix()` takes the colour at the alpha as a percentage, which composites it over
- * transparency to give the layer itself, or over an opaque colour to give what that colour looks
- * like beneath the layer.
- */
+/** Renders an opaque colour as a CSS `rgb()`, for the first half of a `color-mix()`. */
 export function toRgbCss(color: Rgb): string {
     return `rgb(${color.r}, ${color.g}, ${color.b})`;
 }

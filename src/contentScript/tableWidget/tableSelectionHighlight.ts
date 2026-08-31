@@ -15,27 +15,14 @@ import { measuredClassSyncPlugin } from './measuredClassSync';
  * Coverage is all-or-nothing by design: a block widget has no meaningful partial selection, and
  * `tableRuntime/selection/tableSelectionSnap.ts` grows any selection that touches a table until
  * it contains the whole thing, so a partially covered table is only ever a transient state.
+ *
+ * No table can appear twice: selection ranges never overlap, so containing the same table whole
+ * would take a range of zero length.
  */
 export function findSelectedTableSpans(state: EditorState): TableSpan[] {
-    const spans: TableSpan[] = [];
-    const seen = new Set<number>();
-
-    for (const range of state.selection.ranges) {
-        if (range.empty) {
-            continue;
-        }
-
-        for (const span of findRenderedTablesWithin(state, range.from, range.to)) {
-            // Ranges in a selection never overlap, so a repeat only happens when two ranges
-            // touch the same table edge; de-duplicating keeps the result a set of tables.
-            if (!seen.has(span.from)) {
-                seen.add(span.from);
-                spans.push(span);
-            }
-        }
-    }
-
-    return spans;
+    return state.selection.ranges.flatMap((range) =>
+        range.empty ? [] : findRenderedTablesWithin(state, range.from, range.to)
+    );
 }
 
 /**
@@ -75,9 +62,7 @@ const CELL_TAGS = ['td', 'th'] as const;
  * The coordinate attributes keep it off `td`/`th` belonging to a raw HTML table inside a cell's
  * rendered Markdown, which is content the highlight passes over rather than chrome it owns.
  */
-function selectedCells(options: { pseudo?: string } = {}): string {
-    const { pseudo = '' } = options;
-
+function selectedCells(pseudo = ''): string {
     return CELL_TAGS.map(
         (tag) => `${SELECTED_WIDGET} .${CLASS_TABLE_WIDGET_TABLE} ${tag}${CELL_COORDS_ATTRIBUTES}${pseudo}`
     ).join(', ');
@@ -128,16 +113,15 @@ const tinted = (base: string): string => `color-mix(in srgb, var(--rt-tint) var(
  *    positioned (`tableStyles.ts`) and scroll with the table; an overlay on the widget root
  *    would be pinned to the scroll origin and slide off a wide table.
  *
- * Cell borders sit outside the padding box an overlay can cover, and `border-collapse` makes each
- * inner one shared, so an overlay grown to reach them would darken those twice over. They are
- * tinted through their colour instead. Left alone they all but vanish: the divider colour is a
- * light grey chosen to read on the editor background, and the selection ground is darker than it,
- * which drops a gridline's contrast against its own cell from about 1.36 to 1.06.
+ * Cell borders are tinted through their colour rather than by the overlay: they sit outside the
+ * padding box it covers, and growing it to reach them would darken every inner border twice,
+ * `border-collapse` having made each one shared. Left untinted they all but vanish — the divider
+ * colour is a light grey chosen to read on the editor background, and the selection ground is
+ * darker than it, dropping a gridline's contrast against its own cell from about 1.36 to 1.06.
  *
- * Painting the block ourselves also makes the highlight independent of `drawSelection`, which
- * measures ranges through `coordsAtPos` — answered for a rendered table by
- * `TableWidget.coordsAt` with cell rectangles, so the rects it paints around a selected table
- * are unreliable: sometimes the full block, sometimes a sliver at the table's edge.
+ * Painting the block ourselves also frees the highlight from `drawSelection`, whose rects around
+ * a rendered table are unreliable: it measures through `coordsAtPos`, which `TableWidget.coordsAt`
+ * answers with cell rectangles.
  */
 const tableSelectionHighlightTheme = EditorView.baseTheme({
     [`${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
@@ -162,14 +146,10 @@ const tableSelectionHighlightTheme = EditorView.baseTheme({
         backgroundColor: 'var(--rt-table-selection-ground-bg)',
         borderColor: tinted('var(--rt-border-color)'),
     },
-    [selectedCells({ pseudo: '::after' })]: {
+    [selectedCells('::after')]: {
         content: '""',
         position: 'absolute',
-        // Longhand rather than `inset`, which older mobile WebViews do not support.
-        top: '0',
-        right: '0',
-        bottom: '0',
-        left: '0',
+        inset: '0',
         // Above content the cell positions for itself, which would otherwise paint over the fill.
         zIndex: '1',
         backgroundColor: tinted('transparent'),
