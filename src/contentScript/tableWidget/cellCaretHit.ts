@@ -45,8 +45,8 @@ const LINE_BREAK_LOCAL_NAME = 'br';
  * again. Counting it as one keeps the flattened text directly comparable to the text the
  * editor will open with.
  *
- * Spans are recorded for every node visited, including the ones inside skipped subtrees, so
- * a caret reported against any of them still resolves to a position.
+ * Spans are recorded for every node visited. Descendants of opaque subtrees are not visited,
+ * so a caret reported inside one declines placement and uses the established fallback.
  */
 export function indexRenderedText(root: HTMLElement): RenderedTextIndex {
     const spans = new Map<Node, TextSpan>();
