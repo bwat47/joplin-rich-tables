@@ -91,7 +91,8 @@ tokens with line numbers only, and a cell is one line. The mapping is instead re
 2. `shared/textAlignment.ts` aligns that text against the cell's own text. Rendering only removes characters, so the
    rendered text is a subsequence of its source for the inline constructs cells contain. Alignment uses `difflib`'s
    recursive longest-matching-block scheme rather than a plain LCS, which is free to scatter its matches across a
-   URL or a repeated word.
+   URL or a repeated word. Matches outside probable raw-HTML tokens win ties, preventing visible text from mapping
+   into a tag or attribute; unrestricted matching remains available for tag-shaped text rendered literally.
 3. `tableRuntime/interaction/clickCursorPlacement.ts` converts the aligned offset into an `InitialCursorPos`.
 
 The press is read at pointerdown, before the open request replaces the rendered content, and carried on the gesture

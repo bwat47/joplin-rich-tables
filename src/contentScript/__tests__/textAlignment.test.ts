@@ -41,6 +41,26 @@ describe('alignRenderedToSource', () => {
         expect(place('code', '`code`', 2)).toBe('`co|de`');
     });
 
+    it('does not align visible raw-HTML text to an identical opening tag', () => {
+        expect(place('code', '<code>code</code>', 2)).toBe('<code>co|de</code>');
+    });
+
+    it('does not align visible raw-HTML text to an identical attribute value', () => {
+        expect(place('hello', '<span title="hello">hello</span>', 2)).toBe('<span title="hello">he|llo</span>');
+    });
+
+    it('does not align visible text to an earlier HTML comment', () => {
+        expect(place('hello', '<!--hello-->hello', 2)).toBe('<!--hello-->he|llo');
+    });
+
+    it('still aligns tag-shaped text rendered literally by an inline code span', () => {
+        expect(place('<code>code</code>', '`<code>code</code>`', 8)).toBe('`<code>co|de</code>`');
+    });
+
+    it('does not mistake an autolink for an HTML tag', () => {
+        expect(place('https://example.com', '<https://example.com>', 8)).toBe('<https://|example.com>');
+    });
+
     it('binds a caret at a syntax boundary to the character that follows it', () => {
         // Both sides of the closing `**` are defensible for a caret between "bold" and the
         // space. Ties resolve towards the following character throughout, so the rule is the
