@@ -192,9 +192,10 @@ class MouseCellDragSelectionController {
 
         return {
             resolvedAnchor,
-            cursorPos: resolvedAnchor
-                ? resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit)
-                : undefined,
+            cursorPos:
+                !gesture.dragged && resolvedAnchor
+                    ? resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit)
+                    : undefined,
             reactivateAnchor:
                 gesture.dragged &&
                 pointedCell !== null &&
