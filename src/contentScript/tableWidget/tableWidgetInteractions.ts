@@ -9,6 +9,8 @@ import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositio
 import { linkOpenerFacet } from '../services/linkOpener';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
+import { readRenderedCaretHit } from './cellCaretHit';
+import { resolveClickCursorPos } from '../tableRuntime/interaction/clickCursorPlacement';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
@@ -272,9 +274,14 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
         return true;
     }
 
+    // Read the press against the rendered content before the open request replaces it, so
+    // the caret lands where the reader pointed rather than at the start of the cell.
+    const caretHit = readRenderedCaretHit(cell, event.clientX, event.clientY);
+
     requestOpenCell(view, {
         resolvedCell,
         clearCellSelection: hasSelection,
+        initialCursorPos: resolveClickCursorPos(view.state, resolvedCell, caretHit),
     });
 
     return true;

@@ -77,9 +77,34 @@ the same cell-selection tint; their extent distinguishes them.
 
 Moving the main-editor caret outside the selected table clears table-owned selection state.
 
+## Click-to-Caret Placement
+
+A click on a rendered cell opens it with the caret at the clicked point in the Markdown source, so clicking inside a
+bolded word lands between the same two letters once the syntax is visible.
+
+Joplin's `renderMarkup` cannot help with this: its source map (`MdToHtml/rules/source_map.ts`) annotates block-level
+tokens with line numbers only, and a cell is one line. The mapping is instead recovered by aligning text.
+
+1. `tableWidget/cellCaretHit.ts` hit-tests the press against the rendered content and flattens that content into the
+   text a reader sees, counting `<br>` as the newline it stands for and skipping MathML, whose text transcribes the
+   formula rather than its source.
+2. `shared/textAlignment.ts` aligns that text against the cell's own text. Rendering only removes characters, so the
+   rendered text is a subsequence of its source for the inline constructs cells contain. Alignment uses `difflib`'s
+   recursive longest-matching-block scheme rather than a plain LCS, which is free to scatter its matches across a
+   URL or a repeated word.
+3. `tableRuntime/interaction/clickCursorPlacement.ts` converts the aligned offset into an `InitialCursorPos`.
+
+The press is read at pointerdown, before the open request replaces the rendered content, and carried on the gesture
+until the release proves it was a click rather than a drag.
+
+Substitutions that are not subsequences (`&amp;` to `&`, emoji shortcodes, KaTeX) leave a gap the alignment steps
+over; because each gap is bounded by the blocks around it, the damage stays local. A caret landing in one resolves to
+the nearest anchor, and a cell whose rendered text is mostly gaps abandons the placement and mirrors the main
+editor's selection, which is what every unplaced entry has always done.
+
 ## Pointer, Links, and Scrolling
 
-- Clicking activates a cell or updates the current cell selection.
+- Clicking activates a cell or updates the current cell selection, placing the caret where the click landed.
 - Mouse dragging selects a cell rectangle; touch and pen input retain native scrolling and tap behavior.
 - Drags near an edge auto-scroll the table or host scroll container. See
   [Table-Display.md](./Table-Display.md#host-scroll-modes).

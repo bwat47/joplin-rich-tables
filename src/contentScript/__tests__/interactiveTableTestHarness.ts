@@ -13,6 +13,7 @@ export const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 interface CellStub {
     dataset: Record<string, string>;
     closest: (selector: string) => unknown;
+    querySelector: (selector: string) => unknown;
 }
 
 export interface MutableTestView {
@@ -84,6 +85,9 @@ export function createInteractiveTableHarness(params?: {
                 }
                 return null;
             },
+            // These cells carry no rendered content wrapper, so a press on one yields no
+            // caret to place from and entry falls back to mirroring the main selection.
+            querySelector: () => null,
         };
 
         return cell as unknown as HTMLElement;
