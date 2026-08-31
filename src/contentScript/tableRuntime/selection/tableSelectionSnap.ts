@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState, Transaction, type Extension, type SelectionRange } from '@codemirror/state';
+import { EditorSelection, EditorState, type Extension, type SelectionRange } from '@codemirror/state';
 import { findRenderedTablesTouching, type TableSpan } from '../../tableWidget/tableDecorationField';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 
@@ -66,8 +66,8 @@ export function snapSelectionAroundTables(
  * Document changes are left alone too. This exists for selection gestures, which never carry
  * one, and an edit that rewrites a table has its own policies deciding where the caret lands.
  *
- * Replacing the transaction drops its annotations, so the user event is put back; other runtime
- * policies classify transactions by it.
+ * The original transaction stays first in the returned specs so every annotation and effect it
+ * carries survives. The second, sequential spec only replaces its selection with the snapped one.
  */
 export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter.of((tr) => {
     if (tr.docChanged || !tr.selection || !hasPlainRenderedTableCaret(tr.startState)) {
@@ -81,12 +81,5 @@ export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter
         return tr;
     }
 
-    const userEvent = tr.annotation(Transaction.userEvent);
-
-    return {
-        selection: snapped,
-        effects: tr.effects,
-        scrollIntoView: tr.scrollIntoView,
-        annotations: userEvent ? Transaction.userEvent.of(userEvent) : [],
-    };
+    return [tr, { selection: snapped, sequential: true }];
 });

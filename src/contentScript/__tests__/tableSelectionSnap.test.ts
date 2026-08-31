@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState } from '@codemirror/state';
+import { Annotation, EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
@@ -108,6 +108,17 @@ describe('tableSelectionSnapFilter', () => {
         });
 
         expect(transaction.isUserEvent('select.pointer')).toBe(true);
+    });
+
+    it('preserves arbitrary transaction annotations while snapping', () => {
+        const marker = Annotation.define<string>();
+        const transaction = createState().update({
+            selection: EditorSelection.single(0, INSIDE_TABLE),
+            annotations: marker.of('preserved'),
+        });
+
+        expect(transaction.annotation(marker)).toBe('preserved');
+        expect(transaction.newSelection.main.head).toBe(TABLE_TO);
     });
 
     it('snaps a selection change that carries no user event', () => {
