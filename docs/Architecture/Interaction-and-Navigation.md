@@ -1,152 +1,89 @@
 # Interaction and Navigation
 
-The main editor owns document state and history, while a transient nested editor owns interaction inside the active
-cell. Navigation coordinates the handoff between those editors and the table widget's multi-cell selection mode.
+The main editor owns document state, history, and table-level selections. A transient nested editor owns interaction
+inside the active cell. The table runtime coordinates transitions between them, while the widget renders interaction
+state.
 
-## Keyboard Navigation
+## Ownership
 
-The active cell hosts a separate editor instance, while inactive cells remain ordinary `<td>` or `<th>` elements. Key
-handling makes the cells behave like a single grid.
+| Area                    | Owner                                             | Responsibility                                                           |
+| :---------------------- | :------------------------------------------------ | :----------------------------------------------------------------------- |
+| Main-editor entry       | `tableRuntime/navigation/mainEditorTableEntry.ts` | Opens an edge cell when the caret moves into a rendered table.           |
+| Cell activation         | `tableRuntime/openCellRequest.ts`                 | Stores logical open intent until the widget and nested editor are ready. |
+| Nested-editor lifecycle | `tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Resolves document positions and mounts or closes the cell editor.        |
+| Table exit              | `tableRuntime/navigation/tableExit.ts`            | Returns the caret and focus to the main editor.                          |
+| Selection state         | `tableRuntime/selection/` and `tableState/`       | Owns multi-cell and whole-table selection behavior.                      |
+| Interaction visuals     | `tableWidget/`                                    | Renders active cells, selection rectangles, and whole-table selection.   |
 
-| Key                 | Action        | At the cell boundary                                               |
-| :------------------ | :------------ | :----------------------------------------------------------------- |
-| **Tab**             | Next cell     | The final cell creates a row.                                      |
-| **Shift+Tab**       | Previous cell | The first cell is blocked.                                         |
-| **Enter**           | Cell below    | The final row creates a row.                                       |
-| **ArrowLeft/Right** | Move by char  | A cell edge moves horizontally; a table edge exits the table.      |
-| **ArrowUp/Down**    | Move by line  | A visual line edge moves vertically; a table edge exits the table. |
+## Cell Navigation
 
-### Crossing the Table Boundary
+The active cell contains a nested editor; inactive cells remain table elements. Navigation makes these separate editors
+behave like one grid.
 
-A rendered table is a block replacement in the main editor, so entry and exit must be handled explicitly rather than
-by normal caret movement.
+| Key                 | Action            | Boundary behavior                                     |
+| :------------------ | :---------------- | :---------------------------------------------------- |
+| **Tab**             | Next cell         | Creates a row after the final cell.                   |
+| **Shift+Tab**       | Previous cell     | Stops at the first cell.                              |
+| **Enter**           | Cell below        | Creates a row after the final row.                    |
+| **ArrowLeft/Right** | Move horizontally | Crosses into an adjacent cell or exits the table.     |
+| **ArrowUp/Down**    | Move vertically   | Crosses at a visual line boundary or exits the table. |
 
-- **Entry**: Arrow or deletion movement toward an adjacent table opens the nearest edge cell. Vertical entry preserves
-  the expected visual direction by choosing the first or last row as appropriate.
-- **Exit**: Arrow movement beyond the outermost cell closes the nested editor, places the main-editor caret on the
-  adjacent line, and restores main-editor focus. At a document edge, where no adjacent line exists, the movement is
-  blocked.
-- **Separation**: The blank line required between a rendered table and neighbouring content is protected from
-  incidental deletion. Ordinary typing or pasting into that boundary restores valid separation in the same main-editor
-  transaction, keeping the document valid and undo behavior atomic. Composition input is left unchanged and repaired
-  on a later cell entry.
-- **Eligibility**: Arrow entry applies only to a single empty caret in rendered mode when no cell selection is active.
-  Explicit range edits remain main-editor operations.
+Because a rendered table replaces its Markdown source as a block decoration, normal caret movement cannot enter or
+exit it directly:
 
-`tableRuntime/navigation/mainEditorTableEntry.ts` owns entry from the main editor, while
-`tableRuntime/navigation/tableExit.ts` owns exit from a nested editor. Boundary-preserving document edits are handled
-by `tableRuntime/tableBoundaryMaintenance.ts`.
+- Entry from the main editor opens the nearest edge cell. It applies only to an empty caret in rendered mode when no
+  cell selection is active.
+- Exit closes the nested editor, places the main-editor caret on the adjacent line, and restores main-editor focus.
+- The required blank-line separation around tables is maintained by
+  `tableRuntime/tableBoundaryMaintenance.ts` as part of the triggering transaction.
 
-### Navigation Requests
+Opening a cell can span document changes, widget rendering, and nested-editor mounting. The runtime therefore records
+the logical target and caret placement in editor state, then resolves current document positions when mounting. Cell
+navigation, table entry, row creation, and structural commands all use this request path.
 
-Opening a cell spans a main-editor transaction, widget rendering, and nested-editor mounting. The pending intent is
-therefore stored in editor state (`tableRuntime/openCellRequest.ts`) rather than module-global state. A request records
-the logical target and desired caret placement; the lifecycle resolves current document positions when it mounts the
-nested editor and then completes or fails the request.
+## Selection Architecture
 
-Cell navigation, table entry, row creation, and structural operations share this request path. This keeps document
-changes, active-cell state, and reopen intent coordinated.
+The interaction model has three selection scopes:
 
-### Scrolling
+### In-Cell Selection
 
-Opening a target cell relies on focusing its nested editor, allowing the browser to reveal it naturally. Other paths
-scroll explicitly, including table exit, multi-cell selection movement, anchor jumps, and raw-mode cursor visibility.
-
-## Selection Modes
-
-### Active-Cell Selection Sync
-
-While a nested editor is active, its visible selection is mirrored into the hidden main-editor selection. The main
-editor remains the integration point for document commands and Joplin toolbar actions. Cross-editor synchronization
-must use `syncAnnotation` to avoid feedback loops.
+The nested editor owns the visible text selection inside the active cell. It mirrors that selection into main-editor
+coordinates so document commands and Joplin toolbar actions continue to work. Cross-editor transactions use
+`syncAnnotation` to prevent feedback loops.
 
 ### Multi-Cell Selection
 
-Multi-cell selection is stored in main-editor state and rendered on the table widget rather than being owned by the
-nested editor. The main-editor caret tracks the focus cell for clipboard and command integration, but is hidden while
-the rectangular selection is visible.
+A rectangular cell selection is stored in main-editor state and rendered by the table widget. The main editor owns
+keyboard, clipboard, and history commands while this mode is active.
 
-- **Shift+Arrow** starts or extends the selection.
-- **Arrow** collapses the selection and leaves the table; **Enter/Tab** activates its focus cell.
+- **Shift+Arrow** starts or extends the rectangle.
+- **Arrow** collapses the selection and exits the table; **Enter/Tab** activates the focus cell.
 - **Escape** clears the selection.
-- **Delete/Backspace** clears selected content, or removes fully selected empty rows, columns, or the whole table.
-- **Copy/Cut/Paste** operates on the selected rectangle and may expand the table when pasting.
-- **Undo/Redo** is forwarded to main-editor history.
+- **Delete/Backspace** clears content or removes fully selected empty structures.
+- **Copy/Cut/Paste** operates on the rectangle and may expand the table.
+- **Undo/Redo** uses main-editor history.
 
-Commands that move the main-editor caret outside the selected table clear the selection.
-
-The selected rectangle is painted with the same fill as a whole-table selection (see below), because
-both are a selection over rendered cells and telling them apart by colour would say nothing useful.
-What distinguishes them is their extent: a cell selection stops at the rectangle, while a whole-table
-selection also floods the widget's own block.
-
-Creating a selection also hands focus to the main editor, which owns its keyboard and clipboard
-commands. Every gesture that starts one suppresses the browser's own focusing — shift-click
-preventDefaults its mousedown, and a keyboard selection tears down the nested editor that held focus
-— so without this focus would sit on the document body, and the selection would render as unfocused.
-`cellSelectionController.ts` does this as it dispatches; `cellSelectionFocusPlugin` catches the
-selections it does not create, such as the multi-cell paste a transaction filter rewrites a
-cell-editor paste into, which has no view to focus with.
-
-A running drag is the exception: it leaves whatever had focus alone — a cell editor in another
-table, or something outside the editor entirely — until the rectangle is final, and hands focus over
-on release. So that the rectangle being dragged does not render unfocused and then snap, a drag in
-progress asserts the focused tint for itself, in `tableWidget/cellSelectionVisuals.ts`.
+Mouse dragging can also create a rectangular selection. Drag ownership and deferred active-cell updates are described
+in [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership).
 
 ### Whole-Table Selection
 
-A selection in the main editor covers a rendered table as a single block; it cannot address anything inside one,
-because rows and columns are the multi-cell selection's job.
+A main-editor range that reaches a rendered table expands to cover the entire table block. Rows and columns remain the
+responsibility of multi-cell selection.
 
-- `tableRuntime/selection/tableSelectionSnap.ts` filters selection-only transactions, growing any range that reaches
-  a table until it contains the whole table. Contact is enough — an endpoint resting on a table edge has been dragged
-  onto the widget, because the positions either side of a table belong to its separating blank lines. Carets,
-  document changes, raw mode, and any state where a cell editor or cell selection owns the table are left alone.
-- `tableWidget/wholeTableSelectionVisuals.ts` marks the widget roots the selection covers end to end and paints them as
-  one selected block. CodeMirror's selection background sits behind editor text, which a rendered table's own opaque
-  surfaces — the header, inline code, `==highlight==`, images — would stand proud of, so the highlight is layered
-  instead: the selection colour on the widget root for the padding and the strip beside a narrow table, and over each
-  cell the fill `tableWidget/selectionTint.ts` shares with the multi-cell selection — a known ground, plus an overlay
-  compositing it up to the selection colour and taking the cell's content with it. The overlay hangs off the cells so
-  it scrolls with a wide table; the cell borders are tinted through their colour, since an overlay grown to reach them
-  would darken each shared one twice. A gridline where a selection ends mid-table is shared by cells that disagree
-  about its colour, and CSS settles that in favour of the cell further up and left — leaving a rectangle's top and
-  left edges drawn by their unselected neighbours — so the overlay redraws those two sides itself, in the same opaque
-  tinted colour. Both fills read `--rt-tint` and `--rt-selection-bg`, resolved once in
-  `tableWidget/richTableThemeVars.ts` so they can never disagree about focus. That resolution tests
-  `:focus-within` rather than `.cm-focused`, which tracks only the root editor's own content: a
-  nested cell editor holds focus on the plugin's behalf, most visibly through a cell drag.
-- `tableWidget/selectionOverlayColor.ts` solves for that overlay: the faintest layer that reproduces the selection
-  colour on the painted ground. Being faint and of the opposite tone to the text, it recolours every surface at the
-  ground's tone exactly while leaving the text legible — where the selection colour at some chosen alpha would wash
-  the text out and still not reach the opaque surfaces. The layer's colour and alpha are published separately so the
-  same tint can also be laid over a base no overlay covers, such as a border colour. Untinted, a gridline all but
-  vanishes: the divider colour is a light grey chosen to read on the editor background rather than on the darker
-  selection ground.
-- Painting the block ourselves also decouples the highlight from `drawSelection`, whose rects around a selected table
-  are unreliable — it measures through `coordsAtPos`, which `TableWidget.coordsAt` answers with cell rectangles. The
-  browser's native `::selection` is suppressed inside a widget for the same reason: `drawSelection` only neutralizes
-  it for text inside `.cm-line`.
+`tableRuntime/selection/tableSelectionSnap.ts` owns range expansion, while
+`tableWidget/wholeTableSelectionVisuals.ts` renders the selected block. Whole-table and multi-cell selections share
+the same cell-selection tint; their extent distinguishes them.
 
-## Mouse Interaction
+Moving the main-editor caret outside the selected table clears table-owned selection state.
 
-- Clicking a cell activates it or updates the current multi-cell selection.
-- Dragging from one cell to another with a desktop mouse creates a rectangular selection. A movement threshold keeps
-  ordinary clicks distinct from drags. Touch and pen pointers retain native scrolling/tap behaviour and do not start
-  drag selection. Holding a cell drag near an edge auto-scrolls the table horizontally and whichever element owns
-  vertical scrolling vertically — see [Table-Display.md](./Table-Display.md#host-scroll-modes).
-  Releasing a drag back over its anchor opens that cell's editor. A completed rectangular selection focuses the main
-  editor on release so its keyboard and clipboard commands work even when focus started outside the editor.
-- Once a gesture becomes a rectangular selection it records itself in `cellDragField` until release. See
-  [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership) for what that ownership means; the
-  gesture settles the deferred state on release, clearing the active cell unless the drag contracts back to its anchor.
-- A drag that starts anywhere in the active cell—including row-height padding outside the nested editor—keeps the
-  nested editor open while it stays in that cell. Drags beginning on editable content retain native text selection. When
-  the pointer travels a short margin past the cell's border into another cell, ownership switches to rectangular cell
-  selection with the active cell as its anchor; the margin keeps a graze past the border from converting the gesture.
-  Conversion ends the nested editor's native text drag by dispatching one mouse move with no button held, which is
-  how CodeMirror tears down its own drag and the interval driving its edge scrolling; nothing is suppressed for the
-  rest of the gesture.
-- Shift+Arrow reopens the anchor editor when it contracts a multi-cell selection back to that one cell.
+## Pointer, Links, and Scrolling
+
+- Clicking activates a cell or updates the current cell selection.
+- Mouse dragging selects a cell rectangle; touch and pen input retain native scrolling and tap behavior.
+- Drags near an edge auto-scroll the table or host scroll container. See
+  [Table-Display.md](./Table-Display.md#host-scroll-modes).
 - Links delegate to the content-script link opener and then to the main plugin.
 - Heading and footnote anchors scroll the main editor through `scrollToAnchor`.
+- Cell activation relies on nested-editor focus to reveal the target. Table exit, cell-selection movement, anchor
+  jumps, and raw-mode cursor movement scroll explicitly.
