@@ -44,6 +44,12 @@ export function resolveClickCursorPos(
     // The nested editor opens on the unsanitized cell text, so aligning against that text
     // yields an offset in the coordinates the placement is applied in - no further mapping.
     const localText = unsanitizeRootText(state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo));
+    if (hit.renderedText.length === 0 && localText.length > 0) {
+        // Images and skipped MathML contribute no rendered text. Their sole flattened offset
+        // cannot distinguish a press before the content from one after it, so keep the established
+        // mirrored-selection fallback instead of claiming every press belongs at source offset 0.
+        return undefined;
+    }
 
     const alignment = alignRenderedToSource(hit.renderedText, localText);
     if (!alignment || alignment.matchedRatio < MIN_MATCHED_RATIO) {

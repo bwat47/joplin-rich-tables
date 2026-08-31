@@ -158,6 +158,20 @@ describe('resolveClickCursorPos', () => {
         expect(placement(CANONICAL_DOC, boldCell, { renderedText: 'qqqqqqqq', renderedOffset: 4 })).toBe('<mirrored>');
     });
 
+    it('mirrors the main selection when non-empty source renders no indexable text', () => {
+        const doc = ['', '| H1 |', '| --- |', '| ![alt](resource) |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: '', renderedOffset: 0 })).toBe(
+            '<mirrored>'
+        );
+    });
+
+    it('places the only possible caret in a genuinely empty cell', () => {
+        const doc = ['', '| H1 |', '| --- |', '|  |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: '', renderedOffset: 0 })).toBe('|');
+    });
+
     it('clamps a caret past the end of the cell text', () => {
         expect(placement(CANONICAL_DOC, boldCell, { renderedText: 'markdown', renderedOffset: 99 })).toBe(
             '**markdown**|'
