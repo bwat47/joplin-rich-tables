@@ -1,5 +1,5 @@
 import { EditorSelection, type StateEffect } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
+import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
@@ -19,7 +19,7 @@ import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolutio
 import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { endCellDragEffect, startCellDragEffect } from '../../tableState/cellDragState';
+import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
 
@@ -43,6 +43,54 @@ function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoo
 
     return clampSelectionFocusWithinContext(ctx, focus);
 }
+
+/**
+ * Hands focus to the main editor for a cell selection it does not already hold.
+ *
+ * The main editor owns a cell selection's keyboard and clipboard commands, but none of the
+ * gestures that create one leave focus there: shift-click preventDefaults its mousedown, and a
+ * keyboard selection tears down the nested editor that had focus. Focus would otherwise sit on
+ * the document body — workable, since `cellSelectionShortcutScope` treats that as soft focus, but
+ * it reads as an unfocused selection.
+ *
+ * A running drag is the exception: it does not disturb whatever had focus until the rectangle is
+ * final, and hands focus over itself on release. `cellSelectionVisuals.ts` keeps the selection
+ * looking focused meanwhile, so nothing is gained by taking it early.
+ */
+function focusMainEditorForCellSelection(view: EditorView): void {
+    if (getCellSelection(view.state) && !isCellDragInProgress(view.state) && !view.hasFocus) {
+        view.focus();
+    }
+}
+
+/**
+ * Catches cell selections created outside this module.
+ *
+ * A paste inside a cell editor is rewritten into a multi-cell one by
+ * `editorBridge/mainEditorGuard.ts`, and a transaction filter has neither a view to focus nor any
+ * business running a side effect — so the selection arrives with focus still on the torn-down
+ * nested editor's former home.
+ *
+ * The work waits for the measure phase because view plugins update before CodeMirror redraws, and
+ * focusing writes the DOM selection, which has to happen against the new DOM. Selections this
+ * module dispatched have taken focus synchronously by then, so this finds nothing left to do and
+ * they never render unfocused for a frame.
+ */
+export const cellSelectionFocusPlugin = ViewPlugin.fromClass(
+    class {
+        update(update: ViewUpdate): void {
+            const appeared = !getCellSelection(update.startState) && getCellSelection(update.state);
+            if (!appeared) {
+                return;
+            }
+
+            update.view.requestMeasure({
+                read: () => undefined,
+                write: (_measured, view) => focusMainEditorForCellSelection(view),
+            });
+        }
+    }
+);
 
 interface SelectionDispatchOptions {
     clearActiveCell: boolean;
@@ -79,6 +127,8 @@ function dispatchSelectionWithContext(
         annotations: cellSelectionTransitionAnnotation.of(true),
         scrollIntoView: false,
     });
+
+    focusMainEditorForCellSelection(view);
 
     const cellElement =
         (options.scrollFocusIntoView ?? true) ? findCellElement(view, makeTableId(ctx.from), selection.focus) : null;

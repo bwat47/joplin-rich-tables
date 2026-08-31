@@ -19,8 +19,11 @@ import { sourceModeField } from '../tableState/sourceMode';
 import { insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
-import { cellSelectionCaretSuppression, cellSelectionVisualsPlugin } from './cellSelectionVisuals';
+import { cellSelectionCaretSuppression, cellSelectionVisuals } from './cellSelectionVisuals';
+import { wholeTableSelectionVisuals } from './wholeTableSelectionVisuals';
+import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
@@ -127,6 +130,7 @@ async function registerTableWidgetExtension(
         cellSelectionField,
         cellDragField,
         mainEditorTableEntryExtension,
+        tableSelectionSnapFilter,
         // Registered ahead of the guard so its paste rewrites are already spaced when
         // boundary maintenance inspects the result.
         tableBoundaryMaintenanceExtension,
@@ -141,8 +145,10 @@ async function registerTableWidgetExtension(
         cellSelectionKeyCapturePlugin,
         cellSelectionScopeGuard,
         cellSelectionClipboardPlugin,
-        cellSelectionVisualsPlugin,
+        cellSelectionFocusPlugin,
+        cellSelectionVisuals,
         cellSelectionCaretSuppression,
+        wholeTableSelectionVisuals,
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
         tableDecorationField,

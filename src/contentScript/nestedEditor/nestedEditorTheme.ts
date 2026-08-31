@@ -26,10 +26,10 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             // rootEditorSelectionTheme.ts, which has higher specificity than Joplin's
             // cascading `&.cm-focused ::selection` rule.
             '& .cm-selectionLayer .cm-selectionBackground': {
-                backgroundColor: 'var(--rt-nested-selection-blurred-bg) !important',
+                backgroundColor: 'var(--rt-selection-blurred-bg) !important',
             },
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
-                backgroundColor: 'var(--rt-nested-selection-bg) !important',
+                backgroundColor: 'var(--rt-selection-focused-bg) !important',
             },
 
             // --- Joplin/CM environment resets ---

@@ -5,6 +5,8 @@ import type { EditorView } from '@codemirror/view';
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
+/** Set on a widget root while the main editor's selection covers its whole table. */
+export const CLASS_TABLE_WIDGET_SELECTED = 'cm-table-widget-selected';
 
 // Floating toolbar container (positioned relative to the active table widget)
 export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';
@@ -36,7 +38,10 @@ export function getWidgetSelector(): string {
 }
 
 /** Matches the coordinate attributes `TableWidget` writes on every cell it renders. */
-const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${DATA_COL}]`;
+export const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${DATA_COL}]`;
+
+/** The element types `TableWidget` renders cells as. */
+export const CELL_TAGS = ['td', 'th'] as const;
 
 /**
  * Matches a table widget's own cells, and only those.
@@ -44,7 +49,7 @@ const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${
  * The attributes are required so `closest()` walks past `td`/`th` belonging to a raw HTML
  * table inside a cell's rendered Markdown, which carry no coordinates of their own.
  */
-export const SELECTOR_CELL = `td${CELL_COORDS_ATTRIBUTES}, th${CELL_COORDS_ATTRIBUTES}`;
+export const SELECTOR_CELL = CELL_TAGS.map((tag) => `${tag}${CELL_COORDS_ATTRIBUTES}`).join(', ');
 
 /**
  * Returns the CSS selector for a specific cell within a table widget.
