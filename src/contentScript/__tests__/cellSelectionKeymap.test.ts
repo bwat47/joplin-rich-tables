@@ -379,23 +379,7 @@ describe('cellSelectionKeymap', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('clears the selection on Escape', () => {
-        const view = mountSelectionView(GRID_DOC);
-
-        view.dispatch({
-            effects: setCellSelectionEffect.of({
-                tableFrom: 0,
-                anchor: { section: 'body', row: 0, col: 0 },
-                focus: { section: 'body', row: 0, col: 1 },
-            }),
-        });
-
-        pressKey({ key: 'Escape' });
-
-        expect(getCellSelection(view.state)).toBeNull();
-    });
-
-    it.each([{ key: 'Tab' as const }, { key: 'Enter' as const }])(
+    it.each([{ key: 'Escape' as const }, { key: 'Tab' as const }, { key: 'Enter' as const }])(
         'activates the focus cell editor on $key while multi-cell selection is active',
         ({ key }) => {
             const table = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

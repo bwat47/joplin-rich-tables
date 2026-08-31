@@ -1,10 +1,6 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin, type Command } from '@codemirror/view';
-import {
-    clearCellSelectionEffect,
-    getCellSelection,
-    type CellSelectionDirection,
-} from '../../tableState/cellSelectionState';
+import { getCellSelection, type CellSelectionDirection } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import {
@@ -29,15 +25,6 @@ function extendOrStartSelection(view: EditorView, direction: CellSelectionDirect
     }
 
     return false;
-}
-
-function clearSelectionIfActive(view: EditorView): boolean {
-    if (!getCellSelection(view.state)) {
-        return false;
-    }
-
-    view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
-    return true;
 }
 
 function activateSelectionFocus(view: EditorView): boolean {
@@ -137,7 +124,7 @@ const selectionKeyHandlers: ReadonlyMap<string, SelectionKeyHandler> = new Map([
     ['ArrowRight', arrowKeyHandler('right')],
     ['ArrowUp', arrowKeyHandler('up')],
     ['ArrowDown', arrowKeyHandler('down')],
-    ['Escape', (view) => clearSelectionIfActive(view)],
+    ['Escape', (view) => activateSelectionFocus(view)],
     ['Enter', handleActivateKey],
     ['Tab', handleActivateKey],
 ]);
