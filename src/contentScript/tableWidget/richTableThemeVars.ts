@@ -15,6 +15,16 @@ const JOPLIN_SELECTION_COLORS = {
 } as const;
 
 /**
+ * Alpha applied to the multi-cell selection fill.
+ */
+const CELL_SELECTION_ALPHA = '60%';
+
+/**
+ * Fades a color toward transparent.
+ */
+const withAlpha = (color: string, alpha: string): string => `color-mix(in srgb, ${color} ${alpha}, transparent)`;
+
+/**
  * Maps Joplin theme variables to plugin-owned --rt-* custom properties.
  *
  * Defined on the main editor root so all plugin DOM (widget, nested editor, toolbar)
@@ -22,7 +32,7 @@ const JOPLIN_SELECTION_COLORS = {
  * one line here rather than hunting across multiple style files.
  *
  * --rt-border-color        borders, outlines, dividers
- * --rt-selection-bg        multi-cell selection overlay
+ * --rt-selection-bg        multi-cell selection background (painted on the cell, behind its text)
  * --rt-nested-selection-bg CodeMirror drawSelection layer inside a focused nested editor
  * --rt-nested-selection-blurred-bg  the same layer while the nested editor is unfocused
  * --rt-code-bg             inline code background
@@ -48,7 +58,6 @@ const JOPLIN_SELECTION_COLORS = {
 export const richTableThemeVars = EditorView.baseTheme({
     '&': {
         '--rt-border-color': 'var(--joplin-divider-color, #dddddd)',
-        '--rt-selection-bg': 'var(--joplin-selected-text-background-color, rgba(0, 120, 215, 0.15))',
         '--rt-code-bg': 'var(--joplin-code-background-color, rgb(243, 243, 243))',
         '--rt-code-color': 'var(--joplin-code-color, rgb(0, 0, 0))',
         '--rt-mark-bg': 'var(--joplin-mark-highlight-background-color, #F7D26E)',
@@ -61,10 +70,12 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-toolbar-hover-bg': 'var(--joplin-selected-color)',
     } as Record<string, string>,
     '&light': {
+        '--rt-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.light.focused, CELL_SELECTION_ALPHA),
         '--rt-nested-selection-bg': JOPLIN_SELECTION_COLORS.light.focused,
         '--rt-nested-selection-blurred-bg': JOPLIN_SELECTION_COLORS.light.blurred,
     } as Record<string, string>,
     '&dark': {
+        '--rt-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.dark.focused, CELL_SELECTION_ALPHA),
         '--rt-nested-selection-bg': JOPLIN_SELECTION_COLORS.dark.focused,
         '--rt-nested-selection-blurred-bg': JOPLIN_SELECTION_COLORS.dark.blurred,
     } as Record<string, string>,
