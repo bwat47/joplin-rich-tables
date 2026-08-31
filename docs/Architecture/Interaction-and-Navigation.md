@@ -102,7 +102,7 @@ because rows and columns are the multi-cell selection's job.
   a table until it contains the whole table. Contact is enough — an endpoint resting on a table edge has been dragged
   onto the widget, because the positions either side of a table belong to its separating blank lines. Carets,
   document changes, raw mode, and any state where a cell editor or cell selection owns the table are left alone.
-- `tableWidget/tableSelectionHighlight.ts` marks the widget roots the selection covers end to end and paints them as
+- `tableWidget/wholeTableSelectionVisuals.ts` marks the widget roots the selection covers end to end and paints them as
   one selected block. CodeMirror's selection background sits behind editor text, which a rendered table's own opaque
   surfaces — the header, inline code, `==highlight==`, images — would stand proud of, so the highlight is layered
   instead: the selection colour on the widget root for the padding and the strip beside a narrow table, and over each

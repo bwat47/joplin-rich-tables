@@ -60,7 +60,7 @@ const SELECTED_WIDGET = `${getWidgetSelector()}.${CLASS_TABLE_WIDGET_SELECTED}`;
  * Selector for the widget's own cells inside a selected table.
  *
  * The coordinate attributes keep it off `td`/`th` belonging to a raw HTML table inside a cell's
- * rendered Markdown, which is content the highlight passes over rather than chrome it owns.
+ * rendered Markdown, which is content the selection fill passes over rather than chrome the widget owns.
  */
 function selectedCells(pseudo = ''): string {
     return CELL_TAGS.map(
@@ -97,7 +97,7 @@ const NATIVE_SELECTION_RESET = {
  * a rendered table are unreliable: it measures through `coordsAtPos`, which `TableWidget.coordsAt`
  * answers with cell rectangles.
  */
-const tableSelectionHighlightTheme = EditorView.baseTheme({
+const wholeTableSelectionTheme = EditorView.baseTheme({
     [`${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
     [`${getWidgetSelector()} ::selection`]: NATIVE_SELECTION_RESET,
     [`&.cm-focused ${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
@@ -110,8 +110,8 @@ const tableSelectionHighlightTheme = EditorView.baseTheme({
     ...selectedCellRules(selectedCells),
 });
 
-/** Whole-table selection highlight for tables the main editor's selection covers. */
-export const tableSelectionHighlight: Extension = [
+/** Whole-table selection visuals for tables the main editor's selection covers end to end. */
+export const wholeTableSelectionVisuals: Extension = [
     measuredClassSyncPlugin(CLASS_TABLE_WIDGET_SELECTED, collectSelectedTableWidgets),
-    tableSelectionHighlightTheme,
+    wholeTableSelectionTheme,
 ];

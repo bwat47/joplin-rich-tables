@@ -6,7 +6,7 @@ import {
     findRenderedTablesWithin,
     tableDecorationField,
 } from '../tableWidget/tableDecorationField';
-import { findSelectedTableSpans } from '../tableWidget/tableSelectionHighlight';
+import { findSelectedTableSpans } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
 
 const FIRST_TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

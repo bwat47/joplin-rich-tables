@@ -51,7 +51,7 @@ const selectedCells = (pseudo = ''): string =>
  * Deliberately the same fill the main editor's selection puts on a whole table: both are a
  * selection over rendered cells, and telling them apart by colour would say nothing useful. What
  * distinguishes them on screen is their extent — a cell selection stops at the rectangle, while a
- * whole-table selection also floods the widget's own block (`tableSelectionHighlight.ts`).
+ * whole-table selection also floods the widget's own block (`wholeTableSelectionVisuals.ts`).
  */
 const cellSelectionFillTheme = EditorView.baseTheme(selectedCellRules(selectedCells));
 

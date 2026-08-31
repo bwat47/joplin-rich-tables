@@ -42,7 +42,7 @@ const SELECTION_GROUNDS = {
  * fill.
  *
  * The colour and its alpha are published separately so consumers can lay the same tint over
- * whatever base they have; see `tableWidget/tableSelectionHighlight.ts`.
+ * whatever base they have; see `tableWidget/wholeTableSelectionVisuals.ts`.
  */
 function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<string, string> {
     const ground = parseHexColor(SELECTION_GROUNDS[mode]);

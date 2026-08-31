@@ -14,7 +14,7 @@ import {
 import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_SELECTED, getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { tableSelectionHighlight } from '../tableWidget/tableSelectionHighlight';
+import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
 
 class ResizeObserverMock {
@@ -54,7 +54,7 @@ function mountView(): EditorView {
             cellDragField,
             tableDecorationField,
             cellSelectionVisuals,
-            tableSelectionHighlight,
+            wholeTableSelectionVisuals,
         ]),
     });
     mountedViews.push(view);
