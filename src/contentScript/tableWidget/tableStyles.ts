@@ -8,6 +8,14 @@ import {
 import { CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
 
 /**
+ * Width of the gridline between cells.
+ *
+ * `border-collapse` makes each one shared, so this is the whole line, not a half of one --
+ * `selectionTint.ts` redraws a gridline at exactly this width.
+ */
+export const CELL_BORDER_WIDTH = '1px';
+
+/**
  * Base styles for the table widget, split by responsibility:
  *
  *   1. Widget container and table layout
@@ -42,7 +50,7 @@ export const tableStyles = EditorView.baseTheme({
     // -------------------------------------------------------------------------
 
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
-        border: '1px solid var(--rt-border-color)',
+        border: `${CELL_BORDER_WIDTH} solid var(--rt-border-color)`,
         padding: '8px 12px',
         minWidth: '75px',
         // Joplin/CodeMirror editor styles can apply aggressive breaking (e.g. `overflow-wrap: anywhere`)

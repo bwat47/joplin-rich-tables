@@ -103,7 +103,10 @@ because rows and columns are the multi-cell selection's job.
   cell the fill `tableWidget/selectionTint.ts` shares with the multi-cell selection — a known ground, plus an overlay
   compositing it up to the selection colour and taking the cell's content with it. The overlay hangs off the cells so
   it scrolls with a wide table; the cell borders are tinted through their colour, since an overlay grown to reach them
-  would darken each shared one twice. Both fills read `--rt-tint` and `--rt-selection-bg`, resolved once in
+  would darken each shared one twice. A gridline where a selection ends mid-table is shared by cells that disagree
+  about its colour, and CSS settles that in favour of the cell further up and left — leaving a rectangle's top and
+  left edges drawn by their unselected neighbours — so the overlay redraws those two sides itself, in the same opaque
+  tinted colour. Both fills read `--rt-tint` and `--rt-selection-bg`, resolved once in
   `tableWidget/richTableThemeVars.ts` so they can never disagree about focus. That resolution tests
   `:focus-within` rather than `.cm-focused`, which tracks only the root editor's own content: a
   nested cell editor holds focus on the plugin's behalf, most visibly through a cell drag.

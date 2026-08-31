@@ -1,3 +1,5 @@
+import { CELL_BORDER_WIDTH } from './tableStyles';
+
 /** Builds the selector for a set of selected cells, optionally suffixed with a pseudo-element. */
 export type SelectedCellSelector = (pseudo?: string) => string;
 
@@ -30,6 +32,14 @@ const tinted = (base: string): string => `color-mix(in srgb, var(--rt-tint) var(
  * reach them would darken those twice. Left untinted they all but vanish — the divider colour is
  * a light grey chosen to read on the editor background, and the selection ground is darker than
  * it, dropping a gridline's contrast against its own cell from about 1.36 to 1.06.
+ *
+ * A shared gridline can only take one colour, and where a selection ends mid-table the two cells
+ * meeting across it disagree. CSS settles that in favour of the cell further up and left, so a
+ * selection's top and left edges are drawn by their *unselected* neighbours, in the untinted
+ * colour — the two sides of a rectangle that come out faint while the other two look right. The
+ * overlay redraws those two sides itself, from inside the cell where no conflict can arise. It
+ * paints the same opaque tinted colour the border already carries, so on the edges the border
+ * won there is nothing to see.
  */
 export function selectedCellRules(cells: SelectedCellSelector): Record<string, Record<string, string>> {
     return {
@@ -44,6 +54,8 @@ export function selectedCellRules(cells: SelectedCellSelector): Record<string, R
             // Above content the cell positions for itself, which would otherwise paint over the fill.
             zIndex: '1',
             backgroundColor: tinted('transparent'),
+            // One shadow offset diagonally, so the corner between the two sides is covered too.
+            boxShadow: `-${CELL_BORDER_WIDTH} -${CELL_BORDER_WIDTH} 0 ${tinted('var(--rt-border-color)')}`,
             pointerEvents: 'none',
         },
     };
