@@ -1,6 +1,6 @@
 import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { syntaxTreeAvailable } from '@codemirror/language';
-import { Decoration, DecorationSet, EditorView } from '@codemirror/view';
+import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
 import { buildTableContext } from '../tableModel/tableContext';
 import { findTableRanges } from '../tableRuntime/tableResolution';
@@ -81,3 +81,50 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
+
+/** A rendered table's document range. */
+export interface TableSpan {
+    from: number;
+    to: number;
+}
+
+/**
+ * The widget decorations currently in effect, or an empty set.
+ *
+ * Falls back to `Decoration.none` rather than throwing so callers work in states that never
+ * registered the field, and so raw mode (where the field holds no decorations) reads as
+ * "no rendered tables" without a separate mode check.
+ */
+function getTableDecorations(state: EditorState): DecorationSet {
+    return state.field(tableDecorationField, false)?.decorations ?? Decoration.none;
+}
+
+/**
+ * Every rendered table whose range overlaps or abuts `[from, to]`, in document order.
+ *
+ * Abutting counts as touching: a selection endpoint that stops exactly on a table edge has
+ * been dragged onto the widget, since the document positions either side of a table belong to
+ * the blank lines that separate it from its neighbours.
+ */
+export function findRenderedTablesTouching(state: EditorState, from: number, to: number): TableSpan[] {
+    const spans: TableSpan[] = [];
+
+    getTableDecorations(state).between(from, to, (tableFrom, tableTo) => {
+        spans.push({ from: tableFrom, to: tableTo });
+    });
+
+    return spans;
+}
+
+/** Every rendered table whose range lies entirely inside `[from, to]`, in document order. */
+export function findRenderedTablesWithin(state: EditorState, from: number, to: number): TableSpan[] {
+    const spans: TableSpan[] = [];
+
+    getTableDecorations(state).between(from, to, (tableFrom, tableTo) => {
+        if (tableFrom >= from && tableTo <= to) {
+            spans.push({ from: tableFrom, to: tableTo });
+        }
+    });
+
+    return spans;
+}

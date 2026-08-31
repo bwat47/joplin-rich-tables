@@ -75,6 +75,31 @@ the rectangular selection is visible.
 
 Commands that move the main-editor caret outside the selected table clear the selection.
 
+### Whole-Table Selection
+
+A selection in the main editor covers a rendered table as a single block; it cannot address anything inside one,
+because rows and columns are the multi-cell selection's job.
+
+- `tableRuntime/selection/tableSelectionSnap.ts` filters selection-only transactions, growing any range that reaches
+  a table until it contains the whole table. Contact is enough — an endpoint resting on a table edge has been dragged
+  onto the widget, because the positions either side of a table belong to its separating blank lines. Carets,
+  document changes, raw mode, and any state where a cell editor or cell selection owns the table are left alone.
+- `tableWidget/tableSelectionHighlight.ts` marks the widget roots the selection covers end to end and paints them as
+  one selected block, switching between the focused and blurred colours with the main editor. CodeMirror's selection
+  background sits behind editor text, which a rendered table's own opaque surfaces — the header, inline code,
+  `==highlight==`, images — would stand proud of, so the highlight is layered instead: the selection colour on the
+  widget root for the padding and the strip beside a narrow table, a known ground on each cell, and an overlay that
+  composites that ground up to the selection colour, taking the cell's content with it. The overlay hangs off the
+  cells so it scrolls with a wide table.
+- `tableWidget/selectionOverlayColor.ts` solves for that overlay: the faintest layer that reproduces the selection
+  colour on the painted ground. Being faint and of the opposite tone to the text, it recolours every surface at the
+  ground's tone exactly while leaving the text legible — where the selection colour at some chosen alpha would wash
+  the text out and still not reach the opaque surfaces.
+- Painting the block ourselves also decouples the highlight from `drawSelection`, whose rects around a selected table
+  are unreliable — it measures through `coordsAtPos`, which `TableWidget.coordsAt` answers with cell rectangles. The
+  browser's native `::selection` is suppressed inside a widget for the same reason: `drawSelection` only neutralizes
+  it for text inside `.cm-line`.
+
 ## Mouse Interaction
 
 - Clicking a cell activates it or updates the current multi-cell selection.

@@ -85,7 +85,7 @@ export const tableStyles = EditorView.baseTheme({
     },
     [`.${CLASS_TABLE_WIDGET_TABLE} td.${CLASS_CELL_SELECTED}, .${CLASS_TABLE_WIDGET_TABLE} th.${CLASS_CELL_SELECTED}`]:
         {
-            backgroundColor: 'var(--rt-selection-bg)',
+            backgroundColor: 'var(--rt-cell-selection-bg)',
         },
 
     // -------------------------------------------------------------------------

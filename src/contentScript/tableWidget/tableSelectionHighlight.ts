@@ -1,0 +1,167 @@
+import type { EditorState, Extension } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import {
+    CELL_COORDS_ATTRIBUTES,
+    CLASS_TABLE_WIDGET_SELECTED,
+    CLASS_TABLE_WIDGET_TABLE,
+    getWidgetSelector,
+} from './domHelpers';
+import { findRenderedTablesWithin, type TableSpan } from './tableDecorationField';
+import { measuredClassSyncPlugin } from './measuredClassSync';
+
+/**
+ * Rendered tables the main editor's selection covers end to end.
+ *
+ * Coverage is all-or-nothing by design: a block widget has no meaningful partial selection, and
+ * `tableRuntime/selection/tableSelectionSnap.ts` grows any selection that touches a table until
+ * it contains the whole thing, so a partially covered table is only ever a transient state.
+ */
+export function findSelectedTableSpans(state: EditorState): TableSpan[] {
+    const spans: TableSpan[] = [];
+    const seen = new Set<number>();
+
+    for (const range of state.selection.ranges) {
+        if (range.empty) {
+            continue;
+        }
+
+        for (const span of findRenderedTablesWithin(state, range.from, range.to)) {
+            // Ranges in a selection never overlap, so a repeat only happens when two ranges
+            // touch the same table edge; de-duplicating keeps the result a set of tables.
+            if (!seen.has(span.from)) {
+                seen.add(span.from);
+                spans.push(span);
+            }
+        }
+    }
+
+    return spans;
+}
+
+/**
+ * Widget roots for the selected tables.
+ *
+ * One pass over the mounted widgets rather than a lookup per table: `posAtDOM` is the only
+ * trustworthy widget identity (see `findTableWidgetElement`), so scanning once keeps a
+ * select-all over a table-heavy note linear in the number of visible widgets.
+ */
+function collectSelectedTableWidgets(view: EditorView): HTMLElement[] {
+    const selectedTableStarts = new Set(findSelectedTableSpans(view.state).map((span) => span.from));
+    if (selectedTableStarts.size === 0) {
+        return [];
+    }
+
+    const selectedWidgets: HTMLElement[] = [];
+
+    for (const widget of view.contentDOM.querySelectorAll<HTMLElement>(getWidgetSelector())) {
+        try {
+            if (selectedTableStarts.has(view.posAtDOM(widget))) {
+                selectedWidgets.push(widget);
+            }
+        } catch {
+            // posAtDOM can fail for widget DOM that is on its way out; skip it.
+        }
+    }
+
+    return selectedWidgets;
+}
+
+const SELECTED_WIDGET = `${getWidgetSelector()}.${CLASS_TABLE_WIDGET_SELECTED}`;
+const CELL_TAGS = ['td', 'th'] as const;
+
+/**
+ * Selector for the widget's own cells inside a selected table.
+ *
+ * The coordinate attributes keep it off `td`/`th` belonging to a raw HTML table inside a cell's
+ * rendered Markdown, which is content the highlight passes over rather than chrome it owns.
+ */
+function selectedCells(options: { scope?: string; pseudo?: string } = {}): string {
+    const { scope = '', pseudo = '' } = options;
+
+    return CELL_TAGS.map(
+        (tag) => `${scope}${SELECTED_WIDGET} .${CLASS_TABLE_WIDGET_TABLE} ${tag}${CELL_COORDS_ATTRIBUTES}${pseudo}`
+    ).join(', ');
+}
+
+/**
+ * Removes the browser's own selection highlight from everything a table widget renders.
+ *
+ * CodeMirror's `drawSelection` only neutralizes native `::selection` inside `.cm-line`, and a
+ * block replace widget is a direct child of `.cm-content`, so the browser paints its own
+ * highlight over every run of text in the rendered table — ragged per-word boxes in whatever
+ * colour the platform picked.
+ *
+ * The `&.cm-focused` copies exist for specificity: Joplin's own `&.cm-focused ::selection` rule
+ * is two classes with `!important`, so the unfocused rules alone would tie with it and be
+ * settled by stylesheet order. Same approach as `nestedEditor/rootEditorSelectionTheme.ts`.
+ */
+const NATIVE_SELECTION_RESET = {
+    'background-color': 'transparent !important',
+    color: 'inherit !important',
+};
+
+/**
+ * Paints a table the main editor's selection covers as one selected block.
+ *
+ * Three layers, because a rendered table has surfaces CodeMirror's own selection background can
+ * never reach — it sits behind editor text, while a table carries opaque backgrounds of its own
+ * on the header, inline code, `==highlight==` and images.
+ *
+ * 1. The widget root takes the selection colour outright. It is the block box, so this covers
+ *    the widget's padding and the strip beside a narrow table, and being a background rather
+ *    than a positioned layer it stays put when a wide table scrolls horizontally.
+ * 2. Every cell takes the ground the overlay is solved against, replacing the header's own
+ *    background. Painting the ground rather than inheriting the theme's is what lets the
+ *    overlay be exact (see `selectionOverlayColor.ts`).
+ * 3. A cell-sized overlay composites that ground up to the selection colour, and takes
+ *    everything the cell renders with it. It hangs off the cells because they are already
+ *    positioned (`tableStyles.ts`) and scroll with the table; an overlay on the widget root
+ *    would be pinned to the scroll origin and slide off a wide table.
+ *
+ * Painting the block ourselves also makes the highlight independent of `drawSelection`, which
+ * measures ranges through `coordsAtPos` — answered for a rendered table by
+ * `TableWidget.coordsAt` with cell rectangles, so the rects it paints around a selected table
+ * are unreliable: sometimes the full block, sometimes a sliver at the table's edge.
+ *
+ * Cell borders sit outside the padding box the overlay covers, so they keep their own colour and
+ * read as grid lines across the fill. Tinting them from both sides would darken them twice,
+ * since `border-collapse` makes each one shared.
+ */
+const tableSelectionHighlightTheme = EditorView.baseTheme({
+    [`${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
+    [`${getWidgetSelector()} ::selection`]: NATIVE_SELECTION_RESET,
+    [`&.cm-focused ${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
+    [`&.cm-focused ${getWidgetSelector()} ::selection`]: NATIVE_SELECTION_RESET,
+
+    [SELECTED_WIDGET]: {
+        backgroundColor: 'var(--rt-selection-blurred-bg)',
+    },
+    [`&.cm-focused ${SELECTED_WIDGET}`]: {
+        backgroundColor: 'var(--rt-selection-focused-bg)',
+    },
+    [selectedCells()]: {
+        backgroundColor: 'var(--rt-table-selection-ground-bg)',
+    },
+    [selectedCells({ pseudo: '::after' })]: {
+        content: '""',
+        position: 'absolute',
+        // Longhand rather than `inset`, which older mobile WebViews do not support.
+        top: '0',
+        right: '0',
+        bottom: '0',
+        left: '0',
+        // Above content the cell positions for itself, which would otherwise paint over the fill.
+        zIndex: '1',
+        backgroundColor: 'var(--rt-table-selection-overlay-blurred)',
+        pointerEvents: 'none',
+    },
+    [selectedCells({ scope: '&.cm-focused ', pseudo: '::after' })]: {
+        backgroundColor: 'var(--rt-table-selection-overlay)',
+    },
+});
+
+/** Whole-table selection highlight for tables the main editor's selection covers. */
+export const tableSelectionHighlight: Extension = [
+    measuredClassSyncPlugin(CLASS_TABLE_WIDGET_SELECTED, collectSelectedTableWidgets),
+    tableSelectionHighlightTheme,
+];

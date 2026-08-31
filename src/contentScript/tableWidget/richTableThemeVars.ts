@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+import { alphaEquivalentLayer, parseHexColor, toCssColor } from './selectionOverlayColor';
 
 /**
  * Joplin's editor text-selection colors, which no Joplin CSS variable exposes.
@@ -15,9 +16,37 @@ const JOPLIN_SELECTION_COLORS = {
 } as const;
 
 /**
+ * The ground a selected table's cells are painted with, beneath the selection overlay.
+ *
+ * Joplin's editor background is a runtime variable, and the overlay below can only be solved
+ * against a background known ahead of time — so the plugin paints one rather than guessing.
+ * These match Joplin's default light and dark editor backgrounds, but the pair is
+ * self-consistent whatever a theme does: the ground is fully covered by the overlay, which is
+ * derived from it, so the two always composite to the selection colour.
+ */
+const TABLE_SELECTION_GROUNDS = {
+    light: '#ffffff',
+    dark: '#1d2024',
+} as const;
+
+/**
  * Alpha applied to the multi-cell selection fill.
  */
 const CELL_SELECTION_ALPHA = '60%';
+
+/**
+ * The overlay that turns a selected table's painted ground into Joplin's selection colour.
+ *
+ * CodeMirror puts its selection background *behind* editor text; a rendered table has surfaces
+ * it can never reach — the header's background, inline code, `==highlight==`, images — so the
+ * plugin lays its own layer *over* the table instead.  Solving for the faintest layer that
+ * reproduces the selection colour on the ground keeps that honest: everything at the ground's
+ * tone lands exactly on the selection colour, while text of the opposite tone passes through
+ * nearly untouched.  Painting the selection colour itself at some chosen alpha does neither —
+ * it washes the text out and still leaves every opaque surface standing proud of the fill.
+ */
+const selectionOverlay = (target: string, ground: string): string =>
+    toCssColor(alphaEquivalentLayer(parseHexColor(target), parseHexColor(ground)));
 
 /**
  * Fades a color toward transparent.
@@ -32,9 +61,15 @@ const withAlpha = (color: string, alpha: string): string => `color-mix(in srgb, 
  * one line here rather than hunting across multiple style files.
  *
  * --rt-border-color        borders, outlines, dividers
- * --rt-selection-bg        multi-cell selection background (painted on the cell, behind its text)
- * --rt-nested-selection-bg CodeMirror drawSelection layer inside a focused nested editor
- * --rt-nested-selection-blurred-bg  the same layer while the nested editor is unfocused
+ * --rt-cell-selection-bg   multi-cell selection background (painted on the cell, behind its text)
+ * --rt-selection-focused-bg  Joplin's selection background while the editor owning it has focus.
+ *                          Painted by the nested editor's drawSelection layer, and as the fill
+ *                          behind a rendered table the main editor's selection covers.
+ * --rt-selection-blurred-bg  the same fill while that editor is unfocused
+ * --rt-table-selection-ground-bg  opaque ground painted on a selected table's cells
+ * --rt-table-selection-overlay  layer painted over a selected table, which composites with that
+ *                          ground to --rt-selection-focused-bg
+ * --rt-table-selection-overlay-blurred  the same layer for --rt-selection-blurred-bg
  * --rt-code-bg             inline code background
  * --rt-code-color          inline code text
  * --rt-mark-bg             ==highlight== background
@@ -70,13 +105,31 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-toolbar-hover-bg': 'var(--joplin-selected-color)',
     } as Record<string, string>,
     '&light': {
-        '--rt-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.light.focused, CELL_SELECTION_ALPHA),
-        '--rt-nested-selection-bg': JOPLIN_SELECTION_COLORS.light.focused,
-        '--rt-nested-selection-blurred-bg': JOPLIN_SELECTION_COLORS.light.blurred,
+        '--rt-cell-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.light.focused, CELL_SELECTION_ALPHA),
+        '--rt-selection-focused-bg': JOPLIN_SELECTION_COLORS.light.focused,
+        '--rt-selection-blurred-bg': JOPLIN_SELECTION_COLORS.light.blurred,
+        '--rt-table-selection-ground-bg': TABLE_SELECTION_GROUNDS.light,
+        '--rt-table-selection-overlay': selectionOverlay(
+            JOPLIN_SELECTION_COLORS.light.focused,
+            TABLE_SELECTION_GROUNDS.light
+        ),
+        '--rt-table-selection-overlay-blurred': selectionOverlay(
+            JOPLIN_SELECTION_COLORS.light.blurred,
+            TABLE_SELECTION_GROUNDS.light
+        ),
     } as Record<string, string>,
     '&dark': {
-        '--rt-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.dark.focused, CELL_SELECTION_ALPHA),
-        '--rt-nested-selection-bg': JOPLIN_SELECTION_COLORS.dark.focused,
-        '--rt-nested-selection-blurred-bg': JOPLIN_SELECTION_COLORS.dark.blurred,
+        '--rt-cell-selection-bg': withAlpha(JOPLIN_SELECTION_COLORS.dark.focused, CELL_SELECTION_ALPHA),
+        '--rt-selection-focused-bg': JOPLIN_SELECTION_COLORS.dark.focused,
+        '--rt-selection-blurred-bg': JOPLIN_SELECTION_COLORS.dark.blurred,
+        '--rt-table-selection-ground-bg': TABLE_SELECTION_GROUNDS.dark,
+        '--rt-table-selection-overlay': selectionOverlay(
+            JOPLIN_SELECTION_COLORS.dark.focused,
+            TABLE_SELECTION_GROUNDS.dark
+        ),
+        '--rt-table-selection-overlay-blurred': selectionOverlay(
+            JOPLIN_SELECTION_COLORS.dark.blurred,
+            TABLE_SELECTION_GROUNDS.dark
+        ),
     } as Record<string, string>,
 });

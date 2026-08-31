@@ -5,6 +5,8 @@ import type { EditorView } from '@codemirror/view';
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';
 export const CLASS_TABLE_WIDGET_TABLE = 'cm-table-widget-table';
 export const CLASS_CELL_SELECTED = 'cm-table-cell-selected';
+/** Set on a widget root while the main editor's selection covers its whole table. */
+export const CLASS_TABLE_WIDGET_SELECTED = 'cm-table-widget-selected';
 
 // Floating toolbar container (positioned relative to the active table widget)
 export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';
@@ -36,7 +38,7 @@ export function getWidgetSelector(): string {
 }
 
 /** Matches the coordinate attributes `TableWidget` writes on every cell it renders. */
-const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${DATA_COL}]`;
+export const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${DATA_COL}]`;
 
 /**
  * Matches a table widget's own cells, and only those.

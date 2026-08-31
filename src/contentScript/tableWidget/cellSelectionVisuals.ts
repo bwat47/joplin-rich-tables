@@ -1,8 +1,9 @@
 import type { Extension } from '@codemirror/state';
-import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 import { cellSelectionField, getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
 import { CLASS_CELL_SELECTED, SELECTOR_CELL, findTableWidgetElement, readCellCoords } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
+import { measuredClassSyncPlugin } from './measuredClassSync';
 
 function collectSelectedCells(view: EditorView): HTMLElement[] {
     const selection = getCellSelection(view.state);
@@ -31,54 +32,7 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
     return selectedCells;
 }
 
-class CellSelectionVisualsController {
-    private selectedCells = new Set<HTMLElement>();
-    private destroyed = false;
-
-    constructor(private readonly view: EditorView) {
-        this.scheduleSync();
-    }
-
-    update(_update: ViewUpdate): void {
-        this.scheduleSync();
-    }
-
-    destroy(): void {
-        this.destroyed = true;
-        this.clear();
-    }
-
-    private clear(): void {
-        for (const cell of this.selectedCells) {
-            cell.classList.remove(CLASS_CELL_SELECTED);
-        }
-        this.selectedCells.clear();
-    }
-
-    private scheduleSync(): void {
-        this.view.requestMeasure({
-            key: this,
-            // Selection rewrites can rebuild the table widget, and ViewPlugin.update()
-            // may run before the replacement DOM is mounted. Defer the DOM query/write
-            // to the measure phase so the highlight is applied against the current widget.
-            read: () => collectSelectedCells(this.view),
-            write: (selectedCells: HTMLElement[]) => {
-                if (this.destroyed) {
-                    return;
-                }
-
-                this.clear();
-
-                for (const element of selectedCells) {
-                    element.classList.add(CLASS_CELL_SELECTED);
-                    this.selectedCells.add(element);
-                }
-            },
-        });
-    }
-}
-
-export const cellSelectionVisualsPlugin = ViewPlugin.fromClass(CellSelectionVisualsController);
+export const cellSelectionVisualsPlugin = measuredClassSyncPlugin(CLASS_CELL_SELECTED, collectSelectedCells);
 
 /**
  * Hides the main editor's caret while a cell selection is active.
