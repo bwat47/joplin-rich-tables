@@ -103,10 +103,5 @@ rect with the window: a scroller that already sits inside the window survives un
 document is clipped back to the window. The floating toolbar uses those bounds to decide visibility and placement;
 cell-drag auto-scroll uses them for its edge zones and for clamping its hit test.
 
-The toolbar anchors to a box combining both elements the widget is made of, handed to Floating UI as a virtual
-element. Horizontally it centres on the widget's `<table>` clipped to the widget root, so it tracks the visible slice
-of a table that is wider than the editor. Vertically it uses the root, whose border box also covers the horizontal
-scrollbar the root renders for such a table, at whatever width the host theme gives it.
-
 Auto-scroll picks its scroll target from the same distinction, testing whether `scrollDOM` has any overflow to move
 and falling back to `document.scrollingElement` when it does not.
