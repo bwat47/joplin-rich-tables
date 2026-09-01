@@ -478,7 +478,7 @@ export const tableToolbarTheme = EditorView.baseTheme({
         border: '1px solid var(--rt-border-color)',
         borderRadius: '6px',
         padding: '4px',
-        boxShadow: '0 4px 12px var(--rt-toolbar-shadow)',
+        boxShadow: '0 1px 2px 0 var(--rt-toolbar-shadow-near), 0 4px 12px -2px var(--rt-toolbar-shadow-far)',
         display: 'flex',
         flexWrap: 'wrap',
         gap: '4px',

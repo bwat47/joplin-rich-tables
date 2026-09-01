@@ -87,10 +87,12 @@ function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<stri
  * --rt-header-bg           <th> background
  * --rt-toolbar-bg          floating toolbar background
  * --rt-toolbar-color       floating toolbar text
- * --rt-toolbar-shadow      floating toolbar box-shadow color (deliberately not theme-derived:
- *                          a shadow is light occlusion, so it stays dark in every theme.  Joplin's
- *                          background-color-transparent2 is an overlay scrim that inverts to white
- *                          on dark themes, which reads as a glow rather than a shadow.)
+ * --rt-toolbar-shadow-near floating toolbar's compact shadow-layer color
+ * --rt-toolbar-shadow-far  floating toolbar's diffuse shadow-layer color.  Both shadow colors are
+ *                          deliberately not theme-derived: a shadow is light occlusion, so it stays
+ *                          dark in every theme.  Joplin's background-color-transparent2 is an
+ *                          overlay scrim that inverts to white on dark themes, which reads as a glow
+ *                          rather than a shadow.
  * --rt-toolbar-hover-bg    toolbar button hover background
  *
  * The `&light`/`&dark` blocks resolve to CodeMirror's own light/dark theme classes on the editor
@@ -110,7 +112,8 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-header-bg': 'var(--joplin-table-background-color, rgb(247, 247, 247))',
         '--rt-toolbar-bg': 'var(--joplin-background-color)',
         '--rt-toolbar-color': 'var(--joplin-color)',
-        '--rt-toolbar-shadow': 'rgba(0, 0, 0, 0.2)',
+        '--rt-toolbar-shadow-near': 'rgba(0, 0, 0, 0.07)',
+        '--rt-toolbar-shadow-far': 'rgba(0, 0, 0, 0.1)',
         '--rt-toolbar-hover-bg': 'var(--joplin-selected-color)',
         '--rt-selection-bg': 'var(--rt-selection-blurred-bg)',
         '--rt-tint': 'var(--rt-tint-blurred)',
