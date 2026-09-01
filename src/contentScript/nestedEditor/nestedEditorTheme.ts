@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
-import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
+import { CLASS_NESTED_EDITOR_LINK } from '../shared/tableDomClasses';
 
 /**
  * Creates a theme for the nested cell editor that adapts to light/dark mode.
@@ -76,9 +76,14 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
                 textDecoration: 'underline',
                 textDecorationStyle: 'solid',
             },
-            [`.${CLASS_NESTED_EDITOR_URL}`]: {
-                // URL source can be substantially wider than its rendered link label. Allowing
-                // breaks at any character keeps it from increasing the table's intrinsic width.
+            [`.${CLASS_NESTED_EDITOR_LINK}`]: {
+                // A link's source can be substantially wider than what it renders to, so it is
+                // allowed to break at any character. `anywhere` rather than `break-word` because
+                // only `anywhere` lowers min-content width, and `.cm-content` is a flex item whose
+                // automatic minimum size is exactly that: under `break-word` an unbreakable label
+                // holds the item above the width cap in `tableStyles.ts` and the hidden scroller
+                // clips it instead of wrapping it. Breaks still prefer whitespace, so a label with
+                // spaces wraps between words the way the rendered cell does.
                 overflowWrap: 'anywhere',
             },
         },

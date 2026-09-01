@@ -4,6 +4,7 @@ import {
     CLASS_CELL_CONTENT,
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
+    CLASS_NESTED_EDITOR_LINK,
 } from '../shared/tableDomClasses';
 import { CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
 
@@ -14,6 +15,18 @@ import { CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
  * `selectionTint.ts` redraws a gridline at exactly this width.
  */
 export const CELL_BORDER_WIDTH = '1px';
+
+/**
+ * Width cap applied to the nested editor while it holds a link or image.
+ *
+ * `overflow-wrap: anywhere` on `CLASS_NESTED_EDITOR_LINK` only adds soft wrap opportunities to the
+ * *min-content* width; a link's source still contributes its full length to *max-content*. Auto
+ * table layout hands each column its max-content width whenever the table fits, so revealing a
+ * link's source widened the column until the table hit the widget edge before any wrapping
+ * happened. Capping the editor's width caps what it contributes to max-content, so the wrapping
+ * engages immediately and the cell grows vertically instead.
+ */
+const LINK_EDITOR_MAX_WIDTH = '40ch';
 
 /**
  * Base styles for the table widget, split by responsibility:
@@ -113,6 +126,11 @@ export const tableStyles = EditorView.baseTheme({
         {
             display: 'none',
         },
+    // Scoped to cells that actually contain a link/image destination so ordinary cells keep
+    // expanding freely as you type rather than being locked to a fixed editing width.
+    [`.${CLASS_CELL_EDITOR}:has(.${CLASS_NESTED_EDITOR_LINK})`]: {
+        maxWidth: LINK_EDITOR_MAX_WIDTH,
+    },
     [`.${CLASS_CELL_EDITOR} .cm-editor`]: {
         width: '100%',
     },
