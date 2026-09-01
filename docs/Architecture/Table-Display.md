@@ -105,3 +105,9 @@ cell-drag auto-scroll uses them for its edge zones and for clamping its hit test
 
 Auto-scroll picks its scroll target from the same distinction, testing whether `scrollDOM` has any overflow to move
 and falling back to `document.scrollingElement` when it does not.
+
+## Floating Toolbar
+
+The toolbar uses a Floating UI virtual anchor. Horizontally, it uses the table rect clipped to the widget root so it
+centres on the visible table slice; vertically, it uses the widget root so bottom placement clears the horizontal
+scrollbar.
