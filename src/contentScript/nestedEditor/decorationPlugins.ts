@@ -67,12 +67,11 @@ export const inlineCodePlugin = createSyntaxMarkPlugin((node) =>
 
 /**
  * Marks `[label](destination)` links and `![alt](destination)` images so the theme rule for
- * `CLASS_NESTED_EDITOR_LINK` in `nestedEditorTheme.ts` can wrap them aggressively, keeping them
- * inside the width cap `tableStyles.ts` puts on the editor.
+ * `CLASS_NESTED_EDITOR_LINK` in `nestedEditorTheme.ts` can lay each one out as its own
+ * width-capped box.
  *
- * The whole node is marked, not just the destination: `.cm-content` is a flex item, so its
- * automatic minimum size is its min-content width, and a label with no spaces would hold that
- * above the cap and be clipped by the hidden scroller rather than wrapped.
+ * The whole node is marked, not just the destination, so that the cap covers a label that has no
+ * wrap opportunities of its own.
  *
  * Only nodes with a destination qualify, which excludes bare URLs and autolinks (they render in
  * full, so the rendered cell already reserves their width) along with reference links, whose

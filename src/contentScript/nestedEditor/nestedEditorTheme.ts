@@ -3,6 +3,14 @@ import { Extension } from '@codemirror/state';
 import { CLASS_NESTED_EDITOR_LINK } from '../shared/tableDomClasses';
 
 /**
+ * Width a link's source is allowed to occupy in the cell editor before it wraps.
+ *
+ * Wide enough that most links wrap only once or twice, narrow enough that revealing one does not
+ * noticeably widen the table.
+ */
+const LINK_MAX_WIDTH = '40ch';
+
+/**
  * Creates a theme for the nested cell editor that adapts to light/dark mode.
  * Configures selection highlighting, scrolling behavior, and syntax decoration styles.
  *
@@ -77,13 +85,21 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
                 textDecorationStyle: 'solid',
             },
             [`.${CLASS_NESTED_EDITOR_LINK}`]: {
-                // A link's source can be substantially wider than what it renders to, so it is
-                // allowed to break at any character. `anywhere` rather than `break-word` because
-                // only `anywhere` lowers min-content width, and `.cm-content` is a flex item whose
-                // automatic minimum size is exactly that: under `break-word` an unbreakable label
-                // holds the item above the width cap in `tableStyles.ts` and the hidden scroller
-                // clips it instead of wrapping it. Breaks still prefer whitespace, so a label with
-                // spaces wraps between words the way the rendered cell does.
+                // A link's source is far wider than what it renders to, so activating a cell that
+                // holds one used to widen the column: auto table layout hands each column its
+                // max-content width whenever the table still fits, and no `overflow-wrap` value
+                // lowers max-content. Laying the link out as its own box caps what it contributes
+                // to max-content, so the cell grows vertically instead.
+                //
+                // The cap belongs on the link rather than on the editor or the line, which the
+                // link shares with ordinary text: capping either of those truncates long non-link
+                // text, which should still be free to widen the cell.
+                display: 'inline-block',
+                maxWidth: LINK_MAX_WIDTH,
+                // `anywhere` rather than `break-word` because only `anywhere` lowers min-content
+                // width. A label with no wrap opportunities of its own would otherwise hold the
+                // box above the cap and overflow it. Breaks still prefer whitespace, so a label
+                // with spaces wraps between words the way the rendered cell does.
                 overflowWrap: 'anywhere',
             },
         },
