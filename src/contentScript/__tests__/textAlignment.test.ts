@@ -126,7 +126,27 @@ describe('alignRenderedToSource', () => {
     });
 
     it('aligns a long repeated-character cell within the supported size', () => {
-        // The worst case for block matching: every character is a candidate for every other.
+        // The worst case for a single scan: every character is a candidate for every other.
+        // It still costs about half the comparison budget, so this pins that headroom.
         expect(alignRenderedToSource('a'.repeat(1000), 'a'.repeat(1000))?.matchedRatio).toBe(1);
+    });
+
+    it('aligns a long prose cell carrying inline markup', () => {
+        const rendered = 'lorem ipsum dolor sit amet '.repeat(33);
+        const source = rendered.replace(/dolor/g, '**dolor**').slice(0, 1000);
+
+        expect(alignRenderedToSource(rendered, source)?.matchedRatio).toBeGreaterThan(0.9);
+    });
+
+    it('declines text whose shape would cost more than the comparison budget', () => {
+        // Nothing longer than one character is common to the two, so every character becomes
+        // its own block and the recursion rescans the rest of the cell for each of them.
+        expect(alignRenderedToSource('a'.repeat(500), 'ab'.repeat(500))).toBeNull();
+    });
+
+    it('declines a cell of short inline code spans rather than stalling the click', () => {
+        // Same shape from real Markdown: `a` `a` `a` ... shares no run longer than one
+        // character with the text it renders to.
+        expect(alignRenderedToSource('a '.repeat(200), '`a` '.repeat(200))).toBeNull();
     });
 });

@@ -24,11 +24,33 @@
 /**
  * Longest length either side may have before alignment is refused.
  *
- * Block matching is O(n*m) in the worst case (a cell of one repeated character), so the cap
- * bounds the cost of a hit test that runs on a click. Cells this long are far past the point
- * where a caret lands somewhere the reader was looking anyway.
+ * Cells this long are far past the point where a caret lands somewhere the reader was
+ * looking anyway. The cap bounds a single {@link findLongestMatch} scan; it does not bound
+ * the recursion around it, which is what {@link MAX_ALIGNMENT_CANDIDATES} is for.
  */
 const MAX_ALIGNMENT_LENGTH = 1000;
+
+/**
+ * Candidate comparisons alignment may spend before it gives up.
+ *
+ * The length cap alone does not bound the cost of a hit test that runs on a click. A cell
+ * whose longest common run is a single character - a row of short inline code spans, or
+ * emphasis around every character - recurses once per character and rescans the shrinking
+ * range each time, which is quadratic in the cell length rather than linear.
+ *
+ * Measured on the shapes this has to survive, a comparison costs roughly 30ns and the cells
+ * that read as prose stay near a million: a 1000-character cell with inline markup spends
+ * ~0.8M, a cell of 1000 identical characters ~1.0M. The degenerate shapes above spend 10M to
+ * 40M, or 0.3s to 1s. The budget sits above the first group and well below the second, which
+ * holds a click to ~60ms. What it gives up is the alignment of a cell that is both long and
+ * degenerate, which then falls back like any other cell that cannot be aligned.
+ */
+const MAX_ALIGNMENT_CANDIDATES = 2_000_000;
+
+/** Remaining comparison budget, shared by every scan in one alignment. */
+interface AlignmentBudget {
+    remaining: number;
+}
 
 /** A run of characters that is identical in both strings. */
 interface MatchingBlock {
@@ -93,7 +115,9 @@ function indexCharacterPositions(
  * rendered character, so extending a run is a single lookup. Ties keep the first run found,
  * which is the earliest position in both strings because the position lists ascend.
  *
- * Returns a zero-length block when the ranges share no characters.
+ * Returns a zero-length block when the ranges share no characters, and null when `budget`
+ * ran out before the scan finished, which makes a truncated scan impossible to mistake for
+ * a completed one.
  */
 function findLongestMatch(
     rendered: string,
@@ -101,12 +125,17 @@ function findLongestMatch(
     renderedFrom: number,
     renderedTo: number,
     sourceFrom: number,
-    sourceTo: number
-): MatchingBlock {
+    sourceTo: number,
+    budget: AlignmentBudget
+): MatchingBlock | null {
     let best: MatchingBlock = { renderedFrom, sourceFrom, length: 0 };
     let runLengths = new Map<number, number>();
 
     for (let i = renderedFrom; i < renderedTo; i++) {
+        if (budget.remaining <= 0) {
+            return null;
+        }
+
         const nextRunLengths = new Map<number, number>();
         for (const j of sourcePositions.get(rendered[i]) ?? []) {
             if (j < sourceFrom) {
@@ -116,6 +145,7 @@ function findLongestMatch(
                 break;
             }
 
+            budget.remaining--;
             const length = (runLengths.get(j - 1) ?? 0) + 1;
             nextRunLengths.set(j, length);
             if (length > best.length) {
@@ -135,13 +165,19 @@ function findLongestMatch(
  * The recursion is an explicit stack: a pathological input can nest as deeply as the strings
  * are long, and the cap alone is not a reason to spend that on the call stack. Blocks come
  * back unordered, which is all the caller needs to fill a lookup table.
+ *
+ * Returns null once the shared budget runs out. Partial blocks are discarded rather than
+ * returned, because the stack descends into one gap at a time: whatever it had found would
+ * cover one end of the cell and leave the other unanchored, which places a caret confidently
+ * in the wrong place. Declining hands the caller the fallback it already has.
  */
 function collectMatchingBlocks(
     rendered: string,
     sourcePositions: Map<string, number[]>,
     sourceLength: number
-): MatchingBlock[] {
+): MatchingBlock[] | null {
     const blocks: MatchingBlock[] = [];
+    const budget: AlignmentBudget = { remaining: MAX_ALIGNMENT_CANDIDATES };
     const pending: Array<[number, number, number, number]> = [[0, rendered.length, 0, sourceLength]];
 
     while (pending.length > 0) {
@@ -150,7 +186,18 @@ function collectMatchingBlocks(
             continue;
         }
 
-        const match = findLongestMatch(rendered, sourcePositions, renderedFrom, renderedTo, sourceFrom, sourceTo);
+        const match = findLongestMatch(
+            rendered,
+            sourcePositions,
+            renderedFrom,
+            renderedTo,
+            sourceFrom,
+            sourceTo,
+            budget
+        );
+        if (!match) {
+            return null;
+        }
         if (match.length === 0) {
             continue;
         }
@@ -169,8 +216,10 @@ function collectMatchingBlocks(
  * Characters inside `excludedRanges` cannot anchor a match. Callers use this for syntax that
  * may duplicate visible text, such as an HTML tag name or attribute value.
  *
- * Returns null when either side is longer than {@link MAX_ALIGNMENT_LENGTH}; callers treat
- * that as "no better placement is available" rather than as an error.
+ * Returns null when either side is longer than {@link MAX_ALIGNMENT_LENGTH}, or when the
+ * text is shaped such that aligning it would cost more than {@link MAX_ALIGNMENT_CANDIDATES}
+ * comparisons; callers treat that as "no better placement is available" rather than as an
+ * error.
  */
 export function alignRenderedToSource(
     rendered: string,
@@ -186,13 +235,14 @@ export function alignRenderedToSource(
         return { toSource: new Int32Array(), matchedRatio: 1 };
     }
 
+    const blocks = collectMatchingBlocks(rendered, indexCharacterPositions(source, excludedRanges), source.length);
+    if (!blocks) {
+        return null;
+    }
+
     const toSource = new Int32Array(rendered.length).fill(-1);
     let matched = 0;
-    for (const block of collectMatchingBlocks(
-        rendered,
-        indexCharacterPositions(source, excludedRanges),
-        source.length
-    )) {
+    for (const block of blocks) {
         for (let k = 0; k < block.length; k++) {
             toSource[block.renderedFrom + k] = block.sourceFrom + k;
         }
