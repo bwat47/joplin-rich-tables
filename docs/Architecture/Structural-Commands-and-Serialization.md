@@ -42,6 +42,8 @@ not preserve stale table context.
 ### 1b. Selection Clipboard Entry (`tableRuntime/selection/cellSelectionClipboard.ts`)
 
 - Document-level `copy`/`cut`/`paste` capture handles selection-mode clipboard operations and any nested-editor paste flows that surface as real DOM paste events.
+- A `paste` handler on the nested editor itself is the fallback for a paste the document-level capture declined; it fires only when that capture left the event unhandled, and non-table text falls through to CodeMirror's own paste handling.
+- Rewrites carry `tableClipboardRewriteAnnotation` so the main-editor guard lets them through instead of rejecting them for reaching outside the active cell.
 - `Ctrl+X` is selection-only: copy markdown fragment, then run the shared selection-removal rewrite and keep the resulting selection state.
 - `Ctrl+V` is anchor-based: selection top-left wins; otherwise an active nested editor can supply the anchor cell.
 - Valid pasted markdown table fragments may expand the target table with new body rows and columns.

@@ -105,6 +105,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 - Treats the editable span as the allowed in-cell edit range while the semantic span remains the render/parse source.
 - Allows external updates not overlapping table.
 - Whitelists `syncAnnotation` transactions.
+- Whitelists `tableClipboardRewriteAnnotation` transactions: table clipboard rewrites replace the whole table by design, so the active-cell range check does not apply to them.
 - Whitelists structural operations with `rebuildTableWidgetsEffect`.
 - Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
 - Upgrades root-editor `input.paste` transactions into multi-cell table paste when Joplin routes Cmd/Ctrl+V to the main editor while a nested editor is open.

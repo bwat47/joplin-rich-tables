@@ -1,4 +1,4 @@
-import { EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
+import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
@@ -21,6 +21,13 @@ import type { CellCoords, TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { clamp } from '../../shared/numberUtils';
+
+/**
+ * Marks a transaction as one of this module's own table rewrites. The main-editor guard
+ * treats those as trusted: the rewrite replaces the whole table, which the guard would
+ * otherwise reject for reaching outside the active cell while a nested editor is open.
+ */
+export const tableClipboardRewriteAnnotation = Annotation.define<boolean>();
 
 export interface TableClipboardTarget {
     tableFrom: number;
@@ -375,7 +382,7 @@ export function createTableClipboardRewriteSpec(state: EditorState, rewrite: Tab
             : {}),
         selection: EditorSelection.single(rewrite.selectionAnchorPos),
         effects,
-        annotations: cellSelectionTransitionAnnotation.of(true),
+        annotations: [cellSelectionTransitionAnnotation.of(true), tableClipboardRewriteAnnotation.of(true)],
         scrollIntoView: false,
     };
 }

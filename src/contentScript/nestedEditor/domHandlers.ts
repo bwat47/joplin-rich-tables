@@ -214,26 +214,22 @@ export function createNestedEditorDomHandlers(
         ensureRootSelectionForCommand: () => void;
     }
 ): Extension[] {
-    let pendingClipboardText: string | null = null;
-
     return [
-        // Paste hits the root editor as an input.paste event and then gets sync'd back to nested editor
-        EditorView.clipboardInputFilter.of((text) => {
-            pendingClipboardText = text;
-            return text;
-        }),
-        EditorView.inputHandler.of((_view, _from, _to, _text) => {
-            if (pendingClipboardText === null) {
-                return false;
-            }
-
-            const clipboardText = pendingClipboardText;
-            pendingClipboardText = null;
-            return handleTableClipboardTextPaste(clipboardText, mainView, {
-                nestedEditorOpen: true,
-            });
-        }),
         EditorView.domEventHandlers({
+            // Last stop for a paste that reaches the nested editor directly: the document-level
+            // clipboard capture runs first and marks the event handled, so this only fires when
+            // that capture declined it. A markdown-table fragment still belongs to the multi-cell
+            // rewrite; anything else falls through to CodeMirror's own paste handling.
+            paste: (e) => {
+                const clipboardText = e.clipboardData?.getData('text/plain');
+                if (!clipboardText) {
+                    return false;
+                }
+
+                return handleTableClipboardTextPaste(clipboardText, mainView, {
+                    nestedEditorOpen: true,
+                });
+            },
             beforeinput: (e) => {
                 e.stopPropagation();
                 return false;
