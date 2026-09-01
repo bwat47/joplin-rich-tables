@@ -21,12 +21,12 @@ import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActive
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
-    clipTableRectToWidget,
     computePinnedAbsolutePlacement,
     computePinnedFixedPlacement,
     isFinitePoint,
     isObscuringTopPlacement,
     isTableOutsideViewport,
+    resolveToolbarAnchorRect,
     resolveToolbarPlacementMode,
     shouldPinAbove,
     TOOLBAR_OFFSET_PX,
@@ -45,7 +45,7 @@ import {
 interface PositioningContext {
     /** The widget's `<table>`; the toolbar centres on it rather than on the full-width widget. */
     tableElement: HTMLElement;
-    /** The widget root, which clips the table horizontally when the table overflows it. */
+    /** The widget root: it clips the table horizontally, and owns the vertical bounds. */
     widgetElement: HTMLElement;
     scrollDOM: HTMLElement;
     doc: Document;
@@ -57,8 +57,8 @@ interface PositioningContext {
 /** Measurements taken fresh on every reposition. */
 interface ToolbarGeometry {
     toolbarRect: DOMRect;
-    /** The table's visible slice: what the toolbar anchors to in every placement mode. */
-    tableRect: ToolbarRect;
+    /** The box the toolbar anchors to in every placement mode. */
+    anchorRect: ToolbarRect;
     viewport: ViewportBounds;
 }
 
@@ -316,12 +316,12 @@ export class TableToolbarPlugin {
         }
 
         const geometry = this.readGeometry(ctx);
-        if (isTableOutsideViewport(geometry.tableRect, geometry.viewport)) {
+        if (isTableOutsideViewport(geometry.anchorRect, geometry.viewport)) {
             this.hideToolbar();
             return;
         }
 
-        const mode = resolveToolbarPlacementMode(geometry.tableRect, geometry.toolbarRect.height, geometry.viewport);
+        const mode = resolveToolbarPlacementMode(geometry.anchorRect, geometry.toolbarRect.height, geometry.viewport);
         const placement =
             mode === 'pinned'
                 ? this.resolvePinnedPlacement(ctx, geometry)
@@ -339,7 +339,7 @@ export class TableToolbarPlugin {
     private readGeometry(ctx: PositioningContext): ToolbarGeometry {
         return {
             toolbarRect: this.dom.getBoundingClientRect(),
-            tableRect: clipTableRectToWidget(
+            anchorRect: resolveToolbarAnchorRect(
                 ctx.tableElement.getBoundingClientRect(),
                 ctx.widgetElement.getBoundingClientRect()
             ),
@@ -356,7 +356,7 @@ export class TableToolbarPlugin {
         geometry: ToolbarGeometry,
         mode: 'top' | 'bottom'
     ): Promise<ToolbarPlacement | null> {
-        const anchor = createVirtualAnchor(ctx.tableElement, geometry.tableRect);
+        const anchor = createVirtualAnchor(ctx.tableElement, geometry.anchorRect);
         const middleware = createPositioningMiddleware();
         const result = await computePosition(anchor, this.dom, { placement: mode, middleware });
 
@@ -384,12 +384,12 @@ export class TableToolbarPlugin {
 
     /** Pinned mode: toolbar sticks to the viewport edge when the table top/bottom is out of view. */
     private resolvePinnedPlacement(ctx: PositioningContext, geometry: ToolbarGeometry): ToolbarPlacement | null {
-        const { tableRect, toolbarRect, viewport } = geometry;
-        const pinAbove = shouldPinAbove(tableRect, viewport);
+        const { anchorRect, toolbarRect, viewport } = geometry;
+        const pinAbove = shouldPinAbove(anchorRect, viewport);
 
         const placement = ctx.isInternalScroll
             ? computePinnedAbsolutePlacement({
-                  tableRect,
+                  anchorRect,
                   toolbarRect,
                   viewport,
                   viewRect: this.view.dom.getBoundingClientRect(),
@@ -397,7 +397,7 @@ export class TableToolbarPlugin {
                   pinAbove,
               })
             : computePinnedFixedPlacement({
-                  tableRect,
+                  anchorRect,
                   toolbarRect,
                   viewport,
                   viewportWidth: getViewportWidth(ctx.viewWindow),

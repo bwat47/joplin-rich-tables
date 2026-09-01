@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-    clipTableRectToWidget,
     computePinnedAbsolutePlacement,
     computePinnedFixedPlacement,
     isFinitePoint,
     isObscuringTopPlacement,
     isTableOutsideViewport,
+    resolveToolbarAnchorRect,
     resolveToolbarPlacementMode,
     shouldPinAbove,
     TOOLBAR_VIEWPORT_PADDING_PX,
@@ -33,48 +33,53 @@ function domRectLike(partial: Partial<ToolbarRect>): ToolbarRect {
 
 const TOOLBAR_HEIGHT = 30;
 
-describe('clipTableRectToWidget', () => {
-    const widgetRect = rect({ left: 100, width: 600 });
+describe('resolveToolbarAnchorRect', () => {
+    const widgetRect = rect({ top: 0, bottom: 90, height: 90, left: 100, width: 600 });
 
-    it('leaves a table narrower than its widget untouched', () => {
-        const clipped = clipTableRectToWidget(rect({ top: 10, bottom: 60, left: 100, width: 200 }), widgetRect);
+    it('centres horizontally on a table narrower than its widget', () => {
+        const anchor = resolveToolbarAnchorRect(rect({ top: 8, bottom: 70, left: 100, width: 200 }), widgetRect);
 
-        expect(clipped).toEqual(rect({ top: 10, bottom: 60, left: 100, width: 200 }));
+        expect(anchor.left).toBe(100);
+        expect(anchor.width).toBe(200);
     });
 
     it('clips a table wider than its widget to the visible slice', () => {
-        const clipped = clipTableRectToWidget(rect({ top: 10, bottom: 60, left: 100, width: 2000 }), widgetRect);
+        const anchor = resolveToolbarAnchorRect(rect({ top: 8, bottom: 70, left: 100, width: 2000 }), widgetRect);
 
-        expect(clipped.left).toBe(100);
-        expect(clipped.width).toBe(600);
+        expect(anchor.left).toBe(100);
+        expect(anchor.width).toBe(600);
     });
 
     it('follows the visible slice when the table is scrolled horizontally', () => {
-        const clipped = clipTableRectToWidget(rect({ top: 10, bottom: 60, left: -400, width: 2000 }), widgetRect);
+        const anchor = resolveToolbarAnchorRect(rect({ top: 8, bottom: 70, left: -400, width: 2000 }), widgetRect);
 
-        expect(clipped.left).toBe(100);
-        expect(clipped.width).toBe(600);
+        expect(anchor.left).toBe(100);
+        expect(anchor.width).toBe(600);
     });
 
-    it('preserves the vertical bounds of the table', () => {
-        const clipped = clipTableRectToWidget(rect({ top: 10, bottom: 60, left: -400, width: 2000 }), widgetRect);
+    it('takes its vertical bounds from the widget, which covers the horizontal scrollbar', () => {
+        // The widget extends 20px below the table: its padding plus the scrollbar the overflowing
+        // table makes it render. Anchoring to the table would put the toolbar over that scrollbar.
+        const anchor = resolveToolbarAnchorRect(rect({ top: 8, bottom: 70, left: 100, width: 2000 }), widgetRect);
 
-        expect(clipped.top).toBe(10);
-        expect(clipped.bottom).toBe(60);
+        expect(anchor.top).toBe(0);
+        expect(anchor.bottom).toBe(90);
+        expect(anchor.height).toBe(90);
     });
 
-    it('keeps the vertical bounds of a DOMRect, whose values are prototype accessors', () => {
-        const tableRect = domRectLike({ top: 10, bottom: 60, height: 50, left: -400, width: 2000 });
+    it('keeps the bounds of DOMRects, whose values are prototype accessors', () => {
+        const anchor = resolveToolbarAnchorRect(
+            domRectLike({ top: 8, bottom: 70, height: 62, left: -400, width: 2000 }),
+            domRectLike({ top: 0, bottom: 90, height: 90, left: 100, width: 600 })
+        );
 
-        const clipped = clipTableRectToWidget(tableRect, widgetRect);
-
-        expect(clipped).toEqual({ top: 10, bottom: 60, height: 50, left: 100, width: 600 });
+        expect(anchor).toEqual({ top: 0, bottom: 90, height: 90, left: 100, width: 600 });
     });
 
     it('reports zero width when the rects do not overlap', () => {
-        const clipped = clipTableRectToWidget(rect({ left: 5000, width: 100 }), widgetRect);
+        const anchor = resolveToolbarAnchorRect(rect({ left: 5000, width: 100 }), widgetRect);
 
-        expect(clipped.width).toBe(0);
+        expect(anchor.width).toBe(0);
     });
 });
 
@@ -151,7 +156,7 @@ describe('computePinnedAbsolutePlacement', () => {
     it('centres on the table and positions against the top edge relative to the offset parent', () => {
         const placement = computePinnedAbsolutePlacement({
             ...base,
-            tableRect: rect({ top: 350, bottom: 900, left: 120, width: 300 }),
+            anchorRect: rect({ top: 350, bottom: 900, left: 120, width: 300 }),
             pinAbove: true,
         });
 
@@ -162,7 +167,7 @@ describe('computePinnedAbsolutePlacement', () => {
     it('centres on the table and positions against the bottom edge when pinning below', () => {
         const placement = computePinnedAbsolutePlacement({
             ...base,
-            tableRect: rect({ top: -400, bottom: 200, left: 120, width: 300 }),
+            anchorRect: rect({ top: -400, bottom: 200, left: 120, width: 300 }),
             pinAbove: false,
         });
 
@@ -172,7 +177,7 @@ describe('computePinnedAbsolutePlacement', () => {
     it('clamps the toolbar inside the editor panel', () => {
         const placement = computePinnedAbsolutePlacement({
             ...base,
-            tableRect: rect({ top: 350, bottom: 900, left: 5000, width: 300 }),
+            anchorRect: rect({ top: 350, bottom: 900, left: 5000, width: 300 }),
             pinAbove: true,
         });
 
@@ -182,7 +187,7 @@ describe('computePinnedAbsolutePlacement', () => {
     it('clamps to the left padding when centring a narrow table would overflow the panel', () => {
         const placement = computePinnedAbsolutePlacement({
             ...base,
-            tableRect: rect({ top: 350, bottom: 900, left: 50, width: 60 }),
+            anchorRect: rect({ top: 350, bottom: 900, left: 50, width: 60 }),
             pinAbove: true,
         });
 
@@ -193,7 +198,7 @@ describe('computePinnedAbsolutePlacement', () => {
         const placement = computePinnedAbsolutePlacement({
             ...base,
             viewRect: rect({ top: 100, left: 50, width: 100, height: 400 }),
-            tableRect: rect({ top: 350, bottom: 900, left: 5000, width: 300 }),
+            anchorRect: rect({ top: 350, bottom: 900, left: 5000, width: 300 }),
             pinAbove: true,
         });
 
@@ -204,7 +209,7 @@ describe('computePinnedAbsolutePlacement', () => {
         const placement = computePinnedAbsolutePlacement({
             ...base,
             viewport: { top: 100, bottom: 110, height: 10 },
-            tableRect: rect({ top: -400, bottom: 105, left: 120 }),
+            anchorRect: rect({ top: -400, bottom: 105, left: 120 }),
             pinAbove: false,
         });
 
@@ -223,7 +228,7 @@ describe('computePinnedFixedPlacement', () => {
     it('centres on the table in viewport-relative coordinates when pinning above', () => {
         const placement = computePinnedFixedPlacement({
             ...base,
-            tableRect: rect({ top: 500, bottom: 1200, left: 30, width: 340 }),
+            anchorRect: rect({ top: 500, bottom: 1200, left: 30, width: 340 }),
             pinAbove: true,
         });
 
@@ -234,7 +239,7 @@ describe('computePinnedFixedPlacement', () => {
     it('centres on the table in viewport-relative coordinates when pinning below', () => {
         const placement = computePinnedFixedPlacement({
             ...base,
-            tableRect: rect({ top: -500, bottom: 300, left: 30, width: 340 }),
+            anchorRect: rect({ top: -500, bottom: 300, left: 30, width: 340 }),
             pinAbove: false,
         });
 
@@ -244,7 +249,7 @@ describe('computePinnedFixedPlacement', () => {
     it('clamps the toolbar inside the viewport width', () => {
         const placement = computePinnedFixedPlacement({
             ...base,
-            tableRect: rect({ top: 500, bottom: 1200, left: 380, width: 340 }),
+            anchorRect: rect({ top: 500, bottom: 1200, left: 380, width: 340 }),
             pinAbove: true,
         });
 
@@ -254,7 +259,7 @@ describe('computePinnedFixedPlacement', () => {
     it('clamps to the left padding when centring a narrow table would overflow the viewport', () => {
         const placement = computePinnedFixedPlacement({
             ...base,
-            tableRect: rect({ top: 500, bottom: 1200, left: -60, width: 120 }),
+            anchorRect: rect({ top: 500, bottom: 1200, left: -60, width: 120 }),
             pinAbove: true,
         });
 
