@@ -89,11 +89,12 @@ block-level tokens with line numbers only, and a cell is one line. The mapping i
    text a reader sees, counting `<br>` as the newline it stands for and skipping MathML, whose text transcribes the
    formula rather than its source.
 2. `shared/textAlignment.ts` aligns that text against the cell's own text. Rendering only removes characters, so the
-   rendered text is a subsequence of its source for the inline constructs cells contain. Alignment uses `difflib`'s
-   recursive longest-matching-block scheme rather than a plain LCS, which is free to scatter its matches across a
-   URL or a repeated word. The runtime excludes raw-HTML tag, comment and processing-instruction ranges identified
-   by CodeMirror's Markdown syntax tree, preventing visible text from mapping into raw-HTML syntax without mistaking
-   inline code or autolinks for HTML.
+   rendered text is a subsequence of its source for the inline constructs cells contain. Alignment prefers `difflib`'s
+   recursive longest-matching-block scheme, which avoids scattering matches across a URL or repeated word. When that
+   heuristic leaves a partial match, a leftmost subsequence pass recovers complete mappings across repeated markup.
+   The runtime excludes raw-HTML tag, comment and processing-instruction ranges identified by CodeMirror's Markdown
+   syntax tree, preventing visible text from mapping into raw-HTML syntax without mistaking inline code or autolinks
+   for HTML.
 3. `tableRuntime/interaction/clickCursorPlacement.ts` converts the aligned offset into an `InitialCursorPos`.
 
 The press is read at pointerdown, before the open request replaces the rendered content, and carried on the gesture

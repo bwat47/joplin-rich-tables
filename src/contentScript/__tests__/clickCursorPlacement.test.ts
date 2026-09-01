@@ -133,6 +133,14 @@ describe('resolveClickCursorPos', () => {
         ).toBe('b|');
     });
 
+    it('places repeated text on the correct side of an emphasis boundary', () => {
+        const doc = ['', '| H1 |', '| --- |', '| a**aa** |', ''].join('\n');
+
+        expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText: 'aaa', renderedOffset: 1 })).toBe(
+            'a**|aa**'
+        );
+    });
+
     it('places a caret across a line break, which the source stores as <br>', () => {
         const doc = ['', '| H1 |', '| --- |', '| one<br>two |', ''].join('\n');
 

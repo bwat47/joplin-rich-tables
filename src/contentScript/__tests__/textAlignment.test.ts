@@ -37,6 +37,11 @@ describe('alignRenderedToSource', () => {
         expect(place('plain text', 'plain text', 6)).toBe('plain |text');
     });
 
+    it('maps all repeated text when a later longest block would strand an earlier character', () => {
+        expect(place('aaa', 'a**aa**', 1)).toBe('a**|aa**');
+        expect(place('aaa', 'a**aa**', 2)).toBe('a**a|a**');
+    });
+
     it('places a caret in link text rather than in the URL', () => {
         // "link" occurs twice in the source; only the label is the text that was rendered.
         expect(place('link', '[link](http://link.com)', 2)).toBe('[li|nk](http://link.com)');

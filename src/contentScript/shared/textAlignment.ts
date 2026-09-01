@@ -87,12 +87,8 @@ function excludedSourcePositions(sourceLength: number, ranges: readonly Excluded
 }
 
 /** Character to ascending list of positions, so block matching can skip non-candidates. */
-function indexCharacterPositions(
-    source: string,
-    excludedRanges: readonly ExcludedSourceRange[]
-): Map<string, number[]> {
+function indexCharacterPositions(source: string, excluded: Uint8Array | null): Map<string, number[]> {
     const positions = new Map<string, number[]>();
-    const excluded = excludedSourcePositions(source.length, excludedRanges);
     for (let i = 0; i < source.length; i++) {
         if (excluded?.[i]) {
             continue;
@@ -106,6 +102,37 @@ function indexCharacterPositions(
         }
     }
     return positions;
+}
+
+/**
+ * Maps every rendered character to its earliest available source occurrence in order.
+ *
+ * Choosing the earliest match cannot prevent a later match that another subsequence could
+ * make, so a single forward scan is enough to prove whether the rendered text is a complete
+ * subsequence. This repairs repeated-text cases where longest-block alignment commits to a
+ * later run and strands otherwise matchable characters on one side of it.
+ */
+function alignCompleteSubsequence(rendered: string, source: string, excluded: Uint8Array | null): TextAlignment | null {
+    const toSource = new Int32Array(rendered.length);
+    let sourceIndex = 0;
+
+    for (let renderedIndex = 0; renderedIndex < rendered.length; renderedIndex++) {
+        while (
+            sourceIndex < source.length &&
+            (Boolean(excluded?.[sourceIndex]) || source[sourceIndex] !== rendered[renderedIndex])
+        ) {
+            sourceIndex++;
+        }
+
+        if (sourceIndex >= source.length) {
+            return null;
+        }
+
+        toSource[renderedIndex] = sourceIndex;
+        sourceIndex++;
+    }
+
+    return { toSource, matchedRatio: 1 };
 }
 
 /**
@@ -235,7 +262,8 @@ export function alignRenderedToSource(
         return { toSource: new Int32Array(), matchedRatio: 1 };
     }
 
-    const blocks = collectMatchingBlocks(rendered, indexCharacterPositions(source, excludedRanges), source.length);
+    const excluded = excludedSourcePositions(source.length, excludedRanges);
+    const blocks = collectMatchingBlocks(rendered, indexCharacterPositions(source, excluded), source.length);
     if (!blocks) {
         return null;
     }
@@ -249,7 +277,12 @@ export function alignRenderedToSource(
         matched += block.length;
     }
 
-    return { toSource, matchedRatio: matched / rendered.length };
+    const blockAlignment = { toSource, matchedRatio: matched / rendered.length };
+    if (matched === rendered.length) {
+        return blockAlignment;
+    }
+
+    return alignCompleteSubsequence(rendered, source, excluded) ?? blockAlignment;
 }
 
 /**
