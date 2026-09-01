@@ -9,6 +9,7 @@ import { changesOverlapRange, isFullDocumentReplace } from '../shared/transactio
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import {
     buildMultiCellPasteRewrite,
+    tableClipboardRewriteAnnotation,
     type TableClipboardRewrite,
 } from '../tableRuntime/selection/cellSelectionClipboard';
 import {
@@ -106,13 +107,19 @@ function clearActiveCellDecision(tr: Transaction): GuardDecision {
 
 /**
  * Transactions the guard never inspects: they either carry no document change or are
- * already produced by the plugin itself (nested editor sync, normalize-before-edit).
+ * already produced by the plugin itself (nested editor sync, normalize-before-edit,
+ * table clipboard rewrites).
+ *
+ * Clipboard rewrites replace the whole table by design, so without this bypass the
+ * active-cell sanitization below would reject the ones dispatched from the document-level
+ * clipboard capture while a nested editor is open.
  */
 function isGuardBypassTransaction(tr: Transaction): boolean {
     return (
         !tr.docChanged ||
         Boolean(tr.annotation(syncAnnotation)) ||
-        Boolean(tr.annotation(normalizeBeforeEditAnnotation))
+        Boolean(tr.annotation(normalizeBeforeEditAnnotation)) ||
+        Boolean(tr.annotation(tableClipboardRewriteAnnotation))
     );
 }
 

@@ -6,6 +6,21 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
+import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
+
+vi.mock('../tableRuntime/selection/cellSelectionClipboard', () => ({
+    handleTableClipboardTextPaste: vi.fn(() => false),
+}));
+
+const handleTableClipboardTextPasteMock = vi.mocked(handleTableClipboardTextPaste);
+
+function dispatchPaste(target: HTMLElement, text: string): void {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+        value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
+    });
+    target.dispatchEvent(event);
+}
 
 if (!Range.prototype.getClientRects) {
     Object.defineProperty(Range.prototype, 'getClientRects', {
@@ -42,6 +57,8 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mo
 describe('nestedEditor dom handlers', () => {
     afterEach(() => {
         document.body.innerHTML = '';
+        handleTableClipboardTextPasteMock.mockReset();
+        handleTableClipboardTextPasteMock.mockReturnValue(false);
     });
 
     it('stops left-clicks inside selected text from bubbling to the parent editor', () => {
@@ -92,6 +109,37 @@ describe('nestedEditor dom handlers', () => {
 
         expect(syncSelectionToMain).toHaveBeenCalledTimes(1);
         expect(parentMouseDown).not.toHaveBeenCalled();
+
+        nestedView.destroy();
+    });
+
+    it('routes a table fragment pasted into the nested editor through the multi-cell rewrite', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const nestedView = createNestedView({ parent, syncSelectionToMain: vi.fn() });
+        handleTableClipboardTextPasteMock.mockReturnValue(true);
+
+        const clipboardText = ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n');
+        dispatchPaste(nestedView.contentDOM, clipboardText);
+
+        expect(handleTableClipboardTextPasteMock).toHaveBeenCalledWith(clipboardText, expect.anything(), {
+            nestedEditorOpen: true,
+        });
+        // The rewrite owns the paste, so nothing lands in the cell editor itself.
+        expect(nestedView.state.doc.toString()).toBe('selected text');
+
+        nestedView.destroy();
+    });
+
+    it('lets a non-table paste fall through to the nested editor', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const nestedView = createNestedView({ parent, syncSelectionToMain: vi.fn() });
+
+        dispatchPaste(nestedView.contentDOM, 'plain');
+
+        expect(handleTableClipboardTextPasteMock).toHaveBeenCalledTimes(1);
+        expect(nestedView.state.doc.toString()).toBe('plain text');
 
         nestedView.destroy();
     });

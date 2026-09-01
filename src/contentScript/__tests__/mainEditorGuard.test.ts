@@ -3,6 +3,10 @@ import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } 
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { activateInsertedTableEffect, insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
+import {
+    buildMultiCellPasteRewrite,
+    createTableClipboardRewriteSpec,
+} from '../tableRuntime/selection/cellSelectionClipboard';
 import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
@@ -79,6 +83,25 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toContain('| H |');
+    });
+
+    it('applies a table clipboard rewrite dispatched while the nested editor is open', () => {
+        // The document-level clipboard capture dispatches this rewrite straight at the main
+        // editor. It replaces the whole table, so without a guard bypass the active-cell
+        // sanitization would reject it and the paste would silently do nothing.
+        const state = createActiveHeaderState();
+        const rewrite = buildMultiCellPasteRewrite(
+            state,
+            { tableFrom: 0, anchor: { section: 'header', row: 0, col: 0 }, source: 'activeCell' },
+            ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n')
+        );
+        expect(rewrite).not.toBeNull();
+
+        const tr = state.update(createTableClipboardRewriteSpec(state, rewrite!));
+
+        expect(tr.state.doc.toString()).toBe(['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n'));
+        expect(getActiveCell(tr.state)).toBeNull();
+        expect(getCellSelection(tr.state)).not.toBeNull();
     });
 
     it('allows structural table edits that force rebuild', () => {
