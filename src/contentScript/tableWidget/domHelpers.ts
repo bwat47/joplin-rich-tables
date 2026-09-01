@@ -124,6 +124,18 @@ export function findTableWidgetElement(view: EditorView, tableId: TableId): HTML
 }
 
 /**
+ * Returns the `<table>` a widget root renders its cells into.
+ *
+ * Scoped to a direct child so it never matches a raw HTML table inside a cell's rendered Markdown.
+ *
+ * @param widgetElement - A widget root from `findTableWidgetElement()`.
+ * @returns The widget's own table element, or `null` if the widget has not rendered one.
+ */
+export function findWidgetTableElement(widgetElement: HTMLElement): HTMLElement | null {
+    return widgetElement.querySelector(`:scope > .${CLASS_TABLE_WIDGET_TABLE}`);
+}
+
+/**
  * Helper to locate a specific cell element in the DOM for a given table.
  *
  * @param view - The main EditorView

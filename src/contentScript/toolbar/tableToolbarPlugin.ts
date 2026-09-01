@@ -1,10 +1,18 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
-import { computePosition, autoUpdate, offset, shift, hide, type Middleware } from '@floating-ui/dom';
+import {
+    computePosition,
+    autoUpdate,
+    offset,
+    shift,
+    hide,
+    type Middleware,
+    type VirtualElement,
+} from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { findTableWidgetElement } from '../tableWidget/domHelpers';
+import { findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
@@ -13,6 +21,7 @@ import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActive
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
+    clipTableRectToWidget,
     computePinnedAbsolutePlacement,
     computePinnedFixedPlacement,
     isFinitePoint,
@@ -23,6 +32,7 @@ import {
     TOOLBAR_OFFSET_PX,
     TOOLBAR_VIEWPORT_PADDING_PX,
     type ToolbarPlacement,
+    type ToolbarRect,
 } from './toolbarPositioning';
 import {
     getViewportHeight,
@@ -33,7 +43,10 @@ import {
 
 /** Everything resolved once per `autoUpdate` registration and reused by every reposition. */
 interface PositioningContext {
-    referenceElement: HTMLElement;
+    /** The widget's `<table>`; the toolbar centres on it rather than on the full-width widget. */
+    tableElement: HTMLElement;
+    /** The widget root, which clips the table horizontally when the table overflows it. */
+    widgetElement: HTMLElement;
     scrollDOM: HTMLElement;
     doc: Document;
     viewWindow: Window;
@@ -44,7 +57,8 @@ interface PositioningContext {
 /** Measurements taken fresh on every reposition. */
 interface ToolbarGeometry {
     toolbarRect: DOMRect;
-    tableRect: DOMRect;
+    /** The table's visible slice: what the toolbar anchors to in every placement mode. */
+    tableRect: ToolbarRect;
     viewport: ViewportBounds;
 }
 
@@ -242,9 +256,10 @@ export class TableToolbarPlugin {
             return;
         }
 
-        const referenceElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
+        const widgetElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
+        const tableElement = widgetElement && findWidgetTableElement(widgetElement);
 
-        if (!referenceElement) {
+        if (!widgetElement || !tableElement) {
             this.cleanupPositioning();
             this.hideToolbar();
             return;
@@ -256,7 +271,8 @@ export class TableToolbarPlugin {
         const scrollDOM = this.view.scrollDOM;
         const doc = getViewDocument(this.view);
         const ctx: PositioningContext = {
-            referenceElement,
+            tableElement,
+            widgetElement,
             scrollDOM,
             doc,
             viewWindow: getDocumentWindow(doc),
@@ -268,8 +284,10 @@ export class TableToolbarPlugin {
             this.cleanupViewportListeners = this.attachViewportListeners();
         }
 
+        // Observing the table (not the widget root) also repositions on horizontal scroll of the
+        // widget's overflow container, keeping the toolbar over the visible slice.
         this.cleanupAutoUpdate = autoUpdate(
-            referenceElement,
+            tableElement,
             this.dom,
             () => {
                 void this.positionToolbar(ctx);
@@ -291,7 +309,7 @@ export class TableToolbarPlugin {
         this.prepareToolbarForPositioning();
 
         // Check if reference element is still in the DOM
-        if (!ctx.referenceElement.isConnected) {
+        if (!ctx.tableElement.isConnected) {
             // Don't cleanup here - just hide and let the next update() call handle cleanup
             this.hideToolbar();
             return;
@@ -307,7 +325,7 @@ export class TableToolbarPlugin {
         const placement =
             mode === 'pinned'
                 ? this.resolvePinnedPlacement(ctx, geometry)
-                : await this.resolveAnchoredPlacement(ctx, mode);
+                : await this.resolveAnchoredPlacement(ctx, geometry, mode);
 
         if (!placement) {
             this.hideToolbar();
@@ -321,7 +339,10 @@ export class TableToolbarPlugin {
     private readGeometry(ctx: PositioningContext): ToolbarGeometry {
         return {
             toolbarRect: this.dom.getBoundingClientRect(),
-            tableRect: ctx.referenceElement.getBoundingClientRect(),
+            tableRect: clipTableRectToWidget(
+                ctx.tableElement.getBoundingClientRect(),
+                ctx.widgetElement.getBoundingClientRect()
+            ),
             viewport: resolveViewportBounds(ctx.scrollDOM.getBoundingClientRect(), getViewportHeight(ctx.viewWindow)),
         };
     }
@@ -332,10 +353,12 @@ export class TableToolbarPlugin {
      */
     private async resolveAnchoredPlacement(
         ctx: PositioningContext,
-        mode: 'top-start' | 'bottom-start'
+        geometry: ToolbarGeometry,
+        mode: 'top' | 'bottom'
     ): Promise<ToolbarPlacement | null> {
+        const anchor = createVirtualAnchor(ctx.tableElement, geometry.tableRect);
         const middleware = createPositioningMiddleware();
-        const result = await computePosition(ctx.referenceElement, this.dom, { placement: mode, middleware });
+        const result = await computePosition(anchor, this.dom, { placement: mode, middleware });
 
         if (result.middlewareData.hide?.referenceHidden) {
             return null;
@@ -347,8 +370,8 @@ export class TableToolbarPlugin {
         }
 
         if (isObscuringTopPlacement(result.placement, result.y)) {
-            const fallback = await computePosition(ctx.referenceElement, this.dom, {
-                placement: 'bottom-start',
+            const fallback = await computePosition(anchor, this.dom, {
+                placement: 'bottom',
                 middleware,
             });
             if (!fallback.middlewareData.hide?.referenceHidden) {
@@ -412,6 +435,20 @@ export class TableToolbarPlugin {
             viewWindow.visualViewport?.removeEventListener('resize', handler);
         };
     }
+}
+
+/**
+ * Anchors Floating UI to the table's visible slice rather than to an element rect. `contextElement`
+ * keeps Floating UI's clipping-boundary and offset-parent resolution behaving as it would for a
+ * real element reference, so `shift`/`hide` still respect the widget's overflow container.
+ */
+function createVirtualAnchor(contextElement: HTMLElement, rect: ToolbarRect): VirtualElement {
+    const { top, bottom, left, width, height } = rect;
+
+    return {
+        contextElement,
+        getBoundingClientRect: () => ({ x: left, y: top, top, bottom, left, right: left + width, width, height }),
+    };
 }
 
 function createPositioningMiddleware(): Middleware[] {
