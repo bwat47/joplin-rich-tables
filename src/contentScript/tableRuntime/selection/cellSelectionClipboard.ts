@@ -375,8 +375,8 @@ export function buildMultiCellPasteRewrite(
         return null;
     }
 
-    // A selection asks for its whole rectangle to be filled; anything the fragment cannot
-    // tile evenly falls back to a single paste anchored at the rectangle's top-left.
+    // Tile whole fragment repetitions from the selection's top-left. Any trailing partial
+    // repetition stays untouched, while a fragment larger than the selection still pastes once.
     const placedFragment = target.source === 'selection' ? tileFragmentToRect(fragment, target.rect) : fragment;
 
     const result = ctx.table.pasteFragmentAt(target.anchor, placedFragment);
