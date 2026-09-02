@@ -63,6 +63,13 @@ keyboard, clipboard, and history commands while this mode is active.
 - **Copy/Cut/Paste** operates on the rectangle and may expand the table.
 - **Undo/Redo** uses main-editor history.
 
+Paste sizes itself to the selection: `tableModel/clipboardFragmentTiling.ts` repeats the clipboard fragment across the
+rectangle from its top-left, writing only whole repetitions. A single copied cell therefore fills the rectangle, and a
+2x2 fragment covers 4x4 of a 5x5 rectangle, leaving the trailing row and column untouched. The post-paste selection
+covers the region actually written, so a rectangle that was not an exact fit shows the shortfall. A fragment larger
+than the rectangle still pastes one complete copy and may expand the table. An open nested editor owns its own cell and
+always pastes anchored there.
+
 Mouse dragging can also create a rectangular selection. Drag ownership and deferred active-cell updates are described
 in [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership).
 

@@ -16,6 +16,7 @@ import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
+import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords, TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
@@ -29,11 +30,23 @@ import { clamp } from '../../shared/numberUtils';
  */
 export const tableClipboardRewriteAnnotation = Annotation.define<boolean>();
 
-export interface TableClipboardTarget {
-    tableFrom: number;
-    anchor: CellCoords;
-    source: 'selection' | 'activeCell';
-}
+/**
+ * Where a clipboard operation lands. A selection carries its rectangle so a paste can
+ * size itself to the selection; an active cell has only its anchor, and always pastes
+ * from there.
+ */
+export type TableClipboardTarget =
+    | {
+          tableFrom: number;
+          anchor: CellCoords;
+          source: 'activeCell';
+      }
+    | {
+          tableFrom: number;
+          anchor: CellCoords;
+          source: 'selection';
+          rect: TableRect;
+      };
 
 export interface TableClipboardRewrite {
     tableFrom: number;
@@ -159,6 +172,7 @@ export function resolveTableClipboardTarget(
         tableFrom: selection.tableFrom,
         anchor: fromUnifiedRow(rect.minRow, rect.minCol),
         source: 'selection',
+        rect,
     };
 }
 
@@ -339,7 +353,11 @@ export function buildMultiCellPasteRewrite(
         return null;
     }
 
-    const result = ctx.table.pasteFragmentAt(target.anchor, fragment);
+    // A selection asks for its whole rectangle to be filled; anything the fragment cannot
+    // tile evenly falls back to a single paste anchored at the rectangle's top-left.
+    const placedFragment = target.source === 'selection' ? tileFragmentToRect(fragment, target.rect) : fragment;
+
+    const result = ctx.table.pasteFragmentAt(target.anchor, placedFragment);
     if (!result) {
         return null;
     }
