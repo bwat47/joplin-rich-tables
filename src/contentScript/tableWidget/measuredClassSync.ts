@@ -12,6 +12,9 @@ export type ClassSyncCollector = (view: EditorView) => HTMLElement[];
  * because the transactions that change the selection can also rebuild the table widget, and
  * `PluginValue.update()` may run before the replacement DOM is mounted — reading the DOM
  * there would find the outgoing elements.
+ *
+ * Only membership changes are written, so this plugin must be the sole writer of `className`
+ * on the collected elements: a class stripped by anyone else is never restored.
  */
 class MeasuredClassSync implements PluginValue {
     private applied = new Set<HTMLElement>();
