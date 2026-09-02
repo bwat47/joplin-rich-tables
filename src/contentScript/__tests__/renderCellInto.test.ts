@@ -92,4 +92,14 @@ describe('renderCellMarkdownInto', () => {
         expect(renderer.render).not.toHaveBeenCalled();
         target.remove();
     });
+
+    it('requests a render for HTML entities and emoji shortcodes', () => {
+        const renderer = createRenderer();
+        const target = createTarget();
+
+        renderCellMarkdownInto(target, 'Test &amp; :smile:', renderer);
+
+        expect(renderer.render).toHaveBeenCalledWith('Test &amp; :smile:');
+        target.remove();
+    });
 });
