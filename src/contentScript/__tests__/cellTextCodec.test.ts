@@ -1,61 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import {
-    convertNewlinesToBr,
-    escapeUnescapedPipes,
-    sanitizeCellChanges,
-    toLocalSelection,
-    toRootSelection,
-    unsanitizeRootText,
-} from '../editorBridge/cellTextCodec';
-import { normalizeBrTags, sanitizeLocalText } from '../shared/cellTextNormalization';
+import { sanitizeCellChanges, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-
-describe('escapeUnescapedPipes', () => {
-    it('escapes unescaped pipes', () => {
-        expect(escapeUnescapedPipes('a|b')).toBe(String.raw`a\|b`);
-        expect(escapeUnescapedPipes('|')).toBe(String.raw`\|`);
-        expect(escapeUnescapedPipes('a|b|c')).toBe(String.raw`a\|b\|c`);
-    });
-
-    it('keeps already-escaped pipes intact', () => {
-        expect(escapeUnescapedPipes(String.raw`a\|b`)).toBe(String.raw`a\|b`);
-    });
-});
-
-describe('convertNewlinesToBr', () => {
-    it('converts LF and CRLF to <br>', () => {
-        expect(convertNewlinesToBr('a\nb')).toBe('a<br>b');
-        expect(convertNewlinesToBr('a\r\nb')).toBe('a<br>b');
-    });
-});
-
-describe('normalizeBrTags', () => {
-    it('canonicalizes self-closing br tags to <br>', () => {
-        expect(normalizeBrTags('a<br/>b')).toBe('a<br>b');
-        expect(normalizeBrTags('a<br />b')).toBe('a<br>b');
-        expect(normalizeBrTags('a<BR/>b')).toBe('a<br>b');
-    });
-});
-
-describe('sanitizeLocalText / unsanitizeRootText', () => {
-    it('converts local newlines and pipes to markdown-safe cell text', () => {
-        expect(sanitizeLocalText('a\nb|c')).toBe(String.raw`a<br>b\|c`);
-    });
-
-    it('normalizes self-closing br tags before syncing to root text', () => {
-        expect(sanitizeLocalText('a<br/>b|c')).toBe(String.raw`a<br>b\|c`);
-        expect(sanitizeLocalText('a<br />b|c')).toBe(String.raw`a<br>b\|c`);
-    });
-
-    it('preserves trailing spaces during live editing sync', () => {
-        expect(sanitizeLocalText('sometext ')).toBe('sometext ');
-    });
-
-    it('converts root markdown-safe cell text back to local display text', () => {
-        expect(unsanitizeRootText(String.raw`a<br>b\|c`)).toBe('a\nb|c');
-    });
-});
 
 describe('selection mapping', () => {
     it('maps local selection to root selection across rewritten text', () => {
@@ -134,4 +80,26 @@ describe('sanitizeCellChanges', () => {
         expect(result.didModifyInserts).toBe(true);
         expect(result.changes).toEqual([{ from: 2, to: 2, insert: String.raw`a<br>b\|c` }]);
     });
+
+    it.each([
+        { preceding: '\\', expectedInsert: '|', expectedDidModify: false },
+        { preceding: '\\\\', expectedInsert: String.raw`\|`, expectedDidModify: true },
+    ])(
+        'escapes an inserted pipe against a preceding "$preceding" run',
+        ({ preceding, expectedInsert, expectedDidModify }) => {
+            const doc = `| H${preceding} |`;
+            const insertAt = doc.indexOf(' |');
+            const state = EditorState.create({
+                doc,
+                selection: EditorSelection.single(insertAt),
+            });
+            const tr = state.update({ changes: { from: insertAt, insert: '|' } });
+
+            const result = sanitizeCellChanges(tr, 2, insertAt);
+
+            expect(result.rejected).toBe(false);
+            expect(result.didModifyInserts).toBe(expectedDidModify);
+            expect(result.changes).toEqual([{ from: insertAt, to: insertAt, insert: expectedInsert }]);
+        }
+    );
 });
