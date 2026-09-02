@@ -1,5 +1,5 @@
 import { Transaction } from '@codemirror/state';
-import { normalizeBrTags } from '../shared/cellTextNormalization';
+import { normalizeBrTags, sanitizeLocalText } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 
 export interface LocalSelection {
@@ -18,8 +18,6 @@ export interface SanitizeChangesResult {
 }
 
 const SELECTION_MARK = '\u0000';
-const UNESCAPED_PIPE_PATTERN = /(?<!\\)(\\\\)*\|/g;
-const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
 
 export function escapeUnescapedPipes(text: string): string {
     return escapeUnescapedPipesWithContext(text, 0);
@@ -57,10 +55,6 @@ export function convertNewlinesToBr(text: string): string {
 
 export function unsanitizeRootText(rootText: string): string {
     return rootText.split('<br>').join('\n').split('\\|').join('|');
-}
-
-export function sanitizeLocalText(localText: string): string {
-    return normalizeBrTags(localText).replace(LINE_BREAK_PATTERN, '<br>').replace(UNESCAPED_PIPE_PATTERN, '\\$&');
 }
 
 function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {

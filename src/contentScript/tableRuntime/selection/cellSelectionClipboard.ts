@@ -16,11 +16,13 @@ import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
+import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords, TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { clamp } from '../../shared/numberUtils';
+import { sanitizeLocalText } from '../../shared/cellTextNormalization';
 
 /**
  * Marks a transaction as one of this module's own table rewrites. The main-editor guard
@@ -29,11 +31,23 @@ import { clamp } from '../../shared/numberUtils';
  */
 export const tableClipboardRewriteAnnotation = Annotation.define<boolean>();
 
-export interface TableClipboardTarget {
-    tableFrom: number;
-    anchor: CellCoords;
-    source: 'selection' | 'activeCell';
-}
+/**
+ * Where a clipboard operation lands. A selection carries its rectangle so a paste can
+ * size itself to the selection; an active cell has only its anchor, and always pastes
+ * from there.
+ */
+export type TableClipboardTarget =
+    | {
+          tableFrom: number;
+          anchor: CellCoords;
+          source: 'activeCell';
+      }
+    | {
+          tableFrom: number;
+          anchor: CellCoords;
+          source: 'selection';
+          rect: TableRect;
+      };
 
 export interface TableClipboardRewrite {
     tableFrom: number;
@@ -159,6 +173,7 @@ export function resolveTableClipboardTarget(
         tableFrom: selection.tableFrom,
         anchor: fromUnifiedRow(rect.minRow, rect.minCol),
         source: 'selection',
+        rect,
     };
 }
 
@@ -324,6 +339,27 @@ export function buildSelectionRemovalRewrite(
     });
 }
 
+/**
+ * Turns clipboard text that is not a table into the single cell it represents, so a
+ * selection can be filled with it. Only a cell selection asks for this: an active cell
+ * owns its own paste, and returning null there leaves the text to the nested editor's
+ * ordinary insertion.
+ */
+function createPlainTextFragment(clipboardText: string, target: TableClipboardTarget): ClipboardTableFragment | null {
+    if (target.source !== 'selection') {
+        return null;
+    }
+
+    if (clipboardText.trim().length === 0) {
+        return null;
+    }
+
+    return {
+        cells: [[sanitizeLocalText(clipboardText)]],
+        alignments: [null],
+    };
+}
+
 export function buildMultiCellPasteRewrite(
     state: EditorState,
     target: TableClipboardTarget,
@@ -334,12 +370,16 @@ export function buildMultiCellPasteRewrite(
         return null;
     }
 
-    const fragment = parseMarkdownTableClipboard(clipboardText);
+    const fragment = parseMarkdownTableClipboard(clipboardText) ?? createPlainTextFragment(clipboardText, target);
     if (!fragment) {
         return null;
     }
 
-    const result = ctx.table.pasteFragmentAt(target.anchor, fragment);
+    // Tile whole fragment repetitions from the selection's top-left. Any trailing partial
+    // repetition stays untouched, while a fragment larger than the selection still pastes once.
+    const placedFragment = target.source === 'selection' ? tileFragmentToRect(fragment, target.rect) : fragment;
+
+    const result = ctx.table.pasteFragmentAt(target.anchor, placedFragment);
     if (!result) {
         return null;
     }

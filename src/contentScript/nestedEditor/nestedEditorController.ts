@@ -7,13 +7,8 @@ import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import { selectAllInCell } from './markdownCommands';
 import { createNestedEditorTheme } from './nestedEditorTheme';
-import {
-    LocalSelection,
-    sanitizeLocalText,
-    toLocalSelection,
-    toRootSelection,
-    unsanitizeRootText,
-} from '../editorBridge/cellTextCodec';
+import { LocalSelection, toLocalSelection, toRootSelection, unsanitizeRootText } from '../editorBridge/cellTextCodec';
+import { sanitizeLocalText } from '../shared/cellTextNormalization';
 import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { hasSyncAnnotation } from '../shared/transactionUtils';

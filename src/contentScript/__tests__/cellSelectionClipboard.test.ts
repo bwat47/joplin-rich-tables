@@ -152,6 +152,7 @@ describe('cellSelectionClipboard', () => {
             tableFrom: 0,
             anchor: { section: 'header', row: 0, col: 1 },
             source: 'selection',
+            rect: { minRow: 0, maxRow: 2, minCol: 1, maxCol: 2 },
         });
     });
 
@@ -225,6 +226,7 @@ describe('cellSelectionClipboard', () => {
             tableFrom: 0,
             anchor: { section: 'body', row: 0, col: 1 },
             source: 'selection',
+            rect: { minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 },
         });
     });
 
@@ -383,7 +385,9 @@ describe('cellSelectionClipboard', () => {
         );
     });
 
-    it('builds a paste rewrite from the selection top-left even when the pasted range is smaller', () => {
+    it('covers the whole repetitions that fit and reports the shortfall through the selection', () => {
+        // A 2x1 fragment over a 3x2 selection: two copies across, one down, so the
+        // selection's last row keeps its original content.
         let state = createMarkdownState(doc, [cellSelectionField]);
         state = state.update({
             effects: setCellSelectionEffect.of(
@@ -396,12 +400,83 @@ describe('cellSelectionClipboard', () => {
 
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(
-            [String.raw`| H\|1 | P1 | H3 |`, '| :--- | ---: | --- |', '| a | Q1 |  |', '| x | <br> | z |'].join('\n')
+            [String.raw`| H\|1 | P1 | P1 |`, '| :--- | ---: | --- |', '| a | Q1 | Q1 |', '| x | <br> | z |'].join('\n')
         );
         expect(rewrite?.selection).toEqual(
-            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 1 })
+            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 2 })
         );
         expect(rewrite?.clearActiveCell).toBe(false);
+    });
+
+    it('fills the whole selection when a single copied cell is pasted over it', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| --- |'].join('\n'));
+
+        expect(rewrite?.tableText).toBe(
+            [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 | P1 |', '| x | P1 | P1 |'].join('\n')
+        );
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+        );
+    });
+
+    it('tiles a fragment across a selection that is an exact multiple of it', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 | P2 |', '| --- | --- |'].join('\n'));
+
+        expect(rewrite?.tableText).toBe(
+            [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | P1 | P2 |'].join('\n')
+        );
+    });
+
+    it('leaves table alignments untouched when tiling into existing columns', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| :---: |'].join('\n'));
+
+        expect(rewrite?.tableText).toBe(
+            [String.raw`| H\|1 | P1 | H3 |`, '| :--- | ---: | --- |', '| a | P1 |  |', '| x | P1 | z |'].join('\n')
+        );
+    });
+
+    it('does not tile into a selection when a nested editor owns the paste', () => {
+        let state = createMarkdownState(doc, [activeCellField, cellSelectionField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 1,
+            }),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: true });
+        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| --- |'].join('\n'));
+
+        expect(target?.source).toBe('activeCell');
+        expect(rewrite?.tableText).toBe(
+            [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 |  |', '| x | <br> | z |'].join('\n')
+        );
     });
 
     it('builds an expanding paste rewrite from the active nested-editor cell', () => {
@@ -438,15 +513,73 @@ describe('cellSelectionClipboard', () => {
         expect(rewrite?.clearActiveCell).toBe(true);
     });
 
-    it('returns null for invalid clipboard markdown', () => {
+    it('leaves plain clipboard text to the nested editor when an active cell owns the paste', () => {
         const state = createMarkdownState(doc);
         const target = {
             tableFrom: 0,
             anchor: { section: 'body', row: 0, col: 1 } as const,
-            source: 'selection' as const,
+            source: 'activeCell' as const,
         };
 
         expect(buildMultiCellPasteRewrite(state, target, 'plain text')).toBeNull();
+    });
+
+    it('fills the selection with clipboard text that is not a table', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+        const rewrite = buildMultiCellPasteRewrite(state, target!, 'plain text');
+
+        expect(rewrite?.tableText).toBe(
+            [
+                String.raw`| H\|1 | H2 | H3 |`,
+                '| :--- | ---: | --- |',
+                '| a | plain text | plain text |',
+                '| x | plain text | plain text |',
+            ].join('\n')
+        );
+        expect(rewrite?.selection).toEqual(
+            selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+        );
+    });
+
+    it('sanitizes line breaks and pipes out of filled clipboard text', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 0, col: 1 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+        const rewrite = buildMultiCellPasteRewrite(state, target!, 'one\ntwo|three');
+
+        expect(rewrite?.tableText).toBe(
+            [
+                String.raw`| H\|1 | H2 | H3 |`,
+                '| :--- | ---: | --- |',
+                String.raw`| a | one<br>two\|three |  |`,
+                '| x | <br> | z |',
+            ].join('\n')
+        );
+    });
+
+    it('declines blank text so the selection keeps its content', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+
+        expect(buildMultiCellPasteRewrite(state, target!, '   \n  ')).toBeNull();
     });
 
     it('handles nested-editor paste through the main capture path', () => {
