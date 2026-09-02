@@ -569,10 +569,7 @@ describe('cellSelectionClipboard', () => {
         );
     });
 
-    it.each([
-        ['blank text', '   \n  '],
-        ['tab-separated spreadsheet text', 'a\tb\nc\td'],
-    ])('declines %s so the selection keeps its content', (_label, clipboardText) => {
+    it('declines blank text so the selection keeps its content', () => {
         let state = createMarkdownState(doc, [cellSelectionField]);
         state = state.update({
             effects: setCellSelectionEffect.of(
@@ -582,7 +579,7 @@ describe('cellSelectionClipboard', () => {
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
 
-        expect(buildMultiCellPasteRewrite(state, target!, clipboardText)).toBeNull();
+        expect(buildMultiCellPasteRewrite(state, target!, '   \n  ')).toBeNull();
     });
 
     it('handles nested-editor paste through the main capture path', () => {

@@ -344,10 +344,6 @@ export function buildSelectionRemovalRewrite(
  * selection can be filled with it. Only a cell selection asks for this: an active cell
  * owns its own paste, and returning null there leaves the text to the nested editor's
  * ordinary insertion.
- *
- * Tab-separated text is declined. Spreadsheets put a whole copied range on the clipboard
- * that way, and collapsing a range into one cell value would overwrite the selection with
- * something the user never copied. Leaving it unhandled keeps the existing no-op.
  */
 function createPlainTextFragment(clipboardText: string, target: TableClipboardTarget): ClipboardTableFragment | null {
     if (target.source !== 'selection') {
