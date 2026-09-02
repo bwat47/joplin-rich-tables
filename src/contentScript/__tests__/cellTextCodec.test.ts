@@ -82,20 +82,24 @@ describe('sanitizeCellChanges', () => {
     });
 
     it.each([
-        { preceding: '\\', expectedInsert: '|' },
-        { preceding: '\\\\', expectedInsert: String.raw`\|` },
-    ])('escapes an inserted pipe against a preceding "$preceding" run', ({ preceding, expectedInsert }) => {
-        const doc = `| H${preceding} |`;
-        const insertAt = doc.indexOf(' |');
-        const state = EditorState.create({
-            doc,
-            selection: EditorSelection.single(insertAt),
-        });
-        const tr = state.update({ changes: { from: insertAt, insert: '|' } });
+        { preceding: '\\', expectedInsert: '|', expectedDidModify: false },
+        { preceding: '\\\\', expectedInsert: String.raw`\|`, expectedDidModify: true },
+    ])(
+        'escapes an inserted pipe against a preceding "$preceding" run',
+        ({ preceding, expectedInsert, expectedDidModify }) => {
+            const doc = `| H${preceding} |`;
+            const insertAt = doc.indexOf(' |');
+            const state = EditorState.create({
+                doc,
+                selection: EditorSelection.single(insertAt),
+            });
+            const tr = state.update({ changes: { from: insertAt, insert: '|' } });
 
-        const result = sanitizeCellChanges(tr, 2, insertAt);
+            const result = sanitizeCellChanges(tr, 2, insertAt);
 
-        expect(result.rejected).toBe(false);
-        expect(result.changes).toEqual([{ from: insertAt, to: insertAt, insert: expectedInsert }]);
-    });
+            expect(result.rejected).toBe(false);
+            expect(result.didModifyInserts).toBe(expectedDidModify);
+            expect(result.changes).toEqual([{ from: insertAt, to: insertAt, insert: expectedInsert }]);
+        }
+    );
 });
