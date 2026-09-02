@@ -1,5 +1,10 @@
 import { Transaction } from '@codemirror/state';
-import { normalizeBrTags, sanitizeLocalText } from '../shared/cellTextNormalization';
+import {
+    convertNewlinesToBr,
+    escapeUnescapedPipesWithContext,
+    normalizeBrTags,
+    sanitizeLocalText,
+} from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 
 export interface LocalSelection {
@@ -18,40 +23,6 @@ export interface SanitizeChangesResult {
 }
 
 const SELECTION_MARK = '\u0000';
-
-export function escapeUnescapedPipes(text: string): string {
-    return escapeUnescapedPipesWithContext(text, 0);
-}
-
-function escapeUnescapedPipesWithContext(text: string, precedingBackslashes: number): string {
-    let result = '';
-    let backslashRun = precedingBackslashes;
-
-    for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        if (ch === '\\') {
-            result += ch;
-            backslashRun++;
-            continue;
-        }
-
-        if (ch === '|') {
-            const isAlreadyEscaped = backslashRun % 2 === 1;
-            result += isAlreadyEscaped ? '|' : '\\|';
-            backslashRun = 0;
-            continue;
-        }
-
-        result += ch;
-        backslashRun = 0;
-    }
-
-    return result;
-}
-
-export function convertNewlinesToBr(text: string): string {
-    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br>');
-}
 
 export function unsanitizeRootText(rootText: string): string {
     return rootText.split('<br>').join('\n').split('\\|').join('|');
