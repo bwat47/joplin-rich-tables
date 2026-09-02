@@ -7,9 +7,12 @@ export const endCellDragEffect = StateEffect.define<void>();
 /**
  * Whether the gesture has started a drag and not yet settled it.
  *
- * Read through {@link isCellDragInProgress} rather than directly: a drag is only meaningful
- * alongside the selection it is sweeping out, and the gesture cannot always dispatch its own
- * end (a plugin destroy hook, for example).
+ * A drag is only meaningful alongside the selection it is sweeping out. The gesture cannot
+ * always dispatch its own end (a plugin destroy hook, for example), so the field also clears
+ * itself whenever that selection disappears.
+ *
+ * Reading `tr.state` computes `cellSelectionField` for this transaction, so that field must
+ * never come to depend on this one: CodeMirror throws on a cycle at runtime.
  */
 export const cellDragField = StateField.define<boolean>({
     create() {
@@ -25,7 +28,7 @@ export const cellDragField = StateField.define<boolean>({
             }
         }
 
-        return nextValue;
+        return getCellSelection(tr.state) ? nextValue : false;
     },
 });
 
@@ -36,9 +39,8 @@ export const cellDragField = StateField.define<boolean>({
  * must stay stable until the pointer is released: the runtime defers closing the nested
  * editor, and keyboard handling stays with whoever owned it before the drag.
  *
- * A drag cannot outlive its own selection. Anything that drops the selection therefore ends
- * the drag too, without `cellSelectionField`'s rules having to be restated here.
+ * A drag cannot outlive its own selection, which `cellDragField` enforces for itself.
  */
 export function isCellDragInProgress(state: EditorState): boolean {
-    return (state.field(cellDragField, false) ?? false) && getCellSelection(state) !== null;
+    return state.field(cellDragField, false) ?? false;
 }

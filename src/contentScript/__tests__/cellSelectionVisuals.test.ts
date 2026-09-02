@@ -84,4 +84,26 @@ describe('cell drag focus override', () => {
         view.dispatch({ effects: endCellDragEffect.of(undefined) });
         expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
     });
+
+    it('unmarks the editor when the drag selection disappears without an explicit end', () => {
+        const view = mountView();
+        const selection = {
+            tableFrom: TABLE_FROM,
+            anchor: { section: 'body' as const, row: 0, col: 0 },
+            focus: { section: 'body' as const, row: 0, col: 1 },
+        };
+        view.dispatch({
+            effects: [setCellSelectionEffect.of(selection), startCellDragEffect.of(undefined)],
+        });
+        expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(true);
+
+        view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+
+        expect(view.state.field(cellDragField)).toBe(false);
+        expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
+
+        view.dispatch({ effects: setCellSelectionEffect.of(selection) });
+
+        expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
+    });
 });

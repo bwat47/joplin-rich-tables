@@ -141,17 +141,15 @@ describe('cellSelectionShortcutScope', () => {
             label: 'a cell is activated',
             effect: () => setActiveCellEffect.of({ tableFrom: 0, section: 'header' as const, row: 0, col: 0 }),
         },
-    ])('reports no drag in progress once $label, even with the flag left set', ({ effect }) => {
+    ])('ends the drag once $label and does not revive it for a later selection', ({ effect }) => {
         let state = createMarkdownState('| H1 |\n| --- |\n| a |', [activeCellField, cellSelectionField, cellDragField]);
+        const selection = {
+            tableFrom: 0,
+            anchor: { section: 'header' as const, row: 0, col: 0 },
+            focus: { section: 'body' as const, row: 0, col: 0 },
+        };
         state = state.update({
-            effects: [
-                setCellSelectionEffect.of({
-                    tableFrom: 0,
-                    anchor: { section: 'header', row: 0, col: 0 },
-                    focus: { section: 'body', row: 0, col: 0 },
-                }),
-                startCellDragEffect.of(undefined),
-            ],
+            effects: [setCellSelectionEffect.of(selection), startCellDragEffect.of(undefined)],
         }).state;
         expect(isCellDragInProgress(state)).toBe(true);
 
@@ -159,7 +157,12 @@ describe('cellSelectionShortcutScope', () => {
         // selection it belongs to.
         state = state.update({ effects: effect() }).state;
 
-        expect(state.field(cellDragField)).toBe(true);
+        expect(state.field(cellDragField)).toBe(false);
+        expect(isCellDragInProgress(state)).toBe(false);
+
+        state = state.update({ effects: setCellSelectionEffect.of(selection) }).state;
+
+        expect(state.field(cellDragField)).toBe(false);
         expect(isCellDragInProgress(state)).toBe(false);
     });
 
