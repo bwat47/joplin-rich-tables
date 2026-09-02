@@ -22,6 +22,7 @@ import type { CellCoords, TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { clamp } from '../../shared/numberUtils';
+import { sanitizeLocalText } from '../../shared/cellTextNormalization';
 
 /**
  * Marks a transaction as one of this module's own table rewrites. The main-editor guard
@@ -338,6 +339,31 @@ export function buildSelectionRemovalRewrite(
     });
 }
 
+/**
+ * Turns clipboard text that is not a table into the single cell it represents, so a
+ * selection can be filled with it. Only a cell selection asks for this: an active cell
+ * owns its own paste, and returning null there leaves the text to the nested editor's
+ * ordinary insertion.
+ *
+ * Tab-separated text is declined. Spreadsheets put a whole copied range on the clipboard
+ * that way, and collapsing a range into one cell value would overwrite the selection with
+ * something the user never copied. Leaving it unhandled keeps the existing no-op.
+ */
+function createPlainTextFragment(clipboardText: string, target: TableClipboardTarget): ClipboardTableFragment | null {
+    if (target.source !== 'selection') {
+        return null;
+    }
+
+    if (clipboardText.trim().length === 0) {
+        return null;
+    }
+
+    return {
+        cells: [[sanitizeLocalText(clipboardText)]],
+        alignments: [null],
+    };
+}
+
 export function buildMultiCellPasteRewrite(
     state: EditorState,
     target: TableClipboardTarget,
@@ -348,7 +374,7 @@ export function buildMultiCellPasteRewrite(
         return null;
     }
 
-    const fragment = parseMarkdownTableClipboard(clipboardText);
+    const fragment = parseMarkdownTableClipboard(clipboardText) ?? createPlainTextFragment(clipboardText, target);
     if (!fragment) {
         return null;
     }

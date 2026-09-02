@@ -4,12 +4,11 @@ import {
     convertNewlinesToBr,
     escapeUnescapedPipes,
     sanitizeCellChanges,
-    sanitizeLocalText,
     toLocalSelection,
     toRootSelection,
     unsanitizeRootText,
 } from '../editorBridge/cellTextCodec';
-import { normalizeBrTags } from '../shared/cellTextNormalization';
+import { normalizeBrTags, sanitizeLocalText } from '../shared/cellTextNormalization';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('escapeUnescapedPipes', () => {

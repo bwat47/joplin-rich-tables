@@ -70,6 +70,9 @@ covers the region actually written, so a rectangle that was not an exact fit sho
 than the rectangle still pastes one complete copy and may expand the table. An open nested editor owns its own cell and
 always pastes anchored there.
 
+Clipboard text that is not a table fills the selection as a single cell value, with line breaks and pipes sanitized so
+they cannot break the row.
+
 Mouse dragging can also create a rectangular selection. Drag ownership and deferred active-cell updates are described
 in [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership).
 
