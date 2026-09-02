@@ -89,9 +89,31 @@ describe('measuredClassSyncPlugin', () => {
         expect(retainedObserver.takeCount()).toBe(0);
         expect(removedObserver.takeCount()).toBe(0);
         expect(addedObserver.takeCount()).toBe(0);
+        expect(retained.classList.contains(CLASS_NAME)).toBe(true);
+        expect(removed.classList.contains(CLASS_NAME)).toBe(false);
+        expect(added.classList.contains(CLASS_NAME)).toBe(true);
 
         retainedObserver.disconnect();
         removedObserver.disconnect();
         addedObserver.disconnect();
+    });
+
+    it('removes the class from the elements it marked when the view is destroyed', async () => {
+        const parent = document.createElement('div');
+        const marked = document.createElement('div');
+        document.body.append(parent, marked);
+
+        const view = new EditorView({
+            parent,
+            extensions: [measuredClassSyncPlugin(CLASS_NAME, () => [marked])],
+        });
+        mountedViews.push(view);
+        await flushMeasure(view);
+
+        expect(marked.classList.contains(CLASS_NAME)).toBe(true);
+
+        mountedViews.pop()?.destroy();
+
+        expect(marked.classList.contains(CLASS_NAME)).toBe(false);
     });
 });
