@@ -60,6 +60,12 @@ describe('tileFragmentToRect', () => {
         expect(result.alignments).toEqual(['left', 'right', 'left', 'right']);
     });
 
+    it('treats missing source alignments as null when tiling', () => {
+        const result = tileFragmentToRect(fragment([['A', 'B']], ['left']), rect(1, 4));
+
+        expect(result.alignments).toEqual(['left', null, 'left', null]);
+    });
+
     it('covers only the whole repetitions that fit when the rectangle is not an exact multiple', () => {
         const result = tileFragmentToRect(
             fragment([

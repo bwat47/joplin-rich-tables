@@ -35,12 +35,15 @@ function measureRect(rect: TableRect): GridSize {
  * once, leaving the alignments exactly as the fragment supplied them. Tiling them anyway
  * keeps the result a valid fragment on its own.
  */
-function tileAlignments(alignments: readonly TableAlignment[], colCount: number): TableAlignment[] {
-    if (alignments.length === 0) {
-        return new Array<TableAlignment>(colCount).fill(null);
-    }
-
-    return Array.from({ length: colCount }, (_value, col) => alignments[col % alignments.length]);
+function tileAlignments(
+    alignments: readonly TableAlignment[],
+    fragmentColCount: number,
+    tiledColCount: number
+): TableAlignment[] {
+    return Array.from(
+        { length: tiledColCount },
+        (_value, col) => alignments[col % fragmentColCount] ?? null
+    );
 }
 
 /**
@@ -88,5 +91,8 @@ export function tileFragmentToRect(fragment: ClipboardTableFragment, rect: Table
         return Array.from({ length: colCount }, (_cell, col) => sourceRow[col % fragmentSize.colCount]);
     });
 
-    return { cells, alignments: tileAlignments(fragment.alignments, colCount) };
+    return {
+        cells,
+        alignments: tileAlignments(fragment.alignments, fragmentSize.colCount, colCount),
+    };
 }
