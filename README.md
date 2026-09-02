@@ -46,7 +46,7 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Changing column alignment (left/center/right)
 - Clear table
 - Delete table
-- Select multiple table cells and cut/copy/paste/clear/delete (desktop only).
+- Select rectangular ranges of table cells with the mouse or keyboard, then cut/copy/paste/clear/delete them (desktop only).
 
 ### Table formatting/Boundaries
 
@@ -81,8 +81,16 @@ General keyboard controls for navigation/editing:
 - **Arrow Keys:** Navigate within text in table cell, navigate to next cell (based on arrow direction) when reaching cell boundary, and exit/enter tables on boundary cells (e.g. cursor in table cell on bottom row > down arrow > cursor moves to line below the table).
 - **Enter Key:** Moves to next row, or creates new row on last row.
 - **Shift + Enter:** Insert `<br>` (line break).
-- **Shift + Click:** Select multiple table cells.
-- **Shift + Arrow:** Select multiple table cells.
+
+#### Multi-cell selection
+
+On desktop, rectangular ranges of cells can be selected in the following ways:
+
+- **Click and drag:** Drag from one cell to another. When dragging from a cell being edited, text selection remains active until the pointer crosses into another cell.
+- **Shift + Click:** Extend a selection from the active cell or the existing selection anchor to the clicked cell.
+- **Shift + Arrow:** Start a selection from the active cell or extend an existing selection one cell at a time.
+
+Selected cells can be cut, copied, pasted, cleared, or deleted. When pasting into a selection, a single cell or plain text fills the entire selection. Multi-cell clipboard data is tiled horizontally and vertically using every complete copy that fits; if the selection is not an exact multiple of the copied range, any unmatched trailing cells are left unchanged.
 
 The below table editing commands can be assigned keyboard shortcuts, the defaults are below:
 
@@ -118,5 +126,4 @@ The below table editing commands can be assigned keyboard shortcuts, the default
 
 - The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
-- Multi-cell selection is keyboard only.
 - Does not support pretty formatting (full padding) for markdown tables. The plugin enforces a minimal format (one space padding around table cell content, similar to the output of the rich text editor). This is an architectural limitation to support the realtime sync between the cell editor and the main editor (allowing joplin's formatting commands to work smoothly).
