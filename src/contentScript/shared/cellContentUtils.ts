@@ -109,6 +109,10 @@ const MARKDOWN_MARKERS = [
     'http', // bare links
 ] as const;
 
+/** HTML named/numeric entities and Joplin emoji shortcodes (for example, `&amp;` and `:smile:`). */
+const HTML_ENTITY_PATTERN = /&(?:#\d+|#x[\da-f]+|[a-z][\da-z]+);/i;
+const EMOJI_SHORTCODE_PATTERN = /:[a-z\d_+-]+:/i;
+
 /**
  * Quick check if content likely contains markdown formatting
  * Avoids unnecessary render requests for plain text
@@ -117,5 +121,10 @@ export function containsMarkdown(text: string): boolean {
     // KaTeX needs a delimiter pair ($...$ / $$...$$), so a lone '$' shouldn't trigger a render.
     const hasMathDelimiterPair = text.includes('$') && text.indexOf('$') !== text.lastIndexOf('$');
 
-    return MARKDOWN_MARKERS.some((marker) => text.includes(marker)) || hasMathDelimiterPair;
+    return (
+        MARKDOWN_MARKERS.some((marker) => text.includes(marker)) ||
+        hasMathDelimiterPair ||
+        HTML_ENTITY_PATTERN.test(text) ||
+        EMOJI_SHORTCODE_PATTERN.test(text)
+    );
 }

@@ -60,6 +60,16 @@ describe('buildRenderableContent', () => {
 });
 
 describe('containsMarkdown', () => {
+    it('detects HTML entities', () => {
+        expect(containsMarkdown('Test &amp; text')).toBe(true);
+        expect(containsMarkdown('Decimal: &#38; hexadecimal: &#x26;')).toBe(true);
+    });
+
+    it('detects emoji shortcodes', () => {
+        expect(containsMarkdown(':smile:')).toBe(true);
+        expect(containsMarkdown('Status: :white_check_mark:')).toBe(true);
+    });
+
     it('detects KaTeX inline math', () => {
         expect(containsMarkdown('$00$')).toBe(true);
         expect(containsMarkdown('$ZX = Y$')).toBe(true);
@@ -67,5 +77,10 @@ describe('containsMarkdown', () => {
 
     it('does not treat a single dollar sign as markdown math', () => {
         expect(containsMarkdown('Price is $5')).toBe(false);
+    });
+
+    it('does not treat incomplete entities or ordinary colons as markdown', () => {
+        expect(containsMarkdown('Fish & chips')).toBe(false);
+        expect(containsMarkdown('Note: plain text')).toBe(false);
     });
 });
