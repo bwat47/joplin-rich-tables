@@ -10,6 +10,9 @@ export const endCellDragEffect = StateEffect.define<void>();
  * A drag is only meaningful alongside the selection it is sweeping out. The gesture cannot
  * always dispatch its own end (a plugin destroy hook, for example), so the field also clears
  * itself whenever that selection disappears.
+ *
+ * Reading `tr.state` computes `cellSelectionField` for this transaction, so that field must
+ * never come to depend on this one: CodeMirror throws on a cycle at runtime.
  */
 export const cellDragField = StateField.define<boolean>({
     create() {
