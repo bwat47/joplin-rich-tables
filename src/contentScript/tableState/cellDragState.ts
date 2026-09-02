@@ -36,9 +36,8 @@ export const cellDragField = StateField.define<boolean>({
  * must stay stable until the pointer is released: the runtime defers closing the nested
  * editor, and keyboard handling stays with whoever owned it before the drag.
  *
- * A drag cannot outlive its own selection. `cellDragField` enforces that ownership directly,
- * while the selection check here keeps states that omit the field safe.
+ * A drag cannot outlive its own selection, which `cellDragField` enforces for itself.
  */
 export function isCellDragInProgress(state: EditorState): boolean {
-    return (state.field(cellDragField, false) ?? false) && getCellSelection(state) !== null;
+    return state.field(cellDragField, false) ?? false;
 }
