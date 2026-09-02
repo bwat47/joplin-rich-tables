@@ -70,7 +70,7 @@ See [Interaction-and-Navigation.md](./Interaction-and-Navigation.md) and [Nested
 
 ### 3. Nested Editing
 
-The nested editor contains only the active cell text. `nestedEditorController.ts` translates text and selections between local cell coordinates and root document coordinates through `cellTextCodec.ts`, using `syncAnnotation` for cross-editor transactions.
+The nested editor contains only the active cell text. `nestedEditorController.ts` translates text and selections between local cell coordinates and root document coordinates through `cellTextNormalization.ts` and `cellTextCodec.ts`, using `syncAnnotation` for cross-editor transactions.
 
 The main editor remains authoritative for document state and history.
 
