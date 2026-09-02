@@ -4,6 +4,7 @@ import {
     escapeUnescapedPipesWithContext,
     normalizeBrTags,
     sanitizeLocalText,
+    unsanitizeRootText,
 } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 
@@ -23,10 +24,6 @@ export interface SanitizeChangesResult {
 }
 
 const SELECTION_MARK = '\u0000';
-
-export function unsanitizeRootText(rootText: string): string {
-    return rootText.split('<br>').join('\n').split('\\|').join('|');
-}
 
 function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {
     return {

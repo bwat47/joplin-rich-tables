@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import {
-    sanitizeCellChanges,
-    toLocalSelection,
-    toRootSelection,
-    unsanitizeRootText,
-} from '../editorBridge/cellTextCodec';
+import { sanitizeCellChanges, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipes,
     normalizeBrTags,
     sanitizeLocalText,
+    unsanitizeRootText,
 } from '../shared/cellTextNormalization';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 

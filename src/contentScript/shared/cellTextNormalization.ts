@@ -43,7 +43,14 @@ export function escapeUnescapedPipes(text: string): string {
 /**
  * Converts arbitrary text into a value that is safe to store in a table cell: line breaks
  * become `<br>` and unescaped pipes are escaped, so neither can break out of the row.
+ *
+ * `unsanitizeRootText` is the inverse; keep the two escaping conventions in sync.
  */
 export function sanitizeLocalText(localText: string): string {
     return escapeUnescapedPipes(convertNewlinesToBr(normalizeBrTags(localText)));
+}
+
+/** Converts stored cell text back into display text for the nested editor. */
+export function unsanitizeRootText(rootText: string): string {
+    return rootText.split('<br>').join('\n').split('\\|').join('|');
 }
