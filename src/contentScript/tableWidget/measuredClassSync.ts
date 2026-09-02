@@ -12,6 +12,9 @@ export type ClassSyncCollector = (view: EditorView) => HTMLElement[];
  * because the transactions that change the selection can also rebuild the table widget, and
  * `PluginValue.update()` may run before the replacement DOM is mounted — reading the DOM
  * there would find the outgoing elements.
+ *
+ * Only membership changes are written, so this plugin must be the sole writer of `className`
+ * on the collected elements: a class stripped by anyone else is never restored.
  */
 class MeasuredClassSync implements PluginValue {
     private applied = new Set<HTMLElement>();
@@ -41,6 +44,25 @@ class MeasuredClassSync implements PluginValue {
         this.applied.clear();
     }
 
+    /** Applies only the membership differences between the previous and next collections. */
+    private sync(elements: HTMLElement[]): void {
+        const next = new Set(elements);
+
+        for (const element of this.applied) {
+            if (!next.has(element)) {
+                element.classList.remove(this.className);
+            }
+        }
+
+        for (const element of next) {
+            if (!this.applied.has(element)) {
+                element.classList.add(this.className);
+            }
+        }
+
+        this.applied = next;
+    }
+
     private scheduleSync(): void {
         this.view.requestMeasure({
             key: this,
@@ -50,12 +72,7 @@ class MeasuredClassSync implements PluginValue {
                     return;
                 }
 
-                this.clear();
-
-                for (const element of elements) {
-                    element.classList.add(this.className);
-                    this.applied.add(element);
-                }
+                this.sync(elements);
             },
         });
     }
@@ -63,7 +80,7 @@ class MeasuredClassSync implements PluginValue {
 
 /**
  * A view plugin that applies `className` to exactly the elements `collect` returns, refreshing
- * on every view update and removing the class from everything else it previously marked.
+ * on every view update and mutating only elements whose membership changed.
  */
 export function measuredClassSyncPlugin(className: string, collect: ClassSyncCollector): Extension {
     return ViewPlugin.define((view) => new MeasuredClassSync(view, className, collect));
