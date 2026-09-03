@@ -1,5 +1,5 @@
 import type { EditorState } from '@codemirror/state';
-import { MarkdownTable } from '../../tableModel/MarkdownTable';
+import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { buildIsolatedRootTableInsertRewrite, buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 
 export interface RootTablePasteRewrite {
@@ -15,53 +15,13 @@ export interface RootTablePasteRewrite {
     tableFrom: number;
 }
 
-function normalizeClipboardLineEndings(text: string): string {
-    return text.replace(/\r\n?/g, '\n');
-}
-
-function trimOuterBlankLines(text: string): string {
-    const lines = text.split('\n');
-
-    while (lines.length > 0 && lines[0].trim().length === 0) {
-        lines.shift();
-    }
-
-    while (lines.length > 0 && lines[lines.length - 1].trim().length === 0) {
-        lines.pop();
-    }
-
-    return lines.join('\n');
-}
-
-export function parseSinglePastedTable(text: string): MarkdownTable | null {
-    const normalizedText = normalizeClipboardLineEndings(text);
-    const trimmedText = trimOuterBlankLines(normalizedText);
-    if (trimmedText.length === 0) {
-        return null;
-    }
-
-    const lines = trimmedText.split('\n');
-    if (lines.some((line) => line.trim().length === 0)) {
-        return null;
-    }
-
-    const table = MarkdownTable.parse(trimmedText);
-    if (!table) {
-        return null;
-    }
-
-    const expectedLineCount = table.rowCount + 1;
-
-    return lines.length === expectedLineCount ? table : null;
-}
-
 export function buildRootTablePasteRewrite(
     state: EditorState,
     from: number,
     to: number,
     clipboardText: string
 ): RootTablePasteRewrite | null {
-    const table = parseSinglePastedTable(clipboardText);
+    const table = parseSingleTableBlock(clipboardText);
     if (!table) {
         return null;
     }
