@@ -31,8 +31,15 @@ function mountView(zebraStriping: boolean, extraExtensions: Extension = []): Edi
     return view;
 }
 
-/** Appends a single-column widget table, one body row per entry, and returns its cells. */
-function appendTable(view: EditorView, rows: { selected?: boolean }[]): NodeListOf<HTMLTableCellElement> {
+/**
+ * Renders a single-column widget table, one body row per entry, and returns the background each
+ * row's cell resolves to.
+ *
+ * These backgrounds name theme variables whose colours come from the host, and jsdom does not
+ * substitute custom properties, so the tests below compare rows against each other rather than
+ * against any particular colour.
+ */
+function renderRowBackgrounds(view: EditorView, rows: { selected?: boolean }[]): string[] {
     const table = document.createElement('table');
     table.className = CLASS_TABLE_WIDGET_TABLE;
     const tbody = document.createElement('tbody');
@@ -51,7 +58,7 @@ function appendTable(view: EditorView, rows: { selected?: boolean }[]): NodeList
     table.appendChild(tbody);
     view.contentDOM.appendChild(table);
 
-    return table.querySelectorAll('td');
+    return Array.from(table.querySelectorAll('td'), (cell) => getComputedStyle(cell).backgroundColor);
 }
 
 afterEach(() => {
@@ -74,18 +81,32 @@ describe('tableStyles', () => {
         expect(view.dom.hasAttribute(ATTR_ZEBRA_STRIPING)).toBe(true);
     });
 
-    it('shades only even body rows when enabled', () => {
-        const cells = appendTable(mountView(true), [{}, {}, {}]);
+    it('leaves every body row alike when disabled', () => {
+        const [first, second, third] = renderRowBackgrounds(mountView(false), [{}, {}, {}]);
 
-        expect(getComputedStyle(cells[0]).backgroundColor).not.toBe('var(--rt-stripe-bg)');
-        expect(getComputedStyle(cells[1]).backgroundColor).toBe('var(--rt-stripe-bg)');
-        expect(getComputedStyle(cells[2]).backgroundColor).not.toBe('var(--rt-stripe-bg)');
+        expect(second).toBe(first);
+        expect(third).toBe(first);
     });
 
-    it('leaves a selected cell on the selection ground rather than a stripe', () => {
-        const cells = appendTable(mountView(true, cellSelectionVisuals), [{}, { selected: true }, {}, {}]);
+    it('shades only even body rows when enabled', () => {
+        const rows = [{}, {}, {}, {}];
+        const plain = renderRowBackgrounds(mountView(false), rows);
+        const striped = renderRowBackgrounds(mountView(true), rows);
 
-        expect(getComputedStyle(cells[1]).backgroundColor).toBe('var(--rt-selection-ground-bg)');
-        expect(getComputedStyle(cells[3]).backgroundColor).toBe('var(--rt-stripe-bg)');
+        const shaded = striped.map((background, index) => background !== plain[index]);
+
+        expect(shaded).toEqual([false, true, false, true]);
+    });
+
+    it('paints a selected cell alike whether or not its row is striped', () => {
+        const [plain, selectedEven, selectedOdd, striped] = renderRowBackgrounds(
+            mountView(true, cellSelectionVisuals),
+            [{}, { selected: true }, { selected: true }, {}]
+        );
+
+        expect(selectedEven).toBe(selectedOdd);
+        expect(selectedEven).not.toBe(striped);
+        // The exclusion that keeps the two alike must not have stopped striping altogether.
+        expect(striped).not.toBe(plain);
     });
 });
