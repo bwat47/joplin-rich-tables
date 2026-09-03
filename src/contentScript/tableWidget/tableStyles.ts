@@ -7,7 +7,7 @@ import {
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
 } from '../shared/tableDomClasses';
-import { CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
+import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
 
 /**
  * Width of the gridline between cells.
@@ -204,9 +204,16 @@ const tableTheme = EditorView.baseTheme({
         backgroundColor: 'var(--rt-header-bg)',
         fontWeight: 'bold',
     },
-    [`&[${ATTR_ZEBRA_STRIPING}] .${CLASS_TABLE_WIDGET_TABLE} > tbody > tr:nth-child(even) > td`]: {
-        backgroundColor: 'var(--rt-stripe-bg)',
-    },
+    // Direct children only, so a stripe never reaches an HTML table rendered inside a cell.
+    //
+    // Selected cells are excluded rather than left to lose on specificity: this selector outweighs
+    // the one `selectionTint.ts` paints a cell selection with, and the tint laid over that cell is
+    // pre-solved against `--rt-selection-ground-bg`.  A stripe standing in for the ground would
+    // composite to a different colour, banding a selected rectangle row by row.
+    [`&[${ATTR_ZEBRA_STRIPING}] .${CLASS_TABLE_WIDGET_TABLE} > tbody > tr:nth-child(even) > td:not(.${CLASS_CELL_SELECTED})`]:
+        {
+            backgroundColor: 'var(--rt-stripe-bg)',
+        },
     // Media constraints - prevent massive videos/images from breaking the table.
     // Scoped to CLASS_CELL_CONTENT to avoid affecting CodeMirror's internal <img class="cm-widgetBuffer"> elements.
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} img, .${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} video`]:
