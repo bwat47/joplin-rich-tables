@@ -104,7 +104,7 @@ function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<stri
  */
 export const richTableThemeVars = EditorView.baseTheme({
     '&': {
-        '--rt-border-color': 'var(--joplin-divider-color, #dddddd)',
+        '--rt-border-color': 'var(--joplin-code-border-color, #dddddd)',
         '--rt-code-bg': 'var(--joplin-code-background-color, rgb(243, 243, 243))',
         '--rt-code-color': 'var(--joplin-code-color, rgb(0, 0, 0))',
         '--rt-mark-bg': 'var(--joplin-mark-highlight-background-color, #F7D26E)',
