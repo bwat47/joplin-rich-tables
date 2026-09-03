@@ -40,15 +40,19 @@ export function parseSinglePastedTable(text: string): MarkdownTable | null {
         return null;
     }
 
+    const lines = trimmedText.split('\n');
+    if (lines.some((line) => line.trim().length === 0)) {
+        return null;
+    }
+
     const table = MarkdownTable.parse(trimmedText);
     if (!table) {
         return null;
     }
 
-    const nonEmptyLineCount = trimmedText.split('\n').filter((line) => line.trim().length > 0).length;
     const expectedLineCount = table.rowCount + 1;
 
-    return nonEmptyLineCount === expectedLineCount ? table : null;
+    return lines.length === expectedLineCount ? table : null;
 }
 
 export function buildRootTablePasteRewrite(

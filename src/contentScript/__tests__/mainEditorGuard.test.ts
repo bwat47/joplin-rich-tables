@@ -276,6 +276,27 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
     });
 
+    it('leaves multiple blank-line-separated tables unchanged in the plain root editor', () => {
+        const state = createState({ doc: '', nestedOpen: false });
+        const pasteText = [
+            '| h2 | h2 |',
+            '| --- | --- |',
+            '| t1 | t2 |',
+            '',
+            '| col1 | col2 |',
+            '| --- | --- |',
+            '| t3 | t4 |',
+        ].join('\n');
+
+        const tr = state.update({
+            changes: { from: 0, to: 0, insert: pasteText },
+            userEvent: 'input.paste',
+        });
+
+        expect(tr.state.doc.toString()).toBe(pasteText);
+        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+    });
+
     it('rewrites plain root markdown-table paste in an empty document with surrounding newlines', () => {
         const state = createState({ doc: '', nestedOpen: false });
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');

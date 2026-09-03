@@ -15,6 +15,18 @@ describe('pasteTableNormalizer', () => {
             expect(parseSinglePastedTable(`\n\n${NON_CANONICAL_TABLE}\n\n`)?.serialize()).toBe(CANONICAL_TABLE);
         });
 
+        it('rejects multiple tables separated by blank lines', () => {
+            const secondTable = ['| H2 |', '| --- |', '| b |'].join('\n');
+
+            expect(parseSinglePastedTable(`${CANONICAL_TABLE}\n\n${secondTable}`)).toBeNull();
+        });
+
+        it('rejects a table containing an internal whitespace-only line', () => {
+            const splitTable = ['| H1 | H2 |', '| --- | --- |', '| a | b |', '   ', '| c | d |'].join('\n');
+
+            expect(parseSinglePastedTable(splitTable)).toBeNull();
+        });
+
         it('rejects table plus trailing text', () => {
             expect(parseSinglePastedTable(`${CANONICAL_TABLE}\ntrailing text`)).toBeNull();
         });
