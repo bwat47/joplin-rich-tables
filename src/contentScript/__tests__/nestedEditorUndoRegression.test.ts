@@ -54,6 +54,9 @@ const TEST_HOST_CONFIG = {
         autoMatchingBraces: true,
         spellcheck: false,
     },
+    tableAppearance: {
+        zebraStriping: false,
+    },
     toolbar: {
         showMoveButtons: true,
         showClearButtons: true,

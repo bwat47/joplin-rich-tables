@@ -48,6 +48,9 @@ const DEFAULT_FEATURE_SETTINGS = {
 } satisfies HostEditorConfig['nestedEditor'];
 const TEST_HOST_CONFIG = {
     nestedEditor: DEFAULT_FEATURE_SETTINGS,
+    tableAppearance: {
+        zebraStriping: false,
+    },
     toolbar: {
         showMoveButtons: true,
         showClearButtons: true,

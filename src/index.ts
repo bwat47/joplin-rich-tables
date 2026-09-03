@@ -3,6 +3,7 @@ import { ContentScriptType, MenuItemLocation, SettingItemType, ToastType, Toolba
 import { logger } from './logger';
 import { createContentScriptMessageHandler } from './contentScriptBridge/contentScriptMessageHandler';
 import {
+    TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
@@ -42,10 +43,18 @@ joplin.plugins.register({
         await joplin.settings.registerSection(SETTINGS_SECTION, {
             label: 'Rich Tables',
             iconName: 'fas fa-table',
-            description: 'Configure the Rich Tables floating toolbar.',
+            description: 'Configure Rich Tables appearance and floating toolbar.',
         });
 
         await joplin.settings.registerSettings({
+            [TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY]: {
+                value: false,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Enable zebra striping',
+                description: 'Shade alternating table body rows using the current Joplin theme.',
+            },
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: {
                 value: true,
                 type: SettingItemType.Bool,

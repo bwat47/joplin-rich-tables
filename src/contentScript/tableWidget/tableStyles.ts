@@ -1,4 +1,6 @@
+import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     CLASS_CELL_ACTIVE,
     CLASS_CELL_CONTENT,
@@ -14,6 +16,13 @@ import { CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
  * `selectionTint.ts` redraws a gridline at exactly this width.
  */
 export const CELL_BORDER_WIDTH = '1px';
+export const ATTR_ZEBRA_STRIPING = 'data-rt-zebra-striping';
+
+const zebraStripingAttribute = EditorView.editorAttributes.compute(
+    [hostEditorConfigFacet],
+    (state): Record<string, string> =>
+        state.facet(hostEditorConfigFacet).tableAppearance.zebraStriping ? { [ATTR_ZEBRA_STRIPING]: '' } : {}
+);
 
 /**
  * Base styles for the table widget, split by responsibility:
@@ -24,7 +33,7 @@ export const CELL_BORDER_WIDTH = '1px';
  *   4. Rendered content styling (markdown output inside cells)
  *   5. Joplin artifact cleanup
  */
-export const tableStyles = EditorView.baseTheme({
+const tableTheme = EditorView.baseTheme({
     // -------------------------------------------------------------------------
     // 1. Widget container and table layout
     // -------------------------------------------------------------------------
@@ -195,6 +204,9 @@ export const tableStyles = EditorView.baseTheme({
         backgroundColor: 'var(--rt-header-bg)',
         fontWeight: 'bold',
     },
+    [`&[${ATTR_ZEBRA_STRIPING}] .${CLASS_TABLE_WIDGET_TABLE} > tbody > tr:nth-child(even) > td`]: {
+        backgroundColor: 'var(--rt-stripe-bg)',
+    },
     // Media constraints - prevent massive videos/images from breaking the table.
     // Scoped to CLASS_CELL_CONTENT to avoid affecting CodeMirror's internal <img class="cm-widgetBuffer"> elements.
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} img, .${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT} video`]:
@@ -242,3 +254,5 @@ export const tableStyles = EditorView.baseTheme({
         height: 'auto',
     },
 });
+
+export const tableStyles: Extension = [zebraStripingAttribute, tableTheme];
