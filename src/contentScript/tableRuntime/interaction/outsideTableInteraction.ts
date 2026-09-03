@@ -5,6 +5,7 @@ import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCel
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../../tableWidget/domHelpers';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
+import { logger } from '../../../logger';
 
 function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null {
     const target = event.target;
@@ -76,12 +77,50 @@ function moveCaretAndClearTableState(
     }
 }
 
-/** Fallback when the pointer maps to no document position: clear state, leave the caret alone. */
+/** Last resort when no mapping places the pointer: clear state, leave the caret alone. */
 function clearTableStateInPlace(view: EditorView, live: LiveTableState): void {
     if (!live.hasActiveCell && !live.hasCellSelection) {
         return;
     }
     view.dispatch({ effects: buildClearEffects(live) });
+}
+
+/**
+ * Validates a position returned from coordinate mapping before it reaches EditorSelection.
+ *
+ * `posAtCoords` is typed as always returning a number for the imprecise overload, but it
+ * returns `undefined` in practice when another plugin's decorations defeat its DOM scan.
+ * EditorSelection accepts such a value: its own check only rejects a range past the end of
+ * the document, so `undefined` reaches the state fields and throws from `doc.lineAt` in
+ * whichever one reads the selection anchor.
+ */
+function isValidDocumentPosition(position: unknown, docLength: number): position is number {
+    if (typeof position !== 'number') {
+        return false;
+    }
+    return Number.isInteger(position) && position >= 0 && position <= docLength;
+}
+
+/**
+ * The clicked document position, or null when neither mapping can supply a usable one.
+ *
+ * The fallback reads the height map instead of the DOM, so it survives the decorations that
+ * defeat `posAtCoords` and yields a document position by construction. It only resolves the
+ * clicked line rather than the column, which is enough to move the caret out of the table.
+ */
+function resolveClickPosition(view: EditorView, event: MouseEvent | PointerEvent): number | null {
+    const docLength = view.state.doc.length;
+
+    const mapped = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
+    if (isValidDocumentPosition(mapped, docLength)) {
+        return mapped;
+    }
+
+    logger.debug('Coordinate mapping returned no usable position; estimating from height map', {
+        mapped,
+    });
+    const estimated = view.lineBlockAtHeight(event.clientY - view.documentTop).from;
+    return isValidDocumentPosition(estimated, docLength) ? estimated : null;
 }
 
 function handleOutsideTableInteraction(
@@ -100,22 +139,26 @@ function handleOutsideTableInteraction(
         return false;
     }
 
-    const clickPos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const clickPos = resolveClickPosition(view, event);
     if (clickPos === null) {
         clearTableStateInPlace(view, live);
         return false;
     }
 
     moveCaretAndClearTableState(view, clickPos, live, options);
-    // For mousedown, consume only if we positioned the cursor.
-    // For contextmenu, never consume so native/Joplin menus can open.
+    // For mousedown, consume once we have positioned the cursor: CodeMirror's own handler
+    // would otherwise repeat the coordinate mapping that just failed, and dispatch its
+    // unusable result. For contextmenu, never consume so native/Joplin menus can open.
     return !options.preserveContextMenu;
 }
 
+/** Handles an outside-table mousedown and closes any live table interaction state. */
+export function handleOutsideMouseDown(view: EditorView, event: MouseEvent): boolean {
+    return handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
+}
+
 export const closeOnOutsideMouseDown = EditorView.domEventHandlers({
-    mousedown: (event, view) => {
-        return handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
-    },
+    mousedown: (event, view) => handleOutsideMouseDown(view, event),
 });
 
 export const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
