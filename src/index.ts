@@ -53,7 +53,8 @@ joplin.plugins.register({
                 public: true,
                 section: SETTINGS_SECTION,
                 label: 'Enable zebra striping',
-                description: 'Shade alternating table body rows using the current Joplin theme.',
+                description:
+                    'Shade alternating table body rows using the current Joplin theme (if supported by the current Joplin theme).',
             },
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: {
                 value: true,
