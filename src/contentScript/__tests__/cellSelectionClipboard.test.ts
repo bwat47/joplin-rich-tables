@@ -140,6 +140,12 @@ describe('cellSelectionClipboard', () => {
         });
     });
 
+    it('declines clipboard text holding more than one table', () => {
+        const twoTables = ['| P1 |', '| --- |', '| Q1 |', '', '| R1 |', '| --- |', '| S1 |'].join('\n');
+
+        expect(parseMarkdownTableClipboard(twoTables)).toBeNull();
+    });
+
     it('uses the selection top-left cell as the paste anchor', () => {
         let state = createMarkdownState(doc, [cellSelectionField]);
         state = state.update({
@@ -546,6 +552,42 @@ describe('cellSelectionClipboard', () => {
         expect(rewrite?.selection).toEqual(
             selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
         );
+    });
+
+    it('fills the selection with a multi-table clipboard instead of merging the tables', () => {
+        let state = createMarkdownState(doc, [cellSelectionField]);
+        state = state.update({
+            effects: setCellSelectionEffect.of(
+                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 0, col: 1 })
+            ),
+        }).state;
+
+        const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
+        const twoTables = ['| P1 |', '| --- |', '| Q1 |', '', '| R1 |', '| --- |', '| S1 |'].join('\n');
+        const rewrite = buildMultiCellPasteRewrite(state, target!, twoTables);
+
+        const filledCell = String.raw`\| P1 \|<br>\| --- \|<br>\| Q1 \|<br><br>\| R1 \|<br>\| --- \|<br>\| S1 \|`;
+
+        expect(rewrite?.tableText).toBe(
+            [
+                String.raw`| H\|1 | H2 | H3 |`,
+                '| :--- | ---: | --- |',
+                `| a | ${filledCell} |  |`,
+                '| x | <br> | z |',
+            ].join('\n')
+        );
+    });
+
+    it('leaves a multi-table clipboard to the nested editor when an active cell owns the paste', () => {
+        const state = createMarkdownState(doc);
+        const target = {
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 1 } as const,
+            source: 'activeCell' as const,
+        };
+        const twoTables = ['| P1 |', '| --- |', '| Q1 |', '', '| R1 |', '| --- |', '| S1 |'].join('\n');
+
+        expect(buildMultiCellPasteRewrite(state, target, twoTables)).toBeNull();
     });
 
     it('sanitizes line breaks and pipes out of filled clipboard text', () => {

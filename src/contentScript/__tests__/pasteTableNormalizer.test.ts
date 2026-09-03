@@ -1,37 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createMarkdownState } from './testMarkdownState';
-import { buildRootTablePasteRewrite, parseSinglePastedTable } from '../tableRuntime/operations/pasteTableNormalizer';
+import { buildRootTablePasteRewrite } from '../tableRuntime/operations/pasteTableNormalizer';
 
 const NON_CANONICAL_TABLE = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_TABLE = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 
 describe('pasteTableNormalizer', () => {
-    describe('parseSinglePastedTable', () => {
-        it('accepts a valid table', () => {
-            expect(parseSinglePastedTable(CANONICAL_TABLE)?.serialize()).toBe(CANONICAL_TABLE);
-        });
-
-        it('accepts a valid table with outer blank lines', () => {
-            expect(parseSinglePastedTable(`\n\n${NON_CANONICAL_TABLE}\n\n`)?.serialize()).toBe(CANONICAL_TABLE);
-        });
-
-        it('rejects table plus trailing text', () => {
-            expect(parseSinglePastedTable(`${CANONICAL_TABLE}\ntrailing text`)).toBeNull();
-        });
-
-        it('rejects leading text plus table', () => {
-            expect(parseSinglePastedTable(`leading text\n${CANONICAL_TABLE}`)).toBeNull();
-        });
-
-        it('rejects non-table text', () => {
-            expect(parseSinglePastedTable('plain text')).toBeNull();
-        });
-
-        it('rejects empty text', () => {
-            expect(parseSinglePastedTable('\n \n')).toBeNull();
-        });
-    });
-
     describe('buildRootTablePasteRewrite', () => {
         it('allows insert at empty document start', () => {
             const state = createMarkdownState('');
@@ -114,6 +88,13 @@ describe('pasteTableNormalizer', () => {
 
             expect(nextDoc).toBe(['before', 'abc', '', ...CANONICAL_TABLE.split('\n'), '', 'after'].join('\n'));
             expect(rewrite?.tableFrom).toBe(from + 2);
+        });
+
+        it('declines a clipboard holding more than one table', () => {
+            const state = createMarkdownState('');
+            const twoTables = [CANONICAL_TABLE, '', ['| H3 |', '| --- |', '| c |'].join('\n')].join('\n');
+
+            expect(buildRootTablePasteRewrite(state, 0, 0, twoTables)).toBeNull();
         });
 
         it('returns an absolute table start in the post-change document', () => {

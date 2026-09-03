@@ -1,6 +1,7 @@
 import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
 import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
+import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
@@ -108,8 +109,13 @@ export function copySelectionAsMarkdown(state: EditorState, selection: CellSelec
     }).serialize();
 }
 
+/**
+ * Reads clipboard text as a table fragment, but only when it holds exactly one table.
+ * Anything else falls back to the plain-text path so a multi-table clipboard is never
+ * folded into one fragment.
+ */
 export function parseMarkdownTableClipboard(text: string): ClipboardTableFragment | null {
-    const table = MarkdownTable.parse(text);
+    const table = parseSingleTableBlock(text);
     if (!table) {
         return null;
     }
