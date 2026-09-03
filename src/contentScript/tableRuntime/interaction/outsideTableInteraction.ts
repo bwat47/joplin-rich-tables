@@ -146,9 +146,10 @@ function handleOutsideTableInteraction(
     }
 
     moveCaretAndClearTableState(view, clickPos, live, options);
-    // For mousedown, consume once we have positioned the cursor: CodeMirror's own handler
-    // would otherwise repeat the coordinate mapping that just failed, and dispatch its
-    // unusable result. For contextmenu, never consume so native/Joplin menus can open.
+    // Consume mousedown after positioning the caret. Otherwise CodeMirror runs its own
+    // coordinate lookup; on the height-map fallback path, that lookup can reproduce the
+    // invalid position we recovered from (see: https://github.com/bwat47/joplin-rich-tables/issues/212).
+    // Never consume contextmenu so native/Joplin menus open.
     return !options.preserveContextMenu;
 }
 
