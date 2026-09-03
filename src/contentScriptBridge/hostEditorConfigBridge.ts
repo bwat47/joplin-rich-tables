@@ -2,6 +2,7 @@ import { logger } from '../logger';
 
 export const AUTO_MATCHING_BRACES_SETTING_KEY = 'editor.autoMatchingBraces';
 export const SPELLCHECK_ENABLED_SETTING_KEY = 'spellChecker.enabled';
+export const TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY = 'tableAppearance.zebraStriping';
 export const TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY = 'floatingToolbar.showMoveButtons';
 export const TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY = 'floatingToolbar.showClearButtons';
 export const TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY = 'floatingToolbar.showAlignmentButtons';
@@ -12,6 +13,9 @@ export interface HostEditorConfig {
         autoMatchingBraces: boolean;
         spellcheck: boolean;
     };
+    tableAppearance: {
+        zebraStriping: boolean;
+    };
     toolbar: {
         showMoveButtons: boolean;
         showClearButtons: boolean;
@@ -21,6 +25,7 @@ export interface HostEditorConfig {
 }
 
 export type NestedEditorHostConfig = HostEditorConfig['nestedEditor'];
+type TableAppearanceHostConfig = HostEditorConfig['tableAppearance'];
 export type ToolbarHostConfig = HostEditorConfig['toolbar'];
 
 export interface GetHostEditorConfigMessage {
@@ -39,6 +44,9 @@ export function defaultHostEditorConfig(): HostEditorConfig {
         nestedEditor: {
             autoMatchingBraces: false,
             spellcheck: false,
+        },
+        tableAppearance: {
+            zebraStriping: false,
         },
         toolbar: {
             showMoveButtons: true,
@@ -78,6 +86,7 @@ export function isHostEditorConfig(value: unknown): value is HostEditorConfig {
 
     return (
         isBooleanShape(candidate.nestedEditor, defaults.nestedEditor) &&
+        isBooleanShape(candidate.tableAppearance, defaults.tableAppearance) &&
         isBooleanShape(candidate.toolbar, defaults.toolbar)
     );
 }
@@ -108,11 +117,17 @@ async function readNestedEditorConfig(deps: HostEditorConfigDeps): Promise<Neste
     }
 }
 
-async function readToolbarConfig(deps: HostEditorConfigDeps): Promise<ToolbarHostConfig> {
-    const defaults = defaultHostEditorConfig().toolbar;
+interface PluginHostConfig {
+    tableAppearance: TableAppearanceHostConfig;
+    toolbar: ToolbarHostConfig;
+}
+
+async function readPluginConfig(deps: HostEditorConfigDeps): Promise<PluginHostConfig> {
+    const defaults = defaultHostEditorConfig();
 
     try {
         const values = await deps.settings.values([
+            TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
             TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
@@ -120,38 +135,50 @@ async function readToolbarConfig(deps: HostEditorConfigDeps): Promise<ToolbarHos
         ]);
 
         return {
-            showMoveButtons: readBooleanSetting(
-                values,
-                TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
-                defaults.showMoveButtons
-            ),
-            showClearButtons: readBooleanSetting(
-                values,
-                TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
-                defaults.showClearButtons
-            ),
-            showAlignmentButtons: readBooleanSetting(
-                values,
-                TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
-                defaults.showAlignmentButtons
-            ),
-            showDeleteTableButton: readBooleanSetting(
-                values,
-                TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
-                defaults.showDeleteTableButton
-            ),
+            tableAppearance: {
+                zebraStriping: readBooleanSetting(
+                    values,
+                    TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
+                    defaults.tableAppearance.zebraStriping
+                ),
+            },
+            toolbar: {
+                showMoveButtons: readBooleanSetting(
+                    values,
+                    TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
+                    defaults.toolbar.showMoveButtons
+                ),
+                showClearButtons: readBooleanSetting(
+                    values,
+                    TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
+                    defaults.toolbar.showClearButtons
+                ),
+                showAlignmentButtons: readBooleanSetting(
+                    values,
+                    TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
+                    defaults.toolbar.showAlignmentButtons
+                ),
+                showDeleteTableButton: readBooleanSetting(
+                    values,
+                    TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
+                    defaults.toolbar.showDeleteTableButton
+                ),
+            },
         };
     } catch (error) {
-        logger.warn('Failed to read toolbar host config, using defaults', error);
-        return defaults;
+        logger.warn('Failed to read plugin host config, using defaults', error);
+        return {
+            tableAppearance: defaults.tableAppearance,
+            toolbar: defaults.toolbar,
+        };
     }
 }
 
 export async function readHostEditorConfig(deps: HostEditorConfigDeps): Promise<HostEditorConfig> {
-    const [nestedEditor, toolbar] = await Promise.all([readNestedEditorConfig(deps), readToolbarConfig(deps)]);
+    const [nestedEditor, pluginConfig] = await Promise.all([readNestedEditorConfig(deps), readPluginConfig(deps)]);
 
     return {
         nestedEditor,
-        toolbar,
+        ...pluginConfig,
     };
 }

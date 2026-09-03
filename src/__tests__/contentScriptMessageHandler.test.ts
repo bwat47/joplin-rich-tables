@@ -100,6 +100,7 @@ describe('contentScriptMessageHandler', () => {
     it('reads the host editor config', async () => {
         globalValues.mockResolvedValueOnce([true, true]);
         values.mockResolvedValueOnce({
+            'tableAppearance.zebraStriping': true,
             'floatingToolbar.showMoveButtons': false,
             'floatingToolbar.showClearButtons': true,
             'floatingToolbar.showAlignmentButtons': false,
@@ -112,6 +113,7 @@ describe('contentScriptMessageHandler', () => {
 
         expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces', 'spellChecker.enabled']);
         expect(values).toHaveBeenCalledWith([
+            'tableAppearance.zebraStriping',
             'floatingToolbar.showMoveButtons',
             'floatingToolbar.showClearButtons',
             'floatingToolbar.showAlignmentButtons',
@@ -121,6 +123,9 @@ describe('contentScriptMessageHandler', () => {
             nestedEditor: {
                 autoMatchingBraces: true,
                 spellcheck: true,
+            },
+            tableAppearance: {
+                zebraStriping: true,
             },
             toolbar: {
                 showMoveButtons: false,

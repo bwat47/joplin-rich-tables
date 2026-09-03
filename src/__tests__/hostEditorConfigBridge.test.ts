@@ -3,6 +3,7 @@ import type { HostEditorConfigDeps } from '../contentScriptBridge/hostEditorConf
 import {
     AUTO_MATCHING_BRACES_SETTING_KEY,
     SPELLCHECK_ENABLED_SETTING_KEY,
+    TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
     defaultHostEditorConfig,
     isHostEditorConfig,
     readHostEditorConfig,
@@ -37,6 +38,7 @@ describe('hostEditorConfigBridge', () => {
     it('reads and normalizes the combined host editor config', async () => {
         globalValuesMock.mockResolvedValue([true, true]);
         valuesMock.mockResolvedValue({
+            [TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY]: true,
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: true,
             [TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY]: false,
@@ -50,6 +52,7 @@ describe('hostEditorConfigBridge', () => {
             SPELLCHECK_ENABLED_SETTING_KEY,
         ]);
         expect(valuesMock).toHaveBeenCalledWith([
+            TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
             TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
@@ -59,6 +62,9 @@ describe('hostEditorConfigBridge', () => {
             nestedEditor: {
                 autoMatchingBraces: true,
                 spellcheck: true,
+            },
+            tableAppearance: {
+                zebraStriping: true,
             },
             toolbar: {
                 showMoveButtons: false,
@@ -81,6 +87,9 @@ describe('hostEditorConfigBridge', () => {
                 autoMatchingBraces: false,
                 spellcheck: false,
             },
+            tableAppearance: {
+                zebraStriping: false,
+            },
             toolbar: {
                 showMoveButtons: false,
                 showClearButtons: true,
@@ -93,6 +102,7 @@ describe('hostEditorConfigBridge', () => {
     it('defaults only the nested editor config when global settings fail', async () => {
         globalValuesMock.mockRejectedValue(new Error('global boom'));
         valuesMock.mockResolvedValue({
+            [TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY]: true,
             [TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: false,
             [TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY]: false,
@@ -101,6 +111,9 @@ describe('hostEditorConfigBridge', () => {
 
         await expect(readHostEditorConfig(deps)).resolves.toEqual({
             nestedEditor: defaultHostEditorConfig().nestedEditor,
+            tableAppearance: {
+                zebraStriping: true,
+            },
             toolbar: {
                 showMoveButtons: false,
                 showClearButtons: false,
@@ -110,7 +123,7 @@ describe('hostEditorConfigBridge', () => {
         });
     });
 
-    it('defaults only the toolbar config when plugin settings fail', async () => {
+    it('defaults plugin config when plugin settings fail', async () => {
         globalValuesMock.mockResolvedValue([true, true]);
         valuesMock.mockRejectedValue(new Error('plugin boom'));
 
@@ -119,6 +132,7 @@ describe('hostEditorConfigBridge', () => {
                 autoMatchingBraces: true,
                 spellcheck: true,
             },
+            tableAppearance: defaultHostEditorConfig().tableAppearance,
             toolbar: defaultHostEditorConfig().toolbar,
         });
     });
@@ -173,6 +187,17 @@ describe('hostEditorConfigBridge', () => {
                 isHostEditorConfig({
                     ...config,
                     toolbar: { ...config.toolbar, showMoveButtons: 'true' },
+                })
+            ).toBe(false);
+        });
+
+        it('rejects a config with a non-boolean table appearance field', () => {
+            const config = defaultHostEditorConfig();
+
+            expect(
+                isHostEditorConfig({
+                    ...config,
+                    tableAppearance: { zebraStriping: 'true' },
                 })
             ).toBe(false);
         });

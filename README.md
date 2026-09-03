@@ -110,6 +110,9 @@ The below table editing commands can be assigned keyboard shortcuts, the default
 
 ### Settings
 
+- Enable zebra striping
+    - Shade alternating table body rows using the current Joplin theme.
+
 - Show move row/column buttons
     - Display move row and move column actions in the floating table toolbar.
 

@@ -19,6 +19,9 @@ describe('hostEditorConfig', () => {
             autoMatchingBraces: true,
             spellcheck: true,
         },
+        tableAppearance: {
+            zebraStriping: true,
+        },
         toolbar: {
             showMoveButtons: false,
             showClearButtons: true,

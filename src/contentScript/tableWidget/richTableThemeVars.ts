@@ -85,6 +85,7 @@ function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<stri
  * --rt-mark-color          ==highlight== text
  * --rt-link-color          anchor text
  * --rt-header-bg           <th> background
+ * --rt-stripe-bg           alternating body-row background
  * --rt-toolbar-bg          floating toolbar background
  * --rt-toolbar-color       floating toolbar text
  * --rt-toolbar-shadow-near floating toolbar's compact shadow-layer color
@@ -103,13 +104,14 @@ function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<stri
  */
 export const richTableThemeVars = EditorView.baseTheme({
     '&': {
-        '--rt-border-color': 'var(--joplin-divider-color, #dddddd)',
+        '--rt-border-color': 'var(--joplin-code-border-color, #dddddd)',
         '--rt-code-bg': 'var(--joplin-code-background-color, rgb(243, 243, 243))',
         '--rt-code-color': 'var(--joplin-code-color, rgb(0, 0, 0))',
         '--rt-mark-bg': 'var(--joplin-mark-highlight-background-color, #F7D26E)',
         '--rt-mark-color': 'var(--joplin-mark-highlight-color, black)',
         '--rt-link-color': 'var(--joplin-url-color, #155BDA)',
         '--rt-header-bg': 'var(--joplin-table-background-color, rgb(247, 247, 247))',
+        '--rt-stripe-bg': 'var(--joplin-table-background-color, rgb(247, 247, 247))',
         '--rt-toolbar-bg': 'var(--joplin-background-color)',
         '--rt-toolbar-color': 'var(--joplin-color)',
         '--rt-toolbar-shadow-near': 'rgba(0, 0, 0, 0.07)',

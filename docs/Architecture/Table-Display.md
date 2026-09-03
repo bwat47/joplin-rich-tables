@@ -90,6 +90,14 @@ See [ADR-004](../ADR/004-global-source-mode.md) for the rationale behind global 
 
 `Ctrl+F` forces raw Markdown mode so native search highlighting works on hidden table text.
 
+## Appearance
+
+Zebra striping is an opt-in startup setting. When enabled, `tableStyles.ts` marks the editor root and shades even
+`tbody` rows with Joplin's table background colour. The direct-child selector applies only to widget-owned rows and
+does not affect HTML tables rendered inside cell Markdown. Selected cells are excluded from the stripe: the stripe
+selector outweighs the selection fill, and `selectionTint.ts` solves its tint against a known ground, so a stripe
+standing in for that ground would band a selected rectangle row by row.
+
 ## Host Scroll Modes
 
 Joplin hosts the editor two ways, and internal and external scrolling are mutually exclusive:
