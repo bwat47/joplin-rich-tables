@@ -1,6 +1,7 @@
 import { MarkdownTable, type TableAlignment } from './MarkdownTable';
 import type { TargetCell } from './activeCellForTableText';
 import type { CellCoords } from './types';
+import type { TableSortDirection } from './rawMarkdownSort';
 
 export type StructuralTableCommandById = {
     insertRowBefore: {
@@ -183,7 +184,7 @@ function targetMovedRowDown(cell: CellCoords): TargetCell {
 function sortColumnResult(
     table: MarkdownTable,
     activeCell: CellCoords,
-    direction: 'ascending' | 'descending'
+    direction: TableSortDirection
 ): StructuralTableMutationResult {
     const result = table.sortBodyRowsByColumn(activeCell.col, direction);
     const targetCell =
