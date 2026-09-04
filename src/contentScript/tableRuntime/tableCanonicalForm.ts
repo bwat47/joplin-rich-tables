@@ -20,7 +20,6 @@ interface NormalizedTableReplacement {
     from: number;
     to: number;
     insert: string;
-    tableText: string;
     tableFrom: number;
 }
 
@@ -78,7 +77,6 @@ function getNormalizedTableReplacementIfChanged(
         from: ctx.from,
         to: ctx.to,
         insert,
-        tableText,
         tableFrom: ctx.from + prefix.length,
     };
 }
