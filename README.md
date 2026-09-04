@@ -46,6 +46,8 @@ Provides table editing from the rendered HTML table similar to the Rich text edi
 - Changing column alignment (left/center/right)
 - Clear table
 - Delete table
+- Sort table rows by the active column
+    - Note: Sorting works based on the raw markdown (e.g. `**bold**` sorts before `bold`)
 - Select rectangular ranges of table cells with the mouse or keyboard, then cut/copy/paste/clear/delete them (desktop only).
 
 ### Table formatting/Boundaries
@@ -124,6 +126,9 @@ The below table editing commands can be assigned keyboard shortcuts, the default
 
 - Show delete table button
     - Display the delete table action in the floating table toolbar.
+
+- Show sort buttons
+    - Display the actions that sort table rows by the active column in the floating table toolbar.
 
 ### Limitations
 
