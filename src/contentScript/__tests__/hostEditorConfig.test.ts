@@ -27,6 +27,7 @@ describe('hostEditorConfig', () => {
             showClearButtons: true,
             showAlignmentButtons: false,
             showDeleteTableButton: true,
+            showSortButtons: true,
         },
     };
 

@@ -7,6 +7,7 @@ export const TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY = 'floatingToolbar.showMoveBu
 export const TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY = 'floatingToolbar.showClearButtons';
 export const TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY = 'floatingToolbar.showAlignmentButtons';
 export const TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY = 'floatingToolbar.showDeleteTableButton';
+export const TOOLBAR_SHOW_SORT_BUTTONS_SETTING_KEY = 'floatingToolbar.showSortButtons';
 
 export interface HostEditorConfig {
     nestedEditor: {
@@ -21,6 +22,7 @@ export interface HostEditorConfig {
         showClearButtons: boolean;
         showAlignmentButtons: boolean;
         showDeleteTableButton: boolean;
+        showSortButtons: boolean;
     };
 }
 
@@ -53,6 +55,7 @@ export function defaultHostEditorConfig(): HostEditorConfig {
             showClearButtons: true,
             showAlignmentButtons: true,
             showDeleteTableButton: true,
+            showSortButtons: true,
         },
     };
 }
@@ -132,6 +135,7 @@ async function readPluginConfig(deps: HostEditorConfigDeps): Promise<PluginHostC
             TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
             TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
+            TOOLBAR_SHOW_SORT_BUTTONS_SETTING_KEY,
         ]);
 
         return {
@@ -162,6 +166,11 @@ async function readPluginConfig(deps: HostEditorConfigDeps): Promise<PluginHostC
                     values,
                     TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
                     defaults.toolbar.showDeleteTableButton
+                ),
+                showSortButtons: readBooleanSetting(
+                    values,
+                    TOOLBAR_SHOW_SORT_BUTTONS_SETTING_KEY,
+                    defaults.toolbar.showSortButtons
                 ),
             },
         };

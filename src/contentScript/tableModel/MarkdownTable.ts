@@ -3,6 +3,7 @@ import { scanMarkdownTableRow } from './markdownTableRowScanner';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
+import { compareRawMarkdownCells, type TableSortDirection } from './rawMarkdownSort';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
 export interface MarkdownTableParts {
@@ -19,6 +20,12 @@ export interface ClipboardTableFragment {
 export interface PasteRectResult {
     table: MarkdownTable;
     pastedRect: TableRect;
+}
+
+export interface SortBodyRowsResult {
+    table: MarkdownTable;
+    /** Maps each original body-row index to its index in the sorted table. */
+    sortedIndexByOriginalIndex: readonly number[];
 }
 
 function parseAlignment(cell: string): TableAlignment {
@@ -704,5 +711,42 @@ export class MarkdownTable {
             alignments: this.alignmentsData,
             bodyRows: allRows.slice(1),
         });
+    }
+
+    /**
+     * Stably sorts body rows by the raw Markdown in `colIndex`, leaving the header fixed.
+     * The returned index map lets callers keep a specific row active after the rewrite.
+     */
+    sortBodyRowsByColumn(colIndex: number, direction: TableSortDirection): SortBodyRowsResult {
+        const identityMap = this.rowsData.map((_row, index) => index);
+        if (!this.isValidColumnIndex(colIndex) || this.rowsData.length < 2) {
+            return { table: this, sortedIndexByOriginalIndex: identityMap };
+        }
+
+        const sortedRows = this.rowsData
+            .map((row, originalIndex) => ({ row, originalIndex }))
+            .sort((a, b) => {
+                const result = compareRawMarkdownCells(a.row[colIndex], b.row[colIndex], direction);
+                return result !== 0 ? result : a.originalIndex - b.originalIndex;
+            });
+        const sortedIndexByOriginalIndex = new Array<number>(this.rowsData.length);
+        let didChange = false;
+        sortedRows.forEach((entry, sortedIndex) => {
+            sortedIndexByOriginalIndex[entry.originalIndex] = sortedIndex;
+            didChange ||= entry.originalIndex !== sortedIndex;
+        });
+
+        if (!didChange) {
+            return { table: this, sortedIndexByOriginalIndex };
+        }
+
+        return {
+            table: MarkdownTable.create({
+                headerCells: this.headersData,
+                alignments: this.alignmentsData,
+                bodyRows: sortedRows.map(({ row }) => row),
+            }),
+            sortedIndexByOriginalIndex,
+        };
     }
 }

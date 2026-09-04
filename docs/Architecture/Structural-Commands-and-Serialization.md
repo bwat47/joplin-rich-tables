@@ -1,6 +1,6 @@
 # Structural Commands and Serialization
 
-Command flow from user action to Markdown serialization, including non-structural clear/format commands that still re-serialize table text.
+Command flow from user action to Markdown serialization, including non-structural clear, format, and sort commands that still re-serialize table text.
 
 Multi-cell clipboard writes use the same parse -> mutate -> serialize pattern, but enter through
 `tableRuntime/selection/cellSelectionClipboard.ts` rather than `tableCommands.ts`.
@@ -112,6 +112,7 @@ it must dispatch an open-cell request alongside the rebuild.
 - Serialization to canonical plugin Markdown.
 - Row operations with current header/body command semantics.
 - Column insert/delete/swap/alignment updates.
+- Stable body-row sorting by a selected column's raw Markdown.
 - Clear row/column/table operations.
 - Rectangle clear plus anchor-based fragment paste with optional row/column expansion.
 - Selection-removal helpers for empty-rect detection and contiguous row/column deletion.
@@ -131,6 +132,14 @@ reopens used to restore editor state skip that rewrite so undo/redo does not get
 
 Clipboard table paste also serializes the whole table after mutation. Existing column alignments are preserved;
 clipboard alignments are only applied to newly created columns.
+
+## Column Sorting
+
+Ascending and descending sorts keep the header fixed and reorder complete body rows. Comparison uses the raw,
+trimmed cell content stored by `MarkdownTable`, without rendering or stripping Markdown. An `Intl.Collator` with
+numeric comparison and base sensitivity provides natural digit ordering and case-insensitive equality. Blank cells
+remain last in both directions, equal values keep their original order, and the active body row follows its original
+row to the sorted position.
 
 ## Rebuild Trigger
 

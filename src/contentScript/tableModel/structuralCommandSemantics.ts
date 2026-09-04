@@ -1,6 +1,7 @@
 import { MarkdownTable, type TableAlignment } from './MarkdownTable';
 import type { TargetCell } from './activeCellForTableText';
 import type { CellCoords } from './types';
+import type { TableSortDirection } from './rawMarkdownSort';
 
 export type StructuralTableCommandById = {
     insertRowBefore: {
@@ -45,6 +46,12 @@ export type StructuralTableCommandById = {
     };
     deleteTable: {
         type: 'deleteTable';
+    };
+    sortColumnAscending: {
+        type: 'sortColumnAscending';
+    };
+    sortColumnDescending: {
+        type: 'sortColumnDescending';
     };
 };
 
@@ -174,6 +181,23 @@ function targetMovedRowDown(cell: CellCoords): TargetCell {
         : { section: 'body', row: cell.row + 1, col: cell.col };
 }
 
+function sortColumnResult(
+    table: MarkdownTable,
+    activeCell: CellCoords,
+    direction: TableSortDirection
+): StructuralTableMutationResult {
+    const result = table.sortBodyRowsByColumn(activeCell.col, direction);
+    const targetCell =
+        activeCell.section === 'body'
+            ? {
+                  ...activeCell,
+                  row: result.sortedIndexByOriginalIndex[activeCell.row] ?? activeCell.row,
+              }
+            : sameCell(activeCell);
+
+    return commandResult(table, activeCell, result.table, targetCell);
+}
+
 export function applyStructuralTableCommand(
     table: MarkdownTable,
     activeCell: CellCoords,
@@ -250,5 +274,9 @@ export function applyStructuralTableCommand(
             );
         case 'deleteTable':
             return { kind: 'deleteTable' };
+        case 'sortColumnAscending':
+            return sortColumnResult(table, activeCell, 'ascending');
+        case 'sortColumnDescending':
+            return sortColumnResult(table, activeCell, 'descending');
     }
 }

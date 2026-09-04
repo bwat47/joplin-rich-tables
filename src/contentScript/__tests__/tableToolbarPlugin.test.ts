@@ -157,4 +157,22 @@ describe('tableToolbarPlugin', () => {
 
         plugin.destroy();
     });
+
+    it('routes the ascending sort button through the active column action', () => {
+        const view = createView();
+        const plugin = new TableToolbarPlugin(view);
+        const cell = createCell();
+        const resolvedCell = createResolvedCell(cell);
+
+        setCurrentActiveCell(plugin, cell);
+        createToolbarButtons(plugin);
+        mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
+        mockRunStructuralAction.mockReturnValue(true);
+
+        getToolbarButton(plugin, 'Sort rows by column (A to Z)').click();
+
+        expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'sortColumnAscending', resolvedCell);
+
+        plugin.destroy();
+    });
 });

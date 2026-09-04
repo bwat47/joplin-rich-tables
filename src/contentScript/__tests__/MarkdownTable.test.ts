@@ -68,6 +68,77 @@ describe('MarkdownTable', () => {
         expect(table.clearColumn(9)).toBe(table);
         expect(table.clearRect({ minRow: -1, maxRow: 0, minCol: 0, maxCol: 1 })).toBe(table);
         expect(table.moveRow('header', 0, 'up')).toBe(table);
+        expect(table.sortBodyRowsByColumn(5, 'ascending').table).toBe(table);
+    });
+
+    describe('sortBodyRowsByColumn', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['Name', 'Value'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['Item 10', 'ten'],
+                ['', 'empty'],
+                ['item 2', 'two'],
+                ['Item 1', 'one'],
+                ['   ', 'whitespace'],
+            ],
+        });
+
+        it('naturally sorts complete body rows while keeping blanks last', () => {
+            const result = table.sortBodyRowsByColumn(0, 'ascending');
+
+            expect(result.table.headerCells).toEqual(['Name', 'Value']);
+            expect(result.table.alignments).toEqual(['left', 'right']);
+            expect(result.table.bodyRows).toEqual([
+                ['Item 1', 'one'],
+                ['item 2', 'two'],
+                ['Item 10', 'ten'],
+                ['', 'empty'],
+                ['   ', 'whitespace'],
+            ]);
+            expect(result.sortedIndexByOriginalIndex).toEqual([2, 3, 1, 0, 4]);
+        });
+
+        it('sorts descending without moving blank cells to the top', () => {
+            expect(table.sortBodyRowsByColumn(0, 'descending').table.bodyRows).toEqual([
+                ['Item 10', 'ten'],
+                ['item 2', 'two'],
+                ['Item 1', 'one'],
+                ['', 'empty'],
+                ['   ', 'whitespace'],
+            ]);
+        });
+
+        it('uses raw Markdown and preserves the original order of equal keys', () => {
+            const rawMarkdownTable = MarkdownTable.fromParts({
+                headerCells: ['Name', 'Id'],
+                alignments: [null, null],
+                bodyRows: [
+                    ['Apple', 'plain'],
+                    ['**Zulu**', 'formatted'],
+                    ['apple', 'case-variant'],
+                ],
+            });
+
+            expect(rawMarkdownTable.sortBodyRowsByColumn(0, 'ascending').table.bodyRows).toEqual([
+                ['**Zulu**', 'formatted'],
+                ['Apple', 'plain'],
+                ['apple', 'case-variant'],
+            ]);
+        });
+
+        it('returns the same table when rows are already ordered', () => {
+            const sorted = MarkdownTable.fromParts({
+                headerCells: ['Name'],
+                alignments: [null],
+                bodyRows: [['Item 1'], ['Item 2'], ['Item 10']],
+            });
+
+            expect(sorted.sortBodyRowsByColumn(0, 'ascending')).toEqual({
+                table: sorted,
+                sortedIndexByOriginalIndex: [0, 1, 2],
+            });
+        });
     });
 
     it('keeps header semantics for row operations', () => {

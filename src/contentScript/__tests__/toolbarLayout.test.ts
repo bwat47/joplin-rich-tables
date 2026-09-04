@@ -33,6 +33,7 @@ describe('toolbarLayout', () => {
                 showClearButtons: true,
                 showAlignmentButtons: true,
                 showDeleteTableButton: true,
+                showSortButtons: true,
             })
         );
 
@@ -52,10 +53,12 @@ describe('toolbarLayout', () => {
             'Align column left',
             'Align column center',
             'Align column right',
+            'Sort rows by column (A to Z)',
+            'Sort rows by column (Z to A)',
             'Clear table',
             'Delete table',
         ]);
-        expect(layout.separatorCount).toBe(3);
+        expect(layout.separatorCount).toBe(4);
     });
 
     it('hides move buttons when the move group is disabled', () => {
@@ -65,13 +68,14 @@ describe('toolbarLayout', () => {
                 showClearButtons: true,
                 showAlignmentButtons: true,
                 showDeleteTableButton: true,
+                showSortButtons: true,
             })
         );
 
         expect(layout.labels).not.toContain('Move row up');
         expect(layout.labels).not.toContain('Move column right');
         expect(layout.labels).toContain('Clear table');
-        expect(layout.separatorCount).toBe(3);
+        expect(layout.separatorCount).toBe(4);
     });
 
     it('hides clear row, clear column, and clear table when the clear group is disabled', () => {
@@ -81,6 +85,7 @@ describe('toolbarLayout', () => {
                 showClearButtons: false,
                 showAlignmentButtons: true,
                 showDeleteTableButton: true,
+                showSortButtons: true,
             })
         );
 
@@ -88,7 +93,7 @@ describe('toolbarLayout', () => {
         expect(layout.labels).not.toContain('Clear column');
         expect(layout.labels).not.toContain('Clear table');
         expect(layout.labels).toContain('Delete table');
-        expect(layout.separatorCount).toBe(3);
+        expect(layout.separatorCount).toBe(4);
     });
 
     it('hides alignment buttons when the alignment group is disabled', () => {
@@ -98,13 +103,14 @@ describe('toolbarLayout', () => {
                 showClearButtons: true,
                 showAlignmentButtons: false,
                 showDeleteTableButton: true,
+                showSortButtons: true,
             })
         );
 
         expect(layout.labels).not.toContain('Align column left');
         expect(layout.labels).not.toContain('Align column center');
         expect(layout.labels).not.toContain('Align column right');
-        expect(layout.separatorCount).toBe(2);
+        expect(layout.separatorCount).toBe(3);
     });
 
     it('keeps only core actions when all optional groups are disabled', () => {
@@ -114,6 +120,7 @@ describe('toolbarLayout', () => {
                 showClearButtons: false,
                 showAlignmentButtons: false,
                 showDeleteTableButton: true,
+                showSortButtons: false,
             })
         );
 
@@ -136,12 +143,13 @@ describe('toolbarLayout', () => {
                 showClearButtons: true,
                 showAlignmentButtons: true,
                 showDeleteTableButton: false,
+                showSortButtons: true,
             })
         );
 
         expect(layout.labels).toContain('Clear table');
         expect(layout.labels).not.toContain('Delete table');
-        expect(layout.separatorCount).toBe(3);
+        expect(layout.separatorCount).toBe(4);
     });
 
     it('omits the table group when clear and delete table buttons are both disabled', () => {
@@ -151,6 +159,7 @@ describe('toolbarLayout', () => {
                 showClearButtons: false,
                 showAlignmentButtons: false,
                 showDeleteTableButton: false,
+                showSortButtons: false,
             })
         );
 
@@ -163,5 +172,21 @@ describe('toolbarLayout', () => {
             'Delete column',
         ]);
         expect(layout.separatorCount).toBe(1);
+    });
+
+    it('hides column sorting buttons when the sort group is disabled', () => {
+        const layout = renderLayout(
+            getToolbarButtonGroups({
+                showMoveButtons: true,
+                showClearButtons: true,
+                showAlignmentButtons: true,
+                showDeleteTableButton: true,
+                showSortButtons: false,
+            })
+        );
+
+        expect(layout.labels).not.toContain('Sort rows by column (A to Z)');
+        expect(layout.labels).not.toContain('Sort rows by column (Z to A)');
+        expect(layout.separatorCount).toBe(3);
     });
 });

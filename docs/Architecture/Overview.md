@@ -50,7 +50,7 @@ mutable state.
 | **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.                  |
 | **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
 | **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Editor transaction orchestration for structural table commands.  |
-| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row/column/alignment actions.                    |
+| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row, column, alignment, and sorting actions.     |
 
 ## Data Flow
 

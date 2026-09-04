@@ -15,6 +15,8 @@ import {
     rowInsertBottomIcon,
     rowInsertTopIcon,
     rowRemoveIcon,
+    sortAscendingIcon,
+    sortDescendingIcon,
     type ToolbarIconFactory,
 } from './icons';
 import type { StructuralActionId } from '../tableRuntime/operations/structuralActions';
@@ -149,6 +151,21 @@ const deleteTableButton: ToolbarButtonDescriptor = {
     iconFactory: deleteTableIcon,
 };
 
+const sortButtons: ToolbarButtonDescriptor[] = [
+    {
+        actionId: 'sortColumnAscending',
+        title: 'Sort rows by column (A to Z)',
+        ariaLabel: 'Sort rows by column (A to Z)',
+        iconFactory: sortAscendingIcon,
+    },
+    {
+        actionId: 'sortColumnDescending',
+        title: 'Sort rows by column (Z to A)',
+        ariaLabel: 'Sort rows by column (Z to A)',
+        iconFactory: sortDescendingIcon,
+    },
+];
+
 export function getToolbarButtonGroups(settings: ToolbarHostConfig): ToolbarButtonDescriptor[][] {
     const rowButtons = [...baseRowButtons];
     const columnButtons = [...baseColumnButtons];
@@ -171,6 +188,10 @@ export function getToolbarButtonGroups(settings: ToolbarHostConfig): ToolbarButt
 
     if (settings.showAlignmentButtons) {
         groups.push(alignmentButtons);
+    }
+
+    if (settings.showSortButtons) {
+        groups.push(sortButtons);
     }
 
     if (tableButtons.length > 0) {

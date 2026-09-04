@@ -25,6 +25,8 @@ const modelBackedCommands = {
     clearColumn: { type: 'clearColumn' },
     clearTable: { type: 'clearTable' },
     deleteTable: { type: 'deleteTable' },
+    sortColumnAscending: { type: 'sortColumnAscending' },
+    sortColumnDescending: { type: 'sortColumnDescending' },
 } satisfies { [Id in ModelBackedStructuralActionId]: CommandForId<Id> };
 
 const alignmentCommands = {

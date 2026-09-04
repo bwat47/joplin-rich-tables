@@ -255,4 +255,54 @@ describe('structuralCommandSemantics', () => {
             expect(tableResult.targetCell).toEqual(activeCell);
         }
     );
+
+    it.each([
+        [
+            'sortColumnAscending',
+            2,
+            [
+                ['Item 1', 'one'],
+                ['Item 2', 'two'],
+                ['Item 10', 'ten'],
+            ],
+        ],
+        [
+            'sortColumnDescending',
+            0,
+            [
+                ['Item 10', 'ten'],
+                ['Item 2', 'two'],
+                ['Item 1', 'one'],
+            ],
+        ],
+    ] satisfies Array<[StructuralTableCommandId, number, string[][]]>)(
+        'sorts body rows and follows the active row for %s',
+        (type, targetRow, expectedBodyRows) => {
+            const markdown = [
+                '| Name | Id |',
+                '| --- | --- |',
+                '| Item 2 | two |',
+                '| Item 10 | ten |',
+                '| Item 1 | one |',
+            ].join('\n');
+            // The active cell starts on `Item 10`, which lands on a different row in each direction.
+            const result = apply(markdown, { section: 'body', row: 1, col: 0 }, { type });
+            const tableResult = expectTableResult(result);
+
+            expect(tableResult.targetCell).toEqual({ section: 'body', row: targetRow, col: 0 });
+            expect(tableResult.table.headerCells).toEqual(['Name', 'Id']);
+            expect(tableResult.table.bodyRows).toEqual(expectedBodyRows);
+        }
+    );
+
+    it('keeps the header cell active while sorting its column', () => {
+        const result = apply(tableMarkdown, { section: 'header', row: 0, col: 0 }, { type: 'sortColumnDescending' });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual({ section: 'header', row: 0, col: 0 });
+        expect(tableResult.table.bodyRows).toEqual([
+            ['b1', 'b2'],
+            ['a1', 'a2'],
+        ]);
+    });
 });
