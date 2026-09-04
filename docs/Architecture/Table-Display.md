@@ -4,7 +4,8 @@
 
 ### Detection
 
-Lezer syntax tree scanner detects Markdown tables → replaced with `Decoration.replace({ widget, block: true })` via StateField.
+Direct `Document` table nodes from the Lezer syntax tree are replaced with
+`Decoration.replace({ widget, block: true })` via a `StateField`.
 
 ### Widget Structure
 
