@@ -45,10 +45,15 @@ function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: numbe
     return { from: node.from - tableFrom, to: node.to - tableFrom };
 }
 
-/** Lezer row nodes cover trailing padding, which belongs to no cell. */
-function trimRowEnd(source: TableTextSource, row: SyntaxNode): number {
+/**
+ * Lezer row nodes cover trailing padding, which normally belongs to no cell.
+ * An odd trailing backslash can make Lezer include a following space or tab in
+ * the final TableCell, so trimming must never cross that syntax-owned content.
+ */
+function trimRowEnd(source: TableTextSource, row: SyntaxNode, contentNodes: readonly SyntaxNode[]): number {
     let to = row.to;
-    while (to > row.from && isTablePadding(source.text[to - 1 - source.base])) {
+    const finalContentTo = contentNodes[contentNodes.length - 1]?.to ?? row.from;
+    while (to > finalContentTo && isTablePadding(source.text[to - 1 - source.base])) {
         to--;
     }
     return to;
@@ -99,9 +104,9 @@ function matchOrderedContentNode(
 }
 
 function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: number): MarkdownTableSyntaxRow | null {
-    const rowTo = trimRowEnd(source, row);
     const delimiters = row.getChildren('TableDelimiter');
     const contentNodes = row.getChildren('TableCell');
+    const rowTo = trimRowEnd(source, row, contentNodes);
     const rawCells = buildRawCellRanges(row, delimiters, rowTo);
     const cells: MarkdownTableSyntaxCell[] = [];
     let contentIndex = 0;

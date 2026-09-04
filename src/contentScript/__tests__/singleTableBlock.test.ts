@@ -23,6 +23,18 @@ describe('parseSingleTableBlock', () => {
         expect(parseSingleTableBlock(padded)?.serialize()).toBe(CANONICAL_TABLE);
     });
 
+    it.each([
+        ['space', String.raw`\ `],
+        ['tab', '\\' + '\t'],
+    ])('preserves a trailing %s that Lezer includes in clipboard cell content', (_label, suffix) => {
+        const finalCell = `value${suffix}`;
+        const text = [`a | ${finalCell}`, '--- | ---  ', `b | ${finalCell}`].join('\n');
+        const table = parseSingleTableBlock(text);
+
+        expect(table?.headerCells).toEqual(['a', finalCell]);
+        expect(table?.bodyRows).toEqual([['b', finalCell]]);
+    });
+
     it('rejects multiple tables separated by blank lines', () => {
         const secondTable = ['| H2 |', '| --- |', '| b |'].join('\n');
 

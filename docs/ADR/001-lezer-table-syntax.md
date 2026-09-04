@@ -21,8 +21,9 @@ content spans.
 - In editor documents, use the existing CodeMirror syntax tree.
 - For clipboard text, use one shared `@lezer/markdown` parser configured with GFM. Clipboard text is the only source
   the editor has not already parsed, so it is the only place a second parser runs.
-- Normalize clipboard text before parsing: fold line endings and drop trailing line padding. That padding is invisible
-  in a pasted payload but can stop Lezer recognizing the table at all.
+- Normalize clipboard text before parsing: fold line endings and drop trailing delimiter-row padding. That padding is
+  invisible in a pasted payload but can stop Lezer recognizing the table at all. Other rows remain untouched until
+  Lezer classifies their content.
 - Support only a `Table` whose direct parent is `Document`. Tables in blockquotes, lists, or other containers remain
   plain source.
 - Convert accepted nodes to a table-relative `MarkdownTableSyntax` value. Reconstruct raw cells from adjacent direct
@@ -35,9 +36,10 @@ content spans.
 The plugin remains authoritative for editor and application semantics:
 
 - Semantic content bounds use `TableCell`; empty-cell insertion points and editable bounds derive from raw delimiter
-  gaps. Editable bounds remove at most one adjacent ASCII space or tab on each side.
-- Row extents exclude trailing ASCII spaces and tabs. Lezer row nodes cover that padding, but it belongs to no cell:
-  treating it as one detaches the closing pipe from the last cell and adds a phantom trailing column.
+  gaps. Editable bounds remove at most one adjacent ASCII space or tab on each side without excluding semantic content.
+- Row extents exclude trailing ASCII spaces and tabs that lie outside the final `TableCell`. Lezer row nodes cover that
+  padding, but it belongs to no cell: treating it as one detaches the closing pipe from the last cell and adds a phantom
+  trailing column. Trimming never crosses syntax-owned content, including whitespace Lezer preserves after a backslash.
 - The normalized rectangular grid, alignment values, structural operations, and canonical serialization remain in
   `MarkdownTable`.
 - Cell offsets within a serialized table are derived from the canonical row format, never by parsing that

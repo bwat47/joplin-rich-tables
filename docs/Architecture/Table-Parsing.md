@@ -16,8 +16,9 @@ Document resolution extracts this value from the existing CodeMirror tree and ac
 under `Document`. Tables inside lists, blockquotes, or other containers are not rendered. Clipboard parsing uses a
 shared GFM Lezer parser and accepts exactly one root table plus optional outer whitespace.
 
-Row spans exclude trailing ASCII spaces and tabs. Lezer row nodes cover that padding, but it belongs to no cell:
-counting it detaches the closing pipe from the last cell and yields a phantom trailing column.
+Row spans exclude trailing ASCII spaces and tabs outside the final `TableCell`. Lezer row nodes cover that padding, but
+it belongs to no cell: counting it detaches the closing pipe from the last cell and yields a phantom trailing column.
+Trimming never crosses whitespace that Lezer classified as cell content.
 
 The adapter fails closed on unexpected tree shapes. A direct `TableRow` without pipe delimiters becomes one raw cell,
 matching Lezer's treatment of pipe-free lines adjacent to a table.
@@ -28,7 +29,8 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
 
 - `from/to` use a `TableCell` span for non-empty content.
 - Empty cells receive a stable zero-width insertion point reconstructed from the raw delimiter gap.
-- `editableFrom/editableTo` remove at most one delimiter-adjacent ASCII space or tab on each side.
+- `editableFrom/editableTo` remove at most one delimiter-adjacent ASCII space or tab on each side while always
+  containing the semantic bounds.
 - Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
 `computeMarkdownTableCellRanges(text)` parses standalone text through the Lezer adapter to produce the same ranges.

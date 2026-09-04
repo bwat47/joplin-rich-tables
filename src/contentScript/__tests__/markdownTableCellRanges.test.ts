@@ -151,6 +151,23 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, ranges.rows[0][1].from, ranges.rows[0][1].to)).toBe('2');
     });
 
+    it.each([
+        ['space', String.raw`\ `],
+        ['tab', '\\' + '\t'],
+    ])('keeps a Lezer-owned trailing %s inside semantic and editable bounds', (_label, suffix) => {
+        const finalCell = `value${suffix}`;
+        const text = [`| a | ${finalCell}|`, '| --- | --- |'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const range = ranges.headers[1];
+        expect(sliceRange(text, range.from, range.to)).toBe(finalCell);
+        expect(sliceRange(text, range.editableFrom, range.editableTo)).toBe(finalCell);
+        expect(range.editableFrom).toBeLessThanOrEqual(range.from);
+        expect(range.editableTo).toBeGreaterThanOrEqual(range.to);
+    });
+
     it('allows uneven row lengths', () => {
         const text = ['| a | b |', '| --- | --- |', '| c |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);

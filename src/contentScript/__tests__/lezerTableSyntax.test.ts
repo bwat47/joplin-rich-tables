@@ -82,6 +82,18 @@ describe('parseRootMarkdownTableSyntax', () => {
         expect(cellContent(text, parsed.from, parsed.syntax.bodyRows[0].cells[0])).toBe('plain');
     });
 
+    it.each([
+        ['a space', String.raw`\ `],
+        ['a tab', '\\' + '\t'],
+    ])('preserves trailing %s that Lezer includes in cell content', (_label, suffix) => {
+        const finalCell = `value${suffix}`;
+        const text = [`a | ${finalCell}`, '--- | ---', `b | ${finalCell}`].join('\n');
+        const parsed = parse(text);
+
+        expect(cellContent(text, parsed.from, parsed.syntax.header.cells[1])).toBe(finalCell);
+        expect(cellContent(text, parsed.from, parsed.syntax.bodyRows[0].cells[1])).toBe(finalCell);
+    });
+
     it('allows outer whitespace and reports the table source range', () => {
         const table = ['| A |', '| --- |'].join('\n');
         const text = `\n  \n${table}\n\t`;
