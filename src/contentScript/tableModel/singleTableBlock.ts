@@ -6,21 +6,14 @@
  * root-level table.
  */
 import { MarkdownTable } from './MarkdownTable';
-
-function trimLinePadding(line: string): string {
-    let end = line.length;
-    while (end > 0 && (line[end - 1] === ' ' || line[end - 1] === '\t')) {
-        end--;
-    }
-    return line.slice(0, end);
-}
+import { trimTablePaddingEnd } from '../shared/tablePadding';
 
 /**
  * Splits on any line ending and drops trailing padding. The padding is invisible in a
  * clipboard payload, but Lezer refuses a delimiter row that carries it.
  */
 function toNormalizedClipboardLines(text: string): string[] {
-    return text.split(/\r\n?|\n/).map(trimLinePadding);
+    return text.split(/\r\n?|\n/).map(trimTablePaddingEnd);
 }
 
 function isBlankLine(line: string): boolean {

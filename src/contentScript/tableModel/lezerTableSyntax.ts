@@ -1,5 +1,6 @@
 import type { SyntaxNode } from '@lezer/common';
 import { GFM, parser } from '@lezer/markdown';
+import { isTablePadding } from '../shared/tablePadding';
 
 export interface MarkdownTableSourceRange {
     readonly from: number;
@@ -67,14 +68,10 @@ function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: numbe
     return { from: node.from - tableFrom, to: node.to - tableFrom };
 }
 
-function isRowPadding(character: string | undefined): boolean {
-    return character === ' ' || character === '\t';
-}
-
-/** Lezer row nodes cover trailing spaces and tabs, which belong to no cell. */
+/** Lezer row nodes cover trailing padding, which belongs to no cell. */
 function trimRowEnd(source: TableTextSource, row: SyntaxNode): number {
     let to = row.to;
-    while (to > row.from && isRowPadding(source.text[to - 1 - source.base])) {
+    while (to > row.from && isTablePadding(source.text[to - 1 - source.base])) {
         to--;
     }
     return to;

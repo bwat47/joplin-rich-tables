@@ -11,6 +11,7 @@ import {
     type MarkdownTableSyntaxCell,
     type MarkdownTableSyntaxRow,
 } from './lezerTableSyntax';
+import { isTablePadding } from '../shared/tablePadding';
 import type { CellCoords } from './types';
 
 export interface CellRange {
@@ -25,16 +26,12 @@ export interface TableCellRanges {
     rows: CellRange[][];
 }
 
-function isDelimiterPadding(character: string | undefined): boolean {
-    return character === ' ' || character === '\t';
-}
-
 function offsetRange(range: MarkdownTableSourceRange, tableFrom: number): MarkdownTableSourceRange {
     return { from: tableFrom + range.from, to: tableFrom + range.to };
 }
 
 function emptyCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
-    const insertion = raw.from < raw.to && isDelimiterPadding(text[raw.from]) ? raw.from + 1 : raw.from;
+    const insertion = raw.from < raw.to && isTablePadding(text[raw.from]) ? raw.from + 1 : raw.from;
     return { from: insertion, to: insertion };
 }
 
@@ -42,10 +39,10 @@ function editableCellBounds(text: string, raw: MarkdownTableSourceRange): Markdo
     let from = raw.from;
     let to = raw.to;
 
-    if (from < to && isDelimiterPadding(text[from])) {
+    if (from < to && isTablePadding(text[from])) {
         from++;
     }
-    if (to > from && isDelimiterPadding(text[to - 1])) {
+    if (to > from && isTablePadding(text[to - 1])) {
         to--;
     }
 
