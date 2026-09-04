@@ -146,6 +146,14 @@ describe('findTableRanges', () => {
         expect(findTableRanges(state)).toEqual([]);
     });
 
+    it('reuses table-relative syntax for identical source text', () => {
+        const state = createMarkdownState(`${TABLE}\n\n${TABLE}`);
+        const tables = findTableRanges(state);
+
+        expect(tables).toHaveLength(2);
+        expect(tables?.[1]?.syntax).toBe(tables?.[0]?.syntax);
+    });
+
     it.each([
         ['blockquote', ['> | a | b |', '> | --- | --- |', '> | c | d |'].join('\n')],
         ['list item', ['- | a | b |', '  | --- | --- |', '  | c | d |'].join('\n')],

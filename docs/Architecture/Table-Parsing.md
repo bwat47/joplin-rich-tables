@@ -45,6 +45,10 @@ table and separator syntax; the model does not maintain a competing row scanner 
 `tableResolution.ts` returns exact root-level Lezer table ranges together with `MarkdownTableSyntax`. Point lookup and
 full-document discovery therefore share the same range and root classification.
 
+The syntax adapter keeps a 50-entry LRU keyed by exact table source text. Because syntax ranges are table-relative and
+the DTO is immutable, identical tables can safely share it. Root-node classification is checked before cache lookup,
+so cached root syntax can never admit an otherwise unsupported nested table.
+
 `buildTableContext()` derives both `MarkdownTable` and cell ranges from the supplied syntax value without reparsing.
 Its LRU cache remains keyed by exact table source text and stores the derived model and ranges together.
 

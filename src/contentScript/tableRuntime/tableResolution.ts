@@ -1,7 +1,7 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
-import { extractRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
+import { extractCachedRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
 import { getCellRange, type CellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 import type { CellCoords, ResolvedTable } from '../tableModel/types';
@@ -18,7 +18,8 @@ function findTableAncestor(node: SyntaxNode): SyntaxNode | null {
 }
 
 function buildResolvedTable(state: EditorState, node: SyntaxNode): ResolvedTable | null {
-    const syntax = extractRootMarkdownTableSyntax(node);
+    const text = state.doc.sliceString(node.from, node.to);
+    const syntax = extractCachedRootMarkdownTableSyntax(node, text);
     if (!syntax) {
         return null;
     }
@@ -26,7 +27,7 @@ function buildResolvedTable(state: EditorState, node: SyntaxNode): ResolvedTable
     return {
         from: node.from,
         to: node.to,
-        text: state.doc.sliceString(node.from, node.to),
+        text,
         syntax,
     };
 }
