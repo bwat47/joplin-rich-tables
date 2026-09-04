@@ -63,6 +63,25 @@ describe('parseRootMarkdownTableSyntax', () => {
         expect(cellContent(text, parsed.from, parsed.syntax.bodyRows[2].cells[0])).toBe('another');
     });
 
+    it.each([
+        ['a body row', ['| A | B |', '| --- | --- |', '| C | D |   '].join('\n')],
+        ['a header row', ['| A | B |  ', '| --- | --- |', '| C | D |'].join('\n')],
+        ['a body row ending in a tab', ['| A | B |', '| --- | --- |', '| C | D |\t'].join('\n')],
+    ])('ignores trailing padding on %s', (_label, text) => {
+        const parsed = parse(text);
+
+        expect(parsed.syntax.header.cells).toHaveLength(2);
+        expect(parsed.syntax.bodyRows[0].cells.map((cell) => cellContent(text, parsed.from, cell))).toEqual(['C', 'D']);
+    });
+
+    it('trims trailing padding on a pipe-free row', () => {
+        const text = ['| A | B |', '| --- | --- |', 'plain   '].join('\n');
+        const parsed = parse(text);
+
+        expect(parsed.syntax.bodyRows[0].cells).toHaveLength(1);
+        expect(cellContent(text, parsed.from, parsed.syntax.bodyRows[0].cells[0])).toBe('plain');
+    });
+
     it('allows outer whitespace and reports the table source range', () => {
         const table = ['| A |', '| --- |'].join('\n');
         const text = `\n  \n${table}\n\t`;

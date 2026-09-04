@@ -28,6 +28,12 @@ export interface ParsedRootMarkdownTableSyntax extends MarkdownTableSourceRange 
     readonly syntax: MarkdownTableSyntax;
 }
 
+/** Source text plus the document offset of `text[0]`, so absolute node positions can be read. */
+interface TableTextSource {
+    readonly text: string;
+    readonly base: number;
+}
+
 const markdownTableParser = parser.configure([GFM]);
 const MAX_CACHED_TABLE_SYNTAX = 50;
 const tableSyntaxCache = new Map<string, MarkdownTableSyntax>();
@@ -61,11 +67,28 @@ function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: numbe
     return { from: node.from - tableFrom, to: node.to - tableFrom };
 }
 
-function buildRawCellRanges(row: SyntaxNode, delimiters: readonly SyntaxNode[]): MarkdownTableSourceRange[] {
+function isRowPadding(character: string | undefined): boolean {
+    return character === ' ' || character === '\t';
+}
+
+/** Lezer row nodes cover trailing spaces and tabs, which belong to no cell. */
+function trimRowEnd(source: TableTextSource, row: SyntaxNode): number {
+    let to = row.to;
+    while (to > row.from && isRowPadding(source.text[to - 1 - source.base])) {
+        to--;
+    }
+    return to;
+}
+
+function buildRawCellRanges(
+    row: SyntaxNode,
+    delimiters: readonly SyntaxNode[],
+    rowTo: number
+): MarkdownTableSourceRange[] {
     const hasLeadingDelimiter = delimiters[0]?.from === row.from;
-    const hasTrailingDelimiter = delimiters[delimiters.length - 1]?.from === row.to - 1;
+    const hasTrailingDelimiter = delimiters[delimiters.length - 1]?.from === rowTo - 1;
     const contentFrom = row.from + (hasLeadingDelimiter ? 1 : 0);
-    const contentTo = row.to - (hasTrailingDelimiter ? 1 : 0);
+    const contentTo = rowTo - (hasTrailingDelimiter ? 1 : 0);
     const internalDelimiters = delimiters.filter(
         (delimiter) => delimiter.from >= contentFrom && delimiter.from < contentTo
     );
@@ -101,10 +124,11 @@ function matchOrderedContentNode(
     return candidate.to <= raw.to && (!nextCandidate || nextCandidate.from >= raw.to) ? candidate : undefined;
 }
 
-function extractRowSyntax(row: SyntaxNode, tableFrom: number): MarkdownTableSyntaxRow | null {
+function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: number): MarkdownTableSyntaxRow | null {
+    const rowTo = trimRowEnd(source, row);
     const delimiters = row.getChildren('TableDelimiter');
     const contentNodes = row.getChildren('TableCell');
-    const rawCells = buildRawCellRanges(row, delimiters);
+    const rawCells = buildRawCellRanges(row, delimiters, rowTo);
     const cells: MarkdownTableSyntaxCell[] = [];
     let contentIndex = 0;
 
@@ -129,7 +153,8 @@ function extractRowSyntax(row: SyntaxNode, tableFrom: number): MarkdownTableSynt
     }
 
     return {
-        ...toRelativeRange(row, tableFrom),
+        from: row.from - tableFrom,
+        to: rowTo - tableFrom,
         cells,
     };
 }
@@ -138,7 +163,7 @@ function extractRowSyntax(row: SyntaxNode, tableFrom: number): MarkdownTableSynt
  * Converts a root-level Lezer `Table` node into stable, table-relative syntax facts.
  * Tables nested in any Markdown container are intentionally unsupported.
  */
-function extractValidatedRootTableSyntax(tableNode: SyntaxNode): MarkdownTableSyntax | null {
+function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: SyntaxNode): MarkdownTableSyntax | null {
     if (!isRootTableNode(tableNode)) {
         return null;
     }
@@ -150,14 +175,14 @@ function extractValidatedRootTableSyntax(tableNode: SyntaxNode): MarkdownTableSy
     }
 
     const tableFrom = tableNode.from;
-    const header = extractRowSyntax(headers[0], tableFrom);
+    const header = extractRowSyntax(source, headers[0], tableFrom);
     if (!header) {
         return null;
     }
 
     const bodyRows: MarkdownTableSyntaxRow[] = [];
     for (const rowNode of tableNode.getChildren('TableRow')) {
-        const row = extractRowSyntax(rowNode, tableFrom);
+        const row = extractRowSyntax(source, rowNode, tableFrom);
         if (!row) {
             return null;
         }
@@ -189,7 +214,7 @@ export function extractCachedRootMarkdownTableSyntax(
         return cached;
     }
 
-    const syntax = extractValidatedRootTableSyntax(tableNode);
+    const syntax = extractValidatedRootTableSyntax({ text: tableText, base: tableNode.from }, tableNode);
     if (syntax) {
         cacheTableSyntax(tableText, syntax);
     }
@@ -212,6 +237,6 @@ export function parseRootMarkdownTableSyntax(text: string): ParsedRootMarkdownTa
         return null;
     }
 
-    const syntax = extractValidatedRootTableSyntax(table);
+    const syntax = extractValidatedRootTableSyntax({ text, base: 0 }, table);
     return syntax ? { from: table.from, to: table.to, syntax } : null;
 }

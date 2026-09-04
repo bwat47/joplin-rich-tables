@@ -33,6 +33,13 @@ describe('MarkdownTable', () => {
         expect(table?.serialize()).toBe(['| H1 | H2 |', '| --- | --- |', '| plain |  |'].join('\n'));
     });
 
+    it('keeps the column count stable when rows carry trailing padding', () => {
+        const table = MarkdownTable.parse(['| H1 | H2 |  ', '| --- | --- |', '| a | b |\t'].join('\n'));
+
+        expect(table?.columnCount).toBe(2);
+        expect(table?.serialize()).toBe(['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n'));
+    });
+
     it('fromParts normalizes ragged input', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1'],

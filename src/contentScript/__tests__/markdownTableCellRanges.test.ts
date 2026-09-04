@@ -140,6 +140,17 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe(nonBreakingSpace);
     });
 
+    it('does not turn trailing row padding into an extra cell', () => {
+        const text = ['| a | b |', '| --- | --- |', '| 1 | 2 |  '].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        expect(ranges.headers).toHaveLength(2);
+        expect(ranges.rows[0]).toHaveLength(2);
+        expect(sliceRange(text, ranges.rows[0][1].from, ranges.rows[0][1].to)).toBe('2');
+    });
+
     it('allows uneven row lengths', () => {
         const text = ['| a | b |', '| --- | --- |', '| c |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);
