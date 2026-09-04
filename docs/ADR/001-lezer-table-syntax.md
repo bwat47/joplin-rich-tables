@@ -48,6 +48,12 @@ because Lezer intentionally does not model editing behavior.
 This decision also adopts Lezer's ambiguous no-blank-line behavior. A line directly below a table can be a one-cell
 row even without a pipe. Callers that intend a following paragraph must preserve a blank boundary.
 
+One grammar is not one runtime. The plugin bundles its own `@lezer/markdown` parser for standalone and clipboard
+text, while the editor uses the host's. Both run the same grammar, but their versions move independently, so a host
+upgrade can put editor behavior ahead of clipboard behavior until this dependency follows. Grammar limitations are
+shared rather than plugin-owned: Lezer 1.6.3 rejects a delimiter row carrying trailing whitespace, which the clipboard
+wrapper normalizes away before parsing.
+
 Root-only support is an explicit scope limit, not a parser limitation. Supporting tables inside containers would need
 separate source-rewrite and indentation semantics.
 
