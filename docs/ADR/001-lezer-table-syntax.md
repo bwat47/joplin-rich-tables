@@ -19,15 +19,16 @@ Lezer is authoritative for table recognition, table extent, row membership, pipe
 content spans.
 
 - In editor documents, use the existing CodeMirror syntax tree.
-- For standalone and clipboard text, use one shared `@lezer/markdown` parser configured with GFM.
-- Normalize standalone and clipboard text before parsing: fold line endings and drop trailing line padding. That
-  padding is invisible in a pasted payload but can stop Lezer recognizing the table at all.
+- For clipboard text, use one shared `@lezer/markdown` parser configured with GFM. Clipboard text is the only source
+  the editor has not already parsed, so it is the only place a second parser runs.
+- Normalize clipboard text before parsing: fold line endings and drop trailing line padding. That padding is invisible
+  in a pasted payload but can stop Lezer recognizing the table at all.
 - Support only a `Table` whose direct parent is `Document`. Tables in blockquotes, lists, or other containers remain
   plain source.
 - Convert accepted nodes to a table-relative `MarkdownTableSyntax` value. Reconstruct raw cells from adjacent direct
   `TableDelimiter` children and associate any direct `TableCell` content node with its raw cell. A `TableRow` without
   pipe delimiters is one cell.
-- Reject malformed node shapes. Standalone input must contain exactly one root table plus optional outer whitespace.
+- Reject malformed node shapes. Clipboard input must contain exactly one root table plus optional outer whitespace.
 - Use the exact Lezer `Table` range. A pipe-free line that Lezer includes is a body row; it is no longer removed by a
   trailing-line heuristic.
 
@@ -39,24 +40,29 @@ The plugin remains authoritative for editor and application semantics:
   treating it as one detaches the closing pipe from the last cell and adds a phantom trailing column.
 - The normalized rectangular grid, alignment values, structural operations, and canonical serialization remain in
   `MarkdownTable`.
+- Cell offsets within a serialized table are derived from the canonical row format, never by parsing that
+  serialization back. `MarkdownTable` owns the format, so it can say where a cell landed without a second parse.
 - Existing adjacent pipe-free text is canonicalized as a padded row when an existing edit boundary triggers
   normalization. Transaction-aware boundary maintenance still preserves text newly typed or pasted into a previously
   blank line below a rendered table as a neighboring paragraph.
 
 ## Consequences
 
-There is one syntax authority, so document resolution, standalone parsing, the table model, and cell ranges cannot
+There is one syntax authority, so document resolution, clipboard parsing, the table model, and cell ranges cannot
 silently diverge over Markdown grammar. Empty cells and editable padding still require a small plugin-owned projection
 because Lezer intentionally does not model editing behavior.
 
 This decision also adopts Lezer's ambiguous no-blank-line behavior. A line directly below a table can be a one-cell
 row even without a pipe. Callers that intend a following paragraph must preserve a blank boundary.
 
-One grammar is not one runtime. The plugin bundles its own `@lezer/markdown` parser for standalone and clipboard
-text, while the editor uses the host's. Both run the same grammar, but their versions move independently, so a host
-upgrade can put editor behavior ahead of clipboard behavior until this dependency follows. Grammar limitations are
-shared rather than plugin-owned: Lezer 1.6.3 rejects a delimiter row carrying trailing whitespace, which the clipboard
-wrapper normalizes away before parsing.
+One grammar is not one runtime. The plugin bundles its own `@lezer/markdown` parser while the editor uses the host's.
+Both run the same grammar, but their versions move independently, so a host upgrade can put editor behavior ahead of
+clipboard behavior until this dependency follows. Grammar limitations are shared rather than plugin-owned: Lezer 1.6.3
+rejects a delimiter row carrying trailing whitespace, which the clipboard wrapper normalizes away before parsing.
+
+That exposure is bounded by how little the bundled parser is asked. It answers one question - is this pasted string a
+single table - and nothing else reaches it. Text the plugin produces itself is ranged from the model that produced
+it.
 
 Root-only support is an explicit scope limit, not a parser limitation. Supporting tables inside containers would need
 separate source-rewrite and indentation semantics.
