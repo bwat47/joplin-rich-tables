@@ -7,7 +7,8 @@ import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runSt
 import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { parseTableFixture } from './testUtils';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 describe('tableTransactionHelpers', () => {
@@ -61,9 +62,9 @@ describe('tableTransactionHelpers', () => {
     it('dispatches an explicit reopen transaction for row insertion', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const insertedTableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |', '|  |  |'].join('\n');
-        const nextActiveCell = createActiveCellForTableText({
+        const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
-            tableText: insertedTableText,
+            table: parseTableFixture(insertedTableText),
             target: { section: 'body', row: 1, col: 1 },
         });
         expect(nextActiveCell).not.toBeNull();
@@ -166,9 +167,9 @@ describe('tableTransactionHelpers', () => {
     it('dispatches explicit reopen effects for non-row structural mutations too', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const updatedTableText = ['| H1 | H2 |', '| :---: | --- |', '| a | b |'].join('\n');
-        const nextActiveCell = createActiveCellForTableText({
+        const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
-            tableText: updatedTableText,
+            table: parseTableFixture(updatedTableText),
             target: { section: 'body', row: 0, col: 0 },
         });
         expect(nextActiveCell).not.toBeNull();

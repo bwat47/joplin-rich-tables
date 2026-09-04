@@ -1,6 +1,7 @@
 import type { TableCellRanges } from '../../tableModel/markdownTableCellRanges';
+import type { MarkdownTable } from '../../tableModel/MarkdownTable';
 import {
-    computeCellAnchorForTableText,
+    computeCellAnchorForTable,
     computeCellAnchorFromRanges,
     type TargetCell,
     type TableCellAnchor,
@@ -38,13 +39,13 @@ function createActiveCellFromRanges(params: {
     return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;
 }
 
-export function createActiveCellForTableText(params: {
+export function createActiveCellForTable(params: {
     tableFrom: number;
-    tableText: string;
+    table: MarkdownTable;
     target: TargetCell;
 }): ActiveCellSelectionTarget | null {
-    const anchor = computeCellAnchorForTableText({
-        tableText: params.tableText,
+    const anchor = computeCellAnchorForTable({
+        table: params.table,
         target: params.target,
     });
     return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;

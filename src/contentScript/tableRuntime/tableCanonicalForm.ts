@@ -2,7 +2,7 @@ import { Annotation } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
 import type { TableContext } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
-import { createActiveCellForTableText, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
+import { createActiveCellForTable, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
 import {
     countLeadingBlankLinesAfterBoundary,
     countTrailingBlankLinesBeforeBoundary,
@@ -102,9 +102,9 @@ export function planCellEntryNormalization(params: {
         return null;
     }
 
-    const target = createActiveCellForTableText({
+    const target = createActiveCellForTable({
         tableFrom: replacement.tableFrom,
-        tableText: replacement.tableText,
+        table: params.ctx.table,
         target: params.coords,
     });
     // Dropping the repair keeps the entry alive: the cell still opens, against the table as it

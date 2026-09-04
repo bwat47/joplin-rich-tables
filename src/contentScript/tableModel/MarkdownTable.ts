@@ -75,6 +75,48 @@ function readCellContents(
     };
 }
 
+/**
+ * The canonical serialized row format. Cell offsets within `serialize()` output are derived
+ * from these constants rather than by re-parsing, so both must change together.
+ */
+const ROW_PREFIX = '| ';
+const ROW_SEPARATOR = ' | ';
+const ROW_SUFFIX = ' |';
+const LINE_SEPARATOR = '\n';
+
+function normalizeRowCells(cells: readonly string[]): string[] {
+    return cells.map(normalizeBrTags);
+}
+
+function separatorCellForAlignment(align: TableAlignment): string {
+    if (align === 'center') return ':---:';
+    if (align === 'left') return ':---';
+    if (align === 'right') return '---:';
+    return '---';
+}
+
+function joinSerializedRow(cells: readonly string[]): string {
+    return ROW_PREFIX + cells.join(ROW_SEPARATOR) + ROW_SUFFIX;
+}
+
+function serializedRowLength(cells: readonly string[]): number {
+    if (cells.length === 0) {
+        return ROW_PREFIX.length + ROW_SUFFIX.length;
+    }
+
+    const separators = ROW_SEPARATOR.length * (cells.length - 1);
+    return cells.reduce((total, cell) => total + cell.length, ROW_PREFIX.length + ROW_SUFFIX.length + separators);
+}
+
+/** Offset of `col`'s content within `joinSerializedRow(cells)`. */
+function cellOffsetInSerializedRow(cells: readonly string[], col: number): number {
+    let offset = ROW_PREFIX.length;
+    for (let index = 0; index < col; index++) {
+        offset += cells[index].length + ROW_SEPARATOR.length;
+    }
+    return offset;
+}
+
 function cloneRows(rows: readonly (readonly string[])[]): string[][] {
     return rows.map((row) => [...row]);
 }
@@ -327,23 +369,45 @@ export class MarkdownTable {
         );
     }
 
+    private separatorCells(): string[] {
+        return this.alignmentsData.map(separatorCellForAlignment);
+    }
+
     serialize(): string {
-        const joinRow = (cells: readonly string[]) => {
-            return '| ' + cells.join(' | ') + ' |';
-        };
+        const headerLine = joinSerializedRow(normalizeRowCells(this.headersData));
+        const separatorLine = joinSerializedRow(this.separatorCells());
+        const bodyLines = this.rowsData.map((row) => joinSerializedRow(normalizeRowCells(row)));
 
-        const separatorCellForAlignment = (align: TableAlignment): string => {
-            if (align === 'center') return ':---:';
-            if (align === 'left') return ':---';
-            if (align === 'right') return '---:';
-            return '---';
-        };
+        return [headerLine, separatorLine, ...bodyLines].join(LINE_SEPARATOR);
+    }
 
-        const headerLine = joinRow(this.headersData.map(normalizeBrTags));
-        const separatorLine = joinRow(this.alignmentsData.map(separatorCellForAlignment));
-        const bodyLines = this.rowsData.map((row) => joinRow(row.map(normalizeBrTags)));
+    /** Start offset of a unified row's serialized line. Row 0 is the header. */
+    private serializedRowStart(rowIndex: number): number {
+        if (rowIndex === 0) {
+            return 0;
+        }
 
-        return [headerLine, separatorLine, ...bodyLines].join('\n');
+        let start = serializedRowLength(normalizeRowCells(this.headersData)) + LINE_SEPARATOR.length;
+        start += serializedRowLength(this.separatorCells()) + LINE_SEPARATOR.length;
+        for (let bodyIndex = 0; bodyIndex < rowIndex - 1; bodyIndex++) {
+            start += serializedRowLength(normalizeRowCells(this.rowsData[bodyIndex])) + LINE_SEPARATOR.length;
+        }
+        return start;
+    }
+
+    /**
+     * Offset of a cell's content within this table's `serialize()` output, or null when the
+     * cell does not exist. Computed from the format rather than by parsing the output back,
+     * so a caller holding a freshly serialized table never re-reads it.
+     */
+    serializedCellOffset(coords: CellCoords): number | null {
+        const rowIndex = toUnifiedRowIndex(coords.section, coords.row);
+        const cells = this.getUnifiedRow(rowIndex);
+        if (!cells || coords.col < 0 || coords.col >= cells.length) {
+            return null;
+        }
+
+        return this.serializedRowStart(rowIndex) + cellOffsetInSerializedRow(normalizeRowCells(cells), coords.col);
     }
 
     insertColumn(colIndex: number, where: 'before' | 'after'): MarkdownTable {

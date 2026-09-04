@@ -1,4 +1,6 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/markdownTableCellRanges';
+import type { CellCoords } from '../tableModel/types';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -515,5 +517,75 @@ describe('MarkdownTable', () => {
         expect(result?.table.headerCells).toEqual(['NH1', 'NH2']);
         expect(result?.table.bodyRows).toEqual([['NB1', 'NB2']]);
         expect(result?.table.alignments).toEqual(['left', 'right']);
+    });
+});
+
+/**
+ * `serializedCellOffset` derives offsets from the serialization format instead of parsing
+ * the output back. This pins the two together: if `serialize()` ever changes its padding
+ * or separators, the arithmetic has to change with it.
+ */
+describe('serializedCellOffset agrees with parsing the serialization', () => {
+    const cases: Record<string, MarkdownTable> = {
+        'a plain table': MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: [null, null],
+            bodyRows: [['a', 'b']],
+        }),
+        'empty and adjacent-empty cells': MarkdownTable.fromParts({
+            headerCells: ['', 'H2', ''],
+            alignments: [null, null, null],
+            bodyRows: [
+                ['', ''],
+                ['x', '', 'y'],
+            ],
+        }),
+        'every alignment': MarkdownTable.fromParts({
+            headerCells: ['a', 'b', 'c', 'd'],
+            alignments: ['left', 'center', 'right', null],
+            bodyRows: [['1', '2', '3', '4']],
+        }),
+        'br tags the serializer normalizes': MarkdownTable.fromParts({
+            headerCells: ['H'],
+            alignments: [null],
+            bodyRows: [['one<BR/>two'], ['three<br />four']],
+        }),
+        'ragged input padded to width': MarkdownTable.fromParts({
+            headerCells: ['H1'],
+            alignments: [],
+            bodyRows: [['a', 'b', 'c'], ['d']],
+        }),
+        'header only': MarkdownTable.fromParts({ headerCells: ['H1', 'H2'], alignments: [null, null], bodyRows: [] }),
+        'wide cell content': MarkdownTable.fromParts({
+            headerCells: ['short', 'a much longer header cell'],
+            alignments: [null, null],
+            bodyRows: [['\u00e9\u00e8\u00ea', 'escaped\\|pipe']],
+        }),
+    };
+
+    it.each(Object.entries(cases))('%s', (_label, table) => {
+        const text = table.serialize();
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        const coords: CellCoords[] = [
+            ...ranges.headers.map((_range, col) => ({ section: 'header', row: 0, col }) as CellCoords),
+            ...ranges.rows.flatMap((row, rowIndex) =>
+                row.map((_range, col) => ({ section: 'body', row: rowIndex, col }) as CellCoords)
+            ),
+        ];
+        expect(coords.length).toBeGreaterThan(0);
+
+        for (const cell of coords) {
+            expect(table.serializedCellOffset(cell)).toBe(getCellRange(ranges, cell)?.editableFrom);
+        }
+    });
+
+    it('returns null for a cell the table does not have', () => {
+        const table = MarkdownTable.fromParts({ headerCells: ['H'], alignments: [null], bodyRows: [['a']] });
+
+        expect(table.serializedCellOffset({ section: 'header', row: 0, col: 1 })).toBeNull();
+        expect(table.serializedCellOffset({ section: 'body', row: 1, col: 0 })).toBeNull();
     });
 });

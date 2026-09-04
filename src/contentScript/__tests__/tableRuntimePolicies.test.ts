@@ -23,7 +23,8 @@ import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolic
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
-import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { parseTableFixture } from './testUtils';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -716,9 +717,9 @@ describe('tableRuntimePolicies', () => {
         startState = startState.update({ effects: setActiveCellEffect.of(startActiveCell) }).state;
 
         const canonicalDoc = doc;
-        const nextActiveCell = createActiveCellForTableText({
+        const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
-            tableText: canonicalDoc,
+            table: parseTableFixture(canonicalDoc),
             target: startActiveCell,
         });
         expect(nextActiveCell).not.toBeNull();

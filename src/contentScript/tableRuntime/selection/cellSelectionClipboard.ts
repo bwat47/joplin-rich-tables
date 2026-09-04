@@ -13,7 +13,7 @@ import {
     toSelectionRect,
     type CellSelection,
 } from '../../tableState/cellSelectionState';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
@@ -183,10 +183,10 @@ export function resolveTableClipboardTarget(
     };
 }
 
-function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords: CellCoords): number | null {
-    const activeCell = createActiveCellForTableText({
+function computeSelectionAnchorPos(tableFrom: number, table: MarkdownTable, coords: CellCoords): number | null {
+    const activeCell = createActiveCellForTable({
         tableFrom,
-        tableText,
+        table,
         target: coords,
     });
 
@@ -195,7 +195,7 @@ function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords:
 
 function buildTableRewrite(params: {
     tableFrom: number;
-    tableText: string;
+    table: MarkdownTable;
     selection: CellSelection | null;
     clearActiveCell: boolean;
 }): TableClipboardRewrite | null {
@@ -203,7 +203,7 @@ function buildTableRewrite(params: {
     if (params.selection) {
         const rect = toSelectionRect(params.selection);
         const topLeft = fromUnifiedRow(rect.minRow, rect.minCol);
-        const nextSelectionAnchorPos = computeSelectionAnchorPos(params.tableFrom, params.tableText, topLeft);
+        const nextSelectionAnchorPos = computeSelectionAnchorPos(params.tableFrom, params.table, topLeft);
         if (nextSelectionAnchorPos === null) {
             return null;
         }
@@ -212,7 +212,7 @@ function buildTableRewrite(params: {
 
     return {
         tableFrom: params.tableFrom,
-        tableText: params.tableText,
+        tableText: params.table.serialize(),
         selection: params.selection,
         clearActiveCell: params.clearActiveCell,
         selectionAnchorPos,
@@ -274,7 +274,7 @@ function buildEmptyRowRangeRemoval(ctx: TableContext, rect: TableRect): TableCli
 
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: nextTable.serialize(),
+        table: nextTable,
         selection: remapSelectionAfterRowDelete(ctx.from, rect, nextTable),
         clearActiveCell: false,
     });
@@ -289,7 +289,7 @@ function buildEmptyColumnRangeRemoval(ctx: TableContext, rect: TableRect): Table
 
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: nextTable.serialize(),
+        table: nextTable,
         selection: remapSelectionAfterColumnDelete(ctx.from, rect, nextTable),
         clearActiveCell: false,
     });
@@ -339,7 +339,7 @@ export function buildSelectionRemovalRewrite(
     // Rectangles that still hold text (or that no structural deletion accepted) are cleared in place.
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: ctx.table.clearRect(rect).serialize(),
+        table: ctx.table.clearRect(rect),
         selection: selectionFromRect(ctx.from, rect),
         clearActiveCell: false,
     });
@@ -393,7 +393,7 @@ export function buildMultiCellPasteRewrite(
     const nextSelection = selectionFromRect(ctx.from, result.pastedRect);
     const topLeft = fromUnifiedRow(result.pastedRect.minRow, result.pastedRect.minCol);
     const tableText = result.table.serialize();
-    const selectionAnchorPos = computeSelectionAnchorPos(ctx.from, tableText, topLeft);
+    const selectionAnchorPos = computeSelectionAnchorPos(ctx.from, result.table, topLeft);
     if (selectionAnchorPos === null) {
         return null;
     }

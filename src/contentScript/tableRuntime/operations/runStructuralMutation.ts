@@ -3,7 +3,7 @@ import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeC
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
@@ -30,7 +30,7 @@ interface PreparedTableMutation {
     tableTo: number;
     newText: string;
     hasDocumentChange: boolean;
-    nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTableText>>;
+    nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTable>>;
 }
 
 interface PreparedTableDeletion {
@@ -62,9 +62,9 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
     }
     const newText = newTableData.serialize();
 
-    const nextActiveCell = createActiveCellForTableText({
+    const nextActiveCell = createActiveCellForTable({
         tableFrom,
-        tableText: newText,
+        table: newTableData,
         target: mutationResult.targetCell,
     });
     if (!nextActiveCell) {

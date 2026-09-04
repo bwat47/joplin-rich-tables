@@ -1,6 +1,7 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/markdownTableCellRanges';
-import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { parseTableFixture } from './testUtils';
 import type { ActiveCell } from '../tableState/activeCellState';
 
 const BASE_MARKDOWN = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
@@ -23,9 +24,9 @@ function sliceCellText(tableText: string, activeCell: ActiveCell): string {
 }
 
 function requireActiveCell(tableText: string, target: CellTarget): ActiveCell {
-    const activeCell = createActiveCellForTableText({
+    const activeCell = createActiveCellForTable({
         tableFrom: TABLE_FROM,
-        tableText,
+        table: parseTableFixture(tableText),
         target,
     })?.activeCell;
 
