@@ -1,10 +1,16 @@
 /**
  * Computes source ranges (from/to positions) for each table cell.
  *
- * Works with Lezer: Lezer detects table blocks, this module detects cell boundaries.
- * Uses `scanMarkdownTableRow()` for consistency. See markdownTableRowScanner.ts for rationale.
+ * Lezer owns table and cell syntax. This module derives editor-specific semantic and
+ * editable ranges from those syntax facts.
  */
-import { scanMarkdownTableRow } from './markdownTableRowScanner';
+import {
+    parseRootMarkdownTableSyntax,
+    type MarkdownTableSourceRange,
+    type MarkdownTableSyntax,
+    type MarkdownTableSyntaxCell,
+    type MarkdownTableSyntaxRow,
+} from './lezerTableSyntax';
 import type { CellCoords } from './types';
 
 export interface CellRange {
@@ -19,183 +25,72 @@ export interface TableCellRanges {
     rows: CellRange[][];
 }
 
-/**
- * Check if a line is a valid separator row (contains only dashes, colons, pipes, spaces)
- */
-export function isSeparatorRow(line: string): boolean {
-    const trimmed = line.trim();
-    // Must have at least one dash
-    if (!trimmed.includes('-')) return false;
-    // Should only contain valid separator characters
-    return /^[\s|:\-]+$/.test(trimmed);
+function isDelimiterPadding(character: string | undefined): boolean {
+    return character === ' ' || character === '\t';
 }
 
-function getNonEmptyLinesWithOffsets(text: string): Array<{ line: string; from: number }> {
-    const result: Array<{ line: string; from: number }> = [];
-    const lines = text.split('\n');
-
-    let offset = 0;
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.trim().length > 0) {
-            result.push({ line, from: offset });
-        }
-
-        offset += line.length;
-        if (i < lines.length - 1) {
-            offset += 1; // newline
-        }
-    }
-
-    return result;
+function offsetRange(range: MarkdownTableSourceRange, tableFrom: number): MarkdownTableSourceRange {
+    return { from: tableFrom + range.from, to: tableFrom + range.to };
 }
 
-function findTrimBounds(line: string): { from: number; to: number } {
-    let from = 0;
-    let to = line.length;
+function emptyCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
+    const insertion = raw.from < raw.to && isDelimiterPadding(text[raw.from]) ? raw.from + 1 : raw.from;
+    return { from: insertion, to: insertion };
+}
 
-    while (from < to && /\s/.test(line[from])) {
+function editableCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
+    let from = raw.from;
+    let to = raw.to;
+
+    if (from < to && isDelimiterPadding(text[from])) {
         from++;
     }
-    while (to > from && /\s/.test(line[to - 1])) {
+    if (to > from && isDelimiterPadding(text[to - 1])) {
         to--;
     }
 
     return { from, to };
 }
 
-function trimCellBounds(line: string, from: number, to: number): { from: number; to: number } {
-    let start = from;
-    let end = to;
+function toCellRange(text: string, cell: MarkdownTableSyntaxCell, tableFrom: number): CellRange {
+    const raw = offsetRange(cell.raw, tableFrom);
+    const semantic = cell.content ? offsetRange(cell.content, tableFrom) : emptyCellBounds(text, raw);
+    const editable = editableCellBounds(text, raw);
 
-    while (start < end && /\s/.test(line[start])) {
-        start++;
-    }
-    while (end > start && /\s/.test(line[end - 1])) {
-        end--;
-    }
-
-    // If the cell is empty or whitespace-only (e.g. `|   |`), trimming collapses the
-    // range to a boundary. That makes edits land right next to a pipe and removes
-    // any trailing padding.
-    //
-    // For whitespace-only cells we pick a stable insertion point near the left edge
-    // of the cell (after the first whitespace character, when possible). This avoids
-    // typing appearing visually centered inside the plugin's canonical padded format.
-    if (start === end) {
-        const insertion = Math.min(from + 1, to);
-        return { from: insertion, to: insertion };
-    }
-
-    return { from: start, to: end };
+    return {
+        from: semantic.from,
+        to: semantic.to,
+        editableFrom: editable.from,
+        editableTo: editable.to,
+    };
 }
 
-function editableCellBounds(line: string, from: number, to: number): { from: number; to: number } {
-    let start = from;
-    let end = to;
-
-    if (start < end && /\s/.test(line[start])) {
-        start++;
-    }
-    if (end > start && /\s/.test(line[end - 1])) {
-        end--;
-    }
-
-    if (start === end && from < to) {
-        const insertion = Math.min(from + 1, to);
-        return { from: insertion, to: insertion };
-    }
-
-    return { from: start, to: end };
-}
-
-function parseLineCellRanges(line: string, lineFromInTable: number): CellRange[] {
-    const { from: trimFrom, to: trimTo } = findTrimBounds(line);
-    if (trimTo <= trimFrom) {
-        return [];
-    }
-
-    // Get all pipe delimiters from the scanner
-    const { delimiters: allDelimiters } = scanMarkdownTableRow(line);
-
-    // Remove leading/trailing pipes after trimming whitespace.
-    let innerFrom = trimFrom;
-    let innerTo = trimTo;
-    if (allDelimiters.length > 0 && allDelimiters[0] === trimFrom) {
-        innerFrom += 1;
-    }
-    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimTo - 1) {
-        innerTo -= 1;
-    }
-
-    // Filter delimiters to only those within the inner range
-    const delimiters = allDelimiters.filter((i) => i > innerFrom && i < innerTo);
-
-    const ranges: CellRange[] = [];
-    let segmentStart = innerFrom;
-    for (const delimiterIndex of delimiters) {
-        const segmentEnd = delimiterIndex;
-        const trimmed = trimCellBounds(line, segmentStart, segmentEnd);
-        const editable = editableCellBounds(line, segmentStart, segmentEnd);
-        ranges.push({
-            from: lineFromInTable + trimmed.from,
-            to: lineFromInTable + trimmed.to,
-            editableFrom: lineFromInTable + editable.from,
-            editableTo: lineFromInTable + editable.to,
-        });
-        segmentStart = delimiterIndex + 1;
-    }
-
-    // Last segment
-    const lastTrimmed = trimCellBounds(line, segmentStart, innerTo);
-    const lastEditable = editableCellBounds(line, segmentStart, innerTo);
-    ranges.push({
-        from: lineFromInTable + lastTrimmed.from,
-        to: lineFromInTable + lastTrimmed.to,
-        editableFrom: lineFromInTable + lastEditable.from,
-        editableTo: lineFromInTable + lastEditable.to,
-    });
-
-    return ranges;
+function toRowCellRanges(text: string, row: MarkdownTableSyntaxRow, tableFrom: number): CellRange[] {
+    return row.cells.map((cell) => toCellRange(text, cell, tableFrom));
 }
 
 /**
  * Computes per-cell source ranges (relative to `text`) for header/body rows.
  *
  * Notes:
- * - Uses the same "non-empty line" behavior as the table parser.
- * - Treats unescaped pipes as delimiters; escaped pipes (\|) stay inside a cell.
- * - Exposes both trimmed semantic bounds (`from/to`) and editable bounds
+ * - Lezer supplies row membership, delimiter positions, and non-empty content bounds.
+ * - Exposes both syntax-backed semantic bounds (`from/to`) and editable bounds
  *   (`editableFrom/editableTo`) for nested editing and selection sync.
  */
+export function computeMarkdownTableCellRangesFromSyntax(
+    text: string,
+    syntax: MarkdownTableSyntax,
+    tableFrom = 0
+): TableCellRanges {
+    return {
+        headers: toRowCellRanges(text, syntax.header, tableFrom),
+        rows: syntax.bodyRows.map((row) => toRowCellRanges(text, row, tableFrom)),
+    };
+}
+
 export function computeMarkdownTableCellRanges(text: string): TableCellRanges | null {
-    const lines = getNonEmptyLinesWithOffsets(text);
-    if (lines.length < 2) {
-        return null;
-    }
-
-    const headerLine = lines[0];
-    const separatorLine = lines[1];
-
-    if (!headerLine.line.includes('|')) {
-        return null;
-    }
-    if (!isSeparatorRow(separatorLine.line)) {
-        return null;
-    }
-
-    const headerRanges = parseLineCellRanges(headerLine.line, headerLine.from);
-    const rowRanges: CellRange[][] = [];
-
-    for (let i = 2; i < lines.length; i++) {
-        const lineInfo = lines[i];
-        if (!lineInfo.line.includes('|')) {
-            continue;
-        }
-        rowRanges.push(parseLineCellRanges(lineInfo.line, lineInfo.from));
-    }
-
-    return { headers: headerRanges, rows: rowRanges };
+    const parsed = parseRootMarkdownTableSyntax(text);
+    return parsed ? computeMarkdownTableCellRangesFromSyntax(text, parsed.syntax, parsed.from) : null;
 }
 
 /**

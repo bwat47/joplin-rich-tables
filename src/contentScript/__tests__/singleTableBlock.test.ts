@@ -35,8 +35,10 @@ describe('parseSingleTableBlock', () => {
         expect(parseSingleTableBlock(splitTable)).toBeNull();
     });
 
-    it('rejects table plus trailing text', () => {
-        expect(parseSingleTableBlock(`${CANONICAL_TABLE}\ntrailing text`)).toBeNull();
+    it('accepts a pipe-free trailing row recognized by Lezer', () => {
+        expect(parseSingleTableBlock(`${CANONICAL_TABLE}\ntrailing text`)?.serialize()).toBe(
+            `${CANONICAL_TABLE}\n| trailing text |  |`
+        );
     });
 
     it('rejects leading text plus table', () => {

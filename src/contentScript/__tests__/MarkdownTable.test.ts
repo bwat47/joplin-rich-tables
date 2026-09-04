@@ -11,6 +11,13 @@ describe('MarkdownTable', () => {
         expect(table!.bodyRows).toEqual([['A', 'B']]);
     });
 
+    it('normalizes a pipe-free Lezer row to the table width', () => {
+        const table = MarkdownTable.parse(['| H1 | H2 |', '| --- | --- |', 'plain'].join('\n'));
+
+        expect(table?.bodyRows).toEqual([['plain', '']]);
+        expect(table?.serialize()).toBe(['| H1 | H2 |', '| --- | --- |', '| plain |  |'].join('\n'));
+    });
+
     it('fromParts normalizes ragged input', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1'],

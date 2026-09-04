@@ -107,6 +107,39 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
     });
 
+    it('represents an adjacent leading empty cell without consuming its delimiter', () => {
+        const text = ['||bar|', '|---|---|'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        expect(ranges.headers).toHaveLength(2);
+        expect(ranges.headers[0].from).toBe(ranges.headers[0].to);
+        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('bar');
+    });
+
+    it('represents pipe-free body lines as one-cell rows', () => {
+        const text = ['| a | b |', '| --- | --- |', 'plain'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        expect(ranges.rows).toHaveLength(1);
+        expect(ranges.rows[0]).toHaveLength(1);
+        expect(sliceRange(text, ranges.rows[0][0].from, ranges.rows[0][0].to)).toBe('plain');
+    });
+
+    it('preserves non-ASCII whitespace that Lezer treats as cell content', () => {
+        const nonBreakingSpace = '\u00a0';
+        const text = [`|${nonBreakingSpace}|`, '|---|'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+        expect(ranges).not.toBeNull();
+        if (!ranges) return;
+
+        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe(nonBreakingSpace);
+        expect(sliceRange(text, ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe(nonBreakingSpace);
+    });
+
     it('allows uneven row lengths', () => {
         const text = ['| a | b |', '| --- | --- |', '| c |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);

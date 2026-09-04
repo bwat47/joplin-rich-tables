@@ -1,5 +1,4 @@
-import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
-import { scanMarkdownTableRow } from './markdownTableRowScanner';
+import { parseRootMarkdownTableSyntax, type MarkdownTableSyntax } from './lezerTableSyntax';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
@@ -39,31 +38,30 @@ function parseAlignment(cell: string): TableAlignment {
     return null;
 }
 
-function parseSeparatorRow(line: string): string[] {
-    const trimmed = line.trim();
-    const { delimiters: allDelimiters } = scanMarkdownTableRow(trimmed);
+function parseSeparatorRow(text: string, syntax: MarkdownTableSyntax, tableFrom: number): string[] {
+    const separator = text
+        .slice(tableFrom + syntax.separator.from, tableFrom + syntax.separator.to)
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/\|$/, '');
+    return separator.split('|').map((cell) => cell.trim());
+}
 
-    let innerFrom = 0;
-    let innerTo = trimmed.length;
+function readCellContents(
+    text: string,
+    syntax: MarkdownTableSyntax,
+    tableFrom: number
+): {
+    headers: string[];
+    rows: string[][];
+} {
+    const readCell = (cell: MarkdownTableSyntax['header']['cells'][number]): string =>
+        cell.content ? text.slice(tableFrom + cell.content.from, tableFrom + cell.content.to) : '';
 
-    if (allDelimiters.length > 0 && allDelimiters[0] === 0) {
-        innerFrom += 1;
-    }
-    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimmed.length - 1) {
-        innerTo -= 1;
-    }
-
-    const delimiters = allDelimiters.filter((index) => index > innerFrom && index < innerTo);
-
-    const cells: string[] = [];
-    let segmentStart = innerFrom;
-    for (const delimiterIndex of delimiters) {
-        cells.push(trimmed.slice(segmentStart, delimiterIndex).trim());
-        segmentStart = delimiterIndex + 1;
-    }
-    cells.push(trimmed.slice(segmentStart, innerTo).trim());
-
-    return cells;
+    return {
+        headers: syntax.header.cells.map(readCell),
+        rows: syntax.bodyRows.map((row) => row.cells.map(readCell)),
+    };
 }
 
 function cloneRows(rows: readonly (readonly string[])[]): string[][] {
@@ -237,26 +235,18 @@ export class MarkdownTable {
     ) {}
 
     /**
-     * Parses Markdown table text into the canonical normalized model.
-     * Cell content extraction is delegated to `computeMarkdownTableCellRanges()`
-     * so parsing stays aligned with the source ranges used for editing.
+     * Parses text containing exactly one root-level Markdown table into the
+     * canonical normalized model.
      */
     static parse(text: string): MarkdownTable | null {
-        const lines = text.split('\n').filter((line) => line.trim().length > 0);
-        if (lines.length < 2) return null;
+        const parsed = parseRootMarkdownTableSyntax(text);
+        return parsed ? MarkdownTable.fromSyntax(text, parsed.syntax, parsed.from) : null;
+    }
 
-        if (!lines[0].includes('|')) return null;
-        if (!isSeparatorRow(lines[1])) return null;
-
-        const alignments = parseSeparatorRow(lines[1]).map(parseAlignment);
-        const ranges = computeMarkdownTableCellRanges(text);
-        if (!ranges) {
-            return null;
-        }
-
-        const headers = ranges.headers.map((range) => text.slice(range.from, range.to));
-        const rows = ranges.rows.map((rowRanges) => rowRanges.map((range) => text.slice(range.from, range.to)));
-
+    /** Builds a normalized table from syntax facts already extracted by Lezer. */
+    static fromSyntax(text: string, syntax: MarkdownTableSyntax, tableFrom = 0): MarkdownTable {
+        const { headers, rows } = readCellContents(text, syntax, tableFrom);
+        const alignments = parseSeparatorRow(text, syntax, tableFrom).map(parseAlignment);
         return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 

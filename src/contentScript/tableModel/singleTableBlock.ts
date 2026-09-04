@@ -1,15 +1,10 @@
 /**
  * Decides whether clipboard text is exactly one Markdown table block.
  *
- * `MarkdownTable.parse()` drops blank lines before parsing, so text holding two tables
- * separated by a blank line parses as one table whose second header and separator row
- * become body rows. Every clipboard path needs the Markdown rule instead: a table block
- * ends at the first blank line, and nothing but table rows may sit inside it.
+ * Lezer owns the definition of a table block. This wrapper normalizes clipboard line
+ * endings and rejects interior blank lines before parsing exactly one root-level table.
  */
 import { MarkdownTable } from './MarkdownTable';
-
-/** The separator row is the one block line that is not a table row. */
-const SEPARATOR_ROW_LINE_COUNT = 1;
 
 function normalizeClipboardLineEndings(text: string): string {
     return text.replace(/\r\n?/g, '\n');
@@ -50,13 +45,5 @@ export function parseSingleTableBlock(text: string): MarkdownTable | null {
         return null;
     }
 
-    const blockText = lines.join('\n');
-    const table = MarkdownTable.parse(blockText);
-    if (!table) {
-        return null;
-    }
-
-    // `rowCount` counts the header plus body rows, so a block made only of table rows is
-    // exactly that many lines plus the separator row.
-    return lines.length === table.rowCount + SEPARATOR_ROW_LINE_COUNT ? table : null;
+    return MarkdownTable.parse(lines.join('\n'));
 }
