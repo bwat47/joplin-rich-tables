@@ -84,6 +84,9 @@ const ROW_SEPARATOR = ' | ';
 const ROW_SUFFIX = ' |';
 const LINE_SEPARATOR = '\n';
 
+/** `serialize()` emits the header line and the separator line before any body row. */
+const HEADER_AND_SEPARATOR_LINES = 2;
+
 function normalizeRowCells(cells: readonly string[]): string[] {
     return cells.map(normalizeBrTags);
 }
@@ -281,6 +284,16 @@ function toPastedRect(geometry: PasteGeometry): TableRect {
 }
 
 export class MarkdownTable {
+    /**
+     * Serialized line lengths in output order, captured by `serialize()`.
+     *
+     * Cell offsets otherwise re-derive every preceding row, normalizing cells a second time
+     * purely to measure them. Callers that need an offset have usually just serialized this
+     * table, so the lengths are already known; a table that has not been serialized falls
+     * back to deriving them. Table data is immutable, so these can never go stale.
+     */
+    private serializedLineLengths: readonly number[] | null = null;
+
     private constructor(
         private readonly headersData: readonly string[],
         private readonly alignmentsData: readonly TableAlignment[],
@@ -377,8 +390,29 @@ export class MarkdownTable {
         const headerLine = joinSerializedRow(normalizeRowCells(this.headersData));
         const separatorLine = joinSerializedRow(this.separatorCells());
         const bodyLines = this.rowsData.map((row) => joinSerializedRow(normalizeRowCells(row)));
+        const lines = [headerLine, separatorLine, ...bodyLines];
 
-        return [headerLine, separatorLine, ...bodyLines].join(LINE_SEPARATOR);
+        this.serializedLineLengths = lines.map((line) => line.length);
+        return lines.join(LINE_SEPARATOR);
+    }
+
+    /** Sums the lengths of the `lineCount` serialized lines that precede a body row. */
+    private lengthOfLinesBefore(lineCount: number): number {
+        const captured = this.serializedLineLengths;
+        if (captured) {
+            let total = 0;
+            for (let line = 0; line < lineCount; line++) {
+                total += captured[line];
+            }
+            return total;
+        }
+
+        let total = serializedRowLength(normalizeRowCells(this.headersData));
+        total += serializedRowLength(this.separatorCells());
+        for (let bodyIndex = 0; bodyIndex < lineCount - HEADER_AND_SEPARATOR_LINES; bodyIndex++) {
+            total += serializedRowLength(normalizeRowCells(this.rowsData[bodyIndex]));
+        }
+        return total;
     }
 
     /** Start offset of a unified row's serialized line. Row 0 is the header. */
@@ -387,12 +421,9 @@ export class MarkdownTable {
             return 0;
         }
 
-        let start = serializedRowLength(normalizeRowCells(this.headersData)) + LINE_SEPARATOR.length;
-        start += serializedRowLength(this.separatorCells()) + LINE_SEPARATOR.length;
-        for (let bodyIndex = 0; bodyIndex < rowIndex - 1; bodyIndex++) {
-            start += serializedRowLength(normalizeRowCells(this.rowsData[bodyIndex])) + LINE_SEPARATOR.length;
-        }
-        return start;
+        // Unified row N sits below the header and separator lines plus the N-1 body rows above it.
+        const lineCount = HEADER_AND_SEPARATOR_LINES + rowIndex - 1;
+        return this.lengthOfLinesBefore(lineCount) + LINE_SEPARATOR.length * lineCount;
     }
 
     /**
