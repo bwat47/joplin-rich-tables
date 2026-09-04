@@ -199,6 +199,10 @@ function buildTableRewrite(params: {
     selection: CellSelection | null;
     clearActiveCell: boolean;
 }): TableClipboardRewrite | null {
+    // Serialize before anchoring: the anchor reads back the line lengths this records rather
+    // than measuring every row above the cell a second time.
+    const tableText = params.table.serialize();
+
     let selectionAnchorPos = params.tableFrom;
     if (params.selection) {
         const rect = toSelectionRect(params.selection);
@@ -212,7 +216,7 @@ function buildTableRewrite(params: {
 
     return {
         tableFrom: params.tableFrom,
-        tableText: params.table.serialize(),
+        tableText,
         selection: params.selection,
         clearActiveCell: params.clearActiveCell,
         selectionAnchorPos,
