@@ -9,6 +9,7 @@
         "lint": "eslint --ext .ts src/",
         "lint:fix": "eslint --ext .ts src/ --fix",
         "format": "prettier --write \"src/**/*.ts\"",
+        "bench:table-parsing": "vitest bench src/contentScript/__benchmarks__/tableParsing.bench.ts --run",
         "test": "vitest run --passWithNoTests",
         "test:watch": "vitest --passWithNoTests",
         "knip": "knip"
