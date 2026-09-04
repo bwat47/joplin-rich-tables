@@ -1,6 +1,7 @@
 import type { SyntaxNode } from '@lezer/common';
 import { GFM, parser } from '@lezer/markdown';
 import { isTablePadding } from '../shared/tablePadding';
+import { logger } from '../../logger';
 
 export interface MarkdownTableSourceRange {
     readonly from: number;
@@ -103,6 +104,16 @@ function matchOrderedContentNode(
     return candidate.to <= raw.to && (!nextCandidate || nextCandidate.from >= raw.to) ? candidate : undefined;
 }
 
+/**
+ * Rejecting one node arrangement discards the whole table, so the widget silently
+ * disappears for source the editor still shows as a table. Nothing recovers from that
+ * at runtime; the log is what makes a field report reproducible.
+ */
+function rejectUnsupportedShape(reason: string, details: Record<string, unknown>): null {
+    logger.debug(`Unsupported Lezer table shape, leaving the table unrendered: ${reason}`, details);
+    return null;
+}
+
 function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: number): MarkdownTableSyntaxRow | null {
     const delimiters = row.getChildren('TableDelimiter');
     const contentNodes = row.getChildren('TableCell');
@@ -115,7 +126,12 @@ function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: n
         // Both collections are source-ordered, so each content node is considered once.
         const contentNode = matchOrderedContentNode(raw, contentNodes, contentIndex);
         if (contentNode === undefined) {
-            return null;
+            return rejectUnsupportedShape('a TableCell does not sit inside a single delimiter gap', {
+                rowFrom: row.from,
+                rowTo,
+                rawCell: raw,
+                contentIndex,
+            });
         }
         if (contentNode) {
             contentIndex++;
@@ -128,7 +144,12 @@ function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: n
     }
 
     if (contentIndex !== contentNodes.length) {
-        return null;
+        return rejectUnsupportedShape('a row left TableCell nodes unmatched', {
+            rowFrom: row.from,
+            rowTo,
+            matched: contentIndex,
+            contentNodes: contentNodes.length,
+        });
     }
 
     return {
@@ -150,7 +171,12 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
     const headers = tableNode.getChildren('TableHeader');
     const separators = tableNode.getChildren('TableDelimiter');
     if (headers.length !== 1 || separators.length !== 1) {
-        return null;
+        return rejectUnsupportedShape('a table is not exactly one header plus one delimiter row', {
+            tableFrom: tableNode.from,
+            tableTo: tableNode.to,
+            headers: headers.length,
+            separators: separators.length,
+        });
     }
 
     const tableFrom = tableNode.from;
