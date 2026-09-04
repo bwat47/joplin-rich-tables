@@ -2,8 +2,7 @@ import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { syntaxTreeAvailable } from '@codemirror/language';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { buildTableContext } from '../tableModel/tableContext';
-import { findTableRanges } from '../tableRuntime/tableResolution';
+import { findTableRanges, resolveTableContext } from '../tableRuntime/tableResolution';
 import { TableWidget } from './TableWidget';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
@@ -32,12 +31,12 @@ function buildTableDecorations(state: EditorState): TableDecorationState {
     const decorations = new RangeSetBuilder<Decoration>();
     for (const table of tables) {
         // RangeSetBuilder requires ranges in ascending document order.
-        const ctx = buildTableContext(table);
+        const ctx = resolveTableContext(state, table);
         if (!ctx) {
             continue;
         }
 
-        const widget = new TableWidget(ctx.table, ctx.cellRanges, table.text, table.from);
+        const widget = new TableWidget(ctx.table, ctx.cellRanges, ctx.text, ctx.from);
         const decoration = Decoration.replace({
             widget,
             block: true,

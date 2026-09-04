@@ -1,7 +1,7 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
-import { extractCachedRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
+import { isRootTableNode } from '../tableModel/lezerTableSyntax';
 import { getCellRange, type CellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 import type { CellCoords, ResolvedTable } from '../tableModel/types';
@@ -17,19 +17,9 @@ function findTableAncestor(node: SyntaxNode): SyntaxNode | null {
     return current;
 }
 
-function buildResolvedTable(state: EditorState, node: SyntaxNode): ResolvedTable | null {
-    const text = state.doc.sliceString(node.from, node.to);
-    const syntax = extractCachedRootMarkdownTableSyntax(node, text);
-    if (!syntax) {
-        return null;
-    }
-
-    return {
-        from: node.from,
-        to: node.to,
-        text,
-        syntax,
-    };
+/** Reads no source: containment callers never need the table's text or syntax. */
+function buildResolvedTable(node: SyntaxNode): ResolvedTable | null {
+    return isRootTableNode(node) ? { from: node.from, to: node.to, node } : null;
 }
 
 function containsPosition(table: ResolvedTable, pos: number): boolean {
@@ -40,11 +30,11 @@ function containsPosition(table: ResolvedTable, pos: number): boolean {
  * Resolves a candidate root table node, returning it only when its exact range
  * contains `pos`. Nested tables are outside the plugin's supported syntax.
  */
-function resolveIfContaining(state: EditorState, node: SyntaxNode | null, pos: number): ResolvedTable | null {
+function resolveIfContaining(node: SyntaxNode | null, pos: number): ResolvedTable | null {
     if (!node) {
         return null;
     }
-    const resolved = buildResolvedTable(state, node);
+    const resolved = buildResolvedTable(node);
     return resolved && containsPosition(resolved, pos) ? resolved : null;
 }
 
@@ -77,7 +67,7 @@ export function resolveContainingTableAtPos(
     }
 
     const tableAfter = findTableAncestor(tree.resolve(pos, 1));
-    const resolvedAfter = resolveIfContaining(state, tableAfter, pos);
+    const resolvedAfter = resolveIfContaining(tableAfter, pos);
     if (resolvedAfter) {
         return resolvedAfter;
     }
@@ -85,12 +75,11 @@ export function resolveContainingTableAtPos(
     const tableBefore = findTableAncestor(tree.resolve(pos, -1));
     // The same-node check is an optimization, not a correctness guard: when both lookups
     // land on the same node, containment was already checked above and failed, so falling
-    // through would return null anyway. Short-circuiting skips redundant syntax extraction
-    // and source slicing for what may be a large table.
+    // through would return null anyway.
     if (isSameNodeRange(tableBefore, tableAfter)) {
         return null;
     }
-    return resolveIfContaining(state, tableBefore, pos);
+    return resolveIfContaining(tableBefore, pos);
 }
 
 /**
@@ -114,7 +103,7 @@ export function findTableRanges(
     tree.iterate({
         enter: (node) => {
             if (node.name === 'Table') {
-                const table = buildResolvedTable(state, node.node);
+                const table = buildResolvedTable(node.node);
                 if (table) {
                     tables.push(table);
                 }
@@ -127,12 +116,9 @@ export function findTableRanges(
     return tables;
 }
 
-function resolveTableContextFromResolved(resolved: ResolvedTable | null): TableContext | null {
-    if (!resolved) {
-        return null;
-    }
-
-    return buildTableContext(resolved);
+/** Slices the table's source and derives its context; the derivation itself is cached. */
+export function resolveTableContext(state: EditorState, resolved: ResolvedTable): TableContext | null {
+    return buildTableContext(resolved, state.doc.sliceString(resolved.from, resolved.to));
 }
 
 export function resolveCellDocRange(params: { tableFrom: number; ranges: TableCellRanges; coords: CellCoords }): {
@@ -163,5 +149,6 @@ export function resolveCellDocRange(params: { tableFrom: number; ranges: TableCe
  * Convenience wrapper combining resolveContainingTableAtPos + buildTableContext.
  */
 export function resolveTableContextAtPos(state: EditorState, pos: number, timeoutMs?: number): TableContext | null {
-    return resolveTableContextFromResolved(resolveContainingTableAtPos(state, pos, timeoutMs));
+    const resolved = resolveContainingTableAtPos(state, pos, timeoutMs);
+    return resolved ? resolveTableContext(state, resolved) : null;
 }

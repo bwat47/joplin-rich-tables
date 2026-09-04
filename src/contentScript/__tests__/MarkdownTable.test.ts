@@ -1,19 +1,9 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
-import { buildTableContext } from '../tableModel/tableContext';
+import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { createMarkdownState } from './testMarkdownState';
 
 function buildContext(text: string) {
-    const parsed = parseRootMarkdownTableSyntax(text);
-    if (!parsed) {
-        throw new Error('Expected root table syntax');
-    }
-
-    return buildTableContext({
-        from: parsed.from,
-        to: parsed.to,
-        text: text.slice(parsed.from, parsed.to),
-        syntax: parsed.syntax,
-    });
+    return resolveTableContextAtPos(createMarkdownState(text), 0);
 }
 
 describe('MarkdownTable', () => {

@@ -9,7 +9,6 @@ import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-import { parseTableSyntaxFixture } from './testUtils';
 
 describe('tableTransactionHelpers', () => {
     let currentTableText = '';
@@ -53,7 +52,6 @@ describe('tableTransactionHelpers', () => {
                 from: 0,
                 to: currentTableText.length,
                 text: currentTableText,
-                syntax: parseTableSyntaxFixture(currentTableText),
                 table,
                 cellRanges,
             },

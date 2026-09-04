@@ -36,32 +36,9 @@ interface TableTextSource {
 }
 
 const markdownTableParser = parser.configure([GFM]);
-const MAX_CACHED_TABLE_SYNTAX = 50;
-const tableSyntaxCache = new Map<string, MarkdownTableSyntax>();
 
-function isRootTableNode(tableNode: SyntaxNode): boolean {
+export function isRootTableNode(tableNode: SyntaxNode): boolean {
     return tableNode.name === 'Table' && tableNode.parent?.name === 'Document';
-}
-
-function readCachedTableSyntax(tableText: string): MarkdownTableSyntax | null {
-    const syntax = tableSyntaxCache.get(tableText);
-    if (!syntax) {
-        return null;
-    }
-
-    tableSyntaxCache.delete(tableText);
-    tableSyntaxCache.set(tableText, syntax);
-    return syntax;
-}
-
-function cacheTableSyntax(tableText: string, syntax: MarkdownTableSyntax): void {
-    if (tableSyntaxCache.size >= MAX_CACHED_TABLE_SYNTAX) {
-        const oldestKey = tableSyntaxCache.keys().next().value;
-        if (oldestKey !== undefined) {
-            tableSyntaxCache.delete(oldestKey);
-        }
-    }
-    tableSyntaxCache.set(tableText, syntax);
 }
 
 function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: number): MarkdownTableSourceRange {
@@ -194,28 +171,11 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
 }
 
 /**
- * Extracts syntax for a root table, reusing immutable table-relative facts for identical source.
+ * Extracts syntax for a root table already located in a document.
  * `tableText` must be the exact source covered by `tableNode`.
  */
-export function extractCachedRootMarkdownTableSyntax(
-    tableNode: SyntaxNode,
-    tableText: string
-): MarkdownTableSyntax | null {
-    // Root classification must precede the text cache: an identical nested table is unsupported.
-    if (!isRootTableNode(tableNode)) {
-        return null;
-    }
-
-    const cached = readCachedTableSyntax(tableText);
-    if (cached) {
-        return cached;
-    }
-
-    const syntax = extractValidatedRootTableSyntax({ text: tableText, base: tableNode.from }, tableNode);
-    if (syntax) {
-        cacheTableSyntax(tableText, syntax);
-    }
-    return syntax;
+export function extractRootMarkdownTableSyntax(tableNode: SyntaxNode, tableText: string): MarkdownTableSyntax | null {
+    return extractValidatedRootTableSyntax({ text: tableText, base: tableNode.from }, tableNode);
 }
 
 /**

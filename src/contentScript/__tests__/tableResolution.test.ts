@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EditorState } from '@codemirror/state';
-import { findTableRanges, resolveContainingTableAtPos } from '../tableRuntime/tableResolution';
+import {
+    findTableRanges,
+    resolveContainingTableAtPos,
+    resolveTableContext,
+    resolveTableContextAtPos,
+} from '../tableRuntime/tableResolution';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| a | b |', '| --- | --- |', '| c | d |'].join('\n');
@@ -15,7 +20,6 @@ describe('resolveContainingTableAtPos', () => {
         expect(resolveContainingTableAtPos(state, TABLE.indexOf('c'))).toMatchObject({
             from: 0,
             to: TABLE.length,
-            text: TABLE,
         });
     });
 
@@ -25,7 +29,6 @@ describe('resolveContainingTableAtPos', () => {
         expect(resolveContainingTableAtPos(state, TABLE.length)).toMatchObject({
             from: 0,
             to: TABLE.length,
-            text: TABLE,
         });
     });
 
@@ -33,9 +36,8 @@ describe('resolveContainingTableAtPos', () => {
         const doc = `${TABLE}\ntrailing text`;
         const state = createMarkdownState(doc);
 
-        const resolved = resolveContainingTableAtPos(state, TABLE.length);
-        expect(resolved?.to).toBe(doc.length);
-        expect(resolved?.syntax.bodyRows).toHaveLength(2);
+        expect(resolveContainingTableAtPos(state, TABLE.length)?.to).toBe(doc.length);
+        expect(resolveTableContextAtPos(state, TABLE.length)?.cellRanges.rows).toHaveLength(2);
     });
 
     it("resolves a pipe-free row included in Lezer's table node", () => {
@@ -59,7 +61,6 @@ describe('resolveContainingTableAtPos', () => {
             expect(resolveContainingTableAtPos(state, TABLE.length)).toMatchObject({
                 from: 0,
                 to: TABLE.length,
-                text: TABLE,
             });
         });
 
@@ -69,7 +70,6 @@ describe('resolveContainingTableAtPos', () => {
             expect(resolveContainingTableAtPos(state, SECOND_TABLE_FROM)).toMatchObject({
                 from: SECOND_TABLE_FROM,
                 to: SECOND_TABLE_FROM + SECOND_TABLE.length,
-                text: SECOND_TABLE,
             });
         });
 
@@ -146,12 +146,14 @@ describe('findTableRanges', () => {
         expect(findTableRanges(state)).toEqual([]);
     });
 
-    it('reuses table-relative syntax for identical source text', () => {
+    it('reuses one derivation for identical source text', () => {
         const state = createMarkdownState(`${TABLE}\n\n${TABLE}`);
         const tables = findTableRanges(state);
 
         expect(tables).toHaveLength(2);
-        expect(tables?.[1]?.syntax).toBe(tables?.[0]?.syntax);
+        const [first, second] = (tables ?? []).map((table) => resolveTableContext(state, table));
+        expect(second?.table).toBe(first?.table);
+        expect(second?.cellRanges).toBe(first?.cellRanges);
     });
 
     it.each([

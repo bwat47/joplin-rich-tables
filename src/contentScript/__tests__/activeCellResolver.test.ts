@@ -7,21 +7,10 @@ import {
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
-import { buildTableContext } from '../tableModel/tableContext';
-import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
+import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 
 function buildContext(text: string) {
-    const parsed = parseRootMarkdownTableSyntax(text);
-    if (!parsed) {
-        throw new Error('Expected root table syntax');
-    }
-
-    return buildTableContext({
-        from: parsed.from,
-        to: parsed.to,
-        text: text.slice(parsed.from, parsed.to),
-        syntax: parsed.syntax,
-    });
+    return resolveTableContextAtPos(createMarkdownState(text), 0);
 }
 
 function createState(doc: string, activeCell?: ActiveCell) {
