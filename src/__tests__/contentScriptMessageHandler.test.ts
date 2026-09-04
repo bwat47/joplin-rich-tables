@@ -105,6 +105,7 @@ describe('contentScriptMessageHandler', () => {
             'floatingToolbar.showClearButtons': true,
             'floatingToolbar.showAlignmentButtons': false,
             'floatingToolbar.showDeleteTableButton': true,
+            'floatingToolbar.showSortButtons': false,
         });
 
         const result = await handler({
@@ -118,6 +119,7 @@ describe('contentScriptMessageHandler', () => {
             'floatingToolbar.showClearButtons',
             'floatingToolbar.showAlignmentButtons',
             'floatingToolbar.showDeleteTableButton',
+            'floatingToolbar.showSortButtons',
         ]);
         expect(result).toEqual({
             nestedEditor: {
@@ -132,6 +134,7 @@ describe('contentScriptMessageHandler', () => {
                 showClearButtons: true,
                 showAlignmentButtons: false,
                 showDeleteTableButton: true,
+                showSortButtons: false,
             },
         });
     });

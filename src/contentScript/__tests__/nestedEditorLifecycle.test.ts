@@ -56,6 +56,7 @@ const TEST_HOST_CONFIG = {
         showClearButtons: true,
         showAlignmentButtons: true,
         showDeleteTableButton: true,
+        showSortButtons: true,
     },
 } satisfies HostEditorConfig;
 const nestedEditorControllerMock = nestedEditorController as unknown as {
