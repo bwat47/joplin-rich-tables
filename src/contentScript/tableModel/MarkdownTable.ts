@@ -1,4 +1,8 @@
-import { parseRootMarkdownTableSyntax, type MarkdownTableSyntax } from './lezerTableSyntax';
+import {
+    parseRootMarkdownTableSyntax,
+    type MarkdownTableSyntax,
+    type MarkdownTableSyntaxCell,
+} from './lezerTableSyntax';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
@@ -62,7 +66,7 @@ function readCellContents(
     headers: string[];
     rows: string[][];
 } {
-    const readCell = (cell: MarkdownTableSyntax['header']['cells'][number]): string =>
+    const readCell = (cell: MarkdownTableSyntaxCell): string =>
         cell.content ? text.slice(tableFrom + cell.content.from, tableFrom + cell.content.to) : '';
 
     return {
