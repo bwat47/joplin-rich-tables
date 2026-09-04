@@ -16,8 +16,8 @@ import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelection
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const PREFIX = 'above';
-const DOC = `${PREFIX}\n${TABLE}\nbelow`;
-const TABLE_FROM = PREFIX.length + 1;
+const DOC = `${PREFIX}\n\n${TABLE}\n\nbelow`;
+const TABLE_FROM = PREFIX.length + 2;
 const TABLE_TO = TABLE_FROM + TABLE.length;
 
 const mountedViews: EditorView[] = [];

@@ -14,6 +14,7 @@ import {
     getDefaultStructuralReopenOptions,
     runStructuralCommand,
 } from '../tableRuntime/operations/structuralOperations';
+import { parseTableSyntaxFixture } from './testUtils';
 
 // Mock dependencies
 vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
@@ -56,6 +57,7 @@ describe('tableCommands', () => {
                 from: activeCell.tableFrom,
                 to: 100,
                 text: '',
+                syntax: parseTableSyntaxFixture(['| H |', '| --- |'].join('\n')),
                 table: {} as MarkdownTable,
                 cellRanges: { headers: [], rows: [] },
             },

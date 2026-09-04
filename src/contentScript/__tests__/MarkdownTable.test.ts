@@ -1,5 +1,20 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
 import { buildTableContext } from '../tableModel/tableContext';
+
+function buildContext(text: string) {
+    const parsed = parseRootMarkdownTableSyntax(text);
+    if (!parsed) {
+        throw new Error('Expected root table syntax');
+    }
+
+    return buildTableContext({
+        from: parsed.from,
+        to: parsed.to,
+        text: text.slice(parsed.from, parsed.to),
+        syntax: parsed.syntax,
+    });
+}
 
 describe('MarkdownTable', () => {
     it('parse returns normalized state for ragged tables', () => {
@@ -54,7 +69,7 @@ describe('MarkdownTable', () => {
 
     it('keeps passive table-context builds side-effect free for non-canonical markdown', () => {
         const text = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
-        const ctx = buildTableContext({ from: 0, to: text.length, text });
+        const ctx = buildContext(text);
 
         expect(ctx).not.toBeNull();
         expect(ctx?.text).toBe(text);

@@ -12,7 +12,7 @@ describe('resolveContainingTableAtPos', () => {
     it('resolves a position inside a table', () => {
         const state = createMarkdownState(TABLE);
 
-        expect(resolveContainingTableAtPos(state, TABLE.indexOf('c'))).toEqual({
+        expect(resolveContainingTableAtPos(state, TABLE.indexOf('c'))).toMatchObject({
             from: 0,
             to: TABLE.length,
             text: TABLE,
@@ -22,24 +22,27 @@ describe('resolveContainingTableAtPos', () => {
     it('includes a position exactly at the end of a table node', () => {
         const state = createMarkdownState(TABLE);
 
-        expect(resolveContainingTableAtPos(state, TABLE.length)).toEqual({
+        expect(resolveContainingTableAtPos(state, TABLE.length)).toMatchObject({
             from: 0,
             to: TABLE.length,
             text: TABLE,
         });
     });
 
-    it('includes the trimmed table end before trailing non-table text', () => {
-        const state = createMarkdownState(`${TABLE}\ntrailing text`);
+    it('uses the exact Lezer range including a pipe-free trailing row', () => {
+        const doc = `${TABLE}\ntrailing text`;
+        const state = createMarkdownState(doc);
 
-        expect(resolveContainingTableAtPos(state, TABLE.length)?.to).toBe(TABLE.length);
+        const resolved = resolveContainingTableAtPos(state, TABLE.length);
+        expect(resolved?.to).toBe(doc.length);
+        expect(resolved?.syntax.bodyRows).toHaveLength(2);
     });
 
-    it("rejects trailing text included in Lezer's table node", () => {
+    it("resolves a pipe-free row included in Lezer's table node", () => {
         const state = createMarkdownState(`${TABLE}\ntrailing text`);
         const trailingTextPos = TABLE.length + 1;
 
-        expect(resolveContainingTableAtPos(state, trailingTextPos)).toBeNull();
+        expect(resolveContainingTableAtPos(state, trailingTextPos)?.from).toBe(0);
     });
 
     it('returns null outside a table', () => {
@@ -53,7 +56,7 @@ describe('resolveContainingTableAtPos', () => {
         it('resolves the preceding table at its end rather than the table below', () => {
             const state = createMarkdownState(TWO_TABLES);
 
-            expect(resolveContainingTableAtPos(state, TABLE.length)).toEqual({
+            expect(resolveContainingTableAtPos(state, TABLE.length)).toMatchObject({
                 from: 0,
                 to: TABLE.length,
                 text: TABLE,
@@ -63,7 +66,7 @@ describe('resolveContainingTableAtPos', () => {
         it('resolves the second table at its start', () => {
             const state = createMarkdownState(TWO_TABLES);
 
-            expect(resolveContainingTableAtPos(state, SECOND_TABLE_FROM)).toEqual({
+            expect(resolveContainingTableAtPos(state, SECOND_TABLE_FROM)).toMatchObject({
                 from: SECOND_TABLE_FROM,
                 to: SECOND_TABLE_FROM + SECOND_TABLE.length,
                 text: SECOND_TABLE,
@@ -97,7 +100,7 @@ describe('resolveContainingTableAtPos', () => {
         const cases: Record<string, string> = {
             'a lone table': TABLE,
             'two tables': TWO_TABLES,
-            'a table with trailing non-table text': `${TABLE}\ntrailing text`,
+            'a table with a pipe-free trailing row': `${TABLE}\ntrailing text`,
             'a table between paragraphs': `before\n\n${TABLE}\n\nafter`,
             'a document with no table': 'just a paragraph\n\nand another',
             'a table after a list': `- item\n\n${TABLE}`,
@@ -141,6 +144,16 @@ describe('findTableRanges', () => {
         const state = createMarkdownState('just a paragraph');
 
         expect(findTableRanges(state)).toEqual([]);
+    });
+
+    it.each([
+        ['blockquote', ['> | a | b |', '> | --- | --- |', '> | c | d |'].join('\n')],
+        ['list item', ['- | a | b |', '  | --- | --- |', '  | c | d |'].join('\n')],
+    ])('ignores a table nested in a %s', (_label, doc) => {
+        const state = createMarkdownState(doc);
+
+        expect(findTableRanges(state)).toEqual([]);
+        expect(resolveContainingTableAtPos(state, doc.indexOf('a'))).toBeNull();
     });
 });
 

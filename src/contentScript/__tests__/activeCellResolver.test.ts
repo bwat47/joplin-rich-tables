@@ -8,6 +8,21 @@ import {
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { buildTableContext } from '../tableModel/tableContext';
+import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
+
+function buildContext(text: string) {
+    const parsed = parseRootMarkdownTableSyntax(text);
+    if (!parsed) {
+        throw new Error('Expected root table syntax');
+    }
+
+    return buildTableContext({
+        from: parsed.from,
+        to: parsed.to,
+        text: text.slice(parsed.from, parsed.to),
+        syntax: parsed.syntax,
+    });
+}
 
 function createState(doc: string, activeCell?: ActiveCell) {
     let state = createMarkdownState(doc, [activeCellField]);
@@ -137,7 +152,7 @@ describe('resolvedActiveCell', () => {
 
     it('creates a resolved active cell directly from table context and coords', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const ctx = buildTableContext({ from: 0, to: doc.length, text: doc });
+        const ctx = buildContext(doc);
 
         expect(ctx).not.toBeNull();
         if (!ctx) {
@@ -199,7 +214,7 @@ describe('resolvedActiveCell', () => {
 
     it('returns null when creating a resolved active cell for invalid coordinates', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const ctx = buildTableContext({ from: 0, to: doc.length, text: doc });
+        const ctx = buildContext(doc);
 
         expect(ctx).not.toBeNull();
         if (!ctx) {

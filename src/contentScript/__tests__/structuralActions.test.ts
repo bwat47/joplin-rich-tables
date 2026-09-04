@@ -6,6 +6,7 @@ import type { StructuralTableCommand } from '../tableModel/structuralCommandSema
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
+import { parseTableSyntaxFixture } from './testUtils';
 
 vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
     runStructuralMutationAndReopen: vi.fn(),
@@ -36,6 +37,7 @@ describe('structuralActions', () => {
                 from: activeCell.tableFrom,
                 to: 100,
                 text: '',
+                syntax: parseTableSyntaxFixture(['| H |', '| --- |'].join('\n')),
                 table: {} as MarkdownTable,
                 cellRanges: { headers: [], rows: [] },
             },

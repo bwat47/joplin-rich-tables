@@ -10,6 +10,7 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
+import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -59,11 +60,16 @@ describe('table boundary maintenance', () => {
         expect(transaction.state.doc.toString()).toBe(`intro\nx\n\n${TABLE}\n`);
     });
 
-    it('restores the blank line when text is typed below a table', () => {
+    it.each([
+        { label: 'typed', userEvent: 'input.type' },
+        { label: 'pasted', userEvent: 'input.paste' },
+    ])('restores the blank line when text is $label below a table', ({ userEvent }) => {
         const doc = `\n${TABLE}\n\nafter`;
-        const transaction = input(createState(doc), blankLinePos(doc, 'after'), 'x');
+        const transaction = input(createState(doc), blankLinePos(doc, 'after'), 'x', userEvent);
 
         expect(transaction.state.doc.toString()).toBe(`\n${TABLE}\n\nx\nafter`);
+        expect(resolveTableContextAtPos(transaction.state, 1)?.cellRanges.rows).toHaveLength(1);
+        expect(resolveTableContextAtPos(transaction.state, transaction.state.doc.toString().indexOf('x'))).toBeNull();
     });
 
     it('keeps the caret with the typed text', () => {

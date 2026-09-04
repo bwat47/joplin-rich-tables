@@ -1,17 +1,19 @@
 /**
  * Shared types for table cell and table identification.
  */
+import type { MarkdownTableSyntax } from './lezerTableSyntax';
 
 export type TableSection = 'header' | 'body';
 
 /**
- * A table's document-level position and raw text.
+ * A root table's document-level position, raw text, and Lezer syntax facts.
  * Produced by Lezer syntax-tree resolution in tableResolution.
  */
 export interface ResolvedTable {
     from: number;
     to: number;
     text: string;
+    syntax: MarkdownTableSyntax;
 }
 
 /**

@@ -7,7 +7,7 @@
  * and the widget extension.
  */
 import { MarkdownTable } from './MarkdownTable';
-import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
+import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from './markdownTableCellRanges';
 import type { ResolvedTable, TableGridBounds } from './types';
 
 export interface TableContext extends ResolvedTable {
@@ -41,7 +41,7 @@ const MAX_CACHE_SIZE = 50;
  * for the same table content skip parsing and range computation.
  */
 export function buildTableContext(resolved: ResolvedTable): TableContext | null {
-    const { from, to, text } = resolved;
+    const { from, to, text, syntax } = resolved;
     let entry = tableContextCache.get(text);
 
     if (entry) {
@@ -49,11 +49,8 @@ export function buildTableContext(resolved: ResolvedTable): TableContext | null 
         tableContextCache.delete(text);
         tableContextCache.set(text, entry);
     } else {
-        const table = MarkdownTable.parse(text);
-        if (!table) return null;
-
-        const cellRanges = computeMarkdownTableCellRanges(text);
-        if (!cellRanges) return null;
+        const table = MarkdownTable.fromSyntax(text, syntax);
+        const cellRanges = computeMarkdownTableCellRangesFromSyntax(text, syntax);
 
         entry = { table, cellRanges };
 
@@ -64,5 +61,5 @@ export function buildTableContext(resolved: ResolvedTable): TableContext | null 
         tableContextCache.set(text, entry);
     }
 
-    return { from, to, text, table: entry.table, cellRanges: entry.cellRanges };
+    return { from, to, text, syntax, table: entry.table, cellRanges: entry.cellRanges };
 }
