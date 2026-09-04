@@ -1,6 +1,6 @@
 import { bench, describe } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
+import { computeCellAnchorForTable } from '../tableModel/activeCellForTableText';
 import { resolveTableContextAtPos, findTableRanges } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from '../__tests__/testMarkdownState';
 
@@ -57,6 +57,9 @@ function requireParsed<T>(value: T | null, operation: string): T {
 
 const fixtures = FIXTURE_SPECS.map((spec) => {
     const text = buildTable(spec.bodyRows, spec.columns);
+    const table = requireParsed(MarkdownTable.parse(text), 'MarkdownTable.parse');
+    // Bottom-right is the worst case: the offset walk passes every preceding row and cell.
+    const anchorTarget = { section: 'body', row: spec.bodyRows - 1, col: spec.columns - 1 } as const;
     const state = createMarkdownState(text);
     const tableFrom = requireParsed(findTableRanges(state), 'findTableRanges')[0]?.from;
     if (tableFrom === undefined) {
@@ -65,23 +68,25 @@ const fixtures = FIXTURE_SPECS.map((spec) => {
 
     // Complete incremental parsing and warm the TableContext LRU before timings begin.
     requireParsed(resolveTableContextAtPos(state, tableFrom), 'resolveTableContextAtPos');
-    return { ...spec, text, state, tableFrom };
+    return { ...spec, text, table, anchorTarget, state, tableFrom };
 });
 
 for (const fixture of fixtures) {
     describe(fixture.label, () => {
+        // Clipboard paste is the only path that parses text the editor has not already parsed.
         bench(
-            'standalone MarkdownTable.parse',
+            'clipboard MarkdownTable.parse',
             () => {
                 MarkdownTable.parse(fixture.text);
             },
             BENCHMARK_OPTIONS
         );
 
+        // Every structural edit locates its next active cell in the serialized table.
         bench(
-            'standalone computeMarkdownTableCellRanges',
+            'structural-edit anchor',
             () => {
-                computeMarkdownTableCellRanges(fixture.text);
+                computeCellAnchorForTable({ table: fixture.table, target: fixture.anchorTarget });
             },
             BENCHMARK_OPTIONS
         );
