@@ -44,6 +44,16 @@ describe('parseRootMarkdownTableSyntax', () => {
         ]);
     });
 
+    it('associates ordered content nodes across a wide row', () => {
+        const expectedCells = Array.from({ length: 128 }, (_value, index) => `C${index}`);
+        const text = [`| ${expectedCells.join(' | ')} |`, `| ${expectedCells.map(() => '---').join(' | ')} |`].join(
+            '\n'
+        );
+        const parsed = parse(text);
+
+        expect(parsed.syntax.header.cells.map((cell) => cellContent(text, parsed.from, cell))).toEqual(expectedCells);
+    });
+
     it('represents pipe-free body lines as one-cell rows', () => {
         const text = ['| A | B |', '| --- | --- |', 'plain', '| C | D |', 'another'].join('\n');
         const parsed = parse(text);

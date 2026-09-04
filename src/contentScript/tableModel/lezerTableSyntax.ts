@@ -53,30 +53,51 @@ function buildRawCellRanges(row: SyntaxNode, delimiters: readonly SyntaxNode[]):
     return cells;
 }
 
+/** Returns `undefined` for an unsupported node arrangement, `null` for an empty raw cell. */
+function matchOrderedContentNode(
+    raw: MarkdownTableSourceRange,
+    contentNodes: readonly SyntaxNode[],
+    contentIndex: number
+): SyntaxNode | null | undefined {
+    const candidate = contentNodes[contentIndex];
+    if (!candidate) {
+        return null;
+    }
+    if (candidate.from < raw.from) {
+        return undefined;
+    }
+    if (candidate.from >= raw.to) {
+        return null;
+    }
+
+    const nextCandidate = contentNodes[contentIndex + 1];
+    return candidate.to <= raw.to && (!nextCandidate || nextCandidate.from >= raw.to) ? candidate : undefined;
+}
+
 function extractRowSyntax(row: SyntaxNode, tableFrom: number): MarkdownTableSyntaxRow | null {
     const delimiters = row.getChildren('TableDelimiter');
     const contentNodes = row.getChildren('TableCell');
     const rawCells = buildRawCellRanges(row, delimiters);
-    const assignedContent = new Set<SyntaxNode>();
     const cells: MarkdownTableSyntaxCell[] = [];
+    let contentIndex = 0;
 
     for (const raw of rawCells) {
-        const matchingContent = contentNodes.filter((node) => node.from >= raw.from && node.to <= raw.to);
-        if (matchingContent.length > 1) {
+        // Both collections are source-ordered, so each content node is considered once.
+        const contentNode = matchOrderedContentNode(raw, contentNodes, contentIndex);
+        if (contentNode === undefined) {
             return null;
         }
-
-        const contentNode = matchingContent[0] ?? null;
         if (contentNode) {
-            assignedContent.add(contentNode);
+            contentIndex++;
         }
+
         cells.push({
             raw: { from: raw.from - tableFrom, to: raw.to - tableFrom },
             content: contentNode ? toRelativeRange(contentNode, tableFrom) : null,
         });
     }
 
-    if (assignedContent.size !== contentNodes.length) {
+    if (contentIndex !== contentNodes.length) {
         return null;
     }
 
