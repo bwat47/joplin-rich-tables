@@ -20,6 +20,8 @@ content spans.
 
 - In editor documents, use the existing CodeMirror syntax tree.
 - For standalone and clipboard text, use one shared `@lezer/markdown` parser configured with GFM.
+- Normalize standalone and clipboard text before parsing: fold line endings and drop trailing line padding. That
+  padding is invisible in a pasted payload but can stop Lezer recognizing the table at all.
 - Support only a `Table` whose direct parent is `Document`. Tables in blockquotes, lists, or other containers remain
   plain source.
 - Convert accepted nodes to a table-relative `MarkdownTableSyntax` value. Reconstruct raw cells from adjacent direct
@@ -33,6 +35,8 @@ The plugin remains authoritative for editor and application semantics:
 
 - Semantic content bounds use `TableCell`; empty-cell insertion points and editable bounds derive from raw delimiter
   gaps. Editable bounds remove at most one adjacent ASCII space or tab on each side.
+- Row extents exclude trailing ASCII spaces and tabs. Lezer row nodes cover that padding, but it belongs to no cell:
+  treating it as one detaches the closing pipe from the last cell and adds a phantom trailing column.
 - The normalized rectangular grid, alignment values, structural operations, and canonical serialization remain in
   `MarkdownTable`.
 - Existing adjacent pipe-free text is canonicalized as a padded row when an existing edit boundary triggers
