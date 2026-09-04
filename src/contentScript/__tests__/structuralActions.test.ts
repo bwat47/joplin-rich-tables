@@ -70,6 +70,8 @@ describe('structuralActions', () => {
         ['clearColumn', { type: 'clearColumn' }],
         ['clearTable', { type: 'clearTable' }],
         ['deleteTable', { type: 'deleteTable' }],
+        ['sortColumnAscending', { type: 'sortColumnAscending' }],
+        ['sortColumnDescending', { type: 'sortColumnDescending' }],
     ] satisfies Array<[StructuralActionId, StructuralTableCommand]>)(
         'maps model-backed action %s to its canonical command',
         (actionId, command) => {

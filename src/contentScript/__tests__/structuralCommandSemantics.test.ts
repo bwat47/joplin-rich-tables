@@ -255,4 +255,30 @@ describe('structuralCommandSemantics', () => {
             expect(tableResult.targetCell).toEqual(activeCell);
         }
     );
+
+    it.each([
+        ['sortColumnAscending', 1],
+        ['sortColumnDescending', 0],
+    ] satisfies Array<[StructuralTableCommandId, number]>)(
+        'sorts body rows and follows the active row for %s',
+        (type, targetRow) => {
+            const markdown = ['| Name | Id |', '| --- | --- |', '| Item 10 | ten |', '| Item 2 | two |'].join('\n');
+            const result = apply(markdown, { section: 'body', row: 0, col: 0 }, { type });
+            const tableResult = expectTableResult(result);
+
+            expect(tableResult.targetCell).toEqual({ section: 'body', row: targetRow, col: 0 });
+            expect(tableResult.table.headerCells).toEqual(['Name', 'Id']);
+        }
+    );
+
+    it('keeps the header cell active while sorting its column', () => {
+        const result = apply(tableMarkdown, { section: 'header', row: 0, col: 0 }, { type: 'sortColumnDescending' });
+        const tableResult = expectTableResult(result);
+
+        expect(tableResult.targetCell).toEqual({ section: 'header', row: 0, col: 0 });
+        expect(tableResult.table.bodyRows).toEqual([
+            ['b1', 'b2'],
+            ['a1', 'a2'],
+        ]);
+    });
 });

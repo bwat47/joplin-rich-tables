@@ -112,6 +112,14 @@ const structuralCommands = {
         commandName: 'richTables.deleteTable',
         label: 'Delete table',
     },
+    sortColumnAscending: {
+        commandName: 'richTables.sortColumnAscending',
+        label: 'Sort column (A to Z)',
+    },
+    sortColumnDescending: {
+        commandName: 'richTables.sortColumnDescending',
+        label: 'Sort column (Z to A)',
+    },
 } satisfies Record<StructuralActionId, StructuralCommandDescriptor>;
 
 export const STRUCTURAL_COMMANDS: readonly StructuralCommandEntry[] = (
