@@ -38,6 +38,13 @@ function parseAlignment(cell: string): TableAlignment {
     return null;
 }
 
+/**
+ * Splits the delimiter row into per-column alignment specs.
+ *
+ * Splitting on `|` is the exception to deriving cells from Lezer: the delimiter row is one
+ * flat `TableDelimiter` node with no cell children to project. It is safe here because the
+ * row's grammar admits only `-`, `:`, `|`, and spaces, so an escaped pipe cannot appear.
+ */
 function parseSeparatorRow(text: string, syntax: MarkdownTableSyntax, tableFrom: number): string[] {
     const separator = text
         .slice(tableFrom + syntax.separator.from, tableFrom + syntax.separator.to)
