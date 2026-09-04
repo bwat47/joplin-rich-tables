@@ -96,7 +96,7 @@ describe('hostEditorConfigBridge', () => {
             },
             toolbar: {
                 showMoveButtons: false,
-                showClearButtons: true,
+                showClearButtons: false,
                 showAlignmentButtons: true,
                 showDeleteTableButton: true,
                 showSortButtons: true,

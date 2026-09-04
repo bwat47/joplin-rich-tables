@@ -66,7 +66,7 @@ joplin.plugins.register({
                 description: 'Display move row and move column actions in the floating table toolbar.',
             },
             [TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY]: {
-                value: true,
+                value: false,
                 type: SettingItemType.Bool,
                 public: true,
                 section: SETTINGS_SECTION,

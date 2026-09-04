@@ -52,7 +52,7 @@ export function defaultHostEditorConfig(): HostEditorConfig {
         },
         toolbar: {
             showMoveButtons: true,
-            showClearButtons: true,
+            showClearButtons: false,
             showAlignmentButtons: true,
             showDeleteTableButton: true,
             showSortButtons: true,
