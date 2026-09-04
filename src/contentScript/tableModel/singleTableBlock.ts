@@ -2,12 +2,25 @@
  * Decides whether clipboard text is exactly one Markdown table block.
  *
  * Lezer owns the definition of a table block. This wrapper normalizes clipboard line
- * endings and rejects interior blank lines before parsing exactly one root-level table.
+ * endings and padding, and rejects interior blank lines, before parsing exactly one
+ * root-level table.
  */
 import { MarkdownTable } from './MarkdownTable';
 
-function normalizeClipboardLineEndings(text: string): string {
-    return text.replace(/\r\n?/g, '\n');
+function trimLinePadding(line: string): string {
+    let end = line.length;
+    while (end > 0 && (line[end - 1] === ' ' || line[end - 1] === '\t')) {
+        end--;
+    }
+    return line.slice(0, end);
+}
+
+/**
+ * Splits on any line ending and drops trailing padding. The padding is invisible in a
+ * clipboard payload, but Lezer refuses a delimiter row that carries it.
+ */
+function toNormalizedClipboardLines(text: string): string[] {
+    return text.split(/\r\n?|\n/).map(trimLinePadding);
 }
 
 function isBlankLine(line: string): boolean {
@@ -35,7 +48,7 @@ function trimOuterBlankLines(lines: string[]): string[] {
  * table with text lines before or after it.
  */
 export function parseSingleTableBlock(text: string): MarkdownTable | null {
-    const lines = trimOuterBlankLines(normalizeClipboardLineEndings(text).split('\n'));
+    const lines = trimOuterBlankLines(toNormalizedClipboardLines(text));
     if (lines.length === 0) {
         return null;
     }

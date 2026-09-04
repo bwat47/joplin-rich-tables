@@ -17,6 +17,12 @@ describe('parseSingleTableBlock', () => {
         expect(parseSingleTableBlock(NON_CANONICAL_TABLE.split('\n').join('\r\n'))?.serialize()).toBe(CANONICAL_TABLE);
     });
 
+    it('accepts a table whose delimiter row carries trailing padding', () => {
+        const padded = ['| H1 | H2 |', '| --- | --- | ', '| a | b |\t'].join('\n');
+
+        expect(parseSingleTableBlock(padded)?.serialize()).toBe(CANONICAL_TABLE);
+    });
+
     it('rejects multiple tables separated by blank lines', () => {
         const secondTable = ['| H2 |', '| --- |', '| b |'].join('\n');
 
