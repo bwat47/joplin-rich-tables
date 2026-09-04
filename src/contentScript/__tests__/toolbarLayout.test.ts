@@ -53,8 +53,8 @@ describe('toolbarLayout', () => {
             'Align column left',
             'Align column center',
             'Align column right',
-            'Sort column (A to Z)',
-            'Sort column (Z to A)',
+            'Sort rows by column (A to Z)',
+            'Sort rows by column (Z to A)',
             'Clear table',
             'Delete table',
         ]);
@@ -185,8 +185,8 @@ describe('toolbarLayout', () => {
             })
         );
 
-        expect(layout.labels).not.toContain('Sort column (A to Z)');
-        expect(layout.labels).not.toContain('Sort column (Z to A)');
+        expect(layout.labels).not.toContain('Sort rows by column (A to Z)');
+        expect(layout.labels).not.toContain('Sort rows by column (Z to A)');
         expect(layout.separatorCount).toBe(3);
     });
 });

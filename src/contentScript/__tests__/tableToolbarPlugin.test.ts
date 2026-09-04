@@ -169,7 +169,7 @@ describe('tableToolbarPlugin', () => {
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Sort column (A to Z)').click();
+        getToolbarButton(plugin, 'Sort rows by column (A to Z)').click();
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'sortColumnAscending', resolvedCell);
 

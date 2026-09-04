@@ -94,8 +94,9 @@ joplin.plugins.register({
                 type: SettingItemType.Bool,
                 public: true,
                 section: SETTINGS_SECTION,
-                label: 'Show column sorting buttons',
-                description: 'Display ascending and descending column sorting actions in the floating table toolbar.',
+                label: 'Show sort buttons',
+                description:
+                    'Display the actions that sort table rows by the active column in the floating table toolbar.',
             },
         });
 

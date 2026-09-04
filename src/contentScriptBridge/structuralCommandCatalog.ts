@@ -114,11 +114,11 @@ const structuralCommands = {
     },
     sortColumnAscending: {
         commandName: 'richTables.sortColumnAscending',
-        label: 'Sort column (A to Z)',
+        label: 'Sort rows by column (A to Z)',
     },
     sortColumnDescending: {
         commandName: 'richTables.sortColumnDescending',
-        label: 'Sort column (Z to A)',
+        label: 'Sort rows by column (Z to A)',
     },
 } satisfies Record<StructuralActionId, StructuralCommandDescriptor>;
 

@@ -154,14 +154,14 @@ const deleteTableButton: ToolbarButtonDescriptor = {
 const sortButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'sortColumnAscending',
-        title: 'Sort column (A to Z)',
-        ariaLabel: 'Sort column (A to Z)',
+        title: 'Sort rows by column (A to Z)',
+        ariaLabel: 'Sort rows by column (A to Z)',
         iconFactory: sortAscendingIcon,
     },
     {
         actionId: 'sortColumnDescending',
-        title: 'Sort column (Z to A)',
-        ariaLabel: 'Sort column (Z to A)',
+        title: 'Sort rows by column (Z to A)',
+        ariaLabel: 'Sort rows by column (Z to A)',
         iconFactory: sortDescendingIcon,
     },
 ];
