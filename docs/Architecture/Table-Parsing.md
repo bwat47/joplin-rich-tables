@@ -13,8 +13,11 @@ See [ADR-001](../ADR/001-lezer-table-syntax.md) for the decision rationale.
 - The table-level separator node supplies the already validated alignment-row source.
 
 Document resolution extracts this value from the existing CodeMirror tree and accepts only `Table` nodes directly
-under `Document`. Tables inside lists, blockquotes, or other containers are not rendered. Standalone APIs parse with a
-shared GFM Lezer parser and accept exactly one root table plus optional outer whitespace.
+under `Document`. Tables inside lists, blockquotes, or other containers are not rendered. Clipboard parsing uses a
+shared GFM Lezer parser and accepts exactly one root table plus optional outer whitespace.
+
+Row spans exclude trailing ASCII spaces and tabs. Lezer row nodes cover that padding, but it belongs to no cell:
+counting it detaches the closing pipe from the last cell and yields a phantom trailing column.
 
 The adapter fails closed on unexpected tree shapes. A direct `TableRow` without pipe delimiters becomes one raw cell,
 matching Lezer's treatment of pipe-free lines adjacent to a table.
@@ -28,8 +31,9 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
 - `editableFrom/editableTo` remove at most one delimiter-adjacent ASCII space or tab on each side.
 - Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
-`computeMarkdownTableCellRanges(text)` is a convenience API for standalone text and delegates to the Lezer adapter.
-Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds.
+`computeMarkdownTableCellRanges(text)` parses standalone text through the Lezer adapter to produce the same ranges.
+No runtime path needs it: it exists as the tested reference that `MarkdownTable.serializedCellOffset()` is checked
+against. Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds.
 
 ## Normalized Model
 
@@ -37,20 +41,22 @@ Cell lookup uses editable bounds; the nested editor uses both semantic and edita
 It then pads the header, alignments, and body rows to a rectangular grid. A pipe-free row is consequently padded to the
 table width and serializes canonically—for example, `text` in a two-column table becomes `| text |  |`.
 
-`MarkdownTable.parse(text)` is the standalone convenience API and delegates to the shared Lezer parser. Lezer validates
-table and separator syntax; the model does not maintain a competing row scanner or separator validator.
+`MarkdownTable.parse(text)` delegates to the shared Lezer parser and is reached only from clipboard handling. Lezer
+validates table and separator syntax; the model does not maintain a competing row scanner or separator validator.
+
+`MarkdownTable.serialize()` writes the canonical row format, and `MarkdownTable.serializedCellOffset()` reports where a
+cell lands in that output using the same format constants. Callers that have just serialized a table therefore locate a
+cell without parsing their own output back.
 
 ## Runtime Resolution and Context
 
-`tableResolution.ts` returns exact root-level Lezer table ranges together with `MarkdownTableSyntax`. Point lookup and
-full-document discovery therefore share the same range and root classification.
+`tableResolution.ts` returns a root-classified span and its syntax node, reading no source text. Point lookup and
+full-document discovery therefore share the same range and root classification, and callers that only test containment
+pay nothing more.
 
-The syntax adapter keeps a 50-entry LRU keyed by exact table source text. Because syntax ranges are table-relative and
-the DTO is immutable, identical tables can safely share it. Root-node classification is checked before cache lookup,
-so cached root syntax can never admit an otherwise unsupported nested table.
-
-`buildTableContext()` derives both `MarkdownTable` and cell ranges from the supplied syntax value without reparsing.
-Its LRU cache remains keyed by exact table source text and stores the derived model and ranges together.
+`buildTableContext()` owns the whole derivation behind one 50-entry LRU keyed by exact table source text: syntax
+extraction, the normalized model, and cell ranges. Identical tables share an entry safely because that text determines
+every value derived from it.
 
 `TableContext` is passive derived state and never rewrites the document. Canonicalization occurs only at existing cell
 entry, paste, or structural-operation boundaries. Existing adjacent pipe-free text is normalized as a row. Separately,
