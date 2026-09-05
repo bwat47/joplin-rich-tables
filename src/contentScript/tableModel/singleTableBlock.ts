@@ -43,8 +43,7 @@ function trimOuterBlankLines(lines: string[]): string[] {
 
 /**
  * Parses `text` only when it is a single table block, ignoring blank lines around it.
- * Returns null for anything else: multiple tables, a table split by a blank line, or a
- * table with text lines before or after it.
+ * Returns null for anything else: multiple tables or a table split by a blank line.
  */
 export function parseSingleTableBlock(text: string): MarkdownTable | null {
     const lines = trimOuterBlankLines(toClipboardLines(text));
