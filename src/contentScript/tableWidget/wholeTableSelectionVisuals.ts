@@ -79,6 +79,10 @@ function selectedCells(pseudo = ''): string {
  * The `&.cm-focused` copies exist for specificity: Joplin's own `&.cm-focused ::selection` rule
  * is two classes with `!important`, so the unfocused rules alone would tie with it and be
  * settled by stylesheet order. Same approach as `nestedEditor/rootEditorSelectionTheme.ts`.
+ *
+ * The one native highlight that survives this is a text selection dragged out inside a rendered
+ * cell, which `renderedTextSelectionTheme.ts` paints instead; its selectors match only cells this
+ * one has no fill to protect.
  */
 const NATIVE_SELECTION_RESET = {
     'background-color': 'transparent !important',

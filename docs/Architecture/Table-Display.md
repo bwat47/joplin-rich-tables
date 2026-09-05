@@ -99,6 +99,11 @@ does not affect HTML tables rendered inside cell Markdown. Selected cells are ex
 selector outweighs the selection fill, and `selectionTint.ts` solves its tint against a known ground, so a stripe
 standing in for that ground would band a selected rectangle row by row.
 
+Text dragged out inside a rendered cell keeps the browser's own selection highlight until the cell opens.
+`renderedTextSelectionTheme.ts` paints it in Joplin's selection colour, carved out of the widget-wide `::selection`
+reset in `wholeTableSelectionVisuals.ts`: its selectors skip tables the main editor has selected whole and the open
+cell, whose selections those modules and the nested editor already draw.
+
 ## Host Scroll Modes
 
 Joplin hosts the editor two ways, and internal and external scrolling are mutually exclusive:

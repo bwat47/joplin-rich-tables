@@ -23,6 +23,7 @@ import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectio
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
 import { cellSelectionCaretSuppression, cellSelectionVisuals } from './cellSelectionVisuals';
 import { wholeTableSelectionVisuals } from './wholeTableSelectionVisuals';
+import { renderedTextSelectionTheme } from './renderedTextSelectionTheme';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
@@ -150,6 +151,7 @@ async function registerTableWidgetExtension(
         cellSelectionVisuals,
         cellSelectionCaretSuppression,
         wholeTableSelectionVisuals,
+        renderedTextSelectionTheme,
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
         tableDecorationField,
