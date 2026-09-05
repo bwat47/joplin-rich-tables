@@ -63,12 +63,14 @@ side. Block constructs - headings, lists, blockquotes, fenced code, HTML - end t
 is absorbed. The opt-in Multi-Markdown Table setting (`markdown.plugin.multitable`, default off) splits that line into a
 paragraph instead, so callers that intend a following paragraph must preserve a blank boundary.
 
-One grammar is not one runtime. The plugin bundles its own `@lezer/markdown` parser while the editor uses the host's.
-Both run the same grammar, but their versions move independently, so a host upgrade can put editor behavior ahead of
-clipboard behavior until this dependency follows. Grammar limitations are shared rather than plugin-owned: Lezer 1.6.3
-rejects a delimiter row carrying trailing whitespace, which the clipboard wrapper normalizes away before parsing.
+One module, two configurations. The content script externalizes `@lezer/markdown`, so the clipboard wrapper and the
+editor share the host's module and version; the `package.json` entry is build-time only. What differs is configuration:
+the wrapper enables GFM alone, while Joplin's editor also enables front matter and, by setting, math, highlight and
+insert extensions. Only block-level additions could classify the same text differently. Grammar limitations are shared
+rather than plugin-owned: the tested grammar rejects a delimiter row carrying trailing whitespace, which the wrapper
+normalizes away before parsing.
 
-That exposure is bounded by how little the bundled parser is asked. It answers one question - is this pasted string a
+That exposure is bounded by how little the wrapper is asked. It answers one question - is this pasted string a
 single table - and nothing else reaches it. Text the plugin produces itself is ranged from the model that produced
 it.
 
