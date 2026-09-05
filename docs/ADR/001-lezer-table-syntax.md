@@ -56,8 +56,11 @@ There is one syntax authority, so document resolution, clipboard parsing, the ta
 silently diverge over Markdown grammar. Empty cells and editable padding still require a small plugin-owned projection
 because Lezer intentionally does not model editing behavior.
 
-This decision also adopts Lezer's ambiguous no-blank-line behavior. A line directly below a table can be a one-cell
-row even without a pipe. Callers that intend a following paragraph must preserve a blank boundary.
+A pipe-free line directly below a table becomes a one-cell row. This matches Joplin's default viewer, whose markdown-it
+GFM rule renders the same row padded with an empty trailing cell; the former trailing-line heuristic was the divergent
+side. Block constructs - headings, lists, blockquotes, fenced code, HTML - end the table in both engines, so only prose
+is absorbed. The opt-in Multi-Markdown Table setting (`markdown.plugin.multitable`, default off) splits that line into a
+paragraph instead, so callers that intend a following paragraph must preserve a blank boundary.
 
 One grammar is not one runtime. The plugin bundles its own `@lezer/markdown` parser while the editor uses the host's.
 Both run the same grammar, but their versions move independently, so a host upgrade can put editor behavior ahead of
