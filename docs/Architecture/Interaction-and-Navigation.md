@@ -123,6 +123,12 @@ Crossing into another cell after the movement threshold promotes the gesture to 
 text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
 does not restore the earlier text range. Active-editor drags retain their existing boundary margin and behavior.
 
+Only another cell promotes a drag. Leaving the table promotes nothing — every other cell is inside it, so an exit is
+overshoot rather than intent — and the gesture stays a text selection. An endpoint that landed outside the cell is
+clamped to the end the drag left by, so dragging out of the table selects to the end of the cell; at least one endpoint
+must still resolve inside it. Once a rectangle is being dragged, a pointer outside the table tracks the nearest cell as
+before.
+
 ## Pointer, Links, and Scrolling
 
 - Clicking activates a cell or updates the current cell selection, placing the caret where the click landed.

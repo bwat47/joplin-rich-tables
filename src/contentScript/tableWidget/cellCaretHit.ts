@@ -181,22 +181,50 @@ export function readRenderedCaretHit(cell: HTMLElement, clientX: number, clientY
     return renderedOffset === null ? null : { renderedText: index.text, renderedOffset };
 }
 
-/** A native selection wholly contained in one rendered cell. */
+/** A native selection anchored in one rendered cell. */
 export interface RenderedSelectionHit {
     renderedText: string;
     anchor: number;
     head: number;
 }
 
-/** Reads both endpoints before opening the editor replaces the selected DOM. */
+/**
+ * Offset for an endpoint the index has no entry for.
+ *
+ * An endpoint outside the content is where the drag left the cell, so it clamps to that end of
+ * the rendered text: dragging out of the table selects to the end of the cell instead of losing
+ * the range.
+ */
+function offsetForEscapedEndpoint(content: HTMLElement, index: RenderedTextIndex, node: Node): number | null {
+    if (content.contains(node)) {
+        return null;
+    }
+
+    const precedesContent = (content.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING) !== 0;
+    return precedesContent ? 0 : index.text.length;
+}
+
+/**
+ * Reads both endpoints before opening the editor replaces the selected DOM.
+ *
+ * At least one endpoint must resolve inside the cell, so a selection that has nothing to do with
+ * this cell is never read as one covering all of it.
+ */
 export function readRenderedSelectionHit(cell: HTMLElement): RenderedSelectionHit | null {
     const content = cell.querySelector(`:scope > .${CLASS_CELL_CONTENT}`) as HTMLElement | null;
     const selection = cell.ownerDocument.getSelection();
     if (!content || !selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
         return null;
     }
+
     const index = indexRenderedText(content);
-    const anchor = flatOffsetFromDomPosition(index, selection.anchorNode, selection.anchorOffset);
-    const head = flatOffsetFromDomPosition(index, selection.focusNode, selection.focusOffset);
+    const anchorInside = flatOffsetFromDomPosition(index, selection.anchorNode, selection.anchorOffset);
+    const headInside = flatOffsetFromDomPosition(index, selection.focusNode, selection.focusOffset);
+    if (anchorInside === null && headInside === null) {
+        return null;
+    }
+
+    const anchor = anchorInside ?? offsetForEscapedEndpoint(content, index, selection.anchorNode);
+    const head = headInside ?? offsetForEscapedEndpoint(content, index, selection.focusNode);
     return anchor === null || head === null ? null : { renderedText: index.text, anchor, head };
 }

@@ -335,6 +335,30 @@ describe('mouse cell drag selection', () => {
         expect(widget.style.userSelect).toBe('');
     });
 
+    it('selects to the end of the cell when the drag leaves the table without crossing a cell', () => {
+        const { view, cells } = mountGestureView(GRID_DOC.replace('a1', '**hello**'));
+        const content = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!;
+        content.innerHTML = '<strong>hello</strong>';
+        const text = content.firstChild!.firstChild!;
+        const below = document.createElement('p');
+        below.textContent = 'below the table';
+        document.body.appendChild(below);
+        elementAtPoint = cells.body0;
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        document.getSelection()!.setBaseAndExtent(text, 2, below.firstChild!, 5);
+
+        // Nothing of this widget is under the pointer, so the gesture stays a text selection.
+        elementAtPoint = null;
+        document.dispatchEvent(pointerEvent('pointermove', { clientX: 400, clientY: 400 }));
+        expect(isCellDragInProgress(view.state)).toBe(false);
+
+        // `llo` of `**hello**`: the escaped end clamps to the end of the cell's own text.
+        document.dispatchEvent(pointerEvent('pointerup', { clientX: 400, clientY: 400 }));
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({
+            localSelection: { anchor: 4, head: 7 },
+        });
+    });
+
     it('re-resolves a provisional press when the table moves before release', () => {
         const { view, cells } = mountGestureView();
         cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));

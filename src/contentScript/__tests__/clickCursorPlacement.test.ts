@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import {
     indexRenderedText,
     flatOffsetFromDomPosition,
+    readRenderedSelectionHit,
     type RenderedCaretHit,
     type RenderedSelectionHit,
 } from '../tableWidget/cellCaretHit';
@@ -87,6 +88,78 @@ describe('flatOffsetFromDomPosition', () => {
         const index = indexRenderedText(contentElement('text'));
 
         expect(flatOffsetFromDomPosition(index, document.createElement('div'), 0)).toBeNull();
+    });
+});
+
+/** A cell in the document, so a selection can genuinely run past it into the page. */
+function mountedCell(html: string): HTMLElement {
+    const cell = document.createElement('td');
+    cell.appendChild(contentElement(html));
+    const row = document.createElement('tr');
+    row.appendChild(cell);
+    const body = document.createElement('tbody');
+    body.appendChild(row);
+    const table = document.createElement('table');
+    table.appendChild(body);
+    document.body.appendChild(table);
+    return cell;
+}
+
+/** Text outside the table, placed either side of it in document order. */
+function pageText(data: string, where: 'before' | 'after'): Text {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = data;
+    document.body[where === 'before' ? 'prepend' : 'append'](paragraph);
+    return paragraph.firstChild as Text;
+}
+
+function select(anchorNode: Node, anchorOffset: number, focusNode: Node, focusOffset: number): void {
+    const selection = document.getSelection();
+    if (!selection) {
+        throw new Error('Expected the test document to have a selection');
+    }
+    selection.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset);
+}
+
+describe('readRenderedSelectionHit', () => {
+    afterEach(() => {
+        document.getSelection()?.removeAllRanges();
+        document.body.replaceChildren();
+    });
+
+    it('clamps an endpoint the drag carried out of the cell to the end it left by', () => {
+        const cell = mountedCell('see <strong>the</strong> docs');
+        select(textNode(cell, 'the'), 1, pageText('below the table', 'after'), 5);
+
+        expect(readRenderedSelectionHit(cell)).toEqual({ renderedText: 'see the docs', anchor: 5, head: 12 });
+    });
+
+    it('clamps a backward drag out of the cell to its start, keeping the direction', () => {
+        const cell = mountedCell('see <strong>the</strong> docs');
+        select(textNode(cell, 'the'), 1, pageText('above the table', 'before'), 5);
+
+        expect(readRenderedSelectionHit(cell)).toEqual({ renderedText: 'see the docs', anchor: 5, head: 0 });
+    });
+
+    it('declines a selection with neither endpoint in the cell', () => {
+        const cell = mountedCell('see <strong>the</strong> docs');
+        select(pageText('above the table', 'before'), 0, pageText('below the table', 'after'), 5);
+
+        expect(readRenderedSelectionHit(cell)).toBeNull();
+    });
+
+    it('declines an endpoint inside a formula, whose text is not its source', () => {
+        const cell = mountedCell('a <math><mi>x</mi></math> b');
+        select(textNode(cell, 'a '), 0, textNode(cell, 'x'), 1);
+
+        expect(readRenderedSelectionHit(cell)).toBeNull();
+    });
+
+    it('declines a collapsed selection, which is a caret rather than a range', () => {
+        const cell = mountedCell('see <strong>the</strong> docs');
+        select(textNode(cell, 'the'), 1, textNode(cell, 'the'), 1);
+
+        expect(readRenderedSelectionHit(cell)).toBeNull();
     });
 });
 
