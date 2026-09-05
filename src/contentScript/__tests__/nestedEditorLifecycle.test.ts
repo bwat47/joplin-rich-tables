@@ -647,7 +647,7 @@ describe('nestedEditorLifecycle', () => {
         });
         const nextCell = createActiveCellForTable({
             tableFrom,
-            table: parseTableFixture(updatedTable),
+            serialized: parseTableFixture(updatedTable).serializeWithOffsets(),
             target: { section: 'body', row: 1, col: 1 },
         })?.activeCell;
         expect(nextCell).not.toBeNull();

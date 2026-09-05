@@ -63,7 +63,7 @@ describe('tableTransactionHelpers', () => {
         const insertedTableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |', '|  |  |'].join('\n');
         const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
-            table: parseTableFixture(insertedTableText),
+            serialized: parseTableFixture(insertedTableText).serializeWithOffsets(),
             target: { section: 'body', row: 1, col: 1 },
         });
         expect(nextActiveCell).not.toBeNull();
@@ -168,7 +168,7 @@ describe('tableTransactionHelpers', () => {
         const updatedTableText = ['| H1 | H2 |', '| :---: | --- |', '| a | b |'].join('\n');
         const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
-            table: parseTableFixture(updatedTableText),
+            serialized: parseTableFixture(updatedTableText).serializeWithOffsets(),
             target: { section: 'body', row: 0, col: 0 },
         });
         expect(nextActiveCell).not.toBeNull();

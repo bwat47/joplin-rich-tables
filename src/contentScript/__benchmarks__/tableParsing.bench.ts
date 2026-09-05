@@ -87,8 +87,8 @@ for (const fixture of fixtures) {
         bench(
             'structural-edit serialize + cached anchor',
             () => {
-                fixture.table.serialize();
-                computeCellAnchorForTable({ table: fixture.table, target: fixture.anchorTarget });
+                const serialized = fixture.table.serializeWithOffsets();
+                computeCellAnchorForTable({ serialized, target: fixture.anchorTarget });
             },
             BENCHMARK_OPTIONS
         );

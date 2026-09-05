@@ -522,7 +522,7 @@ describe('MarkdownTable', () => {
 });
 
 /**
- * `serializedCellOffset` derives offsets from the serialization format instead of parsing
+ * `serializeWithOffsets()` derives offsets from the serialization format instead of parsing
  * the output back. This pins the two together: if `serialize()` ever changes its padding
  * or separators, the arithmetic has to change with it.
  *
@@ -530,7 +530,7 @@ describe('MarkdownTable', () => {
  * been serialized reads back the line lengths it produced, and one that has not derives
  * them. Both are exercised, on separate instances, against the same parsed text.
  */
-describe('serializedCellOffset agrees with parsing the serialization', () => {
+describe('serializeWithOffsets agrees with parsing the serialization', () => {
     const cases: Record<string, () => MarkdownTable> = {
         'a plain table': () =>
             MarkdownTable.fromParts({
@@ -593,15 +593,17 @@ describe('serializedCellOffset agrees with parsing the serialization', () => {
 
         for (const cell of coords) {
             const expected = getCellRange(ranges, cell)?.editableFrom;
-            expect(derived.serializedCellOffset(cell)).toBe(expected);
-            expect(readBack.serializedCellOffset(cell)).toBe(expected);
+            expect(derived.serializeWithOffsets().cellOffset(cell)).toBe(expected);
+            expect(readBack.serializeWithOffsets().cellOffset(cell)).toBe(expected);
         }
     });
 
     it('returns null for a cell the table does not have', () => {
         const table = MarkdownTable.fromParts({ headerCells: ['H'], alignments: [null], bodyRows: [['a']] });
 
-        expect(table.serializedCellOffset({ section: 'header', row: 0, col: 1 })).toBeNull();
-        expect(table.serializedCellOffset({ section: 'body', row: 1, col: 0 })).toBeNull();
+        const serialized = table.serializeWithOffsets();
+
+        expect(serialized.cellOffset({ section: 'header', row: 0, col: 1 })).toBeNull();
+        expect(serialized.cellOffset({ section: 'body', row: 1, col: 0 })).toBeNull();
     });
 });

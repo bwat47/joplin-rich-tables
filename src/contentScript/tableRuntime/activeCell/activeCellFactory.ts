@@ -1,5 +1,5 @@
 import type { TableCellRanges } from '../../tableModel/markdownTableCellRanges';
-import type { MarkdownTable } from '../../tableModel/MarkdownTable';
+import type { SerializedTable } from '../../tableModel/MarkdownTable';
 import {
     computeCellAnchorForTable,
     computeCellAnchorFromRanges,
@@ -41,11 +41,11 @@ function createActiveCellFromRanges(params: {
 
 export function createActiveCellForTable(params: {
     tableFrom: number;
-    table: MarkdownTable;
+    serialized: SerializedTable;
     target: TargetCell;
 }): ActiveCellSelectionTarget | null {
     const anchor = computeCellAnchorForTable({
-        table: params.table,
+        serialized: params.serialized,
         target: params.target,
     });
     return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;

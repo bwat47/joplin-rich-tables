@@ -1,5 +1,5 @@
 import { getCellRange, type TableCellRanges } from './markdownTableCellRanges';
-import type { MarkdownTable } from './MarkdownTable';
+import type { SerializedTable } from './MarkdownTable';
 import type { CellCoords } from './types';
 import { clamp } from '../shared/numberUtils';
 
@@ -56,15 +56,15 @@ export function computeCellAnchorFromRanges(params: {
 }
 
 /** A serialized table is rectangular, so clamping needs only its column and row counts. */
-function clampTargetToTable(table: MarkdownTable, target: TargetCell): TargetCell | null {
-    const colCount = table.columnCount;
+function clampTargetToTable(serialized: SerializedTable, target: TargetCell): TargetCell | null {
+    const colCount = serialized.columnCount;
     if (colCount <= 0) {
         return null;
     }
 
     const safeCol = clamp(target.col, 0, colCount - 1);
     // `rowCount` counts the header, so anything above 1 means the table has body rows.
-    const bodyRowCount = table.rowCount - 1;
+    const bodyRowCount = serialized.rowCount - 1;
     if (target.section === 'header' || bodyRowCount <= 0) {
         return { section: 'header', row: 0, col: safeCol };
     }
@@ -75,18 +75,18 @@ function clampTargetToTable(table: MarkdownTable, target: TargetCell): TargetCel
 /**
  * Builds a relative cell anchor against a table's canonical serialization.
  *
- * Callers hold the model that produced the text, so the anchor is computed from the
- * serialization format directly instead of parsing that text back into ranges.
+ * Takes the serialization rather than the model, so the anchor can only describe text the
+ * caller actually holds; nothing here parses that text back into ranges.
  */
 export function computeCellAnchorForTable(params: {
-    table: MarkdownTable;
+    serialized: SerializedTable;
     target: TargetCell;
 }): TableCellAnchor | null {
-    const clamped = clampTargetToTable(params.table, params.target);
+    const clamped = clampTargetToTable(params.serialized, params.target);
     if (!clamped) {
         return null;
     }
 
-    const anchorOffset = params.table.serializedCellOffset(clamped);
+    const anchorOffset = params.serialized.cellOffset(clamped);
     return anchorOffset === null ? null : { anchorOffset, ...clamped };
 }

@@ -76,16 +76,13 @@ function readCellContents(
 }
 
 /**
- * The canonical serialized row format. Cell offsets within `serialize()` output are derived
- * from these constants rather than by re-parsing, so both must change together.
+ * The canonical serialized row format. `serializeWithOffsets()` reports cell positions from
+ * these constants rather than by re-parsing its own output, so both must change together.
  */
 const ROW_PREFIX = '| ';
 const ROW_SEPARATOR = ' | ';
 const ROW_SUFFIX = ' |';
 const LINE_SEPARATOR = '\n';
-
-/** `serialize()` emits the header line and the separator line before any body row. */
-const HEADER_AND_SEPARATOR_LINES = 2;
 
 function normalizeRowCells(cells: readonly string[]): string[] {
     return cells.map(normalizeBrTags);
@@ -102,15 +99,6 @@ function joinSerializedRow(cells: readonly string[]): string {
     return ROW_PREFIX + cells.join(ROW_SEPARATOR) + ROW_SUFFIX;
 }
 
-function serializedRowLength(cells: readonly string[]): number {
-    if (cells.length === 0) {
-        return ROW_PREFIX.length + ROW_SUFFIX.length;
-    }
-
-    const separators = ROW_SEPARATOR.length * (cells.length - 1);
-    return cells.reduce((total, cell) => total + cell.length, ROW_PREFIX.length + ROW_SUFFIX.length + separators);
-}
-
 /** Offset of `col`'s content within `joinSerializedRow(cells)`. */
 function cellOffsetInSerializedRow(cells: readonly string[], col: number): number {
     let offset = ROW_PREFIX.length;
@@ -118,6 +106,17 @@ function cellOffsetInSerializedRow(cells: readonly string[], col: number): numbe
         offset += cells[index].length + ROW_SEPARATOR.length;
     }
     return offset;
+}
+
+/**
+ * A table's canonical serialization paired with the cell positions inside it.
+ * `cellOffset` is only meaningful against `text`, so the two travel together.
+ */
+export interface SerializedTable {
+    readonly text: string;
+    readonly columnCount: number;
+    readonly rowCount: number;
+    cellOffset(coords: CellCoords): number | null;
 }
 
 function cloneRows(rows: readonly (readonly string[])[]): string[][] {
@@ -284,16 +283,6 @@ function toPastedRect(geometry: PasteGeometry): TableRect {
 }
 
 export class MarkdownTable {
-    /**
-     * Serialized line lengths in output order, captured by `serialize()`.
-     *
-     * Cell offsets otherwise re-derive every preceding row, normalizing cells a second time
-     * purely to measure them. Callers that need an offset have usually just serialized this
-     * table, so the lengths are already known; a table that has not been serialized falls
-     * back to deriving them. Table data is immutable, so these can never go stale.
-     */
-    private serializedLineLengths: readonly number[] | null = null;
-
     private constructor(
         private readonly headersData: readonly string[],
         private readonly alignmentsData: readonly TableAlignment[],
@@ -386,59 +375,52 @@ export class MarkdownTable {
         return this.alignmentsData.map(separatorCellForAlignment);
     }
 
+    /** Normalized cells for every serialized line, in output order. */
+    private serializedRows(): string[][] {
+        return [
+            normalizeRowCells(this.headersData),
+            this.separatorCells(),
+            ...this.rowsData.map((row) => normalizeRowCells(row)),
+        ];
+    }
+
     serialize(): string {
-        const headerLine = joinSerializedRow(normalizeRowCells(this.headersData));
-        const separatorLine = joinSerializedRow(this.separatorCells());
-        const bodyLines = this.rowsData.map((row) => joinSerializedRow(normalizeRowCells(row)));
-        const lines = [headerLine, separatorLine, ...bodyLines];
-
-        this.serializedLineLengths = lines.map((line) => line.length);
-        return lines.join(LINE_SEPARATOR);
-    }
-
-    /** Sums the lengths of the `lineCount` serialized lines that precede a body row. */
-    private lengthOfLinesBefore(lineCount: number): number {
-        const captured = this.serializedLineLengths;
-        if (captured) {
-            let total = 0;
-            for (let line = 0; line < lineCount; line++) {
-                total += captured[line];
-            }
-            return total;
-        }
-
-        let total = serializedRowLength(normalizeRowCells(this.headersData));
-        total += serializedRowLength(this.separatorCells());
-        for (let bodyIndex = 0; bodyIndex < lineCount - HEADER_AND_SEPARATOR_LINES; bodyIndex++) {
-            total += serializedRowLength(normalizeRowCells(this.rowsData[bodyIndex]));
-        }
-        return total;
-    }
-
-    /** Start offset of a unified row's serialized line. Row 0 is the header. */
-    private serializedRowStart(rowIndex: number): number {
-        if (rowIndex === 0) {
-            return 0;
-        }
-
-        // Unified row N sits below the header and separator lines plus the N-1 body rows above it.
-        const lineCount = HEADER_AND_SEPARATOR_LINES + rowIndex - 1;
-        return this.lengthOfLinesBefore(lineCount) + LINE_SEPARATOR.length * lineCount;
+        return this.serializedRows().map(joinSerializedRow).join(LINE_SEPARATOR);
     }
 
     /**
-     * Offset of a cell's content within this table's `serialize()` output, or null when the
-     * cell does not exist. Computed from the format rather than by parsing the output back,
-     * so a caller holding a freshly serialized table never re-reads it.
+     * Serializes the table and reports where each cell landed in that exact output.
+     *
+     * Offsets come from the row format, never from parsing the output back. Pairing them with
+     * the text they describe is what makes that safe: the line measurements are taken during
+     * this call, so a caller cannot ask for an offset into a serialization it does not hold.
      */
-    serializedCellOffset(coords: CellCoords): number | null {
-        const rowIndex = toUnifiedRowIndex(coords.section, coords.row);
-        const cells = this.getUnifiedRow(rowIndex);
-        if (!cells || coords.col < 0 || coords.col >= cells.length) {
-            return null;
+    serializeWithOffsets(): SerializedTable {
+        const rows = this.serializedRows();
+        const lines = rows.map(joinSerializedRow);
+        const lineStarts: number[] = [];
+        let offset = 0;
+        for (const line of lines) {
+            lineStarts.push(offset);
+            offset += line.length + LINE_SEPARATOR.length;
         }
 
-        return this.serializedRowStart(rowIndex) + cellOffsetInSerializedRow(normalizeRowCells(cells), coords.col);
+        return {
+            text: lines.join(LINE_SEPARATOR),
+            columnCount: this.columnCount,
+            rowCount: this.rowCount,
+            cellOffset(coords: CellCoords): number | null {
+                const rowIndex = toUnifiedRowIndex(coords.section, coords.row);
+                // Unified row 0 is the header on line 0; row N is a body row below the separator.
+                const lineIndex = rowIndex === 0 ? 0 : rowIndex + 1;
+                const cells = rows[lineIndex];
+                if (!cells || coords.col < 0 || coords.col >= cells.length) {
+                    return null;
+                }
+
+                return lineStarts[lineIndex] + cellOffsetInSerializedRow(cells, coords.col);
+            },
+        };
     }
 
     insertColumn(colIndex: number, where: 'before' | 'after'): MarkdownTable {

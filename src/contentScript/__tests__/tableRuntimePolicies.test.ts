@@ -719,7 +719,7 @@ describe('tableRuntimePolicies', () => {
         const canonicalDoc = doc;
         const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
-            table: parseTableFixture(canonicalDoc),
+            serialized: parseTableFixture(canonicalDoc).serializeWithOffsets(),
             target: startActiveCell,
         });
         expect(nextActiveCell).not.toBeNull();

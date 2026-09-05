@@ -23,7 +23,7 @@ function sliceCellText(tableText: string, activeCell: ActiveCell): string {
 function requireActiveCell(tableText: string, target: CellTarget): ActiveCell {
     const activeCell = createActiveCellForTable({
         tableFrom: TABLE_FROM,
-        table: parseTableFixture(tableText),
+        serialized: parseTableFixture(tableText).serializeWithOffsets(),
         target,
     })?.activeCell;
 

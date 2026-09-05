@@ -60,17 +60,17 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
     if (newTableData === ctx.table) {
         return null;
     }
-    const newText = newTableData.serialize();
+    const serialized = newTableData.serializeWithOffsets();
 
     const nextActiveCell = createActiveCellForTable({
         tableFrom,
-        table: newTableData,
+        serialized,
         target: mutationResult.targetCell,
     });
     if (!nextActiveCell) {
         return null;
     }
-    const hasDocumentChange = newText !== text;
+    const hasDocumentChange = serialized.text !== text;
     if (!hasDocumentChange && isSameCellCoords(nextActiveCell.activeCell, cell)) {
         return null;
     }
@@ -79,7 +79,7 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
         kind: 'table',
         tableFrom,
         tableTo,
-        newText,
+        newText: serialized.text,
         hasDocumentChange,
         nextActiveCell,
     };

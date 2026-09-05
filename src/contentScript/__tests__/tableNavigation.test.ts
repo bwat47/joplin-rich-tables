@@ -1,6 +1,8 @@
 import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { vi, type Mock } from 'vitest';
+import type { MarkdownTable } from '../tableModel/MarkdownTable';
+import { parseTableFixture } from './testUtils';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
@@ -21,7 +23,7 @@ vi.mock('../tableRuntime/operations/structuralOperations', () => ({
 }));
 
 /**
- * The stub table serializes to exactly what it already spans, padding included, so entry
+ * The table serializes to exactly what it already spans, padding included, so entry
  * finds nothing to repair and these tests stay about navigation targets.
  */
 const TABLE_TEXT = '| header |\n| --- |\n| body |';
@@ -35,7 +37,7 @@ describe('navigateCell', () => {
         from: number;
         to: number;
         text: string;
-        table: { serialize: () => string };
+        table: MarkdownTable;
         cellRanges: {
             headers: Array<Record<string, never>>;
             rows: Array<Array<Record<string, never>>>;
@@ -91,7 +93,7 @@ describe('navigateCell', () => {
             from: 0,
             to: 100,
             text: PADDED_TABLE_TEXT,
-            table: { serialize: () => TABLE_TEXT },
+            table: parseTableFixture(TABLE_TEXT),
             cellRanges: {
                 headers,
                 rows: bodyRows,

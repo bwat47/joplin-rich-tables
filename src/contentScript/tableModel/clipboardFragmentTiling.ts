@@ -40,10 +40,7 @@ function tileAlignments(
     fragmentColCount: number,
     tiledColCount: number
 ): TableAlignment[] {
-    return Array.from(
-        { length: tiledColCount },
-        (_value, col) => alignments[col % fragmentColCount] ?? null
-    );
+    return Array.from({ length: tiledColCount }, (_value, col) => alignments[col % fragmentColCount] ?? null);
 }
 
 /**
