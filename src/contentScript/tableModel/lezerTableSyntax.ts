@@ -68,7 +68,8 @@ function buildRawCellRanges(
     const hasLeadingDelimiter = delimiters[0]?.from === row.from;
     const hasTrailingDelimiter = delimiters[delimiters.length - 1]?.from === rowTo - 1;
     const contentFrom = row.from + (hasLeadingDelimiter ? 1 : 0);
-    const contentTo = rowTo - (hasTrailingDelimiter ? 1 : 0);
+    // A lone pipe serves as both delimiters; its cell is empty rather than reversed.
+    const contentTo = Math.max(contentFrom, rowTo - (hasTrailingDelimiter ? 1 : 0));
     const internalDelimiters = delimiters.filter(
         (delimiter) => delimiter.from >= contentFrom && delimiter.from < contentTo
     );

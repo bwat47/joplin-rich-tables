@@ -97,6 +97,16 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('');
     });
 
+    it('uses a zero-width editable span for a body row containing only one pipe', () => {
+        const text = ['| a | b |', '| --- | --- |', '|'].join('\n');
+        const ranges = computeMarkdownTableCellRanges(text);
+
+        expect(ranges?.rows).toEqual([
+            [{ from: text.length, to: text.length, editableFrom: text.length, editableTo: text.length }],
+        ]);
+        expect(findCellForPos(ranges!, text.length)).toEqual({ section: 'body', row: 0, col: 0 });
+    });
+
     it('returns stable editable bounds for cells without canonical pad spaces', () => {
         const text = ['|foo|bar|', '|---|---|'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);
@@ -154,7 +164,7 @@ describe('computeMarkdownTableCellRanges', () => {
     it.each([
         ['space', String.raw`\ `],
         ['tab', '\\' + '\t'],
-    ])('keeps a Lezer-owned trailing %s inside semantic and editable bounds', (_label, suffix) => {
+    ])('reserves a delimiter-adjacent %s even when Lezer includes it in content', (_label, suffix) => {
         const finalCell = `value${suffix}`;
         const text = [`| a | ${finalCell}|`, '| --- | --- |'].join('\n');
         const ranges = computeMarkdownTableCellRanges(text);
@@ -163,9 +173,8 @@ describe('computeMarkdownTableCellRanges', () => {
 
         const range = ranges.headers[1];
         expect(sliceRange(text, range.from, range.to)).toBe(finalCell);
-        expect(sliceRange(text, range.editableFrom, range.editableTo)).toBe(finalCell);
-        expect(range.editableFrom).toBeLessThanOrEqual(range.from);
-        expect(range.editableTo).toBeGreaterThanOrEqual(range.to);
+        expect(sliceRange(text, range.editableFrom, range.editableTo)).toBe('value\\');
+        expect(sliceRange(text, range.editableTo, range.to)).toBe(suffix.slice(-1));
     });
 
     it('allows uneven row lengths', () => {

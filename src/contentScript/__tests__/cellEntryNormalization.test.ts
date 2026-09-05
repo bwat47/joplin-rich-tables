@@ -91,6 +91,28 @@ describe('entering a cell', () => {
         expect(transaction.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))).toBe(true);
     });
 
+    it.each([
+        ['space', ' '],
+        ['tab', '\t'],
+    ])('preserves an escaped source %s inside the normalized editable cells', (_label, padding) => {
+        const cellText = `value\\${padding}`;
+        const doc = [`| ${cellText}| next |`, '| --- | --- |', `| ${cellText}| next |`].join('\n');
+        const { transaction } = enterCell({ doc, tableFrom: 0 });
+        const ctx = resolveTableContextAtPos(transaction.state, 1);
+
+        expect(ctx?.text).toBe([`| ${cellText} | next |`, '| --- | --- |', `| ${cellText} | next |`].join('\n'));
+        expect(ctx?.table.headerCells).toEqual([cellText, 'next']);
+        expect(ctx?.table.bodyRows).toEqual([[cellText, 'next']]);
+        expect(ctx?.cellRanges.headers.map((range) => ctx.text.slice(range.editableFrom, range.editableTo))).toEqual([
+            cellText,
+            'next',
+        ]);
+        expect(ctx?.cellRanges.rows[0].map((range) => ctx.text.slice(range.editableFrom, range.editableTo))).toEqual([
+            cellText,
+            'next',
+        ]);
+    });
+
     it('opens the request that the repair landed on', () => {
         const { transaction } = enterCell({ doc: nonCanonicalTable, tableFrom: 0 });
 

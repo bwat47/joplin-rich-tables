@@ -29,8 +29,10 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
 
 - `from/to` use a `TableCell` span for non-empty content.
 - Empty cells receive a stable zero-width insertion point reconstructed from the raw delimiter gap.
-- `editableFrom/editableTo` remove at most one delimiter-adjacent ASCII space or tab on each side while always
-  containing the semantic bounds.
+- `editableFrom/editableTo` independently remove at most one delimiter-adjacent ASCII space or tab on each side.
+  Padding stays outside edits even when Lezer includes it in semantic content after a backslash, so deleting at the
+  cell's end cannot escape the next pipe. Entry normalization preserves source-owned escaped whitespace and adds
+  separate serialization padding around it.
 - Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
 `computeMarkdownTableCellRanges(text)` parses standalone text through the Lezer adapter to produce the same ranges.

@@ -36,7 +36,9 @@ content spans.
 The plugin remains authoritative for editor and application semantics:
 
 - Semantic content bounds use `TableCell`; empty-cell insertion points and editable bounds derive from raw delimiter
-  gaps. Editable bounds remove at most one adjacent ASCII space or tab on each side without excluding semantic content.
+  gaps. Editable bounds independently remove at most one adjacent ASCII space or tab on each side, even when Lezer
+  includes that padding in semantic content after a backslash. Keeping padding outside edits protects pipe delimiters.
+  Entry normalization preserves source-owned escaped whitespace and adds separate serialization padding around it.
 - Row extents exclude trailing ASCII spaces and tabs that lie outside the final `TableCell`. Lezer row nodes cover that
   padding, but it belongs to no cell: treating it as one detaches the closing pipe from the last cell and adds a phantom
   trailing column. Trimming never crosses syntax-owned content, including whitespace Lezer preserves after a backslash.

@@ -35,11 +35,7 @@ function emptyCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownT
     return { from: insertion, to: insertion };
 }
 
-function editableCellBounds(
-    text: string,
-    raw: MarkdownTableSourceRange,
-    semantic: MarkdownTableSourceRange
-): MarkdownTableSourceRange {
+function editableCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
     let from = raw.from;
     let to = raw.to;
 
@@ -50,19 +46,15 @@ function editableCellBounds(
         to--;
     }
 
-    // Delimiter-adjacent ASCII whitespace is normally layout padding, but Lezer can
-    // include it in TableCell content after an odd trailing backslash. The editable
-    // span must always contain the syntax-owned semantic span.
-    return {
-        from: Math.min(from, semantic.from),
-        to: Math.max(to, semantic.to),
-    };
+    // Keep padding outside edits even when Lezer includes it in TableCell after a
+    // backslash. Deleting that padding would escape the following pipe delimiter.
+    return { from, to };
 }
 
 function toCellRange(text: string, cell: MarkdownTableSyntaxCell, tableFrom: number): CellRange {
     const raw = offsetRange(cell.raw, tableFrom);
     const semantic = cell.content ? offsetRange(cell.content, tableFrom) : emptyCellBounds(text, raw);
-    const editable = editableCellBounds(text, raw, semantic);
+    const editable = editableCellBounds(text, raw);
 
     return {
         from: semantic.from,
