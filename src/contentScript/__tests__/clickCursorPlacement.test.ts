@@ -392,6 +392,47 @@ describe('rendered range mapping', () => {
         ).toBe('a [[link]](http://x) b');
     });
 
+    it('closes a construct whose opening syntax the range already holds', () => {
+        expect(
+            rangePlacement(cellDoc('foo and **nested markdown** and more'), cell, {
+                renderedText: 'foo and nested markdown and more',
+                anchor: 0,
+                head: 23,
+            })
+        ).toBe('[foo and **nested markdown**] and more');
+    });
+
+    it('opens a construct whose closing syntax the range already holds', () => {
+        expect(
+            rangePlacement(cellDoc('foo and **nested markdown** and more'), cell, {
+                renderedText: 'foo and nested markdown and more',
+                anchor: 8,
+                head: 32,
+            })
+        ).toBe('foo and [**nested markdown** and more]');
+    });
+
+    it('leaves syntax that has no partner outside a range that stops beside it', () => {
+        // The entity renders one character the range did not cover; nothing pairs it inwards.
+        expect(rangePlacement(cellDoc('a &amp; b'), cell, { renderedText: 'a & b', anchor: 0, head: 2 })).toBe(
+            '[a ]&amp; b'
+        );
+    });
+
+    it('closes every construct of a nested pair', () => {
+        expect(
+            rangePlacement(cellDoc('foo ***both*** bar'), cell, { renderedText: 'foo both bar', anchor: 0, head: 8 })
+        ).toBe('[foo ***both***] bar');
+    });
+
+    it('pairs markers through the alignment fallback', () => {
+        // Entities force the fallback, and the range still ends on the far side of the `**`.
+        const source = 'x &amp; y and **bold**<br>more';
+        expect(
+            rangePlacement(cellDoc(source), cell, { renderedText: 'x & y and bold\nmore', anchor: 0, head: 14 })
+        ).toBe('[x &amp; y and **bold**]\nmore');
+    });
+
     it('takes the whole cell text when the range covers every rendered character', () => {
         expect(rangePlacement(cellDoc('**bold**'), cell, { renderedText: 'bold', anchor: 0, head: 4 })).toBe(
             '[**bold**]'

@@ -3,7 +3,7 @@ import { unsanitizeRootText } from '../../shared/cellTextNormalization';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
 import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
-import { projectCellText } from './cellTextProjection';
+import { balanceSyntaxMarkers, projectCellText, type HiddenSyntaxSpan } from './cellTextProjection';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
 /**
@@ -53,7 +53,8 @@ export function resolveClickCursorPos(
  *
  * One alignment answers both ends, and `mapSelectionToSource` reads the span off the rendered
  * characters the drag covered, so the Markdown syntax around them is included at both ends or
- * neither. Direction is preserved: a backward drag opens the cell with a backward selection.
+ * neither, and `balanceSyntaxMarkers` keeps the range from holding half of a construct it
+ * reaches into. Direction is preserved: a backward drag opens the cell with a backward selection.
  */
 export function resolveRenderedSelection(
     state: EditorState,
@@ -66,11 +67,14 @@ export function resolveRenderedSelection(
     }
 
     const backward = hit.head < hit.anchor;
-    const span = mapSelectionToSource(
-        alignment.toLocal,
-        backward ? hit.head : hit.anchor,
-        backward ? hit.anchor : hit.head,
-        alignment.localLength
+    const span = balanceSyntaxMarkers(
+        mapSelectionToSource(
+            alignment.toLocal,
+            backward ? hit.head : hit.anchor,
+            backward ? hit.anchor : hit.head,
+            alignment.localLength
+        ),
+        alignment.hiddenSpans
     );
 
     return {
@@ -82,6 +86,8 @@ export function resolveRenderedSelection(
 interface RenderedCellAlignment {
     toLocal: Int32Array;
     localLength: number;
+    /** The cell's hidden syntax, for ranges that have to keep its markers paired. */
+    hiddenSpans: HiddenSyntaxSpan[];
 }
 
 function alignRenderedCellText(
@@ -101,15 +107,17 @@ function alignRenderedCellText(
 
     // The asynchronous renderer initially displays literal cell text.
     if (renderedText === localText) {
+        // Nothing is hidden while the literal text stands, so no range can split a marker pair.
         return {
             toLocal: Int32Array.from({ length: localText.length }, (_, index) => index),
             localLength: localText.length,
+            hiddenSpans: [],
         };
     }
 
     const projection = projectCellText(state, resolvedCell, rootText, localText);
     if (renderedText === projection.text) {
-        return { toLocal: projection.toLocal, localLength: localText.length };
+        return { toLocal: projection.toLocal, localLength: localText.length, hiddenSpans: projection.hiddenSpans };
     }
 
     // Align only against visible source spans. Hidden syntax cannot become an anchor,
@@ -122,5 +130,6 @@ function alignRenderedCellText(
     return {
         toLocal: Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset])),
         localLength: localText.length,
+        hiddenSpans: projection.hiddenSpans,
     };
 }

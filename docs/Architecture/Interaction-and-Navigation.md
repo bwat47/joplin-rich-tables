@@ -113,9 +113,11 @@ focusable with `tabIndex=-1`, so focusing it does not reset the range through th
 While a drag stays in its cell, the browser owns selection. Pointerup reads both endpoints from the same rendered-text
 index and maps them through one projection/alignment, preserving direction. A range is mapped from the characters it
 covers rather than as two carets, so the source span runs from the first covered character to just past the last:
-Markdown syntax is included where the selection spans it and excluded at both ends otherwise. A range covering every
-rendered character takes the whole cell text, syntax included. Unresolved hits preserve the established selection
-fallback.
+Markdown syntax is included where the selection spans it and excluded at both ends otherwise. An end then grows past
+trailing syntax when the range already holds the matching leading syntax, and likewise at the start, so a range never
+keeps one marker of a pair without the other; syntax with no partner, such as an entity or an image, is never drawn in.
+A range covering every rendered character takes the whole cell text, syntax included. Unresolved hits preserve the
+established selection fallback.
 
 Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears native
 text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
