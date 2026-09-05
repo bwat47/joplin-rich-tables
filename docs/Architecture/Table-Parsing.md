@@ -66,8 +66,10 @@ every value derived from it.
 
 `TableContext` is passive derived state and never rewrites the document. Canonicalization occurs only at existing cell
 entry, paste, or structural-operation boundaries. Existing adjacent pipe-free text is normalized as a row. Separately,
-transaction-aware boundary maintenance detects text typed or pasted into a previously blank line below a rendered
-table and restores spacing in the same transaction, keeping that new text outside the table.
+transaction-aware boundary maintenance detects text written into a previously blank line beside a rendered table and
+restores spacing in the same transaction, keeping that new text outside the table. It inspects every document change
+except composition, deletion, and undo/redo, because host commands such as Joplin's `insertText` - the path other
+plugins insert through - dispatch without a user event to match on.
 
 ## Active Cells and Structural Operations
 

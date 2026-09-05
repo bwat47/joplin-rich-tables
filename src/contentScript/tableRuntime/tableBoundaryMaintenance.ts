@@ -24,18 +24,34 @@ interface BoundaryPadding {
 const BOUNDARY_PADDING_NEWLINE = '\n';
 
 /**
- * Transactions this filter inspects: user input that is not already a plugin rewrite.
+ * User events whose transactions must never be padded.
  *
  * Composition is excluded because rewriting the document mid-composition breaks IME and
  * soft-keyboard input; if composition fills the boundary, cell entry normalization repairs it later.
- * Deletions are excluded too - they are protected by `mainEditorTableEntry` instead, and
- * undo must be able to reach the document as the user last left it.
+ * Deletions are protected by `mainEditorTableEntry` instead, and undo must be able to reach the
+ * document as the user last left it.
+ */
+const EXCLUDED_USER_EVENTS = ['input.type.compose', 'delete', 'undo', 'redo'] as const;
+
+/**
+ * Transactions this filter inspects: document changes that are neither an excluded event nor a
+ * plugin rewrite.
+ *
+ * The excluded events are named individually rather than the wanted ones because a host command
+ * can write into the note with no user event at all: Joplin's `insertText` and `replaceSelection`
+ * commands - the ones other plugins insert text through - dispatch `state.replaceSelection` with an
+ * undefined `userEvent`, which CodeMirror drops rather than annotating. Matching on `input` would
+ * skip every such insertion, leaving a table unseparated from the text written against it.
+ *
+ * Widening the gate this way lets rewrites from the plugin's own transaction filters through as
+ * well, since those rebuild a transaction without its annotations. That is safe because padding is
+ * decided against the post-change document, so a rewrite that already spaced its table is left
+ * alone.
  */
 function isBoundaryMaintenanceCandidate(transaction: Transaction): boolean {
     return (
         transaction.docChanged &&
-        transaction.isUserEvent('input') &&
-        !transaction.isUserEvent('input.type.compose') &&
+        !EXCLUDED_USER_EVENTS.some((event) => transaction.isUserEvent(event)) &&
         !transaction.annotation(syncAnnotation) &&
         !transaction.annotation(normalizeBeforeEditAnnotation) &&
         hasPlainRenderedTableCaret(transaction.startState)
@@ -144,7 +160,7 @@ function buildPaddedTransaction(transaction: Transaction, padding: BoundaryPaddi
 }
 
 /**
- * Restores the blank line a table needs when typing or pasting fills it in.
+ * Restores the blank line a table needs when typing, pasting, or a host command fills it in.
  *
  * The separation a table keeps from its neighbours is protected against deletion by
  * `mainEditorTableEntry` and repaired on cell entry by `tableCanonicalForm`; this closes the
