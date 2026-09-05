@@ -1,7 +1,7 @@
 import type { EditorState } from '@codemirror/state';
 import { unsanitizeRootText } from '../../shared/cellTextNormalization';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
-import { alignRenderedToSource, mapCaretToSource } from '../../shared/textAlignment';
+import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
 import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
 import { projectCellText } from './cellTextProjection';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -42,25 +42,53 @@ export function resolveClickCursorPos(
         return undefined;
     }
 
-    const mapOffset = createRenderedOffsetMapper(state, resolvedCell, hit.renderedText);
-    return mapOffset ? { localOffset: mapOffset(hit.renderedOffset) } : undefined;
+    const alignment = alignRenderedCellText(state, resolvedCell, hit.renderedText);
+    return alignment
+        ? { localOffset: mapCaretToSource(alignment.toLocal, hit.renderedOffset, alignment.localLength) }
+        : undefined;
 }
 
-/** Uses one projection/alignment for both endpoints, including backward selections. */
+/**
+ * Resolves the range a rendered-text drag selected into the cell's own text.
+ *
+ * One alignment answers both ends, and `mapSelectionToSource` reads the span off the rendered
+ * characters the drag covered, so the Markdown syntax around them is included at both ends or
+ * neither. Direction is preserved: a backward drag opens the cell with a backward selection.
+ */
 export function resolveRenderedSelection(
     state: EditorState,
     resolvedCell: ResolvedActiveCell,
     hit: RenderedSelectionHit
 ): InitialCursorPos | undefined {
-    const mapOffset = createRenderedOffsetMapper(state, resolvedCell, hit.renderedText);
-    return mapOffset ? { localSelection: { anchor: mapOffset(hit.anchor), head: mapOffset(hit.head) } } : undefined;
+    const alignment = alignRenderedCellText(state, resolvedCell, hit.renderedText);
+    if (!alignment) {
+        return undefined;
+    }
+
+    const backward = hit.head < hit.anchor;
+    const span = mapSelectionToSource(
+        alignment.toLocal,
+        backward ? hit.head : hit.anchor,
+        backward ? hit.anchor : hit.head,
+        alignment.localLength
+    );
+
+    return {
+        localSelection: backward ? { anchor: span.to, head: span.from } : { anchor: span.from, head: span.to },
+    };
 }
 
-function createRenderedOffsetMapper(
+/** Where each rendered character sits in the cell's own text; -1 where it has no anchor. */
+interface RenderedCellAlignment {
+    toLocal: Int32Array;
+    localLength: number;
+}
+
+function alignRenderedCellText(
     state: EditorState,
     resolvedCell: ResolvedActiveCell,
     renderedText: string
-): ((offset: number) => number) | undefined {
+): RenderedCellAlignment | undefined {
     // Projection offsets must use the decoded text that the nested editor opens.
     const rootText = state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo);
     const localText = unsanitizeRootText(rootText);
@@ -73,12 +101,15 @@ function createRenderedOffsetMapper(
 
     // The asynchronous renderer initially displays literal cell text.
     if (renderedText === localText) {
-        return (offset) => Math.max(0, Math.min(offset, localText.length));
+        return {
+            toLocal: Int32Array.from({ length: localText.length }, (_, index) => index),
+            localLength: localText.length,
+        };
     }
 
     const projection = projectCellText(state, resolvedCell, rootText, localText);
     if (renderedText === projection.text) {
-        return (offset) => mapCaretToSource(projection.toLocal, offset, localText.length);
+        return { toLocal: projection.toLocal, localLength: localText.length };
     }
 
     // Align only against visible source spans. Hidden syntax cannot become an anchor,
@@ -87,6 +118,9 @@ function createRenderedOffsetMapper(
     if (!alignment || alignment.matchedRatio < MIN_MATCHED_RATIO) {
         return undefined;
     }
-    const toLocal = Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset]));
-    return (offset) => mapCaretToSource(toLocal, offset, localText.length);
+
+    return {
+        toLocal: Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset])),
+        localLength: localText.length,
+    };
 }

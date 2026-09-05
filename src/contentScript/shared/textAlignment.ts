@@ -269,3 +269,49 @@ export function mapCaretToSource(toSource: Int32Array, caret: number, sourceLeng
 
     return after - caret <= caret - 1 - before ? toSource[after] : toSource[before] + 1;
 }
+
+/** A source range, as the offsets the nested editor should select between. */
+export interface SourceSpan {
+    from: number;
+    to: number;
+}
+
+/**
+ * Maps a selected range of rendered text to the source span covering it.
+ *
+ * A range is mapped from the characters it holds rather than by mapping each end as a caret.
+ * A caret at the seam between a matched run and hidden syntax has two equally good answers and
+ * takes the one after it, which is right for a caret but pulls a range's end across the syntax
+ * that follows it: selecting `bold text` out of `**bold text** aaa` would reach source offsets
+ * either side of the closing `**` and select `bold text**`. Reading the span off the covered
+ * characters instead makes both ends answer the same question - where the selected text begins
+ * and ends in the source - so syntax comes along only where the selection actually spans it.
+ *
+ * A range covering every rendered character takes the whole source, keeping both pins of
+ * {@link mapCaretToSource}: select-all inside a cell still selects its Markdown entire, and
+ * being both ends at once it stays symmetric.
+ *
+ * A range holding no aligned character at all - a run of emoji or a formula, where there is
+ * nothing to read a span off - falls back to mapping each end as a caret.
+ */
+export function mapSelectionToSource(toSource: Int32Array, from: number, to: number, sourceLength: number): SourceSpan {
+    if (from <= 0 && to >= toSource.length) {
+        return { from: 0, to: sourceLength };
+    }
+
+    let first = -1;
+    let last = -1;
+    for (let i = Math.max(from, 0); i < Math.min(to, toSource.length); i++) {
+        if (toSource[i] < 0) {
+            continue;
+        }
+        if (first < 0) {
+            first = toSource[i];
+        }
+        last = toSource[i];
+    }
+
+    return first < 0
+        ? { from: mapCaretToSource(toSource, from, sourceLength), to: mapCaretToSource(toSource, to, sourceLength) }
+        : { from: first, to: last + 1 };
+}

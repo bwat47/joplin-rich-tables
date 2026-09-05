@@ -1,7 +1,12 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi } from 'vitest';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
-import { indexRenderedText, flatOffsetFromDomPosition, type RenderedCaretHit } from '../tableWidget/cellCaretHit';
+import {
+    indexRenderedText,
+    flatOffsetFromDomPosition,
+    type RenderedCaretHit,
+    type RenderedSelectionHit,
+} from '../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
@@ -119,6 +124,27 @@ function placement(doc: string, coords: CellCoords, hit: RenderedCaretHit | null
         throw new Error(`Expected an offset placement, got ${pos}`);
     }
     return `${cellText.slice(0, pos.localOffset)}|${cellText.slice(pos.localOffset)}`;
+}
+
+/** As {@link placement}, with the mapped range bracketed rather than a caret marked. */
+function rangePlacement(doc: string, coords: CellCoords, hit: RenderedSelectionHit): string {
+    const { state, resolvedCell } = resolveCell(doc, coords);
+    const cellText = unsanitizeRootText(state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo));
+    const pos = resolveRenderedSelection(state, resolvedCell, hit);
+    if (pos === undefined) {
+        return '<mirrored>';
+    }
+    if (typeof pos !== 'object' || !('localSelection' in pos)) {
+        throw new Error(`Expected a range placement, got ${JSON.stringify(pos)}`);
+    }
+    const { anchor, head } = pos.localSelection;
+    const [from, to] = anchor <= head ? [anchor, head] : [head, anchor];
+    return `${cellText.slice(0, from)}[${cellText.slice(from, to)}]${cellText.slice(to)}`;
+}
+
+/** A one-cell table whose only body cell holds `source`. */
+function cellDoc(source: string): string {
+    return ['', '| H1 |', '| --- |', `| ${source} |`, ''].join('\n');
 }
 
 describe('resolveClickCursorPos', () => {
@@ -320,11 +346,55 @@ describe('syntax-aware click placement', () => {
 });
 
 describe('rendered range mapping', () => {
+    const cell: CellCoords = { section: 'body', row: 0, col: 0 };
+
     it('maps a backward range through the alignment fallback', () => {
         const doc = ['', '| H1 |', '| --- |', '| **hello** &amp; world |', ''].join('\n');
-        const { state, resolvedCell } = resolveCell(doc, { section: 'body', row: 0, col: 0 });
+        const { state, resolvedCell } = resolveCell(doc, cell);
         expect(
             resolveRenderedSelection(state, resolvedCell, { renderedText: 'hello & world', anchor: 11, head: 2 })
         ).toEqual({ localSelection: { anchor: 19, head: 4 } });
+    });
+
+    it('leaves the delimiters of a fully selected formatted word outside both ends', () => {
+        expect(
+            rangePlacement(cellDoc('test **bold text** aaa'), cell, {
+                renderedText: 'test bold text aaa',
+                anchor: 5,
+                head: 14,
+            })
+        ).toBe('test **[bold text]** aaa');
+    });
+
+    it('maps the same range the same way when it was dragged backwards', () => {
+        expect(
+            rangePlacement(cellDoc('test **bold text** aaa'), cell, {
+                renderedText: 'test bold text aaa',
+                anchor: 14,
+                head: 5,
+            })
+        ).toBe('test **[bold text]** aaa');
+    });
+
+    it('takes the syntax a range spans over rather than the syntax around it', () => {
+        expect(
+            rangePlacement(cellDoc('test **bold text** aaa'), cell, {
+                renderedText: 'test bold text aaa',
+                anchor: 2,
+                head: 12,
+            })
+        ).toBe('te[st **bold te]xt** aaa');
+    });
+
+    it('selects a link’s label without its target', () => {
+        expect(
+            rangePlacement(cellDoc('a [link](http://x) b'), cell, { renderedText: 'a link b', anchor: 2, head: 6 })
+        ).toBe('a [[link]](http://x) b');
+    });
+
+    it('takes the whole cell text when the range covers every rendered character', () => {
+        expect(rangePlacement(cellDoc('**bold**'), cell, { renderedText: 'bold', anchor: 0, head: 4 })).toBe(
+            '[**bold**]'
+        );
     });
 });

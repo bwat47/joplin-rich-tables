@@ -111,9 +111,11 @@ presses out of CodeMirror's default mouse handling without cancelling native bro
 focusable with `tabIndex=-1`, so focusing it does not reset the range through the outer editor's focus handler.
 
 While a drag stays in its cell, the browser owns selection. Pointerup reads both endpoints from the same rendered-text
-index and maps them through one projection/alignment, preserving direction. Both endpoints use the existing caret
-boundary policy: selecting an entire formatted word includes its Markdown delimiters. Unresolved hits preserve the
-established selection fallback.
+index and maps them through one projection/alignment, preserving direction. A range is mapped from the characters it
+covers rather than as two carets, so the source span runs from the first covered character to just past the last:
+Markdown syntax is included where the selection spans it and excluded at both ends otherwise. A range covering every
+rendered character takes the whole cell text, syntax included. Unresolved hits preserve the established selection
+fallback.
 
 Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears native
 text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
