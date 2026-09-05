@@ -38,12 +38,17 @@ function createState(doc: string, options: { effects?: StateEffect<unknown>[] } 
     return options.effects?.length ? state.update({ effects: options.effects }).state : state;
 }
 
-/** Applies `text` at `pos` the way the editor reports typed or pasted input. */
-function input(state: EditorState, pos: number, text: string, userEvent = 'input.type'): Transaction {
+/**
+ * Applies `text` at `pos`.
+ *
+ * `userEvent` is left off to mirror a host command such as Joplin's `insertText`, which
+ * dispatches without one.
+ */
+function input(state: EditorState, pos: number, text: string, userEvent?: string): Transaction {
     return state.update({
         changes: { from: pos, insert: text },
         selection: { anchor: pos + text.length },
-        userEvent,
+        ...(userEvent ? { userEvent } : {}),
     });
 }
 
@@ -55,7 +60,7 @@ function blankLinePos(doc: string, followingText: string): number {
 describe('table boundary maintenance', () => {
     it('restores the blank line when text is typed above a table', () => {
         const doc = `intro\n\n${TABLE}\n`;
-        const transaction = input(createState(doc), blankLinePos(doc, TABLE), 'x');
+        const transaction = input(createState(doc), blankLinePos(doc, TABLE), 'x', 'input.type');
 
         expect(transaction.state.doc.toString()).toBe(`intro\nx\n\n${TABLE}\n`);
     });
@@ -63,6 +68,10 @@ describe('table boundary maintenance', () => {
     it.each([
         { label: 'typed', userEvent: 'input.type' },
         { label: 'pasted', userEvent: 'input.paste' },
+        { label: 'dropped', userEvent: 'input.drop' },
+        // Joplin's `insertText`/`replaceSelection` commands, which other plugins insert
+        // through, dispatch without a user event.
+        { label: 'inserted by a host command', userEvent: undefined },
     ])('restores the blank line when text is $label below a table', ({ userEvent }) => {
         const doc = `\n${TABLE}\n\nafter`;
         const transaction = input(createState(doc), blankLinePos(doc, 'after'), 'x', userEvent);
@@ -75,7 +84,7 @@ describe('table boundary maintenance', () => {
     it('keeps the caret with the typed text', () => {
         const doc = `intro\n\n${TABLE}\n`;
         const pos = blankLinePos(doc, TABLE);
-        const transaction = input(createState(doc), pos, 'xy');
+        const transaction = input(createState(doc), pos, 'xy', 'input.type');
 
         expect(transaction.state.selection.main.head).toBe(pos + 'xy'.length);
         expect(transaction.state.doc.lineAt(transaction.state.selection.main.head).text).toBe('xy');
@@ -155,7 +164,7 @@ describe('table boundary maintenance', () => {
 
     it('takes back the typed text and the padding in one undo', () => {
         const doc = `intro\n\n${TABLE}\n`;
-        const state = input(createState(doc), blankLinePos(doc, TABLE), 'x').state;
+        const state = input(createState(doc), blankLinePos(doc, TABLE), 'x', 'input.type').state;
 
         let undone = state;
         undo({ state, dispatch: (transaction) => (undone = transaction.state) });
@@ -174,5 +183,27 @@ describe('table boundary maintenance', () => {
         const text = transaction.state.doc.toString();
 
         expect(text).toBe(`intro\n\n${TABLE}\n\n${TABLE}\n`);
+    });
+
+    it.each([
+        { label: 'undo', userEvent: 'undo' },
+        { label: 'redo', userEvent: 'redo' },
+    ])('leaves a $label transaction alone', ({ userEvent }) => {
+        const doc = `intro\n\n${TABLE}\n`;
+        const transaction = input(createState(doc), blankLinePos(doc, TABLE), 'x', userEvent);
+
+        expect(transaction.state.doc.toString()).toBe(`intro\nx\n${TABLE}\n`);
+    });
+
+    it('leaves a full document replacement alone', () => {
+        const doc = `intro\n\n${TABLE}\n`;
+        const replacement = `intro\nx\n${TABLE}\n`;
+        const state = createState(doc);
+        const transaction = state.update({
+            changes: { from: 0, to: state.doc.length, insert: replacement },
+            selection: { anchor: 0 },
+        });
+
+        expect(transaction.state.doc.toString()).toBe(replacement);
     });
 });
