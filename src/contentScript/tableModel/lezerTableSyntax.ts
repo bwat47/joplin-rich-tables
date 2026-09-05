@@ -47,9 +47,23 @@ function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: numbe
 }
 
 /**
+ * An odd trailing backslash makes Lezer include the following space or tab inside `TableCell`.
+ * That pad is layout, not content: keeping it would widen the cell on every round trip and
+ * surface the pad character inside the cell editor. Every other cell shape already arrives
+ * trimmed, so this only rewrites the quirk. Returns null when nothing but padding is left.
+ */
+function toContentRange(source: TableTextSource, node: SyntaxNode, tableFrom: number): MarkdownTableSourceRange | null {
+    let to = node.to;
+    while (to > node.from && isTablePadding(source.text[to - 1 - source.base])) {
+        to--;
+    }
+    return to > node.from ? { from: node.from - tableFrom, to: to - tableFrom } : null;
+}
+
+/**
  * Lezer row nodes cover trailing padding, which normally belongs to no cell.
- * An odd trailing backslash can make Lezer include a following space or tab in
- * the final TableCell, so trimming must never cross that syntax-owned content.
+ * The floor is the final TableCell's own end, so a row never trims inside a cell node
+ * even where that node holds the pad an odd backslash pulled in.
  */
 function trimRowEnd(source: TableTextSource, row: SyntaxNode, contentNodes: readonly SyntaxNode[]): number {
     let to = row.to;
@@ -140,7 +154,7 @@ function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: n
 
         cells.push({
             raw: { from: raw.from - tableFrom, to: raw.to - tableFrom },
-            content: contentNode ? toRelativeRange(contentNode, tableFrom) : null,
+            content: contentNode ? toContentRange(source, contentNode, tableFrom) : null,
         });
     }
 

@@ -45,8 +45,8 @@ function editableCellBounds(text: string, raw: MarkdownTableSourceRange): Markdo
         to--;
     }
 
-    // Keep padding outside edits even when Lezer includes it in TableCell after a
-    // backslash. Deleting that padding would escape the following pipe delimiter.
+    // Bounds come from the raw delimiter gap, so one pad character stays outside edits on
+    // each side. Deleting it could escape the following pipe after a trailing backslash.
     return { from, to };
 }
 

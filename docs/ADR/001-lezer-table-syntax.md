@@ -35,13 +35,14 @@ content spans.
 
 The plugin remains authoritative for editor and application semantics:
 
-- Semantic content bounds use `TableCell`; empty-cell insertion points and editable bounds derive from raw delimiter
-  gaps. Editable bounds independently remove at most one adjacent ASCII space or tab on each side, even when Lezer
-  includes that padding in semantic content after a backslash. Keeping padding outside edits protects pipe delimiters.
-  Entry normalization preserves source-owned escaped whitespace and adds separate serialization padding around it.
+- Semantic content bounds use `TableCell` minus trailing ASCII padding. An odd trailing backslash makes Lezer pull the
+  following space or tab into the node; that pad is layout, so treating it as content would widen the cell on every
+  round trip and show the pad inside the cell editor. Empty-cell insertion points and editable bounds derive from raw
+  delimiter gaps, independently removing at most one adjacent ASCII space or tab per side. Keeping padding outside
+  edits protects pipe delimiters.
 - Row extents exclude trailing ASCII spaces and tabs that lie outside the final `TableCell`. Lezer row nodes cover that
   padding, but it belongs to no cell: treating it as one detaches the closing pipe from the last cell and adds a phantom
-  trailing column. Trimming never crosses syntax-owned content, including whitespace Lezer preserves after a backslash.
+  trailing column. Trimming stops at the final `TableCell` node, including the pad an odd backslash pulls into it.
 - The normalized rectangular grid, alignment values, structural operations, and canonical serialization remain in
   `MarkdownTable`.
 - Cell offsets within a serialized table are derived from the canonical row format, never by parsing that

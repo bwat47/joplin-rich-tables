@@ -131,15 +131,16 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
     it.each([
         ['space', String.raw`\ `],
         ['tab', '\\' + '\t'],
-    ])('reserves a delimiter-adjacent %s even when Lezer includes it in content', (_label, suffix) => {
-        const finalCell = `value${suffix}`;
-        const text = [`| a | ${finalCell}|`, '| --- | --- |'].join('\n');
+    ])('keeps a delimiter-adjacent %s out of both content and edits', (_label, suffix) => {
+        const text = [`| a | value${suffix}|`, '| --- | --- |'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
         const range = ranges.headers[1];
-        expect(text.slice(range.from, range.to)).toBe(finalCell);
+        // Semantic and editable bounds agree, and the reserved pad still separates the
+        // cell from its closing pipe so an edit at the end cannot escape the delimiter.
+        expect(text.slice(range.from, range.to)).toBe('value\\');
         expect(text.slice(range.editableFrom, range.editableTo)).toBe('value\\');
-        expect(text.slice(range.editableTo, range.to)).toBe(suffix.slice(-1));
+        expect(text.slice(range.editableTo, range.editableTo + 2)).toBe(`${suffix.slice(-1)}|`);
     });
 });
 

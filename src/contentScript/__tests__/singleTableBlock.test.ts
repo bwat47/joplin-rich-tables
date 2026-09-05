@@ -26,13 +26,12 @@ describe('parseSingleTableBlock', () => {
     it.each([
         ['space', String.raw`\ `],
         ['tab', '\\' + '\t'],
-    ])('preserves a trailing %s that Lezer includes in clipboard cell content', (_label, suffix) => {
-        const finalCell = `value${suffix}`;
-        const text = [`a | ${finalCell}`, '--- | ---  ', `b | ${finalCell}`].join('\n');
+    ])('drops the trailing %s Lezer pulls past a backslash in clipboard cells', (_label, suffix) => {
+        const text = [`a | value${suffix}`, '--- | ---  ', `b | value${suffix}`].join('\n');
         const table = parseSingleTableBlock(text);
 
-        expect(table?.headerCells).toEqual(['a', finalCell]);
-        expect(table?.bodyRows).toEqual([['b', finalCell]]);
+        expect(table?.headerCells).toEqual(['a', 'value\\']);
+        expect(table?.bodyRows).toEqual([['b', 'value\\']]);
     });
 
     it('rejects multiple tables separated by blank lines', () => {

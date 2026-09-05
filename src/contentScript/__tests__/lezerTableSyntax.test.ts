@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
 
 function parse(text: string) {
@@ -95,13 +96,25 @@ describe('parseRootMarkdownTableSyntax', () => {
     it.each([
         ['a space', String.raw`\ `],
         ['a tab', '\\' + '\t'],
-    ])('preserves trailing %s that Lezer includes in cell content', (_label, suffix) => {
-        const finalCell = `value${suffix}`;
-        const text = [`a | ${finalCell}`, '--- | ---', `b | ${finalCell}`].join('\n');
+    ])('trims the trailing %s Lezer pulls in after a backslash', (_label, suffix) => {
+        // An odd trailing backslash makes Lezer widen TableCell over the following pad.
+        // That pad is layout: keeping it would grow the cell on every serialization round
+        // trip and surface the pad character inside the cell editor.
+        const text = [`a | value${suffix}`, '--- | ---', `b | value${suffix}`].join('\n');
         const parsed = parse(text);
 
-        expect(cellContent(text, parsed.from, parsed.syntax.header.cells[1])).toBe(finalCell);
-        expect(cellContent(text, parsed.from, parsed.syntax.bodyRows[0].cells[1])).toBe(finalCell);
+        expect(cellContent(text, parsed.from, parsed.syntax.header.cells[1])).toBe('value\\');
+        expect(cellContent(text, parsed.from, parsed.syntax.bodyRows[0].cells[1])).toBe('value\\');
+    });
+
+    it('keeps a cell ending in a backslash stable across serialization', () => {
+        // Treating Lezer's pad as content grew the cell by a space on first entry, which then
+        // showed up inside the cell editor. Canonical source must be a fixed point instead.
+        const text = ['| abc\\ | next |', '| --- | --- |', '| x | y |'].join('\n');
+        const table = MarkdownTable.parse(text);
+
+        expect(table?.headerCells[0]).toBe('abc\\');
+        expect(table?.serialize()).toBe(text);
     });
 
     it('allows outer whitespace and reports the table source range', () => {
