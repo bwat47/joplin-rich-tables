@@ -1,5 +1,5 @@
 import { MarkdownTable, type TableAlignment } from './MarkdownTable';
-import type { TargetCell } from './activeCellForTableText';
+import type { TargetCell } from './cellAnchors';
 import type { CellCoords } from './types';
 import type { TableSortDirection } from './rawMarkdownSort';
 

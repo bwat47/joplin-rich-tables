@@ -1,6 +1,6 @@
 import { bench, describe } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeCellAnchorForTable } from '../tableModel/activeCellForTableText';
+import { computeCellAnchorForTable } from '../tableModel/cellAnchors';
 import { resolveTableContextAtPos, findTableRanges } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from '../__tests__/testMarkdownState';
 

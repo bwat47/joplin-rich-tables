@@ -5,7 +5,7 @@ import {
     computeCellAnchorFromRanges,
     type TargetCell,
     type TableCellAnchor,
-} from '../../tableModel/activeCellForTableText';
+} from '../../tableModel/cellAnchors';
 import type { ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import { createResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
