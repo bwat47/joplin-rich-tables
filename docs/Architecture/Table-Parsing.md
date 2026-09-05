@@ -1,86 +1,78 @@
 # Table Parsing
 
-Lezer locates table blocks; plugin-owned parsing computes cell boundaries, source ranges, and table semantics. The decision rationale is covered in [ADR-001](../ADR/001-table-row-scanner.md); this document describes the implementation path.
+Lezer owns Markdown table syntax; the plugin projects those facts into editable ranges and a normalized table model.
+See [ADR-001](../ADR/001-lezer-table-syntax.md) for the decision rationale.
 
-## Single Source of Truth: Row Scanning
+## Syntax Adapter
 
-`scanMarkdownTableRow()` (`src/contentScript/tableModel/markdownTableRowScanner.ts`) is the only place that determines where cell boundaries are:
+`lezerTableSyntax.ts` exposes a read-only, table-relative `MarkdownTableSyntax` value:
 
-- Iterates a row string and returns indices of unescaped `|` delimiters.
-- Treats `\|` as literal content inside a cell.
+- `TableHeader` and direct `TableRow` nodes define row membership.
+- Direct row `TableDelimiter` children define raw cell gaps, including adjacent empty cells.
+- Optional `TableCell` children define non-empty semantic content spans after trailing ASCII spaces and tabs are removed.
+- The table-level separator node supplies the already validated alignment-row source.
 
-Everything else in the table model layer builds on this scanner (don’t split on `|` manually).
+Document resolution extracts this value from the existing CodeMirror tree and accepts only `Table` nodes directly
+under `Document`. Tables inside lists, blockquotes, or other containers are not rendered. Clipboard parsing uses a
+shared GFM Lezer parser and accepts exactly one root table plus optional outer whitespace.
 
-## Computing Cell Ranges (Editing Coordinates)
+Row spans exclude trailing ASCII spaces and tabs outside the final `TableCell`. Lezer row nodes cover that padding, but
+it belongs to no cell: counting it detaches the closing pipe from the last cell and yields a phantom trailing column.
+Row trimming stops at the final `TableCell` node, including any padding Lezer pulls in after an odd trailing backslash.
+Semantic content spans exclude that padding even though it remains inside the row span.
 
-`computeMarkdownTableCellRanges()` (`src/contentScript/tableModel/markdownTableCellRanges.ts`) converts table text into source ranges:
+The adapter fails closed on unexpected tree shapes. A direct `TableRow` without pipe delimiters becomes one raw cell,
+matching Lezer's treatment of pipe-free lines adjacent to a table.
 
-- Filters to non-empty lines (matching the parser’s behavior).
-- Validates the separator row with `isSeparatorRow()`, but intentionally does not return ranges for the separator row.
-- Trims outer whitespace and ignores leading/trailing pipes.
-- Produces two bounds per cell:
-    - `from/to`: trimmed semantic content bounds used for parsing/rendering.
-    - `editableFrom/editableTo`: editing bounds used by the nested editor and selection sync.
-- Editable bounds hide one delimiter-adjacent pad character per side while preserving any additional leading/trailing whitespace the user typed into the cell.
-- For empty or whitespace-only cells, editable bounds collapse to a stable insertion point so edits don’t “stick” directly to a pipe in the plugin’s canonical padded format.
+## Cell Ranges
 
-These ranges are used for:
+`computeMarkdownTableCellRangesFromSyntax()` converts syntax spans into editing coordinates relative to the supplied
+text, rebasing them when the table starts at a nonzero offset:
 
-- Mapping positions back to cell coordinates (`findCellForPos()`), using the editable span.
-- Resolving a cell’s semantic/editable ranges (`getCellRange()`).
-- Deriving live semantic/editable document spans for logical active-cell state.
+- `from/to` use a `TableCell` span minus trailing ASCII padding for non-empty content.
+- Empty cells receive a stable zero-width insertion point reconstructed from the raw delimiter gap.
+- `editableFrom/editableTo` independently remove at most one delimiter-adjacent ASCII space or tab on each side.
+  This keeps padding outside edits so a trailing backslash cannot escape the next pipe. The space or tab Lezer pulls
+  into `TableCell` after an odd trailing backslash is excluded from semantic content. Entry normalization therefore
+  writes only the canonical serialization padding, keeping repeated serialization stable.
+- Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
-## Parsing to a Structured Table Model
+Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds. Tests compose the Lezer
+parser and range projection through `parseCellRangesFixture()` in their shared utilities. The resulting ranges also
+provide an independent check of `MarkdownTable.serializedCellOffset()` arithmetic.
 
-`MarkdownTable.parse()` (`src/contentScript/tableModel/MarkdownTable.ts`) produces the canonical runtime table model:
+## Normalized Model
 
-- Validates basic shape (header row contains `|`, second row is a separator row).
-- Parses column alignments from the separator row (`:---`, `:---:`, `---:`, `---`) using a dedicated separator-row parser.
-- Extracts header/body cell content by slicing the original text with `computeMarkdownTableCellRanges()` so displayed content and edit ranges stay consistent.
-- Normalizes ragged input immediately so headers, alignments, and body rows always share the same effective column count.
+`MarkdownTable.fromSyntax()` reads cell content from syntax spans and alignment markers from the separator-node source.
+It then pads the header, alignments, and body rows to a rectangular grid. A pipe-free row is consequently padded to the
+table width and serializes canonically—for example, `text` in a two-column table becomes `| text |  |`.
 
-## Shared `TableContext`
+`MarkdownTable.parse(text)` delegates to the shared Lezer parser and is reached only from clipboard handling. Lezer
+validates table and separator syntax; the model does not maintain a competing row scanner or separator validator.
 
-`buildTableContext()` (`src/contentScript/tableModel/tableContext.ts`) is the shared entry point for consumers that need both the parsed table model and editing coordinates.
+`MarkdownTable.serialize()` writes the canonical row format, and `MarkdownTable.serializedCellOffset()` reports where a
+cell lands in that output using the same format constants. Callers that have just serialized a table therefore locate a
+cell without parsing their own output back.
 
-It returns:
+## Runtime Resolution and Context
 
-- The resolved table span (`from`, `to`, `text`).
-- The parsed `MarkdownTable`.
-- The computed `cellRanges`.
+`tableResolution.ts` returns a root-classified span and its syntax node, reading no source text. Point lookup and
+full-document discovery therefore share the same range and root classification, and callers that only test containment
+pay nothing more.
 
-This avoids duplicated resolve/parse/range work across:
+`buildTableContext()` owns the whole derivation behind one 50-entry LRU keyed by exact table source text: syntax
+extraction, the normalized model, and cell ranges. Identical tables share an entry safely because that text determines
+every value derived from it.
 
-- Table widget decoration building.
-- Mouse interaction and cell activation.
-- Keyboard navigation.
-- Structural command helpers.
+`TableContext` is passive derived state and never rewrites the document. Canonicalization occurs only at existing cell
+entry, paste, or structural-operation boundaries. Existing adjacent pipe-free text is normalized as a row. Separately,
+transaction-aware boundary maintenance detects text typed or pasted into a previously blank line below a rendered
+table and restores spacing in the same transaction, keeping that new text outside the table.
 
-The cache is an LRU map keyed by the table's source text and stores both `MarkdownTable` and `cellRanges` together.
+## Active Cells and Structural Operations
 
-`TableContext` is read-only derived state. It may expose that the current table text is non-canonical, but it never
-rewrites the document by itself. Canonicalization happens only when the user crosses into interactive cell editing.
+`ActiveCell` remains logical: `tableFrom` plus section, row, and column. Runtime code resolves current document spans
+from `TableContext`; stale cells are cleared instead of clamped.
 
-## Active Cell Resolution
-
-`ActiveCell` itself is intentionally logical-first: `tableFrom` plus `section/row/col`.
-
-Selection placement is separate transient state. Code that needs to move the main-editor cursor into the active cell
-threads an explicit selection anchor rather than persisting that offset inside `ActiveCell`.
-
-When code needs current document offsets for the active table/cell, it must resolve them from
-the current editor state through the shared active-cell resolver. That resolver:
-
-- Re-resolves the anchored table from `tableFrom`.
-- Rebuilds `TableContext`.
-- Derives `tableTo`, trimmed content bounds, and editable bounds from current `cellRanges`.
-
-The resulting `ResolvedActiveCell` is the standard transient runtime object for active-cell-aware code. Once a concrete
-current-state cell has been chosen, runtime paths should pass `ResolvedActiveCell` rather than re-threading separate
-`ActiveCell`, `TableContext`, and raw offset fields.
-
-If resolution fails, the active cell is treated as stale and cleared rather than clamped to a nearby cell.
-
-## Structural Operations (Rows/Columns/Alignment)
-
-Structural edits operate on `MarkdownTable` and then serialize back to Markdown, see: [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md)
+Structural edits operate on `MarkdownTable` and serialize canonical Markdown. See
+[Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md).

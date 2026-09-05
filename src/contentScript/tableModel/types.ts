@@ -1,17 +1,18 @@
 /**
  * Shared types for table cell and table identification.
  */
+import type { SyntaxNode } from '@lezer/common';
 
 export type TableSection = 'header' | 'body';
 
 /**
- * A table's document-level position and raw text.
- * Produced by Lezer syntax-tree resolution in tableResolution.
+ * A root table's document span and syntax node, produced by tableResolution.
+ * Deliberately cheap: containment checks resolve one of these without reading source.
  */
 export interface ResolvedTable {
     from: number;
     to: number;
-    text: string;
+    node: SyntaxNode;
 }
 
 /**

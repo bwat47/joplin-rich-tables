@@ -1,4 +1,5 @@
-import { computeMarkdownTableCellRanges, getCellRange, type TableCellRanges } from './markdownTableCellRanges';
+import { getCellRange, type TableCellRanges } from './markdownTableCellRanges';
+import type { SerializedTable } from './MarkdownTable';
 import type { CellCoords } from './types';
 import { clamp } from '../shared/numberUtils';
 
@@ -54,20 +55,38 @@ export function computeCellAnchorFromRanges(params: {
     };
 }
 
-/**
- * Builds a new relative cell anchor for a target (section,row,col) based on the provided table markdown.
- *
- * Returns null if the table text can't be ranged (invalid markdown table).
- */
-export function computeCellAnchorForTableText(params: {
-    tableText: string;
-    target: TargetCell;
-}): TableCellAnchor | null {
-    const { tableText, target } = params;
-    const ranges = computeMarkdownTableCellRanges(tableText);
-    if (!ranges) {
+/** A serialized table is rectangular, so clamping needs only its column and row counts. */
+function clampTargetToTable(serialized: SerializedTable, target: TargetCell): TargetCell | null {
+    const colCount = serialized.columnCount;
+    if (colCount <= 0) {
         return null;
     }
 
-    return computeCellAnchorFromRanges({ ranges, target });
+    const safeCol = clamp(target.col, 0, colCount - 1);
+    // `rowCount` counts the header, so anything above 1 means the table has body rows.
+    const bodyRowCount = serialized.rowCount - 1;
+    if (target.section === 'header' || bodyRowCount <= 0) {
+        return { section: 'header', row: 0, col: safeCol };
+    }
+
+    return { section: 'body', row: clamp(target.row, 0, bodyRowCount - 1), col: safeCol };
+}
+
+/**
+ * Builds a relative cell anchor against a table's canonical serialization.
+ *
+ * Takes the serialization rather than the model, so the anchor can only describe text the
+ * caller actually holds; nothing here parses that text back into ranges.
+ */
+export function computeCellAnchorForTable(params: {
+    serialized: SerializedTable;
+    target: TargetCell;
+}): TableCellAnchor | null {
+    const clamped = clampTargetToTable(params.serialized, params.target);
+    if (!clamped) {
+        return null;
+    }
+
+    const anchorOffset = params.serialized.cellOffset(clamped);
+    return anchorOffset === null ? null : { anchorOffset, ...clamped };
 }

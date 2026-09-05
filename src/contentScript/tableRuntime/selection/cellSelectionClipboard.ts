@@ -1,6 +1,11 @@
 import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
-import { ClipboardTableFragment, MarkdownTable, type TableAlignment } from '../../tableModel/MarkdownTable';
+import {
+    ClipboardTableFragment,
+    MarkdownTable,
+    type SerializedTable,
+    type TableAlignment,
+} from '../../tableModel/MarkdownTable';
 import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -13,7 +18,7 @@ import {
     toSelectionRect,
     type CellSelection,
 } from '../../tableState/cellSelectionState';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableResolution';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
@@ -183,10 +188,10 @@ export function resolveTableClipboardTarget(
     };
 }
 
-function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords: CellCoords): number | null {
-    const activeCell = createActiveCellForTableText({
+function computeSelectionAnchorPos(tableFrom: number, serialized: SerializedTable, coords: CellCoords): number | null {
+    const activeCell = createActiveCellForTable({
         tableFrom,
-        tableText,
+        serialized,
         target: coords,
     });
 
@@ -195,15 +200,17 @@ function computeSelectionAnchorPos(tableFrom: number, tableText: string, coords:
 
 function buildTableRewrite(params: {
     tableFrom: number;
-    tableText: string;
+    table: MarkdownTable;
     selection: CellSelection | null;
     clearActiveCell: boolean;
 }): TableClipboardRewrite | null {
+    const serialized = params.table.serializeWithOffsets();
+
     let selectionAnchorPos = params.tableFrom;
     if (params.selection) {
         const rect = toSelectionRect(params.selection);
         const topLeft = fromUnifiedRow(rect.minRow, rect.minCol);
-        const nextSelectionAnchorPos = computeSelectionAnchorPos(params.tableFrom, params.tableText, topLeft);
+        const nextSelectionAnchorPos = computeSelectionAnchorPos(params.tableFrom, serialized, topLeft);
         if (nextSelectionAnchorPos === null) {
             return null;
         }
@@ -212,7 +219,7 @@ function buildTableRewrite(params: {
 
     return {
         tableFrom: params.tableFrom,
-        tableText: params.tableText,
+        tableText: serialized.text,
         selection: params.selection,
         clearActiveCell: params.clearActiveCell,
         selectionAnchorPos,
@@ -274,7 +281,7 @@ function buildEmptyRowRangeRemoval(ctx: TableContext, rect: TableRect): TableCli
 
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: nextTable.serialize(),
+        table: nextTable,
         selection: remapSelectionAfterRowDelete(ctx.from, rect, nextTable),
         clearActiveCell: false,
     });
@@ -289,7 +296,7 @@ function buildEmptyColumnRangeRemoval(ctx: TableContext, rect: TableRect): Table
 
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: nextTable.serialize(),
+        table: nextTable,
         selection: remapSelectionAfterColumnDelete(ctx.from, rect, nextTable),
         clearActiveCell: false,
     });
@@ -339,7 +346,7 @@ export function buildSelectionRemovalRewrite(
     // Rectangles that still hold text (or that no structural deletion accepted) are cleared in place.
     return buildTableRewrite({
         tableFrom: ctx.from,
-        tableText: ctx.table.clearRect(rect).serialize(),
+        table: ctx.table.clearRect(rect),
         selection: selectionFromRect(ctx.from, rect),
         clearActiveCell: false,
     });
@@ -392,15 +399,15 @@ export function buildMultiCellPasteRewrite(
 
     const nextSelection = selectionFromRect(ctx.from, result.pastedRect);
     const topLeft = fromUnifiedRow(result.pastedRect.minRow, result.pastedRect.minCol);
-    const tableText = result.table.serialize();
-    const selectionAnchorPos = computeSelectionAnchorPos(ctx.from, tableText, topLeft);
+    const serialized = result.table.serializeWithOffsets();
+    const selectionAnchorPos = computeSelectionAnchorPos(ctx.from, serialized, topLeft);
     if (selectionAnchorPos === null) {
         return null;
     }
 
     return {
         tableFrom: ctx.from,
-        tableText,
+        tableText: serialized.text,
         selection: nextSelection,
         clearActiveCell: target.source === 'activeCell',
         selectionAnchorPos,

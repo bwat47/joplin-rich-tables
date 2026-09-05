@@ -7,12 +7,12 @@ import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
+import { parseCellRangesFixture } from './testUtils';
 
 const observerCallbacks: Array<() => void> = [];
 
@@ -53,8 +53,8 @@ const EDITED_TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | CHANGED |'].jo
 
 function createWidget(tableText: string, tableFrom = 0): TableWidget {
     const table = MarkdownTable.parse(tableText);
-    const cellRanges = computeMarkdownTableCellRanges(tableText);
-    if (!table || !cellRanges) {
+    const cellRanges = parseCellRangesFixture(tableText);
+    if (!table) {
         throw new Error('Expected test table to parse');
     }
     return new TableWidget(table, cellRanges, tableText, tableFrom);

@@ -3,7 +3,7 @@ import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeC
 import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
-import { createActiveCellForTableText } from '../activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
@@ -30,7 +30,7 @@ interface PreparedTableMutation {
     tableTo: number;
     newText: string;
     hasDocumentChange: boolean;
-    nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTableText>>;
+    nextActiveCell: NonNullable<ReturnType<typeof createActiveCellForTable>>;
 }
 
 interface PreparedTableDeletion {
@@ -60,17 +60,17 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
     if (newTableData === ctx.table) {
         return null;
     }
-    const newText = newTableData.serialize();
+    const serialized = newTableData.serializeWithOffsets();
 
-    const nextActiveCell = createActiveCellForTableText({
+    const nextActiveCell = createActiveCellForTable({
         tableFrom,
-        tableText: newText,
+        serialized,
         target: mutationResult.targetCell,
     });
     if (!nextActiveCell) {
         return null;
     }
-    const hasDocumentChange = newText !== text;
+    const hasDocumentChange = serialized.text !== text;
     if (!hasDocumentChange && isSameCellCoords(nextActiveCell.activeCell, cell)) {
         return null;
     }
@@ -79,7 +79,7 @@ function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams)
         kind: 'table',
         tableFrom,
         tableTo,
-        newText,
+        newText: serialized.text,
         hasDocumentChange,
         nextActiveCell,
     };

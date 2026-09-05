@@ -32,7 +32,8 @@ import {
     type OpenCellRequest,
 } from '../tableRuntime/openCellRequest';
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { parseTableFixture } from './testUtils';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
@@ -644,9 +645,9 @@ describe('nestedEditorLifecycle', () => {
             row: 0,
             col: 1,
         });
-        const nextCell = createActiveCellForTableText({
+        const nextCell = createActiveCellForTable({
             tableFrom,
-            tableText: updatedTable,
+            serialized: parseTableFixture(updatedTable).serializeWithOffsets(),
             target: { section: 'body', row: 1, col: 1 },
         })?.activeCell;
         expect(nextCell).not.toBeNull();

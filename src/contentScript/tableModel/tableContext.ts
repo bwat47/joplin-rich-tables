@@ -7,10 +7,14 @@
  * and the widget extension.
  */
 import { MarkdownTable } from './MarkdownTable';
-import { computeMarkdownTableCellRanges, type TableCellRanges } from './markdownTableCellRanges';
+import { extractRootMarkdownTableSyntax } from './lezerTableSyntax';
+import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from './markdownTableCellRanges';
 import type { ResolvedTable, TableGridBounds } from './types';
 
-export interface TableContext extends ResolvedTable {
+export interface TableContext {
+    from: number;
+    to: number;
+    text: string;
     table: MarkdownTable;
     cellRanges: TableCellRanges;
 }
@@ -31,17 +35,19 @@ interface CacheEntry {
     cellRanges: TableCellRanges;
 }
 
-/** Keyed by the table's exact source text. */
+/** Keyed by the table's exact source text, which determines every derived value below. */
 const tableContextCache = new Map<string, CacheEntry>();
 const MAX_CACHE_SIZE = 50;
 
 /**
- * Builds a TableContext from a resolved table range.
- * Uses an LRU cache keyed by the table's source text so repeated lookups
- * for the same table content skip parsing and range computation.
+ * Builds a TableContext for a resolved table, given its exact source text.
+ *
+ * This is the single cache for the whole derivation: syntax extraction, the normalized
+ * model, and cell ranges all hang off one LRU keyed by that text. Returns null only for
+ * a node arrangement the syntax projection rejects.
  */
-export function buildTableContext(resolved: ResolvedTable): TableContext | null {
-    const { from, to, text } = resolved;
+export function buildTableContext(resolved: ResolvedTable, text: string): TableContext | null {
+    const { from, to } = resolved;
     let entry = tableContextCache.get(text);
 
     if (entry) {
@@ -49,13 +55,13 @@ export function buildTableContext(resolved: ResolvedTable): TableContext | null 
         tableContextCache.delete(text);
         tableContextCache.set(text, entry);
     } else {
-        const table = MarkdownTable.parse(text);
-        if (!table) return null;
+        const syntax = extractRootMarkdownTableSyntax(resolved.node, text);
+        if (!syntax) return null;
 
-        const cellRanges = computeMarkdownTableCellRanges(text);
-        if (!cellRanges) return null;
-
-        entry = { table, cellRanges };
+        entry = {
+            table: MarkdownTable.fromSyntax(text, syntax),
+            cellRanges: computeMarkdownTableCellRangesFromSyntax(text, syntax),
+        };
 
         if (tableContextCache.size >= MAX_CACHE_SIZE) {
             const firstKey = tableContextCache.keys().next().value;

@@ -36,13 +36,10 @@ describe('activateCellAtPosition table boundaries', () => {
         expect(withView(TABLE, (view) => activateCellAtPosition(view, TABLE.length))).toBe(true);
     });
 
-    it('does not activate a cell for text that Lezer folds into the table node', () => {
-        // Lezer extends a `Table` node over following non-blank lines until a blank line.
-        // Without a containment check against the trimmed range, this position resolves to
-        // the table above and activates one of its cells.
+    it('activates the one-cell row Lezer creates for pipe-free trailing text', () => {
         const doc = `${TABLE}\ntrailing text`;
 
-        expect(withView(doc, (view) => activateCellAtPosition(view, doc.indexOf('trailing')))).toBe(false);
+        expect(withView(doc, (view) => activateCellAtPosition(view, doc.indexOf('trailing')))).toBe(true);
     });
 
     it('does not activate a cell for a position in a separate paragraph', () => {

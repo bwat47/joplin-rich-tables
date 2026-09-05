@@ -7,6 +7,7 @@
  * controller's private session, so these tests describe observable behavior.
  */
 
+import { deleteCharForward } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -186,6 +187,39 @@ describe('nestedEditorController local-to-root forwarding', () => {
     afterEach(() => {
         document.body.innerHTML = '';
     });
+
+    it.each(['header', 'body'] as const)(
+        'keeps delimiter padding outside the %s editor after typing a backslash',
+        (section) => {
+            const originalText = 'abc';
+            const editedText = `${originalText}\\`;
+            const lines = ['| abc | next |', '| --- | --- |', '| abc | next |'];
+            const { view, cellElement } = createHarness({
+                doc: lines.join('\n'),
+                activeCell: bodyCell({ section }),
+            });
+
+            try {
+                openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+                const nested = requireNestedView(cellElement);
+                nested.dispatch({
+                    changes: { from: originalText.length, insert: '\\' },
+                    selection: { anchor: editedText.length },
+                });
+
+                // Delete at the cell's end must not expose or remove the space protecting the next pipe.
+                deleteCharForward(nested);
+
+                const editedLine = section === 'header' ? 0 : 2;
+                lines[editedLine] = `| ${editedText} | next |`;
+                expect(view.state.doc.toString()).toBe(lines.join('\n'));
+                expect(nested.state.doc.toString()).toBe(editedText);
+                expect(nested.state.selection.main.anchor).toBe(editedText.length);
+            } finally {
+                view.destroy();
+            }
+        }
+    );
 
     it('sanitizes nested edits back into the main document', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');

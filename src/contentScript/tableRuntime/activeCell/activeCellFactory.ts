@@ -1,10 +1,11 @@
 import type { TableCellRanges } from '../../tableModel/markdownTableCellRanges';
+import type { SerializedTable } from '../../tableModel/MarkdownTable';
 import {
-    computeCellAnchorForTableText,
+    computeCellAnchorForTable,
     computeCellAnchorFromRanges,
     type TargetCell,
     type TableCellAnchor,
-} from '../../tableModel/activeCellForTableText';
+} from '../../tableModel/cellAnchors';
 import type { ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import { createResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
@@ -38,13 +39,13 @@ function createActiveCellFromRanges(params: {
     return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;
 }
 
-export function createActiveCellForTableText(params: {
+export function createActiveCellForTable(params: {
     tableFrom: number;
-    tableText: string;
+    serialized: SerializedTable;
     target: TargetCell;
 }): ActiveCellSelectionTarget | null {
-    const anchor = computeCellAnchorForTableText({
-        tableText: params.tableText,
+    const anchor = computeCellAnchorForTable({
+        serialized: params.serialized,
         target: params.target,
     });
     return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;

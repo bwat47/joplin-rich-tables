@@ -1,7 +1,8 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/markdownTableCellRanges';
-import { createActiveCellForTableText } from '../tableRuntime/activeCell/activeCellFactory';
+import { getCellRange } from '../tableModel/markdownTableCellRanges';
+import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import type { ActiveCell } from '../tableState/activeCellState';
+import { parseTableFixture, parseCellRangesFixture } from './testUtils';
 
 const BASE_MARKDOWN = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 const TABLE_FROM = 0;
@@ -9,10 +10,7 @@ const TABLE_FROM = 0;
 type CellTarget = Pick<ActiveCell, 'section' | 'row' | 'col'>;
 
 function sliceCellText(tableText: string, activeCell: ActiveCell): string {
-    const ranges = computeMarkdownTableCellRanges(tableText);
-    if (!ranges) {
-        throw new Error('Expected table ranges');
-    }
+    const ranges = parseCellRangesFixture(tableText);
 
     const range = getCellRange(ranges, activeCell);
     if (!range) {
@@ -23,9 +21,9 @@ function sliceCellText(tableText: string, activeCell: ActiveCell): string {
 }
 
 function requireActiveCell(tableText: string, target: CellTarget): ActiveCell {
-    const activeCell = createActiveCellForTableText({
+    const activeCell = createActiveCellForTable({
         tableFrom: TABLE_FROM,
-        tableText,
+        serialized: parseTableFixture(tableText).serializeWithOffsets(),
         target,
     })?.activeCell;
 

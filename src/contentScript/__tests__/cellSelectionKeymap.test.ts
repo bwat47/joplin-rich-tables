@@ -490,8 +490,8 @@ describe('cellSelectionKeymap', () => {
         { key: 'ArrowLeft', edge: 'before' },
     ])('collapses the selection $edge the table on $key without Shift', ({ key, edge }) => {
         const prefix = 'above';
-        const view = mountSelectionView(`${prefix}\n${GRID_DOC}\nbelow`);
-        const tableFrom = prefix.length + 1;
+        const view = mountSelectionView(`${prefix}\n\n${GRID_DOC}\n\nbelow`);
+        const tableFrom = prefix.length + 2;
         view.dispatch({
             effects: setCellSelectionEffect.of({
                 tableFrom,

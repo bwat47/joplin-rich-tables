@@ -87,9 +87,9 @@ export class TableWidget extends WidgetType {
     }
 
     eq(other: TableWidget): boolean {
-        // Everything else the widget exposes derives from the source text: `tableData` is
-        // MarkdownTable.parse(text) and `cellRanges` is computeMarkdownTableCellRanges(text).
-        // Text equality therefore implies the rendered DOM and estimated height match too.
+        // Everything else the widget exposes derives from the source text through the same
+        // Lezer syntax projection. Text equality therefore implies that the normalized model,
+        // cell ranges, rendered DOM, and estimated height match too.
         //
         // `tableFrom` is load-bearing, not defensive: in-cell edits take the `mapDecorations`
         // path, which shifts decoration ranges without rebuilding widgets, so a widget's

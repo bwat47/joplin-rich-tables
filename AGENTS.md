@@ -43,6 +43,7 @@ Start here when exploring the codebase:
 
 - `npm test` Run Vitest test suite.
 - `npm run test:watch` Run tests in watch mode during development.
+- `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
 - `npm run dist` Build plugin and create archive at `publish/*.jpl`.
 - `npm run lint` Lint TypeScript with ESLint.
 - `npm run lint:fix` Auto-fix lint issues.

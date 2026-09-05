@@ -1,5 +1,8 @@
-import { computeMarkdownTableCellRanges, isSeparatorRow } from './markdownTableCellRanges';
-import { scanMarkdownTableRow } from './markdownTableRowScanner';
+import {
+    parseRootMarkdownTableSyntax,
+    type MarkdownTableSyntax,
+    type MarkdownTableSyntaxCell,
+} from './lezerTableSyntax';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
@@ -39,31 +42,81 @@ function parseAlignment(cell: string): TableAlignment {
     return null;
 }
 
-function parseSeparatorRow(line: string): string[] {
-    const trimmed = line.trim();
-    const { delimiters: allDelimiters } = scanMarkdownTableRow(trimmed);
+/**
+ * Splits the delimiter row into per-column alignment specs.
+ *
+ * Splitting on `|` is the exception to deriving cells from Lezer: the delimiter row is one
+ * flat `TableDelimiter` node with no cell children to project. It is safe here because the
+ * row's grammar admits only `-`, `:`, `|`, and spaces, so an escaped pipe cannot appear.
+ */
+function parseSeparatorRow(text: string, syntax: MarkdownTableSyntax, tableFrom: number): string[] {
+    const separator = text
+        .slice(tableFrom + syntax.separator.from, tableFrom + syntax.separator.to)
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/\|$/, '');
+    return separator.split('|').map((cell) => cell.trim());
+}
 
-    let innerFrom = 0;
-    let innerTo = trimmed.length;
+function readCellContents(
+    text: string,
+    syntax: MarkdownTableSyntax,
+    tableFrom: number
+): {
+    headers: string[];
+    rows: string[][];
+} {
+    const readCell = (cell: MarkdownTableSyntaxCell): string =>
+        cell.content ? text.slice(tableFrom + cell.content.from, tableFrom + cell.content.to) : '';
 
-    if (allDelimiters.length > 0 && allDelimiters[0] === 0) {
-        innerFrom += 1;
+    return {
+        headers: syntax.header.cells.map(readCell),
+        rows: syntax.bodyRows.map((row) => row.cells.map(readCell)),
+    };
+}
+
+/**
+ * The canonical serialized row format. `serializeWithOffsets()` reports cell positions from
+ * these constants rather than by re-parsing its own output, so both must change together.
+ */
+const ROW_PREFIX = '| ';
+const ROW_SEPARATOR = ' | ';
+const ROW_SUFFIX = ' |';
+const LINE_SEPARATOR = '\n';
+
+function normalizeRowCells(cells: readonly string[]): string[] {
+    return cells.map(normalizeBrTags);
+}
+
+function separatorCellForAlignment(align: TableAlignment): string {
+    if (align === 'center') return ':---:';
+    if (align === 'left') return ':---';
+    if (align === 'right') return '---:';
+    return '---';
+}
+
+function joinSerializedRow(cells: readonly string[]): string {
+    return ROW_PREFIX + cells.join(ROW_SEPARATOR) + ROW_SUFFIX;
+}
+
+/** Offset of `col`'s content within `joinSerializedRow(cells)`. */
+function cellOffsetInSerializedRow(cells: readonly string[], col: number): number {
+    let offset = ROW_PREFIX.length;
+    for (let index = 0; index < col; index++) {
+        offset += cells[index].length + ROW_SEPARATOR.length;
     }
-    if (allDelimiters.length > 0 && allDelimiters[allDelimiters.length - 1] === trimmed.length - 1) {
-        innerTo -= 1;
-    }
+    return offset;
+}
 
-    const delimiters = allDelimiters.filter((index) => index > innerFrom && index < innerTo);
-
-    const cells: string[] = [];
-    let segmentStart = innerFrom;
-    for (const delimiterIndex of delimiters) {
-        cells.push(trimmed.slice(segmentStart, delimiterIndex).trim());
-        segmentStart = delimiterIndex + 1;
-    }
-    cells.push(trimmed.slice(segmentStart, innerTo).trim());
-
-    return cells;
+/**
+ * A table's canonical serialization paired with the cell positions inside it.
+ * `cellOffset` is only meaningful against `text`, so the two travel together.
+ */
+export interface SerializedTable {
+    readonly text: string;
+    readonly columnCount: number;
+    readonly rowCount: number;
+    cellOffset(coords: CellCoords): number | null;
 }
 
 function cloneRows(rows: readonly (readonly string[])[]): string[][] {
@@ -237,26 +290,18 @@ export class MarkdownTable {
     ) {}
 
     /**
-     * Parses Markdown table text into the canonical normalized model.
-     * Cell content extraction is delegated to `computeMarkdownTableCellRanges()`
-     * so parsing stays aligned with the source ranges used for editing.
+     * Parses text containing exactly one root-level Markdown table into the
+     * canonical normalized model.
      */
     static parse(text: string): MarkdownTable | null {
-        const lines = text.split('\n').filter((line) => line.trim().length > 0);
-        if (lines.length < 2) return null;
+        const parsed = parseRootMarkdownTableSyntax(text);
+        return parsed ? MarkdownTable.fromSyntax(text, parsed.syntax, parsed.from) : null;
+    }
 
-        if (!lines[0].includes('|')) return null;
-        if (!isSeparatorRow(lines[1])) return null;
-
-        const alignments = parseSeparatorRow(lines[1]).map(parseAlignment);
-        const ranges = computeMarkdownTableCellRanges(text);
-        if (!ranges) {
-            return null;
-        }
-
-        const headers = ranges.headers.map((range) => text.slice(range.from, range.to));
-        const rows = ranges.rows.map((rowRanges) => rowRanges.map((range) => text.slice(range.from, range.to)));
-
+    /** Builds a normalized table from syntax facts already extracted by Lezer. */
+    static fromSyntax(text: string, syntax: MarkdownTableSyntax, tableFrom = 0): MarkdownTable {
+        const { headers, rows } = readCellContents(text, syntax, tableFrom);
+        const alignments = parseSeparatorRow(text, syntax, tableFrom).map(parseAlignment);
         return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 
@@ -326,23 +371,56 @@ export class MarkdownTable {
         );
     }
 
+    private separatorCells(): string[] {
+        return this.alignmentsData.map(separatorCellForAlignment);
+    }
+
+    /** Normalized cells for every serialized line, in output order. */
+    private serializedRows(): string[][] {
+        return [
+            normalizeRowCells(this.headersData),
+            this.separatorCells(),
+            ...this.rowsData.map((row) => normalizeRowCells(row)),
+        ];
+    }
+
     serialize(): string {
-        const joinRow = (cells: readonly string[]) => {
-            return '| ' + cells.join(' | ') + ' |';
+        return this.serializedRows().map(joinSerializedRow).join(LINE_SEPARATOR);
+    }
+
+    /**
+     * Serializes the table and reports where each cell landed in that exact output.
+     *
+     * Offsets come from the row format, never from parsing the output back. Pairing them with
+     * the text they describe is what makes that safe: the line measurements are taken during
+     * this call, so a caller cannot ask for an offset into a serialization it does not hold.
+     */
+    serializeWithOffsets(): SerializedTable {
+        const rows = this.serializedRows();
+        const lines = rows.map(joinSerializedRow);
+        const lineStarts: number[] = [];
+        let offset = 0;
+        for (const line of lines) {
+            lineStarts.push(offset);
+            offset += line.length + LINE_SEPARATOR.length;
+        }
+
+        return {
+            text: lines.join(LINE_SEPARATOR),
+            columnCount: this.columnCount,
+            rowCount: this.rowCount,
+            cellOffset(coords: CellCoords): number | null {
+                const rowIndex = toUnifiedRowIndex(coords.section, coords.row);
+                // Unified row 0 is the header on line 0; row N is a body row below the separator.
+                const lineIndex = rowIndex === 0 ? 0 : rowIndex + 1;
+                const cells = rows[lineIndex];
+                if (!cells || coords.col < 0 || coords.col >= cells.length) {
+                    return null;
+                }
+
+                return lineStarts[lineIndex] + cellOffsetInSerializedRow(cells, coords.col);
+            },
         };
-
-        const separatorCellForAlignment = (align: TableAlignment): string => {
-            if (align === 'center') return ':---:';
-            if (align === 'left') return ':---';
-            if (align === 'right') return '---:';
-            return '---';
-        };
-
-        const headerLine = joinRow(this.headersData.map(normalizeBrTags));
-        const separatorLine = joinRow(this.alignmentsData.map(separatorCellForAlignment));
-        const bodyLines = this.rowsData.map((row) => joinRow(row.map(normalizeBrTags)));
-
-        return [headerLine, separatorLine, ...bodyLines].join('\n');
     }
 
     insertColumn(colIndex: number, where: 'before' | 'after'): MarkdownTable {

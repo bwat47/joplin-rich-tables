@@ -6,9 +6,9 @@ import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
-import { resolveContainingTableAtPos, resolveTableContextAtPos } from '../tableResolution';
+import type { TableContext } from '../../tableModel/tableContext';
+import { resolveContainingTableAtPos, resolveTableContext, resolveTableContextAtPos } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
-import { buildTableContext, type TableContext } from '../../tableModel/tableContext';
 import { resolveClampedCell } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
 import {
@@ -82,7 +82,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 
     // Find which cell contains the position
     const relativePos = pos - table.from;
-    const ctx = buildTableContext(table);
+    const ctx = resolveTableContext(view.state, table);
     if (!ctx) {
         if (options?.clearIfOutside) {
             view.dispatch({ effects: clearActiveCellEffect.of(undefined) });

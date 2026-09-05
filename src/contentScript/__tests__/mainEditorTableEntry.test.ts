@@ -667,15 +667,13 @@ describe('mainEditorTableEntry deletion protection', () => {
         expectBoundaryCellOpen(view, 'start');
     });
 
-    it('repairs an unspaced table in the transaction that enters it', () => {
+    it('repairs the upper boundary and normalizes adjacent text as a row when entering', () => {
         const doc = `${BEFORE}\n${TABLE}\n${AFTER}`;
         const view = mountView(doc, BEFORE.length);
 
         pressKey(view, 'Delete');
 
-        // The spacing the table is missing is restored as part of entry rather than by a
-        // follow-up a frame later, so the document settles within the keystroke.
-        expect(view.state.doc.toString()).toBe(`${BEFORE}\n\n${TABLE}\n\n${AFTER}`);
+        expect(view.state.doc.toString()).toBe(`${BEFORE}\n\n${TABLE}\n| ${AFTER} |  |\n`);
         expectBoundaryCellOpen(view, 'start');
     });
 
@@ -949,13 +947,13 @@ describe('mainEditorTableEntry deletion protection', () => {
 describe('mainEditorTableEntry vertical movement', () => {
     it('opens the top-left header cell when ArrowDown skips across the table widget', () => {
         const prefix = 'above';
-        const doc = `${prefix}\n${TABLE}\nbelow`;
+        const doc = `${prefix}\n${TABLE}\n\nbelow`;
         const view = mountView(doc, prefix.length);
-        mockVerticalTarget(view, prefix.length + 1 + TABLE.length + 1);
+        mockVerticalTarget(view, doc.indexOf('below'));
 
         pressKey(view, 'ArrowDown');
 
-        // The fixture table has no blank line around it, so entry normalizes as it opens.
+        // The fixture table has no blank line above it, so entry normalizes as it opens.
         expect(view.state.doc.toString()).toBe(`${prefix}\n\n${TABLE}\n\nbelow`);
         expect(getActiveCell(view.state)).toEqual({
             tableFrom: currentTableFrom(view),
@@ -970,7 +968,7 @@ describe('mainEditorTableEntry vertical movement', () => {
 
     it('opens the bottom-left body cell when ArrowUp skips across the table widget', () => {
         const prefix = 'above';
-        const doc = `${prefix}\n${TABLE}\nbelow`;
+        const doc = `${prefix}\n${TABLE}\n\nbelow`;
         const view = mountView(doc, prefix.length + 1 + TABLE.length + 1);
         mockVerticalTarget(view, prefix.length);
 
@@ -989,8 +987,8 @@ describe('mainEditorTableEntry vertical movement', () => {
 
     it('opens the header when ArrowUp enters a table with no body rows', () => {
         const headerOnlyTable = ['| H1 | H2 |', '| --- | --- |'].join('\n');
-        const doc = `${headerOnlyTable}\nbelow`;
-        const view = mountView(doc, headerOnlyTable.length + 1);
+        const doc = `${headerOnlyTable}\n\nbelow`;
+        const view = mountView(doc, doc.indexOf('below'));
         mockVerticalTarget(view, headerOnlyTable.length);
 
         pressKey(view, 'ArrowUp');

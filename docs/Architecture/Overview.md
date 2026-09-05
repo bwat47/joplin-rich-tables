@@ -4,7 +4,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Content Script Layers
 
-- `tableModel/`: pure table parsing, serialization, and table math.
+- `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, and table math.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions and selectors.
 - `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (pointer gestures and outside-interaction handling), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
@@ -46,7 +46,8 @@ mutable state.
 | **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.        |
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                                 |
 | **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                         |
-| **Parsing**   | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, parsing, serialization, mutations.       |
+| **Syntax**    | `contentScript/tableModel/lezerTableSyntax.ts`                  | Root-table syntax projection from Lezer.                         |
+| **Model**     | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, serialization, mutations.                |
 | **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.                  |
 | **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
 | **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Editor transaction orchestration for structural table commands.  |
@@ -56,7 +57,8 @@ mutable state.
 
 ### 1. Detection and Display
 
-Lezer identifies table blocks. `tableDecorationField` builds shared `TableContext` objects and replaces table source ranges with `TableWidget` block decorations.
+Lezer identifies root table blocks and provides their row, delimiter, and cell spans. `tableDecorationField` builds
+shared `TableContext` objects and replaces exact table source ranges with `TableWidget` block decorations.
 
 See [Table-Parsing.md](./Table-Parsing.md) and [Table-Display.md](./Table-Display.md).
 
@@ -92,7 +94,7 @@ See [Markdown-Rendering.md](./Markdown-Rendering.md).
 
 Common ownership boundaries:
 
-- `tableModel/` owns editor-independent table parsing, ranges, serialization, and command semantics.
+- `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, and table math.
 - `tableRuntime/` owns editor-bound orchestration and active-cell lifecycle.
 - `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
 - `editorBridge/` owns cross-editor text/selection conversion and main-editor guard policy.

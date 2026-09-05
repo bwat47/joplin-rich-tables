@@ -17,6 +17,23 @@ describe('parseSingleTableBlock', () => {
         expect(parseSingleTableBlock(NON_CANONICAL_TABLE.split('\n').join('\r\n'))?.serialize()).toBe(CANONICAL_TABLE);
     });
 
+    it('accepts a table whose delimiter row carries trailing padding', () => {
+        const padded = ['| H1 | H2 |', '| --- | --- | ', '| a | b |\t'].join('\n');
+
+        expect(parseSingleTableBlock(padded)?.serialize()).toBe(CANONICAL_TABLE);
+    });
+
+    it.each([
+        ['space', String.raw`\ `],
+        ['tab', '\\' + '\t'],
+    ])('drops the trailing %s Lezer pulls past a backslash in clipboard cells', (_label, suffix) => {
+        const text = [`a | value${suffix}`, '--- | ---  ', `b | value${suffix}`].join('\n');
+        const table = parseSingleTableBlock(text);
+
+        expect(table?.headerCells).toEqual(['a', 'value\\']);
+        expect(table?.bodyRows).toEqual([['b', 'value\\']]);
+    });
+
     it('rejects multiple tables separated by blank lines', () => {
         const secondTable = ['| H2 |', '| --- |', '| b |'].join('\n');
 
@@ -35,8 +52,10 @@ describe('parseSingleTableBlock', () => {
         expect(parseSingleTableBlock(splitTable)).toBeNull();
     });
 
-    it('rejects table plus trailing text', () => {
-        expect(parseSingleTableBlock(`${CANONICAL_TABLE}\ntrailing text`)).toBeNull();
+    it('accepts a pipe-free trailing row recognized by Lezer', () => {
+        expect(parseSingleTableBlock(`${CANONICAL_TABLE}\ntrailing text`)?.serialize()).toBe(
+            `${CANONICAL_TABLE}\n| trailing text |  |`
+        );
     });
 
     it('rejects leading text plus table', () => {

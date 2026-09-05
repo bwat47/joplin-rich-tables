@@ -1,8 +1,9 @@
 import { Annotation } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
+import type { SerializedTable } from '../tableModel/MarkdownTable';
 import type { TableContext } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
-import { createActiveCellForTableText, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
+import { createActiveCellForTable, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
 import {
     countLeadingBlankLinesAfterBoundary,
     countTrailingBlankLinesBeforeBoundary,
@@ -20,8 +21,9 @@ interface NormalizedTableReplacement {
     from: number;
     to: number;
     insert: string;
-    tableText: string;
     tableFrom: number;
+    /** The canonical table inside `insert`, carried so cells can be located in it. */
+    serialized: SerializedTable;
 }
 
 interface TableBoundaryPadding {
@@ -66,9 +68,9 @@ function getNormalizedTableReplacementIfChanged(
     state: EditorState,
     ctx: Pick<TableContext, 'from' | 'to' | 'table' | 'text'>
 ): NormalizedTableReplacement | null {
-    const tableText = ctx.table.serialize();
+    const serialized = ctx.table.serializeWithOffsets();
     const { prefix, suffix } = resolveBoundaryPadding(state, ctx);
-    const insert = prefix + tableText + suffix;
+    const insert = prefix + serialized.text + suffix;
 
     if (insert === ctx.text) {
         return null;
@@ -78,8 +80,8 @@ function getNormalizedTableReplacementIfChanged(
         from: ctx.from,
         to: ctx.to,
         insert,
-        tableText,
         tableFrom: ctx.from + prefix.length,
+        serialized,
     };
 }
 
@@ -102,9 +104,9 @@ export function planCellEntryNormalization(params: {
         return null;
     }
 
-    const target = createActiveCellForTableText({
+    const target = createActiveCellForTable({
         tableFrom: replacement.tableFrom,
-        tableText: replacement.tableText,
+        serialized: replacement.serialized,
         target: params.coords,
     });
     // Dropping the repair keeps the entry alive: the cell still opens, against the table as it

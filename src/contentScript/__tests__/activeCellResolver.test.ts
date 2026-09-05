@@ -7,7 +7,11 @@ import {
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
-import { buildTableContext } from '../tableModel/tableContext';
+import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+
+function buildContext(text: string) {
+    return resolveTableContextAtPos(createMarkdownState(text), 0);
+}
 
 function createState(doc: string, activeCell?: ActiveCell) {
     let state = createMarkdownState(doc, [activeCellField]);
@@ -137,7 +141,7 @@ describe('resolvedActiveCell', () => {
 
     it('creates a resolved active cell directly from table context and coords', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const ctx = buildTableContext({ from: 0, to: doc.length, text: doc });
+        const ctx = buildContext(doc);
 
         expect(ctx).not.toBeNull();
         if (!ctx) {
@@ -199,7 +203,7 @@ describe('resolvedActiveCell', () => {
 
     it('returns null when creating a resolved active cell for invalid coordinates', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        const ctx = buildTableContext({ from: 0, to: doc.length, text: doc });
+        const ctx = buildContext(doc);
 
         expect(ctx).not.toBeNull();
         if (!ctx) {

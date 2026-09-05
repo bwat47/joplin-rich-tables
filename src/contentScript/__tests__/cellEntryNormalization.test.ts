@@ -91,6 +91,30 @@ describe('entering a cell', () => {
         expect(transaction.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))).toBe(true);
     });
 
+    it.each([
+        ['space', ' '],
+        ['tab', '\t'],
+    ])('normalizes away the %s Lezer pulls past a trailing backslash', (_label, padding) => {
+        const sourceCell = `value\\${padding}`;
+        const canonicalCell = 'value\\';
+        const doc = [`| ${sourceCell}| next |`, '| --- | --- |', `| ${sourceCell}| next |`].join('\n');
+        const { transaction } = enterCell({ doc, tableFrom: 0 });
+        const ctx = resolveTableContextAtPos(transaction.state, 1);
+
+        const canonicalRow = `| ${canonicalCell} | next |`;
+        expect(ctx?.text).toBe([canonicalRow, '| --- | --- |', canonicalRow].join('\n'));
+        expect(ctx?.table.headerCells).toEqual([canonicalCell, 'next']);
+        expect(ctx?.table.bodyRows).toEqual([[canonicalCell, 'next']]);
+        expect(ctx?.cellRanges.headers.map((range) => ctx.text.slice(range.editableFrom, range.editableTo))).toEqual([
+            canonicalCell,
+            'next',
+        ]);
+        expect(ctx?.cellRanges.rows[0].map((range) => ctx.text.slice(range.editableFrom, range.editableTo))).toEqual([
+            canonicalCell,
+            'next',
+        ]);
+    });
+
     it('opens the request that the repair landed on', () => {
         const { transaction } = enterCell({ doc: nonCanonicalTable, tableFrom: 0 });
 
@@ -119,21 +143,20 @@ describe('entering a cell', () => {
             expect(getActiveCell(transaction.state)?.tableFrom).toBe('intro\n\n'.length);
         });
 
-        it('adds a blank line below a table that precedes text directly', () => {
+        it('normalizes pipe-free text directly below a table as a row', () => {
             const tableFrom = 'intro\n\n'.length;
             const doc = `intro\n\n${canonicalTable}\nafter`;
             const { transaction } = enterCell({ doc, tableFrom });
 
-            expect(transaction.state.doc.toString()).toBe(`intro\n\n${canonicalTable}\n\nafter`);
-            // Padding is appended, so the table start is unchanged.
+            expect(transaction.state.doc.toString()).toBe(`intro\n\n${canonicalTable}\n| after |  |\n`);
             expect(getActiveCell(transaction.state)?.tableFrom).toBe(tableFrom);
         });
 
-        it('adds blank lines on both sides when neither boundary is separated', () => {
+        it('separates text above while normalizing pipe-free text below as a row', () => {
             const doc = `intro\n${canonicalTable}\nafter`;
             const { transaction } = enterCell({ doc, tableFrom: 'intro\n'.length });
 
-            expect(transaction.state.doc.toString()).toBe(`intro\n\n${canonicalTable}\n\nafter`);
+            expect(transaction.state.doc.toString()).toBe(`intro\n\n${canonicalTable}\n| after |  |\n`);
         });
 
         it('leaves an already separated mid-document table alone', () => {
@@ -160,7 +183,7 @@ describe('entering a cell', () => {
                 changeCount++;
             });
 
-            expect(transaction.state.doc.toString()).toBe(`intro\n\n${canonicalTable}\n\nafter`);
+            expect(transaction.state.doc.toString()).toBe(`intro\n\n${canonicalTable}\n| after |  |\n`);
             expect(changeCount).toBe(1);
         });
     });
