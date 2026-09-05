@@ -60,11 +60,7 @@ export function resolveClickCursorPos(
     const projection = projectCellText(state, resolvedCell, rootText, localText);
     if (hit.renderedText === projection.text) {
         return {
-            localOffset: mapCaretToSource(
-                { toSource: projection.toLocal, matchedRatio: 1 },
-                hit.renderedOffset,
-                localText.length
-            ),
+            localOffset: mapCaretToSource(projection.toLocal, hit.renderedOffset, localText.length),
         };
     }
 
@@ -76,10 +72,6 @@ export function resolveClickCursorPos(
     }
     const toLocal = Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset]));
     return {
-        localOffset: mapCaretToSource(
-            { toSource: toLocal, matchedRatio: alignment.matchedRatio },
-            hit.renderedOffset,
-            localText.length
-        ),
+        localOffset: mapCaretToSource(toLocal, hit.renderedOffset, localText.length),
     };
 }

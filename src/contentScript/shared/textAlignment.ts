@@ -249,8 +249,7 @@ export function alignRenderedToSource(rendered: string, source: string): TextAli
  * Both ends are pinned: clicking past the last rendered character means the end of the
  * source, including any trailing syntax, and the same in reverse at the start.
  */
-export function mapCaretToSource(alignment: TextAlignment, caret: number, sourceLength: number): number {
-    const { toSource } = alignment;
+export function mapCaretToSource(toSource: Int32Array, caret: number, sourceLength: number): number {
     if (caret <= 0) {
         return 0;
     }

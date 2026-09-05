@@ -10,7 +10,7 @@ function place(rendered: string, source: string, caret: number): string {
     if (!alignment) {
         throw new Error('expected an alignment');
     }
-    const offset = mapCaretToSource(alignment, caret, source.length);
+    const offset = mapCaretToSource(alignment.toSource, caret, source.length);
     return `${source.slice(0, offset)}|${source.slice(offset)}`;
 }
 
