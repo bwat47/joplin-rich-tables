@@ -87,6 +87,14 @@ describe('resolveInitialLocalSelection', () => {
         });
     });
 
+    it('clamps both initial selection endpoints while retaining direction', () => {
+        expect(
+            resolveInitialLocalSelection(mirrored, 'hello', {
+                localSelection: { anchor: 8, head: -2 },
+            })
+        ).toEqual({ anchor: 5, head: 0 });
+    });
+
     it('clamps a requested offset the cell text can no longer hold', () => {
         // The offset is decided against the cell as it stood; an entry that repairs the table
         // into canonical form can restripe that cell's padding in the same transaction.

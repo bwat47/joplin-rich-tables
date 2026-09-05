@@ -55,6 +55,13 @@ export function resolveInitialLocalSelection(
         return { anchor: pos, head: pos };
     }
 
+    if (typeof initialCursorPos === 'object' && 'localSelection' in initialCursorPos) {
+        return {
+            anchor: clamp(initialCursorPos.localSelection.anchor, 0, localText.length),
+            head: clamp(initialCursorPos.localSelection.head, 0, localText.length),
+        };
+    }
+
     switch (initialCursorPos) {
         case 'start':
             return { anchor: 0, head: 0 };

@@ -8,7 +8,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
-import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
+import { handleTableInteraction, renderedCellNativeSelectionPlugin } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { getCellSelector } from '../tableWidget/domHelpers';
@@ -18,7 +18,7 @@ import type { CellCoords } from '../tableModel/types';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { parseCellRangesFixture } from './testUtils';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -75,13 +75,13 @@ function findCell(widget: HTMLElement, coords: CellCoords): HTMLTableCellElement
     return cell as HTMLTableCellElement;
 }
 
-function mountGestureView(): MountedGestureView {
+function mountGestureView(doc = GRID_DOC): MountedGestureView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
 
     const view = new EditorView({
         parent,
-        state: createMarkdownState(GRID_DOC, [
+        state: createMarkdownState(doc, [
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
                 render: vi.fn(async () => ''),
@@ -93,6 +93,7 @@ function mountGestureView(): MountedGestureView {
             cellDragField,
             openCellRequestField,
             mouseCellDragSelectionPlugin,
+            renderedCellNativeSelectionPlugin,
         ]),
     });
     mountedViews.push(view);
@@ -101,12 +102,12 @@ function mountGestureView(): MountedGestureView {
 
     // The widget is built the way production builds it, so these tests fail if the cell
     // attribute contract the gesture hit-tests against ever changes.
-    const table = MarkdownTable.parse(GRID_DOC);
-    const cellRanges = parseCellRangesFixture(GRID_DOC);
+    const table = MarkdownTable.parse(doc);
+    const cellRanges = parseCellRangesFixture(doc);
     if (!table) {
         throw new Error('Expected the test table to parse');
     }
-    const widget = new TableWidget(table, cellRanges, GRID_DOC, 0).toDOM(view);
+    const widget = new TableWidget(table, cellRanges, doc, 0).toDOM(view);
     view.dom.appendChild(widget);
 
     const cells = {
@@ -251,7 +252,7 @@ describe('mouse cell drag selection', () => {
         });
 
         cells.body0.dispatchEvent(down);
-        expect(down.defaultPrevented).toBe(true);
+        expect(down.defaultPrevented).toBe(false);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getCellSelection(view.state)).not.toBeNull();
 
@@ -261,7 +262,7 @@ describe('mouse cell drag selection', () => {
             button: 0,
         });
         cells.body0.dispatchEvent(compatibilityMouseDown);
-        expect(compatibilityMouseDown.defaultPrevented).toBe(true);
+        expect(compatibilityMouseDown.defaultPrevented).toBe(false);
         expect(getActiveCell(view.state)).toBeNull();
 
         document.dispatchEvent(
@@ -283,6 +284,55 @@ describe('mouse cell drag selection', () => {
             col: 0,
         });
         expect(getCellSelection(view.state)).toBeNull();
+    });
+
+    it.each([
+        [0, 5, 0, 9],
+        [1, 4, 3, 6],
+        [4, 1, 6, 3],
+    ])('preserves native selection %i to %i until release', (anchor, head, localAnchor, localHead) => {
+        const { view, cells } = mountGestureView(GRID_DOC.replace('a1', '**hello**'));
+        const content = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!;
+        content.innerHTML = '<strong>hello</strong>';
+        const text = content.firstChild!.firstChild!;
+        const capture = vi.fn();
+        cells.body0.setPointerCapture = capture;
+        elementAtPoint = cells.body0;
+        const down = pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 });
+        cells.body0.dispatchEvent(down);
+        const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+        cells.body0.dispatchEvent(mouseDown);
+        document.getSelection()!.setBaseAndExtent(text, anchor, text, head);
+        const move = pointerEvent('pointermove', { clientX: 80, clientY: 10 });
+        document.dispatchEvent(move);
+        expect(down.defaultPrevented).toBe(false);
+        expect(mouseDown.defaultPrevented).toBe(false);
+        expect(move.defaultPrevented).toBe(false);
+        expect(capture).not.toHaveBeenCalled();
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        document.dispatchEvent(pointerEvent('pointerup', { clientX: 80, clientY: 10 }));
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({
+            localSelection: { anchor: localAnchor, head: localHead },
+        });
+    });
+
+    it('clears native text selection on conversion and keeps cell selection mode on return', () => {
+        const { view, widget, cells } = mountGestureView();
+        const text = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!.firstChild!;
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        document.getSelection()!.setBaseAndExtent(text, 0, text, 2);
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { clientX: 80, clientY: 10 }));
+        expect(document.getSelection()!.rangeCount).toBe(0);
+        expect(widget.style.userSelect).toBe('none');
+        expect(isCellDragInProgress(view.state)).toBe(true);
+        elementAtPoint = cells.body0;
+        document.dispatchEvent(pointerEvent('pointermove', { clientX: 10, clientY: 10 }));
+        expect(isCellDragInProgress(view.state)).toBe(true);
+        document.dispatchEvent(pointerEvent('pointerup', { clientX: 10, clientY: 10 }));
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toBeUndefined();
+        expect(widget.style.userSelect).toBe('');
     });
 
     it('re-resolves a provisional press when the table moves before release', () => {

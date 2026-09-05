@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { indexRenderedText, flatOffsetFromDomPosition, type RenderedCaretHit } from '../tableWidget/cellCaretHit';
-import { resolveClickCursorPos } from '../tableRuntime/interaction/clickCursorPlacement';
+import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { isCellTextOffset } from '../shared/cursorPlacement';
@@ -316,5 +316,15 @@ describe('syntax-aware click placement', () => {
         expect(resolveInitialLocalSelection({ anchor: 0, head: 0 }, '**markdown**', request?.initialCursorPos)).toEqual(
             { anchor: 9, head: 9 }
         );
+    });
+});
+
+describe('rendered range mapping', () => {
+    it('maps a backward range through the alignment fallback', () => {
+        const doc = ['', '| H1 |', '| --- |', '| **hello** &amp; world |', ''].join('\n');
+        const { state, resolvedCell } = resolveCell(doc, { section: 'body', row: 0, col: 0 });
+        expect(
+            resolveRenderedSelection(state, resolvedCell, { renderedText: 'hello & world', anchor: 11, head: 2 })
+        ).toEqual({ localSelection: { anchor: 19, head: 4 } });
     });
 });

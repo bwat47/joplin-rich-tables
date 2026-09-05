@@ -27,7 +27,7 @@ import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelecti
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
-import { handleTableInteraction } from './tableWidgetInteractions';
+import { handleTableInteraction, renderedCellNativeSelectionPlugin } from './tableWidgetInteractions';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
@@ -139,6 +139,7 @@ async function registerTableWidgetExtension(
         openCellRequestTimeoutPlugin,
 
         mouseCellDragSelectionPlugin,
+        renderedCellNativeSelectionPlugin,
         tableWidgetInteractionHandlers,
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,

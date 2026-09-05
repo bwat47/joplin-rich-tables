@@ -11,8 +11,8 @@ import { getViewportHeight, resolveViewportBounds } from '../../shared/editorVie
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
-import { readRenderedCaretHit, type RenderedCaretHit } from '../../tableWidget/cellCaretHit';
-import { resolveClickCursorPos } from './clickCursorPlacement';
+import { readRenderedCaretHit, readRenderedSelectionHit, type RenderedCaretHit } from '../../tableWidget/cellCaretHit';
+import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
@@ -44,6 +44,7 @@ interface MouseCellGesture {
     anchorCell: HTMLElement;
     resolvedCell: ResolvedActiveCell;
     dragged: boolean;
+    previousUserSelect?: string;
     lastFocus: CellCoords | null;
     lastClientX: number;
     lastClientY: number;
@@ -125,8 +126,10 @@ class MouseCellDragSelectionController {
                 flushNestedEditorState(this.view);
                 this.endNativeTextDrag(event);
             } else if (
+                !pointedCell ||
+                isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell) ||
                 distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) <
-                DRAG_START_DISTANCE_SQUARED
+                    DRAG_START_DISTANCE_SQUARED
             ) {
                 return;
             }
@@ -137,6 +140,12 @@ class MouseCellDragSelectionController {
             gesture.dragged = this.applyFocus(gesture, pointedCell ?? gesture.resolvedCell.activeCell);
             if (!gesture.dragged) {
                 return;
+            }
+            if (gesture.origin === 'renderedCell') {
+                this.capturePointer(gesture);
+                gesture.previousUserSelect = gesture.widget.style.userSelect;
+                gesture.widget.style.userSelect = 'none';
+                this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
             }
         } else {
             // Once dragging, a pointer outside the table still tracks the nearest cell, so a
@@ -190,12 +199,17 @@ class MouseCellDragSelectionController {
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
 
+        let cursorPos: InitialCursorPos | undefined;
+        if (!gesture.dragged && resolvedAnchor) {
+            const selectionHit = readRenderedSelectionHit(gesture.anchorCell);
+            cursorPos = selectionHit
+                ? resolveRenderedSelection(this.view.state, resolvedAnchor, selectionHit)
+                : resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit);
+        }
+
         return {
             resolvedAnchor,
-            cursorPos:
-                !gesture.dragged && resolvedAnchor
-                    ? resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit)
-                    : undefined,
+            cursorPos,
             reactivateAnchor:
                 gesture.dragged &&
                 pointedCell !== null &&
@@ -256,18 +270,14 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        // Editable content retains native pointer and mouse handling. Everything else — a
-        // rendered cell, or the active cell's row-height padding — has no native text-selection
-        // behavior to preserve, so claim its initial events to keep the outer editor from
-        // moving its caret or reopening the cell.
-        if (options.consumeInitialEvents) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
+        // Rendered text keeps the browser default, while capture prevents the outer editor
+        // from handling the same press. Active-editor padding retains its existing behavior.
+        if (options.consumeInitialEvents) event.preventDefault();
+        if (options.consumeInitialEvents || options.origin === 'renderedCell') event.stopPropagation();
 
         this.beginGesture({
             origin: options.origin,
-            consumeCompatibilityMouseDown: options.consumeInitialEvents,
+            consumeCompatibilityMouseDown: options.consumeInitialEvents || options.origin === 'renderedCell',
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
@@ -283,12 +293,6 @@ class MouseCellDragSelectionController {
                 options.origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null,
         });
 
-        if (options.origin === 'renderedCell') {
-            // No nested editor to share the pointer with, so the gesture owns it from the
-            // start. An active-editor drag only takes the pointer when it converts.
-            this.capturePointer(this.gesture);
-        }
-
         return true;
     }
 
@@ -297,7 +301,7 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        event.preventDefault();
+        if (this.gesture.origin !== 'renderedCell') event.preventDefault();
         event.stopPropagation();
         return true;
     }
@@ -448,6 +452,9 @@ class MouseCellDragSelectionController {
         }
 
         this.gesture = null;
+        if (gesture.previousUserSelect !== undefined) {
+            gesture.widget.style.userSelect = gesture.previousUserSelect;
+        }
         const doc = this.view.dom.ownerDocument;
         doc.removeEventListener('pointermove', this.onPointerMove, true);
         doc.removeEventListener('pointerup', this.onPointerUp, true);

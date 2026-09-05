@@ -230,6 +230,9 @@ export class TableWidget extends WidgetType {
         // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
         const contentWrapper = doc.createElement('div');
         contentWrapper.className = CLASS_CELL_CONTENT;
+        // Native selection must focus the rendered content rather than the outer editor,
+        // whose focus handler would replace the browser range with its document caret.
+        contentWrapper.tabIndex = -1;
         cell.appendChild(contentWrapper);
 
         renderCellMarkdownInto(contentWrapper, markdown, renderer);
@@ -333,9 +336,10 @@ export class TableWidget extends WidgetType {
         return findCellForPos(ctx.cellRanges, docPos - ctx.from);
     }
 
-    ignoreEvent(): boolean {
-        // Events are handled by extension-level domEventHandlers.
-        return false;
+    ignoreEvent(event: Event): boolean {
+        // A native range inside rendered text belongs to the pending cell gesture, not
+        // the outer document selection. Pointer/mouse events use the interaction handlers.
+        return event.type === 'selectionchange';
     }
 
     destroy(dom: HTMLElement): void {

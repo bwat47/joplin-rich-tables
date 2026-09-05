@@ -1,3 +1,5 @@
+import type { LocalSelection } from '../editorBridge/cellTextCodec';
+
 /**
  * Where the caret should land when a cell is opened programmatically.
  *
@@ -11,10 +13,11 @@
  * - `lastLineStart`: collapse to the start of the final line, so moving up into
  *   a multi-line cell lands on the line nearest the cell the caret came from.
  * - {@link CellTextOffset}: collapse to a specific offset in the cell text.
+ * - {@link CellTextSelection}: select a range in the cell text, preserving direction.
  *
  * Omitting the value mirrors the main editor's own selection into the cell.
  */
-export type InitialCursorPos = 'start' | 'end' | 'lastLineStart' | CellTextOffset;
+export type InitialCursorPos = 'start' | 'end' | 'lastLineStart' | CellTextOffset | CellTextSelection;
 
 /**
  * An exact caret offset in a cell's own text.
@@ -30,5 +33,10 @@ export interface CellTextOffset {
 
 /** Distinguishes an exact offset from the named edges. */
 export function isCellTextOffset(value: InitialCursorPos): value is CellTextOffset {
-    return typeof value === 'object';
+    return typeof value === 'object' && 'localOffset' in value;
+}
+
+/** An initial range in decoded cell text, preserving selection direction. */
+export interface CellTextSelection {
+    localSelection: LocalSelection;
 }

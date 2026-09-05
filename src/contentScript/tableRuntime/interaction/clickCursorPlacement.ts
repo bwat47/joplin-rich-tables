@@ -2,7 +2,7 @@ import type { EditorState } from '@codemirror/state';
 import { unsanitizeRootText } from '../../shared/cellTextNormalization';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { alignRenderedToSource, mapCaretToSource } from '../../shared/textAlignment';
-import type { RenderedCaretHit } from '../../tableWidget/cellCaretHit';
+import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
 import { projectCellText } from './cellTextProjection';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
@@ -42,10 +42,29 @@ export function resolveClickCursorPos(
         return undefined;
     }
 
+    const mapOffset = createRenderedOffsetMapper(state, resolvedCell, hit.renderedText);
+    return mapOffset ? { localOffset: mapOffset(hit.renderedOffset) } : undefined;
+}
+
+/** Uses one projection/alignment for both endpoints, including backward selections. */
+export function resolveRenderedSelection(
+    state: EditorState,
+    resolvedCell: ResolvedActiveCell,
+    hit: RenderedSelectionHit
+): InitialCursorPos | undefined {
+    const mapOffset = createRenderedOffsetMapper(state, resolvedCell, hit.renderedText);
+    return mapOffset ? { localSelection: { anchor: mapOffset(hit.anchor), head: mapOffset(hit.head) } } : undefined;
+}
+
+function createRenderedOffsetMapper(
+    state: EditorState,
+    resolvedCell: ResolvedActiveCell,
+    renderedText: string
+): ((offset: number) => number) | undefined {
     // Projection offsets must use the decoded text that the nested editor opens.
     const rootText = state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo);
     const localText = unsanitizeRootText(rootText);
-    if (hit.renderedText.length === 0 && localText.length > 0) {
+    if (renderedText.length === 0 && localText.length > 0) {
         // Images and skipped MathML contribute no rendered text. Their sole flattened offset
         // cannot distinguish a press before the content from one after it, so keep the established
         // mirrored-selection fallback instead of claiming every press belongs at source offset 0.
@@ -53,25 +72,21 @@ export function resolveClickCursorPos(
     }
 
     // The asynchronous renderer initially displays literal cell text.
-    if (hit.renderedText === localText) {
-        return { localOffset: Math.max(0, Math.min(hit.renderedOffset, localText.length)) };
+    if (renderedText === localText) {
+        return (offset) => Math.max(0, Math.min(offset, localText.length));
     }
 
     const projection = projectCellText(state, resolvedCell, rootText, localText);
-    if (hit.renderedText === projection.text) {
-        return {
-            localOffset: mapCaretToSource(projection.toLocal, hit.renderedOffset, localText.length),
-        };
+    if (renderedText === projection.text) {
+        return (offset) => mapCaretToSource(projection.toLocal, offset, localText.length);
     }
 
     // Align only against visible source spans. Hidden syntax cannot become an anchor,
     // even when a URL, title or image label exactly duplicates the rendered text.
-    const alignment = alignRenderedToSource(hit.renderedText, projection.text);
+    const alignment = alignRenderedToSource(renderedText, projection.text);
     if (!alignment || alignment.matchedRatio < MIN_MATCHED_RATIO) {
         return undefined;
     }
     const toLocal = Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset]));
-    return {
-        localOffset: mapCaretToSource(toLocal, hit.renderedOffset, localText.length),
-    };
+    return (offset) => mapCaretToSource(toLocal, offset, localText.length);
 }

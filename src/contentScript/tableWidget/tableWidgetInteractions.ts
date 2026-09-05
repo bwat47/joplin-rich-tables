@@ -1,4 +1,4 @@
-import type { EditorView } from '@codemirror/view';
+import { ViewPlugin, type EditorView } from '@codemirror/view';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
 import { parseFootnoteHref } from '../shared/footnoteAnchor';
@@ -242,7 +242,7 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
 
     return beginMouseCellGesture(view, event, cell, resolvedCell, {
         origin: 'renderedCell',
-        consumeInitialEvents: true,
+        consumeInitialEvents: false,
     });
 }
 
@@ -345,3 +345,28 @@ export function handleTableInteraction(view: EditorView, event: Event): boolean 
 
     return false;
 }
+
+/**
+ * Native rendered-text selection must bypass CodeMirror's handlers: returning true from a
+ * domEventHandler prevents the browser default. Capture stops propagation without doing so.
+ */
+export const renderedCellNativeSelectionPlugin = ViewPlugin.define((view) => {
+    const pointerDown = (event: PointerEvent): void => {
+        const target = event.target as HTMLElement;
+        if (!target.closest || target.closest(`.${CLASS_CELL_EDITOR}`)) return;
+        const cell = target.closest(SELECTOR_CELL);
+        if (!cell || cell.classList.contains(CLASS_CELL_ACTIVE)) return;
+        handleWidgetPointerDown(view, event, target);
+    };
+    const mouseDown = (event: MouseEvent): void => {
+        consumeMouseCellGestureMouseDown(view, event);
+    };
+    view.dom.addEventListener('pointerdown', pointerDown, true);
+    view.dom.addEventListener('mousedown', mouseDown, true);
+    return {
+        destroy() {
+            view.dom.removeEventListener('pointerdown', pointerDown, true);
+            view.dom.removeEventListener('mousedown', mouseDown, true);
+        },
+    };
+});

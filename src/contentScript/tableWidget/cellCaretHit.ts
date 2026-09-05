@@ -180,3 +180,23 @@ export function readRenderedCaretHit(cell: HTMLElement, clientX: number, clientY
 
     return renderedOffset === null ? null : { renderedText: index.text, renderedOffset };
 }
+
+/** A native selection wholly contained in one rendered cell. */
+export interface RenderedSelectionHit {
+    renderedText: string;
+    anchor: number;
+    head: number;
+}
+
+/** Reads both endpoints before opening the editor replaces the selected DOM. */
+export function readRenderedSelectionHit(cell: HTMLElement): RenderedSelectionHit | null {
+    const content = cell.querySelector(`:scope > .${CLASS_CELL_CONTENT}`) as HTMLElement | null;
+    const selection = cell.ownerDocument.getSelection();
+    if (!content || !selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
+        return null;
+    }
+    const index = indexRenderedText(content);
+    const anchor = flatOffsetFromDomPosition(index, selection.anchorNode, selection.anchorOffset);
+    const head = flatOffsetFromDomPosition(index, selection.focusNode, selection.focusOffset);
+    return anchor === null || head === null ? null : { renderedText: index.text, anchor, head };
+}

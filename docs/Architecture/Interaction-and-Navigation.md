@@ -106,14 +106,24 @@ CodeMirror's Markdown syntax tree:
    cannot become an anchor. Entities are omitted from the projection, so their decoded output uses neighboring
    anchors. Unknown renderer extensions remain approximate; insufficient matches decline placement.
 
-The offset travels through the open-cell request to the nested editor. Pointerdown records the hit; pointerup applies
-it only after confirming a click. Drag selection discards it. Unresolved hits preserve the established selection
-fallback. Start/end hits retain the source-boundary policy, including surrounding Markdown delimiters.
+The offset or range travels through the open-cell request to the nested editor. A capture listener keeps rendered-cell
+presses out of CodeMirror's default mouse handling without cancelling native browser selection. Rendered content is
+focusable with `tabIndex=-1`, so focusing it does not reset the range through the outer editor's focus handler.
+
+While a drag stays in its cell, the browser owns selection. Pointerup reads both endpoints from the same rendered-text
+index and maps them through one projection/alignment, preserving direction. Both endpoints use the existing caret
+boundary policy: selecting an entire formatted word includes its Markdown delimiters. Unresolved hits preserve the
+established selection fallback.
+
+Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears native
+text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
+does not restore the earlier text range. Active-editor drags retain their existing boundary margin and behavior.
 
 ## Pointer, Links, and Scrolling
 
 - Clicking activates a cell or updates the current cell selection, placing the caret where the click landed.
-- Mouse dragging selects a cell rectangle; touch and pen input retain native scrolling and tap behavior.
+- Mouse dragging within an inactive cell selects rendered text; dragging into another cell selects a rectangle.
+  Touch and pen input retain native scrolling and tap behavior.
 - Drags near an edge auto-scroll the table or host scroll container. See
   [Table-Display.md](./Table-Display.md#host-scroll-modes).
 - Links delegate to the content-script link opener and then to the main plugin.
