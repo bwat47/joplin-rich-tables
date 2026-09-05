@@ -526,9 +526,8 @@ describe('MarkdownTable', () => {
  * the output back. This pins the two together: if `serialize()` ever changes its padding
  * or separators, the arithmetic has to change with it.
  *
- * Each case is a factory, because the offset arithmetic has two paths: a table that has
- * been serialized reads back the line lengths it produced, and one that has not derives
- * them. Both are exercised, on separate instances, against the same parsed text.
+ * Each case checks that the captured text matches `serialize()` and that every captured
+ * cell offset agrees with the editable range parsed from that same text.
  */
 describe('serializeWithOffsets agrees with parsing the serialization', () => {
     const cases: Record<string, () => MarkdownTable> = {
@@ -576,8 +575,10 @@ describe('serializeWithOffsets agrees with parsing the serialization', () => {
     };
 
     it.each(Object.entries(cases))('%s', (_label, buildTable) => {
-        const text = buildTable().serialize();
-        const ranges = parseCellRangesFixture(text);
+        const table = buildTable();
+        const serialized = table.serializeWithOffsets();
+        expect(serialized.text).toBe(table.serialize());
+        const ranges = parseCellRangesFixture(serialized.text);
 
         const coords: CellCoords[] = [
             ...ranges.headers.map((_range, col) => ({ section: 'header', row: 0, col }) as CellCoords),
@@ -587,14 +588,9 @@ describe('serializeWithOffsets agrees with parsing the serialization', () => {
         ];
         expect(coords.length).toBeGreaterThan(0);
 
-        const derived = buildTable();
-        const readBack = buildTable();
-        readBack.serialize();
-
         for (const cell of coords) {
             const expected = getCellRange(ranges, cell)?.editableFrom;
-            expect(derived.serializeWithOffsets().cellOffset(cell)).toBe(expected);
-            expect(readBack.serializeWithOffsets().cellOffset(cell)).toBe(expected);
+            expect(serialized.cellOffset(cell)).toBe(expected);
         }
     });
 
