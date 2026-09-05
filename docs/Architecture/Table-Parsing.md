@@ -9,7 +9,7 @@ See [ADR-001](../ADR/001-lezer-table-syntax.md) for the decision rationale.
 
 - `TableHeader` and direct `TableRow` nodes define row membership.
 - Direct row `TableDelimiter` children define raw cell gaps, including adjacent empty cells.
-- Optional `TableCell` children define non-empty semantic content spans.
+- Optional `TableCell` children define non-empty semantic content spans after trailing ASCII spaces and tabs are removed.
 - The table-level separator node supplies the already validated alignment-row source.
 
 Document resolution extracts this value from the existing CodeMirror tree and accepts only `Table` nodes directly
@@ -18,7 +18,8 @@ shared GFM Lezer parser and accepts exactly one root table plus optional outer w
 
 Row spans exclude trailing ASCII spaces and tabs outside the final `TableCell`. Lezer row nodes cover that padding, but
 it belongs to no cell: counting it detaches the closing pipe from the last cell and yields a phantom trailing column.
-Trimming never crosses whitespace that Lezer classified as cell content.
+Row trimming stops at the final `TableCell` node, including any padding Lezer pulls in after an odd trailing backslash.
+Semantic content spans exclude that padding even though it remains inside the row span.
 
 The adapter fails closed on unexpected tree shapes. A direct `TableRow` without pipe delimiters becomes one raw cell,
 matching Lezer's treatment of pipe-free lines adjacent to a table.
@@ -28,12 +29,12 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
 `computeMarkdownTableCellRangesFromSyntax()` converts syntax spans into editing coordinates relative to the supplied
 text, rebasing them when the table starts at a nonzero offset:
 
-- `from/to` use a `TableCell` span for non-empty content.
+- `from/to` use a `TableCell` span minus trailing ASCII padding for non-empty content.
 - Empty cells receive a stable zero-width insertion point reconstructed from the raw delimiter gap.
 - `editableFrom/editableTo` independently remove at most one delimiter-adjacent ASCII space or tab on each side.
-  Padding stays outside edits even when Lezer includes it in semantic content after a backslash, so deleting at the
-  cell's end cannot escape the next pipe. Entry normalization preserves source-owned escaped whitespace and adds
-  separate serialization padding around it.
+  This keeps padding outside edits so a trailing backslash cannot escape the next pipe. The space or tab Lezer pulls
+  into `TableCell` after an odd trailing backslash is excluded from semantic content. Entry normalization therefore
+  writes only the canonical serialization padding, keeping repeated serialization stable.
 - Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
 Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds. Tests compose the Lezer
