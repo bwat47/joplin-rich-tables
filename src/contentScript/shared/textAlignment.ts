@@ -8,29 +8,13 @@
  * anchors. The matched ratio measures coverage, not semantic certainty.
  */
 
-/**
- * Longest length either side may have before alignment is refused.
- *
- * Cells this long are far past the point where a caret lands somewhere the reader was
- * looking anyway. The cap bounds a single {@link findLongestMatch} scan; it does not bound
- * the recursion around it, which is what {@link MAX_ALIGNMENT_CANDIDATES} is for.
- */
+/** Maximum input length for fallback alignment; direct mappings bypass this limit. */
 const MAX_ALIGNMENT_LENGTH = 1000;
 
 /**
- * Candidate comparisons alignment may spend before it gives up.
- *
- * The length cap alone does not bound the cost of a hit test that runs on a click. A cell
- * whose longest common run is a single character - a row of short inline code spans, or
- * emphasis around every character - recurses once per character and rescans the shrinking
- * range each time, which is quadratic in the cell length rather than linear.
- *
- * Measured on the shapes this has to survive, a comparison costs roughly 30ns and the cells
- * that read as prose stay near a million: a 1000-character cell with inline markup spends
- * ~0.8M, a cell of 1000 identical characters ~1.0M. The degenerate shapes above spend 10M to
- * 40M, or 0.3s to 1s. The budget sits above the first group and well below the second, which
- * holds a click to ~60ms. What it gives up is the alignment of a cell that is both long and
- * degenerate, which then falls back like any other cell that cannot be aligned.
+ * Comparison budget shared by all longest-block scans in one fallback alignment.
+ * Repeated characters and fragmented matches can cause expensive rescans even within the
+ * length limit. Exhausting this budget declines placement; it does not bound elapsed time.
  */
 const MAX_ALIGNMENT_CANDIDATES = 2_000_000;
 
