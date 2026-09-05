@@ -82,10 +82,12 @@ for (const fixture of fixtures) {
             BENCHMARK_OPTIONS
         );
 
-        // Every structural edit locates its next active cell in the serialized table.
+        // Structural edits serialize first, then anchor using the captured line lengths.
+        // Include both operations in the timing to match that runtime path.
         bench(
-            'structural-edit anchor',
+            'structural-edit serialize + cached anchor',
             () => {
+                fixture.table.serialize();
                 computeCellAnchorForTable({ table: fixture.table, target: fixture.anchorTarget });
             },
             BENCHMARK_OPTIONS
