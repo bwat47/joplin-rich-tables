@@ -1,17 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { alignRenderedToSource, mapCaretToSource, type ExcludedSourceRange } from '../shared/textAlignment';
+import { alignRenderedToSource, mapCaretToSource } from '../shared/textAlignment';
 
 /**
  * Maps a caret in rendered text back to its source offset, expressed as the source split
  * at that point so failures read as text rather than as an integer mismatch.
  */
-function place(
-    rendered: string,
-    source: string,
-    caret: number,
-    excludedRanges: readonly ExcludedSourceRange[] = []
-): string {
-    const alignment = alignRenderedToSource(rendered, source, excludedRanges);
+function place(rendered: string, source: string, caret: number): string {
+    const alignment = alignRenderedToSource(rendered, source);
     if (!alignment) {
         throw new Error('expected an alignment');
     }
@@ -49,15 +44,6 @@ describe('alignRenderedToSource', () => {
 
     it('keeps the caret inside inline code', () => {
         expect(place('code', '`code`', 2)).toBe('`co|de`');
-    });
-
-    it('does not use excluded source ranges as alignment anchors', () => {
-        expect(
-            place('code', '<code>code</code>', 2, [
-                { from: 0, to: 6 },
-                { from: 10, to: 17 },
-            ])
-        ).toBe('<code>co|de</code>');
     });
 
     it('still aligns tag-shaped text rendered literally by an inline code span', () => {

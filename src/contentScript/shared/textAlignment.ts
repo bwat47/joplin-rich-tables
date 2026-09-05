@@ -53,34 +53,10 @@ export interface TextAlignment {
     readonly matchedRatio: number;
 }
 
-/** Half-open source range whose characters must not be used as alignment anchors. */
-export interface ExcludedSourceRange {
-    from: number;
-    to: number;
-}
-
-function excludedSourcePositions(sourceLength: number, ranges: readonly ExcludedSourceRange[]): Uint8Array | null {
-    if (ranges.length === 0) {
-        return null;
-    }
-
-    const excluded = new Uint8Array(sourceLength);
-    for (const range of ranges) {
-        const from = Math.max(0, Math.min(range.from, sourceLength));
-        const to = Math.max(from, Math.min(range.to, sourceLength));
-        excluded.fill(1, from, to);
-    }
-    return excluded;
-}
-
 /** Character to ascending list of positions, so block matching can skip non-candidates. */
-function indexCharacterPositions(source: string, excluded: Uint8Array | null): Map<string, number[]> {
+function indexCharacterPositions(source: string): Map<string, number[]> {
     const positions = new Map<string, number[]>();
     for (let i = 0; i < source.length; i++) {
-        if (excluded?.[i]) {
-            continue;
-        }
-
         const existing = positions.get(source[i]);
         if (existing) {
             existing.push(i);
@@ -99,15 +75,12 @@ function indexCharacterPositions(source: string, excluded: Uint8Array | null): M
  * subsequence. This repairs repeated-text cases where longest-block alignment commits to a
  * later run and strands otherwise matchable characters on one side of it.
  */
-function alignCompleteSubsequence(rendered: string, source: string, excluded: Uint8Array | null): TextAlignment | null {
+function alignCompleteSubsequence(rendered: string, source: string): TextAlignment | null {
     const toSource = new Int32Array(rendered.length);
     let sourceIndex = 0;
 
     for (let renderedIndex = 0; renderedIndex < rendered.length; renderedIndex++) {
-        while (
-            sourceIndex < source.length &&
-            (Boolean(excluded?.[sourceIndex]) || source[sourceIndex] !== rendered[renderedIndex])
-        ) {
+        while (sourceIndex < source.length && source[sourceIndex] !== rendered[renderedIndex]) {
             sourceIndex++;
         }
 
@@ -227,19 +200,12 @@ function collectMatchingBlocks(
 /**
  * Aligns rendered text back onto the source it came from.
  *
- * Characters inside `excludedRanges` cannot anchor a match. Callers use this for syntax that
- * may duplicate visible text, such as an HTML tag name or attribute value.
- *
  * Returns null when either side is longer than {@link MAX_ALIGNMENT_LENGTH}, or when the
  * text is shaped such that aligning it would cost more than {@link MAX_ALIGNMENT_CANDIDATES}
  * comparisons; callers treat that as "no better placement is available" rather than as an
  * error.
  */
-export function alignRenderedToSource(
-    rendered: string,
-    source: string,
-    excludedRanges: readonly ExcludedSourceRange[] = []
-): TextAlignment | null {
+export function alignRenderedToSource(rendered: string, source: string): TextAlignment | null {
     if (rendered.length > MAX_ALIGNMENT_LENGTH || source.length > MAX_ALIGNMENT_LENGTH) {
         return null;
     }
@@ -249,8 +215,7 @@ export function alignRenderedToSource(
         return { toSource: new Int32Array(), matchedRatio: 1 };
     }
 
-    const excluded = excludedSourcePositions(source.length, excludedRanges);
-    const blocks = collectMatchingBlocks(rendered, indexCharacterPositions(source, excluded), source.length);
+    const blocks = collectMatchingBlocks(rendered, indexCharacterPositions(source), source.length);
     if (!blocks) {
         return null;
     }
@@ -269,7 +234,7 @@ export function alignRenderedToSource(
         return blockAlignment;
     }
 
-    return alignCompleteSubsequence(rendered, source, excluded) ?? blockAlignment;
+    return alignCompleteSubsequence(rendered, source) ?? blockAlignment;
 }
 
 /**
