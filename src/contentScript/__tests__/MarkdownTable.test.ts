@@ -1,8 +1,9 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges, getCellRange } from '../tableModel/markdownTableCellRanges';
+import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../tableModel/types';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { createMarkdownState } from './testMarkdownState';
+import { parseCellRangesFixture } from './testUtils';
 
 function buildContext(text: string) {
     return resolveTableContextAtPos(createMarkdownState(text), 0);
@@ -576,9 +577,7 @@ describe('serializedCellOffset agrees with parsing the serialization', () => {
 
     it.each(Object.entries(cases))('%s', (_label, buildTable) => {
         const text = buildTable().serialize();
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         const coords: CellCoords[] = [
             ...ranges.headers.map((_range, col) => ({ section: 'header', row: 0, col }) as CellCoords),

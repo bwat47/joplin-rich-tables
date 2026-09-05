@@ -7,11 +7,11 @@ import {
     buildMultiCellPasteRewrite,
     createTableClipboardRewriteSpec,
 } from '../tableRuntime/selection/cellSelectionClipboard';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { createMarkdownState } from './testMarkdownState';
+import { parseCellRangesFixture } from './testUtils';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -107,9 +107,6 @@ describe('createMainEditorActiveCellGuard', () => {
     it('allows structural table edits that force rebuild', () => {
         const doc = TABLE_DOC;
 
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        expect(tableRanges).not.toBeNull();
-
         const state = createActiveHeaderState();
 
         // Replace the first line (outside cell range) but mark as rebuild, like toolbar does.
@@ -127,10 +124,9 @@ describe('createMainEditorActiveCellGuard', () => {
     it('sanitizes pasted content (newlines/pipes) inside active cell instead of rejecting', () => {
         const doc = TABLE_DOC;
 
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        expect(tableRanges).not.toBeNull();
+        const tableRanges = parseCellRangesFixture(doc);
 
-        const cellFrom = tableRanges!.headers[0].from;
+        const cellFrom = tableRanges.headers[0].from;
         const state = createActiveHeaderState();
 
         // Simulate pasting "Line1\nLine2|Val" into H1
@@ -149,8 +145,8 @@ describe('createMainEditorActiveCellGuard', () => {
 
     it('updates selection correctly when sanitized content length differs from original', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |'].join('\n');
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        const cellFrom = tableRanges!.headers[0].from;
+        const tableRanges = parseCellRangesFixture(doc);
+        const cellFrom = tableRanges.headers[0].from;
         const state = createActiveHeaderState({
             doc,
             selection: { anchor: cellFrom, head: cellFrom },
@@ -177,10 +173,9 @@ describe('createMainEditorActiveCellGuard', () => {
 
     it('rewrites markdown-table paste into a multi-cell paste when nested editor paste lands in the main editor', () => {
         const doc = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a | b | c |', '| d | e | f |'].join('\n');
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        expect(tableRanges).not.toBeNull();
+        const tableRanges = parseCellRangesFixture(doc);
 
-        const bodyCell = tableRanges!.rows[0][1];
+        const bodyCell = tableRanges.rows[0][1];
         const state = createActiveHeaderState({
             doc,
             activeCell: headerCell({
@@ -363,9 +358,6 @@ describe('createMainEditorActiveCellGuard', () => {
 
     it('allows full document replacement and clears active cell', () => {
         const doc = TABLE_DOC;
-        const tableRanges = computeMarkdownTableCellRanges(doc);
-        expect(tableRanges).not.toBeNull();
-
         const state = createActiveHeaderState();
 
         const newDoc = '# Updated\n\nNo tables here.';

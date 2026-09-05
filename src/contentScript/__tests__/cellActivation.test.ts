@@ -1,16 +1,8 @@
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { resolveActivationTargetCell } from '../tableRuntime/activeCell/cellActivation';
 import type { ActiveCell } from '../tableState/activeCellState';
+import { parseCellRangesFixture } from './testUtils';
 
 const tableText = ['| H1 | H2 |', '| --- | --- |', '| aaa bbb ccc | zzz |'].join('\n');
-
-function requireCellRanges() {
-    const ranges = computeMarkdownTableCellRanges(tableText);
-    if (!ranges) {
-        throw new Error('Expected table ranges');
-    }
-    return ranges;
-}
 
 describe('resolveActivationTargetCell', () => {
     it('keeps the current active cell when the cursor lands on table punctuation', () => {
@@ -26,7 +18,7 @@ describe('resolveActivationTargetCell', () => {
             resolveActivationTargetCell({
                 tableFrom: 0,
                 relativePos: pipePos,
-                cellRanges: requireCellRanges(),
+                cellRanges: parseCellRangesFixture(tableText),
                 activeCell,
             })
         ).toEqual({
@@ -43,7 +35,7 @@ describe('resolveActivationTargetCell', () => {
             resolveActivationTargetCell({
                 tableFrom: 0,
                 relativePos: pipePos,
-                cellRanges: requireCellRanges(),
+                cellRanges: parseCellRangesFixture(tableText),
                 activeCell: null,
             })
         ).toEqual({

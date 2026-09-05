@@ -15,11 +15,11 @@ import { getCellSelector } from '../tableWidget/domHelpers';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import type { CellCoords } from '../tableModel/types';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { parseCellRangesFixture } from './testUtils';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -102,8 +102,8 @@ function mountGestureView(): MountedGestureView {
     // The widget is built the way production builds it, so these tests fail if the cell
     // attribute contract the gesture hit-tests against ever changes.
     const table = MarkdownTable.parse(GRID_DOC);
-    const cellRanges = computeMarkdownTableCellRanges(GRID_DOC);
-    if (!table || !cellRanges) {
+    const cellRanges = parseCellRangesFixture(GRID_DOC);
+    if (!table) {
         throw new Error('Expected the test table to parse');
     }
     const widget = new TableWidget(table, cellRanges, GRID_DOC, 0).toDOM(view);

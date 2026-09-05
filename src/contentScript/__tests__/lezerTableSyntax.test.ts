@@ -15,8 +15,10 @@ function cellContent(text: string, tableFrom: number, cell: { content: { from: n
 }
 
 describe('parseRootMarkdownTableSyntax', () => {
-    it('extracts table-relative row and cell syntax', () => {
-        const text = ['| A | B |', '| --- | --- |', '| C | D |'].join('\n');
+    it.each([
+        ['rows with outer pipes', ['| A | B |', '| --- | --- |', '| C | D |'].join('\n')],
+        ['rows without outer pipes', ['A | B', '---|---', 'C | D'].join('\n')],
+    ])('extracts table-relative syntax for %s', (_label, text) => {
         const parsed = parse(text);
 
         expect(parsed).toMatchObject({ from: 0, to: text.length });
@@ -34,14 +36,22 @@ describe('parseRootMarkdownTableSyntax', () => {
         expect(parsed.syntax.bodyRows[0].cells.every((cell) => cell.content === null)).toBe(true);
     });
 
-    it('keeps escaped pipes inside a cell', () => {
-        const text = [String.raw`| A\|B | C |`, '| --- | --- |'].join('\n');
+    it.each([
+        ['plain text', String.raw`A\|B`],
+        ['inline code', '`grep \\| sort`'],
+    ])('keeps escaped pipes inside a cell containing %s', (_label, content) => {
+        const text = [`| ${content} | C |`, '| --- | --- |'].join('\n');
         const parsed = parse(text);
 
-        expect(parsed.syntax.header.cells.map((cell) => cellContent(text, parsed.from, cell))).toEqual([
-            String.raw`A\|B`,
-            'C',
-        ]);
+        expect(parsed.syntax.header.cells.map((cell) => cellContent(text, parsed.from, cell))).toEqual([content, 'C']);
+    });
+
+    it('keeps uneven body rows at their source width', () => {
+        const text = ['| A | B |', '| --- | --- |', '| C |'].join('\n');
+        const parsed = parse(text);
+
+        expect(parsed.syntax.header.cells).toHaveLength(2);
+        expect(parsed.syntax.bodyRows[0].cells.map((cell) => cellContent(text, parsed.from, cell))).toEqual(['C']);
     });
 
     it('associates ordered content nodes across a wide row', () => {

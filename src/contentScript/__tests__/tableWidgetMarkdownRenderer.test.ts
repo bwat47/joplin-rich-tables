@@ -5,9 +5,8 @@ import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { TableWidget } from '../tableWidget/TableWidget';
-import { deferred } from './testUtils';
+import { deferred, parseCellRangesFixture } from './testUtils';
 
 class ResizeObserverMock {
     observe = vi.fn();
@@ -27,8 +26,8 @@ describe('TableWidget markdown rendering', () => {
         const rendered = deferred<string>();
         const tableText = ['| H1 |', '| --- |', '| **body** |'].join('\n');
         const table = MarkdownTable.parse(tableText);
-        const cellRanges = computeMarkdownTableCellRanges(tableText);
-        if (!table || !cellRanges) {
+        const cellRanges = parseCellRangesFixture(tableText);
+        if (!table) {
             throw new Error('Expected test table to parse');
         }
 

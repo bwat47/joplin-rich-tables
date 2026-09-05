@@ -4,12 +4,11 @@
  * Lezer owns table and cell syntax. This module derives editor-specific semantic and
  * editable ranges from those syntax facts.
  */
-import {
-    parseRootMarkdownTableSyntax,
-    type MarkdownTableSourceRange,
-    type MarkdownTableSyntax,
-    type MarkdownTableSyntaxCell,
-    type MarkdownTableSyntaxRow,
+import type {
+    MarkdownTableSourceRange,
+    MarkdownTableSyntax,
+    MarkdownTableSyntaxCell,
+    MarkdownTableSyntaxRow,
 } from './lezerTableSyntax';
 import { isTablePadding } from '../shared/tablePadding';
 import type { CellCoords } from './types';
@@ -85,11 +84,6 @@ export function computeMarkdownTableCellRangesFromSyntax(
         headers: toRowCellRanges(text, syntax.header, tableFrom),
         rows: syntax.bodyRows.map((row) => toRowCellRanges(text, row, tableFrom)),
     };
-}
-
-export function computeMarkdownTableCellRanges(text: string): TableCellRanges | null {
-    const parsed = parseRootMarkdownTableSyntax(text);
-    return parsed ? computeMarkdownTableCellRangesFromSyntax(text, parsed.syntax, parsed.from) : null;
 }
 
 /**

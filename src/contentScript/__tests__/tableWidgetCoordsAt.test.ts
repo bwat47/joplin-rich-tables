@@ -8,11 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { parseCellRangesFixture } from './testUtils';
 
 class ResizeObserverMock {
     observe = vi.fn();
@@ -57,8 +58,8 @@ describe('TableWidget coordsAt', () => {
     it('resolves coordinates from widget-relative positions when the table starts after document offset 0', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| body 1 | body 2 |'].join('\n');
         const table = MarkdownTable.parse(tableText);
-        const cellRanges = computeMarkdownTableCellRanges(tableText);
-        if (!table || !cellRanges) {
+        const cellRanges = parseCellRangesFixture(tableText);
+        if (!table) {
             throw new Error('Expected test table to parse');
         }
 
@@ -105,10 +106,7 @@ describe('TableWidget coordsAt', () => {
         // is always set alongside it. Reproducing that here matters: coordsAt reads the live cell
         // ranges from resolvedActiveCellField, which is only populated while a cell is active.
         function editCellAWithoutRebuild(view: EditorView, insertText: string): void {
-            const cellARanges = computeMarkdownTableCellRanges(view.state.doc.toString());
-            if (!cellARanges) {
-                throw new Error('Expected table to parse');
-            }
+            const cellARanges = parseCellRangesFixture(view.state.doc.toString());
             const cellAFrom = cellARanges.rows[0][0].editableFrom;
             const cellATo = cellARanges.rows[0][0].editableTo;
             view.dispatch({
@@ -125,10 +123,7 @@ describe('TableWidget coordsAt', () => {
             try {
                 editCellAWithoutRebuild(view, 'aaaaaaaaaa');
 
-                const liveRanges = computeMarkdownTableCellRanges(view.state.doc.toString());
-                if (!liveRanges) {
-                    throw new Error('Expected edited table to parse');
-                }
+                const liveRanges = parseCellRangesFixture(view.state.doc.toString());
                 // Points at the tail of the newly inserted text -- past where the pre-edit
                 // cellRanges recorded cell A as ending.
                 const posInGrownCellA = liveRanges.rows[0][0].editableTo;
@@ -158,10 +153,7 @@ describe('TableWidget coordsAt', () => {
             try {
                 editCellAWithoutRebuild(view, 'aaaaaaaaaa');
 
-                const liveRanges = computeMarkdownTableCellRanges(view.state.doc.toString());
-                if (!liveRanges) {
-                    throw new Error('Expected edited table to parse');
-                }
+                const liveRanges = parseCellRangesFixture(view.state.doc.toString());
                 const posInCellB = liveRanges.rows[0][1].editableFrom;
 
                 const cellA = view.contentDOM.querySelector('tbody td:nth-child(1)') as HTMLElement | null;
@@ -189,8 +181,8 @@ describe('TableWidget coordsAt', () => {
         it('does not fall back to stale ranges when the live position is not inside a cell', () => {
             const longTableText = ['| H1 | H2 |', '| --- | --- |', '| aaaaaaaaaa | b |'].join('\n');
             const table = MarkdownTable.parse(longTableText);
-            const cachedRanges = computeMarkdownTableCellRanges(longTableText);
-            if (!table || !cachedRanges) {
+            const cachedRanges = parseCellRangesFixture(longTableText);
+            if (!table) {
                 throw new Error('Expected table to parse');
             }
 
@@ -202,10 +194,7 @@ describe('TableWidget coordsAt', () => {
             try {
                 editCellAWithoutRebuild(view, 'a');
 
-                const liveRanges = computeMarkdownTableCellRanges(view.state.doc.toString());
-                if (!liveRanges) {
-                    throw new Error('Expected edited table to parse');
-                }
+                const liveRanges = parseCellRangesFixture(view.state.doc.toString());
                 const delimiterPos = liveRanges.rows[0][0].editableTo + 1;
 
                 // This position moved into the delimiter after cell A was shortened, but the
@@ -233,8 +222,7 @@ describe('TableWidget coordsAt', () => {
         const { parent, view } = createRealView(`${tableA}\n\n${tableB}`);
         try {
             // Activate cell A[0][0] and grow it via a sync edit (nested-editor forwarding path).
-            const preRanges = computeMarkdownTableCellRanges(tableA);
-            if (!preRanges) throw new Error('Expected table A to parse');
+            const preRanges = parseCellRangesFixture(tableA);
             view.dispatch({
                 effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
             });
@@ -255,8 +243,7 @@ describe('TableWidget coordsAt', () => {
             });
 
             const liveDocText = view.state.doc.toString();
-            const liveARanges = computeMarkdownTableCellRanges(liveDocText.slice(0, liveDocText.indexOf('\n\n')));
-            if (!liveARanges) throw new Error('Expected edited table A to parse');
+            const liveARanges = parseCellRangesFixture(liveDocText.slice(0, liveDocText.indexOf('\n\n')));
             // Tail of the grown cell A: past where A's pre-edit ranges said the cell ended.
             const posInGrownCellA = liveARanges.rows[0][0].editableTo;
 
@@ -286,8 +273,8 @@ describe('TableWidget coordsAt', () => {
         // cellRanges rather than fail outright.
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| body 1 | body 2 |'].join('\n');
         const table = MarkdownTable.parse(tableText);
-        const cellRanges = computeMarkdownTableCellRanges(tableText);
-        if (!table || !cellRanges) {
+        const cellRanges = parseCellRangesFixture(tableText);
+        if (!table) {
             throw new Error('Expected test table to parse');
         }
 

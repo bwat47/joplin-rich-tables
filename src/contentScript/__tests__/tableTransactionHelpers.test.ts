@@ -2,14 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { computeMarkdownTableCellRanges } from '../tableModel/markdownTableCellRanges';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
-import { parseTableFixture } from './testUtils';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { parseTableFixture, parseCellRangesFixture } from './testUtils';
 
 describe('tableTransactionHelpers', () => {
     let currentTableText = '';
@@ -36,8 +35,8 @@ describe('tableTransactionHelpers', () => {
 
     function createResolvedCell(cell: ActiveCell): ResolvedActiveCell {
         const table = MarkdownTable.parse(currentTableText);
-        const cellRanges = computeMarkdownTableCellRanges(currentTableText);
-        if (!table || !cellRanges) {
+        const cellRanges = parseCellRangesFixture(currentTableText);
+        if (!table) {
             throw new Error('Expected valid table fixture');
         }
 

@@ -1,60 +1,58 @@
 import { describe, expect, it } from 'vitest';
-import { computeMarkdownTableCellRanges, findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { parseCellRangesFixture } from './testUtils';
 
-function sliceRange(text: string, from: number, to: number): string {
-    return text.slice(from, to);
-}
+describe('computeMarkdownTableCellRangesFromSyntax', () => {
+    it('rebases semantic, editable, and empty-cell bounds past leading whitespace', () => {
+        const prefix = '\n \n';
+        const headerLine = '|  head  |  |';
+        const text = prefix + [headerLine, '| --- | --- |', '|  body  |  |'].join('\n');
+        const ranges = parseCellRangesFixture(text);
+        const headerFrom = text.indexOf('head');
+        const bodyFrom = text.indexOf('body');
+        const emptyHeaderFrom = prefix.length + headerLine.indexOf('|  |') + '| '.length;
+        const emptyBodyFrom = text.lastIndexOf('|  |') + '| '.length;
 
-describe('computeMarkdownTableCellRanges', () => {
-    it('maps basic header/body cells and trims whitespace', () => {
-        const text = ['| a |  b  |', '| --- | --- |', '| c | d |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.headers).toHaveLength(2);
-        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe('a');
-        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('b');
-
-        expect(ranges.rows).toHaveLength(1);
-        expect(ranges.rows[0]).toHaveLength(2);
-        expect(sliceRange(text, ranges.rows[0][0].from, ranges.rows[0][0].to)).toBe('c');
-        expect(sliceRange(text, ranges.rows[0][1].from, ranges.rows[0][1].to)).toBe('d');
-    });
-
-    it('handles tables without leading/trailing pipes', () => {
-        const text = ['a | b', '---|---', 'c | d'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.headers).toHaveLength(2);
-        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe('a');
-        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('b');
-
-        expect(ranges.rows).toHaveLength(1);
-        expect(ranges.rows[0]).toHaveLength(2);
-        expect(sliceRange(text, ranges.rows[0][0].from, ranges.rows[0][0].to)).toBe('c');
-        expect(sliceRange(text, ranges.rows[0][1].from, ranges.rows[0][1].to)).toBe('d');
-    });
-
-    it(String.raw`does not treat escaped pipes (\|) as delimiters`, () => {
-        const text = [String.raw`| a\|b | c |`, '| --- | --- |', '| d | e |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.headers).toHaveLength(2);
-        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe(String.raw`a\|b`);
-        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('c');
+        expect(ranges).toEqual({
+            headers: [
+                {
+                    from: headerFrom,
+                    to: headerFrom + 'head'.length,
+                    editableFrom: headerFrom - 1,
+                    editableTo: headerFrom + 'head '.length,
+                },
+                {
+                    from: emptyHeaderFrom,
+                    to: emptyHeaderFrom,
+                    editableFrom: emptyHeaderFrom,
+                    editableTo: emptyHeaderFrom,
+                },
+            ],
+            rows: [
+                [
+                    {
+                        from: bodyFrom,
+                        to: bodyFrom + 'body'.length,
+                        editableFrom: bodyFrom - 1,
+                        editableTo: bodyFrom + 'body '.length,
+                    },
+                    {
+                        from: emptyBodyFrom,
+                        to: emptyBodyFrom,
+                        editableFrom: emptyBodyFrom,
+                        editableTo: emptyBodyFrom,
+                    },
+                ],
+            ],
+        });
+        expect(findCellForPos(ranges, emptyHeaderFrom)).toEqual({ section: 'header', row: 0, col: 1 });
+        expect(findCellForPos(ranges, emptyBodyFrom)).toEqual({ section: 'body', row: 0, col: 1 });
     });
 
     it('uses an interior insertion point for whitespace-only cells', () => {
         const headerLine = '|   |';
         const text = [headerLine, '| --- |', '|   |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         expect(ranges.headers).toHaveLength(1);
         const r = ranges.headers[0];
@@ -63,7 +61,7 @@ describe('computeMarkdownTableCellRanges', () => {
         expect(r.from).toBe(r.to);
         expect(r.from).toBeGreaterThan(1);
         expect(r.from).toBeLessThan(headerLine.length - 1);
-        expect(sliceRange(text, r.from, r.to)).toBe('');
+        expect(text.slice(r.from, r.to)).toBe('');
     });
 
     it.each([
@@ -77,88 +75,57 @@ describe('computeMarkdownTableCellRanges', () => {
         },
     ])('$case in editable bounds', ({ headerLine, editable }) => {
         const text = [headerLine, '| --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         const header = ranges.headers[0];
-        expect(sliceRange(text, header.from, header.to)).toBe('foo');
-        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe(editable);
+        expect(text.slice(header.from, header.to)).toBe('foo');
+        expect(text.slice(header.editableFrom, header.editableTo)).toBe(editable);
     });
 
     it('uses a zero-width editable span for canonical empty cells', () => {
         const text = ['|  |', '| --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         const header = ranges.headers[0];
         expect(header.editableFrom).toBe(header.editableTo);
-        expect(sliceRange(text, header.editableFrom, header.editableTo)).toBe('');
+        expect(text.slice(header.editableFrom, header.editableTo)).toBe('');
     });
 
     it('uses a zero-width editable span for a body row containing only one pipe', () => {
         const text = ['| a | b |', '| --- | --- |', '|'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
+        const ranges = parseCellRangesFixture(text);
 
-        expect(ranges?.rows).toEqual([
+        expect(ranges.rows).toEqual([
             [{ from: text.length, to: text.length, editableFrom: text.length, editableTo: text.length }],
         ]);
-        expect(findCellForPos(ranges!, text.length)).toEqual({ section: 'body', row: 0, col: 0 });
+        expect(findCellForPos(ranges, text.length)).toEqual({ section: 'body', row: 0, col: 0 });
     });
 
     it('returns stable editable bounds for cells without canonical pad spaces', () => {
         const text = ['|foo|bar|', '|---|---|'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
-        expect(sliceRange(text, ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe('foo');
-        expect(sliceRange(text, ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
+        expect(text.slice(ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe('foo');
+        expect(text.slice(ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
     });
 
     it('represents an adjacent leading empty cell without consuming its delimiter', () => {
         const text = ['||bar|', '|---|---|'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         expect(ranges.headers).toHaveLength(2);
-        expect(ranges.headers[0].from).toBe(ranges.headers[0].to);
-        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('bar');
-    });
-
-    it('represents pipe-free body lines as one-cell rows', () => {
-        const text = ['| a | b |', '| --- | --- |', 'plain'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.rows).toHaveLength(1);
-        expect(ranges.rows[0]).toHaveLength(1);
-        expect(sliceRange(text, ranges.rows[0][0].from, ranges.rows[0][0].to)).toBe('plain');
+        expect(ranges.headers[0]).toEqual({ from: 1, to: 1, editableFrom: 1, editableTo: 1 });
+        expect(findCellForPos(ranges, 1)).toEqual({ section: 'header', row: 0, col: 0 });
+        expect(text.slice(ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
     });
 
     it('preserves non-ASCII whitespace that Lezer treats as cell content', () => {
         const nonBreakingSpace = '\u00a0';
         const text = [`|${nonBreakingSpace}|`, '|---|'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
-        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe(nonBreakingSpace);
-        expect(sliceRange(text, ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe(nonBreakingSpace);
-    });
-
-    it('does not turn trailing row padding into an extra cell', () => {
-        const text = ['| a | b |', '| --- | --- |', '| 1 | 2 |  '].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.headers).toHaveLength(2);
-        expect(ranges.rows[0]).toHaveLength(2);
-        expect(sliceRange(text, ranges.rows[0][1].from, ranges.rows[0][1].to)).toBe('2');
+        expect(text.slice(ranges.headers[0].from, ranges.headers[0].to)).toBe(nonBreakingSpace);
+        expect(text.slice(ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe(nonBreakingSpace);
     });
 
     it.each([
@@ -167,48 +134,19 @@ describe('computeMarkdownTableCellRanges', () => {
     ])('reserves a delimiter-adjacent %s even when Lezer includes it in content', (_label, suffix) => {
         const finalCell = `value${suffix}`;
         const text = [`| a | ${finalCell}|`, '| --- | --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         const range = ranges.headers[1];
-        expect(sliceRange(text, range.from, range.to)).toBe(finalCell);
-        expect(sliceRange(text, range.editableFrom, range.editableTo)).toBe('value\\');
-        expect(sliceRange(text, range.editableTo, range.to)).toBe(suffix.slice(-1));
-    });
-
-    it('allows uneven row lengths', () => {
-        const text = ['| a | b |', '| --- | --- |', '| c |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.headers).toHaveLength(2);
-        expect(ranges.rows).toHaveLength(1);
-        expect(ranges.rows[0]).toHaveLength(1);
-        expect(sliceRange(text, ranges.rows[0][0].from, ranges.rows[0][0].to)).toBe('c');
-    });
-
-    it('handles escaped pipes inside inline code', () => {
-        // GFM requires pipes to be escaped even inside inline code.
-        // The transaction filter enforces this, so we test with proper escaping.
-        const text = ['| `grep \\| sort` | Value |', '| --- | --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
-
-        expect(ranges.headers).toHaveLength(2);
-        expect(sliceRange(text, ranges.headers[0].from, ranges.headers[0].to)).toBe('`grep \\| sort`');
-        expect(sliceRange(text, ranges.headers[1].from, ranges.headers[1].to)).toBe('Value');
+        expect(text.slice(range.from, range.to)).toBe(finalCell);
+        expect(text.slice(range.editableFrom, range.editableTo)).toBe('value\\');
+        expect(text.slice(range.editableTo, range.to)).toBe(suffix.slice(-1));
     });
 });
 
 describe('findCellForPos', () => {
     it('finds header cells by position', () => {
         const text = ['| Header A | Header B |', '| --- | --- |', '| Row 1A | Row 1B |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         // Position in first header cell
         const coords1 = findCellForPos(ranges, ranges.headers[0].from);
@@ -223,9 +161,7 @@ describe('findCellForPos', () => {
         const text = ['| Header A | Header B |', '| --- | --- |', '| Row 1A | Row 1B |', '| Row 2A | Row 2B |'].join(
             '\n'
         );
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         // Position in first row, first cell
         const coords1 = findCellForPos(ranges, ranges.rows[0][0].from);
@@ -238,9 +174,7 @@ describe('findCellForPos', () => {
 
     it('handles positions at cell boundaries', () => {
         const text = ['| abc | def |', '| --- | --- |', '| ghi | jkl |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         const headerCell = ranges.headers[0];
 
@@ -259,9 +193,7 @@ describe('findCellForPos', () => {
 
     it('finds cells for positions in editable edge whitespace but not structural pad space', () => {
         const text = ['|  foo  |', '| --- |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         const headerCell = ranges.headers[0];
 
@@ -272,9 +204,7 @@ describe('findCellForPos', () => {
 
     it('returns null for positions outside any cell', () => {
         const text = ['| Header |', '| --- |', '| Body |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         // Position before first cell
         const coords1 = findCellForPos(ranges, 0);
@@ -292,9 +222,7 @@ describe('findCellForPos', () => {
 
     it('handles empty cells', () => {
         const text = ['|   |', '| --- |', '| content |'].join('\n');
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         // Empty header cell has a zero-width range
         const emptyCell = ranges.headers[0];
@@ -309,9 +237,7 @@ describe('findCellForPos', () => {
         const text = ['| H1 | H2 |', '| --- | --- |', '| R1C1 | R1C2 |', '| R2C1 | R2C2 |', '| R3C1 | R3C2 |'].join(
             '\n'
         );
-        const ranges = computeMarkdownTableCellRanges(text);
-        expect(ranges).not.toBeNull();
-        if (!ranges) return;
+        const ranges = parseCellRangesFixture(text);
 
         expect(ranges.rows).toHaveLength(3);
 

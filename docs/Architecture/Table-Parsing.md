@@ -25,7 +25,8 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
 
 ## Cell Ranges
 
-`computeMarkdownTableCellRangesFromSyntax()` converts syntax spans into table-relative editing coordinates:
+`computeMarkdownTableCellRangesFromSyntax()` converts syntax spans into editing coordinates relative to the supplied
+text, rebasing them when the table starts at a nonzero offset:
 
 - `from/to` use a `TableCell` span for non-empty content.
 - Empty cells receive a stable zero-width insertion point reconstructed from the raw delimiter gap.
@@ -35,9 +36,9 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
   separate serialization padding around it.
 - Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
-`computeMarkdownTableCellRanges(text)` parses standalone text through the Lezer adapter to produce the same ranges.
-No runtime path needs it: it exists as the tested reference that `MarkdownTable.serializedCellOffset()` is checked
-against. Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds.
+Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds. Tests compose the Lezer
+parser and range projection through `parseCellRangesFixture()` in their shared utilities. The resulting ranges also
+provide an independent check of `MarkdownTable.serializedCellOffset()` arithmetic.
 
 ## Normalized Model
 
