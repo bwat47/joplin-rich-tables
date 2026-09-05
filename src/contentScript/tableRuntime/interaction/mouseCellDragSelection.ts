@@ -11,6 +11,9 @@ import { getViewportHeight, resolveViewportBounds } from '../../shared/editorVie
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
+import { readRenderedCaretHit, type RenderedCaretHit } from '../../tableWidget/cellCaretHit';
+import { resolveClickCursorPos } from './clickCursorPlacement';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
 const DRAG_START_DISTANCE_PX = 5;
@@ -44,6 +47,27 @@ interface MouseCellGesture {
     lastFocus: CellCoords | null;
     lastClientX: number;
     lastClientY: number;
+    /**
+     * Caret the press pointed at, read while the rendered content was still mounted.
+     * Only a press on a rendered cell carries one: an active-editor press already has a
+     * nested editor to place its own caret, and a drag discards it.
+     */
+    pressCaretHit: RenderedCaretHit | null;
+}
+
+/**
+ * What a pointer release resolved to, read before the release dispatches anything.
+ *
+ * Both the anchor and the caret placement depend on the document and the widget DOM as the
+ * press left them, and settling the release changes both.
+ */
+interface GestureRelease {
+    /** The pressed anchor against the current document, or null when it no longer resolves. */
+    resolvedAnchor: ResolvedActiveCell | null;
+    /** Caret the press pointed at, for a click that reopens the anchor. */
+    cursorPos: InitialCursorPos | undefined;
+    /** The drag ended back on the cell it started from, so that cell takes the caret again. */
+    reactivateAnchor: boolean;
 }
 
 /** Squared distance between two points. */
@@ -137,45 +161,74 @@ class MouseCellDragSelectionController {
             return;
         }
 
-        const pointedCell = this.resolveCellAtPoint(event, gesture);
-        const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
-        const shouldReactivateAnchor =
-            gesture.dragged && pointedCell !== null && isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell);
+        const release = this.resolveRelease(event, gesture);
         const willReactivateAnchor =
-            shouldReactivateAnchor && (gesture.origin === 'activeEditor' || resolvedAnchor !== null);
-        const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
-        if (shouldConsume) {
+            release.reactivateAnchor && (gesture.origin === 'activeEditor' || release.resolvedAnchor !== null);
+
+        if (gesture.origin === 'renderedCell' || gesture.dragged) {
             event.preventDefault();
             event.stopPropagation();
         }
+
         // Only an active-editor drag can hand its own still-open anchor back; a rendered-cell
         // drag reopens the anchor below, so whatever cell it left active is cleared first.
         this.finishGesture({
-            keepActiveCell: shouldReactivateAnchor && gesture.origin === 'activeEditor',
+            keepActiveCell: release.reactivateAnchor && gesture.origin === 'activeEditor',
             focusSelection: !willReactivateAnchor,
         });
 
-        if (gesture.origin === 'renderedCell' && !gesture.dragged) {
-            if (resolvedAnchor) {
-                requestOpenCell(this.view, {
-                    resolvedCell: resolvedAnchor,
-                    clearCellSelection: Boolean(getCellSelection(this.view.state)),
-                });
-            }
-        } else if (shouldReactivateAnchor && gesture.origin === 'renderedCell') {
-            if (resolvedAnchor) {
-                requestOpenCell(this.view, {
-                    resolvedCell: resolvedAnchor,
-                    clearCellSelection: true,
-                });
-            }
-        } else if (shouldReactivateAnchor) {
-            // The anchor editor never left the DOM, so contracting back to it only needs
-            // to discard the provisional rectangle and restore keyboard focus.
-            this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
-            refocusNestedEditor(this.view);
-        }
+        this.settleRelease(gesture, release);
     };
+
+    /**
+     * Reads everything about the release that depends on the view as the press left it.
+     *
+     * Resolved before `finishGesture` dispatches, so the caret placement is aligned against
+     * the cell text that was actually pressed.
+     */
+    private resolveRelease(event: PointerEvent, gesture: MouseCellGesture): GestureRelease {
+        const pointedCell = this.resolveCellAtPoint(event, gesture);
+        const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
+
+        return {
+            resolvedAnchor,
+            cursorPos:
+                !gesture.dragged && resolvedAnchor
+                    ? resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit)
+                    : undefined,
+            reactivateAnchor:
+                gesture.dragged &&
+                pointedCell !== null &&
+                isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell),
+        };
+    }
+
+    /** Hands the released gesture to whichever cell should own the caret now. */
+    private settleRelease(gesture: MouseCellGesture, release: GestureRelease): void {
+        if (gesture.origin !== 'renderedCell') {
+            if (release.reactivateAnchor) {
+                // The anchor editor never left the DOM, so contracting back to it only needs
+                // to discard the provisional rectangle and restore keyboard focus.
+                this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+                refocusNestedEditor(this.view);
+            }
+            return;
+        }
+
+        // An anchor that no longer resolves cannot be reopened, and a drag that ended
+        // anywhere but its anchor leaves its own selection standing.
+        if (!release.resolvedAnchor || (gesture.dragged && !release.reactivateAnchor)) {
+            return;
+        }
+
+        requestOpenCell(this.view, {
+            resolvedCell: release.resolvedAnchor,
+            clearCellSelection: gesture.dragged || Boolean(getCellSelection(this.view.state)),
+            // A drag that contracted back onto its anchor asked for a cell selection, not for
+            // a caret at the point the press happened to start from.
+            initialCursorPos: gesture.dragged ? undefined : release.cursorPos,
+        });
+    }
 
     private readonly onPointerCancel = (event: PointerEvent): void => {
         if (this.gesture?.pointerId === event.pointerId) {
@@ -226,6 +279,8 @@ class MouseCellDragSelectionController {
             lastFocus: null,
             lastClientX: event.clientX,
             lastClientY: event.clientY,
+            pressCaretHit:
+                options.origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null,
         });
 
         if (options.origin === 'renderedCell') {

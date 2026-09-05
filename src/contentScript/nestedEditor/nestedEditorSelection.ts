@@ -1,6 +1,6 @@
 import type { EditorSelection } from '@codemirror/state';
 import type { LocalSelection } from '../editorBridge/cellTextCodec';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
+import { isCellTextOffset, type InitialCursorPos } from '../shared/cursorPlacement';
 import { clamp } from '../shared/numberUtils';
 
 /** Shifts a cell-relative selection into main-document coordinates. */
@@ -39,12 +39,22 @@ export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolea
  *
  * `lastLineStart` splits on the last newline, so a single-line cell collapses to
  * the start and a trailing newline leaves the caret on the empty final line.
+ *
+ * An exact offset is clamped rather than trusted: it is measured against the cell
+ * text as it stood when the placement was decided, and an entry that repairs the
+ * table into canonical form can restripe that cell's padding in the same
+ * transaction.
  */
 export function resolveInitialLocalSelection(
     mirroredSelection: LocalSelection,
     localText: string,
     initialCursorPos?: InitialCursorPos
 ): LocalSelection {
+    if (initialCursorPos !== undefined && isCellTextOffset(initialCursorPos)) {
+        const pos = clamp(initialCursorPos.localOffset, 0, localText.length);
+        return { anchor: pos, head: pos };
+    }
+
     switch (initialCursorPos) {
         case 'start':
             return { anchor: 0, head: 0 };
