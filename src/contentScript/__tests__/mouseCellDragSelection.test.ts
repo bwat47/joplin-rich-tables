@@ -318,21 +318,22 @@ describe('mouse cell drag selection', () => {
     });
 
     it('clears native text selection on conversion and keeps cell selection mode on return', () => {
-        const { view, widget, cells } = mountGestureView();
+        const { view, cells } = mountGestureView();
         const text = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!.firstChild!;
         cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
         document.getSelection()!.setBaseAndExtent(text, 0, text, 2);
         elementAtPoint = cells.body1;
         document.dispatchEvent(pointerEvent('pointermove', { clientX: 80, clientY: 10 }));
         expect(document.getSelection()!.rangeCount).toBe(0);
-        expect(widget.style.userSelect).toBe('none');
+        // Further text selection is suppressed for as long as this state stands; see
+        // `cellSelectionVisuals.test.ts` for the attribute it puts on the editor.
         expect(isCellDragInProgress(view.state)).toBe(true);
         elementAtPoint = cells.body0;
         document.dispatchEvent(pointerEvent('pointermove', { clientX: 10, clientY: 10 }));
         expect(isCellDragInProgress(view.state)).toBe(true);
         document.dispatchEvent(pointerEvent('pointerup', { clientX: 10, clientY: 10 }));
         expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toBeUndefined();
-        expect(widget.style.userSelect).toBe('');
+        expect(isCellDragInProgress(view.state)).toBe(false);
     });
 
     it('selects to the end of the cell when the drag leaves the table without crossing a cell', () => {

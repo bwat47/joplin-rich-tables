@@ -8,6 +8,7 @@ import {
     CLASS_TABLE_WIDGET_TABLE,
     SELECTOR_CELL,
     findTableWidgetElement,
+    getWidgetSelector,
     readCellCoords,
 } from './domHelpers';
 import { makeTableId } from '../tableModel/types';
@@ -58,6 +59,12 @@ const cellSelectionFillTheme = EditorView.baseTheme(selectedCellRules(selectedCe
 /** Marks the editor root while a cell drag is sweeping out a rectangle. */
 const ATTR_CELL_DRAG = 'data-rt-cell-drag';
 
+/** Puts {@link ATTR_CELL_DRAG} on the editor root for as long as a drag is in progress. */
+const cellDragAttribute: Extension = EditorView.editorAttributes.compute(
+    [cellDragField],
+    (state): Record<string, string> => (isCellDragInProgress(state) ? { [ATTR_CELL_DRAG]: '' } : {})
+);
+
 /**
  * Keeps a rectangle being dragged out looking focused.
  *
@@ -67,23 +74,32 @@ const ATTR_CELL_DRAG = 'data-rt-cell-drag';
  * otherwise render unfocused, and snap to focused on release. A gesture in progress is as focused
  * as a selection gets, whatever the DOM says.
  */
-const cellDragFocusOverride: Extension = [
-    EditorView.editorAttributes.compute([cellDragField], (state): Record<string, string> =>
-        isCellDragInProgress(state) ? { [ATTR_CELL_DRAG]: '' } : {}
-    ),
-    EditorView.baseTheme({
-        [`&[${ATTR_CELL_DRAG}]`]: {
-            '--rt-tint': 'var(--rt-tint-focused)',
-            '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
-        } as Record<string, string>,
-    }),
-];
+const cellDragFocusOverride: Extension = EditorView.baseTheme({
+    [`&[${ATTR_CELL_DRAG}]`]: {
+        '--rt-tint': 'var(--rt-tint-focused)',
+        '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
+    } as Record<string, string>,
+});
+
+/**
+ * Stops a drag that has become a rectangle from also selecting rendered text as it sweeps.
+ *
+ * A press on a rendered cell starts as a native text selection, so the browser keeps extending
+ * one until told otherwise (`tableRuntime/interaction/mouseCellDragSelection.ts` clears the range
+ * it had made at the moment of promotion). Every widget is covered rather than only the one being
+ * dragged: the drag owns the pointer until release, so no other table has a selection to make.
+ */
+const cellDragTextSelectionSuppression: Extension = EditorView.baseTheme({
+    [`&[${ATTR_CELL_DRAG}] ${getWidgetSelector()}`]: { userSelect: 'none' },
+});
 
 /** Multi-cell selection visuals: the class on each selected cell, and the fill it carries. */
 export const cellSelectionVisuals: Extension = [
     measuredClassSyncPlugin(CLASS_CELL_SELECTED, collectSelectedCells),
     cellSelectionFillTheme,
+    cellDragAttribute,
     cellDragFocusOverride,
+    cellDragTextSelectionSuppression,
 ];
 
 /**

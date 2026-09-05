@@ -44,7 +44,6 @@ interface MouseCellGesture {
     anchorCell: HTMLElement;
     resolvedCell: ResolvedActiveCell;
     dragged: boolean;
-    previousUserSelect?: string;
     lastFocus: CellCoords | null;
     lastClientX: number;
     lastClientY: number;
@@ -142,9 +141,10 @@ class MouseCellDragSelectionController {
                 return;
             }
             if (gesture.origin === 'renderedCell') {
+                // The press began as a native text selection; drop the range it made. Further
+                // selection is suppressed by `tableWidget/cellSelectionVisuals.ts`, which keys
+                // off the drag state the rectangle above has just entered.
                 this.capturePointer(gesture);
-                gesture.previousUserSelect = gesture.widget.style.userSelect;
-                gesture.widget.style.userSelect = 'none';
                 this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
             }
         } else {
@@ -452,9 +452,6 @@ class MouseCellDragSelectionController {
         }
 
         this.gesture = null;
-        if (gesture.previousUserSelect !== undefined) {
-            gesture.widget.style.userSelect = gesture.previousUserSelect;
-        }
         const doc = this.view.dom.ownerDocument;
         doc.removeEventListener('pointermove', this.onPointerMove, true);
         doc.removeEventListener('pointerup', this.onPointerUp, true);
