@@ -3,6 +3,7 @@ import {
     convertNewlinesToBr,
     escapeUnescapedPipes,
     normalizeBrTags,
+    rootToLocalOffsets,
     sanitizeLocalText,
     unsanitizeRootText,
 } from '../shared/cellTextNormalization';
@@ -56,5 +57,42 @@ describe('sanitizeLocalText / unsanitizeRootText', () => {
 
     it('converts root markdown-safe cell text back to local display text', () => {
         expect(unsanitizeRootText(String.raw`a<br>b\|c`)).toBe('a\nb|c');
+    });
+
+    it('escapes a backslash run down to the pipe it ends with', () => {
+        // The two spellings the offset map has to agree with `unsanitizeRootText` about.
+        expect(unsanitizeRootText(String.raw`a\\|b`)).toBe(String.raw`a\|b`);
+    });
+});
+
+describe('rootToLocalOffsets', () => {
+    /** The offsets a plain scan of `rootText` would need, character by character. */
+    const displayOffsets = (rootText: string): number[] => Array.from(rootToLocalOffsets(rootText));
+
+    it('maps stored text one to one where nothing is spelled out', () => {
+        expect(displayOffsets('abc')).toEqual([0, 1, 2, 3]);
+    });
+
+    it('lands every offset in the same place the display text puts it', () => {
+        const rootText = String.raw`a<br>b\|c`;
+
+        // `a\nb|c`: the offsets after each stored spelling shift by what it saves.
+        expect(displayOffsets(rootText)).toEqual([0, 1, 1, 1, 1, 2, 3, 3, 4, 5]);
+        expect(unsanitizeRootText(rootText)).toHaveLength(5);
+    });
+
+    it('gives the start of what a spelling displays as for offsets inside it', () => {
+        // The middle of `<br>` has nowhere else to be: it is one newline in the nested editor.
+        const offsets = rootToLocalOffsets('<br>x');
+
+        expect(offsets[1]).toBe(0);
+        expect(offsets[3]).toBe(0);
+        expect(offsets[4]).toBe(1);
+    });
+
+    it('ends one past the display text, so a range can reach the end of the cell', () => {
+        const rootText = String.raw`a<br>b`;
+
+        expect(rootToLocalOffsets(rootText)[rootText.length]).toBe(unsanitizeRootText(rootText).length);
     });
 });

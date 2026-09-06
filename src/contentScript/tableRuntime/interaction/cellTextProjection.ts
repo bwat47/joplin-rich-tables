@@ -1,8 +1,9 @@
 import type { EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNodeRef } from '@lezer/common';
-import { toLocalSelection } from '../../editorBridge/cellTextCodec';
+import { rootToLocalOffsets } from '../../shared/cellTextNormalization';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { clamp } from '../../shared/numberUtils';
 import type { SourceSpan } from '../../shared/textAlignment';
 
 /** Visible source characters and their offsets in the nested editor's decoded text. */
@@ -61,16 +62,13 @@ export function projectCellText(
 ): CellTextProjection {
     const hidden = new Uint8Array(localText.length);
     const hiddenSpans: HiddenSyntaxSpan[] = [];
-    const toLocal = (from: number, to: number): { from: number; to: number } => {
-        const range = toLocalSelection(
-            {
-                anchor: Math.max(from, cell.editableFrom) - cell.editableFrom,
-                head: Math.min(to, cell.editableTo) - cell.editableFrom,
-            },
-            rootText
-        );
-        return { from: range.anchor, to: range.head };
-    };
+    // One offset map for the whole cell, read twice per span, rather than a selection mapped
+    // through the codec's text transform once per end.
+    const localOffsets = rootToLocalOffsets(rootText);
+    const toLocal = (from: number, to: number): { from: number; to: number } => ({
+        from: localOffsets[clamp(from - cell.editableFrom, 0, rootText.length)],
+        to: localOffsets[clamp(to - cell.editableFrom, 0, rootText.length)],
+    });
     /** Hides `from`-`to`, as part of `owner` when the syntax is one marker of a pair. */
     const exclude = (from: number, to: number, owner?: { from: number; to: number }): void => {
         const span = toLocal(from, to);
