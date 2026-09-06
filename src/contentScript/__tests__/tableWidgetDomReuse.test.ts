@@ -12,7 +12,7 @@ import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
-import { parseCellRangesFixture } from './testUtils';
+import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
 const observerCallbacks: Array<() => void> = [];
 
@@ -64,8 +64,8 @@ function createView(): EditorView {
     const state = EditorState.create({
         extensions: [
             markdownRenderServiceFacet.of({
-                getCached: vi.fn(() => ''),
-                render: vi.fn(async () => ''),
+                getCached: vi.fn(() => htmlFragment('')),
+                render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
         ],
@@ -93,7 +93,7 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
             markdown({ extensions: [GFM] }),
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
-                render: vi.fn(async () => ''),
+                render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
             tableDecorationField,

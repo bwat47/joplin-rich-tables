@@ -13,7 +13,7 @@ import { activeCellField, setActiveCellEffect } from '../tableState/activeCellSt
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { parseCellRangesFixture } from './testUtils';
+import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
 class ResizeObserverMock {
     observe = vi.fn();
@@ -31,7 +31,7 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
             markdown({ extensions: [GFM] }),
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
-                render: vi.fn(async () => ''),
+                render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
             activeCellField,
@@ -66,8 +66,8 @@ describe('TableWidget coordsAt', () => {
         const state = EditorState.create({
             extensions: [
                 markdownRenderServiceFacet.of({
-                    getCached: vi.fn(() => ''),
-                    render: vi.fn(async () => ''),
+                    getCached: vi.fn(() => htmlFragment('')),
+                    render: vi.fn(async () => htmlFragment('')),
                     clear: vi.fn(),
                 }),
             ],
@@ -281,8 +281,8 @@ describe('TableWidget coordsAt', () => {
         const state = EditorState.create({
             extensions: [
                 markdownRenderServiceFacet.of({
-                    getCached: vi.fn(() => ''),
-                    render: vi.fn(async () => ''),
+                    getCached: vi.fn(() => htmlFragment('')),
+                    render: vi.fn(async () => htmlFragment('')),
                     clear: vi.fn(),
                 }),
             ],

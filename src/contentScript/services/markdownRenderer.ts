@@ -1,9 +1,9 @@
 import { Facet } from '@codemirror/state';
 import { logger } from '../../logger';
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
-import { escapeHtmlPreservingBr } from '../shared/cellContentUtils';
-import { sanitizeHtml } from './htmlSanitizer';
-import { postProcessHtml } from './htmlPostProcessor';
+import { textFragmentPreservingBr } from './domFragment';
+import { sanitizeToFragment } from './htmlSanitizer';
+import { postProcessFragment } from './htmlPostProcessor';
 
 /**
  * Markdown rendering service that communicates with the main plugin
@@ -17,8 +17,12 @@ export type RenderMarkupFn = (markdown: string, id: string) => Promise<RenderMar
  * Allows decoupling widgets/editors from the specific caching/rendering implementation.
  */
 export interface MarkdownRenderService {
-    render(text: string): Promise<string>;
-    getCached(text: string): string | undefined;
+    /**
+     * Both accessors hand back a fresh copy: the cached fragment is never inserted anywhere, so
+     * appending one caller's result cannot empty another cell's content.
+     */
+    render(text: string): Promise<DocumentFragment>;
+    getCached(text: string): DocumentFragment | undefined;
     clear(): void;
 }
 
@@ -32,8 +36,8 @@ export const MAX_CACHE_SIZE = 500;
  */
 const fallbackMarkdownRenderer: MarkdownRenderService = {
     render(text) {
-        logger.warn('Markdown renderer service missing, returning escaped markdown');
-        return Promise.resolve(escapeHtmlPreservingBr(text));
+        logger.warn('Markdown renderer service missing, returning unrendered markdown');
+        return Promise.resolve(textFragmentPreservingBr(text));
     },
     getCached() {
         return undefined;
@@ -54,16 +58,17 @@ export const markdownRenderServiceFacet = Facet.define<MarkdownRenderService, Ma
  * Default renderer implementation using instance-local cache and render transport.
  */
 class DefaultMarkdownRenderer implements MarkdownRenderService {
-    private readonly renderCache = new Map<string, string>();
-    private readonly pendingRequests = new Map<string, { promise?: Promise<string> }>();
+    /** Canonical fragments, never handed out directly. `cloneNode` copies are what callers get. */
+    private readonly renderCache = new Map<string, DocumentFragment>();
+    private readonly pendingRequests = new Map<string, { promise?: Promise<DocumentFragment> }>();
     private requestIdCounter = 0;
     private generation = 0;
 
     constructor(private readonly renderMarkup: RenderMarkupFn) {}
 
-    getCached(text: string): string | undefined {
-        const html = this.renderCache.get(text);
-        if (html === undefined) {
+    getCached(text: string): DocumentFragment | undefined {
+        const cached = this.renderCache.get(text);
+        if (cached === undefined) {
             return undefined;
         }
 
@@ -71,8 +76,8 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
         // document revisits the cells viewed most recently, which are the ones insertion order
         // evicts first.
         this.renderCache.delete(text);
-        this.renderCache.set(text, html);
-        return html;
+        this.renderCache.set(text, cached);
+        return cloneFragment(cached);
     }
 
     clear(): void {
@@ -82,7 +87,7 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
         this.generation++;
     }
 
-    private setCacheEntry(key: string, value: string): void {
+    private setCacheEntry(key: string, value: DocumentFragment): void {
         if (this.renderCache.size >= MAX_CACHE_SIZE) {
             // Delete the least recently used entry (Map maintains insertion order, and
             // getCached() re-inserts on a hit)
@@ -102,15 +107,22 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
     }
 
     /**
-     * Render markdown to HTML asynchronously.
-     * Returns cached result if available, otherwise sends request to main plugin.
+     * Render markdown asynchronously.
+     * Returns cached content if available, otherwise sends a request to the main plugin.
      */
-    async render(markdown: string): Promise<string> {
+    async render(markdown: string): Promise<DocumentFragment> {
         const cached = this.getCached(markdown);
         if (cached !== undefined) {
             return cached;
         }
 
+        // Concurrent callers share the request but not its result, so each takes its own copy of
+        // the fragment the request resolves to.
+        return cloneFragment(await this.renderCanonical(markdown));
+    }
+
+    /** The shared, never-inserted fragment for a payload: the cache entry, or the pending one. */
+    private renderCanonical(markdown: string): Promise<DocumentFragment> {
         const pending = this.pendingRequests.get(markdown);
         if (pending?.promise) {
             return pending.promise;
@@ -118,24 +130,25 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
 
         const id = this.generateRequestId();
         const generation = this.generation;
-        const pendingRequest: { promise?: Promise<string> } = {};
+        const pendingRequest: { promise?: Promise<DocumentFragment> } = {};
         const promise = (async () => {
             try {
                 const result = await this.renderMarkup(markdown, id);
 
                 if (result && !result.error && typeof result.html === 'string') {
                     // Clean pipeline: sanitize -> post-process
-                    const html = postProcessHtml(sanitizeHtml(result.html));
+                    const fragment = sanitizeToFragment(result.html);
+                    postProcessFragment(fragment);
                     if (this.generation === generation && this.pendingRequests.get(markdown) === pendingRequest) {
-                        this.setCacheEntry(markdown, html);
+                        this.setCacheEntry(markdown, fragment);
                     }
-                    return html;
+                    return fragment;
                 }
 
-                return escapeHtmlPreservingBr(markdown);
+                return textFragmentPreservingBr(markdown);
             } catch (error) {
                 logger.error('Failed to render markdown:', error);
-                return escapeHtmlPreservingBr(markdown);
+                return textFragmentPreservingBr(markdown);
             } finally {
                 if (this.pendingRequests.get(markdown) === pendingRequest) {
                     this.pendingRequests.delete(markdown);
@@ -147,6 +160,11 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
         this.pendingRequests.set(markdown, pendingRequest);
         return promise;
     }
+}
+
+/** Copies a cached fragment so the caller owns nodes it can append without emptying the cache. */
+function cloneFragment(fragment: DocumentFragment): DocumentFragment {
+    return fragment.cloneNode(true) as DocumentFragment;
 }
 
 export function createMarkdownRenderer(renderMarkup: RenderMarkupFn): MarkdownRenderService {

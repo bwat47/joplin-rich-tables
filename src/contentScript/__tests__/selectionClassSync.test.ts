@@ -16,6 +16,7 @@ import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_SELECTED, getWidgetSelector } f
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
+import { htmlFragment } from './testUtils';
 
 class ResizeObserverMock {
     observe = vi.fn();
@@ -47,7 +48,7 @@ function mountView(): EditorView {
         state: createMarkdownState(DOC, [
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
-                render: vi.fn(async () => ''),
+                render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
             cellSelectionField,

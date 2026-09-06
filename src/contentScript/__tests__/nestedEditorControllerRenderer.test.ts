@@ -6,6 +6,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { closeNestedEditor, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { createMarkdownState } from './testMarkdownState';
+import { htmlFragment } from './testUtils';
 
 describe('nestedEditorController markdown rendering', () => {
     afterEach(() => {
@@ -15,8 +16,8 @@ describe('nestedEditorController markdown rendering', () => {
     it('uses the markdown renderer supplied by the editor state facet when closing', () => {
         const tableText = ['| H1 |', '| --- |', '| **body** |'].join('\n');
         const renderer: MarkdownRenderService = {
-            getCached: vi.fn(() => '<p><strong>cached</strong></p>'),
-            render: vi.fn(async () => ''),
+            getCached: vi.fn(() => htmlFragment('<p><strong>cached</strong></p>')),
+            render: vi.fn(async () => htmlFragment('')),
             clear: vi.fn(),
         };
         let state = createMarkdownState(tableText, [
@@ -71,7 +72,7 @@ describe('nestedEditorController markdown rendering', () => {
         const doc = `${intro}${insertedTableWithSpacing}${middle}${tableText}`;
         const renderer: MarkdownRenderService = {
             getCached: vi.fn(() => undefined),
-            render: vi.fn(async () => ''),
+            render: vi.fn(async () => htmlFragment('')),
             clear: vi.fn(),
         };
         let state = createMarkdownState(doc, [

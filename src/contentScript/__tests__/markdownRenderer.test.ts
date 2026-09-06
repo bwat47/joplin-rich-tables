@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
 import { createMarkdownRenderer, MAX_CACHE_SIZE, type RenderMarkupFn } from '../services/markdownRenderer';
-import { deferred } from './testUtils';
+import { deferred, fragmentHtml } from './testUtils';
 
 vi.mock('../../logger', () => ({
     logger: {
@@ -14,21 +14,33 @@ vi.mock('../../logger', () => ({
 }));
 
 describe('createMarkdownRenderer', () => {
-    it('sanitizes, post-processes, and caches rendered HTML', async () => {
+    it('sanitizes, post-processes, and caches rendered content', async () => {
         const renderMarkup = vi.fn<RenderMarkupFn>(async (_markdown, id) => ({
             id,
             html: '<p><strong>ok</strong><span class="joplin-source">raw</span></p>',
         }));
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        const first = await renderer.render('**ok**');
-        const second = await renderer.render('**ok**');
+        const first = fragmentHtml(await renderer.render('**ok**'));
+        const second = fragmentHtml(await renderer.render('**ok**'));
 
         expect(first).toContain('<strong>ok</strong>');
         expect(first).not.toContain('joplin-source');
         expect(second).toBe(first);
         expect(renderMarkup).toHaveBeenCalledTimes(1);
-        expect(renderer.getCached('**ok**')).toBe(first);
+        expect(fragmentHtml(renderer.getCached('**ok**')!)).toBe(first);
+    });
+
+    it('hands every caller its own copy, so consuming one leaves the cache intact', async () => {
+        const renderMarkup = vi.fn<RenderMarkupFn>(async (_markdown, id) => ({ id, html: '<p>shared</p>' }));
+        const renderer = createMarkdownRenderer(renderMarkup);
+
+        // Appending a fragment moves its nodes out of it; the cache must not be what was moved.
+        const first = await renderer.render('shared');
+        document.createElement('div').appendChild(first);
+
+        expect(fragmentHtml(await renderer.render('shared'))).toBe('<p>shared</p>');
+        expect(fragmentHtml(renderer.getCached('shared')!)).toBe('<p>shared</p>');
     });
 
     it('de-dupes concurrent identical render requests', async () => {
@@ -40,8 +52,8 @@ describe('createMarkdownRenderer', () => {
         const second = renderer.render('`x`');
         pending.resolve({ id: 'render-1', html: '<p><code>x</code></p>' });
 
-        await expect(first).resolves.toContain('<code>x</code>');
-        await expect(second).resolves.toContain('<code>x</code>');
+        expect(fragmentHtml(await first)).toContain('<code>x</code>');
+        expect(fragmentHtml(await second)).toContain('<code>x</code>');
         expect(renderMarkup).toHaveBeenCalledTimes(1);
     });
 
@@ -57,10 +69,10 @@ describe('createMarkdownRenderer', () => {
         }
 
         // Read the oldest entry, then overflow the cache by one.
-        expect(renderer.getCached('value-0')).toContain('value-0');
+        expect(fragmentHtml(renderer.getCached('value-0')!)).toContain('value-0');
         await renderer.render('overflow');
 
-        expect(renderer.getCached('value-0')).toContain('value-0');
+        expect(fragmentHtml(renderer.getCached('value-0')!)).toContain('value-0');
         expect(renderer.getCached('value-1')).toBeUndefined();
     });
 
@@ -77,19 +89,19 @@ describe('createMarkdownRenderer', () => {
         }
 
         expect(renderer.getCached('value-0')).toBeUndefined();
-        expect(renderer.getCached('value-1')).toContain('value-1');
-        expect(renderer.getCached(`value-${overflow - 1}`)).toContain(`value-${overflow - 1}`);
+        expect(fragmentHtml(renderer.getCached('value-1')!)).toContain('value-1');
+        expect(fragmentHtml(renderer.getCached(`value-${overflow - 1}`)!)).toContain(`value-${overflow - 1}`);
     });
 
-    it('returns escaped fallback HTML when rendering rejects or returns an error', async () => {
+    it('returns unrendered text when rendering rejects or returns an error', async () => {
         const renderMarkup = vi
             .fn<RenderMarkupFn>()
             .mockRejectedValueOnce(new Error('boom'))
             .mockResolvedValueOnce({ id: 'render-2', html: '<img src=x onerror=alert(1)>', error: true });
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        await expect(renderer.render('<b>unsafe</b>')).resolves.toBe('&lt;b&gt;unsafe&lt;/b&gt;');
-        await expect(renderer.render('<i>bad</i>')).resolves.toBe('&lt;i&gt;bad&lt;/i&gt;');
+        expect(fragmentHtml(await renderer.render('<b>unsafe</b>'))).toBe('&lt;b&gt;unsafe&lt;/b&gt;');
+        expect(fragmentHtml(await renderer.render('<i>bad</i>'))).toBe('&lt;i&gt;bad&lt;/i&gt;');
     });
 
     it('clear removes cached entries and pending request state', async () => {
@@ -108,9 +120,9 @@ describe('createMarkdownRenderer', () => {
         first.resolve({ id: 'render-1', html: '<p>stale</p>' });
         second.resolve({ id: 'render-2', html: '<p>current</p>' });
 
-        await expect(staleRender).resolves.toContain('stale');
-        await expect(currentRender).resolves.toContain('current');
+        expect(fragmentHtml(await staleRender)).toContain('stale');
+        expect(fragmentHtml(await currentRender)).toContain('current');
         expect(renderMarkup).toHaveBeenCalledTimes(2);
-        expect(renderer.getCached('**x**')).toContain('current');
+        expect(fragmentHtml(renderer.getCached('**x**')!)).toContain('current');
     });
 });

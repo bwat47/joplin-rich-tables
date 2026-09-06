@@ -46,9 +46,14 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * - Allows specific attributes needed for internal links/images/videos
  * - Allows unknown protocols for joplin-content://
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
+ *
+ * Returns nodes rather than a string: DOMPurify has to parse the markup either way, so handing
+ * back the tree it already built saves serializing it and parsing it again to display it. The
+ * nodes belong to DOMPurify's own document until something appends them, which adopts them.
  */
-export function sanitizeHtml(html: string): string {
+export function sanitizeToFragment(html: string): DocumentFragment {
     return DOMPurify.sanitize(html, {
+        RETURN_DOM_FRAGMENT: true,
         ALLOW_UNKNOWN_PROTOCOLS: true,
         ADD_TAGS: [IFRAME_TAG],
         ADD_ATTR: [

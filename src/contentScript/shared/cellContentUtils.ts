@@ -78,19 +78,6 @@ export function buildRenderableContent(cellText: string): RenderableContent {
 }
 
 /**
- * Escapes HTML entities but preserves <br> tags as actual line breaks.
- * Used as a fallback when the render cache misses, so that multi-line
- * content doesn't flash raw <br> text while the async renderer runs.
- */
-export function escapeHtmlPreservingBr(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/&lt;br&gt;/g, '<br>');
-}
-
-/**
  * Characters that cannot activate markup on their own.
  *
  * This is an allowlist by design: Joplin's renderer is a configurable stack of markdown-it

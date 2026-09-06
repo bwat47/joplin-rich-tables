@@ -8,9 +8,14 @@ Table cells render Markdown through Joplin's `renderMarkup` command. The decisio
 
 - Content script calls `postMessage({ type: 'renderMarkup', markdown, id })`.
 - Main plugin executes Joplin’s `renderMarkup` and returns HTML.
-- The content script runs `sanitizeHtml()` → `postProcessHtml()` before using the HTML.
+- The content script runs `sanitizeToFragment()` → `postProcessFragment()` before using the result.
 
-The renderer exposes `render(text): Promise<string>` plus cache helpers. It is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
+The renderer exposes `render(text): Promise<DocumentFragment>` plus cache helpers. It deals in nodes rather
+than markup: DOMPurify has to parse the HTML anyway, so the pipeline keeps the tree it produces instead of
+serializing it and parsing it again to display it. The cached fragment is never inserted anywhere; `render()`
+and `getCached()` both hand back a `cloneNode(true)` copy, so appending one cell's result cannot empty
+another's. Fragments are inserted with `textContent = ''` plus `appendChild` — `replaceChildren()` is missing
+from the WebView the mobile app uses — which also adopts the nodes out of DOMPurify's document. It is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
 
 ### Cache + De-dupe
 
@@ -38,18 +43,15 @@ Cells are rendered as isolated Markdown fragments. Document-scoped reference-sty
 
 ## Sanitization + Post-processing
 
-- Sanitization: `sanitizeHtml()` (`src/contentScript/services/htmlSanitizer.ts`) uses DOMPurify and a tight allowlist:
+- Sanitization: `sanitizeToFragment()` (`src/contentScript/services/htmlSanitizer.ts`) uses DOMPurify with
+  `RETURN_DOM_FRAGMENT` and a tight allowlist:
     - Allows Joplin-specific `data-*` attributes and `joplin-content://`-style URLs (`ALLOW_UNKNOWN_PROTOCOLS`).
     - Allows `<iframe>` but removes all iframes except specific `https://.../embed/...` YouTube sources.
     - Forbids `srcdoc`.
-- Post-processing: `postProcessHtml()` (`src/contentScript/services/htmlPostProcessor.ts`):
+- Post-processing: `postProcessFragment()` (`src/contentScript/services/htmlPostProcessor.ts`) edits those nodes in place:
     - Removes `.joplin-source` and `.resource-icon` elements that don’t render well inside cells.
     - Replaces KaTeX HTML with MathML to avoid duplicate/glitched rendering.
     - Footnotes: Post-processing replaces [^label] text with styled superscript links.
-    - Both passes parse the HTML into a template, which dominates the per-cell cost on the editor's thread.
-      Each is guarded by a substring test for the markers it acts on (`[^`, and the literal class names
-      `joplin-source` / `resource-icon` / `katex`), so a cell needing neither is returned untouched. The
-      markers cannot false-negative; a false positive only costs work that used to be unconditional.
 
 ## Opening Links
 

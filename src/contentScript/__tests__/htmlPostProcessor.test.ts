@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { postProcessHtml } from '../services/htmlPostProcessor';
+import { postProcessFragment } from '../services/htmlPostProcessor';
 
 function parseHtml(html: string): DocumentFragment {
     const template = document.createElement('template');
@@ -8,22 +8,17 @@ function parseHtml(html: string): DocumentFragment {
     return template.content;
 }
 
-describe('postProcessHtml', () => {
-    test('returns HTML that needs no post-processing without parsing it', () => {
-        // Single-quoted attributes survive only if the HTML was never round-tripped through a
-        // template element, so this shows both passes were skipped rather than run to no effect.
-        const html = "<p class='cell'><strong>bold</strong> and <em>italic</em></p>";
+/** Post-processing works on nodes; these tests read the result back as markup. */
+function postProcessHtml(html: string): string {
+    const fragment = parseHtml(html);
+    postProcessFragment(fragment);
 
-        expect(postProcessHtml(html)).toBe(html);
-    });
+    const container = document.createElement('div');
+    container.appendChild(fragment);
+    return container.innerHTML;
+}
 
-    test('still parses HTML carrying markers for either pass', () => {
-        expect(postProcessHtml('<p class=\'cell\'><span class="joplin-source">raw</span>kept</p>')).toBe(
-            '<p class="cell">kept</p>'
-        );
-        expect(postProcessHtml("<p class='cell'>see [^note]</p>")).toContain('footnote');
-    });
-
+describe('postProcessFragment', () => {
     test('removes Joplin resource icon spans but keeps placeholder resources', () => {
         const html =
             '<div class="cm-table-cell-content">' +

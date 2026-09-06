@@ -19,7 +19,7 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
-import { parseCellRangesFixture } from './testUtils';
+import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -92,7 +92,7 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
         state: createMarkdownState(doc, [
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
-                render: vi.fn(async () => ''),
+                render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
             activeCellField,
