@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { type Extension, Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { describe, expect, it } from 'vitest';

@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-
 import { postProcessFragment } from '../services/htmlPostProcessor';
 
 function parseHtml(html: string): DocumentFragment {

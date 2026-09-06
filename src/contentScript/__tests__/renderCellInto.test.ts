@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-
 import { describe, expect, it, vi } from 'vitest';
 import type { MarkdownRenderService } from '../services/markdownRenderer';
 import { renderCellMarkdownInto } from '../services/renderCellInto';

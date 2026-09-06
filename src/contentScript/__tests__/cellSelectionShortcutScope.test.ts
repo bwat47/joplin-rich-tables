@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';

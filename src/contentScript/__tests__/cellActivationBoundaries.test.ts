@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { describe, expect, it } from 'vitest';
 import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';

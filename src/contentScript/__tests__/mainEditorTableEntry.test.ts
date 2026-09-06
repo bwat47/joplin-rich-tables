@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { defaultKeymap } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { Direction, EditorView, keymap } from '@codemirror/view';

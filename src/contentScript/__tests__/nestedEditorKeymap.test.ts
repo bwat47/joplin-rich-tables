@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNestedEditorKeymap } from '../nestedEditor/domHandlers';

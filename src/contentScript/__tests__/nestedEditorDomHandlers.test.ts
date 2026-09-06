@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';

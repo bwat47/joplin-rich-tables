@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';

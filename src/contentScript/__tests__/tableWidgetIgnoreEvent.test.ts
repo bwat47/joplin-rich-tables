@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-
 import { afterEach, describe, expect, it } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';

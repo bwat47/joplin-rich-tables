@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';

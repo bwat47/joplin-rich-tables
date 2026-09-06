@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultHostEditorConfig, type HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';

@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';

@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import {

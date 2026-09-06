@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../tableWidget/domHelpers')>()),
     findCellElement: vi.fn(() => ({})),

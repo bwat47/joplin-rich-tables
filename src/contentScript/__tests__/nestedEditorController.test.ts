@@ -1,6 +1,4 @@
 /**
- * @vitest-environment jsdom
- *
  * Characterization tests for the nested editor controller, driven through its
  * exported API and the DOM it owns. The nested EditorView is reached via
  * `EditorView.findFromDOM` on the cell's editor host rather than the

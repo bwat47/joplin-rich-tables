@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorView } from '@codemirror/view';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';

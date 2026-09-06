@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';

@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
