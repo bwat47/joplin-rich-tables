@@ -108,6 +108,10 @@ CodeMirror's Markdown syntax tree:
 
 The offset or range travels through the open-cell request to the nested editor.
 
+That request moves the main selection into the table's block widget an animation frame before the nested editor
+mounts, so `tableWidget/mainCaretSuppression.ts` hides the main caret until it settles. The same extension hides it
+for a cell selection, which parks its caret in the table for the length of the selection.
+
 Every press inside a widget is routed by `handleWidgetPress` in `tableWidget/tableWidgetInteractions.ts`, registered
 for `pointerdown` and `mousedown` alongside the click handler. It reports whether it took the press. CodeMirror stops
 running handlers for an event once one returns true and appends its own built-ins after every plugin's, so a press the
