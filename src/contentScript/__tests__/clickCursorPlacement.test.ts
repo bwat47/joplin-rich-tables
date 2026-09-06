@@ -5,6 +5,8 @@ import {
     indexRenderedText,
     flatOffsetFromDomPosition,
     readRenderedSelectionHit,
+    setRenderedTextSelection,
+    type RenderedCaretDomHit,
     type RenderedCaretHit,
     type RenderedSelectionHit,
 } from '../tableWidget/cellCaretHit';
@@ -121,6 +123,43 @@ function select(anchorNode: Node, anchorOffset: number, focusNode: Node, focusOf
     }
     selection.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset);
 }
+
+/**
+ * A hit as `readRenderedCaretHit` reports one. Painting reads only the DOM endpoint, so the
+ * flattened half carries no weight here.
+ */
+function domHit(node: Node, offset: number): RenderedCaretDomHit {
+    return { renderedText: '', renderedOffset: 0, node, offset };
+}
+
+describe('setRenderedTextSelection', () => {
+    afterEach(() => {
+        document.getSelection()?.removeAllRanges();
+        document.body.replaceChildren();
+    });
+
+    it('paints the range between the two endpoints the hit test read', () => {
+        const cell = mountedCell('one<strong>two</strong><br>three');
+        const content = cell.firstElementChild as HTMLElement;
+        const plain = content.firstChild!;
+        const bold = content.querySelector('strong')!.firstChild!;
+
+        setRenderedTextSelection(cell, domHit(plain, 2), domHit(bold, 3));
+
+        expect(document.getSelection()!.toString()).toBe('etwo');
+    });
+
+    it('declines an endpoint the cell no longer contains', () => {
+        const cell = mountedCell('old text');
+        const content = cell.firstElementChild as HTMLElement;
+        const stale = content.firstChild!;
+        content.replaceChildren(document.createTextNode('new text'));
+
+        setRenderedTextSelection(cell, domHit(stale, 1), domHit(content.firstChild!, 4));
+
+        expect(document.getSelection()!.rangeCount).toBe(0);
+    });
+});
 
 describe('readRenderedSelectionHit', () => {
     afterEach(() => {

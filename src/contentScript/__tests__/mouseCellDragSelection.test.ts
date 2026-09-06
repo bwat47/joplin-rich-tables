@@ -38,6 +38,14 @@ interface MountedGestureView {
 const mountedViews: EditorView[] = [];
 let elementAtPoint: Element | null = null;
 let originalElementFromPoint: PropertyDescriptor | undefined;
+let originalCaretRangeFromPoint: PropertyDescriptor | undefined;
+
+function mockCaretHit(node: Node, offset: number): void {
+    const range = document.createRange();
+    range.setStart(node, offset);
+    range.collapse(true);
+    Object.defineProperty(document, 'caretRangeFromPoint', { configurable: true, value: () => range });
+}
 
 const POINTER_RELEASE_TYPES = ['pointerup', 'pointercancel'];
 
@@ -208,6 +216,7 @@ function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
 beforeEach(() => {
     vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     originalElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
+    originalCaretRangeFromPoint = Object.getOwnPropertyDescriptor(document, 'caretRangeFromPoint');
     Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: vi.fn(() => elementAtPoint),
@@ -223,6 +232,12 @@ afterEach(() => {
     document.body.replaceChildren();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+
+    if (originalCaretRangeFromPoint) {
+        Object.defineProperty(document, 'caretRangeFromPoint', originalCaretRangeFromPoint);
+    } else {
+        Reflect.deleteProperty(document, 'caretRangeFromPoint');
+    }
 
     if (originalElementFromPoint) {
         Object.defineProperty(document, 'elementFromPoint', originalElementFromPoint);
@@ -248,7 +263,7 @@ describe('mouse cell drag selection', () => {
         });
 
         cells.body0.dispatchEvent(down);
-        expect(down.defaultPrevented).toBe(false);
+        expect(down.defaultPrevented).toBe(true);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getCellSelection(view.state)).not.toBeNull();
 
@@ -258,7 +273,7 @@ describe('mouse cell drag selection', () => {
             button: 0,
         });
         cells.body0.dispatchEvent(compatibilityMouseDown);
-        expect(compatibilityMouseDown.defaultPrevented).toBe(false);
+        expect(compatibilityMouseDown.defaultPrevented).toBe(true);
         expect(getActiveCell(view.state)).toBeNull();
 
         document.dispatchEvent(
@@ -286,11 +301,12 @@ describe('mouse cell drag selection', () => {
         [0, 5, 0, 9],
         [1, 4, 3, 6],
         [4, 1, 6, 3],
-    ])('preserves native selection %i to %i until release', (anchor, head, localAnchor, localHead) => {
+    ])('draws rendered selection %i to %i and maps it on release', (anchor, head, localAnchor, localHead) => {
         const { view, cells } = mountGestureView(GRID_DOC.replace('a1', '**hello**'));
         const content = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!;
         content.innerHTML = '<strong>hello</strong>';
         const text = content.firstChild!.firstChild!;
+        mockCaretHit(text, anchor);
         const capture = vi.fn();
         cells.body0.setPointerCapture = capture;
         elementAtPoint = cells.body0;
@@ -298,12 +314,13 @@ describe('mouse cell drag selection', () => {
         cells.body0.dispatchEvent(down);
         const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
         cells.body0.dispatchEvent(mouseDown);
-        document.getSelection()!.setBaseAndExtent(text, anchor, text, head);
+        mockCaretHit(text, head);
         const move = pointerEvent('pointermove', { clientX: 80, clientY: 10 });
         document.dispatchEvent(move);
-        expect(down.defaultPrevented).toBe(false);
-        expect(mouseDown.defaultPrevented).toBe(false);
+        expect(down.defaultPrevented).toBe(true);
+        expect(mouseDown.defaultPrevented).toBe(true);
         expect(move.defaultPrevented).toBe(false);
+        expect(document.getSelection()!.toString()).toBe('hello'.slice(Math.min(anchor, head), Math.max(anchor, head)));
         expect(capture).not.toHaveBeenCalled();
         expect(getCellSelection(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -340,9 +357,10 @@ describe('mouse cell drag selection', () => {
         const below = document.createElement('p');
         below.textContent = 'below the table';
         document.body.appendChild(below);
+        mockCaretHit(text, 2);
         elementAtPoint = cells.body0;
         cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
-        document.getSelection()!.setBaseAndExtent(text, 2, below.firstChild!, 5);
+        mockCaretHit(below.firstChild!, 5);
 
         // Nothing of this widget is under the pointer, so the gesture stays a text selection.
         elementAtPoint = null;

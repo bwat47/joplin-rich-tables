@@ -11,7 +11,12 @@ import { getViewportHeight, resolveViewportBounds } from '../../shared/editorVie
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer, type PressDisposition } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
-import { readRenderedCaretHit, readRenderedSelectionHit, type RenderedCaretHit } from '../../tableWidget/cellCaretHit';
+import {
+    readRenderedCaretHit,
+    readRenderedSelectionHit,
+    setRenderedTextSelection,
+    type RenderedCaretDomHit,
+} from '../../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
@@ -34,9 +39,9 @@ export type MouseCellGestureOrigin = 'renderedCell' | 'activeEditorPadding' | 'a
 
 /** What a press on each origin does to its own pointerdown and compatibility mousedown. */
 const ORIGIN_PRESS_DISPOSITION: Record<MouseCellGestureOrigin, PressDisposition> = {
-    // Claimed but not prevented: the browser draws the text selection the release maps back
-    // into Markdown, and the outer editor must not move its caret over the top of it.
-    renderedCell: 'claim',
+    // Drive the rendered text range ourselves. A native drag would keep auto-scrolling
+    // the editor even after promotion to a cell rectangle.
+    renderedCell: 'consume',
     // Padding has no native text-selection behaviour worth preserving.
     activeEditorPadding: 'consume',
     // The nested editor owns its own press; the gesture only watches for the pointer leaving.
@@ -66,7 +71,7 @@ interface MouseCellGesture {
      * Only a press on a rendered cell carries one: an active-editor press already has a
      * nested editor to place its own caret, and a drag discards it.
      */
-    pressCaretHit: RenderedCaretHit | null;
+    pressCaretHit: RenderedCaretDomHit | null;
 }
 
 /**
@@ -144,6 +149,7 @@ class MouseCellDragSelectionController {
                 distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) <
                     DRAG_START_DISTANCE_SQUARED
             ) {
+                this.updateRenderedTextSelection(gesture);
                 return;
             }
 
@@ -155,9 +161,7 @@ class MouseCellDragSelectionController {
                 return;
             }
             if (gesture.origin === 'renderedCell') {
-                // The press began as a native text selection; drop the range it made. Further
-                // selection is suppressed by `tableWidget/cellSelectionVisuals.ts`, which keys
-                // off the drag state the rectangle above has just entered.
+                // The rendered range belongs to this gesture; stop painting it on promotion.
                 this.capturePointer(gesture);
                 this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
             }
@@ -284,6 +288,9 @@ class MouseCellDragSelectionController {
             return false;
         }
 
+        const pressCaretHit =
+            origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null;
+
         this.beginGesture({
             origin,
             pointerId: event.pointerId,
@@ -297,8 +304,18 @@ class MouseCellDragSelectionController {
             lastFocus: null,
             lastClientX: event.clientX,
             lastClientY: event.clientY,
-            pressCaretHit: origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null,
+            pressCaretHit,
         });
+
+        if (origin === 'renderedCell') {
+            // The gesture owns the DOM selection from here. Collapse it at the pressed caret,
+            // or drop whatever was standing when the press had no caret to offer.
+            if (pressCaretHit) {
+                setRenderedTextSelection(cell, pressCaretHit, pressCaretHit);
+            } else {
+                this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
+            }
+        }
 
         return true;
     }
@@ -320,6 +337,19 @@ class MouseCellDragSelectionController {
 
     private resolveCellAtPoint(event: PointerEvent, gesture: MouseCellGesture): CellCoords | null {
         return this.resolveCellAtClientPoint(event.clientX, event.clientY, gesture);
+    }
+
+    /** Extends the range the press is drawing to the caret the pointer now rests on. */
+    private updateRenderedTextSelection(gesture: MouseCellGesture): void {
+        const anchor = gesture.pressCaretHit;
+        if (!anchor) {
+            return;
+        }
+
+        const head = readRenderedCaretHit(gesture.anchorCell, gesture.lastClientX, gesture.lastClientY);
+        if (head) {
+            setRenderedTextSelection(gesture.anchorCell, anchor, head);
+        }
     }
 
     private resolveCellAtClientPoint(clientX: number, clientY: number, gesture: MouseCellGesture): CellCoords | null {

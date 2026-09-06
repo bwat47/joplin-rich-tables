@@ -114,6 +114,15 @@ interface CaretDomPosition {
 }
 
 /**
+ * A caret hit together with the DOM position it resolved to.
+ *
+ * Mapping a hit back into Markdown needs only the flattened offset; drawing the range the
+ * press is making needs the DOM endpoint, and reading it here costs nothing because the hit
+ * test produced it.
+ */
+export interface RenderedCaretDomHit extends RenderedCaretHit, CaretDomPosition {}
+
+/**
  * Document APIs for hit-testing a caret, neither of which is in every engine's lib types.
  *
  * `caretRangeFromPoint` is the Chromium and WebKit spelling, which covers Joplin desktop and
@@ -165,7 +174,7 @@ function offsetOutsideContent(
  * Returns null when the cell has no rendered content wrapper or the press cannot be
  * resolved against it, which callers treat as "no placement to offer".
  */
-export function readRenderedCaretHit(cell: HTMLElement, clientX: number, clientY: number): RenderedCaretHit | null {
+export function readRenderedCaretHit(cell: HTMLElement, clientX: number, clientY: number): RenderedCaretDomHit | null {
     const content = cell.querySelector(`:scope > .${CLASS_CELL_CONTENT}`) as HTMLElement | null;
     if (!content) {
         return null;
@@ -173,12 +182,46 @@ export function readRenderedCaretHit(cell: HTMLElement, clientX: number, clientY
 
     const index = indexRenderedText(content);
     const caret = caretFromPoint(cell.ownerDocument, clientX, clientY);
-    const renderedOffset =
-        caret && content.contains(caret.node)
-            ? flatOffsetFromDomPosition(index, caret.node, caret.offset)
-            : offsetOutsideContent(content, index.text.length, clientX, clientY);
+    if (caret && content.contains(caret.node)) {
+        const renderedOffset = flatOffsetFromDomPosition(index, caret.node, caret.offset);
+        return renderedOffset === null ? null : { renderedText: index.text, renderedOffset, ...caret };
+    }
 
-    return renderedOffset === null ? null : { renderedText: index.text, renderedOffset };
+    const renderedOffset = offsetOutsideContent(content, index.text.length, clientX, clientY);
+    if (renderedOffset === null) {
+        return null;
+    }
+
+    // A press that missed the content box has no DOM caret of its own, so it takes the
+    // matching edge of the content element.
+    return {
+        renderedText: index.text,
+        renderedOffset,
+        node: content,
+        offset: renderedOffset === 0 ? 0 : content.childNodes.length,
+    };
+}
+
+/**
+ * Paints the range a press is drawing across one rendered cell.
+ *
+ * A rendered-cell press is consumed rather than left to the browser, so there is no native
+ * text-selection drag to draw this: a native drag keeps auto-scrolling the outer editor after
+ * the gesture becomes a cell rectangle, and nothing can cancel it once it has started.
+ *
+ * The endpoints are the ones the hit test read, so a re-render between the press and now
+ * leaves them outside the cell rather than pointing at the wrong text.
+ */
+export function setRenderedTextSelection(
+    cell: HTMLElement,
+    anchor: RenderedCaretDomHit,
+    head: RenderedCaretDomHit
+): void {
+    if (!cell.contains(anchor.node) || !cell.contains(head.node)) {
+        return;
+    }
+
+    cell.ownerDocument.getSelection()?.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
 }
 
 /** A native selection anchored in one rendered cell. */

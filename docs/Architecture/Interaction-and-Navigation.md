@@ -108,12 +108,14 @@ Every press inside a widget is routed by `tableWidgetPressPlugin` in `tableWidge
 returns one of three dispositions: left native, claimed from CodeMirror with the browser default intact, or consumed
 outright. It runs in the capture phase because `EditorView.domEventHandlers` cannot express the middle one.
 
-While a drag stays in its cell, the browser owns selection. Pointerup maps both endpoints through one
-projection/alignment, preserving direction. A range is mapped from the characters it covers rather than as two carets,
+A press on a rendered cell is consumed, and the gesture draws the DOM selection itself from the caret each pointer
+move hit-tests. The browser latches its own selection drag at mousedown, and nothing cancels it afterwards: left
+native, its auto-scroll keeps running once the gesture has become a cell rectangle, carrying the editor past the
+table. Pointerup maps both endpoints through one projection/alignment, preserving direction. A range is mapped from the characters it covers rather than as two carets,
 so Markdown syntax is included where the selection spans it and excluded at both ends otherwise, with paired markers
 kept balanced. Unresolved hits preserve the established selection fallback.
 
-Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears native
+Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears rendered
 text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
 does not restore the earlier text range. Active-editor drags retain their existing boundary margin and behavior.
 

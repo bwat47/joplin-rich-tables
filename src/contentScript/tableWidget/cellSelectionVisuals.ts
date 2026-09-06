@@ -84,10 +84,8 @@ const cellDragFocusOverride: Extension = EditorView.baseTheme({
 /**
  * Stops a drag that has become a rectangle from also selecting rendered text as it sweeps.
  *
- * A press on a rendered cell starts as a native text selection, so the browser keeps extending
- * one until told otherwise (`tableRuntime/interaction/mouseCellDragSelection.ts` clears the range
- * it had made at the moment of promotion). Every widget is covered rather than only the one being
- * dragged: the drag owns the pointer until release, so no other table has a selection to make.
+ * The gesture clears its rendered text range on promotion and owns selection until release.
+ * Every widget is covered: no other table has a text selection to make during that gesture.
  */
 const cellDragTextSelectionSuppression: Extension = EditorView.baseTheme({
     [`&[${ATTR_CELL_DRAG}] ${getWidgetSelector()}`]: { userSelect: 'none' },

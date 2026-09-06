@@ -5,11 +5,11 @@ import { CELL_COORDS_ATTRIBUTES, CELL_TAGS, CLASS_TABLE_WIDGET_SELECTED, getWidg
 import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
 
 /**
- * Rendered cell text whose selection the browser still owns.
+ * Rendered cell text highlighted by the DOM selection.
  *
- * Dragging across an inactive cell selects its rendered text natively, and pointerup maps that
+ * Dragging across an inactive cell selects its rendered text, and pointerup maps that
  * range into the Markdown the cell opens with (`tableRuntime/interaction/mouseCellDragSelection.ts`).
- * That is the one native highlight inside a table widget that has to stay visible, so it is
+ * That is the one DOM selection inside a table widget that has to stay visible, so it is
  * excluded from the two rules that blank the rest:
  *
  * - `:not(.${CLASS_TABLE_WIDGET_SELECTED})` leaves a table the main editor has selected whole to
@@ -38,14 +38,15 @@ function renderedCellText(scope: string): string {
  * which bottoms out at the document root; the `--rt-*` variables are defined on the editor root, so
  * they are not reliably visible here. `!important` beats Joplin's own rule, which carries it.
  *
- * Always the focused colour: focus sits on the rendered content during the drag, not the editor,
- * so a focus-dependent fill would read as blurred throughout.
+ * Always the focused colour: the gesture consumes its own press, so keyboard focus stays wherever
+ * it was and a focus-dependent fill would read as blurred for a range the reader is actively
+ * dragging out.
  */
 function selectionFill(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<string, string> {
     return { backgroundColor: `${JOPLIN_SELECTION_COLORS[mode].focused} !important` };
 }
 
-/** Paints the browser's own selection over rendered cell text in Joplin's selection colour. */
+/** Paints the DOM selection over rendered cell text in Joplin's selection colour. */
 export const renderedTextSelectionTheme: Extension = EditorView.baseTheme({
     [renderedCellText('&light')]: selectionFill('light'),
     [renderedCellText('&dark')]: selectionFill('dark'),
