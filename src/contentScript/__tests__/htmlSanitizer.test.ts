@@ -42,6 +42,13 @@ describe('sanitizeToFragment', () => {
         expect(result).toContain('joplin-content://x');
     });
 
+    it('drops forms but keeps the text inside them', () => {
+        const result = fragmentHtml(sanitizeToFragment('<form action="/steal"><p>text</p></form>'));
+
+        expect(result).not.toContain('<form');
+        expect(result).toContain('text');
+    });
+
     it('drops iframes that are not YouTube embeds', () => {
         const allowed = fragmentHtml(
             sanitizeToFragment('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>')
