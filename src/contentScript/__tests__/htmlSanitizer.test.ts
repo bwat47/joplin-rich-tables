@@ -1,21 +1,7 @@
-/** @vitest-environment jsdom */
+import { describe, expect, it } from 'vitest';
 
-import { describe, expect, it, vi } from 'vitest';
-
-// The suite aliases `dompurify` to a passthrough double, which cannot answer the question this
-// file exists for: the render pipeline now depends on the real library returning nodes rather
-// than markup, and on it still stripping what it always stripped.
-// The path is relative because the alias rewrites anything starting with the bare specifier.
-vi.mock('dompurify', async () => {
-    const actual = (await vi.importActual('../../../node_modules/dompurify/dist/purify.cjs.js')) as {
-        default: unknown;
-    };
-    return { default: actual.default ?? actual };
-});
-
+import { sanitizeToFragment } from '../services/htmlSanitizer';
 import { fragmentHtml } from './testUtils';
-
-const { sanitizeToFragment } = await import('../services/htmlSanitizer');
 
 describe('sanitizeToFragment', () => {
     it('returns nodes rather than markup', () => {
