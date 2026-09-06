@@ -98,7 +98,9 @@ CodeMirror's Markdown syntax tree:
 1. `tableWidget/cellCaretHit.ts` reads the DOM caret before the rendered content is replaced.
 2. `tableRuntime/interaction/cellTextProjection.ts` projects visible source spans into text with a map back to
    nested-editor offsets, so hidden Markdown cannot become an anchor.
-3. `tableRuntime/interaction/clickCursorPlacement.ts` maps matching rendered/projected text directly.
+3. `tableRuntime/interaction/clickCursorPlacement.ts` maps the offset exactly wherever it can: directly when the cell
+   renders as its own text, which also covers the literal text the renderer shows before it resolves, and otherwise
+   through the projection when that matches what was rendered.
 4. When rendering transforms the text, `shared/textAlignment.ts` aligns rendered text against the projection with one
    forward scan that resynchronises within a small window. Unknown renderer extensions remain approximate; a hidden run
    wider than that window strands the rest of the cell, which collapses the matched ratio, and insufficient matches
