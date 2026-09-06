@@ -13,9 +13,9 @@ import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseE
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
 import {
     readRenderedCaretHit,
-    readRenderedSelectionHit,
     setRenderedTextSelection,
     type RenderedCaretDomHit,
+    type RenderedSelectionHit,
 } from '../../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
@@ -75,6 +75,8 @@ interface MouseCellGesture {
      * nested editor to place its own caret, and a drag discards it.
      */
     pressCaretHit: RenderedCaretDomHit | null;
+    /** Caret the last painted range ran to, which with `pressCaretHit` is that range. */
+    lastHeadHit: RenderedCaretDomHit | null;
 }
 
 /**
@@ -90,6 +92,29 @@ interface GestureRelease {
     cursorPos: InitialCursorPos | undefined;
     /** The drag ended back on the cell it started from, so that cell takes the caret again. */
     reactivateAnchor: boolean;
+}
+
+/**
+ * The range the press drew across its anchor cell, or null when it drew none.
+ *
+ * The gesture is the only writer of the DOM selection inside a rendered cell: the press is taken
+ * from the browser, so there is no native drag or double-click word selection to add one. Both
+ * endpoints are therefore the hits it painted from, and reading the range back out of the DOM
+ * would only re-derive them.
+ *
+ * The two must be measured against the same rendered text. A re-render between press and release
+ * leaves their offsets incomparable, and the caret the press read is the better answer then.
+ */
+function renderedSelectionFromGesture(gesture: MouseCellGesture): RenderedSelectionHit | null {
+    const anchor = gesture.pressCaretHit;
+    const head = gesture.lastHeadHit;
+    if (!anchor || !head || head.renderedText !== anchor.renderedText) {
+        return null;
+    }
+
+    return head.renderedOffset === anchor.renderedOffset
+        ? null
+        : { renderedText: anchor.renderedText, anchor: anchor.renderedOffset, head: head.renderedOffset };
 }
 
 /** Squared distance between two points. */
@@ -222,7 +247,7 @@ class MouseCellDragSelectionController {
 
         let cursorPos: InitialCursorPos | undefined;
         if (!gesture.dragged && resolvedAnchor) {
-            const selectionHit = readRenderedSelectionHit(gesture.anchorCell);
+            const selectionHit = renderedSelectionFromGesture(gesture);
             cursorPos = selectionHit
                 ? resolveRenderedSelection(this.view.state, resolvedAnchor, selectionHit)
                 : resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit);
@@ -308,6 +333,7 @@ class MouseCellDragSelectionController {
             lastClientX: event.clientX,
             lastClientY: event.clientY,
             pressCaretHit,
+            lastHeadHit: null,
         });
 
         if (origin === 'renderedCell') {
@@ -347,6 +373,7 @@ class MouseCellDragSelectionController {
 
         const head = readRenderedCaretHit(gesture.anchorCell, gesture.lastClientX, gesture.lastClientY);
         if (head) {
+            gesture.lastHeadHit = head;
             setRenderedTextSelection(gesture.anchorCell, anchor, head);
         }
     }

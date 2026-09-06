@@ -4,7 +4,7 @@ import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import {
     indexRenderedText,
     flatOffsetFromDomPosition,
-    readRenderedSelectionHit,
+    readRenderedCaretHit,
     setRenderedTextSelection,
     type RenderedCaretDomHit,
     type RenderedCaretHit,
@@ -94,7 +94,7 @@ describe('flatOffsetFromDomPosition', () => {
     });
 });
 
-/** A cell in the document, so a selection can genuinely run past it into the page. */
+/** A cell in the document, so hit tests and painting have a tree to resolve against. */
 function mountedCell(html: string): HTMLElement {
     const cell = document.createElement('td');
     cell.appendChild(contentElement(html));
@@ -106,22 +106,6 @@ function mountedCell(html: string): HTMLElement {
     table.appendChild(body);
     document.body.appendChild(table);
     return cell;
-}
-
-/** Text outside the table, placed either side of it in document order. */
-function pageText(data: string, where: 'before' | 'after'): Text {
-    const paragraph = document.createElement('p');
-    paragraph.textContent = data;
-    document.body[where === 'before' ? 'prepend' : 'append'](paragraph);
-    return paragraph.firstChild as Text;
-}
-
-function select(anchorNode: Node, anchorOffset: number, focusNode: Node, focusOffset: number): void {
-    const selection = document.getSelection();
-    if (!selection) {
-        throw new Error('Expected the test document to have a selection');
-    }
-    selection.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset);
 }
 
 /**
@@ -161,45 +145,71 @@ describe('setRenderedTextSelection', () => {
     });
 });
 
-describe('readRenderedSelectionHit', () => {
+/** Places the content box of `cell` so a press can be aimed inside or outside it. */
+function placeContent(cell: HTMLElement, rect: { left: number; top: number; right: number; bottom: number }): void {
+    const content = cell.firstElementChild as HTMLElement;
+    vi.spyOn(content, 'getBoundingClientRect').mockReturnValue({
+        ...rect,
+        width: rect.right - rect.left,
+        height: rect.bottom - rect.top,
+        x: rect.left,
+        y: rect.top,
+        toJSON: () => ({}),
+    } as DOMRect);
+}
+
+/** The caret the browser reports for any point, as Chromium and the Joplin webviews spell it. */
+function stubCaretFromPoint(node: Node | null, offset = 0): void {
+    Object.defineProperty(document, 'caretRangeFromPoint', {
+        configurable: true,
+        value: () => {
+            if (!node) {
+                return null;
+            }
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.collapse(true);
+            return range;
+        },
+    });
+}
+
+describe('readRenderedCaretHit', () => {
     afterEach(() => {
-        document.getSelection()?.removeAllRanges();
+        Reflect.deleteProperty(document, 'caretRangeFromPoint');
         document.body.replaceChildren();
     });
 
-    it('clamps an endpoint the drag carried out of the cell to the end it left by', () => {
+    it('reads the caret the browser reports inside the content', () => {
         const cell = mountedCell('see <strong>the</strong> docs');
-        select(textNode(cell, 'the'), 1, pageText('below the table', 'after'), 5);
+        placeContent(cell, { left: 0, top: 0, right: 100, bottom: 20 });
+        stubCaretFromPoint(textNode(cell, 'the'), 1);
 
-        expect(readRenderedSelectionHit(cell)).toEqual({ renderedText: 'see the docs', anchor: 5, head: 12 });
+        expect(readRenderedCaretHit(cell, 40, 10)).toMatchObject({ renderedText: 'see the docs', renderedOffset: 5 });
     });
 
-    it('clamps a backward drag out of the cell to its start, keeping the direction', () => {
+    it('clamps a press past the content in reading order to the end of its text', () => {
         const cell = mountedCell('see <strong>the</strong> docs');
-        select(textNode(cell, 'the'), 1, pageText('above the table', 'before'), 5);
+        placeContent(cell, { left: 0, top: 0, right: 100, bottom: 20 });
+        stubCaretFromPoint(null);
 
-        expect(readRenderedSelectionHit(cell)).toEqual({ renderedText: 'see the docs', anchor: 5, head: 0 });
+        expect(readRenderedCaretHit(cell, 40, 60)).toMatchObject({ renderedOffset: 12 });
     });
 
-    it('declines a selection with neither endpoint in the cell', () => {
+    it('clamps a press before the content to its start', () => {
         const cell = mountedCell('see <strong>the</strong> docs');
-        select(pageText('above the table', 'before'), 0, pageText('below the table', 'after'), 5);
+        placeContent(cell, { left: 0, top: 40, right: 100, bottom: 60 });
+        stubCaretFromPoint(null);
 
-        expect(readRenderedSelectionHit(cell)).toBeNull();
+        expect(readRenderedCaretHit(cell, 40, 10)).toMatchObject({ renderedOffset: 0 });
     });
 
-    it('declines an endpoint inside a formula, whose text is not its source', () => {
+    it('declines a press inside a formula, whose text is not its source', () => {
         const cell = mountedCell('a <math><mi>x</mi></math> b');
-        select(textNode(cell, 'a '), 0, textNode(cell, 'x'), 1);
+        placeContent(cell, { left: 0, top: 0, right: 100, bottom: 20 });
+        stubCaretFromPoint(textNode(cell, 'x'), 1);
 
-        expect(readRenderedSelectionHit(cell)).toBeNull();
-    });
-
-    it('declines a collapsed selection, which is a caret rather than a range', () => {
-        const cell = mountedCell('see <strong>the</strong> docs');
-        select(textNode(cell, 'the'), 1, textNode(cell, 'the'), 1);
-
-        expect(readRenderedSelectionHit(cell)).toBeNull();
+        expect(readRenderedCaretHit(cell, 40, 10)).toBeNull();
     });
 });
 
