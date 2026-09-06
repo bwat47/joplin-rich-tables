@@ -448,14 +448,10 @@ describe('syntax-aware click placement', () => {
     });
 
     it('carries a DOM caret through mouse entry into the initial nested selection', () => {
-        const { view, cells } = createInteractiveTableHarness({ doc: CANONICAL_DOC.trim() });
-        const content = contentElement('<strong>markdown</strong>');
-        cells.body0.querySelector = () => content;
-        const range = document.createRange();
-        range.setStart(textNode(content, 'markdown'), 7);
-        Object.defineProperty(cells.body0, 'ownerDocument', {
-            value: {
-                caretRangeFromPoint: vi.fn(() => range),
+        const { view, cells } = createInteractiveTableHarness({
+            doc: CANONICAL_DOC.trim(),
+            renderedContent: {
+                body0: { html: '<strong>markdown</strong>', caretAt: { text: 'markdown', offset: 7 } },
             },
         });
         const event = {
