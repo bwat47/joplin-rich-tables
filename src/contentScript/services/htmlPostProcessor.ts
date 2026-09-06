@@ -4,9 +4,8 @@ import { buildFootnoteHref } from '../shared/footnoteAnchor';
  * Post-process rendered content to fix Joplin-specific display issues.
  * Includes KaTeX optimization and footnote reference conversion.
  *
- * Operates on the sanitized nodes in place. The string form used to parse the markup twice, once
- * per pass, which was the bulk of the per-cell cost on the editor's own thread; querying a tree
- * that already exists costs nothing by comparison, so neither pass needs a guard.
+ * Operates on the sanitized nodes in place, so neither pass has to parse the markup the way the
+ * string form did.
  */
 export function postProcessFragment(fragment: DocumentFragment): void {
     convertFootnoteRefs(fragment);
@@ -62,6 +61,9 @@ function cleanupAndOptimize(fragment: DocumentFragment): void {
  */
 const FOOTNOTE_REF_PATTERN = /\[\^([^\]]+)\]/;
 
+/** The opening of a footnote reference. Cheap to test for, and almost no text node has one. */
+const FOOTNOTE_REF_PREFIX = '[^';
+
 /** Elements whose text is literal, so `[^label]` inside them is not a reference. */
 const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
 
@@ -101,6 +103,11 @@ function convertFootnoteRefs(node: Node): void {
  * the text has none and the node should be left as it is.
  */
 function buildFootnoteFragment(text: string): DocumentFragment | null {
+    // Skip the regex split for the overwhelming majority of text nodes, which have no reference.
+    if (!text.includes(FOOTNOTE_REF_PREFIX)) {
+        return null;
+    }
+
     // Splitting on a capturing pattern interleaves the parts: even indices are
     // the literal text between references, odd indices are the captured labels.
     const parts = text.split(FOOTNOTE_REF_PATTERN);
