@@ -15,9 +15,6 @@ import type { LocalSelection } from '../editorBridge/cellTextCodec';
  * - {@link CellTextSelection}: exact offsets in the cell text, a caret when collapsed.
  *
  * Omitting the value mirrors the main editor's own selection into the cell.
- *
- * The named edges are strings and the offsets an object, so a placement is told from an
- * edge by its type alone; nothing here needs a guard of its own.
  */
 export type InitialCursorPos = 'start' | 'end' | 'lastLineStart' | CellTextSelection;
 

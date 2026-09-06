@@ -15,10 +15,9 @@ import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 /**
  * Alignment quality below which the placement is abandoned.
  *
- * The rendered text of a normal cell aligns almost completely; a cell that is mostly
- * formula, emoji shortcodes or HTML entities does not, and the anchors left over are too
- * sparse to place a caret from. Half is well clear of both cases: it is a floor on
- * "recognisably the same text", not a tuned threshold.
+ * The rendered text of a normal cell aligns almost completely; a cell that is mostly formula,
+ * emoji shortcodes or HTML entities does not, and the anchors left over are too sparse to place
+ * a caret from. Half is well clear of both cases, not a tuned threshold.
  */
 const MIN_MATCHED_RATIO = 0.5;
 
@@ -30,7 +29,7 @@ const MIN_MATCHED_RATIO = 0.5;
  * before. That is the established fallback for every other unplaced entry.
  *
  * The offset is measured against the cell text as it stands now. An entry that repairs the
- * table into canonical form can restripe the cell's padding underneath it, so the offset is
+ * table into canonical form can rewrite the cell's padding underneath it, so the offset is
  * clamped where it is applied rather than trusted verbatim.
  */
 export function resolveClickCursorPos(

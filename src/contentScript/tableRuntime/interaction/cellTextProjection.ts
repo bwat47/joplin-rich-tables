@@ -121,17 +121,12 @@ export function projectCellText(
 /**
  * Grows a range so it never holds one marker of a pair without the other.
  *
- * The range a drag selects is read off the rendered characters it covered, which leaves the
- * syntax around them outside it - the point of that rule, and why selecting a whole bolded word
- * yields `bold text` rather than `bold text**`.  A range that *started* earlier is a different
- * case: ending it at the closing `**` of `foo and **bold**` keeps the opening `**` in the middle
- * of the range while its partner sits just past the end, so what the nested editor selects is
- * Markdown that no longer parses as itself.  Here the missing marker is not syntax the reader
- * left out; it is the other half of syntax they already took.
- *
- * So an end grows past trailing syntax only when the leading syntax of the same construct is
- * already inside the range, and a start likewise.  Syntax with no partner - an entity, an HTML
- * tag, an image - owns exactly itself, and is never drawn in by a range that stops beside it.
+ * A range is read off the rendered characters it covered, so syntax around them stays outside:
+ * selecting a whole bolded word yields `bold text`, not `bold text**`. But a range ending at the
+ * closing `**` of `foo and **bold**` already holds the opening `**`, and selecting that alone
+ * gives the nested editor Markdown that no longer parses. So an end grows past trailing syntax
+ * only when the matching leading syntax is already inside the range, and likewise at the start.
+ * Syntax with no partner - an entity, an HTML tag, an image - owns itself and is never drawn in.
  * The loops repeat because constructs nest: `***both***` closes twice over.
  */
 export function balanceSyntaxMarkers(span: SourceSpan, hiddenSpans: readonly HiddenSyntaxSpan[]): SourceSpan {

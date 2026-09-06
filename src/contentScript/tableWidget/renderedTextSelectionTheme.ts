@@ -18,10 +18,10 @@ import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
  * - `:not(.${CLASS_CELL_ACTIVE})` leaves the open cell to the nested editor, whose selection
  *   `drawSelection` draws and `nestedEditor/rootEditorSelectionTheme.ts` blanks natively.
  *
- * Being mutually exclusive with both, this rule cannot contend with either on specificity — only
- * with Joplin's own `&.cm-focused ::selection !important`, which it outweighs.  The coordinate
- * attributes anchor the chain to the widget's own cells, so a raw HTML table inside a cell's
- * Markdown is reached through the cell that contains it rather than matching on its own.
+ * Being mutually exclusive with both, this rule contends on specificity only with Joplin's own
+ * `&.cm-focused ::selection !important`, which it outweighs. The coordinate attributes anchor the
+ * chain to the widget's own cells, so a raw HTML table inside a cell's Markdown is reached through
+ * the cell that contains it rather than matching on its own.
  */
 function renderedCellText(scope: string): string {
     return CELL_TAGS.map(
@@ -36,14 +36,10 @@ function renderedCellText(scope: string): string {
  *
  * A highlight pseudo-element inherits through the chain of `::selection` pseudo-elements above it,
  * which bottoms out at the document root; the `--rt-*` variables are defined on the editor root, so
- * they are not reliably visible here.  `!important` is needed to beat Joplin's own rule, which
- * carries it.
+ * they are not reliably visible here. `!important` beats Joplin's own rule, which carries it.
  *
- * Always the focused colour: this highlight only exists while its drag is in progress, and the
- * nested editor it becomes on release opens focused, so the selection keeps one colour across the
- * hand-off.  Focus is on the rendered content itself during the drag (`TableWidget` makes it
- * focusable), which means the editor is not `.cm-focused` and a focus-dependent fill would read as
- * blurred throughout.
+ * Always the focused colour: focus sits on the rendered content during the drag, not the editor,
+ * so a focus-dependent fill would read as blurred throughout.
  */
 function selectionFill(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<string, string> {
     return { backgroundColor: `${JOPLIN_SELECTION_COLORS[mode].focused} !important` };

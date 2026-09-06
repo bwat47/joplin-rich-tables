@@ -25,7 +25,7 @@ const BOUNDARY_EXIT_DISTANCE_PX = 8;
 const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT_DISTANCE_PX;
 
 /**
- * Where the press landed, which is also what the gesture owes the event that carried it.
+ * Where the press landed, which also decides what the gesture does with the event.
  *
  * The active cell is two origins rather than one because its editor and its row-height padding
  * want opposite things from the same press.
@@ -494,7 +494,7 @@ class MouseCellDragSelectionController {
 export const mouseCellDragSelectionPlugin = ViewPlugin.fromClass(MouseCellDragSelectionController);
 
 /**
- * Starts a gesture for a press on `cell`, and reports what the press owes its own event.
+ * Starts a gesture for a press on `cell`, and reports what should happen to that event.
  *
  * The disposition is returned rather than applied, so one router decides what happens to every
  * press it sees; see `tableWidget/tableWidgetInteractions.ts`.
@@ -510,7 +510,7 @@ export function beginMouseCellGesture(
     return started ? ORIGIN_PRESS_DISPOSITION[origin] : 'native';
 }
 
-/** What the compatibility mousedown behind a running gesture's press owes that gesture. */
+/** What should happen to the compatibility mousedown behind a running gesture's press. */
 export function mouseCellGestureMouseDownDisposition(view: EditorView, event: MouseEvent): PressDisposition {
     return view.plugin?.(mouseCellDragSelectionPlugin)?.compatibilityMouseDownDisposition(event) ?? 'native';
 }

@@ -22,13 +22,8 @@ export function isPrimaryMousePointer(event: PointerEvent): boolean {
  * - `claim`: taken from CodeMirror's handlers, with the browser default left to run.
  * - `consume`: taken from both.
  *
- * A `domEventHandlers` handler has only two of these: returning false leaves a press `native`,
- * and returning true is as close as it gets to `consume` — `runHandlers` calls `preventDefault`
- * and runs no further handlers, though the event still propagates. There is no way to stop the
- * editor acting on a press without also cancelling the browser default, which is exactly what
- * rendered cell text needs: the outer editor must not move its caret over it, while the browser
- * must still draw the text selection that the release maps into Markdown. So presses are
- * dispatched from a capture listener instead of `EditorView.domEventHandlers`.
+ * `EditorView.domEventHandlers` cannot express `claim`: a handler returning true also calls
+ * `preventDefault`. That is why presses are dispatched from a capture listener instead.
  */
 export type PressDisposition = 'native' | 'claim' | 'consume';
 

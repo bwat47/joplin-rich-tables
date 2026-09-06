@@ -42,7 +42,7 @@ export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolea
  *
  * Exact offsets are clamped rather than trusted: they are measured against the cell
  * text as it stood when the placement was decided, and an entry that repairs the
- * table into canonical form can restripe that cell's padding in the same
+ * table into canonical form can rewrite that cell's padding in the same
  * transaction.
  */
 export function resolveInitialLocalSelection(

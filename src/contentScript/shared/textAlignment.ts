@@ -134,13 +134,10 @@ function findLongestMatch(
  * unmatched region on each side of it.
  *
  * The recursion is an explicit stack: a pathological input can nest as deeply as the strings
- * are long, and the cap alone is not a reason to spend that on the call stack. Blocks come
- * back unordered, which is all the caller needs to fill a lookup table.
+ * are long. Blocks come back unordered, which is all the caller needs to fill a lookup table.
  *
- * Returns null once the shared budget runs out. Partial blocks are discarded rather than
- * returned, because the stack descends into one gap at a time: whatever it had found would
- * cover one end of the cell and leave the other unanchored, which places a caret confidently
- * in the wrong place. Declining hands the caller the fallback it already has.
+ * Returns null once the shared budget runs out. Partial blocks are discarded: they would
+ * anchor one end of the cell and leave the other, placing the caret confidently wrong.
  */
 function collectMatchingBlocks(
     rendered: string,
@@ -195,7 +192,7 @@ export function alignRenderedToSource(rendered: string, source: string): TextAli
     }
 
     if (rendered.length === 0) {
-        // Nothing to place is vacuously well aligned: the only caret is at offset 0.
+        // Empty text: the only caret is at offset 0.
         return { toSource: new Int32Array(), matchedRatio: 1 };
     }
 
@@ -280,19 +277,16 @@ export interface SourceSpan {
  * Maps a selected range of rendered text to the source span covering it.
  *
  * A range is mapped from the characters it holds rather than by mapping each end as a caret.
- * A caret at the seam between a matched run and hidden syntax has two equally good answers and
- * takes the one after it, which is right for a caret but pulls a range's end across the syntax
- * that follows it: selecting `bold text` out of `**bold text** aaa` would reach source offsets
- * either side of the closing `**` and select `bold text**`. Reading the span off the covered
- * characters instead makes both ends answer the same question - where the selected text begins
- * and ends in the source - so syntax comes along only where the selection actually spans it.
+ * A caret at the seam between a matched run and hidden syntax takes the offset after it, which
+ * is right for a caret but pulls a range's end across the syntax that follows: selecting
+ * `bold text` out of `**bold text** aaa` would select `bold text**`. Reading the span off the
+ * covered characters instead includes syntax only where the selection actually spans it.
  *
  * A range covering every rendered character takes the whole source, keeping both pins of
- * {@link mapCaretToSource}: select-all inside a cell still selects its Markdown entire, and
- * being both ends at once it stays symmetric.
+ * {@link mapCaretToSource}, so select-all inside a cell still selects its Markdown entire.
  *
- * A range holding no aligned character at all - a run of emoji or a formula, where there is
- * nothing to read a span off - falls back to mapping each end as a caret.
+ * A range holding no aligned character at all - a run of emoji or a formula - falls back to
+ * mapping each end as a caret.
  */
 export function mapSelectionToSource(toSource: Int32Array, from: number, to: number, sourceLength: number): SourceSpan {
     if (from <= 0 && to >= toSource.length) {
