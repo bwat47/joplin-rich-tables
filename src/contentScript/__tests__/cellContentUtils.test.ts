@@ -70,6 +70,12 @@ describe('containsMarkdown', () => {
         expect(containsMarkdown('Status: :white_check_mark:')).toBe(true);
     });
 
+    it('detects superscript and subscript', () => {
+        expect(containsMarkdown('abc ^sup^ and def ~sub~')).toBe(true);
+        expect(containsMarkdown('H~2~O')).toBe(true);
+        expect(containsMarkdown('x^2^')).toBe(true);
+    });
+
     it('detects KaTeX inline math', () => {
         expect(containsMarkdown('$00$')).toBe(true);
         expect(containsMarkdown('$ZX = Y$')).toBe(true);

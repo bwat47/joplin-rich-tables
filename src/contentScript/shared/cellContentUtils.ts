@@ -100,7 +100,8 @@ const MARKDOWN_MARKERS = [
     '_', // bold / italic
     '`', // code
     '[', // links and images
-    '~~', // strikethrough
+    '~', // strikethrough / subscript
+    '^', // superscript
     '<', // HTML tags
     '==', // highlights
     '++', // insert
