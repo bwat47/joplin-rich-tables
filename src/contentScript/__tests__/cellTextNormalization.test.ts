@@ -69,6 +69,25 @@ describe('rootToLocalOffsets', () => {
     /** The offsets a plain scan of `rootText` would need, character by character. */
     const displayOffsets = (rootText: string): number[] => Array.from(rootToLocalOffsets(rootText));
 
+    it('maps the only offset in an empty cell to zero', () => {
+        expect(displayOffsets('')).toEqual([0]);
+    });
+
+    it('maps consecutive substitutions through the end of the cell', () => {
+        expect(displayOffsets(String.raw`<br>\|<br>`)).toEqual([0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 3]);
+    });
+
+    it.each([
+        { root: String.raw`a\\|b`, offsets: [0, 1, 2, 2, 3, 4] },
+        { root: String.raw`a\\\|b`, offsets: [0, 1, 2, 3, 3, 4, 5] },
+    ])('preserves backslashes before the final pipe escape in $root', ({ root, offsets }) => {
+        expect(displayOffsets(root)).toEqual(offsets);
+    });
+
+    it('counts emoji as UTF-16 code units on both sides of a substitution', () => {
+        expect(displayOffsets('😀<br>😀')).toEqual([0, 1, 2, 2, 2, 2, 3, 4, 5]);
+    });
+
     it('maps stored text one to one where nothing is spelled out', () => {
         expect(displayOffsets('abc')).toEqual([0, 1, 2, 3]);
     });
