@@ -101,8 +101,7 @@ standing in for that ground would band a selected rectangle row by row.
 
 Text dragged out inside a rendered cell keeps the browser's own selection highlight until the cell opens.
 `renderedTextSelectionTheme.ts` paints it in Joplin's selection colour, carved out of the widget-wide `::selection`
-reset in `wholeTableSelectionVisuals.ts`: its selectors skip tables the main editor has selected whole and the open
-cell, whose selections those modules and the nested editor already draw.
+reset in `wholeTableSelectionVisuals.ts`.
 
 ## Host Scroll Modes
 
