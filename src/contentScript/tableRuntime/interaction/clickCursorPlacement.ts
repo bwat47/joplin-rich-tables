@@ -76,9 +76,7 @@ export function resolveRenderedSelection(
         alignment.hiddenSpans
     );
 
-    return {
-        localSelection: backward ? { anchor: span.to, head: span.from } : { anchor: span.from, head: span.to },
-    };
+    return backward ? { anchor: span.to, head: span.from } : { anchor: span.from, head: span.to };
 }
 
 /** Where each rendered character sits in the cell's own text; -1 where it has no anchor. */

@@ -333,7 +333,8 @@ describe('mouse cell drag selection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
         document.dispatchEvent(pointerEvent('pointerup', { clientX: 80, clientY: 10 }));
         expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({
-            localSelection: { anchor: localAnchor, head: localHead },
+            anchor: localAnchor,
+            head: localHead,
         });
     });
 
@@ -376,9 +377,7 @@ describe('mouse cell drag selection', () => {
 
         // `llo` of `**hello**`: the escaped end clamps to the end of the cell's own text.
         document.dispatchEvent(pointerEvent('pointerup', { clientX: 400, clientY: 400 }));
-        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({
-            localSelection: { anchor: 4, head: 7 },
-        });
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({ anchor: 4, head: 7 });
     });
 
     it('re-resolves a provisional press when the table moves before release', () => {

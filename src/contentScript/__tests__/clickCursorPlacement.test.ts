@@ -242,7 +242,7 @@ function offsetsOf(pos: InitialCursorPos, expected: string): LocalSelection {
         throw new Error(`Expected ${expected}, got ${pos}`);
     }
 
-    return pos.localSelection;
+    return pos;
 }
 
 function placement(doc: string, coords: CellCoords, hit: RenderedCaretHit | null): string {
@@ -442,7 +442,8 @@ describe('syntax-aware click placement', () => {
         const doc = ['', '| H1 |', '| --- |', `| **${word}** |`, ''].join('\n');
         const { state, resolvedCell } = resolveCell(doc, { section: 'body', row: 0, col: 0 });
         expect(resolveClickCursorPos(state, resolvedCell, { renderedText: word, renderedOffset: 1200 })).toEqual({
-            localSelection: { anchor: 1202, head: 1202 },
+            anchor: 1202,
+            head: 1202,
         });
     });
 
@@ -468,7 +469,7 @@ describe('syntax-aware click placement', () => {
         } as unknown as MouseEvent;
         expect(handleWidgetPress(view, event)).toBe(true);
         const request = getPendingOpenCellRequest(view.state);
-        expect(request?.initialCursorPos).toEqual({ localSelection: { anchor: 9, head: 9 } });
+        expect(request?.initialCursorPos).toEqual({ anchor: 9, head: 9 });
         expect(resolveInitialLocalSelection({ anchor: 0, head: 0 }, '**markdown**', request?.initialCursorPos)).toEqual(
             { anchor: 9, head: 9 }
         );
@@ -483,7 +484,7 @@ describe('rendered range mapping', () => {
         const { state, resolvedCell } = resolveCell(doc, cell);
         expect(
             resolveRenderedSelection(state, resolvedCell, { renderedText: 'hello & world', anchor: 11, head: 2 })
-        ).toEqual({ localSelection: { anchor: 19, head: 4 } });
+        ).toEqual({ anchor: 19, head: 4 });
     });
 
     it('leaves the delimiters of a fully selected formatted word outside both ends', () => {

@@ -89,11 +89,10 @@ describe('resolveInitialLocalSelection', () => {
     });
 
     it('clamps both initial selection endpoints while retaining direction', () => {
-        expect(
-            resolveInitialLocalSelection(mirrored, 'hello', {
-                localSelection: { anchor: 8, head: -2 },
-            })
-        ).toEqual({ anchor: 5, head: 0 });
+        expect(resolveInitialLocalSelection(mirrored, 'hello', { anchor: 8, head: -2 })).toEqual({
+            anchor: 5,
+            head: 0,
+        });
     });
 
     it('clamps a requested offset the cell text can no longer hold', () => {

@@ -51,7 +51,7 @@ export function resolveInitialLocalSelection(
     initialCursorPos?: InitialCursorPos
 ): LocalSelection {
     if (typeof initialCursorPos === 'object') {
-        const { anchor, head } = initialCursorPos.localSelection;
+        const { anchor, head } = initialCursorPos;
         return { anchor: clamp(anchor, 0, localText.length), head: clamp(head, 0, localText.length) };
     }
 
