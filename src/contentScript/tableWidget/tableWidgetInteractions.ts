@@ -318,7 +318,7 @@ export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerE
     const insideNestedEditor = Boolean(target.closest(`.${CLASS_CELL_EDITOR}`));
     if (event.type === 'pointerdown') {
         return insideNestedEditor
-            ? // Observed but never claimed, so the nested editor keeps its native text-selection
+            ? // Observed but never taken from the nested editor, so the nested editor keeps its native text-selection
               // drag until the pointer crosses into another cell.
               observeActiveEditorPointerDown(view, event as PointerEvent, target)
             : handleWidgetPointerDown(view, event as PointerEvent, target);
