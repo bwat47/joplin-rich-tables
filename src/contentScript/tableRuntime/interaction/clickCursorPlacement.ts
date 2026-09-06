@@ -18,6 +18,9 @@ import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
  * The rendered text of a normal cell aligns almost completely; a cell that is mostly formula,
  * emoji shortcodes or HTML entities does not, and the anchors left over are too sparse to place
  * a caret from. Half is well clear of both cases, not a tuned threshold.
+ *
+ * This is also what catches an alignment that anchored something in the wrong place: the scan
+ * never backtracks, so a bad anchor strands the rest of the cell and the ratio collapses with it.
  */
 const MIN_MATCHED_RATIO = 0.5;
 

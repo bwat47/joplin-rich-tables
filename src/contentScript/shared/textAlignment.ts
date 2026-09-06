@@ -3,32 +3,33 @@
  * projection. The caller removes hidden Markdown before alignment; matching raw source
  * alone cannot distinguish visible text from identical link titles or image descriptions.
  *
- * Longest contiguous blocks anchor the mapping, with a complete-subsequence fallback for
- * repeated text. Renderer substitutions may leave unmatched characters, resolved by nearby
- * anchors. The matched ratio measures coverage, not semantic certainty.
+ * One forward scan walks both strings together, resynchronising within a small window wherever
+ * they diverge. Renderer substitutions are local - an entity, an em dash, an emoji standing in
+ * for its shortcode - so an anchor close by is enough to recover, and the characters between
+ * anchors are left unmatched for {@link mapCaretToSource} to step over.
+ *
+ * The scan never backtracks, so one anchor taken in the wrong place strands the rest of the
+ * cell. That is why the window is small: a wider one reaches further past a long run of hidden
+ * source, but also reaches coincidental matches that a near one would have won. The stranding
+ * is self-limiting rather than silent - it collapses the matched ratio, and the caller declines
+ * placement below its own threshold - so a poisoned scan falls back to mirroring the main
+ * editor's selection rather than placing a confidently wrong caret.
  */
 
-/** Maximum input length for fallback alignment; direct mappings bypass this limit. */
+/** Maximum input length for alignment; direct mappings bypass this limit. */
 const MAX_ALIGNMENT_LENGTH = 1000;
 
 /**
- * Comparison budget shared by all longest-block scans in one fallback alignment.
- * Repeated characters and fragmented matches can cause expensive rescans even within the
- * length limit. Exhausting this budget declines placement; it does not bound elapsed time.
+ * How far past the current source position a diverged scan looks for its next anchor.
+ *
+ * Wide enough for the substitutions a renderer actually makes, and for the syntax the projection
+ * could not identify; narrow enough that a character with no true counterpart cannot reach a
+ * coincidental match further down the cell.
  */
-const MAX_ALIGNMENT_CANDIDATES = 2_000_000;
+const RESYNC_WINDOW = 24;
 
-/** Remaining comparison budget, shared by every scan in one alignment. */
-interface AlignmentBudget {
-    remaining: number;
-}
-
-/** A run of characters that is identical in both strings. */
-interface MatchingBlock {
-    renderedFrom: number;
-    sourceFrom: number;
-    length: number;
-}
+/** How many characters must agree for a candidate anchor to beat a nearer coincidence. */
+const RESYNC_RUN = 3;
 
 export interface TextAlignment {
     /** Source index each rendered index maps to, or -1 where the character did not align. */
@@ -37,185 +38,78 @@ export interface TextAlignment {
     readonly matchedRatio: number;
 }
 
-/** Character to ascending list of positions, so block matching can skip non-candidates. */
-function indexCharacterPositions(source: string): Map<string, number[]> {
-    const positions = new Map<string, number[]>();
-    for (let i = 0; i < source.length; i++) {
-        const existing = positions.get(source[i]);
-        if (existing) {
-            existing.push(i);
-        } else {
-            positions.set(source[i], [i]);
+/** Whether the two strings agree for {@link RESYNC_RUN} characters from these offsets. */
+function runAgrees(rendered: string, renderedFrom: number, source: string, sourceFrom: number): boolean {
+    for (let k = 1; k < RESYNC_RUN; k++) {
+        if (renderedFrom + k >= rendered.length) {
+            // Nothing left to place, so nothing left to disagree.
+            return true;
+        }
+        // Source exhausted while rendered text remains is a disagreement, not a run. Reading it
+        // as agreement would confirm a candidate at the very end of the source purely because
+        // nothing follows it, and that beats the nearer candidate that actually continues.
+        if (sourceFrom + k >= source.length || rendered[renderedFrom + k] !== source[sourceFrom + k]) {
+            return false;
         }
     }
-    return positions;
+
+    return true;
 }
 
 /**
- * Maps every rendered character to its earliest available source occurrence in order.
+ * Source index anchoring `rendered[renderedFrom]`, searching forward from `sourceFrom`.
  *
- * Choosing the earliest match cannot prevent a later match that another subsequence could
- * make, so a single forward scan is enough to prove whether the rendered text is a complete
- * subsequence. This repairs repeated-text cases where longest-block alignment commits to a
- * later run and strands otherwise matchable characters on one side of it.
+ * A candidate that starts an agreeing run wins outright. Otherwise the nearest bare character
+ * match stands in, which is what keeps the character on either side of a substitution anchored:
+ * neither can agree for a full run, because the substitution itself is in the way.
  */
-function alignCompleteSubsequence(rendered: string, source: string): TextAlignment | null {
-    const toSource = new Int32Array(rendered.length);
-    let sourceIndex = 0;
+function findAnchor(rendered: string, renderedFrom: number, source: string, sourceFrom: number): number {
+    const limit = Math.min(sourceFrom + RESYNC_WINDOW, source.length);
+    let nearest = -1;
 
-    for (let renderedIndex = 0; renderedIndex < rendered.length; renderedIndex++) {
-        while (sourceIndex < source.length && source[sourceIndex] !== rendered[renderedIndex]) {
-            sourceIndex++;
-        }
-
-        if (sourceIndex >= source.length) {
-            return null;
-        }
-
-        toSource[renderedIndex] = sourceIndex;
-        sourceIndex++;
-    }
-
-    return { toSource, matchedRatio: 1 };
-}
-
-/**
- * Longest run common to `rendered[renderedFrom, renderedTo)` and `source[sourceFrom, sourceTo)`.
- *
- * `runLengths` holds, per source index, the length of the common run ending at the previous
- * rendered character, so extending a run is a single lookup. Ties keep the first run found,
- * which is the earliest position in both strings because the position lists ascend.
- *
- * Returns a zero-length block when the ranges share no characters, and null when `budget`
- * ran out before the scan finished, which makes a truncated scan impossible to mistake for
- * a completed one.
- */
-function findLongestMatch(
-    rendered: string,
-    sourcePositions: Map<string, number[]>,
-    renderedFrom: number,
-    renderedTo: number,
-    sourceFrom: number,
-    sourceTo: number,
-    budget: AlignmentBudget
-): MatchingBlock | null {
-    let best: MatchingBlock = { renderedFrom, sourceFrom, length: 0 };
-    let runLengths = new Map<number, number>();
-
-    for (let i = renderedFrom; i < renderedTo; i++) {
-        if (budget.remaining <= 0) {
-            return null;
-        }
-
-        const nextRunLengths = new Map<number, number>();
-        for (const j of sourcePositions.get(rendered[i]) ?? []) {
-            if (j < sourceFrom) {
-                continue;
-            }
-            if (j >= sourceTo) {
-                break;
-            }
-
-            budget.remaining--;
-            const length = (runLengths.get(j - 1) ?? 0) + 1;
-            nextRunLengths.set(j, length);
-            if (length > best.length) {
-                best = { renderedFrom: i - length + 1, sourceFrom: j - length + 1, length };
-            }
-        }
-        runLengths = nextRunLengths;
-    }
-
-    return best;
-}
-
-/**
- * Every matching block, found by anchoring on the longest one and recursing into the
- * unmatched region on each side of it.
- *
- * The recursion is an explicit stack: a pathological input can nest as deeply as the strings
- * are long. Blocks come back unordered, which is all the caller needs to fill a lookup table.
- *
- * Returns null once the shared budget runs out. Partial blocks are discarded: they would
- * anchor one end of the cell and leave the other, placing the caret confidently wrong.
- */
-function collectMatchingBlocks(
-    rendered: string,
-    sourcePositions: Map<string, number[]>,
-    sourceLength: number
-): MatchingBlock[] | null {
-    const blocks: MatchingBlock[] = [];
-    const budget: AlignmentBudget = { remaining: MAX_ALIGNMENT_CANDIDATES };
-    const pending: Array<[number, number, number, number]> = [[0, rendered.length, 0, sourceLength]];
-
-    while (pending.length > 0) {
-        const [renderedFrom, renderedTo, sourceFrom, sourceTo] = pending.pop() as [number, number, number, number];
-        if (renderedFrom >= renderedTo || sourceFrom >= sourceTo) {
+    for (let j = sourceFrom; j < limit; j++) {
+        if (source[j] !== rendered[renderedFrom]) {
             continue;
         }
-
-        const match = findLongestMatch(
-            rendered,
-            sourcePositions,
-            renderedFrom,
-            renderedTo,
-            sourceFrom,
-            sourceTo,
-            budget
-        );
-        if (!match) {
-            return null;
+        if (runAgrees(rendered, renderedFrom, source, j)) {
+            return j;
         }
-        if (match.length === 0) {
-            continue;
+        if (nearest < 0) {
+            nearest = j;
         }
-
-        blocks.push(match);
-        pending.push([renderedFrom, match.renderedFrom, sourceFrom, match.sourceFrom]);
-        pending.push([match.renderedFrom + match.length, renderedTo, match.sourceFrom + match.length, sourceTo]);
     }
 
-    return blocks;
+    return nearest;
 }
 
 /**
  * Aligns rendered text back onto the source it came from.
  *
- * Returns null when either side is longer than {@link MAX_ALIGNMENT_LENGTH}, or when the
- * text is shaped such that aligning it would cost more than {@link MAX_ALIGNMENT_CANDIDATES}
- * comparisons; callers treat that as "no better placement is available" rather than as an
- * error.
+ * Returns null only when either side is longer than {@link MAX_ALIGNMENT_LENGTH}, which callers
+ * treat as "no better placement is available" rather than as an error. Empty rendered text is
+ * fully matched: the only caret it has is at offset 0.
  */
 export function alignRenderedToSource(rendered: string, source: string): TextAlignment | null {
     if (rendered.length > MAX_ALIGNMENT_LENGTH || source.length > MAX_ALIGNMENT_LENGTH) {
         return null;
     }
 
-    if (rendered.length === 0) {
-        // Empty text: the only caret is at offset 0.
-        return { toSource: new Int32Array(), matchedRatio: 1 };
-    }
-
-    const blocks = collectMatchingBlocks(rendered, indexCharacterPositions(source), source.length);
-    if (!blocks) {
-        return null;
-    }
-
     const toSource = new Int32Array(rendered.length).fill(-1);
+    let sourceIndex = 0;
     let matched = 0;
-    for (const block of blocks) {
-        for (let k = 0; k < block.length; k++) {
-            toSource[block.renderedFrom + k] = block.sourceFrom + k;
+
+    for (let i = 0; i < rendered.length; i++) {
+        const anchor = findAnchor(rendered, i, source, sourceIndex);
+        if (anchor < 0) {
+            continue;
         }
-        matched += block.length;
+
+        toSource[i] = anchor;
+        sourceIndex = anchor + 1;
+        matched++;
     }
 
-    const blockAlignment = { toSource, matchedRatio: matched / rendered.length };
-    if (matched === rendered.length) {
-        return blockAlignment;
-    }
-
-    return alignCompleteSubsequence(rendered, source) ?? blockAlignment;
+    return { toSource, matchedRatio: rendered.length === 0 ? 1 : matched / rendered.length };
 }
 
 /**

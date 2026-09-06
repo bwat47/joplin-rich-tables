@@ -437,7 +437,7 @@ describe('syntax-aware click placement', () => {
         expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText, renderedOffset })).toBe(expected);
     });
 
-    it('directly maps long formatted cells beyond the alignment budget', () => {
+    it('directly maps long formatted cells beyond the alignment length limit', () => {
         const word = 'a'.repeat(1500);
         const doc = ['', '| H1 |', '| --- |', `| **${word}** |`, ''].join('\n');
         const { state, resolvedCell } = resolveCell(doc, { section: 'body', row: 0, col: 0 });

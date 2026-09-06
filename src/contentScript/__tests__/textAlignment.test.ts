@@ -22,6 +22,9 @@ function ratio(rendered: string, source: string): number {
     return alignment.matchedRatio;
 }
 
+/** Comfortably past `RESYNC_WINDOW`, without this test needing to know its exact value. */
+const RESYNC_WINDOW_LIMIT = 60;
+
 describe('alignRenderedToSource', () => {
     it('places a caret inside emphasised text at the matching source character', () => {
         // The reported case: clicking between "w" and "n" of a bolded "markdown".
@@ -117,8 +120,8 @@ describe('alignRenderedToSource', () => {
     });
 
     it('aligns a long repeated-character cell within the supported size', () => {
-        // The worst case for a single scan: every character is a candidate for every other.
-        // It still costs about half the comparison budget, so this pins that headroom.
+        // Every character is a candidate for every other, which the run check resolves in favour
+        // of staying in step rather than jumping to a later copy.
         expect(alignRenderedToSource('a'.repeat(1000), 'a'.repeat(1000))?.matchedRatio).toBe(1);
     });
 
@@ -129,15 +132,57 @@ describe('alignRenderedToSource', () => {
         expect(alignRenderedToSource(rendered, source)?.matchedRatio).toBeGreaterThan(0.9);
     });
 
-    it('declines text whose shape would cost more than the comparison budget', () => {
-        // Nothing longer than one character is common to the two, so every character becomes
-        // its own block and the recursion rescans the rest of the cell for each of them.
-        expect(alignRenderedToSource('a'.repeat(500), 'ab'.repeat(500))).toBeNull();
+    it('aligns text sharing no run longer than a character, one anchor at a time', () => {
+        // Nothing longer than one character is common to the two, so no candidate ever starts an
+        // agreeing run and every anchor is the nearest bare match.
+        expect(alignRenderedToSource('a'.repeat(500), 'ab'.repeat(500))?.matchedRatio).toBe(1);
     });
 
-    it('declines a cell of short inline code spans rather than stalling the click', () => {
-        // Same shape from real Markdown: `a` `a` `a` ... shares no run longer than one
-        // character with the text it renders to.
-        expect(alignRenderedToSource('a '.repeat(200), '`a` '.repeat(200))).toBeNull();
+    it('aligns a cell of short inline code spans rather than declining the click', () => {
+        // The same shape from real Markdown: `a` `a` `a` ... rendering to `a a a `.
+        expect(place('a a a ', '`a` `a` `a` ', 2)).toBe('`a` `|a` `a` ');
+    });
+
+    it('strands the rest of a cell behind a hidden run wider than the resync window', () => {
+        // The scan cannot see past the window and never backtracks, so nothing after the run
+        // finds an anchor. The collapsed ratio is what keeps the caller from trusting it.
+        const hidden = 'y'.repeat(RESYNC_WINDOW_LIMIT);
+        const alignment = alignRenderedToSource('abcdefghij' + 'klmnopqrst', `abcdefghij${hidden}klmnopqrst`);
+
+        expect(alignment?.matchedRatio).toBeLessThan(0.6);
+    });
+});
+
+/**
+ * Substitutions a renderer actually makes, as (label, rendered, projected source) with the caret
+ * to place and the source split at where it should land.
+ *
+ * These are the shapes that reach alignment at all: the projection has already removed hidden
+ * Markdown, so what is left differs only where rendering rewrote a character. Each was checked
+ * against a longest-matching-block alignment of the same input, which places every caret in
+ * these cells identically.
+ */
+const SUBSTITUTION_CASES: ReadonlyArray<
+    readonly [label: string, rendered: string, source: string, caret: number, expected: string]
+> = [
+    ['em dash', 'a — b and more text', 'a --- b and more text', 8, 'a --- b an|d more text'],
+    ['ellipsis', 'wait… then go on', 'wait... then go on', 6, 'wait... |then go on'],
+    ['smart quotes', '“quoted words” after', '"quoted words" after', 8, '"quoted |words" after'],
+    ['apostrophe', 'it’s a test of things', "it's a test of things", 5, "it's |a test of things"],
+    ['entity', 'Tom & Jerry go home', 'Tom &amp; Jerry go home', 8, 'Tom &amp; Je|rry go home'],
+    ['emoji shortcode', 'nice \u{1F600} work here', 'nice :smile: work here', 9, 'nice :smile: w|ork here'],
+    ['repeated token past a substitution', 'cat — cat — cat', 'cat --- cat --- cat', 12, 'cat --- cat --- |cat'],
+];
+
+describe('alignRenderedToSource across renderer substitutions', () => {
+    it.each(SUBSTITUTION_CASES)('places a caret past a %s', (_label, rendered, source, caret, expected) => {
+        expect(place(rendered, source, caret)).toBe(expected);
+    });
+
+    it('keeps aligning a long cell whose substitutions repeat throughout', () => {
+        const rendered = 'lorem ipsum — dolor sit amet '.repeat(20).slice(0, 600);
+        const source = 'lorem ipsum --- dolor sit amet '.repeat(20).slice(0, 640);
+
+        expect(ratio(rendered, source)).toBeGreaterThan(0.95);
     });
 });

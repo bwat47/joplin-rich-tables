@@ -99,8 +99,10 @@ CodeMirror's Markdown syntax tree:
 2. `tableRuntime/interaction/cellTextProjection.ts` projects visible source spans into text with a map back to
    nested-editor offsets, so hidden Markdown cannot become an anchor.
 3. `tableRuntime/interaction/clickCursorPlacement.ts` maps matching rendered/projected text directly.
-4. When rendering transforms the text, `shared/textAlignment.ts` aligns rendered text against the projection under a
-   bounded budget. Unknown renderer extensions remain approximate; insufficient matches decline placement.
+4. When rendering transforms the text, `shared/textAlignment.ts` aligns rendered text against the projection with one
+   forward scan that resynchronises within a small window. Unknown renderer extensions remain approximate; a hidden run
+   wider than that window strands the rest of the cell, which collapses the matched ratio, and insufficient matches
+   decline placement.
 
 The offset or range travels through the open-cell request to the nested editor.
 
