@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
-import { createMarkdownRenderer, type RenderMarkupFn } from '../services/markdownRenderer';
+import { createMarkdownRenderer, MAX_CACHE_SIZE, type RenderMarkupFn } from '../services/markdownRenderer';
 import { deferred } from './testUtils';
 
 vi.mock('../../logger', () => ({
@@ -45,6 +45,25 @@ describe('createMarkdownRenderer', () => {
         expect(renderMarkup).toHaveBeenCalledTimes(1);
     });
 
+    it('evicts the least recently used entry, not the oldest', async () => {
+        const renderMarkup = vi.fn<RenderMarkupFn>(async (markdown, id) => ({
+            id,
+            html: `<p>${markdown}</p>`,
+        }));
+        const renderer = createMarkdownRenderer(renderMarkup);
+
+        for (let index = 0; index < MAX_CACHE_SIZE; index++) {
+            await renderer.render(`value-${index}`);
+        }
+
+        // Read the oldest entry, then overflow the cache by one.
+        expect(renderer.getCached('value-0')).toContain('value-0');
+        await renderer.render('overflow');
+
+        expect(renderer.getCached('value-0')).toContain('value-0');
+        expect(renderer.getCached('value-1')).toBeUndefined();
+    });
+
     it('evicts the oldest cache entry after the cache limit', async () => {
         const renderMarkup = vi.fn<RenderMarkupFn>(async (markdown, id) => ({
             id,
@@ -52,13 +71,14 @@ describe('createMarkdownRenderer', () => {
         }));
         const renderer = createMarkdownRenderer(renderMarkup);
 
-        for (let index = 0; index < 501; index++) {
+        const overflow = MAX_CACHE_SIZE + 1;
+        for (let index = 0; index < overflow; index++) {
             await renderer.render(`value-${index}`);
         }
 
         expect(renderer.getCached('value-0')).toBeUndefined();
         expect(renderer.getCached('value-1')).toContain('value-1');
-        expect(renderer.getCached('value-500')).toContain('value-500');
+        expect(renderer.getCached(`value-${overflow - 1}`)).toContain(`value-${overflow - 1}`);
     });
 
     it('returns escaped fallback HTML when rendering rejects or returns an error', async () => {
