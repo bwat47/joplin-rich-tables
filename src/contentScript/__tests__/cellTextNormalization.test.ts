@@ -69,25 +69,6 @@ describe('rootToLocalOffsets', () => {
     /** The offsets a plain scan of `rootText` would need, character by character. */
     const displayOffsets = (rootText: string): number[] => Array.from(rootToLocalOffsets(rootText));
 
-    it('maps the only offset in an empty cell to zero', () => {
-        expect(displayOffsets('')).toEqual([0]);
-    });
-
-    it('maps consecutive substitutions through the end of the cell', () => {
-        expect(displayOffsets(String.raw`<br>\|<br>`)).toEqual([0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 3]);
-    });
-
-    it.each([
-        { root: String.raw`a\\|b`, offsets: [0, 1, 2, 2, 3, 4] },
-        { root: String.raw`a\\\|b`, offsets: [0, 1, 2, 3, 3, 4, 5] },
-    ])('preserves backslashes before the final pipe escape in $root', ({ root, offsets }) => {
-        expect(displayOffsets(root)).toEqual(offsets);
-    });
-
-    it('counts emoji as UTF-16 code units on both sides of a substitution', () => {
-        expect(displayOffsets('😀<br>😀')).toEqual([0, 1, 2, 2, 2, 2, 3, 4, 5]);
-    });
-
     it('maps stored text one to one where nothing is spelled out', () => {
         expect(displayOffsets('abc')).toEqual([0, 1, 2, 3]);
     });
@@ -113,5 +94,37 @@ describe('rootToLocalOffsets', () => {
         const rootText = String.raw`a<br>b`;
 
         expect(rootToLocalOffsets(rootText)[rootText.length]).toBe(unsanitizeRootText(rootText).length);
+    });
+
+    it('maps the only offset in an empty cell to zero', () => {
+        expect(displayOffsets('')).toEqual([0]);
+    });
+
+    it('maps consecutive substitutions through the end of the cell', () => {
+        expect(displayOffsets(String.raw`<br>\|<br>`)).toEqual([0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 3]);
+    });
+
+    it.each([
+        { root: String.raw`a\\|b`, offsets: [0, 1, 2, 2, 3, 4] },
+        { root: String.raw`a\\\|b`, offsets: [0, 1, 2, 3, 3, 4, 5] },
+    ])('preserves backslashes before the final pipe escape in $root', ({ root, offsets }) => {
+        expect(displayOffsets(root)).toEqual(offsets);
+    });
+
+    it('counts emoji as UTF-16 code units on both sides of a substitution', () => {
+        expect(displayOffsets('😀<br>😀')).toEqual([0, 1, 2, 2, 2, 2, 3, 4, 5]);
+    });
+
+    it.each([
+        { root: 'a<br', offsets: [0, 1, 2, 3, 4] },
+        { root: 'a\\', offsets: [0, 1, 2] },
+    ])('leaves a spelling the cell breaks off partway through as text in $root', ({ root, offsets }) => {
+        expect(displayOffsets(root)).toEqual(offsets);
+        expect(unsanitizeRootText(root)).toBe(root);
+    });
+
+    it('matches a stored spelling exactly, so an uppercase break tag stays text', () => {
+        expect(displayOffsets('a<BR>b')).toEqual([0, 1, 2, 3, 4, 5, 6]);
+        expect(unsanitizeRootText('a<BR>b')).toBe('a<BR>b');
     });
 });
