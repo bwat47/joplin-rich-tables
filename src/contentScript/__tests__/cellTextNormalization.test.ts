@@ -1,27 +1,35 @@
 import { describe, expect, it } from 'vitest';
 import {
     convertNewlinesToBr,
-    escapeUnescapedPipes,
+    escapeUnescapedPipesWithContext,
+    localToRootOffsets,
     normalizeBrTags,
     rootToLocalOffsets,
     sanitizeLocalText,
     unsanitizeRootText,
 } from '../shared/cellTextNormalization';
 
-describe('escapeUnescapedPipes', () => {
+describe('escapeUnescapedPipesWithContext', () => {
+    const escapePipes = (text: string): string => escapeUnescapedPipesWithContext(text, 0);
+
     it('escapes unescaped pipes', () => {
-        expect(escapeUnescapedPipes('a|b')).toBe(String.raw`a\|b`);
-        expect(escapeUnescapedPipes('|')).toBe(String.raw`\|`);
-        expect(escapeUnescapedPipes('a|b|c')).toBe(String.raw`a\|b\|c`);
+        expect(escapePipes('a|b')).toBe(String.raw`a\|b`);
+        expect(escapePipes('|')).toBe(String.raw`\|`);
+        expect(escapePipes('a|b|c')).toBe(String.raw`a\|b\|c`);
     });
 
     it('keeps already-escaped pipes intact', () => {
-        expect(escapeUnescapedPipes(String.raw`a\|b`)).toBe(String.raw`a\|b`);
+        expect(escapePipes(String.raw`a\|b`)).toBe(String.raw`a\|b`);
     });
 
     it('escapes pipes after even backslash runs and preserves them after odd runs', () => {
-        expect(escapeUnescapedPipes(String.raw`a\\|b`)).toBe(String.raw`a\\\|b`);
-        expect(escapeUnescapedPipes(String.raw`a\\\|b`)).toBe(String.raw`a\\\|b`);
+        expect(escapePipes(String.raw`a\\|b`)).toBe(String.raw`a\\\|b`);
+        expect(escapePipes(String.raw`a\\\|b`)).toBe(String.raw`a\\\|b`);
+    });
+
+    it('counts a backslash run the text is preceded by', () => {
+        expect(escapeUnescapedPipesWithContext('|', 1)).toBe('|');
+        expect(escapeUnescapedPipesWithContext('|', 2)).toBe(String.raw`\|`);
     });
 });
 
@@ -126,5 +134,65 @@ describe('rootToLocalOffsets', () => {
     it('matches a stored spelling exactly, so an uppercase break tag stays text', () => {
         expect(displayOffsets('a<BR>b')).toEqual([0, 1, 2, 3, 4, 5, 6]);
         expect(unsanitizeRootText('a<BR>b')).toBe('a<BR>b');
+    });
+});
+
+describe('localToRootOffsets', () => {
+    /** The offsets a plain scan of `localText` would need, character by character. */
+    const storedOffsets = (localText: string): number[] => Array.from(localToRootOffsets(localText));
+
+    it('maps display text one to one where nothing is spelled out', () => {
+        expect(storedOffsets('abc')).toEqual([0, 1, 2, 3]);
+    });
+
+    it('lands every offset in the same place the stored text puts it', () => {
+        const localText = 'a\nb|c';
+
+        // `a<br>b\|c`: the offsets after each rewrite shift by what it spells out.
+        expect(storedOffsets(localText)).toEqual([0, 1, 5, 6, 8, 9]);
+        expect(sanitizeLocalText(localText)).toHaveLength(9);
+    });
+
+    it('puts a caret before a pipe before the backslash that escapes it', () => {
+        // Otherwise the caret would land inside `\|`, where the stored text has no such position.
+        expect(storedOffsets('|')).toEqual([0, 2]);
+    });
+
+    it('leaves a caret between a backslash and the pipe it already escapes where it is', () => {
+        expect(storedOffsets(String.raw`\|`)).toEqual([0, 1, 2]);
+    });
+
+    it('gives the start of a rewritten break tag for offsets inside it', () => {
+        const offsets = localToRootOffsets('<br/>x');
+
+        expect(offsets[1]).toBe(0);
+        expect(offsets[4]).toBe(0);
+        expect(offsets[5]).toBe(4);
+    });
+
+    it('ends one past the stored text, so a range can reach the end of the cell', () => {
+        const localText = 'a\nb';
+
+        expect(localToRootOffsets(localText)[localText.length]).toBe(sanitizeLocalText(localText).length);
+    });
+
+    it('maps the only offset in an empty cell to zero', () => {
+        expect(storedOffsets('')).toEqual([0]);
+    });
+
+    it('treats a CRLF as the one line break it is stored as', () => {
+        expect(storedOffsets('a\r\nb')).toEqual([0, 1, 1, 5, 6]);
+    });
+
+    it('counts emoji as UTF-16 code units on both sides of a rewrite', () => {
+        expect(storedOffsets('\u{1F600}\n\u{1F600}')).toEqual([0, 1, 2, 6, 7, 8]);
+    });
+
+    it('agrees with the round trip about where the end of the cell is', () => {
+        const localText = 'a\nb|c';
+        const rootText = sanitizeLocalText(localText);
+
+        expect(unsanitizeRootText(rootText)).toBe(localText);
+        expect(rootToLocalOffsets(rootText)[localToRootOffsets(localText)[3]]).toBe(3);
     });
 });

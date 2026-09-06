@@ -94,7 +94,8 @@ Response (to prevent stale document state):
 
 - **Local → Root Sanitization** (`shared/cellTextNormalization`): `\n`/`\r` → `<br>`, `|` → `\|`.
 - **Root → Local Unsanitization** (`shared/cellTextNormalization`): `<br>` → visible line breaks, `\|` → `|`.
-- **Selection Mapping** (`editorBridge/cellTextCodec`): Local/root selections are mapped through the sanitize/unsanitize transforms, not by naive offset arithmetic.
+- **Offset Maps** (`shared/cellTextNormalization`): `localToRootOffsets` and `rootToLocalOffsets` give the mapped offset for every offset in the text, from the same scan that produces the converted text, so text and offsets cannot disagree. An offset inside a spelling that converts to something shorter or longer gives the start of it.
+- **Selection Mapping** (`editorBridge/cellTextCodec`): Local/root selections read both endpoints out of the matching offset map, not by naive offset arithmetic and not by rewriting the text being measured.
 
 ### Main Editor (`editorBridge/mainEditorGuard`)
 

@@ -18,6 +18,47 @@ describe('selection mapping', () => {
         expect(localSelection).toEqual({ anchor: 0, head: 'a\nb|c'.length });
     });
 
+    it('keeps a backward selection backward', () => {
+        const localText = 'a\nb|c';
+
+        expect(toRootSelection({ anchor: localText.length, head: 0 }, localText)).toEqual({
+            anchor: String.raw`a<br>b\|c`.length,
+            head: 0,
+        });
+    });
+
+    it('puts a root caret inside a stored line break at the break itself', () => {
+        // The nested editor shows `a\nb`, which has no position halfway through `<br>`.
+        const rootText = String.raw`a<br>b`;
+
+        expect(toLocalSelection({ anchor: 3, head: 3 }, rootText)).toEqual({ anchor: 1, head: 1 });
+    });
+
+    it('puts a root caret inside a pipe escape before the pipe it escapes', () => {
+        const rootText = String.raw`a\|b`;
+
+        expect(toLocalSelection({ anchor: 2, head: 2 }, rootText)).toEqual({ anchor: 1, head: 1 });
+    });
+
+    it('maps a root selection that starts and ends inside stored spellings', () => {
+        const rootText = String.raw`a<br>b\|c`;
+
+        // `a\nb|c`: both endpoints fall to the start of the spelling they landed in.
+        expect(toLocalSelection({ anchor: 3, head: 7 }, rootText)).toEqual({ anchor: 1, head: 3 });
+    });
+
+    it('escapes a pipe the caret sits in front of without stranding the caret', () => {
+        const localText = 'a|b';
+
+        // `a\|b`: the caret stays in front of the escape, not between the backslash and the pipe.
+        expect(toRootSelection({ anchor: 1, head: 1 }, localText)).toEqual({ anchor: 1, head: 1 });
+        expect(toRootSelection({ anchor: 2, head: 2 }, localText)).toEqual({ anchor: 3, head: 3 });
+    });
+
+    it('clamps selections that reach past the text they are mapped from', () => {
+        expect(toLocalSelection({ anchor: -5, head: 99 }, String.raw`a<br>b`)).toEqual({ anchor: 0, head: 3 });
+    });
+
     it('keeps trailing-space cursor positions stable for root-owned commands', () => {
         const localText = 'sometext ';
         const rootSelection = toRootSelection({ anchor: localText.length, head: localText.length }, localText);
