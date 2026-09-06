@@ -28,7 +28,7 @@ import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelecti
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
-import { handleTableInteraction, renderedCellNativeSelectionPlugin } from './tableWidgetInteractions';
+import { handleWidgetClick, tableWidgetPressPlugin } from './tableWidgetInteractions';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
@@ -56,15 +56,12 @@ import {
 } from '../nestedEditor/rootEditorSelectionTheme';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 
+// Clicks are the only widget event still registered as a handler. Presses go through
+// `tableWidgetPressPlugin`, which can take an event from the editor while leaving the browser
+// default in place — something a handler returning true here cannot do.
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
-    pointerdown: (event, view) => {
-        return handleTableInteraction(view, event);
-    },
-    mousedown: (event, view) => {
-        return handleTableInteraction(view, event);
-    },
     click: (event, view) => {
-        return handleTableInteraction(view, event);
+        return handleWidgetClick(view, event);
     },
 });
 
@@ -140,7 +137,7 @@ async function registerTableWidgetExtension(
         openCellRequestTimeoutPlugin,
 
         mouseCellDragSelectionPlugin,
-        renderedCellNativeSelectionPlugin,
+        tableWidgetPressPlugin,
         tableWidgetInteractionHandlers,
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@codemirror/view';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetClick, handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
 import { linkOpenerFacet } from '../services/linkOpener';
 import { buildFootnoteHref } from '../shared/footnoteAnchor';
 import {
@@ -30,7 +30,7 @@ describe('table widget interactions', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(handleWidgetPress(view, event)).toBe('consume');
         expect(getActiveCell(view.state)).toBeNull();
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,
@@ -57,7 +57,7 @@ describe('table widget interactions', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(handleWidgetPress(view, event)).toBe('consume');
         expect(getCellSelection(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'body',
@@ -102,7 +102,7 @@ describe('table widget interactions', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(handleWidgetClick(view, event)).toBe(true);
         expect(open).toHaveBeenCalledWith('https://example.com');
         expect(event.preventDefault).toHaveBeenCalled();
         expect(event.stopPropagation).toHaveBeenCalled();
@@ -155,7 +155,7 @@ describe('table widget interactions', () => {
                 stopPropagation: vi.fn(),
             } as unknown as MouseEvent;
 
-            return { view, handled: handleTableInteraction(view, event) };
+            return { view, handled: handleWidgetClick(view, event) };
         }
 
         it('scrolls to the footnote definition outside fenced code', () => {

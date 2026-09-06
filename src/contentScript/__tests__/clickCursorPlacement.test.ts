@@ -14,7 +14,7 @@ import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
 import { isCellTextOffset } from '../shared/cursorPlacement';
 import type { CellCoords } from '../tableModel/types';
 import { unsanitizeRootText } from '../shared/cellTextNormalization';
-import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
 import { getPendingOpenCellRequest } from '../tableRuntime/openCellRequest';
 import { resolveInitialLocalSelection } from '../nestedEditor/nestedEditorSelection';
 import { createInteractiveTableHarness } from './interactiveTableTestHarness';
@@ -409,7 +409,7 @@ describe('syntax-aware click placement', () => {
             preventDefault: vi.fn(),
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
-        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(handleWidgetPress(view, event)).toBe('consume');
         const request = getPendingOpenCellRequest(view.state);
         expect(request?.initialCursorPos).toEqual({ localOffset: 9 });
         expect(resolveInitialLocalSelection({ anchor: 0, head: 0 }, '**markdown**', request?.initialCursorPos)).toEqual(

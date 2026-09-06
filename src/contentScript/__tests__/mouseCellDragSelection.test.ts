@@ -8,7 +8,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
-import { handleTableInteraction, renderedCellNativeSelectionPlugin } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetClick, tableWidgetPressPlugin } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { getCellSelector } from '../tableWidget/domHelpers';
@@ -93,7 +93,7 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
             cellDragField,
             openCellRequestField,
             mouseCellDragSelectionPlugin,
-            renderedCellNativeSelectionPlugin,
+            tableWidgetPressPlugin,
         ]),
     });
     mountedViews.push(view);
@@ -117,14 +117,10 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
         body1: findCell(widget, { section: 'body', row: 0, col: 1 }),
     };
 
-    view.dom.addEventListener('pointerdown', (event) => {
-        handleTableInteraction(view, event);
-    });
-    view.dom.addEventListener('mousedown', (event) => {
-        handleTableInteraction(view, event);
-    });
+    // Presses reach the view through `tableWidgetPressPlugin`, the way production dispatches
+    // them; only clicks are still registered as handlers.
     view.dom.addEventListener('click', (event) => {
-        handleTableInteraction(view, event);
+        handleWidgetClick(view, event);
     });
 
     return { view, widget, table: widget.querySelector('table') as HTMLTableElement, cells };

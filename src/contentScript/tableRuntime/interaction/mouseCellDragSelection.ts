@@ -9,7 +9,7 @@ import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/
 import { getViewWindow } from '../../shared/domContext';
 import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
-import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
+import { isPrimaryMouseButton, isPrimaryMousePointer, type PressDisposition } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
 import { readRenderedCaretHit, readRenderedSelectionHit, type RenderedCaretHit } from '../../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
@@ -24,18 +24,32 @@ const HIT_TEST_INSET_PX = 1;
 const BOUNDARY_EXIT_DISTANCE_PX = 8;
 const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT_DISTANCE_PX;
 
-type MouseCellGestureOrigin = 'renderedCell' | 'activeEditor';
+/**
+ * Where the press landed, which is also what the gesture owes the event that carried it.
+ *
+ * The active cell is two origins rather than one because its editor and its row-height padding
+ * want opposite things from the same press.
+ */
+export type MouseCellGestureOrigin = 'renderedCell' | 'activeEditorPadding' | 'activeEditorText';
 
-export interface MouseCellGestureOptions {
-    /** Where the press landed: a rendered cell, or the active cell that already owns an editor. */
-    origin: MouseCellGestureOrigin;
-    /** Claim the pointerdown and its compatibility mousedown rather than leaving them native. */
-    consumeInitialEvents: boolean;
+/** What a press on each origin does to its own pointerdown and compatibility mousedown. */
+const ORIGIN_PRESS_DISPOSITION: Record<MouseCellGestureOrigin, PressDisposition> = {
+    // Claimed but not prevented: the browser draws the text selection the release maps back
+    // into Markdown, and the outer editor must not move its caret over the top of it.
+    renderedCell: 'claim',
+    // Padding has no native text-selection behaviour worth preserving.
+    activeEditorPadding: 'consume',
+    // The nested editor owns its own press; the gesture only watches for the pointer leaving.
+    activeEditorText: 'native',
+};
+
+/** True for the origins whose press belongs to the nested editor rather than to a rendered cell. */
+function ownsNestedEditor(origin: MouseCellGestureOrigin): boolean {
+    return origin !== 'renderedCell';
 }
 
 interface MouseCellGesture {
     origin: MouseCellGestureOrigin;
-    consumeCompatibilityMouseDown: boolean;
     pointerId: number;
     startX: number;
     startY: number;
@@ -106,7 +120,7 @@ class MouseCellDragSelectionController {
 
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         if (!gesture.dragged) {
-            if (gesture.origin === 'activeEditor') {
+            if (ownsNestedEditor(gesture.origin)) {
                 // Until the pointer clears the anchor cell's border by a margin, the nested
                 // editor retains full ownership so its native text-selection drag continues
                 // uninterrupted.
@@ -172,7 +186,7 @@ class MouseCellDragSelectionController {
 
         const release = this.resolveRelease(event, gesture);
         const willReactivateAnchor =
-            release.reactivateAnchor && (gesture.origin === 'activeEditor' || release.resolvedAnchor !== null);
+            release.reactivateAnchor && (ownsNestedEditor(gesture.origin) || release.resolvedAnchor !== null);
 
         if (gesture.origin === 'renderedCell' || gesture.dragged) {
             event.preventDefault();
@@ -182,7 +196,7 @@ class MouseCellDragSelectionController {
         // Only an active-editor drag can hand its own still-open anchor back; a rendered-cell
         // drag reopens the anchor below, so whatever cell it left active is cleared first.
         this.finishGesture({
-            keepActiveCell: release.reactivateAnchor && gesture.origin === 'activeEditor',
+            keepActiveCell: release.reactivateAnchor && ownsNestedEditor(gesture.origin),
             focusSelection: !willReactivateAnchor,
         });
 
@@ -258,7 +272,7 @@ class MouseCellDragSelectionController {
         event: PointerEvent,
         cell: HTMLElement,
         resolvedCell: ResolvedActiveCell,
-        options: MouseCellGestureOptions
+        origin: MouseCellGestureOrigin
     ): boolean {
         if (!isPrimaryMousePointer(event)) {
             return false;
@@ -270,14 +284,8 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        // Rendered text keeps the browser default, while capture prevents the outer editor
-        // from handling the same press. Active-editor padding retains its existing behavior.
-        if (options.consumeInitialEvents) event.preventDefault();
-        if (options.consumeInitialEvents || options.origin === 'renderedCell') event.stopPropagation();
-
         this.beginGesture({
-            origin: options.origin,
-            consumeCompatibilityMouseDown: options.consumeInitialEvents || options.origin === 'renderedCell',
+            origin,
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
@@ -289,21 +297,19 @@ class MouseCellDragSelectionController {
             lastFocus: null,
             lastClientX: event.clientX,
             lastClientY: event.clientY,
-            pressCaretHit:
-                options.origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null,
+            pressCaretHit: origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null,
         });
 
         return true;
     }
 
-    consumeCompatibilityMouseDown(event: MouseEvent): boolean {
-        if (!this.gesture?.consumeCompatibilityMouseDown || !isPrimaryMouseButton(event)) {
-            return false;
+    /** The compatibility mousedown behind a press this gesture already owns. */
+    compatibilityMouseDownDisposition(event: MouseEvent): PressDisposition {
+        if (!this.gesture || !isPrimaryMouseButton(event)) {
+            return 'native';
         }
 
-        if (this.gesture.origin !== 'renderedCell') event.preventDefault();
-        event.stopPropagation();
-        return true;
+        return ORIGIN_PRESS_DISPOSITION[this.gesture.origin];
     }
 
     destroy(): void {
@@ -487,16 +493,24 @@ class MouseCellDragSelectionController {
 
 export const mouseCellDragSelectionPlugin = ViewPlugin.fromClass(MouseCellDragSelectionController);
 
+/**
+ * Starts a gesture for a press on `cell`, and reports what the press owes its own event.
+ *
+ * The disposition is returned rather than applied, so one router decides what happens to every
+ * press it sees; see `tableWidget/tableWidgetInteractions.ts`.
+ */
 export function beginMouseCellGesture(
     view: EditorView,
     event: PointerEvent,
     cell: HTMLElement,
     resolvedCell: ResolvedActiveCell,
-    options: MouseCellGestureOptions
-): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, options) ?? false;
+    origin: MouseCellGestureOrigin
+): PressDisposition {
+    const started = view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, origin) ?? false;
+    return started ? ORIGIN_PRESS_DISPOSITION[origin] : 'native';
 }
 
-export function consumeMouseCellGestureMouseDown(view: EditorView, event: MouseEvent): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.consumeCompatibilityMouseDown(event) ?? false;
+/** What the compatibility mousedown behind a running gesture's press owes that gesture. */
+export function mouseCellGestureMouseDownDisposition(view: EditorView, event: MouseEvent): PressDisposition {
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.compatibilityMouseDownDisposition(event) ?? 'native';
 }

@@ -14,3 +14,30 @@ export function isPrimaryMouseButton(event: MouseEvent): boolean {
 export function isPrimaryMousePointer(event: PointerEvent): boolean {
     return event.pointerType === 'mouse' && event.isPrimary && isPrimaryMouseButton(event);
 }
+
+/**
+ * What a press does to the event that carried it.
+ *
+ * - `native`: left entirely alone, for a press whose owner is the browser or another editor.
+ * - `claim`: taken from CodeMirror's handlers, with the browser default left to run.
+ * - `consume`: taken from both.
+ *
+ * CodeMirror's own dispatch can express only the outer two: `runHandlers` calls
+ * `preventDefault` on any handler that returns true. A press on rendered cell text needs the
+ * middle one — the outer editor must not move its caret over it, while the browser must still
+ * draw the text selection that the release maps into Markdown — which is why presses are routed
+ * from a capture listener instead of `EditorView.domEventHandlers`.
+ */
+export type PressDisposition = 'native' | 'claim' | 'consume';
+
+/** Applies what {@link PressDisposition} says about an event to the event itself. */
+export function applyPressDisposition(event: Event, disposition: PressDisposition): void {
+    if (disposition === 'native') {
+        return;
+    }
+
+    event.stopPropagation();
+    if (disposition === 'consume') {
+        event.preventDefault();
+    }
+}

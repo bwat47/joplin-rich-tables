@@ -106,9 +106,14 @@ CodeMirror's Markdown syntax tree:
    cannot become an anchor. Entities are omitted from the projection, so their decoded output uses neighboring
    anchors. Unknown renderer extensions remain approximate; insufficient matches decline placement.
 
-The offset or range travels through the open-cell request to the nested editor. A capture listener keeps rendered-cell
-presses out of CodeMirror's default mouse handling without cancelling native browser selection. Rendered content is
-focusable with `tabIndex=-1`, so focusing it does not reset the range through the outer editor's focus handler.
+The offset or range travels through the open-cell request to the nested editor. Rendered content is focusable with
+`tabIndex=-1`, so focusing it does not reset the range through the outer editor's focus handler.
+
+Every press inside a widget is routed by `tableWidgetPressPlugin` in `tableWidget/tableWidgetInteractions.ts`, which
+returns one of three dispositions: left native, claimed from CodeMirror with the browser default intact, or consumed
+outright. A press on rendered text needs the middle one, which `EditorView.domEventHandlers` cannot express — a handler
+returning true has its event default-prevented too — so presses are dispatched from a capture listener and only clicks
+remain registered as handlers.
 
 While a drag stays in its cell, the browser owns selection. Pointerup reads both endpoints from the same rendered-text
 index and maps them through one projection/alignment, preserving direction. A range is mapped from the characters it
