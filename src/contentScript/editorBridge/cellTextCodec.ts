@@ -2,9 +2,9 @@ import { Transaction } from '@codemirror/state';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipesWithContext,
+    localToRootOffsets,
     normalizeBrTags,
-    sanitizeLocalText,
-    unsanitizeRootText,
+    rootToLocalOffsets,
 } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 
@@ -23,52 +23,27 @@ export interface SanitizeChangesResult {
     changes: SimpleChange[];
 }
 
-const SELECTION_MARK = '\u0000';
-
-function toSpan(selection: LocalSelection): { from: number; to: number; forward: boolean } {
+/**
+ * Reads both endpoints out of an offset map built once for the whole cell.
+ *
+ * Each endpoint is mapped on its own, so a backward selection stays backward, and every value
+ * the map holds is a real offset in the text it maps into - the map never needs the text it
+ * measures to be altered first, so there is nothing to clamp away afterwards.
+ */
+function mapSelection(selection: LocalSelection, offsets: Int32Array): LocalSelection {
+    const lastOffset = offsets.length - 1;
     return {
-        from: Math.min(selection.anchor, selection.head),
-        to: Math.max(selection.anchor, selection.head),
-        forward: selection.anchor <= selection.head,
+        anchor: offsets[clamp(selection.anchor, 0, lastOffset)],
+        head: offsets[clamp(selection.head, 0, lastOffset)],
     };
-}
-
-function clampSelection(selection: LocalSelection, textLength: number): LocalSelection {
-    return {
-        anchor: clamp(selection.anchor, 0, textLength),
-        head: clamp(selection.head, 0, textLength),
-    };
-}
-
-function mapSelectionThroughTransform(
-    selection: LocalSelection,
-    text: string,
-    transform: (value: string) => string
-): LocalSelection {
-    const { from, to, forward } = toSpan(selection);
-    const marked = `${text.slice(0, from)}${SELECTION_MARK}${text.slice(from, to)}${SELECTION_MARK}${text.slice(to)}`;
-    const transformed = transform(marked);
-    const mappedFrom = transformed.indexOf(SELECTION_MARK);
-    const mappedTo = transformed.lastIndexOf(SELECTION_MARK) - 1;
-    if (mappedFrom < 0 || mappedTo < -1) {
-        return { anchor: 0, head: 0 };
-    }
-
-    return forward ? { anchor: mappedFrom, head: mappedTo } : { anchor: mappedTo, head: mappedFrom };
 }
 
 export function toRootSelection(localSelection: LocalSelection, localText: string): LocalSelection {
-    return clampSelection(
-        mapSelectionThroughTransform(localSelection, localText, sanitizeLocalText),
-        sanitizeLocalText(localText).length
-    );
+    return mapSelection(localSelection, localToRootOffsets(localText));
 }
 
 export function toLocalSelection(rootSelection: LocalSelection, rootText: string): LocalSelection {
-    return clampSelection(
-        mapSelectionThroughTransform(rootSelection, rootText, unsanitizeRootText),
-        unsanitizeRootText(rootText).length
-    );
+    return mapSelection(rootSelection, rootToLocalOffsets(rootText));
 }
 
 function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], pos: number): number {

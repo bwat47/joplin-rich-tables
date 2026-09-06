@@ -1,12 +1,22 @@
-const NON_CANONICAL_BR_PATTERN = /<br\s*\/>/gi;
-const LINE_BREAK_PATTERN = /\r\n|\n|\r/g;
+const NON_CANONICAL_BR_SOURCE = String.raw`<br\s*\/>`;
+const LINE_BREAK_SOURCE = String.raw`\r\n|\n|\r`;
+
+const NON_CANONICAL_BR_PATTERN = new RegExp(NON_CANONICAL_BR_SOURCE, 'gi');
+const LINE_BREAK_PATTERN = new RegExp(LINE_BREAK_SOURCE, 'g');
+
+/** Sticky twins of the patterns above, for matching one run at a known offset. */
+const NON_CANONICAL_BR_AT_PATTERN = new RegExp(NON_CANONICAL_BR_SOURCE, 'iy');
+const LINE_BREAK_AT_PATTERN = new RegExp(LINE_BREAK_SOURCE, 'y');
+
+const CANONICAL_BR = '<br>';
+const ESCAPED_PIPE = String.raw`\|`;
 
 export function normalizeBrTags(text: string): string {
-    return text.replace(NON_CANONICAL_BR_PATTERN, '<br>');
+    return text.replace(NON_CANONICAL_BR_PATTERN, CANONICAL_BR);
 }
 
 export function convertNewlinesToBr(text: string): string {
-    return text.replace(LINE_BREAK_PATTERN, '<br>');
+    return text.replace(LINE_BREAK_PATTERN, CANONICAL_BR);
 }
 
 /** Escapes pipes, accounting for a backslash run immediately before `text`. */
@@ -23,7 +33,7 @@ export function escapeUnescapedPipesWithContext(text: string, precedingBackslash
 
         if (ch === '|') {
             const isAlreadyEscaped = backslashRun % 2 === 1;
-            result += isAlreadyEscaped ? '|' : '\\|';
+            result += isAlreadyEscaped ? '|' : ESCAPED_PIPE;
             backslashRun = 0;
             continue;
         }
@@ -35,19 +45,87 @@ export function escapeUnescapedPipesWithContext(text: string, precedingBackslash
     return result;
 }
 
-/** Escapes pipes in standalone text, where no preceding document context exists. */
-export function escapeUnescapedPipes(text: string): string {
-    return escapeUnescapedPipesWithContext(text, 0);
+/** The text `pattern` spells out at `index`, or null where it matches nothing there. */
+function matchAt(pattern: RegExp, text: string, index: number): string | null {
+    pattern.lastIndex = index;
+    return pattern.exec(text)?.[0] ?? null;
+}
+
+/**
+ * Walks `localText` as the runs it is stored as, handing each run's source length and stored
+ * spelling to `visit`.
+ *
+ * The single source of truth for writing cell text: {@link sanitizeLocalText} produces the text
+ * and {@link localToRootOffsets} the offsets that go with it, from one walk apiece over this
+ * scan, so the two cannot disagree about where a character went. One walk stands in for
+ * normalizing break tags, converting newlines and escaping pipes in sequence, because neither
+ * rewrite emits a newline or a pipe for a later pass to act on, and a `<br>` it writes ends the
+ * backslash run exactly as that tag's four characters would.
+ *
+ * Runs are single UTF-16 code units, so an astral character is walked as its two halves and
+ * offsets stay in the units CodeMirror counts.
+ */
+function scanLocalRuns(localText: string, visit: (index: number, consumed: number, stored: string) => void): void {
+    let backslashRun = 0;
+
+    for (let index = 0; index < localText.length;) {
+        const lineBreak =
+            matchAt(NON_CANONICAL_BR_AT_PATTERN, localText, index) ?? matchAt(LINE_BREAK_AT_PATTERN, localText, index);
+        if (lineBreak !== null) {
+            visit(index, lineBreak.length, CANONICAL_BR);
+            index += lineBreak.length;
+            backslashRun = 0;
+            continue;
+        }
+
+        const char = localText[index];
+        if (char === '|') {
+            visit(index, 1, backslashRun % 2 === 1 ? '|' : ESCAPED_PIPE);
+            backslashRun = 0;
+        } else {
+            visit(index, 1, char);
+            backslashRun = char === '\\' ? backslashRun + 1 : 0;
+        }
+        index++;
+    }
 }
 
 /**
  * Converts arbitrary text into a value that is safe to store in a table cell: line breaks
  * become `<br>` and unescaped pipes are escaped, so neither can break out of the row.
  *
- * `unsanitizeRootText` is the inverse; keep the two escaping conventions in sync.
+ * {@link unsanitizeRootText} is the inverse; the two scans they read from carry the same
+ * escaping conventions, so keep the tables in sync.
  */
 export function sanitizeLocalText(localText: string): string {
-    return escapeUnescapedPipes(convertNewlinesToBr(normalizeBrTags(localText)));
+    let rootText = '';
+
+    scanLocalRuns(localText, (_index, _consumed, stored) => {
+        rootText += stored;
+    });
+
+    return rootText;
+}
+
+/**
+ * Stored offset for every offset in `localText`, including one past its end.
+ *
+ * Offsets inside display text that is stored as something else all give the start of its stored
+ * spelling: a newline is written `<br>`, so a caret cannot be halfway through it, and a caret
+ * before a pipe lands before the backslash that escapes it. Mapping a range reads both ends from
+ * this array, built once for the whole cell.
+ */
+export function localToRootOffsets(localText: string): Int32Array {
+    const offsets = new Int32Array(localText.length + 1);
+    let root = 0;
+
+    scanLocalRuns(localText, (index, consumed, stored) => {
+        offsets.fill(root, index, index + consumed);
+        root += stored.length;
+    });
+
+    offsets[localText.length] = root;
+    return offsets;
 }
 
 /**
@@ -58,8 +136,8 @@ export function sanitizeLocalText(localText: string): string {
  * this table, so the two cannot disagree about where a character went.
  */
 const STORED_TO_DISPLAY: ReadonlyArray<readonly [stored: string, display: string]> = [
-    ['<br>', '\n'],
-    ['\\|', '|'],
+    [CANONICAL_BR, '\n'],
+    [ESCAPED_PIPE, '|'],
 ];
 
 /** The substitution `rootText` spells out at `index`, or null where it spells none. */
@@ -97,9 +175,6 @@ export function unsanitizeRootText(rootText: string): string {
  * Offsets inside a stored spelling all give the start of what it displays as: `<br>` is one
  * newline in the nested editor, so there is nowhere else in the display text for its middle to
  * be. Mapping a range reads both ends from this array, built once for the whole cell.
- * Unlike the selection codec, which inserts markers at both endpoints before transforming
- * the text, this map does not interrupt substitutions. For example, offset 1 in `<br>x`
- * maps to 0 here but to 1 in the codec, where the marker prevents `<br>` from decoding.
  */
 export function rootToLocalOffsets(rootText: string): Int32Array {
     const offsets = new Int32Array(rootText.length + 1);
