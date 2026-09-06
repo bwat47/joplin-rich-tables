@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRenderableContent, containsMarkdown, escapeLeadingBlockMarkers } from '../shared/cellContentUtils';
+import { buildRenderableContent, escapeLeadingBlockMarkers, mightContainMarkup } from '../shared/cellContentUtils';
 
 describe('escapeLeadingBlockMarkers', () => {
     it('escapes leading heading markers', () => {
@@ -59,34 +59,48 @@ describe('buildRenderableContent', () => {
     });
 });
 
-describe('containsMarkdown', () => {
-    it('detects HTML entities', () => {
-        expect(containsMarkdown('Test &amp; text')).toBe(true);
-        expect(containsMarkdown('Decimal: &#38; hexadecimal: &#x26;')).toBe(true);
+describe('mightContainMarkup', () => {
+    it('detects inline markdown syntax', () => {
+        expect(mightContainMarkup('**bold**')).toBe(true);
+        expect(mightContainMarkup('a `code` span')).toBe(true);
+        expect(mightContainMarkup('[link](https://example.com)')).toBe(true);
+        expect(mightContainMarkup('~~struck~~')).toBe(true);
+    });
+
+    it('detects HTML entities and tags', () => {
+        expect(mightContainMarkup('Test &amp; text')).toBe(true);
+        expect(mightContainMarkup('Decimal: &#38; hexadecimal: &#x26;')).toBe(true);
+        expect(mightContainMarkup('line<br>break')).toBe(true);
     });
 
     it('detects emoji shortcodes', () => {
-        expect(containsMarkdown(':smile:')).toBe(true);
-        expect(containsMarkdown('Status: :white_check_mark:')).toBe(true);
+        expect(mightContainMarkup(':smile:')).toBe(true);
+        expect(mightContainMarkup('Status: :white_check_mark:')).toBe(true);
     });
 
     it('detects superscript and subscript', () => {
-        expect(containsMarkdown('abc ^sup^ and def ~sub~')).toBe(true);
-        expect(containsMarkdown('H~2~O')).toBe(true);
-        expect(containsMarkdown('x^2^')).toBe(true);
+        expect(mightContainMarkup('abc ^sup^ and def ~sub~')).toBe(true);
+        expect(mightContainMarkup('H~2~O')).toBe(true);
     });
 
     it('detects KaTeX inline math', () => {
-        expect(containsMarkdown('$00$')).toBe(true);
-        expect(containsMarkdown('$ZX = Y$')).toBe(true);
+        expect(mightContainMarkup('$00$')).toBe(true);
+        expect(mightContainMarkup('$ZX = Y$')).toBe(true);
     });
 
-    it('does not treat a single dollar sign as markdown math', () => {
-        expect(containsMarkdown('Price is $5')).toBe(false);
+    it('detects typographer syntax that no marker list would catch', () => {
+        expect(mightContainMarkup('He said "hi"')).toBe(true);
+        expect(mightContainMarkup("don't")).toBe(true);
+        expect(mightContainMarkup('wait -- what')).toBe(true);
+        expect(mightContainMarkup('and so on...')).toBe(true);
     });
 
-    it('does not treat incomplete entities or ordinary colons as markdown', () => {
-        expect(containsMarkdown('Fish & chips')).toBe(false);
-        expect(containsMarkdown('Note: plain text')).toBe(false);
+    it('treats plain text as inert', () => {
+        expect(mightContainMarkup('')).toBe(false);
+        expect(mightContainMarkup('Note: plain text')).toBe(false);
+        expect(mightContainMarkup('Price is $5')).toBe(false);
+        expect(mightContainMarkup('Q3 revenue (EMEA), 42%')).toBe(false);
+        expect(mightContainMarkup('Ana Gonzalez-Ruiz')).toBe(false);
+        expect(mightContainMarkup('Größe 12 Ünicode')).toBe(false);
     });
 });

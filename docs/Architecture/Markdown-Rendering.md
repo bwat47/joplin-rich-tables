@@ -18,7 +18,10 @@ To avoid excessive rendering requests to the main plugin:
 
 - FIFO cache (`MAX_CACHE_SIZE = 500`) for rendered HTML keyed by the Markdown payload.
 - In-flight de-dupe (`pendingRequests`) so identical content only triggers one render request.
-- Only request rendering for table cells that likely contain markdown formatting (`containsMarkdown` heuristic).
+- Skip the render request for cells no markup engine can transform (`mightContainMarkup`).
+  The check is an allowlist of inert characters, not a list of markdown markers: Joplin's renderer is a
+  configurable markdown-it stack, so a marker list silently renders raw for any syntax it omits. A false
+  positive costs one cached render request; a false negative shows the user raw markup.
 
 ## Cell Payload Construction
 

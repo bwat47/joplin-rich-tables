@@ -91,41 +91,39 @@ export function escapeHtmlPreservingBr(text: string): string {
 }
 
 /**
- * Substrings that suggest inline markdown formatting.
- * Checked as an order-independent disjunction, so each entry must not be
- * subsumed by a shorter one (e.g. '**' would be dead next to '*').
+ * Characters that cannot activate markup on their own.
+ *
+ * This is an allowlist by design: Joplin's renderer is a configurable stack of markdown-it
+ * plugins, so enumerating active syntax is unmaintainable (every plugin Joplin adds would
+ * silently render raw in cells). Anything outside this set forces a render request instead.
+ *
+ * Deliberately excluded: quotes (`'` / `"`), because a single one is active under the
+ * typographer setting, and `&`, because it opens HTML entities.
  */
-const MARKDOWN_MARKERS = [
-    '*', // bold / italic
-    '_', // bold / italic
-    '`', // code
-    '[', // links and images
-    '~', // strikethrough / subscript
-    '^', // superscript
-    '<', // HTML tags
-    '==', // highlights
-    '++', // insert
-    '\\', // escaped text
-    'mailto:', // mailto links
-    'http', // bare links
-] as const;
-
-/** HTML named/numeric entities and Joplin emoji shortcodes (for example, `&amp;` and `:smile:`). */
-const HTML_ENTITY_PATTERN = /&(?:#\d+|#x[\da-f]+|[a-z][\da-z]+);/i;
-const EMOJI_SHORTCODE_PATTERN = /:[a-z\d_+-]+:/i;
+const INERT_CHARACTERS_PATTERN = /^[\p{L}\p{N}\p{M}\s.,;:!?()/@#%$-]*$/u;
 
 /**
- * Quick check if content likely contains markdown formatting
- * Avoids unnecessary render requests for plain text
+ * Characters inert in isolation but active when they recur: `$math$`, `:emoji:`.
  */
-export function containsMarkdown(text: string): boolean {
-    // KaTeX needs a delimiter pair ($...$ / $$...$$), so a lone '$' shouldn't trigger a render.
-    const hasMathDelimiterPair = text.includes('$') && text.indexOf('$') !== text.lastIndexOf('$');
+const PAIRED_ACTIVATORS = ['$', ':'] as const;
 
-    return (
-        MARKDOWN_MARKERS.some((marker) => text.includes(marker)) ||
-        hasMathDelimiterPair ||
-        HTML_ENTITY_PATTERN.test(text) ||
-        EMOJI_SHORTCODE_PATTERN.test(text)
-    );
+/**
+ * Characters inert in isolation but active when repeated adjacently, under the
+ * typographer setting: `...` (ellipsis), `--` (en dash).
+ */
+const REPEATED_ACTIVATOR_PATTERN = /([.-])\1/;
+
+function hasPairedActivator(text: string): boolean {
+    return PAIRED_ACTIVATORS.some((char) => text.indexOf(char) !== text.lastIndexOf(char));
+}
+
+/**
+ * Quick check for content that no markup engine can transform.
+ * Lets plain-text cells skip the async render round-trip; everything else renders.
+ *
+ * Errs toward rendering: a false positive costs one cached render request, while a false
+ * negative shows the user raw markup that Joplin's viewer would have rendered.
+ */
+export function mightContainMarkup(text: string): boolean {
+    return !INERT_CHARACTERS_PATTERN.test(text) || hasPairedActivator(text) || REPEATED_ACTIVATOR_PATTERN.test(text);
 }

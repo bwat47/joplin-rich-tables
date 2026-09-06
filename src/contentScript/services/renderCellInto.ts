@@ -1,4 +1,4 @@
-import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
+import { buildRenderableContent, escapeHtmlPreservingBr, mightContainMarkup } from '../shared/cellContentUtils';
 import type { MarkdownRenderService } from './markdownRenderer';
 import { logger } from '../../logger';
 
@@ -25,8 +25,8 @@ export function renderCellMarkdownInto(target: HTMLElement, markdown: string, re
     // Show content with <br> rendered as line breaks while async render runs
     target.innerHTML = escapeHtmlPreservingBr(displayText);
 
-    // Check if content likely contains markdown (optimization)
-    if (!containsMarkdown(cacheKey)) {
+    // Plain text can't be transformed by the renderer, so skip the round-trip (optimization)
+    if (!mightContainMarkup(cacheKey)) {
         return;
     }
 
