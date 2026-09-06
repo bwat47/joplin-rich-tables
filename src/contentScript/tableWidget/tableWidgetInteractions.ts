@@ -348,6 +348,13 @@ export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerE
  */
 export const tableWidgetPressPlugin = ViewPlugin.define((view) => {
     const onPress = (event: MouseEvent | PointerEvent): void => {
+        // Capture runs ahead of CodeMirror, which drops a default-prevented event in both
+        // `runHandlers` and `eventBelongsToEditor`. `claim` also depends on the browser default
+        // still running, so a cancelled press has no native selection for the release to map.
+        if (event.defaultPrevented) {
+            return;
+        }
+
         applyPressDisposition(event, handleWidgetPress(view, event));
     };
 
