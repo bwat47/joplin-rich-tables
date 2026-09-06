@@ -16,7 +16,9 @@ The renderer exposes `render(text): Promise<string>` plus cache helpers. It is c
 
 To avoid excessive rendering requests to the main plugin:
 
-- FIFO cache (`MAX_CACHE_SIZE = 500`) for rendered HTML keyed by the Markdown payload.
+- LRU cache (`MAX_CACHE_SIZE`) for rendered HTML keyed by the Markdown payload. `getCached()` re-inserts on a
+  hit so eviction follows use: scrolling back revisits the most recently viewed cells, which insertion order
+  would evict first.
 - In-flight de-dupe (`pendingRequests`) so identical content only triggers one render request.
 - Skip the render request for cells no markup engine can transform (`mightContainMarkup`).
   The check is an allowlist of inert characters, not a list of markdown markers: Joplin's renderer is a
@@ -44,6 +46,10 @@ Cells are rendered as isolated Markdown fragments. Document-scoped reference-sty
     - Removes `.joplin-source` and `.resource-icon` elements that don’t render well inside cells.
     - Replaces KaTeX HTML with MathML to avoid duplicate/glitched rendering.
     - Footnotes: Post-processing replaces [^label] text with styled superscript links.
+    - Both passes parse the HTML into a template, which dominates the per-cell cost on the editor's thread.
+      Each is guarded by a substring test for the markers it acts on (`[^`, and the literal class names
+      `joplin-source` / `resource-icon` / `katex`), so a cell needing neither is returned untouched. The
+      markers cannot false-negative; a false positive only costs work that used to be unconditional.
 
 ## Opening Links
 

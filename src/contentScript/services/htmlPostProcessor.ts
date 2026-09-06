@@ -1,11 +1,29 @@
 import { buildFootnoteHref } from '../shared/footnoteAnchor';
 
 /**
+ * Markers for the elements `cleanupAndOptimizeHtml` rewrites. Each is the literal class name a
+ * selector matches, so markup without them cannot match either.
+ */
+const CLEANUP_MARKERS = ['joplin-source', 'resource-icon', 'katex'] as const;
+
+/** Opening of a footnote reference (`[^label]`); any match of the pattern contains it. */
+const FOOTNOTE_REF_OPENING = '[^';
+
+/**
  * Post-process rendered HTML to fix Joplin-specific display issues.
  * Includes KaTeX optimization and footnote reference conversion.
+ *
+ * Each pass parses the HTML into a template, which is the bulk of the per-cell cost on the
+ * editor's own thread. Most cells contain nothing either pass acts on, so both are guarded by a
+ * substring test: the markers below cannot false-negative, and a false positive only costs the
+ * work that used to be unconditional.
  */
 export function postProcessHtml(html: string): string {
-    return cleanupAndOptimizeHtml(convertFootnoteRefs(html));
+    const withFootnotes = html.includes(FOOTNOTE_REF_OPENING) ? convertFootnoteRefs(html) : html;
+
+    return CLEANUP_MARKERS.some((marker) => withFootnotes.includes(marker))
+        ? cleanupAndOptimizeHtml(withFootnotes)
+        : withFootnotes;
 }
 
 /**

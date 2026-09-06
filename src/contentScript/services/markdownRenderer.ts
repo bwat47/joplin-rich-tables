@@ -23,8 +23,8 @@ export interface MarkdownRenderService {
 }
 
 // Cache for rendered markdown to avoid redundant rendering.
-// Limited to MAX_CACHE_SIZE entries with FIFO eviction to prevent unbounded memory growth.
-const MAX_CACHE_SIZE = 500;
+// Limited to MAX_CACHE_SIZE entries with LRU eviction to prevent unbounded memory growth.
+export const MAX_CACHE_SIZE = 500;
 
 /**
  * Default renderer used only when the extension wiring has not installed a real service.
@@ -62,7 +62,17 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
     constructor(private readonly renderMarkup: RenderMarkupFn) {}
 
     getCached(text: string): string | undefined {
-        return this.renderCache.get(text);
+        const html = this.renderCache.get(text);
+        if (html === undefined) {
+            return undefined;
+        }
+
+        // Re-insert so eviction follows use rather than insertion. Scrolling back through a
+        // document revisits the cells viewed most recently, which are the ones insertion order
+        // evicts first.
+        this.renderCache.delete(text);
+        this.renderCache.set(text, html);
+        return html;
     }
 
     clear(): void {
@@ -74,7 +84,8 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
 
     private setCacheEntry(key: string, value: string): void {
         if (this.renderCache.size >= MAX_CACHE_SIZE) {
-            // Delete oldest entry (Map maintains insertion order)
+            // Delete the least recently used entry (Map maintains insertion order, and
+            // getCached() re-inserts on a hit)
             const firstKey = this.renderCache.keys().next().value;
             if (firstKey !== undefined) {
                 this.renderCache.delete(firstKey);
@@ -95,7 +106,7 @@ class DefaultMarkdownRenderer implements MarkdownRenderService {
      * Returns cached result if available, otherwise sends request to main plugin.
      */
     async render(markdown: string): Promise<string> {
-        const cached = this.renderCache.get(markdown);
+        const cached = this.getCached(markdown);
         if (cached !== undefined) {
             return cached;
         }

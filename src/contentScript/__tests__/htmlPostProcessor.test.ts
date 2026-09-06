@@ -9,6 +9,21 @@ function parseHtml(html: string): DocumentFragment {
 }
 
 describe('postProcessHtml', () => {
+    test('returns HTML that needs no post-processing without parsing it', () => {
+        // Single-quoted attributes survive only if the HTML was never round-tripped through a
+        // template element, so this shows both passes were skipped rather than run to no effect.
+        const html = "<p class='cell'><strong>bold</strong> and <em>italic</em></p>";
+
+        expect(postProcessHtml(html)).toBe(html);
+    });
+
+    test('still parses HTML carrying markers for either pass', () => {
+        expect(postProcessHtml('<p class=\'cell\'><span class="joplin-source">raw</span>kept</p>')).toBe(
+            '<p class="cell">kept</p>'
+        );
+        expect(postProcessHtml("<p class='cell'>see [^note]</p>")).toContain('footnote');
+    });
+
     test('removes Joplin resource icon spans but keeps placeholder resources', () => {
         const html =
             '<div class="cm-table-cell-content">' +
