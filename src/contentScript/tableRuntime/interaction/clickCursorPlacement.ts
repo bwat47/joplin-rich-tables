@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
 import { unsanitizeRootText } from '../../shared/cellTextNormalization';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import { cellTextCaret, type InitialCursorPos } from '../../shared/cursorPlacement';
 import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
 import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
 import { balanceSyntaxMarkers, projectCellText, type HiddenSyntaxSpan } from './cellTextProjection';
@@ -44,7 +44,7 @@ export function resolveClickCursorPos(
 
     const alignment = alignRenderedCellText(state, resolvedCell, hit.renderedText);
     return alignment
-        ? { localOffset: mapCaretToSource(alignment.toLocal, hit.renderedOffset, alignment.localLength) }
+        ? cellTextCaret(mapCaretToSource(alignment.toLocal, hit.renderedOffset, alignment.localLength))
         : undefined;
 }
 

@@ -11,7 +11,8 @@ import {
 import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
-import { isCellTextOffset } from '../shared/cursorPlacement';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
+import type { LocalSelection } from '../editorBridge/cellTextCodec';
 import type { CellCoords } from '../tableModel/types';
 import { unsanitizeRootText } from '../shared/cellTextNormalization';
 import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
@@ -186,6 +187,15 @@ function resolveCell(
  * with `<br>` back as a newline and pipes unescaped - so failures read as text and the
  * coordinate system the offset is expressed in stays visible.
  */
+/** The cell-text offsets a placement carries, rejecting the named edges the helpers never expect. */
+function offsetsOf(pos: InitialCursorPos, expected: string): LocalSelection {
+    if (typeof pos !== 'object') {
+        throw new Error(`Expected ${expected}, got ${pos}`);
+    }
+
+    return pos.localSelection;
+}
+
 function placement(doc: string, coords: CellCoords, hit: RenderedCaretHit | null): string {
     const { state, resolvedCell } = resolveCell(doc, coords);
     const cellText = unsanitizeRootText(state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo));
@@ -193,10 +203,11 @@ function placement(doc: string, coords: CellCoords, hit: RenderedCaretHit | null
     if (pos === undefined) {
         return '<mirrored>';
     }
-    if (!isCellTextOffset(pos)) {
-        throw new Error(`Expected an offset placement, got ${pos}`);
+    const caret = offsetsOf(pos, 'a caret placement');
+    if (caret.anchor !== caret.head) {
+        throw new Error(`Expected a collapsed placement, got ${JSON.stringify(caret)}`);
     }
-    return `${cellText.slice(0, pos.localOffset)}|${cellText.slice(pos.localOffset)}`;
+    return `${cellText.slice(0, caret.anchor)}|${cellText.slice(caret.anchor)}`;
 }
 
 /** As {@link placement}, with the mapped range bracketed rather than a caret marked. */
@@ -207,10 +218,7 @@ function rangePlacement(doc: string, coords: CellCoords, hit: RenderedSelectionH
     if (pos === undefined) {
         return '<mirrored>';
     }
-    if (typeof pos !== 'object' || !('localSelection' in pos)) {
-        throw new Error(`Expected a range placement, got ${JSON.stringify(pos)}`);
-    }
-    const { anchor, head } = pos.localSelection;
+    const { anchor, head } = offsetsOf(pos, 'a range placement');
     const [from, to] = anchor <= head ? [anchor, head] : [head, anchor];
     return `${cellText.slice(0, from)}[${cellText.slice(from, to)}]${cellText.slice(to)}`;
 }
@@ -385,7 +393,7 @@ describe('syntax-aware click placement', () => {
         const doc = ['', '| H1 |', '| --- |', `| **${word}** |`, ''].join('\n');
         const { state, resolvedCell } = resolveCell(doc, { section: 'body', row: 0, col: 0 });
         expect(resolveClickCursorPos(state, resolvedCell, { renderedText: word, renderedOffset: 1200 })).toEqual({
-            localOffset: 1202,
+            localSelection: { anchor: 1202, head: 1202 },
         });
     });
 
@@ -411,7 +419,7 @@ describe('syntax-aware click placement', () => {
         } as unknown as MouseEvent;
         expect(handleWidgetPress(view, event)).toBe('consume');
         const request = getPendingOpenCellRequest(view.state);
-        expect(request?.initialCursorPos).toEqual({ localOffset: 9 });
+        expect(request?.initialCursorPos).toEqual({ localSelection: { anchor: 9, head: 9 } });
         expect(resolveInitialLocalSelection({ anchor: 0, head: 0 }, '**markdown**', request?.initialCursorPos)).toEqual(
             { anchor: 9, head: 9 }
         );

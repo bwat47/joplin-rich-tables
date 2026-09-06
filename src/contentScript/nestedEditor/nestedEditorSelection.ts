@@ -1,6 +1,6 @@
 import type { EditorSelection } from '@codemirror/state';
 import type { LocalSelection } from '../editorBridge/cellTextCodec';
-import { isCellTextOffset, type InitialCursorPos } from '../shared/cursorPlacement';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { clamp } from '../shared/numberUtils';
 
 /** Shifts a cell-relative selection into main-document coordinates. */
@@ -40,7 +40,7 @@ export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolea
  * `lastLineStart` splits on the last newline, so a single-line cell collapses to
  * the start and a trailing newline leaves the caret on the empty final line.
  *
- * An exact offset is clamped rather than trusted: it is measured against the cell
+ * Exact offsets are clamped rather than trusted: they are measured against the cell
  * text as it stood when the placement was decided, and an entry that repairs the
  * table into canonical form can restripe that cell's padding in the same
  * transaction.
@@ -50,16 +50,9 @@ export function resolveInitialLocalSelection(
     localText: string,
     initialCursorPos?: InitialCursorPos
 ): LocalSelection {
-    if (initialCursorPos !== undefined && isCellTextOffset(initialCursorPos)) {
-        const pos = clamp(initialCursorPos.localOffset, 0, localText.length);
-        return { anchor: pos, head: pos };
-    }
-
-    if (typeof initialCursorPos === 'object' && 'localSelection' in initialCursorPos) {
-        return {
-            anchor: clamp(initialCursorPos.localSelection.anchor, 0, localText.length),
-            head: clamp(initialCursorPos.localSelection.head, 0, localText.length),
-        };
+    if (typeof initialCursorPos === 'object') {
+        const { anchor, head } = initialCursorPos.localSelection;
+        return { anchor: clamp(anchor, 0, localText.length), head: clamp(head, 0, localText.length) };
     }
 
     switch (initialCursorPos) {
