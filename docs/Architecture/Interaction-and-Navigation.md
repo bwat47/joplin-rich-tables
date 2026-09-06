@@ -111,7 +111,7 @@ The offset or range travels through the open-cell request to the nested editor. 
 
 Every press inside a widget is routed by `tableWidgetPressPlugin` in `tableWidget/tableWidgetInteractions.ts`, which
 returns one of three dispositions: left native, claimed from CodeMirror with the browser default intact, or consumed
-outright. A press on rendered text needs the middle one, which `EditorView.domEventHandlers` cannot express — a handler
+outright. A press on rendered text needs `claim`, which `EditorView.domEventHandlers` cannot express — a handler
 returning true has its event default-prevented too — so presses are dispatched from a capture listener and only clicks
 remain registered as handlers.
 
