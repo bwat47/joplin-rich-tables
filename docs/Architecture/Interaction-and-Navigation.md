@@ -139,6 +139,10 @@ before.
 - Clicking activates a cell or updates the current cell selection, placing the caret where the click landed.
 - Mouse dragging within an inactive cell selects rendered text; dragging into another cell selects a rectangle.
   Touch and pen input retain native scrolling and tap behavior.
+- A long press on mobile selects rendered text without opening the cell. `TableWidget.ignoreEvent` disowns the `copy`
+  that follows, so the browser copies what was selected; CodeMirror would otherwise answer it from its own document
+  selection, which is empty there and falls back to the caret's whole source line. A whole-table selection keeps its
+  Markdown copy: its endpoints are not inside a cell.
 - Drags near an edge auto-scroll the table or host scroll container. See
   [Table-Display.md](./Table-Display.md#host-scroll-modes).
 - Links delegate to the content-script link opener and then to the main plugin.
