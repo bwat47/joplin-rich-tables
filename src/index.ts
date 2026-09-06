@@ -15,6 +15,8 @@ import { STRUCTURAL_COMMANDS } from './contentScriptBridge/structuralCommandCata
 const CONTENT_SCRIPT_ID = 'rich-tables-widget';
 const SETTINGS_SECTION = 'richTables';
 const JOPLIN_TABLE_EDITING_SETTING_KEY = 'editor.tableEditing';
+const TOOLBAR_SHOW_INSERT_TABLE_BUTTON_SETTING_KEY = 'toolbar.showInsertTableButton';
+const TOOLBAR_SHOW_SOURCE_MODE_BUTTON_SETTING_KEY = 'toolbar.showSourceModeButton';
 const TABLE_EDITOR_CONFLICT_MESSAGE =
     "Rich Tables: Joplin's table editor is enabled. To use Rich Tables, disable Joplin's table editor under Joplin settings | Editor tab.";
 
@@ -44,7 +46,7 @@ joplin.plugins.register({
         await joplin.settings.registerSection(SETTINGS_SECTION, {
             label: 'Rich Tables',
             iconName: 'fas fa-table',
-            description: 'Configure Rich Tables appearance and floating toolbar.',
+            description: 'Configure Rich Tables plugin settings',
         });
 
         await joplin.settings.registerSettings({
@@ -98,7 +100,28 @@ joplin.plugins.register({
                 description:
                     'Display the actions that sort table rows by the active column in the floating table toolbar.',
             },
+            [TOOLBAR_SHOW_INSERT_TABLE_BUTTON_SETTING_KEY]: {
+                value: true,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Show insert table button',
+                description: 'Display the insert table button in the editor toolbar. Requires a restart to apply.',
+            },
+            [TOOLBAR_SHOW_SOURCE_MODE_BUTTON_SETTING_KEY]: {
+                value: true,
+                type: SettingItemType.Bool,
+                public: true,
+                section: SETTINGS_SECTION,
+                label: 'Show table source mode button',
+                description: 'Display the table source mode button in the editor toolbar. Requires a restart to apply.',
+            },
         });
+
+        const toolbarButtonSettings = await joplin.settings.values([
+            TOOLBAR_SHOW_INSERT_TABLE_BUTTON_SETTING_KEY,
+            TOOLBAR_SHOW_SOURCE_MODE_BUTTON_SETTING_KEY,
+        ]);
 
         await warnIfJoplinTableEditorEnabled();
 
@@ -168,17 +191,21 @@ joplin.plugins.register({
             MenuItemLocation.Tools
         );
 
-        await joplin.views.toolbarButtons.create(
-            'richTablesInsertTable',
-            INSERT_TABLE_COMMAND,
-            ToolbarButtonLocation.EditorToolbar
-        );
+        if (toolbarButtonSettings[TOOLBAR_SHOW_INSERT_TABLE_BUTTON_SETTING_KEY] !== false) {
+            await joplin.views.toolbarButtons.create(
+                'richTablesInsertTable',
+                INSERT_TABLE_COMMAND,
+                ToolbarButtonLocation.EditorToolbar
+            );
+        }
 
-        await joplin.views.toolbarButtons.create(
-            'richTablesToggleSourceMode',
-            TOGGLE_SOURCE_MODE_COMMAND,
-            ToolbarButtonLocation.EditorToolbar
-        );
+        if (toolbarButtonSettings[TOOLBAR_SHOW_SOURCE_MODE_BUTTON_SETTING_KEY] !== false) {
+            await joplin.views.toolbarButtons.create(
+                'richTablesToggleSourceMode',
+                TOGGLE_SOURCE_MODE_COMMAND,
+                ToolbarButtonLocation.EditorToolbar
+            );
+        }
 
         // Handle messages from content script
         await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, createContentScriptMessageHandler(joplin));

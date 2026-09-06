@@ -130,6 +130,12 @@ The below table editing commands can be assigned keyboard shortcuts, the default
 - Show sort buttons
     - Display the actions that sort table rows by the active column in the floating table toolbar.
 
+- Show insert table button
+    - Display the insert table button in the editor toolbar. Requires a restart to apply.
+
+- Show table source mode button
+    - Display the table source mode button in the editor toolbar. Requires a restart to apply.
+
 ### Limitations
 
 - The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
