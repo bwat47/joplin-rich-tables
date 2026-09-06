@@ -21,9 +21,6 @@ const ATTR_CARET_SUPPRESSED = 'data-rt-caret-suppressed';
  * — a stripe on the cell divider, right where the click landed, a frame before the real caret
  * appears in the cell.
  *
- * One question with two answers rather than two extensions: both ask whether the main caret
- * should be drawn, and a cell opening out of a cell selection is both at once.
- *
  * `caret-color` covers the browser's native caret; `.cm-cursorLayer` covers the one
  * `drawSelection` paints when the host editor enables it.
  */
