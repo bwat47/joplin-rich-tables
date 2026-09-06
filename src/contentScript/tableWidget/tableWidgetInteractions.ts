@@ -1,4 +1,4 @@
-import { ViewPlugin, type EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { slugify } from '../shared/cellContentUtils';
 import { parseFootnoteHref } from '../shared/footnoteAnchor';
@@ -7,12 +7,7 @@ import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSe
 import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
-import {
-    applyPressDisposition,
-    isPrimaryMouseButton,
-    isPrimaryMousePointer,
-    type PressDisposition,
-} from '../shared/mouseEvents';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
 import { readRenderedCaretHit } from './cellCaretHit';
 import { resolveClickCursorPos } from '../tableRuntime/interaction/clickCursorPlacement';
@@ -20,7 +15,7 @@ import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
     beginMouseCellGesture,
-    mouseCellGestureMouseDownDisposition,
+    mouseCellGestureConsumesMouseDown,
 } from '../tableRuntime/interaction/mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
@@ -133,13 +128,7 @@ function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Opens a link clicked inside a rendered cell.
- *
- * The only widget event still routed through `EditorView.domEventHandlers`: a click asks nothing
- * unusual of CodeMirror, so it keeps the ordering that registration gives it. Presses go through
- * {@link handleWidgetPress} instead.
- */
+/** Opens a link clicked inside a rendered cell. */
 export function handleWidgetClick(view: EditorView, event: MouseEvent): boolean {
     const target = event.target as HTMLElement | null;
     if (!isPrimaryMouseButton(event) || !target?.closest(getWidgetSelector())) {
@@ -171,7 +160,7 @@ export function handleWidgetClick(view: EditorView, event: MouseEvent): boolean 
 }
 
 /** Mousedown events: cell activation. */
-function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTMLElement): PressDisposition {
+function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTMLElement): boolean {
     // If clicking a link with LEFT click, we want to PREVENT cell handling so the Click event can fire cleanly
     // and open the link.
     // If we processed cell activation here, it might swallow the event or change focus
@@ -182,17 +171,17 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
         if (getCellSelection(view.state)) {
             view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
         }
-        // Claim the event to prevent CodeMirror default selection, but don't activate cell.
-        return 'consume';
+        // Take the event to prevent CodeMirror default selection, but don't activate cell.
+        return true;
     }
 
     const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
     if (!cell) {
-        // Consume the event to prevent CodeMirror's internal mousedown handler from
+        // Take the event to prevent CodeMirror's internal mousedown handler from
         // repositioning the cursor. Without this, clicking the widget's horizontal
         // scrollbar maps to a document position at or after the table, which clears
         // the active cell state and closes the nested editor.
-        return 'consume';
+        return true;
     }
 
     return activateCellFromMouseDown(view, event, cell);
@@ -229,14 +218,14 @@ function resolveCellTarget(view: EditorView, target: HTMLElement): ResolvedCellT
  *
  * Declining leaves the press to the compatibility mousedown; see {@link handleWidgetPress}.
  */
-function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): PressDisposition {
+function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
     if (!isPrimaryMousePointer(event) || event.shiftKey || target.closest(SELECTOR_LINK)) {
-        return 'native';
+        return false;
     }
 
     const pressed = resolveCellTarget(view, target);
     if (!pressed) {
-        return 'native';
+        return false;
     }
 
     const { cell, resolvedCell } = pressed;
@@ -256,25 +245,25 @@ function handleWidgetPointerDown(view: EditorView, event: PointerEvent, target: 
 }
 
 /** Passively observes a text-selection drag until it crosses into another table cell. */
-function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): PressDisposition {
+function observeActiveEditorPointerDown(view: EditorView, event: PointerEvent, target: HTMLElement): boolean {
     const activeTarget = resolveCellTarget(view, target);
     if (!activeTarget || !isSameActiveCell(getActiveCell(view.state), activeTarget.resolvedCell.activeCell)) {
-        return 'native';
+        return false;
     }
 
     return beginMouseCellGesture(view, event, activeTarget.cell, activeTarget.resolvedCell, 'activeEditorText');
 }
 
 /** Extend the cell selection (shift-click) or open the clicked cell. */
-function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HTMLElement): PressDisposition {
+function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HTMLElement): boolean {
     const resolvedCell = resolveCell(view, cell);
     if (!resolvedCell) {
-        return 'native';
+        return false;
     }
 
     const hasSelection = Boolean(getCellSelection(view.state));
     if (event.shiftKey && setOrExtendCellSelectionToCoords(view, resolvedCell.activeCell, resolvedCell.tableFrom)) {
-        return 'consume';
+        return true;
     }
 
     // Read the press against the rendered content before the open request replaces it, so
@@ -287,12 +276,15 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
         initialCursorPos: resolveClickCursorPos(view.state, resolvedCell, caretHit),
     });
 
-    return 'consume';
+    return true;
 }
 
 /**
- * Routes a press inside a table widget to the handler that owns it, and reports what that
- * handler wants done with the event.
+ * Routes a press inside a table widget to the handler that owns it, and reports whether that
+ * handler took the event.
+ *
+ * Returning true takes the press from CodeMirror and calls `preventDefault` on it; returning
+ * false leaves the event untouched for CodeMirror's own handlers and the browser.
  *
  * A cell press is split across two events by input type. Pointerdown claims only a plain
  * left-mouse press — the one that can become a drag — and leaves the rest native, which the
@@ -310,20 +302,17 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
  * excluded there as it is above: shift-click extends the cell's own text selection, and the
  * gesture stays out of the way unless the pointer crosses into another cell.
  */
-export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerEvent): PressDisposition {
+export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerEvent): boolean {
     // A pointerdown that started a gesture is followed by a compatibility mousedown in some
     // browsers. It belongs to the gesture, whatever it landed on, so it is answered before
     // anything about this press is resolved again.
-    if (event.type === 'mousedown') {
-        const gestureDisposition = mouseCellGestureMouseDownDisposition(view, event);
-        if (gestureDisposition !== 'native') {
-            return gestureDisposition;
-        }
+    if (event.type === 'mousedown' && mouseCellGestureConsumesMouseDown(view, event)) {
+        return true;
     }
 
     const target = event.target as HTMLElement | null;
     if (!target?.closest || !target.closest(getWidgetSelector())) {
-        return 'native';
+        return false;
     }
 
     const insideNestedEditor = Boolean(target.closest(`.${CLASS_CELL_EDITOR}`));
@@ -336,32 +325,5 @@ export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerE
     }
 
     // The nested editor owns the rest of its own events.
-    return insideNestedEditor ? 'native' : handleWidgetMouseDown(view, event, target);
+    return insideNestedEditor ? false : handleWidgetMouseDown(view, event, target);
 }
-
-/**
- * The one place a press inside a table widget is dispatched from.
- *
- * Capture phase, because the disposition a press needs is not always one CodeMirror's own
- * dispatch can express: see {@link PressDisposition}. Running ahead of the outer editor's
- * handlers also means a press this router claims never reaches them at all.
- */
-export const tableWidgetPressPlugin = ViewPlugin.define((view) => {
-    const onPress = (event: MouseEvent | PointerEvent): void => {
-        // Respect presses already consumed by an earlier handler, as CodeMirror does.
-        if (event.defaultPrevented) {
-            return;
-        }
-
-        applyPressDisposition(event, handleWidgetPress(view, event));
-    };
-
-    view.dom.addEventListener('pointerdown', onPress, true);
-    view.dom.addEventListener('mousedown', onPress, true);
-    return {
-        destroy() {
-            view.dom.removeEventListener('pointerdown', onPress, true);
-            view.dom.removeEventListener('mousedown', onPress, true);
-        },
-    };
-});

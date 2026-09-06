@@ -30,7 +30,7 @@ describe('table widget interactions', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleWidgetPress(view, event)).toBe('consume');
+        expect(handleWidgetPress(view, event)).toBe(true);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,
@@ -57,7 +57,7 @@ describe('table widget interactions', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleWidgetPress(view, event)).toBe('consume');
+        expect(handleWidgetPress(view, event)).toBe(true);
         expect(getCellSelection(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'body',

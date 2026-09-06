@@ -104,9 +104,10 @@ CodeMirror's Markdown syntax tree:
 
 The offset or range travels through the open-cell request to the nested editor.
 
-Every press inside a widget is routed by `tableWidgetPressPlugin` in `tableWidget/tableWidgetInteractions.ts`, which
-returns one of three dispositions: left native, claimed from CodeMirror with the browser default intact, or consumed
-outright. It runs in the capture phase because `EditorView.domEventHandlers` cannot express the middle one.
+Every press inside a widget is routed by `handleWidgetPress` in `tableWidget/tableWidgetInteractions.ts`, registered
+for `pointerdown` and `mousedown` alongside the click handler. It reports whether it took the press. CodeMirror stops
+running handlers for an event once one returns true and appends its own built-ins after every plugin's, so a press the
+router takes reaches neither those nor `closeOnOutsideMouseDown`.
 
 A press on a rendered cell is consumed, and the gesture draws the DOM selection itself from the caret each pointer
 move hit-tests. The browser latches its own selection drag at mousedown, and nothing cancels it afterwards: left

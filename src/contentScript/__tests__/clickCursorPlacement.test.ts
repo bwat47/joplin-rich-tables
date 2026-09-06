@@ -456,7 +456,7 @@ describe('syntax-aware click placement', () => {
             preventDefault: vi.fn(),
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
-        expect(handleWidgetPress(view, event)).toBe('consume');
+        expect(handleWidgetPress(view, event)).toBe(true);
         const request = getPendingOpenCellRequest(view.state);
         expect(request?.initialCursorPos).toEqual({ localSelection: { anchor: 9, head: 9 } });
         expect(resolveInitialLocalSelection({ anchor: 0, head: 0 }, '**markdown**', request?.initialCursorPos)).toEqual(

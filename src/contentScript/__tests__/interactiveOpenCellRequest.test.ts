@@ -40,7 +40,7 @@ describe('interactive open-cell requests', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleWidgetPress(view, event)).toBe('consume');
+        expect(handleWidgetPress(view, event)).toBe(true);
         expect(view.state.doc.toString()).toBe(NORMALIZED_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',

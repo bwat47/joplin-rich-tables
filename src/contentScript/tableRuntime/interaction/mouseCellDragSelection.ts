@@ -9,7 +9,7 @@ import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/
 import { getViewWindow } from '../../shared/domContext';
 import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
-import { isPrimaryMouseButton, isPrimaryMousePointer, type PressDisposition } from '../../shared/mouseEvents';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
 import {
     readRenderedCaretHit,
@@ -37,15 +37,18 @@ const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT
  */
 export type MouseCellGestureOrigin = 'renderedCell' | 'activeEditorPadding' | 'activeEditorText';
 
-/** What a press on each origin does to its own pointerdown and compatibility mousedown. */
-const ORIGIN_PRESS_DISPOSITION: Record<MouseCellGestureOrigin, PressDisposition> = {
+/**
+ * Whether a press on each origin is taken from the editor, along with the compatibility
+ * mousedown behind it.
+ */
+const ORIGIN_CONSUMES_PRESS: Record<MouseCellGestureOrigin, boolean> = {
     // Drive the rendered text range ourselves. A native drag would keep auto-scrolling
     // the editor even after promotion to a cell rectangle.
-    renderedCell: 'consume',
+    renderedCell: true,
     // Padding has no native text-selection behaviour worth preserving.
-    activeEditorPadding: 'consume',
+    activeEditorPadding: true,
     // The nested editor owns its own press; the gesture only watches for the pointer leaving.
-    activeEditorText: 'native',
+    activeEditorText: false,
 };
 
 /** True for the origins whose press belongs to the nested editor rather than to a rendered cell. */
@@ -320,13 +323,9 @@ class MouseCellDragSelectionController {
         return true;
     }
 
-    /** The compatibility mousedown behind a press this gesture already owns. */
-    compatibilityMouseDownDisposition(event: MouseEvent): PressDisposition {
-        if (!this.gesture || !isPrimaryMouseButton(event)) {
-            return 'native';
-        }
-
-        return ORIGIN_PRESS_DISPOSITION[this.gesture.origin];
+    /** True when the compatibility mousedown behind a press this gesture owns should be taken. */
+    consumesCompatibilityMouseDown(event: MouseEvent): boolean {
+        return Boolean(this.gesture && isPrimaryMouseButton(event) && ORIGIN_CONSUMES_PRESS[this.gesture.origin]);
     }
 
     destroy(): void {
@@ -524,10 +523,10 @@ class MouseCellDragSelectionController {
 export const mouseCellDragSelectionPlugin = ViewPlugin.fromClass(MouseCellDragSelectionController);
 
 /**
- * Starts a gesture for a press on `cell`, and reports what should happen to that event.
+ * Starts a gesture for a press on `cell`, and reports whether that press is taken from the editor.
  *
- * The disposition is returned rather than applied, so one router decides what happens to every
- * press it sees; see `tableWidget/tableWidgetInteractions.ts`.
+ * The answer is returned rather than applied, so one router decides what happens to every press
+ * it sees; see `tableWidget/tableWidgetInteractions.ts`.
  */
 export function beginMouseCellGesture(
     view: EditorView,
@@ -535,12 +534,12 @@ export function beginMouseCellGesture(
     cell: HTMLElement,
     resolvedCell: ResolvedActiveCell,
     origin: MouseCellGestureOrigin
-): PressDisposition {
+): boolean {
     const started = view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, origin) ?? false;
-    return started ? ORIGIN_PRESS_DISPOSITION[origin] : 'native';
+    return started && ORIGIN_CONSUMES_PRESS[origin];
 }
 
-/** What should happen to the compatibility mousedown behind a running gesture's press. */
-export function mouseCellGestureMouseDownDisposition(view: EditorView, event: MouseEvent): PressDisposition {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.compatibilityMouseDownDisposition(event) ?? 'native';
+/** True when the compatibility mousedown behind a running gesture's press should be taken. */
+export function mouseCellGestureConsumesMouseDown(view: EditorView, event: MouseEvent): boolean {
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.consumesCompatibilityMouseDown(event) ?? false;
 }

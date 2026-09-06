@@ -28,7 +28,7 @@ import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelecti
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
-import { handleWidgetClick, tableWidgetPressPlugin } from './tableWidgetInteractions';
+import { handleWidgetClick, handleWidgetPress } from './tableWidgetInteractions';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
@@ -56,10 +56,16 @@ import {
 } from '../nestedEditor/rootEditorSelectionTheme';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 
-// Clicks are the only widget event still registered as a handler. Presses go through
-// `tableWidgetPressPlugin`, which can take an event from the editor while leaving the browser
-// default in place — something a handler returning true here cannot do.
+// Registered ahead of `closeOnOutsideMouseDown` so a widget press is routed first. CodeMirror
+// stops running handlers for an event once one returns true, and appends its own built-in
+// handlers after every plugin's, so a press this router takes reaches neither.
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
+    pointerdown: (event, view) => {
+        return handleWidgetPress(view, event);
+    },
+    mousedown: (event, view) => {
+        return handleWidgetPress(view, event);
+    },
     click: (event, view) => {
         return handleWidgetClick(view, event);
     },
@@ -137,7 +143,6 @@ async function registerTableWidgetExtension(
         openCellRequestTimeoutPlugin,
 
         mouseCellDragSelectionPlugin,
-        tableWidgetPressPlugin,
         tableWidgetInteractionHandlers,
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,

@@ -8,7 +8,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
-import { handleWidgetClick, tableWidgetPressPlugin } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetClick, handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { getCellSelector } from '../tableWidget/domHelpers';
@@ -101,7 +101,6 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
             cellDragField,
             openCellRequestField,
             mouseCellDragSelectionPlugin,
-            tableWidgetPressPlugin,
         ]),
     });
     mountedViews.push(view);
@@ -125,8 +124,16 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
         body1: findCell(widget, { section: 'body', row: 0, col: 1 }),
     };
 
-    // Presses reach the view through `tableWidgetPressPlugin`, the way production dispatches
-    // them; only clicks are still registered as handlers.
+    // Production registers these through `EditorView.domEventHandlers`, which fires on
+    // `contentDOM`. The widget here is mounted outside it, so the same routing functions are
+    // wired up by hand: returning true stands in for CodeMirror calling `preventDefault`.
+    const dispatchPress = (event: MouseEvent | PointerEvent): void => {
+        if (!event.defaultPrevented && handleWidgetPress(view, event)) {
+            event.preventDefault();
+        }
+    };
+    view.dom.addEventListener('pointerdown', dispatchPress);
+    view.dom.addEventListener('mousedown', dispatchPress);
     view.dom.addEventListener('click', (event) => {
         handleWidgetClick(view, event);
     });
