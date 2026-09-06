@@ -96,9 +96,10 @@ export function unsanitizeRootText(rootText: string): string {
  *
  * Offsets inside a stored spelling all give the start of what it displays as: `<br>` is one
  * newline in the nested editor, so there is nowhere else in the display text for its middle to
- * be. Mapping a range therefore means reading both of its ends out of this array, rather than
- * running the text transform once per end as `editorBridge/cellTextCodec.ts` does for a
- * selection — the same answer, but built once for the whole cell.
+ * be. Mapping a range reads both ends from this array, built once for the whole cell.
+ * Unlike the selection codec, which inserts markers at both endpoints before transforming
+ * the text, this map does not interrupt substitutions. For example, offset 1 in `<br>x`
+ * maps to 0 here but to 1 in the codec, where the marker prevents `<br>` from decoding.
  */
 export function rootToLocalOffsets(rootText: string): Int32Array {
     const offsets = new Int32Array(rootText.length + 1);

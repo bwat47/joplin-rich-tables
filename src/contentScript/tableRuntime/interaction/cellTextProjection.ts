@@ -62,8 +62,8 @@ export function projectCellText(
 ): CellTextProjection {
     const hidden = new Uint8Array(localText.length);
     const hiddenSpans: HiddenSyntaxSpan[] = [];
-    // One offset map for the whole cell, read twice per span, rather than a selection mapped
-    // through the codec's text transform once per end.
+    // One offset map for the whole cell, read twice per span, instead of transforming
+    // the whole cell again for each selection range.
     const localOffsets = rootToLocalOffsets(rootText);
     const toLocal = (from: number, to: number): { from: number; to: number } => ({
         from: localOffsets[clamp(from - cell.editableFrom, 0, rootText.length)],
