@@ -27,6 +27,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { htmlFragment } from './testUtils';
 
 // jsdom does not implement Range measurement, which CodeMirror's selection layer calls.
 if (!Range.prototype.getClientRects) {
@@ -50,7 +51,7 @@ function createHarness(params: {
 }) {
     const renderer: MarkdownRenderService = {
         getCached: vi.fn(() => undefined),
-        render: vi.fn(async () => ''),
+        render: vi.fn(async () => htmlFragment('')),
         clear: vi.fn(),
     };
 
@@ -323,7 +324,7 @@ describe('nestedEditorController close', () => {
     it('tears down the nested editor and renders the cell markdown back into the content wrapper', () => {
         const doc = ['| H1 |', '| --- |', '| **bold** |'].join('\n');
         const { view, cellElement, renderer } = createHarness({ doc, activeCell: bodyCell() });
-        vi.mocked(renderer.getCached).mockReturnValue('<p><strong>bold</strong></p>');
+        vi.mocked(renderer.getCached).mockReturnValue(htmlFragment('<p><strong>bold</strong></p>'));
 
         openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
         closeNestedEditor(view);

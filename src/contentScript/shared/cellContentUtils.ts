@@ -78,19 +78,6 @@ export function buildRenderableContent(cellText: string): RenderableContent {
 }
 
 /**
- * Escapes HTML entities but preserves <br> tags as actual line breaks.
- * Used as a fallback when the render cache misses, so that multi-line
- * content doesn't flash raw <br> text while the async renderer runs.
- */
-export function escapeHtmlPreservingBr(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/&lt;br&gt;/g, '<br>');
-}
-
-/**
  * Substrings that suggest inline markdown formatting.
  * Checked as an order-independent disjunction, so each entry must not be
  * subsumed by a shorter one (e.g. '**' would be dead next to '*').

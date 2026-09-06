@@ -1,4 +1,5 @@
-import { buildRenderableContent, containsMarkdown, escapeHtmlPreservingBr } from '../shared/cellContentUtils';
+import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
+import { replaceContent, textFragmentPreservingBr } from './domFragment';
 import type { MarkdownRenderService } from './markdownRenderer';
 import { logger } from '../../logger';
 
@@ -7,23 +8,23 @@ import { logger } from '../../logger';
  *
  * Shared by the table widget (which renders into a freshly created content wrapper) and the
  * nested editor controller (which renders back into the wrapper it took over on activation),
- * so both paths stay identical: cached HTML is written synchronously, and a cache miss shows
- * escaped text first and swaps in the rendered HTML when it arrives.
+ * so both paths stay identical: cached content is written synchronously, and a cache miss shows
+ * plain text first and swaps in the rendered content when it arrives.
  *
  * The caller owns the target element; this function only writes its content.
  */
 export function renderCellMarkdownInto(target: HTMLElement, markdown: string, renderer: MarkdownRenderService): void {
     const { displayText, cacheKey } = buildRenderableContent(markdown);
 
-    // Check if we have cached rendered HTML for the normalized cell content
+    // Check if we have cached rendered content for the normalized cell content
     const cached = renderer.getCached(cacheKey);
     if (cached !== undefined) {
-        target.innerHTML = cached;
+        replaceContent(target, cached);
         return;
     }
 
     // Show content with <br> rendered as line breaks while async render runs
-    target.innerHTML = escapeHtmlPreservingBr(displayText);
+    replaceContent(target, textFragmentPreservingBr(displayText, target.ownerDocument));
 
     // Check if content likely contains markdown (optimization)
     if (!containsMarkdown(cacheKey)) {
@@ -33,11 +34,11 @@ export function renderCellMarkdownInto(target: HTMLElement, markdown: string, re
     // Request async rendering and update when ready
     void renderer
         .render(cacheKey)
-        .then((html) => {
+        .then((fragment) => {
             // Only update if the target is still in the DOM.
             // Note: Height re-measurement is handled automatically by ResizeObserver.
             if (target.isConnected) {
-                target.innerHTML = html;
+                replaceContent(target, fragment);
             }
         })
         .catch((error) => {

@@ -3,12 +3,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MarkdownRenderService } from '../services/markdownRenderer';
 import { renderCellMarkdownInto } from '../services/renderCellInto';
-import { deferred } from './testUtils';
+import { deferred, htmlFragment } from './testUtils';
 
 function createRenderer(overrides: Partial<MarkdownRenderService> = {}): MarkdownRenderService {
     return {
         getCached: vi.fn(() => undefined),
-        render: vi.fn(() => Promise.resolve('')),
+        render: vi.fn(() => Promise.resolve(htmlFragment(''))),
         clear: vi.fn(),
         ...overrides,
     };
@@ -24,7 +24,7 @@ function createTarget(connected = true): HTMLElement {
 
 describe('renderCellMarkdownInto', () => {
     it('writes cached HTML immediately without requesting a render', () => {
-        const renderer = createRenderer({ getCached: vi.fn(() => '<p><strong>cached</strong></p>') });
+        const renderer = createRenderer({ getCached: vi.fn(() => htmlFragment('<p><strong>cached</strong></p>')) });
         const target = createTarget();
 
         renderCellMarkdownInto(target, '**cached**', renderer);
@@ -35,7 +35,7 @@ describe('renderCellMarkdownInto', () => {
     });
 
     it('normalizes cell text before cache lookup and rendering', () => {
-        const rendered = deferred<string>();
+        const rendered = deferred<DocumentFragment>();
         const renderer = createRenderer({ render: vi.fn(() => rendered.promise) });
         const target = createTarget();
 
@@ -45,12 +45,12 @@ describe('renderCellMarkdownInto', () => {
 
         expect(renderer.getCached).toHaveBeenCalledWith('\\- a | b');
         expect(renderer.render).toHaveBeenCalledWith('\\- a | b');
-        rendered.resolve('<p>- a | b</p>');
+        rendered.resolve(htmlFragment('<p>- a | b</p>'));
         target.remove();
     });
 
     it('shows escaped text first, then swaps in the async result', async () => {
-        const rendered = deferred<string>();
+        const rendered = deferred<DocumentFragment>();
         const renderer = createRenderer({ render: vi.fn(() => rendered.promise) });
         const target = createTarget();
 
@@ -59,7 +59,7 @@ describe('renderCellMarkdownInto', () => {
         // <br> survives as a real line break; other markup is escaped.
         expect(target.innerHTML).toBe('a &lt;b&gt; **c**<br>d');
 
-        rendered.resolve('<p>rendered</p>');
+        rendered.resolve(htmlFragment('<p>rendered</p>'));
         await rendered.promise;
         await Promise.resolve();
 
@@ -68,14 +68,14 @@ describe('renderCellMarkdownInto', () => {
     });
 
     it('skips the async swap when the target left the DOM', async () => {
-        const rendered = deferred<string>();
+        const rendered = deferred<DocumentFragment>();
         const renderer = createRenderer({ render: vi.fn(() => rendered.promise) });
         const target = createTarget();
 
         renderCellMarkdownInto(target, '**body**', renderer);
         target.remove();
 
-        rendered.resolve('<p>rendered</p>');
+        rendered.resolve(htmlFragment('<p>rendered</p>'));
         await rendered.promise;
         await Promise.resolve();
 
