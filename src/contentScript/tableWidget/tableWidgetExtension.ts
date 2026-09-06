@@ -21,7 +21,8 @@ import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSele
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
-import { cellSelectionCaretSuppression, cellSelectionVisuals } from './cellSelectionVisuals';
+import { cellSelectionVisuals } from './cellSelectionVisuals';
+import { mainCaretSuppression } from './mainCaretSuppression';
 import { wholeTableSelectionVisuals } from './wholeTableSelectionVisuals';
 import { renderedTextSelectionTheme } from './renderedTextSelectionTheme';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
@@ -151,7 +152,7 @@ async function registerTableWidgetExtension(
         cellSelectionClipboardPlugin,
         cellSelectionFocusPlugin,
         cellSelectionVisuals,
-        cellSelectionCaretSuppression,
+        mainCaretSuppression,
         wholeTableSelectionVisuals,
         renderedTextSelectionTheme,
         nestedEditorFocusGuard,
