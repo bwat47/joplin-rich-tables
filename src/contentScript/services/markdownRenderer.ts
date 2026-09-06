@@ -32,7 +32,8 @@ export const MAX_CACHE_SIZE = 500;
 
 /**
  * Default renderer used only when the extension wiring has not installed a real service.
- * It returns escaped fallback HTML so callers can safely assign the result to innerHTML.
+ * It returns the markdown as literal text, so callers get something displayable without the
+ * markup being interpreted.
  */
 const fallbackMarkdownRenderer: MarkdownRenderService = {
     render(text) {
