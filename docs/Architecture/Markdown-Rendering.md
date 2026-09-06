@@ -8,15 +8,19 @@ Table cells render Markdown through Joplin's `renderMarkup` command. The decisio
 
 - Content script calls `postMessage({ type: 'renderMarkup', markdown, id })`.
 - Main plugin executes Joplin’s `renderMarkup` and returns HTML.
-- The content script runs `sanitizeHtml()` → `postProcessHtml()` before using the HTML.
+- The content script runs `sanitizeToFragment()` → `postProcessFragment()` before using the result.
 
-The renderer exposes `render(text): Promise<string>` plus cache helpers. It is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
+The renderer exposes `render(text): Promise<DocumentFragment>` plus cache helpers. It is created during content-script startup and installed through `markdownRenderServiceFacet`, so widgets and runtime code read the service from `view.state` instead of importing module-level mutable state.
+
+The pipeline deals in nodes rather than markup: DOMPurify parses the HTML anyway, so its tree is kept instead of being serialized and parsed again to display it. Cached fragments are never inserted — `render()` and `getCached()` hand back a `cloneNode(true)` copy — and callers insert with `textContent = ''` plus `appendChild`, which adopts the nodes out of DOMPurify's document. (`replaceChildren()` is unavailable in the mobile app's WebView.)
 
 ### Cache + De-dupe
 
 To avoid excessive rendering requests to the main plugin:
 
-- FIFO cache (`MAX_CACHE_SIZE = 500`) for rendered HTML keyed by the Markdown payload.
+- LRU cache (`MAX_CACHE_SIZE`) of rendered fragments keyed by the Markdown payload. `getCached()` re-inserts
+  on a hit so eviction follows use: scrolling back revisits recently viewed cells, which insertion order
+  would evict first.
 - In-flight de-dupe (`pendingRequests`) so identical content only triggers one render request.
 - Only request rendering for table cells that likely contain markdown formatting (`containsMarkdown` heuristic).
 
@@ -33,11 +37,12 @@ Cells are rendered as isolated Markdown fragments. Document-scoped reference-sty
 
 ## Sanitization + Post-processing
 
-- Sanitization: `sanitizeHtml()` (`src/contentScript/services/htmlSanitizer.ts`) uses DOMPurify and a tight allowlist:
+- Sanitization: `sanitizeToFragment()` (`src/contentScript/services/htmlSanitizer.ts`) uses DOMPurify with
+  `RETURN_DOM_FRAGMENT` and a tight allowlist:
     - Allows Joplin-specific `data-*` attributes and `joplin-content://`-style URLs (`ALLOW_UNKNOWN_PROTOCOLS`).
     - Allows `<iframe>` but removes all iframes except specific `https://.../embed/...` YouTube sources.
-    - Forbids `srcdoc`.
-- Post-processing: `postProcessHtml()` (`src/contentScript/services/htmlPostProcessor.ts`):
+    - Forbids `srcdoc` and `<form>` (DOMPurify allows the latter by default).
+- Post-processing: `postProcessFragment()` (`src/contentScript/services/htmlPostProcessor.ts`) edits those nodes in place:
     - Removes `.joplin-source` and `.resource-icon` elements that don’t render well inside cells.
     - Replaces KaTeX HTML with MathML to avoid duplicate/glitched rendering.
     - Footnotes: Post-processing replaces [^label] text with styled superscript links.

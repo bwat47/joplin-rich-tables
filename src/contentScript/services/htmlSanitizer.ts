@@ -2,6 +2,15 @@ import DOMPurify from 'dompurify';
 
 const IFRAME_TAG = 'iframe';
 
+/**
+ * Tags dropped on top of DOMPurify's defaults.
+ *
+ * `form` is default-allowed but has no use inside a table cell, and DOMPurify avoids adopting the
+ * nodes it returns precisely because a form element's internal state (its past names map) survives
+ * the move between documents. Removing it keeps that out of the fragment we adopt.
+ */
+const FORBIDDEN_TAGS = ['form'];
+
 const YOUTUBE_EMBED_ALLOWED_HOSTS = new Set<string>([
     'www.youtube-nocookie.com',
     'youtube-nocookie.com',
@@ -45,10 +54,16 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * Sanitize HTML rendered by Joplin to ensure security and fix display issues.
  * - Allows specific attributes needed for internal links/images/videos
  * - Allows unknown protocols for joplin-content://
+ * - Drops `<form>`, which DOMPurify allows by default
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
+ *
+ * Returns nodes rather than a string: DOMPurify has to parse the markup either way, so handing
+ * back the tree it already built saves serializing it and parsing it again to display it. The
+ * nodes belong to DOMPurify's own document until something appends them, which adopts them.
  */
-export function sanitizeHtml(html: string): string {
+export function sanitizeToFragment(html: string): DocumentFragment {
     return DOMPurify.sanitize(html, {
+        RETURN_DOM_FRAGMENT: true,
         ALLOW_UNKNOWN_PROTOCOLS: true,
         ADD_TAGS: [IFRAME_TAG],
         ADD_ATTR: [
@@ -64,6 +79,7 @@ export function sanitizeHtml(html: string): string {
             'loading',
             'referrerpolicy',
         ],
+        FORBID_TAGS: FORBIDDEN_TAGS,
         FORBID_ATTR: ['srcdoc'],
     });
 }

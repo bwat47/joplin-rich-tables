@@ -1,35 +1,35 @@
 import { buildFootnoteHref } from '../shared/footnoteAnchor';
 
 /**
- * Post-process rendered HTML to fix Joplin-specific display issues.
+ * Post-process rendered content to fix Joplin-specific display issues.
  * Includes KaTeX optimization and footnote reference conversion.
+ *
+ * Operates on the sanitized nodes in place, so neither pass has to parse the markup the way the
+ * string form did.
  */
-export function postProcessHtml(html: string): string {
-    return cleanupAndOptimizeHtml(convertFootnoteRefs(html));
+export function postProcessFragment(fragment: DocumentFragment): void {
+    convertFootnoteRefs(fragment);
+    cleanupAndOptimize(fragment);
 }
 
 /**
- * Post-process rendered HTML to fix Joplin-specific display issues.
  * - Removes .joplin-source elements (raw text)
  * - Removes broken resource icon spans
  * - Extracts inner MathML from KaTeX structures to avoid duplicate/glitched rendering
  * - Removes <annotation> tags which might contain raw TeX
  */
-function cleanupAndOptimizeHtml(html: string): string {
-    const template = document.createElement('template');
-    template.innerHTML = html;
-
+function cleanupAndOptimize(fragment: DocumentFragment): void {
     // Remove Joplin source blocks
-    template.content.querySelectorAll('.joplin-source').forEach((el) => el.remove());
+    fragment.querySelectorAll('.joplin-source').forEach((el) => el.remove());
 
     // Joplin resource links sometimes render an icon span that depends on editor-global
     // font/icon CSS (e.g. Font Awesome). Inside table cells this can degrade into a
     // broken glyph (often a question mark). Remove the icon element but keep the
     // resource link text and any placeholders.
-    template.content.querySelectorAll('.resource-icon').forEach((el) => el.remove());
+    fragment.querySelectorAll('.resource-icon').forEach((el) => el.remove());
 
     // Optimize KaTeX: Replace HTML/CSS representation with clean MathML
-    template.content.querySelectorAll('.katex').forEach((katexElement) => {
+    fragment.querySelectorAll('.katex').forEach((katexElement) => {
         const math = katexElement.querySelector('math');
         if (math) {
             // Remove annotations (often contains raw TeX)
@@ -52,8 +52,6 @@ function cleanupAndOptimizeHtml(html: string): string {
             }
         }
     });
-
-    return template.innerHTML;
 }
 
 /**
@@ -62,6 +60,9 @@ function cleanupAndOptimizeHtml(html: string): string {
  * and reads the labels out of the resulting parts.
  */
 const FOOTNOTE_REF_PATTERN = /\[\^([^\]]+)\]/;
+
+/** The opening of a footnote reference. Cheap to test for, and almost no text node has one. */
+const FOOTNOTE_REF_PREFIX = '[^';
 
 /** Elements whose text is literal, so `[^label]` inside them is not a reference. */
 const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
@@ -73,21 +74,15 @@ const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
  * Markdown-it-footnote auto-numbers by first appearance, which breaks when
  * rendering cells independently. Instead, we convert any remaining [^label]
  * text into styled superscript links that preserve the original label.
+ *
+ * Recurses over text nodes, skipping code/pre elements.
  */
-function convertFootnoteRefs(html: string): string {
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    processFootnotesInNode(template.content);
-    return template.innerHTML;
-}
-
-/** Recursively process text nodes, skipping code/pre elements */
-function processFootnotesInNode(node: Node): void {
+function convertFootnoteRefs(node: Node): void {
     for (const child of Array.from(node.childNodes)) {
         if (child.nodeType === Node.ELEMENT_NODE) {
             const el = child as Element;
             if (!LITERAL_TEXT_TAGS.has(el.tagName)) {
-                processFootnotesInNode(el);
+                convertFootnoteRefs(el);
             }
             continue;
         }
@@ -108,6 +103,11 @@ function processFootnotesInNode(node: Node): void {
  * the text has none and the node should be left as it is.
  */
 function buildFootnoteFragment(text: string): DocumentFragment | null {
+    // Skip the regex split for the overwhelming majority of text nodes, which have no reference.
+    if (!text.includes(FOOTNOTE_REF_PREFIX)) {
+        return null;
+    }
+
     // Splitting on a capturing pattern interleaves the parts: even indices are
     // the literal text between references, odd indices are the captured labels.
     const parts = text.split(FOOTNOTE_REF_PATTERN);

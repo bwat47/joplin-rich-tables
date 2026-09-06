@@ -6,7 +6,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';
-import { deferred, parseCellRangesFixture } from './testUtils';
+import { deferred, htmlFragment, parseCellRangesFixture } from './testUtils';
 
 class ResizeObserverMock {
     observe = vi.fn();
@@ -23,7 +23,7 @@ describe('TableWidget markdown rendering', () => {
     });
 
     it('uses the markdown renderer supplied by the editor state facet', async () => {
-        const rendered = deferred<string>();
+        const rendered = deferred<DocumentFragment>();
         const tableText = ['| H1 |', '| --- |', '| **body** |'].join('\n');
         const table = MarkdownTable.parse(tableText);
         const cellRanges = parseCellRangesFixture(tableText);
@@ -48,7 +48,7 @@ describe('TableWidget markdown rendering', () => {
         const widget = new TableWidget(table, cellRanges, tableText, 0);
         const dom = widget.toDOM(view);
         document.body.appendChild(dom);
-        rendered.resolve('<p><strong>rendered</strong></p>');
+        rendered.resolve(htmlFragment('<p><strong>rendered</strong></p>'));
         await rendered.promise;
         // The widget attaches its DOM update in a .then() on the same promise.
         // Let that chained microtask run before asserting the rendered HTML.

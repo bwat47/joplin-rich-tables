@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { postProcessHtml } from '../services/htmlPostProcessor';
+import { postProcessFragment } from '../services/htmlPostProcessor';
 
 function parseHtml(html: string): DocumentFragment {
     const template = document.createElement('template');
@@ -8,7 +8,17 @@ function parseHtml(html: string): DocumentFragment {
     return template.content;
 }
 
-describe('postProcessHtml', () => {
+/** Post-processing works on nodes; these tests read the result back as markup. */
+function postProcessHtml(html: string): string {
+    const fragment = parseHtml(html);
+    postProcessFragment(fragment);
+
+    const container = document.createElement('div');
+    container.appendChild(fragment);
+    return container.innerHTML;
+}
+
+describe('postProcessFragment', () => {
     test('removes Joplin resource icon spans but keeps placeholder resources', () => {
         const html =
             '<div class="cm-table-cell-content">' +
