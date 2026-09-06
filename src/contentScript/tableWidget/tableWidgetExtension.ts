@@ -23,11 +23,12 @@ import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectio
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
 import { cellSelectionCaretSuppression, cellSelectionVisuals } from './cellSelectionVisuals';
 import { wholeTableSelectionVisuals } from './wholeTableSelectionVisuals';
+import { renderedTextSelectionTheme } from './renderedTextSelectionTheme';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
-import { handleTableInteraction } from './tableWidgetInteractions';
+import { handleWidgetClick, handleWidgetPress } from './tableWidgetInteractions';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
@@ -55,15 +56,18 @@ import {
 } from '../nestedEditor/rootEditorSelectionTheme';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 
+// Registered ahead of `closeOnOutsideMouseDown` so a widget press is routed first. CodeMirror
+// stops running handlers for an event once one returns true, and appends its own built-in
+// handlers after every plugin's, so a press this router takes reaches neither.
 const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
     pointerdown: (event, view) => {
-        return handleTableInteraction(view, event);
+        return handleWidgetPress(view, event);
     },
     mousedown: (event, view) => {
-        return handleTableInteraction(view, event);
+        return handleWidgetPress(view, event);
     },
     click: (event, view) => {
-        return handleTableInteraction(view, event);
+        return handleWidgetClick(view, event);
     },
 });
 
@@ -149,6 +153,7 @@ async function registerTableWidgetExtension(
         cellSelectionVisuals,
         cellSelectionCaretSuppression,
         wholeTableSelectionVisuals,
+        renderedTextSelectionTheme,
         nestedEditorFocusGuard,
         nestedEditorLifecyclePlugin,
         tableDecorationField,

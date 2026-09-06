@@ -11,6 +11,14 @@ import { getViewportHeight, resolveViewportBounds } from '../../shared/editorVie
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
+import {
+    readRenderedCaretHit,
+    setRenderedTextSelection,
+    type RenderedCaretDomHit,
+    type RenderedSelectionHit,
+} from '../../tableWidget/cellCaretHit';
+import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
 const DRAG_START_DISTANCE_PX = 5;
@@ -21,18 +29,35 @@ const HIT_TEST_INSET_PX = 1;
 const BOUNDARY_EXIT_DISTANCE_PX = 8;
 const BOUNDARY_EXIT_DISTANCE_SQUARED = BOUNDARY_EXIT_DISTANCE_PX * BOUNDARY_EXIT_DISTANCE_PX;
 
-type MouseCellGestureOrigin = 'renderedCell' | 'activeEditor';
+/**
+ * Where the press landed, which also decides what the gesture does with the event.
+ *
+ * The active cell is two origins rather than one because its editor and its row-height padding
+ * want opposite things from the same press.
+ */
+export type MouseCellGestureOrigin = 'renderedCell' | 'activeEditorPadding' | 'activeEditorText';
 
-export interface MouseCellGestureOptions {
-    /** Where the press landed: a rendered cell, or the active cell that already owns an editor. */
-    origin: MouseCellGestureOrigin;
-    /** Claim the pointerdown and its compatibility mousedown rather than leaving them native. */
-    consumeInitialEvents: boolean;
+/**
+ * Whether a press on each origin is taken from the editor, along with the compatibility
+ * mousedown behind it.
+ */
+const ORIGIN_CONSUMES_PRESS: Record<MouseCellGestureOrigin, boolean> = {
+    // Drive the rendered text range ourselves. A native drag would keep auto-scrolling
+    // the editor even after promotion to a cell rectangle.
+    renderedCell: true,
+    // Padding has no native text-selection behaviour worth preserving.
+    activeEditorPadding: true,
+    // The nested editor owns its own press; the gesture only watches for the pointer leaving.
+    activeEditorText: false,
+};
+
+/** True for the origins whose press belongs to the nested editor rather than to a rendered cell. */
+function ownsNestedEditor(origin: MouseCellGestureOrigin): boolean {
+    return origin !== 'renderedCell';
 }
 
 interface MouseCellGesture {
     origin: MouseCellGestureOrigin;
-    consumeCompatibilityMouseDown: boolean;
     pointerId: number;
     startX: number;
     startY: number;
@@ -44,6 +69,52 @@ interface MouseCellGesture {
     lastFocus: CellCoords | null;
     lastClientX: number;
     lastClientY: number;
+    /**
+     * Caret the press pointed at, read while the rendered content was still mounted.
+     * Only a press on a rendered cell carries one: an active-editor press already has a
+     * nested editor to place its own caret, and a drag discards it.
+     */
+    pressCaretHit: RenderedCaretDomHit | null;
+    /** Caret the last painted range ran to, which with `pressCaretHit` is that range. */
+    lastHeadHit: RenderedCaretDomHit | null;
+}
+
+/**
+ * What a pointer release resolved to, read before the release dispatches anything.
+ *
+ * Both the anchor and the caret placement depend on the document and the widget DOM as the
+ * press left them, and settling the release changes both.
+ */
+interface GestureRelease {
+    /** The pressed anchor against the current document, or null when it no longer resolves. */
+    resolvedAnchor: ResolvedActiveCell | null;
+    /** Caret the press pointed at, for a click that reopens the anchor. */
+    cursorPos: InitialCursorPos | undefined;
+    /** The drag ended back on the cell it started from, so that cell takes the caret again. */
+    reactivateAnchor: boolean;
+}
+
+/**
+ * The range the press drew across its anchor cell, or null when it drew none.
+ *
+ * The gesture is the only writer of the DOM selection inside a rendered cell: the press is taken
+ * from the browser, so there is no native drag or double-click word selection to add one. Both
+ * endpoints are therefore the hits it painted from, and reading the range back out of the DOM
+ * would only re-derive them.
+ *
+ * The two must be measured against the same rendered text. A re-render between press and release
+ * leaves their offsets incomparable, and the caret the press read is the better answer then.
+ */
+function renderedSelectionFromGesture(gesture: MouseCellGesture): RenderedSelectionHit | null {
+    const anchor = gesture.pressCaretHit;
+    const head = gesture.lastHeadHit;
+    if (!anchor || !head || head.renderedText !== anchor.renderedText) {
+        return null;
+    }
+
+    return head.renderedOffset === anchor.renderedOffset
+        ? null
+        : { renderedText: anchor.renderedText, anchor: anchor.renderedOffset, head: head.renderedOffset };
 }
 
 /** Squared distance between two points. */
@@ -82,37 +153,33 @@ class MouseCellDragSelectionController {
 
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         if (!gesture.dragged) {
-            if (gesture.origin === 'activeEditor') {
-                // Until the pointer clears the anchor cell's border by a margin, the nested
-                // editor retains full ownership so its native text-selection drag continues
-                // uninterrupted.
-                if (
-                    !pointedCell ||
-                    isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell) ||
-                    distanceOutsideRectSquared(
-                        event.clientX,
-                        event.clientY,
-                        gesture.anchorCell.getBoundingClientRect()
-                    ) < BOUNDARY_EXIT_DISTANCE_SQUARED
-                ) {
-                    return;
+            const promoteTo = this.promotionTarget(gesture, event, pointedCell);
+            if (!promoteTo) {
+                // The press keeps whatever it is still doing in its own cell: drawing a rendered
+                // text range, or leaving the nested editor's native drag alone.
+                if (!ownsNestedEditor(gesture.origin)) {
+                    this.updateRenderedTextSelection(gesture);
                 }
+                return;
+            }
+
+            if (ownsNestedEditor(gesture.origin)) {
                 this.capturePointer(gesture);
                 flushNestedEditorState(this.view);
                 this.endNativeTextDrag(event);
-            } else if (
-                distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) <
-                DRAG_START_DISTANCE_SQUARED
-            ) {
-                return;
             }
 
             // A rectangle that cannot be dispatched — the table moved or was rewritten under
             // the gesture — leaves the press provisional. Release re-resolves the pressed
             // widget and opens it only if it still identifies a current table.
-            gesture.dragged = this.applyFocus(gesture, pointedCell ?? gesture.resolvedCell.activeCell);
+            gesture.dragged = this.applyFocus(gesture, promoteTo);
             if (!gesture.dragged) {
                 return;
+            }
+            if (gesture.origin === 'renderedCell') {
+                // The rendered range belongs to this gesture; stop painting it on promotion.
+                this.capturePointer(gesture);
+                this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
             }
         } else {
             // Once dragging, a pointer outside the table still tracks the nearest cell, so a
@@ -137,45 +204,79 @@ class MouseCellDragSelectionController {
             return;
         }
 
-        const pointedCell = this.resolveCellAtPoint(event, gesture);
-        const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
-        const shouldReactivateAnchor =
-            gesture.dragged && pointedCell !== null && isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell);
+        const release = this.resolveRelease(event, gesture);
         const willReactivateAnchor =
-            shouldReactivateAnchor && (gesture.origin === 'activeEditor' || resolvedAnchor !== null);
-        const shouldConsume = gesture.origin === 'renderedCell' || gesture.dragged;
-        if (shouldConsume) {
+            release.reactivateAnchor && (ownsNestedEditor(gesture.origin) || release.resolvedAnchor !== null);
+
+        if (gesture.origin === 'renderedCell' || gesture.dragged) {
             event.preventDefault();
             event.stopPropagation();
         }
+
         // Only an active-editor drag can hand its own still-open anchor back; a rendered-cell
         // drag reopens the anchor below, so whatever cell it left active is cleared first.
         this.finishGesture({
-            keepActiveCell: shouldReactivateAnchor && gesture.origin === 'activeEditor',
+            keepActiveCell: release.reactivateAnchor && ownsNestedEditor(gesture.origin),
             focusSelection: !willReactivateAnchor,
         });
 
-        if (gesture.origin === 'renderedCell' && !gesture.dragged) {
-            if (resolvedAnchor) {
-                requestOpenCell(this.view, {
-                    resolvedCell: resolvedAnchor,
-                    clearCellSelection: Boolean(getCellSelection(this.view.state)),
-                });
-            }
-        } else if (shouldReactivateAnchor && gesture.origin === 'renderedCell') {
-            if (resolvedAnchor) {
-                requestOpenCell(this.view, {
-                    resolvedCell: resolvedAnchor,
-                    clearCellSelection: true,
-                });
-            }
-        } else if (shouldReactivateAnchor) {
-            // The anchor editor never left the DOM, so contracting back to it only needs
-            // to discard the provisional rectangle and restore keyboard focus.
-            this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
-            refocusNestedEditor(this.view);
-        }
+        this.settleRelease(gesture, release);
     };
+
+    /**
+     * Reads everything about the release that depends on the view as the press left it.
+     *
+     * Resolved before `finishGesture` dispatches, so the caret placement is aligned against
+     * the cell text that was actually pressed.
+     */
+    private resolveRelease(event: PointerEvent, gesture: MouseCellGesture): GestureRelease {
+        const pointedCell = this.resolveCellAtPoint(event, gesture);
+        const resolvedAnchor = gesture.origin === 'renderedCell' ? this.resolveCurrentRenderedAnchor(gesture) : null;
+
+        let cursorPos: InitialCursorPos | undefined;
+        if (!gesture.dragged && resolvedAnchor) {
+            const selectionHit = renderedSelectionFromGesture(gesture);
+            cursorPos = selectionHit
+                ? resolveRenderedSelection(this.view.state, resolvedAnchor, selectionHit)
+                : resolveClickCursorPos(this.view.state, resolvedAnchor, gesture.pressCaretHit);
+        }
+
+        return {
+            resolvedAnchor,
+            cursorPos,
+            reactivateAnchor:
+                gesture.dragged &&
+                pointedCell !== null &&
+                isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell),
+        };
+    }
+
+    /** Hands the released gesture to whichever cell should own the caret now. */
+    private settleRelease(gesture: MouseCellGesture, release: GestureRelease): void {
+        if (gesture.origin !== 'renderedCell') {
+            if (release.reactivateAnchor) {
+                // The anchor editor never left the DOM, so contracting back to it only needs
+                // to discard the provisional rectangle and restore keyboard focus.
+                this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+                refocusNestedEditor(this.view);
+            }
+            return;
+        }
+
+        // An anchor that no longer resolves cannot be reopened, and a drag that ended
+        // anywhere but its anchor leaves its own selection standing.
+        if (!release.resolvedAnchor || (gesture.dragged && !release.reactivateAnchor)) {
+            return;
+        }
+
+        requestOpenCell(this.view, {
+            resolvedCell: release.resolvedAnchor,
+            clearCellSelection: gesture.dragged || Boolean(getCellSelection(this.view.state)),
+            // A drag that contracted back onto its anchor asked for a cell selection, not for
+            // a caret at the point the press happened to start from.
+            initialCursorPos: gesture.dragged ? undefined : release.cursorPos,
+        });
+    }
 
     private readonly onPointerCancel = (event: PointerEvent): void => {
         if (this.gesture?.pointerId === event.pointerId) {
@@ -191,7 +292,7 @@ class MouseCellDragSelectionController {
         event: PointerEvent,
         cell: HTMLElement,
         resolvedCell: ResolvedActiveCell,
-        options: MouseCellGestureOptions
+        origin: MouseCellGestureOrigin
     ): boolean {
         if (!isPrimaryMousePointer(event)) {
             return false;
@@ -203,18 +304,11 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        // Editable content retains native pointer and mouse handling. Everything else — a
-        // rendered cell, or the active cell's row-height padding — has no native text-selection
-        // behavior to preserve, so claim its initial events to keep the outer editor from
-        // moving its caret or reopening the cell.
-        if (options.consumeInitialEvents) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
+        const pressCaretHit =
+            origin === 'renderedCell' ? readRenderedCaretHit(cell, event.clientX, event.clientY) : null;
 
         this.beginGesture({
-            origin: options.origin,
-            consumeCompatibilityMouseDown: options.consumeInitialEvents,
+            origin,
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
@@ -226,25 +320,26 @@ class MouseCellDragSelectionController {
             lastFocus: null,
             lastClientX: event.clientX,
             lastClientY: event.clientY,
+            pressCaretHit,
+            lastHeadHit: null,
         });
 
-        if (options.origin === 'renderedCell') {
-            // No nested editor to share the pointer with, so the gesture owns it from the
-            // start. An active-editor drag only takes the pointer when it converts.
-            this.capturePointer(this.gesture);
+        if (origin === 'renderedCell') {
+            // The gesture owns the DOM selection from here. Collapse it at the pressed caret,
+            // or drop whatever was standing when the press had no caret to offer.
+            if (pressCaretHit) {
+                setRenderedTextSelection(cell, pressCaretHit, pressCaretHit);
+            } else {
+                this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
+            }
         }
 
         return true;
     }
 
-    consumeCompatibilityMouseDown(event: MouseEvent): boolean {
-        if (!this.gesture?.consumeCompatibilityMouseDown || !isPrimaryMouseButton(event)) {
-            return false;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        return true;
+    /** True when the compatibility mousedown behind a press this gesture owns should be taken. */
+    consumesCompatibilityMouseDown(event: MouseEvent): boolean {
+        return Boolean(this.gesture && isPrimaryMouseButton(event) && ORIGIN_CONSUMES_PRESS[this.gesture.origin]);
     }
 
     destroy(): void {
@@ -255,6 +350,47 @@ class MouseCellDragSelectionController {
 
     private resolveCellAtPoint(event: PointerEvent, gesture: MouseCellGesture): CellCoords | null {
         return this.resolveCellAtClientPoint(event.clientX, event.clientY, gesture);
+    }
+
+    /**
+     * The cell a press has moved far enough into to make the gesture a rectangle, or null while
+     * it still belongs to the cell it started in.
+     *
+     * Only another cell promotes a press, and only past a threshold that keeps a jittering
+     * pointer from tearing down what it landed on. A press that owns the nested editor measures
+     * from the anchor cell's border, so its own text-selection drag survives a pointer that
+     * merely grazes the neighbour; every other press measures from where it started.
+     */
+    private promotionTarget(
+        gesture: MouseCellGesture,
+        event: PointerEvent,
+        pointedCell: CellCoords | null
+    ): CellCoords | null {
+        if (!pointedCell || isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell)) {
+            return null;
+        }
+
+        const moved = ownsNestedEditor(gesture.origin)
+            ? distanceOutsideRectSquared(event.clientX, event.clientY, gesture.anchorCell.getBoundingClientRect()) >=
+              BOUNDARY_EXIT_DISTANCE_SQUARED
+            : distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) >=
+              DRAG_START_DISTANCE_SQUARED;
+
+        return moved ? pointedCell : null;
+    }
+
+    /** Extends the range the press is drawing to the caret the pointer now rests on. */
+    private updateRenderedTextSelection(gesture: MouseCellGesture): void {
+        const anchor = gesture.pressCaretHit;
+        if (!anchor) {
+            return;
+        }
+
+        const head = readRenderedCaretHit(gesture.anchorCell, gesture.lastClientX, gesture.lastClientY);
+        if (head) {
+            gesture.lastHeadHit = head;
+            setRenderedTextSelection(gesture.anchorCell, anchor, head);
+        }
     }
 
     private resolveCellAtClientPoint(clientX: number, clientY: number, gesture: MouseCellGesture): CellCoords | null {
@@ -428,16 +564,24 @@ class MouseCellDragSelectionController {
 
 export const mouseCellDragSelectionPlugin = ViewPlugin.fromClass(MouseCellDragSelectionController);
 
+/**
+ * Starts a gesture for a press on `cell`, and reports whether that press is taken from the editor.
+ *
+ * The answer is returned rather than applied, so one router decides what happens to every press
+ * it sees; see `tableWidget/tableWidgetInteractions.ts`.
+ */
 export function beginMouseCellGesture(
     view: EditorView,
     event: PointerEvent,
     cell: HTMLElement,
     resolvedCell: ResolvedActiveCell,
-    options: MouseCellGestureOptions
+    origin: MouseCellGestureOrigin
 ): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, options) ?? false;
+    const started = view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, origin) ?? false;
+    return started && ORIGIN_CONSUMES_PRESS[origin];
 }
 
-export function consumeMouseCellGestureMouseDown(view: EditorView, event: MouseEvent): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.consumeCompatibilityMouseDown(event) ?? false;
+/** True when the compatibility mousedown behind a running gesture's press should be taken. */
+export function mouseCellGestureConsumesMouseDown(view: EditorView, event: MouseEvent): boolean {
+    return view.plugin?.(mouseCellDragSelectionPlugin)?.consumesCompatibilityMouseDown(event) ?? false;
 }

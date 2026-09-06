@@ -9,8 +9,11 @@ import { alphaEquivalentLayer, parseHexColor, toPercentageCss, toRgbCss } from '
  * values below are therefore CodeMirror's defaults, restated here so both modes read from one
  * place.  `--joplin-selected-color` is deliberately not used: it is the list-item selection
  * color (light `#e5e5e5`, dark `#616161`), not the text-selection color.
+ *
+ * Exported for `renderedTextSelectionTheme.ts`, which needs the colors themselves rather than the
+ * variables below: a `::selection` rule cannot read them.
  */
-const JOPLIN_SELECTION_COLORS = {
+export const JOPLIN_SELECTION_COLORS = {
     light: { focused: '#d7d4f0', blurred: '#d9d9d9' },
     dark: { focused: '#6b6b6b', blurred: '#444444' },
 } as const;

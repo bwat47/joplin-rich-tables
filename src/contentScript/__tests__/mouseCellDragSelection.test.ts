@@ -8,7 +8,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
-import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetClick, handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { getCellSelector } from '../tableWidget/domHelpers';
@@ -18,7 +18,7 @@ import type { CellCoords } from '../tableModel/types';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { parseCellRangesFixture } from './testUtils';
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -38,6 +38,14 @@ interface MountedGestureView {
 const mountedViews: EditorView[] = [];
 let elementAtPoint: Element | null = null;
 let originalElementFromPoint: PropertyDescriptor | undefined;
+let originalCaretRangeFromPoint: PropertyDescriptor | undefined;
+
+function mockCaretHit(node: Node, offset: number): void {
+    const range = document.createRange();
+    range.setStart(node, offset);
+    range.collapse(true);
+    Object.defineProperty(document, 'caretRangeFromPoint', { configurable: true, value: () => range });
+}
 
 const POINTER_RELEASE_TYPES = ['pointerup', 'pointercancel'];
 
@@ -75,13 +83,13 @@ function findCell(widget: HTMLElement, coords: CellCoords): HTMLTableCellElement
     return cell as HTMLTableCellElement;
 }
 
-function mountGestureView(): MountedGestureView {
+function mountGestureView(doc = GRID_DOC): MountedGestureView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
 
     const view = new EditorView({
         parent,
-        state: createMarkdownState(GRID_DOC, [
+        state: createMarkdownState(doc, [
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
                 render: vi.fn(async () => ''),
@@ -101,12 +109,12 @@ function mountGestureView(): MountedGestureView {
 
     // The widget is built the way production builds it, so these tests fail if the cell
     // attribute contract the gesture hit-tests against ever changes.
-    const table = MarkdownTable.parse(GRID_DOC);
-    const cellRanges = parseCellRangesFixture(GRID_DOC);
+    const table = MarkdownTable.parse(doc);
+    const cellRanges = parseCellRangesFixture(doc);
     if (!table) {
         throw new Error('Expected the test table to parse');
     }
-    const widget = new TableWidget(table, cellRanges, GRID_DOC, 0).toDOM(view);
+    const widget = new TableWidget(table, cellRanges, doc, 0).toDOM(view);
     view.dom.appendChild(widget);
 
     const cells = {
@@ -116,14 +124,18 @@ function mountGestureView(): MountedGestureView {
         body1: findCell(widget, { section: 'body', row: 0, col: 1 }),
     };
 
-    view.dom.addEventListener('pointerdown', (event) => {
-        handleTableInteraction(view, event);
-    });
-    view.dom.addEventListener('mousedown', (event) => {
-        handleTableInteraction(view, event);
-    });
+    // Production registers these through `EditorView.domEventHandlers`, which fires on
+    // `contentDOM`. The widget here is mounted outside it, so the same routing functions are
+    // wired up by hand: returning true stands in for CodeMirror calling `preventDefault`.
+    const dispatchPress = (event: MouseEvent | PointerEvent): void => {
+        if (!event.defaultPrevented && handleWidgetPress(view, event)) {
+            event.preventDefault();
+        }
+    };
+    view.dom.addEventListener('pointerdown', dispatchPress);
+    view.dom.addEventListener('mousedown', dispatchPress);
     view.dom.addEventListener('click', (event) => {
-        handleTableInteraction(view, event);
+        handleWidgetClick(view, event);
     });
 
     return { view, widget, table: widget.querySelector('table') as HTMLTableElement, cells };
@@ -211,6 +223,7 @@ function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
 beforeEach(() => {
     vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     originalElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
+    originalCaretRangeFromPoint = Object.getOwnPropertyDescriptor(document, 'caretRangeFromPoint');
     Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: vi.fn(() => elementAtPoint),
@@ -226,6 +239,12 @@ afterEach(() => {
     document.body.replaceChildren();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+
+    if (originalCaretRangeFromPoint) {
+        Object.defineProperty(document, 'caretRangeFromPoint', originalCaretRangeFromPoint);
+    } else {
+        Reflect.deleteProperty(document, 'caretRangeFromPoint');
+    }
 
     if (originalElementFromPoint) {
         Object.defineProperty(document, 'elementFromPoint', originalElementFromPoint);
@@ -283,6 +302,82 @@ describe('mouse cell drag selection', () => {
             col: 0,
         });
         expect(getCellSelection(view.state)).toBeNull();
+    });
+
+    it.each([
+        [0, 5, 0, 9],
+        [1, 4, 3, 6],
+        [4, 1, 6, 3],
+    ])('draws rendered selection %i to %i and maps it on release', (anchor, head, localAnchor, localHead) => {
+        const { view, cells } = mountGestureView(GRID_DOC.replace('a1', '**hello**'));
+        const content = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!;
+        content.innerHTML = '<strong>hello</strong>';
+        const text = content.firstChild!.firstChild!;
+        mockCaretHit(text, anchor);
+        const capture = vi.fn();
+        cells.body0.setPointerCapture = capture;
+        elementAtPoint = cells.body0;
+        const down = pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 });
+        cells.body0.dispatchEvent(down);
+        const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+        cells.body0.dispatchEvent(mouseDown);
+        mockCaretHit(text, head);
+        const move = pointerEvent('pointermove', { clientX: 80, clientY: 10 });
+        document.dispatchEvent(move);
+        expect(down.defaultPrevented).toBe(true);
+        expect(mouseDown.defaultPrevented).toBe(true);
+        expect(move.defaultPrevented).toBe(false);
+        expect(document.getSelection()!.toString()).toBe('hello'.slice(Math.min(anchor, head), Math.max(anchor, head)));
+        expect(capture).not.toHaveBeenCalled();
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        document.dispatchEvent(pointerEvent('pointerup', { clientX: 80, clientY: 10 }));
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({
+            anchor: localAnchor,
+            head: localHead,
+        });
+    });
+
+    it('clears native text selection on conversion and keeps cell selection mode on return', () => {
+        const { view, cells } = mountGestureView();
+        const text = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!.firstChild!;
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        document.getSelection()!.setBaseAndExtent(text, 0, text, 2);
+        elementAtPoint = cells.body1;
+        document.dispatchEvent(pointerEvent('pointermove', { clientX: 80, clientY: 10 }));
+        expect(document.getSelection()!.rangeCount).toBe(0);
+        // Further text selection is suppressed for as long as this state stands; see
+        // `cellSelectionVisuals.test.ts` for the attribute it puts on the editor.
+        expect(isCellDragInProgress(view.state)).toBe(true);
+        elementAtPoint = cells.body0;
+        document.dispatchEvent(pointerEvent('pointermove', { clientX: 10, clientY: 10 }));
+        expect(isCellDragInProgress(view.state)).toBe(true);
+        document.dispatchEvent(pointerEvent('pointerup', { clientX: 10, clientY: 10 }));
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toBeUndefined();
+        expect(isCellDragInProgress(view.state)).toBe(false);
+    });
+
+    it('selects to the end of the cell when the drag leaves the table without crossing a cell', () => {
+        const { view, cells } = mountGestureView(GRID_DOC.replace('a1', '**hello**'));
+        const content = cells.body0.querySelector(`.${CLASS_CELL_CONTENT}`)!;
+        content.innerHTML = '<strong>hello</strong>';
+        const text = content.firstChild!.firstChild!;
+        const below = document.createElement('p');
+        below.textContent = 'below the table';
+        document.body.appendChild(below);
+        mockCaretHit(text, 2);
+        elementAtPoint = cells.body0;
+        cells.body0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
+        mockCaretHit(below.firstChild!, 5);
+
+        // Nothing of this widget is under the pointer, so the gesture stays a text selection.
+        elementAtPoint = null;
+        document.dispatchEvent(pointerEvent('pointermove', { clientX: 400, clientY: 400 }));
+        expect(isCellDragInProgress(view.state)).toBe(false);
+
+        // `llo` of `**hello**`: the escaped end clamps to the end of the cell's own text.
+        document.dispatchEvent(pointerEvent('pointerup', { clientX: 400, clientY: 400 }));
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toEqual({ anchor: 4, head: 7 });
     });
 
     it('re-resolves a provisional press when the table moves before release', () => {

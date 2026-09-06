@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { type TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
-import { handleTableInteraction } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import {
     beginOpenCellRequestEffect,
@@ -40,7 +40,7 @@ describe('interactive open-cell requests', () => {
             stopPropagation: vi.fn(),
         } as unknown as MouseEvent;
 
-        expect(handleTableInteraction(view, event)).toBe(true);
+        expect(handleWidgetPress(view, event)).toBe(true);
         expect(view.state.doc.toString()).toBe(NORMALIZED_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',

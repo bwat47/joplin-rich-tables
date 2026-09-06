@@ -3,6 +3,7 @@ import {
     convertNewlinesToBr,
     escapeUnescapedPipes,
     normalizeBrTags,
+    rootToLocalOffsets,
     sanitizeLocalText,
     unsanitizeRootText,
 } from '../shared/cellTextNormalization';
@@ -56,5 +57,74 @@ describe('sanitizeLocalText / unsanitizeRootText', () => {
 
     it('converts root markdown-safe cell text back to local display text', () => {
         expect(unsanitizeRootText(String.raw`a<br>b\|c`)).toBe('a\nb|c');
+    });
+
+    it('escapes a backslash run down to the pipe it ends with', () => {
+        // The two spellings the offset map has to agree with `unsanitizeRootText` about.
+        expect(unsanitizeRootText(String.raw`a\\|b`)).toBe(String.raw`a\|b`);
+    });
+});
+
+describe('rootToLocalOffsets', () => {
+    /** The offsets a plain scan of `rootText` would need, character by character. */
+    const displayOffsets = (rootText: string): number[] => Array.from(rootToLocalOffsets(rootText));
+
+    it('maps stored text one to one where nothing is spelled out', () => {
+        expect(displayOffsets('abc')).toEqual([0, 1, 2, 3]);
+    });
+
+    it('lands every offset in the same place the display text puts it', () => {
+        const rootText = String.raw`a<br>b\|c`;
+
+        // `a\nb|c`: the offsets after each stored spelling shift by what it saves.
+        expect(displayOffsets(rootText)).toEqual([0, 1, 1, 1, 1, 2, 3, 3, 4, 5]);
+        expect(unsanitizeRootText(rootText)).toHaveLength(5);
+    });
+
+    it('gives the start of what a spelling displays as for offsets inside it', () => {
+        // The middle of `<br>` has nowhere else to be: it is one newline in the nested editor.
+        const offsets = rootToLocalOffsets('<br>x');
+
+        expect(offsets[1]).toBe(0);
+        expect(offsets[3]).toBe(0);
+        expect(offsets[4]).toBe(1);
+    });
+
+    it('ends one past the display text, so a range can reach the end of the cell', () => {
+        const rootText = String.raw`a<br>b`;
+
+        expect(rootToLocalOffsets(rootText)[rootText.length]).toBe(unsanitizeRootText(rootText).length);
+    });
+
+    it('maps the only offset in an empty cell to zero', () => {
+        expect(displayOffsets('')).toEqual([0]);
+    });
+
+    it('maps consecutive substitutions through the end of the cell', () => {
+        expect(displayOffsets(String.raw`<br>\|<br>`)).toEqual([0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 3]);
+    });
+
+    it.each([
+        { root: String.raw`a\\|b`, offsets: [0, 1, 2, 2, 3, 4] },
+        { root: String.raw`a\\\|b`, offsets: [0, 1, 2, 3, 3, 4, 5] },
+    ])('preserves backslashes before the final pipe escape in $root', ({ root, offsets }) => {
+        expect(displayOffsets(root)).toEqual(offsets);
+    });
+
+    it('counts emoji as UTF-16 code units on both sides of a substitution', () => {
+        expect(displayOffsets('😀<br>😀')).toEqual([0, 1, 2, 2, 2, 2, 3, 4, 5]);
+    });
+
+    it.each([
+        { root: 'a<br', offsets: [0, 1, 2, 3, 4] },
+        { root: 'a\\', offsets: [0, 1, 2] },
+    ])('leaves a spelling the cell breaks off partway through as text in $root', ({ root, offsets }) => {
+        expect(displayOffsets(root)).toEqual(offsets);
+        expect(unsanitizeRootText(root)).toBe(root);
+    });
+
+    it('matches a stored spelling exactly, so an uppercase break tag stays text', () => {
+        expect(displayOffsets('a<BR>b')).toEqual([0, 1, 2, 3, 4, 5, 6]);
+        expect(unsanitizeRootText('a<BR>b')).toBe('a<BR>b');
     });
 });

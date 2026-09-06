@@ -39,12 +39,22 @@ export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolea
  *
  * `lastLineStart` splits on the last newline, so a single-line cell collapses to
  * the start and a trailing newline leaves the caret on the empty final line.
+ *
+ * Exact offsets are clamped rather than trusted: they are measured against the cell
+ * text as it stood when the placement was decided, and an entry that repairs the
+ * table into canonical form can rewrite that cell's padding in the same
+ * transaction.
  */
 export function resolveInitialLocalSelection(
     mirroredSelection: LocalSelection,
     localText: string,
     initialCursorPos?: InitialCursorPos
 ): LocalSelection {
+    if (typeof initialCursorPos === 'object') {
+        const { anchor, head } = initialCursorPos;
+        return { anchor: clamp(anchor, 0, localText.length), head: clamp(head, 0, localText.length) };
+    }
+
     switch (initialCursorPos) {
         case 'start':
             return { anchor: 0, head: 0 };

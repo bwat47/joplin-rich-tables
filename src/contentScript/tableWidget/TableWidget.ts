@@ -72,6 +72,37 @@ function requestTableMeasurement(container: HTMLElement): void {
     });
 }
 
+/** The element a selection endpoint sits in, which for a text node is its parent. */
+function endpointElement(node: Node): Element | null {
+    return node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+}
+
+/**
+ * True when the browser's own selection lies wholly inside rendered cell content.
+ *
+ * Such a selection is the browser's to copy: CodeMirror would answer the copy from its own
+ * document selection instead, which sits somewhere else entirely - it is empty during a
+ * long-press on mobile, so `copiedRange` falls back to copying the caret's whole source line
+ * over the top of what the reader actually selected.
+ *
+ * A whole-table selection is deliberately not covered: its endpoints sit at the widget's own
+ * boundary rather than inside a cell, so the main editor keeps copying the table's Markdown.
+ */
+function isSelectionInsideRenderedCell(event: Event): boolean {
+    const target = event.target as Node | null;
+    const doc = target && (target.nodeType === Node.DOCUMENT_NODE ? (target as Document) : target.ownerDocument);
+    const selection = doc?.getSelection();
+    if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
+        return false;
+    }
+
+    const contentSelector = `.${CLASS_CELL_CONTENT}`;
+    return Boolean(
+        endpointElement(selection.anchorNode)?.closest(contentSelector) &&
+        endpointElement(selection.focusNode)?.closest(contentSelector)
+    );
+}
+
 /**
  * Widget that renders a markdown table as an interactive HTML table
  * Supports rendering markdown content inside cells
@@ -230,6 +261,9 @@ export class TableWidget extends WidgetType {
         // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
         const contentWrapper = doc.createElement('div');
         contentWrapper.className = CLASS_CELL_CONTENT;
+        // Native selection must focus the rendered content rather than the outer editor,
+        // whose focus handler would replace the browser range with its document caret.
+        contentWrapper.tabIndex = -1;
         cell.appendChild(contentWrapper);
 
         renderCellMarkdownInto(contentWrapper, markdown, renderer);
@@ -333,9 +367,14 @@ export class TableWidget extends WidgetType {
         return findCellForPos(ctx.cellRanges, docPos - ctx.from);
     }
 
-    ignoreEvent(): boolean {
-        // Events are handled by extension-level domEventHandlers.
-        return false;
+    ignoreEvent(event: Event): boolean {
+        // A native range inside rendered text belongs to the pending cell gesture, not
+        // the outer document selection. Pointer/mouse events use the interaction handlers.
+        if (event.type === 'selectionchange') {
+            return true;
+        }
+
+        return event.type === 'copy' && isSelectionInsideRenderedCell(event);
     }
 
     destroy(dom: HTMLElement): void {

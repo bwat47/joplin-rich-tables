@@ -87,10 +87,53 @@ the same cell-selection tint; their extent distinguishes them.
 
 Moving the main-editor caret outside the selected table clears table-owned selection state.
 
+## Click-to-Caret Placement
+
+A click on a rendered cell opens it with the caret at the clicked point in the Markdown source, so clicking inside a
+bolded word lands between the same two letters once the syntax is visible.
+
+The rendering service returns HTML without character offsets. Placement therefore combines DOM hit testing with
+CodeMirror's Markdown syntax tree:
+
+1. `tableWidget/cellCaretHit.ts` reads the DOM caret before the rendered content is replaced.
+2. `tableRuntime/interaction/cellTextProjection.ts` projects visible source spans into text with a map back to
+   nested-editor offsets, so hidden Markdown cannot become an anchor.
+3. `tableRuntime/interaction/clickCursorPlacement.ts` maps matching rendered/projected text directly.
+4. When rendering transforms the text, `shared/textAlignment.ts` aligns rendered text against the projection with one
+   forward scan that resynchronises within a small window. Unknown renderer extensions remain approximate; a hidden run
+   wider than that window strands the rest of the cell, which collapses the matched ratio, and insufficient matches
+   decline placement.
+
+The offset or range travels through the open-cell request to the nested editor.
+
+Every press inside a widget is routed by `handleWidgetPress` in `tableWidget/tableWidgetInteractions.ts`, registered
+for `pointerdown` and `mousedown` alongside the click handler. It reports whether it took the press. CodeMirror stops
+running handlers for an event once one returns true and appends its own built-ins after every plugin's, so a press the
+router takes reaches neither those nor `closeOnOutsideMouseDown`.
+
+A press on a rendered cell is consumed, and the gesture draws the DOM selection itself from the caret each pointer
+move hit-tests. The browser latches its own selection drag at mousedown, and nothing cancels it afterwards: left
+native, its auto-scroll keeps running once the gesture has become a cell rectangle, carrying the editor past the
+table. Pointerup maps both endpoints through one projection/alignment, preserving direction. A range is mapped from the characters it covers rather than as two carets,
+so Markdown syntax is included where the selection spans it and excluded at both ends otherwise, with paired markers
+kept balanced. Unresolved hits preserve the established selection fallback.
+
+Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears rendered
+text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
+does not restore the earlier text range. Active-editor drags retain their existing boundary margin and behavior.
+
+Only another cell promotes a drag; leaving the table keeps the gesture a text selection, with an endpoint outside the
+cell clamped to the end the drag left by. Once a rectangle is being dragged, a pointer outside the table tracks the
+nearest cell as before.
+
 ## Pointer, Links, and Scrolling
 
-- Clicking activates a cell or updates the current cell selection.
-- Mouse dragging selects a cell rectangle; touch and pen input retain native scrolling and tap behavior.
+- Clicking activates a cell or updates the current cell selection, placing the caret where the click landed.
+- Mouse dragging within an inactive cell selects rendered text; dragging into another cell selects a rectangle.
+  Touch and pen input retain native scrolling and tap behavior.
+- A long press on mobile selects rendered text without opening the cell. `TableWidget.ignoreEvent` disowns the `copy`
+  that follows, so the browser copies what was selected rather than CodeMirror's own document selection. A
+  whole-table selection keeps its Markdown copy: its endpoints are not inside a cell.
 - Drags near an edge auto-scroll the table or host scroll container. See
   [Table-Display.md](./Table-Display.md#host-scroll-modes).
 - Links delegate to the content-script link opener and then to the main plugin.

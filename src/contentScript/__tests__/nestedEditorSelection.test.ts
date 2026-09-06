@@ -6,6 +6,7 @@ import {
     toAbsoluteSelection,
     toRelativeSelection,
 } from '../nestedEditor/nestedEditorSelection';
+import { cellTextCaret } from '../shared/cursorPlacement';
 
 describe('toAbsoluteSelection', () => {
     it('shifts a cell-relative selection by the editable start', () => {
@@ -78,5 +79,26 @@ describe('resolveInitialLocalSelection', () => {
 
     it('places the caret after a trailing newline for lastLineStart', () => {
         expect(resolveInitialLocalSelection(mirrored, 'first\n', 'lastLineStart')).toEqual({ anchor: 6, head: 6 });
+    });
+
+    it('collapses to a requested offset in the cell text', () => {
+        expect(resolveInitialLocalSelection(mirrored, 'hello world', cellTextCaret(4))).toEqual({
+            anchor: 4,
+            head: 4,
+        });
+    });
+
+    it('clamps both initial selection endpoints while retaining direction', () => {
+        expect(resolveInitialLocalSelection(mirrored, 'hello', { anchor: 8, head: -2 })).toEqual({
+            anchor: 5,
+            head: 0,
+        });
+    });
+
+    it('clamps a requested offset the cell text can no longer hold', () => {
+        // The offset is decided against the cell as it stood; an entry that repairs the table
+        // into canonical form can restripe that cell's padding in the same transaction.
+        expect(resolveInitialLocalSelection(mirrored, 'hi', cellTextCaret(9))).toEqual({ anchor: 2, head: 2 });
+        expect(resolveInitialLocalSelection(mirrored, 'hi', cellTextCaret(-1))).toEqual({ anchor: 0, head: 0 });
     });
 });
