@@ -153,38 +153,26 @@ class MouseCellDragSelectionController {
 
         const pointedCell = this.resolveCellAtPoint(event, gesture);
         if (!gesture.dragged) {
-            if (ownsNestedEditor(gesture.origin)) {
-                // Until the pointer clears the anchor cell's border by a margin, the nested
-                // editor retains full ownership so its native text-selection drag continues
-                // uninterrupted.
-                if (
-                    !pointedCell ||
-                    isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell) ||
-                    distanceOutsideRectSquared(
-                        event.clientX,
-                        event.clientY,
-                        gesture.anchorCell.getBoundingClientRect()
-                    ) < BOUNDARY_EXIT_DISTANCE_SQUARED
-                ) {
-                    return;
+            const promoteTo = this.promotionTarget(gesture, event, pointedCell);
+            if (!promoteTo) {
+                // The press keeps whatever it is still doing in its own cell: drawing a rendered
+                // text range, or leaving the nested editor's native drag alone.
+                if (!ownsNestedEditor(gesture.origin)) {
+                    this.updateRenderedTextSelection(gesture);
                 }
+                return;
+            }
+
+            if (ownsNestedEditor(gesture.origin)) {
                 this.capturePointer(gesture);
                 flushNestedEditorState(this.view);
                 this.endNativeTextDrag(event);
-            } else if (
-                !pointedCell ||
-                isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell) ||
-                distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) <
-                    DRAG_START_DISTANCE_SQUARED
-            ) {
-                this.updateRenderedTextSelection(gesture);
-                return;
             }
 
             // A rectangle that cannot be dispatched — the table moved or was rewritten under
             // the gesture — leaves the press provisional. Release re-resolves the pressed
             // widget and opens it only if it still identifies a current table.
-            gesture.dragged = this.applyFocus(gesture, pointedCell ?? gesture.resolvedCell.activeCell);
+            gesture.dragged = this.applyFocus(gesture, promoteTo);
             if (!gesture.dragged) {
                 return;
             }
@@ -362,6 +350,33 @@ class MouseCellDragSelectionController {
 
     private resolveCellAtPoint(event: PointerEvent, gesture: MouseCellGesture): CellCoords | null {
         return this.resolveCellAtClientPoint(event.clientX, event.clientY, gesture);
+    }
+
+    /**
+     * The cell a press has moved far enough into to make the gesture a rectangle, or null while
+     * it still belongs to the cell it started in.
+     *
+     * Only another cell promotes a press, and only past a threshold that keeps a jittering
+     * pointer from tearing down what it landed on. A press that owns the nested editor measures
+     * from the anchor cell's border, so its own text-selection drag survives a pointer that
+     * merely grazes the neighbour; every other press measures from where it started.
+     */
+    private promotionTarget(
+        gesture: MouseCellGesture,
+        event: PointerEvent,
+        pointedCell: CellCoords | null
+    ): CellCoords | null {
+        if (!pointedCell || isSameCellCoords(gesture.resolvedCell.activeCell, pointedCell)) {
+            return null;
+        }
+
+        const moved = ownsNestedEditor(gesture.origin)
+            ? distanceOutsideRectSquared(event.clientX, event.clientY, gesture.anchorCell.getBoundingClientRect()) >=
+              BOUNDARY_EXIT_DISTANCE_SQUARED
+            : distanceSquared(event.clientX, event.clientY, gesture.startX, gesture.startY) >=
+              DRAG_START_DISTANCE_SQUARED;
+
+        return moved ? pointedCell : null;
     }
 
     /** Extends the range the press is drawing to the caret the pointer now rests on. */
