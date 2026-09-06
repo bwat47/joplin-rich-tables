@@ -93,6 +93,35 @@ describe('renderCellMarkdownInto', () => {
         target.remove();
     });
 
+    it.each(['https://example.com', 'http://example.com/path', 'mailto:person@example.com', 'HTTPS://example.com'])(
+        'renders a bare link into an anchor: %s',
+        async (markdown) => {
+            const rendered = deferred<DocumentFragment>();
+            const renderer = createRenderer({ render: vi.fn(() => rendered.promise) });
+            const target = createTarget();
+
+            try {
+                renderCellMarkdownInto(target, markdown, renderer);
+
+                expect(renderer.render).toHaveBeenCalledWith(markdown);
+                expect(target.textContent).toBe(markdown);
+
+                const fragment = document.createDocumentFragment();
+                const anchor = document.createElement('a');
+                anchor.setAttribute('href', markdown);
+                anchor.textContent = markdown;
+                fragment.appendChild(anchor);
+                rendered.resolve(fragment);
+                await rendered.promise;
+                await Promise.resolve();
+
+                expect(target.querySelector('a')?.getAttribute('href')).toBe(markdown);
+            } finally {
+                target.remove();
+            }
+        }
+    );
+
     it('requests a render for HTML entities and emoji shortcodes', () => {
         const renderer = createRenderer();
         const target = createTarget();

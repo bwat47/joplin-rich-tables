@@ -100,6 +100,9 @@ const PAIRED_ACTIVATORS = ['$', ':'] as const;
  */
 const REPEATED_ACTIVATOR_PATTERN = /([.-])\1/;
 
+/** Bare links such as `https://example.com` and `mailto:person@example.com` need linkification. */
+const BARE_LINK_PATTERN = /https?:\/\/|mailto:/i;
+
 function hasPairedActivator(text: string): boolean {
     return PAIRED_ACTIVATORS.some((char) => text.indexOf(char) !== text.lastIndexOf(char));
 }
@@ -112,5 +115,10 @@ function hasPairedActivator(text: string): boolean {
  * negative shows the user raw markup that Joplin's viewer would have rendered.
  */
 export function mightContainMarkup(text: string): boolean {
-    return !INERT_CHARACTERS_PATTERN.test(text) || hasPairedActivator(text) || REPEATED_ACTIVATOR_PATTERN.test(text);
+    return (
+        !INERT_CHARACTERS_PATTERN.test(text) ||
+        hasPairedActivator(text) ||
+        REPEATED_ACTIVATOR_PATTERN.test(text) ||
+        BARE_LINK_PATTERN.test(text)
+    );
 }
