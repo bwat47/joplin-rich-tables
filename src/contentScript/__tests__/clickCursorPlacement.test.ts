@@ -432,6 +432,7 @@ describe('syntax-aware click placement', () => {
         ['one<br>[hello](url "hello")', 'one\nhello', 6, 'one\n[he|llo](url "hello")'],
         ['**raw**', '**raw**', 4, '**ra|w**'],
         ['a ==mark== b', 'a mark b', 4, 'a ==ma|rk== b'],
+        ['a <ins>test text</ins> b', 'a test text b', 4, 'a <ins>te|st text</ins> b'],
         ['a ++ins++ b', 'a ins b', 4, 'a ++in|s++ b'],
         ['==mark== and `code`', 'mark and code', 11, '==mark== and `co|de`'],
     ])('maps %s through visible source spans', (source, renderedText, renderedOffset, expected) => {
@@ -564,6 +565,69 @@ describe('rendered range mapping', () => {
         expect(rangePlacement(cellDoc('a ++ins++ b'), cell, { renderedText: 'a ins b', anchor: 0, head: 5 })).toBe(
             '[a ++ins++] b'
         );
+    });
+
+    it('closes an HTML element whose opening tag the range already holds', () => {
+        expect(
+            rangePlacement(cellDoc('a <ins>test text</ins> b'), cell, {
+                renderedText: 'a test text b',
+                anchor: 0,
+                head: 11,
+            })
+        ).toBe('[a <ins>test text</ins>] b');
+    });
+
+    it('opens an HTML element whose closing tag the range already holds', () => {
+        expect(
+            rangePlacement(cellDoc('a <ins>test text</ins> b'), cell, {
+                renderedText: 'a test text b',
+                anchor: 2,
+                head: 13,
+            })
+        ).toBe('a [<ins>test text</ins> b]');
+    });
+
+    it('pairs tags by name through markup opened inside them and never closed', () => {
+        expect(
+            rangePlacement(cellDoc('a <ins>x<span>y</ins> b'), cell, {
+                renderedText: 'a xy b',
+                anchor: 0,
+                head: 4,
+            })
+        ).toBe('[a <ins>x<span>y</ins>] b');
+    });
+
+    it('closes the inner of two elements sharing a tag name, leaving the outer alone', () => {
+        expect(
+            rangePlacement(cellDoc('<span>a<span>b</span>c</span>'), cell, {
+                renderedText: 'abc',
+                anchor: 0,
+                head: 2,
+            })
+        ).toBe('<span>[a<span>b</span>]c</span>');
+    });
+
+    it('leaves a tag the cell never closes outside a range that stops beside it', () => {
+        // Nothing pairs the void tag inwards, so the range keeps the text it covered.
+        expect(rangePlacement(cellDoc('a<img src="x.png">b'), cell, { renderedText: 'ab', anchor: 0, head: 1 })).toBe(
+            '[a]<img src="x.png">b'
+        );
+    });
+
+    it('leaves a self-closing tag owning itself', () => {
+        expect(rangePlacement(cellDoc('a<hr/>b'), cell, { renderedText: 'ab', anchor: 0, head: 1 })).toBe('[a]<hr/>b');
+    });
+
+    it('leaves a stray closing tag owning itself', () => {
+        expect(rangePlacement(cellDoc('a</ins>b'), cell, { renderedText: 'ab', anchor: 0, head: 1 })).toBe(
+            '[a]</ins>b'
+        );
+    });
+
+    it('pairs tags whose case differs between the two ends', () => {
+        expect(
+            rangePlacement(cellDoc('a <INS>test</ins> b'), cell, { renderedText: 'a test b', anchor: 0, head: 6 })
+        ).toBe('[a <INS>test</ins>] b');
     });
 
     it('pairs markers through the alignment fallback', () => {
