@@ -66,11 +66,23 @@ const HIDDEN_NODES = new Set([
     'Entity',
 ]);
 
-/** `<`, an optional `/`, then the tag name; anything else is markup this pairing does not model. */
-const HTML_TAG_NAME = /^<(\/?)([a-zA-Z][a-zA-Z0-9-]*)/;
+/**
+ * `<`, an optional `/`, then the tag name, matching the name and spacing the Markdown grammar
+ * itself accepts (`[a-zA-Z][\w-]*`, with optional whitespace after the `<` or the `/`). Names are
+ * read the way the tag was hidden, so `<foo_bar>` cannot be truncated into a false match for
+ * `</foo_baz>`. Anything else - a doctype, CDATA - fails to match and owns itself.
+ */
+const HTML_TAG_NAME = /^<(\/)?\s*([a-zA-Z][\w-]*)/;
 
-/** A tag that closes itself carries no partner, whatever its name. */
-const SELF_CLOSING_TAG = /\/>$/;
+/**
+ * A tag that closes itself carries no partner, whatever its name. The grammar allows whitespace
+ * between the `/` and the `>`, so `<x-tag/ >` is self-closing too.
+ *
+ * An unquoted attribute value ending in a slash - `<a href=x/>` - trips this as well, where the
+ * grammar reads the slash as part of the value. That leaves the tag unpaired, which is the
+ * behaviour every tag had before pairing existed; telling the two apart needs attribute parsing.
+ */
+const SELF_CLOSING_TAG = /\/\s*>$/;
 
 /** An HTML tag's source range, with the name pairing matches on. */
 interface HtmlTagRef {
@@ -84,7 +96,7 @@ interface HtmlTagRef {
 /** Reads the name and role of a tag, which the tree provides as one opaque `HTMLTag` node. */
 function readHtmlTag(source: string, from: number, to: number): HtmlTagRef {
     const match = HTML_TAG_NAME.exec(source);
-    const closing = match?.[1] === '/';
+    const closing = match?.[1] !== undefined;
     if (!match || (!closing && SELF_CLOSING_TAG.test(source))) {
         return { from, to, closing: false };
     }
@@ -102,22 +114,32 @@ function readHtmlTag(source: string, from: number, to: number): HtmlTagRef {
  */
 function pairHtmlTags(tags: readonly HtmlTagRef[]): Map<number, SourceSpan> {
     const owners = new Map<number, SourceSpan>();
-    const open: HtmlTagRef[] = [];
+    const open: { from: number; name: string }[] = [];
+    // How many of each name the stack holds, so a closer with no opener costs no search at all.
+    // Without it a cell of unmatched closing tags walks the whole stack for each one.
+    const openCounts = new Map<string, number>();
 
     for (const tag of tags) {
-        if (tag.name === undefined) {
+        const name = tag.name;
+        if (name === undefined) {
             continue;
         }
         if (!tag.closing) {
-            open.push(tag);
+            open.push({ from: tag.from, name });
+            openCounts.set(name, (openCounts.get(name) ?? 0) + 1);
             continue;
         }
+        if (!openCounts.get(name)) {
+            continue;
+        }
+        // The count guarantees a match, and every entry the search passes is dropped with it,
+        // so pairing a whole cell stays linear in the number of tags it holds.
         let index = open.length - 1;
-        while (index >= 0 && open[index].name !== tag.name) {
+        while (open[index].name !== name) {
             index--;
         }
-        if (index < 0) {
-            continue;
+        for (let i = index; i < open.length; i++) {
+            openCounts.set(open[i].name, (openCounts.get(open[i].name) ?? 0) - 1);
         }
         const owner: SourceSpan = { from: open[index].from, to: tag.to };
         owners.set(open[index].from, owner);

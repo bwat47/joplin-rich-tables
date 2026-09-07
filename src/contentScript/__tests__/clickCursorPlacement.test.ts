@@ -624,6 +624,38 @@ describe('rendered range mapping', () => {
         );
     });
 
+    it('keeps an underscored tag name whole rather than pairing a near miss', () => {
+        // The grammar's tag name runs to the `_`, so `<foo_bar>` and `</foo_baz>` are not a pair.
+        expect(
+            rangePlacement(cellDoc('a <foo_bar>test</foo_baz> b'), cell, {
+                renderedText: 'a test b',
+                anchor: 0,
+                head: 6,
+            })
+        ).toBe('[a <foo_bar>test]</foo_baz> b');
+    });
+
+    it('pairs a tag whose name holds an underscore', () => {
+        expect(
+            rangePlacement(cellDoc('a <foo_bar>test</foo_bar> b'), cell, {
+                renderedText: 'a test b',
+                anchor: 0,
+                head: 6,
+            })
+        ).toBe('[a <foo_bar>test</foo_bar>] b');
+    });
+
+    it('leaves a tag that closes itself across whitespace owning itself', () => {
+        // The grammar accepts `/ >` as self-closing, so it has no partner to pair with.
+        expect(
+            rangePlacement(cellDoc('a <x-tag/ >test</x-tag> b'), cell, {
+                renderedText: 'a test b',
+                anchor: 0,
+                head: 6,
+            })
+        ).toBe('[a <x-tag/ >test]</x-tag> b');
+    });
+
     it('pairs tags whose case differs between the two ends', () => {
         expect(
             rangePlacement(cellDoc('a <INS>test</ins> b'), cell, { renderedText: 'a test b', anchor: 0, head: 6 })
