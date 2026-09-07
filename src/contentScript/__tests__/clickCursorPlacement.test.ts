@@ -431,6 +431,9 @@ describe('syntax-aware click placement', () => {
         ['a \\| [**hello**](url "hello")', 'a | hello', 6, 'a | [**he|llo**](url "hello")'],
         ['one<br>[hello](url "hello")', 'one\nhello', 6, 'one\n[he|llo](url "hello")'],
         ['**raw**', '**raw**', 4, '**ra|w**'],
+        ['a ==mark== b', 'a mark b', 4, 'a ==ma|rk== b'],
+        ['a ++ins++ b', 'a ins b', 4, 'a ++in|s++ b'],
+        ['==mark== and `code`', 'mark and code', 11, '==mark== and `co|de`'],
     ])('maps %s through visible source spans', (source, renderedText, renderedOffset, expected) => {
         const doc = ['', '| H1 |', '| --- |', `| ${source} |`, ''].join('\n');
         expect(placement(doc, { section: 'body', row: 0, col: 0 }, { renderedText, renderedOffset })).toBe(expected);
@@ -549,6 +552,18 @@ describe('rendered range mapping', () => {
         expect(
             rangePlacement(cellDoc('foo ***both*** bar'), cell, { renderedText: 'foo both bar', anchor: 0, head: 8 })
         ).toBe('[foo ***both***] bar');
+    });
+
+    it('leaves the delimiters of a fully selected highlight outside both ends', () => {
+        expect(rangePlacement(cellDoc('a ==mark== b'), cell, { renderedText: 'a mark b', anchor: 2, head: 6 })).toBe(
+            'a ==[mark]== b'
+        );
+    });
+
+    it('closes an insert whose opening syntax the range already holds', () => {
+        expect(rangePlacement(cellDoc('a ++ins++ b'), cell, { renderedText: 'a ins b', anchor: 0, head: 5 })).toBe(
+            '[a ++ins++] b'
+        );
     });
 
     it('pairs markers through the alignment fallback', () => {

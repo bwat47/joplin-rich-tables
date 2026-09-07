@@ -28,8 +28,22 @@ export interface HiddenSyntaxSpan {
     ownerTo: number;
 }
 
-/** Inline marks whose owning node carries the partner marker at its other end. */
-const MARK_NODES = new Set(['EmphasisMark', 'StrikethroughMark', 'CodeMark', 'LinkMark']);
+/**
+ * Inline marks whose owning node carries the partner marker at its other end.
+ *
+ * `HighlightMarker` and `InsertMarker` come from Joplin's own parser extensions, so they appear
+ * only while `markdown.plugin.mark` / `markdown.plugin.insert` are on. The same settings gate the
+ * matching renderer plugins, so the marks exist in the tree exactly when the rendered cell hides
+ * them; with a setting off the node never appears and the literal `==` stays visible on both sides.
+ */
+const MARK_NODES = new Set([
+    'EmphasisMark',
+    'StrikethroughMark',
+    'CodeMark',
+    'LinkMark',
+    'HighlightMarker',
+    'InsertMarker',
+]);
 
 /** The construct one marker of a pair belongs to; undefined for syntax that owns itself. */
 function markerOwner(node: SyntaxNodeRef): SyntaxNodeRef | undefined {
@@ -45,6 +59,8 @@ const HIDDEN_NODES = new Set([
     'StrikethroughMark',
     'CodeMark',
     'LinkMark',
+    'HighlightMarker',
+    'InsertMarker',
     // Transformed entities are handled by alignment, never by matching their spelling.
     'Entity',
 ]);
