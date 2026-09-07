@@ -16,6 +16,16 @@ import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from
  * `selectionTint.ts` redraws a gridline at exactly this width.
  */
 export const CELL_BORDER_WIDTH = '1px';
+
+/**
+ * Elements inside a widget that keep the cursor the UA gives them.
+ *
+ * The widget paints a text cursor over its whole box so a drag-selection never flickers between
+ * the I-beam and an arrow when it crosses cell padding or a gap between words. These elements are
+ * clicked rather than selected, so their cursor still has to say so.
+ */
+const CURSOR_EXEMPT_SELECTORS = ['button', 'input', 'textarea', 'select', 'summary', 'iframe'] as const;
+
 export const ATTR_ZEBRA_STRIPING = 'data-rt-zebra-striping';
 
 const zebraStripingAttribute = EditorView.editorAttributes.compute(
@@ -39,6 +49,10 @@ const tableTheme = EditorView.baseTheme({
     // -------------------------------------------------------------------------
 
     [getWidgetSelector()]: {
+        // Rendered cells are Markdown output, not laid-out text lines, so `cursor: auto` falls back
+        // to an arrow over padding, empty cells and the gaps between inline elements. Declare the
+        // text cursor once at the root and let it inherit, so the whole widget reads as selectable.
+        cursor: 'text',
         padding: '8px 0',
         position: 'relative',
         display: 'block',
@@ -46,6 +60,12 @@ const tableTheme = EditorView.baseTheme({
         maxWidth: '100%',
         overflowX: 'auto',
         contain: 'inline-size',
+    },
+    [CURSOR_EXEMPT_SELECTORS.map((selector) => `${getWidgetSelector()} ${selector}`).join(', ')]: {
+        cursor: 'default',
+    },
+    [`${getWidgetSelector()} a[href]`]: {
+        cursor: 'pointer',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE}`]: {
         borderCollapse: 'collapse',
