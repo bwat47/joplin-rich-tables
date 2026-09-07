@@ -36,7 +36,7 @@ function doubleCharConfig(charCode: number, name: string, markName: string): Mar
 }
 
 /** The host's optional inline extensions, both on by default in Joplin. */
-export const hostMarkdownExtensions = [
+const hostMarkdownExtensions = [
     doubleCharConfig(EQUALS_SIGN, 'Highlight', 'HighlightMarker'),
     doubleCharConfig(PLUS_SIGN, 'Insert', 'InsertMarker'),
 ];
