@@ -4,6 +4,23 @@ import type { MarkdownRenderService } from './markdownRenderer';
 import { logger } from '../../logger';
 
 /**
+ * The newest render request each target has seen.
+ *
+ * A target outlives any single request and is written by more than one caller: the table widget
+ * renders into a cell's content wrapper, and the nested editor renders into that same wrapper when
+ * it closes. Without this, a slow earlier render resolves last and paints stale content over the
+ * newer result.
+ */
+const renderGeneration = new WeakMap<HTMLElement, number>();
+
+/** Claims the target for a new request, invalidating any render still in flight for it. */
+function claimGeneration(target: HTMLElement): number {
+    const generation = (renderGeneration.get(target) ?? 0) + 1;
+    renderGeneration.set(target, generation);
+    return generation;
+}
+
+/**
  * Renders a cell's markdown into an existing element.
  *
  * Shared by the table widget (which renders into a freshly created content wrapper) and the
@@ -15,6 +32,9 @@ import { logger } from '../../logger';
  */
 export function renderCellMarkdownInto(target: HTMLElement, markdown: string, renderer: MarkdownRenderService): void {
     const { displayText, cacheKey } = buildRenderableContent(markdown);
+    // Claimed for every call, including the synchronous ones below: they write the target too,
+    // so an older pending render must not outlive them either.
+    const generation = claimGeneration(target);
 
     // Check if we have cached rendered content for the normalized cell content
     const cached = renderer.getCached(cacheKey);
@@ -35,9 +55,9 @@ export function renderCellMarkdownInto(target: HTMLElement, markdown: string, re
     void renderer
         .render(cacheKey)
         .then((fragment) => {
-            // Only update if the target is still in the DOM.
+            // Only update if this is still the target's latest request and it is in the DOM.
             // Note: Height re-measurement is handled automatically by ResizeObserver.
-            if (target.isConnected) {
+            if (renderGeneration.get(target) === generation && target.isConnected) {
                 replaceContent(target, fragment);
             }
         })
