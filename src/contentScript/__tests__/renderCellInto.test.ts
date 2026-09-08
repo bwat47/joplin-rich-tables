@@ -80,6 +80,60 @@ describe('renderCellMarkdownInto', () => {
         expect(target.innerHTML).toBe('**body**');
     });
 
+    it('ignores an async result that a later render superseded', async () => {
+        const stale = deferred<DocumentFragment>();
+        const fresh = deferred<DocumentFragment>();
+        const renderer = createRenderer({
+            render: vi.fn().mockReturnValueOnce(stale.promise).mockReturnValueOnce(fresh.promise),
+        });
+        const target = createTarget();
+
+        renderCellMarkdownInto(target, '**stale**', renderer);
+        renderCellMarkdownInto(target, '**fresh**', renderer);
+
+        fresh.resolve(htmlFragment('<p>fresh</p>'));
+        stale.resolve(htmlFragment('<p>stale</p>'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(target.innerHTML).toBe('<p>fresh</p>');
+        target.remove();
+    });
+
+    it('ignores an async result superseded by a cache hit', async () => {
+        const stale = deferred<DocumentFragment>();
+        const renderer = createRenderer({ render: vi.fn(() => stale.promise) });
+        const target = createTarget();
+
+        renderCellMarkdownInto(target, '**stale**', renderer);
+
+        renderer.getCached = vi.fn(() => htmlFragment('<p>cached</p>'));
+        renderCellMarkdownInto(target, '**cached**', renderer);
+
+        stale.resolve(htmlFragment('<p>stale</p>'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(target.innerHTML).toBe('<p>cached</p>');
+        target.remove();
+    });
+
+    it('ignores an async result superseded by a plain-text render', async () => {
+        const stale = deferred<DocumentFragment>();
+        const renderer = createRenderer({ render: vi.fn(() => stale.promise) });
+        const target = createTarget();
+
+        renderCellMarkdownInto(target, '**stale**', renderer);
+        renderCellMarkdownInto(target, 'plain text', renderer);
+
+        stale.resolve(htmlFragment('<p>stale</p>'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(target.innerHTML).toBe('plain text');
+        target.remove();
+    });
+
     it('does not request a render for plain text', () => {
         const renderer = createRenderer();
         const target = createTarget();
