@@ -20,7 +20,7 @@ export const CELL_BORDER_WIDTH = '1px';
 /**
  * Elements inside a widget that keep the cursor the UA gives them.
  *
- * The widget paints a text cursor over its whole box so a drag-selection never flickers between
+ * The table paints a text cursor over its whole box so a drag-selection never flickers between
  * the I-beam and an arrow when it crosses cell padding or a gap between words. These elements are
  * clicked rather than selected, so their cursor still has to say so.
  */
@@ -49,10 +49,6 @@ const tableTheme = EditorView.baseTheme({
     // -------------------------------------------------------------------------
 
     [getWidgetSelector()]: {
-        // Rendered cells are Markdown output, not laid-out text lines, so `cursor: auto` falls back
-        // to an arrow over padding, empty cells and the gaps between inline elements. Declare the
-        // text cursor once at the root and let it inherit, so the whole widget reads as selectable.
-        cursor: 'text',
         padding: '8px 0',
         position: 'relative',
         display: 'block',
@@ -68,6 +64,15 @@ const tableTheme = EditorView.baseTheme({
         cursor: 'pointer',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE}`]: {
+        // Rendered cells are Markdown output, not laid-out text lines, so `cursor: auto` falls back
+        // to an arrow over padding, empty cells and the gaps between inline elements. Declare the
+        // text cursor once here and let it inherit, so the whole table reads as selectable.
+        //
+        // It sits on the table rather than the widget root because the root scrolls horizontally:
+        // Chromium resolves the cursor over a scrollbar from the scroll container's own `cursor`,
+        // so an I-beam declared there covers the drag handle the user is reaching for. The table
+        // never overlaps that gutter, leaving the scrollbar with the UA's arrow.
+        cursor: 'text',
         borderCollapse: 'collapse',
         width: 'auto',
         fontFamily: 'inherit',
