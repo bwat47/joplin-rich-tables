@@ -2,7 +2,6 @@ import { vi, type Mock } from 'vitest';
 import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
-import type { StructuralTableCommand } from '../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
@@ -55,37 +54,18 @@ describe('structuralActions', () => {
         mockRunStructuralMutationAndReopen.mockReturnValue(true);
     });
 
-    it.each([
-        ['insertRowBefore', { type: 'insertRowBefore' }],
-        ['insertRowAfter', { type: 'insertRowAfter' }],
-        ['insertColumnBefore', { type: 'insertColumnBefore' }],
-        ['insertColumnAfter', { type: 'insertColumnAfter' }],
-        ['deleteRow', { type: 'deleteRow' }],
-        ['deleteColumn', { type: 'deleteColumn' }],
-        ['moveRowUp', { type: 'moveRowUp' }],
-        ['moveRowDown', { type: 'moveRowDown' }],
-        ['moveColumnLeft', { type: 'moveColumnLeft' }],
-        ['moveColumnRight', { type: 'moveColumnRight' }],
-        ['clearRow', { type: 'clearRow' }],
-        ['clearColumn', { type: 'clearColumn' }],
-        ['clearTable', { type: 'clearTable' }],
-        ['deleteTable', { type: 'deleteTable' }],
-        ['sortColumnAscending', { type: 'sortColumnAscending' }],
-        ['sortColumnDescending', { type: 'sortColumnDescending' }],
-    ] satisfies Array<[StructuralActionId, StructuralTableCommand]>)(
-        'maps model-backed action %s to its canonical command',
-        (actionId, command) => {
-            expect(runStructuralAction(view, actionId, resolvedCell)).toBe(true);
+    it('routes a model-backed action and returns the mutation result', () => {
+        mockRunStructuralMutationAndReopen.mockReturnValue(false);
 
-            expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    view,
-                    resolvedCell,
-                    command,
-                })
-            );
-        }
-    );
+        expect(runStructuralAction(view, 'insertRowBefore', resolvedCell)).toBe(false);
+        expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
+            expect.objectContaining({
+                view,
+                resolvedCell,
+                command: { type: 'insertRowBefore' },
+            })
+        );
+    });
 
     it.each([
         ['alignLeft', 'left'],

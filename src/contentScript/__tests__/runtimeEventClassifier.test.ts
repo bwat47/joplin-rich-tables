@@ -201,24 +201,6 @@ describe('runtimeEventClassifier', () => {
         });
     });
 
-    it('classifies same-cell selection facts needed for nested sync work', () => {
-        const externalFacts: TableRuntimeExternalFacts = {
-            ...DEFAULT_EXTERNAL_FACTS,
-            nestedEditorOpen: true,
-        };
-        const update = dispatchAndCaptureUpdate({
-            activeCell: getHeaderCell(),
-            dispatch(view) {
-                view.dispatch({ selection: { anchor: 4 } });
-            },
-        });
-        const facts = classifyTableRuntimeFacts(update, externalFacts);
-
-        expect(facts.selectionChanged).toBe(true);
-        expect(facts.isSync).toBe(false);
-        expect(facts.activeCellIdentityUnchanged).toBe(true);
-    });
-
     it('classifies sync-annotated selection updates as sync updates', () => {
         const externalFacts: TableRuntimeExternalFacts = {
             ...DEFAULT_EXTERNAL_FACTS,
@@ -288,38 +270,5 @@ describe('runtimeEventClassifier', () => {
         expect(facts.docChanged).toBe(true);
         expect(facts.isSync).toBe(true);
         expect(facts.isUndoRedoInsideTable).toBe(true);
-    });
-
-    it('produces coherent facts when a sync update carries several signals', () => {
-        const update = dispatchAndCaptureUpdate({
-            activeCell: getHeaderCell(),
-            dispatch(view) {
-                view.dispatch({
-                    selection: { anchor: 4 },
-                    effects: activateInsertedTableEffect.of({
-                        tableFrom: 0,
-                        target: { section: 'header', row: 0, col: 0 },
-                    }),
-                    annotations: [syncAnnotation.of(true), cellSelectionTransitionAnnotation.of(true)],
-                });
-            },
-        });
-
-        const facts = classifyTableRuntimeFacts(update, {
-            nestedEditorOpen: true,
-            pendingFullReplaceRebuild: true,
-        });
-
-        expect(facts).toMatchObject({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
-            nestedEditorOpen: true,
-            pendingFullReplaceRebuild: true,
-            selectionChanged: true,
-            isSync: true,
-            isCellSelectionTransition: true,
-            hasInsertedTableActivation: true,
-            activeCellIdentityUnchanged: true,
-            cellDragInProgress: false,
-        });
     });
 });

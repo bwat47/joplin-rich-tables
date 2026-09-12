@@ -268,11 +268,8 @@ describe('computePinnedFixedPlacement', () => {
 });
 
 describe('isFinitePoint', () => {
-    it('accepts finite coordinates', () => {
+    it('accepts only placements with two finite coordinates', () => {
         expect(isFinitePoint({ x: 0, y: -12.5 })).toBe(true);
-    });
-
-    it('rejects NaN and Infinity coordinates', () => {
         expect(isFinitePoint({ x: Number.NaN, y: 0 })).toBe(false);
         expect(isFinitePoint({ x: 0, y: Number.POSITIVE_INFINITY })).toBe(false);
     });
