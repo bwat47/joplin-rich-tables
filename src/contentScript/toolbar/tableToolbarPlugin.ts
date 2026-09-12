@@ -238,26 +238,24 @@ export class TableToolbarPlugin {
             key: this,
             read: () => null,
             write: () => {
-                void this.updatePosition();
+                this.updatePosition();
             },
         });
     }
 
-    private async updatePosition() {
-        if (!this.currentActiveCell) {
+    private updatePosition(): void {
+        if (this.destroyed) {
+            return;
+        }
+
+        const activeCell = this.currentActiveCell;
+        if (!activeCell) {
             this.cleanupPositioning();
             this.hideToolbar();
             return;
         }
 
-        this.ensureButtonsInitialized();
-        if (this.destroyed || !this.currentActiveCell) {
-            this.cleanupPositioning();
-            this.hideToolbar();
-            return;
-        }
-
-        const widgetElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
+        const widgetElement = findTableWidgetElement(this.view, makeTableId(activeCell.tableFrom));
         const tableElement = widgetElement && findWidgetTableElement(widgetElement);
 
         if (!widgetElement || !tableElement) {
