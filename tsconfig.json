@@ -6,6 +6,7 @@
         "jsx": "react",
         "allowJs": true,
         "esModuleInterop": true,
+        "skipLibCheck": true,
         "moduleResolution": "bundler",
         "types": ["node", "vitest/globals"],
         "paths": {
