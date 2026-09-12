@@ -317,6 +317,22 @@ describe('MarkdownTable', () => {
             ['B1', 'B2'],
         ]);
 
+        const clearedHeader = table.clearRow('header', 0);
+        expect(clearedHeader.alignments).toEqual(['left', 'right']);
+        expect(clearedHeader.headerCells).toEqual(['', '']);
+        expect(clearedHeader.bodyRows).toEqual([
+            ['A1', 'A2'],
+            ['B1', 'B2'],
+        ]);
+
+        const clearedColumn = table.clearColumn(1);
+        expect(clearedColumn.alignments).toEqual(['left', 'right']);
+        expect(clearedColumn.headerCells).toEqual(['H1', '']);
+        expect(clearedColumn.bodyRows).toEqual([
+            ['A1', ''],
+            ['B1', ''],
+        ]);
+
         const clearedAll = table.clearAllCells();
         expect(clearedAll.alignments).toEqual(['left', 'right']);
         expect(clearedAll.headerCells).toEqual(['', '']);
