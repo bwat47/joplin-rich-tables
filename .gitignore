@@ -16,3 +16,4 @@ prompts/
 .repowise/
 .claude/
 *.mcp.json
+.fallowrc.json
