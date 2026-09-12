@@ -95,7 +95,7 @@ describe('createUndoScrollPreservation', () => {
         view.destroy();
     });
 
-    it('leaves the undo transaction untouched when the active cell no longer resolves', () => {
+    it('does not carry a scroll snapshot when the active cell no longer resolves', () => {
         const { view, dispatchedEffects } = createHarness({
             tableFrom: 0,
             section: 'body',
