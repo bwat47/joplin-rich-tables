@@ -163,6 +163,95 @@ describe('MarkdownTable', () => {
         });
     });
 
+    it('inserts body rows before and after the target row', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+            ],
+        });
+
+        expect(table.insertRowRelativeTo('body', 0, 'before').bodyRows).toEqual([
+            ['', ''],
+            ['A1', 'A2'],
+            ['B1', 'B2'],
+        ]);
+        expect(table.insertRowRelativeTo('body', 0, 'after').bodyRows).toEqual([
+            ['A1', 'A2'],
+            ['', ''],
+            ['B1', 'B2'],
+        ]);
+    });
+
+    it('inserts columns before and after the target column with unset alignment', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        const insertedBefore = table.insertColumn(1, 'before');
+        expect(insertedBefore.headerCells).toEqual(['H1', '', 'H2']);
+        expect(insertedBefore.alignments).toEqual(['left', null, 'right']);
+        expect(insertedBefore.bodyRows).toEqual([['A1', '', 'A2']]);
+
+        const insertedAfter = table.insertColumn(0, 'after');
+        expect(insertedAfter.headerCells).toEqual(['H1', '', 'H2']);
+        expect(insertedAfter.alignments).toEqual(['left', null, 'right']);
+        expect(insertedAfter.bodyRows).toEqual([['A1', '', 'A2']]);
+    });
+
+    it('deletes a body row and a column by index', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+            ],
+        });
+
+        const withoutFirstRow = table.deleteRowAt('body', 0);
+        expect(withoutFirstRow.headerCells).toEqual(['H1', 'H2']);
+        expect(withoutFirstRow.bodyRows).toEqual([['B1', 'B2']]);
+
+        const withoutFirstColumn = table.deleteColumn(0);
+        expect(withoutFirstColumn.headerCells).toEqual(['H2']);
+        expect(withoutFirstColumn.alignments).toEqual(['right']);
+        expect(withoutFirstColumn.bodyRows).toEqual([['A2'], ['B2']]);
+    });
+
+    it('does not delete the final column', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1'],
+            alignments: ['left'],
+            bodyRows: [['A1'], ['B1']],
+        });
+
+        const unchanged = table.deleteColumn(0);
+
+        expect(unchanged).toBe(table);
+        expect(unchanged.headerCells).toEqual(['H1']);
+        expect(unchanged.alignments).toEqual(['left']);
+        expect(unchanged.bodyRows).toEqual([['A1'], ['B1']]);
+    });
+
+    it('keeps a header-only table when deleting the last body row', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        const headerOnly = table.deleteRowAt('body', 0);
+
+        expect(headerOnly.headerCells).toEqual(['H1', 'H2']);
+        expect(headerOnly.alignments).toEqual(['left', 'right']);
+        expect(headerOnly.bodyRows).toEqual([]);
+    });
+
     it('keeps header semantics for row operations', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1', 'H2'],
@@ -188,6 +277,26 @@ describe('MarkdownTable', () => {
         const movedFirstBodyUp = table.moveRow('body', 0, 'up');
         expect(movedFirstBodyUp.headerCells).toEqual(['A1', 'A2']);
         expect(movedFirstBodyUp.bodyRows[0]).toEqual(['H1', 'H2']);
+    });
+
+    it('moves adjacent body rows without changing the header or alignments', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+            ],
+        });
+
+        const moved = table.moveRow('body', 0, 'down');
+
+        expect(moved.headerCells).toEqual(['H1', 'H2']);
+        expect(moved.alignments).toEqual(['left', 'right']);
+        expect(moved.bodyRows).toEqual([
+            ['B1', 'B2'],
+            ['A1', 'A2'],
+        ]);
     });
 
     it('treats moves past the grid edge and unaddressable rows as no-ops', () => {
@@ -241,6 +350,22 @@ describe('MarkdownTable', () => {
         expect(clearedRow.bodyRows).toEqual([
             ['', ''],
             ['B1', 'B2'],
+        ]);
+
+        const clearedHeader = table.clearRow('header', 0);
+        expect(clearedHeader.alignments).toEqual(['left', 'right']);
+        expect(clearedHeader.headerCells).toEqual(['', '']);
+        expect(clearedHeader.bodyRows).toEqual([
+            ['A1', 'A2'],
+            ['B1', 'B2'],
+        ]);
+
+        const clearedColumn = table.clearColumn(1);
+        expect(clearedColumn.alignments).toEqual(['left', 'right']);
+        expect(clearedColumn.headerCells).toEqual(['H1', '']);
+        expect(clearedColumn.bodyRows).toEqual([
+            ['A1', ''],
+            ['B1', ''],
         ]);
 
         const clearedAll = table.clearAllCells();

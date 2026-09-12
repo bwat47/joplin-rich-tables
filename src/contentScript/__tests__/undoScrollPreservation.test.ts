@@ -1,4 +1,5 @@
 import { markdown } from '@codemirror/lang-markdown';
+import type { StateEffect, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { vi, type Mock } from 'vitest';
@@ -17,21 +18,38 @@ const markdownExtension = markdown({
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const mockIsNestedEditorOpen = isNestedEditorOpen as Mock;
 
-function createViewWithActiveCell(activeCell: ActiveCell): EditorView {
+interface UndoHarness {
+    view: EditorView;
+    /** Effects carried by every transaction dispatched after setup. */
+    dispatchedEffects: () => readonly StateEffect<unknown>[];
+}
+
+function createHarness(activeCell: ActiveCell): UndoHarness {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
 
+    const transactions: Transaction[] = [];
     let view: EditorView;
     view = new EditorView({
         parent,
-        extensions: [markdownExtension, activeCellField, createUndoScrollPreservation(() => view)],
+        extensions: [
+            markdownExtension,
+            activeCellField,
+            createUndoScrollPreservation(() => view),
+            EditorView.updateListener.of((update) => transactions.push(...update.transactions)),
+        ],
         doc: TABLE_DOC,
     });
     view.dispatch({
         effects: setActiveCellEffect.of(activeCell),
     });
+    // Only the transactions under test matter; drop the ones that staged the active cell.
+    transactions.length = 0;
 
-    return view;
+    return {
+        view,
+        dispatchedEffects: () => transactions.flatMap((transaction) => [...transaction.effects]),
+    };
 }
 
 function dispatchUndoEdit(view: EditorView): void {
@@ -46,40 +64,48 @@ function dispatchUndoEdit(view: EditorView): void {
     });
 }
 
+/**
+ * `EditorView.scrollSnapshot()` produces a `ScrollTarget` flagged `isSnapshot`, distinguishing
+ * a restore-the-viewport effect from an ordinary `scrollIntoView` request. The effect type
+ * itself is not exported, so the flag is the observable marker available to a test.
+ */
+function isScrollSnapshotEffect(effect: StateEffect<unknown>): boolean {
+    const value = effect.value;
+    return typeof value === 'object' && value !== null && (value as { isSnapshot?: unknown }).isSnapshot === true;
+}
+
 describe('createUndoScrollPreservation', () => {
     beforeEach(() => {
         mockIsNestedEditorOpen.mockReset();
         mockIsNestedEditorOpen.mockReturnValue(true);
     });
 
-    it('preserves scroll for undo in a resolved active cell', () => {
-        const view = createViewWithActiveCell({
+    it('carries a scroll snapshot on undo in a resolved active cell', () => {
+        const { view, dispatchedEffects } = createHarness({
             tableFrom: 0,
             section: 'body',
             row: 0,
             col: 0,
         });
-        const scrollSnapshotSpy = vi.spyOn(view, 'scrollSnapshot');
 
         dispatchUndoEdit(view);
 
-        expect(scrollSnapshotSpy).toHaveBeenCalledTimes(1);
+        expect(dispatchedEffects().filter(isScrollSnapshotEffect)).toHaveLength(1);
 
         view.destroy();
     });
 
-    it('does not preserve scroll for undo when the active cell no longer resolves', () => {
-        const view = createViewWithActiveCell({
+    it('does not carry a scroll snapshot when the active cell no longer resolves', () => {
+        const { view, dispatchedEffects } = createHarness({
             tableFrom: 0,
             section: 'body',
             row: 0,
             col: 99,
         });
-        const scrollSnapshotSpy = vi.spyOn(view, 'scrollSnapshot');
 
         dispatchUndoEdit(view);
 
-        expect(scrollSnapshotSpy).not.toHaveBeenCalled();
+        expect(dispatchedEffects().some(isScrollSnapshotEffect)).toBe(false);
 
         view.destroy();
     });
