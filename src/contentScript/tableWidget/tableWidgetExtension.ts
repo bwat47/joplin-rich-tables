@@ -17,7 +17,7 @@ import { cellDragField } from '../tableState/cellDragState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
 import { insertedTableActivationField } from '../tableState/insertedTableActivation';
-import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboard';
+import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboardPlugin';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';

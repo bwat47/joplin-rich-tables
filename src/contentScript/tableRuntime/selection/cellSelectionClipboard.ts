@@ -1,5 +1,5 @@
 import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
-import { EditorView, ViewPlugin } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 import {
     ClipboardTableFragment,
     MarkdownTable,
@@ -26,7 +26,6 @@ import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords, TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
-import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { clamp } from '../../shared/numberUtils';
 import { sanitizeLocalText } from '../../shared/cellTextNormalization';
 
@@ -493,7 +492,7 @@ function resolveSelectionClipboardCopy(event: ClipboardEvent, view: EditorView):
     return { clipboardData: event.clipboardData, selection, markdown };
 }
 
-function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
+export function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
     const copy = resolveSelectionClipboardCopy(event, view);
     if (!copy) {
         return false;
@@ -504,7 +503,7 @@ function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
     return true;
 }
 
-function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
+export function handleSelectionCut(event: ClipboardEvent, view: EditorView): boolean {
     const copy = resolveSelectionClipboardCopy(event, view);
     if (!copy) {
         return false;
@@ -573,37 +572,3 @@ export function handleTableClipboardPaste(
     event.preventDefault();
     return true;
 }
-
-export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
-    class {
-        private readonly onCopy: (event: ClipboardEvent) => void;
-        private readonly onCut: (event: ClipboardEvent) => void;
-        private readonly onPaste: (event: ClipboardEvent) => void;
-
-        constructor(private readonly view: EditorView) {
-            this.onCopy = (event) => {
-                handleSelectionCopy(event, this.view);
-            };
-            this.onCut = (event) => {
-                handleSelectionCut(event, this.view);
-            };
-            this.onPaste = (event) => {
-                handleTableClipboardPaste(event, this.view, {
-                    nestedEditorOpen: isNestedEditorOpen(this.view),
-                });
-            };
-
-            const doc = this.view.dom.ownerDocument;
-            doc.addEventListener('copy', this.onCopy, true);
-            doc.addEventListener('cut', this.onCut, true);
-            doc.addEventListener('paste', this.onPaste, true);
-        }
-
-        destroy(): void {
-            const doc = this.view.dom.ownerDocument;
-            doc.removeEventListener('copy', this.onCopy, true);
-            doc.removeEventListener('cut', this.onCut, true);
-            doc.removeEventListener('paste', this.onPaste, true);
-        }
-    }
-);
