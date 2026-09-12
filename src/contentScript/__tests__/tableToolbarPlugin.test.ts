@@ -1,8 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EditorView } from '@codemirror/view';
-import type { ActiveCell } from '../tableState/activeCellState';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import {
+    activeCellField,
+    clearActiveCellEffect,
+    setActiveCellEffect,
+    type ActiveCell,
+} from '../tableState/activeCellState';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 
 const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOpen, mockRefocusNestedEditor } =
     vi.hoisted(() => ({
@@ -25,7 +33,9 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
     refocusNestedEditor: mockRefocusNestedEditor,
 }));
 
-import { TableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
+import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
+
+const createdViews: EditorView[] = [];
 
 function createCell(): ActiveCell {
     return {
@@ -37,15 +47,14 @@ function createCell(): ActiveCell {
 }
 
 function createView(): EditorView {
-    const dom = document.createElement('div');
-    document.body.appendChild(dom);
-    return {
-        dom,
-        state: {
-            doc: { length: 0 },
-            facet: () => defaultHostEditorConfig(),
-        },
-    } as unknown as EditorView;
+    const view = new EditorView({
+        parent: document.body,
+        state: EditorState.create({
+            extensions: [activeCellField, hostEditorConfigFacet.of(defaultHostEditorConfig()), tableToolbarPlugin],
+        }),
+    });
+    createdViews.push(view);
+    return view;
 }
 
 function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
@@ -67,8 +76,8 @@ function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
     } as unknown as ResolvedActiveCell;
 }
 
-function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLButtonElement {
-    const button = plugin.dom.querySelector(`button[aria-label="${ariaLabel}"]`);
+function getToolbarButton(view: EditorView, ariaLabel: string): HTMLButtonElement {
+    const button = view.dom.querySelector(`button[aria-label="${ariaLabel}"]`);
     if (!(button instanceof HTMLButtonElement)) {
         throw new Error(`Missing toolbar button: ${ariaLabel}`);
     }
@@ -76,99 +85,122 @@ function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLBu
     return button;
 }
 
-function setCurrentActiveCell(plugin: TableToolbarPlugin, cell: ActiveCell): void {
-    Reflect.set(plugin as unknown as object, 'currentActiveCell', cell);
-}
-
-function createToolbarButtons(plugin: TableToolbarPlugin): void {
-    const createButtons = Reflect.get(plugin as unknown as object, 'createButtons');
-    if (typeof createButtons !== 'function') {
-        throw new Error('Missing createButtons on toolbar plugin');
+function getToolbar(view: EditorView): HTMLElement {
+    const toolbar = view.dom.querySelector(`.${CLASS_FLOATING_TOOLBAR}`);
+    if (!(toolbar instanceof HTMLElement)) {
+        throw new Error('Missing toolbar element');
     }
 
-    createButtons.call(plugin);
+    return toolbar;
+}
+
+function activateCell(view: EditorView, cell: ActiveCell): void {
+    view.dispatch({ effects: setActiveCellEffect.of(cell) });
+}
+
+function clearActiveCell(view: EditorView): void {
+    view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
 }
 
 describe('tableToolbarPlugin', () => {
     beforeEach(() => {
-        document.body.innerHTML = '';
         vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        for (const view of createdViews.splice(0)) {
+            view.destroy();
+        }
+        document.body.replaceChildren();
+    });
+
+    it('creates toolbar buttons when a cell becomes active, before any positioning runs', () => {
+        const view = createView();
+        const toolbar = getToolbar(view);
+
+        expect(toolbar.querySelector('button')).toBeNull();
+
+        activateCell(view, createCell());
+
+        // No measure cycle has run, so this asserts button creation is independent of positioning.
+        expect(getToolbarButton(view, 'Move row up')).toBeInstanceOf(HTMLButtonElement);
     });
 
     it('refocuses the nested editor when a toolbar action is a no-op', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
-        setCurrentActiveCell(plugin, cell);
-        createToolbarButtons(plugin);
+        activateCell(view, cell);
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(false);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Move row up').click();
+        getToolbarButton(view, 'Move row up').click();
 
         expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
-
-        plugin.destroy();
     });
 
     it('does not refocus the nested editor after a handled toolbar action', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
-        setCurrentActiveCell(plugin, cell);
-        createToolbarButtons(plugin);
+        activateCell(view, cell);
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(true);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Move row up').click();
+        getToolbarButton(view, 'Move row up').click();
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).not.toHaveBeenCalled();
-
-        plugin.destroy();
     });
 
     it('does not run a toolbar action when the active cell no longer resolves', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
 
-        setCurrentActiveCell(plugin, createCell());
-        createToolbarButtons(plugin);
+        activateCell(view, createCell());
         mockGetResolvedActiveCell.mockReturnValue(null);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Move row up').click();
+        getToolbarButton(view, 'Move row up').click();
 
         expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
         expect(mockRunStructuralAction).not.toHaveBeenCalled();
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
-
-        plugin.destroy();
     });
 
     it('routes the ascending sort button through the active column action', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
-        setCurrentActiveCell(plugin, cell);
-        createToolbarButtons(plugin);
+        activateCell(view, cell);
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Sort rows by column (A to Z)').click();
+        getToolbarButton(view, 'Sort rows by column (A to Z)').click();
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'sortColumnAscending', resolvedCell);
+    });
 
-        plugin.destroy();
+    it('hides the toolbar when the active cell is cleared', () => {
+        const view = createView();
+        const toolbar = getToolbar(view);
+
+        activateCell(view, createCell());
+        // Positioning never completes here: there is no table widget to anchor to, so the
+        // toolbar is left in the hidden pre-positioning state. Stage the visible state that a
+        // successful placement would have produced, so the assertions below cannot pass by default.
+        toolbar.style.display = 'flex';
+        toolbar.style.visibility = 'visible';
+
+        clearActiveCell(view);
+
+        expect(toolbar.style.display).toBe('none');
+        expect(toolbar.style.visibility).toBe('hidden');
     });
 });

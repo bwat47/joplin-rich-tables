@@ -62,7 +62,7 @@ interface ToolbarGeometry {
     viewport: ViewportBounds;
 }
 
-export class TableToolbarPlugin {
+class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
     private cleanupAutoUpdate: (() => void) | null = null;
@@ -88,6 +88,7 @@ export class TableToolbarPlugin {
         // Active cell appeared or disappeared
         if (!!prevActiveCell !== !!activeCell) {
             if (activeCell) {
+                this.ensureButtonsInitialized();
                 // Defer until widget DOM is ready (runs in CM's measure cycle after DOM update)
                 this.schedulePositionUpdate();
             } else {
@@ -237,26 +238,24 @@ export class TableToolbarPlugin {
             key: this,
             read: () => null,
             write: () => {
-                void this.updatePosition();
+                this.updatePosition();
             },
         });
     }
 
-    private async updatePosition() {
-        if (!this.currentActiveCell) {
+    private updatePosition(): void {
+        if (this.destroyed) {
+            return;
+        }
+
+        const activeCell = this.currentActiveCell;
+        if (!activeCell) {
             this.cleanupPositioning();
             this.hideToolbar();
             return;
         }
 
-        this.ensureButtonsInitialized();
-        if (this.destroyed || !this.currentActiveCell) {
-            this.cleanupPositioning();
-            this.hideToolbar();
-            return;
-        }
-
-        const widgetElement = findTableWidgetElement(this.view, makeTableId(this.currentActiveCell.tableFrom));
+        const widgetElement = findTableWidgetElement(this.view, makeTableId(activeCell.tableFrom));
         const tableElement = widgetElement && findWidgetTableElement(widgetElement);
 
         if (!widgetElement || !tableElement) {
