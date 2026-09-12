@@ -1,367 +1,174 @@
-import { EditorView } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
-import { vi, type Mock } from 'vitest';
-import type { MarkdownTable } from '../tableModel/MarkdownTable';
-import { parseTableFixture } from './testUtils';
+import type { EditorView } from '@codemirror/view';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { getResolvedActiveCell, resolveCellWithinResolvedTable } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { beginOpenCellRequestEffect, getPendingOpenCellRequest } from '../tableRuntime/openCellRequest';
+import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
-
-import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-import { insertRowAtBottom } from '../tableRuntime/operations/structuralOperations';
-import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-
-// Mock dependencies (not activeCellState - we need the real StateEffect identity)
-vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
-    getResolvedActiveCell: vi.fn(),
-    resolveCellWithinResolvedTable: vi.fn(),
-}));
-vi.mock('../tableRuntime/operations/structuralOperations', () => ({
-    __esModule: true,
-    insertRowAtBottom: vi.fn(),
-}));
+import { createInteractiveTableHarness, type MutableTestView } from './interactiveTableTestHarness';
 
 /**
- * The table serializes to exactly what it already spans, padding included, so entry
- * finds nothing to repair and these tests stay about navigation targets.
+ * Blank lines fence the table off from the surrounding prose: without them the Markdown
+ * parser reads the adjacent line as a ragged table row. The table is already canonical, so
+ * entry finds nothing to repair and every document assertion below is about navigation.
  */
-const TABLE_TEXT = '| header |\n| --- |\n| body |';
-const PADDED_TABLE_TEXT = `\n${TABLE_TEXT}\n`;
+const TABLE_LINES = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'];
+const DOC = ['before', '', ...TABLE_LINES, '', 'after'].join('\n');
+const TABLE_FROM = DOC.indexOf(TABLE_LINES[0]);
+const TABLE_TO = TABLE_FROM + TABLE_LINES.join('\n').length;
+const DOC_WITH_APPENDED_ROW = ['before', '', ...TABLE_LINES, '|  |  |', '', 'after'].join('\n');
+
+/** `exitTableToAdjacentLine` leaves through the character just outside the table span. */
+const EXIT_BEFORE_ANCHOR = TABLE_FROM - 1;
+const EXIT_AFTER_ANCHOR = TABLE_TO + 1;
+
+/** A table flush against the start of the document, so exiting before it has nowhere to go. */
+const DOC_AT_START = [...TABLE_LINES, '', 'after'].join('\n');
+
+function activeCellAt(section: 'header' | 'body', row: number, col: number, tableFrom = TABLE_FROM): ActiveCell {
+    return { tableFrom, section, row, col };
+}
+
+function openHarness(params: { doc?: string; activeCell?: ActiveCell }): {
+    view: EditorView;
+    focus: MutableTestView['focus'];
+} {
+    const { view } = createInteractiveTableHarness({
+        doc: params.doc ?? DOC,
+        activeCell: params.activeCell,
+    });
+
+    return { view, focus: (view as unknown as MutableTestView).focus };
+}
 
 describe('navigateCell', () => {
-    let mockView: EditorView;
-    let mockState: EditorState;
-    let mockDispatch: Mock;
-    let currentCtx: {
-        from: number;
-        to: number;
-        text: string;
-        table: MarkdownTable;
-        cellRanges: {
-            headers: Array<Record<string, never>>;
-            rows: Array<Array<Record<string, never>>>;
-        };
-    } | null;
+    it('reports the keypress unhandled when no cell is active', () => {
+        const { view } = openHarness({});
 
-    beforeEach(() => {
-        mockDispatch = vi.fn();
-        currentCtx = null;
-        mockState = {
-            field: vi.fn(),
-            doc: {
-                length: 100,
-                sliceString: () => '',
-            },
-        } as unknown as EditorState;
-
-        mockView = {
-            state: mockState,
-            dispatch: mockDispatch,
-            focus: vi.fn(),
-            contentDOM: {
-                focus: vi.fn(),
-                querySelectorAll: vi.fn().mockReturnValue([]),
-            },
-            dom: {
-                querySelector: vi.fn(),
-                querySelectorAll: vi.fn().mockReturnValue([]),
-            },
-            posAtDOM: vi.fn().mockReturnValue(0), // Mock for findCellElement
-        } as unknown as EditorView;
-
-        // Reset mocks
-        (getResolvedActiveCell as Mock).mockReset();
-        (resolveCellWithinResolvedTable as Mock).mockReset();
-        (insertRowAtBottom as Mock).mockReset();
+        expect(navigateCell(view, 'next')).toBe(false);
     });
 
-    const getEffects = () => {
-        const effects = mockDispatch.mock.calls[0]?.[0]?.effects;
-        if (!effects) return [];
-        return Array.isArray(effects) ? effects : [effects];
-    };
-
-    const getSetActiveCellValue = () => getEffects().find((effect) => effect.is?.(setActiveCellEffect))?.value;
-    const getOpenRequestValue = () => getEffects().find((effect) => effect.is?.(triggerOpenCellRequestEffect))?.value;
-    const getBeginRequestValue = () => getEffects().find((effect) => effect.is?.(beginOpenCellRequestEffect))?.value;
-
-    const setupTable = (rows: number, cols: number) => {
-        const headers = Array(cols).fill({});
-        const bodyRows = Array(rows).fill(Array(cols).fill({}));
-        currentCtx = {
-            from: 0,
-            to: 100,
-            text: PADDED_TABLE_TEXT,
-            table: parseTableFixture(TABLE_TEXT),
-            cellRanges: {
-                headers,
-                rows: bodyRows,
-            },
-        };
-
-        (resolveCellWithinResolvedTable as Mock).mockImplementation(
-            (_resolved: unknown, target: { section: 'header' | 'body'; row: number; col: number }) => ({
-                ctx: currentCtx,
-                activeCell: {
-                    tableFrom: 0,
-                    section: target.section,
-                    row: target.row,
-                    col: target.col,
-                },
-                editableFrom: 10,
-                editableTo: 20,
-            })
-        );
-
-        return currentCtx;
-    };
-
-    const setupActiveCell = (section: 'header' | 'body', row: number, col: number) => {
-        if (!currentCtx) {
-            throw new Error('setupTable must be called before setupActiveCell');
-        }
-
-        const activeCell = {
-            tableFrom: 0,
-            section,
-            row,
-            col,
-        };
-
-        const resolvedCell = {
-            activeCell,
-            contentFrom: 10,
-            contentTo: 20,
-            editableFrom: 10,
-            editableTo: 20,
-            ctx: currentCtx,
-        };
-
-        (getResolvedActiveCell as Mock).mockReturnValue(resolvedCell);
-
-        return resolvedCell;
-    };
-
-    it('should return false if no active cell', () => {
-        (getResolvedActiveCell as Mock).mockReturnValue(null);
-        expect(navigateCell(mockView, 'next')).toBe(false);
-    });
-
-    it('should navigate next within header', () => {
-        setupTable(1, 2); // 2 cols
-        setupActiveCell(SECTION_HEADER, 0, 0);
-
-        navigateCell(mockView, 'next');
-
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({
-                effects: expect.anything(),
-            })
-        );
-
-        expect(getSetActiveCellValue()).toMatchObject({
-            section: SECTION_HEADER,
-            row: 0,
-            col: 1,
+    it('swallows the keypress while an open-cell request is still suppressing navigation', () => {
+        const { view } = openHarness({ activeCell: activeCellAt(SECTION_HEADER, 0, 0) });
+        view.dispatch({
+            effects: beginOpenCellRequestEffect.of({
+                requestId: 'pending-open',
+                activeCell: activeCellAt(SECTION_HEADER, 0, 1),
+                suppressKeys: true,
+            }),
         });
-        const beginRequest = getBeginRequestValue();
-        expect(beginRequest).toMatchObject({
+
+        expect(navigateCell(view, 'next')).toBe(true);
+        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_HEADER, row: 0, col: 0 });
+    });
+
+    it('opens the next cell and pends the request that reopens it', () => {
+        const { view } = openHarness({ activeCell: activeCellAt(SECTION_HEADER, 0, 0) });
+
+        expect(navigateCell(view, 'next', { initialCursorPos: 'end' })).toBe(true);
+
+        const activeCell = getActiveCell(view.state);
+        expect(activeCell).toMatchObject({ section: SECTION_HEADER, row: 0, col: 1 });
+        expect(view.state.selection.main.anchor).toBe(DOC.indexOf('H2'));
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            activeCell,
+            initialCursorPos: 'end',
             suppressKeys: true,
         });
-        expect(getOpenRequestValue()).toEqual({ requestId: beginRequest.requestId });
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({
-                selection: { anchor: 10 },
-            })
-        );
     });
 
-    it('should stop at end of table (next)', () => {
-        setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 1); // Last cell in table
+    it('stops at the last cell rather than creating a row', () => {
+        const { view } = openHarness({ activeCell: activeCellAt(SECTION_BODY, 1, 1) });
 
-        const result = navigateCell(mockView, 'next');
-
-        expect(result).toBe(true);
-        expect(mockDispatch).not.toHaveBeenCalled(); // No move
-        expect(insertRowAtBottom).not.toHaveBeenCalled();
+        expect(navigateCell(view, 'next')).toBe(true);
+        expect(view.state.doc.toString()).toBe(DOC);
+        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_BODY, row: 1, col: 1 });
+        expect(view.state.selection.main.anchor).toBe(0);
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it('should add row at end of table with col 0 when Tab (next) with allowRowCreation', () => {
-        setupTable(1, 2);
-        const resolvedCell = setupActiveCell(SECTION_BODY, 0, 1); // Last cell, col 1
-        (insertRowAtBottom as Mock).mockReturnValue(true);
+    it('appends a row and opens its first cell for Tab past the last cell', () => {
+        const { view } = openHarness({ activeCell: activeCellAt(SECTION_BODY, 1, 1) });
 
-        const result = navigateCell(mockView, 'next', { allowRowCreation: true });
-        const openOptions = (insertRowAtBottom as Mock).mock.calls[0][3];
+        expect(navigateCell(view, 'next', { allowRowCreation: true })).toBe(true);
 
-        expect(result).toBe(true);
-        expect(insertRowAtBottom).toHaveBeenCalledWith(
-            mockView,
-            resolvedCell,
-            0,
-            expect.objectContaining({
-                suppressKeys: true,
-            })
-        );
-        expect(openOptions).toEqual(expect.objectContaining({ suppressKeys: true }));
+        expect(view.state.doc.toString()).toBe(DOC_WITH_APPENDED_ROW);
+        const activeCell = getActiveCell(view.state);
+        expect(activeCell).toMatchObject({ section: SECTION_BODY, row: 2, col: 0 });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            activeCell,
+            initialCursorPos: 'start',
+            suppressKeys: true,
+        });
     });
 
-    it('should add row at end of table with same col when Enter (down) with allowRowCreation', () => {
-        setupTable(1, 2);
-        const resolvedCell = setupActiveCell(SECTION_BODY, 0, 1); // Last row, col 1
-        (insertRowAtBottom as Mock).mockReturnValue(true);
+    it('appends a row and keeps the column for Enter past the last row', () => {
+        const { view } = openHarness({ activeCell: activeCellAt(SECTION_BODY, 1, 1) });
 
-        const result = navigateCell(mockView, 'down', { allowRowCreation: true });
-        expect(result).toBe(true);
-        expect(insertRowAtBottom).toHaveBeenCalledWith(
-            mockView,
-            resolvedCell,
-            1,
-            expect.objectContaining({
-                suppressKeys: true,
-            })
-        );
+        expect(navigateCell(view, 'down', { allowRowCreation: true })).toBe(true);
+
+        expect(view.state.doc.toString()).toBe(DOC_WITH_APPENDED_ROW);
+        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_BODY, row: 2, col: 1 });
     });
 
-    it('should NOT add row at end of table if allowRowCreation is false', () => {
-        setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 1);
+    it('leaves the table unchanged past the last cell when row creation is not allowed', () => {
+        const { view } = openHarness({ activeCell: activeCellAt(SECTION_BODY, 1, 1) });
 
-        const result = navigateCell(mockView, 'next', { allowRowCreation: false });
-
-        expect(result).toBe(true);
-        expect(insertRowAtBottom).not.toHaveBeenCalled();
+        expect(navigateCell(view, 'next', { allowRowCreation: false })).toBe(true);
+        expect(view.state.doc.toString()).toBe(DOC);
+        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_BODY, row: 1, col: 1 });
+        expect(view.state.selection.main.anchor).toBe(0);
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it('should not hand off focus when row creation fails', () => {
-        setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 1);
-        (insertRowAtBottom as Mock).mockReturnValue(false);
+    it.each([
+        ['up', activeCellAt(SECTION_HEADER, 0, 1), EXIT_BEFORE_ANCHOR],
+        ['previous', activeCellAt(SECTION_HEADER, 0, 0), EXIT_BEFORE_ANCHOR],
+        ['down', activeCellAt(SECTION_BODY, 1, 0), EXIT_AFTER_ANCHOR],
+        ['next', activeCellAt(SECTION_BODY, 1, 1), EXIT_AFTER_ANCHOR],
+    ] as const)('exits the table moving %s from the grid boundary', (direction, activeCell, exitAnchor) => {
+        const { view, focus } = openHarness({ activeCell });
 
-        const result = navigateCell(mockView, 'down', { allowRowCreation: true });
+        expect(navigateCell(view, direction, { exitTableAtBoundary: true })).toBe(true);
 
-        expect(result).toBe(true);
-        expect(mockView.focus).not.toHaveBeenCalled();
-    });
-
-    it('should exit above the table when moving up from the header boundary', () => {
-        const ctx = setupTable(2, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_HEADER, 0, 1);
-
-        const result = navigateCell(mockView, 'up', { exitTableAtBoundary: true });
-
-        expect(result).toBe(true);
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ selection: { anchor: 9 }, scrollIntoView: true })
-        );
-        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
-        expect(mockView.focus).toHaveBeenCalled();
-    });
-
-    it('should exit below the table when moving down from the final body row', () => {
-        const ctx = setupTable(2, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_BODY, 1, 0);
-
-        const result = navigateCell(mockView, 'down', { exitTableAtBoundary: true });
-
-        expect(result).toBe(true);
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ selection: { anchor: 90 }, scrollIntoView: true })
-        );
-        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
-        expect(mockView.focus).toHaveBeenCalled();
-    });
-
-    it('should exit above the table when moving left from the first cell', () => {
-        const ctx = setupTable(2, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_HEADER, 0, 0);
-
-        const result = navigateCell(mockView, 'previous', { exitTableAtBoundary: true });
-
-        expect(result).toBe(true);
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ selection: { anchor: 9 }, scrollIntoView: true })
-        );
-        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
-        expect(mockView.focus).toHaveBeenCalled();
-    });
-
-    it('should exit below the table when moving right from the final cell', () => {
-        const ctx = setupTable(2, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_BODY, 1, 1);
-
-        const result = navigateCell(mockView, 'next', { exitTableAtBoundary: true });
-
-        expect(result).toBe(true);
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ selection: { anchor: 90 }, scrollIntoView: true })
-        );
-        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(true);
-        expect(mockView.focus).toHaveBeenCalled();
+        expect(view.state.selection.main.anchor).toBe(exitAnchor);
+        expect(view.state.doc.lineAt(exitAnchor).text).toBe('');
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(focus).toHaveBeenCalled();
     });
 
     // Table exit is requested for every direction, so a row wrap - the nearest thing to a
     // grid edge that is still a legal move - must keep navigating rather than leaving.
-    it('should wrap to the previous row rather than exit when table exit is requested mid-grid', () => {
-        const ctx = setupTable(2, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_BODY, 0, 0);
+    it.each([
+        ['previous', activeCellAt(SECTION_BODY, 0, 0), { section: SECTION_HEADER, row: 0, col: 1 }],
+        ['next', activeCellAt(SECTION_BODY, 0, 1), { section: SECTION_BODY, row: 1, col: 0 }],
+    ] as const)('wraps rather than exiting when %s crosses a row edge mid-grid', (direction, activeCell, expected) => {
+        const { view, focus } = openHarness({ activeCell });
 
-        const result = navigateCell(mockView, 'previous', { exitTableAtBoundary: true });
+        expect(navigateCell(view, direction, { exitTableAtBoundary: true })).toBe(true);
 
-        expect(result).toBe(true);
-        expect(getSetActiveCellValue()).toMatchObject({ section: SECTION_HEADER, row: 0, col: 1 });
-        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(false);
-        expect(mockView.focus).not.toHaveBeenCalled();
+        expect(getActiveCell(view.state)).toMatchObject(expected);
+        expect(focus).not.toHaveBeenCalled();
     });
 
-    it('should wrap to the next row rather than exit when table exit is requested mid-grid', () => {
-        const ctx = setupTable(2, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_BODY, 0, 1);
+    it('keeps boundary navigation blocked when table exit is not requested', () => {
+        const { view, focus } = openHarness({ activeCell: activeCellAt(SECTION_HEADER, 0, 0) });
 
-        const result = navigateCell(mockView, 'next', { exitTableAtBoundary: true });
+        expect(navigateCell(view, 'up')).toBe(true);
 
-        expect(result).toBe(true);
-        expect(getSetActiveCellValue()).toMatchObject({ section: SECTION_BODY, row: 1, col: 0 });
-        expect(getEffects().some((effect) => effect.is(clearActiveCellEffect))).toBe(false);
-        expect(mockView.focus).not.toHaveBeenCalled();
+        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_HEADER, row: 0, col: 0 });
+        expect(view.state.selection.main.anchor).toBe(0);
+        expect(focus).not.toHaveBeenCalled();
     });
 
-    it('should keep boundary navigation blocked when table exit is not requested', () => {
-        const ctx = setupTable(1, 2);
-        ctx.from = 10;
-        ctx.to = 89;
-        setupActiveCell(SECTION_HEADER, 0, 0);
+    it('stays blocked when the table sits against the document edge it would exit through', () => {
+        const { view, focus } = openHarness({
+            doc: DOC_AT_START,
+            activeCell: activeCellAt(SECTION_HEADER, 0, 0, 0),
+        });
 
-        const result = navigateCell(mockView, 'up');
+        expect(navigateCell(view, 'up', { exitTableAtBoundary: true })).toBe(true);
 
-        expect(result).toBe(true);
-        expect(mockDispatch).not.toHaveBeenCalled();
-        expect(mockView.focus).not.toHaveBeenCalled();
-    });
-
-    it('should remain blocked when no adjacent line exists at the document edge', () => {
-        const ctx = setupTable(1, 2);
-        ctx.from = 0;
-        setupActiveCell(SECTION_HEADER, 0, 0);
-
-        const result = navigateCell(mockView, 'up', { exitTableAtBoundary: true });
-
-        expect(result).toBe(true);
-        expect(mockDispatch).not.toHaveBeenCalled();
-        expect(mockView.focus).not.toHaveBeenCalled();
+        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_HEADER, row: 0, col: 0 });
+        expect(view.state.selection.main.anchor).toBe(0);
+        expect(focus).not.toHaveBeenCalled();
     });
 });
