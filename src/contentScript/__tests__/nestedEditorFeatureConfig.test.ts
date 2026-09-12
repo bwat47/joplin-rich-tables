@@ -4,10 +4,23 @@ import { describe, expect, it } from 'vitest';
 import { createNestedEditorFeatureExtensions } from '../nestedEditor/nestedEditorFeatureConfig';
 
 describe('nestedEditorFeatureConfig', () => {
-    it('returns valid close-bracket extensions when auto matching braces is enabled', () => {
+    it('inserts a matching close bracket when auto matching braces is enabled', () => {
         const extensions = createNestedEditorFeatureExtensions({ autoMatchingBraces: true, spellcheck: false });
-        expect(extensions.length).toBeGreaterThan(0);
-        expect(() => EditorState.create({ extensions })).not.toThrow();
+        const view = new EditorView({ state: EditorState.create({ extensions }) });
+
+        try {
+            const handled = view.state
+                .facet(EditorView.inputHandler)
+                .some((handler) =>
+                    handler(view, 0, 0, '(', () => view.state.update({ changes: { from: 0, insert: '(' } }))
+                );
+
+            expect(handled).toBe(true);
+            expect(view.state.doc.toString()).toBe('()');
+            expect(view.state.selection.main.anchor).toBe(1);
+        } finally {
+            view.destroy();
+        }
     });
 
     it('returns no extensions when all features are disabled', () => {
