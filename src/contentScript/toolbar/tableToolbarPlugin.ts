@@ -88,6 +88,7 @@ export class TableToolbarPlugin {
         // Active cell appeared or disappeared
         if (!!prevActiveCell !== !!activeCell) {
             if (activeCell) {
+                this.ensureButtonsInitialized();
                 // Defer until widget DOM is ready (runs in CM's measure cycle after DOM update)
                 this.schedulePositionUpdate();
             } else {
