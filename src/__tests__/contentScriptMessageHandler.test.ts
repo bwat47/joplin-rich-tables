@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createContentScriptMessageHandler } from '../contentScriptBridge/contentScriptMessageHandler';
+import { isHostEditorConfig } from '../contentScriptBridge/hostEditorConfigBridge';
 
 vi.mock('../logger', () => ({
     logger: {
@@ -97,45 +98,19 @@ describe('contentScriptMessageHandler', () => {
         });
     });
 
-    it('reads the host editor config', async () => {
+    it('routes host editor config requests to the config bridge', async () => {
         globalValues.mockResolvedValueOnce([true, true]);
-        values.mockResolvedValueOnce({
-            'tableAppearance.zebraStriping': true,
-            'floatingToolbar.showMoveButtons': false,
-            'floatingToolbar.showClearButtons': true,
-            'floatingToolbar.showAlignmentButtons': false,
-            'floatingToolbar.showDeleteTableButton': true,
-            'floatingToolbar.showSortButtons': false,
-        });
 
         const result = await handler({
             type: 'getHostEditorConfig',
         });
 
-        expect(globalValues).toHaveBeenCalledWith(['editor.autoMatchingBraces', 'spellChecker.enabled']);
-        expect(values).toHaveBeenCalledWith([
-            'tableAppearance.zebraStriping',
-            'floatingToolbar.showMoveButtons',
-            'floatingToolbar.showClearButtons',
-            'floatingToolbar.showAlignmentButtons',
-            'floatingToolbar.showDeleteTableButton',
-            'floatingToolbar.showSortButtons',
-        ]);
-        expect(result).toEqual({
-            nestedEditor: {
-                autoMatchingBraces: true,
-                spellcheck: true,
-            },
-            tableAppearance: {
-                zebraStriping: true,
-            },
-            toolbar: {
-                showMoveButtons: false,
-                showClearButtons: true,
-                showAlignmentButtons: false,
-                showDeleteTableButton: true,
-                showSortButtons: false,
-            },
+        // The bridge owns the settings keys and the normalized shape (see hostEditorConfigBridge
+        // tests); all this message type has to prove is that it reaches the bridge and returns
+        // host-supplied values rather than the defaults.
+        expect(isHostEditorConfig(result)).toBe(true);
+        expect(result).toMatchObject({
+            nestedEditor: { autoMatchingBraces: true, spellcheck: true },
         });
     });
 

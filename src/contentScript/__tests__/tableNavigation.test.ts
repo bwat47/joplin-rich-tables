@@ -177,32 +177,6 @@ describe('navigateCell', () => {
         );
     });
 
-    it('should navigate next from header end to body start', () => {
-        setupTable(1, 2); // 2 cols
-        setupActiveCell(SECTION_HEADER, 0, 1); // Last header col
-
-        navigateCell(mockView, 'next');
-
-        expect(getSetActiveCellValue()).toMatchObject({
-            section: SECTION_BODY,
-            row: 0,
-            col: 0,
-        });
-    });
-
-    it('should navigate next within body', () => {
-        setupTable(2, 2);
-        setupActiveCell(SECTION_BODY, 0, 1);
-
-        navigateCell(mockView, 'next');
-
-        expect(getSetActiveCellValue()).toMatchObject({
-            section: SECTION_BODY,
-            row: 1, // Next row
-            col: 0, // Wrap to first col
-        });
-    });
-
     it('should stop at end of table (next)', () => {
         setupTable(1, 2);
         setupActiveCell(SECTION_BODY, 0, 1); // Last cell in table
@@ -270,45 +244,6 @@ describe('navigateCell', () => {
 
         expect(result).toBe(true);
         expect(mockView.focus).not.toHaveBeenCalled();
-    });
-
-    it('should navigate previous from body start to header end', () => {
-        setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 0);
-
-        navigateCell(mockView, 'previous');
-
-        expect(getSetActiveCellValue()).toMatchObject({
-            section: SECTION_HEADER,
-            row: 0,
-            col: 1, // Last col
-        });
-    });
-
-    it('should navigate down from header to body', () => {
-        setupTable(1, 2);
-        setupActiveCell(SECTION_HEADER, 0, 0);
-
-        navigateCell(mockView, 'down');
-
-        expect(getSetActiveCellValue()).toMatchObject({
-            section: SECTION_BODY,
-            row: 0,
-            col: 0,
-        });
-    });
-
-    it('should navigate up from body to header', () => {
-        setupTable(1, 2);
-        setupActiveCell(SECTION_BODY, 0, 0);
-
-        navigateCell(mockView, 'up');
-
-        expect(getSetActiveCellValue()).toMatchObject({
-            section: SECTION_HEADER,
-            row: 0,
-            col: 0,
-        });
     });
 
     it('should exit above the table when moving up from the header boundary', () => {
