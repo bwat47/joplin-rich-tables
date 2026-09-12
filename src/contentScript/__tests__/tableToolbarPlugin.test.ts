@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EditorView } from '@codemirror/view';
-import type { ActiveCell } from '../tableState/activeCellState';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 
 const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOpen, mockRefocusNestedEditor } =
     vi.hoisted(() => ({
@@ -25,7 +27,7 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
     refocusNestedEditor: mockRefocusNestedEditor,
 }));
 
-import { TableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
+import { tableToolbarPlugin, type TableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
 function createCell(): ActiveCell {
     return {
@@ -37,15 +39,18 @@ function createCell(): ActiveCell {
 }
 
 function createView(): EditorView {
-    const dom = document.createElement('div');
-    document.body.appendChild(dom);
-    return {
-        dom,
-        state: {
-            doc: { length: 0 },
-            facet: () => defaultHostEditorConfig(),
-        },
-    } as unknown as EditorView;
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    return new EditorView({
+        parent,
+        state: EditorState.create({
+            extensions: [
+                activeCellField,
+                hostEditorConfigFacet.of(defaultHostEditorConfig()),
+                tableToolbarPlugin,
+            ],
+        }),
+    });
 }
 
 function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
@@ -76,17 +81,17 @@ function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLBu
     return button;
 }
 
-function setCurrentActiveCell(plugin: TableToolbarPlugin, cell: ActiveCell): void {
-    Reflect.set(plugin as unknown as object, 'currentActiveCell', cell);
-}
-
-function createToolbarButtons(plugin: TableToolbarPlugin): void {
-    const createButtons = Reflect.get(plugin as unknown as object, 'createButtons');
-    if (typeof createButtons !== 'function') {
-        throw new Error('Missing createButtons on toolbar plugin');
+function requireToolbarPlugin(view: EditorView): TableToolbarPlugin {
+    const plugin = view.plugin(tableToolbarPlugin);
+    if (!plugin) {
+        throw new Error('Expected table toolbar plugin');
     }
 
-    createButtons.call(plugin);
+    return plugin;
+}
+
+function activateCell(view: EditorView, cell: ActiveCell): void {
+    view.dispatch({ effects: setActiveCellEffect.of(cell) });
 }
 
 describe('tableToolbarPlugin', () => {
@@ -97,12 +102,11 @@ describe('tableToolbarPlugin', () => {
 
     it('refocuses the nested editor when a toolbar action is a no-op', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
+        const plugin = requireToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
-        setCurrentActiveCell(plugin, cell);
-        createToolbarButtons(plugin);
+        activateCell(view, cell);
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(false);
         mockIsNestedEditorOpen.mockReturnValue(true);
@@ -113,17 +117,16 @@ describe('tableToolbarPlugin', () => {
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
 
-        plugin.destroy();
+        view.destroy();
     });
 
     it('does not refocus the nested editor after a handled toolbar action', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
+        const plugin = requireToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
-        setCurrentActiveCell(plugin, cell);
-        createToolbarButtons(plugin);
+        activateCell(view, cell);
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(true);
         mockIsNestedEditorOpen.mockReturnValue(true);
@@ -133,15 +136,14 @@ describe('tableToolbarPlugin', () => {
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).not.toHaveBeenCalled();
 
-        plugin.destroy();
+        view.destroy();
     });
 
     it('does not run a toolbar action when the active cell no longer resolves', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
+        const plugin = requireToolbarPlugin(view);
 
-        setCurrentActiveCell(plugin, createCell());
-        createToolbarButtons(plugin);
+        activateCell(view, createCell());
         mockGetResolvedActiveCell.mockReturnValue(null);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
@@ -151,17 +153,16 @@ describe('tableToolbarPlugin', () => {
         expect(mockRunStructuralAction).not.toHaveBeenCalled();
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
 
-        plugin.destroy();
+        view.destroy();
     });
 
     it('routes the ascending sort button through the active column action', () => {
         const view = createView();
-        const plugin = new TableToolbarPlugin(view);
+        const plugin = requireToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
-        setCurrentActiveCell(plugin, cell);
-        createToolbarButtons(plugin);
+        activateCell(view, cell);
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(true);
 
@@ -169,6 +170,6 @@ describe('tableToolbarPlugin', () => {
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'sortColumnAscending', resolvedCell);
 
-        plugin.destroy();
+        view.destroy();
     });
 });
