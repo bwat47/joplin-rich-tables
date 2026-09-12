@@ -264,6 +264,26 @@ describe('MarkdownTable', () => {
         expect(movedFirstBodyUp.bodyRows[0]).toEqual(['H1', 'H2']);
     });
 
+    it('moves adjacent body rows without changing the header or alignments', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [
+                ['A1', 'A2'],
+                ['B1', 'B2'],
+            ],
+        });
+
+        const moved = table.moveRow('body', 0, 'down');
+
+        expect(moved.headerCells).toEqual(['H1', 'H2']);
+        expect(moved.alignments).toEqual(['left', 'right']);
+        expect(moved.bodyRows).toEqual([
+            ['B1', 'B2'],
+            ['A1', 'A2'],
+        ]);
+    });
+
     it('treats moves past the grid edge and unaddressable rows as no-ops', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1', 'H2'],
