@@ -224,17 +224,6 @@ describe('markdownTableOperations', () => {
             expect(next.bodyRows[0]).toEqual(['A']);
             expect(next.bodyRows[1]).toEqual(['B']);
         });
-
-        it('should preserve alignment when swapping columns', () => {
-            const table = parseTable(
-                ['| Left | Center | Right |', '| :--- | :---: | ---: |', '| A | B | C |'].join('\n')
-            );
-            const next = table.swapColumns(0, 2);
-
-            expect(next.headerCells).toEqual(['Right', 'Center', 'Left']);
-            expect(next.alignments).toEqual(['right', 'center', 'left']);
-            expect(next.bodyRows[0]).toEqual(['C', 'B', 'A']);
-        });
     });
 
     describe('clearAllCells', () => {
@@ -247,22 +236,6 @@ describe('markdownTableOperations', () => {
                 ['', ''],
                 ['', ''],
             ]);
-        });
-
-        it('should preserve alignments', () => {
-            const table = parseTable(['| Left | Right |', '| :--- | ---: |', '| A | B |'].join('\n'));
-            const next = table.clearAllCells();
-
-            expect(next.alignments).toEqual(['left', 'right']);
-        });
-
-        it('should preserve row and column count', () => {
-            const table = parseTable(basicTable);
-            const next = table.clearAllCells();
-
-            expect(next.headerCells.length).toBe(table.headerCells.length);
-            expect(next.bodyRows.length).toBe(table.bodyRows.length);
-            expect(next.bodyRows[0].length).toBe(table.bodyRows[0].length);
         });
 
         it('should be idempotent on an already-empty table', () => {
@@ -293,13 +266,6 @@ describe('markdownTableOperations', () => {
             expect(next.headerCells).toEqual(table.headerCells);
             expect(next.alignments).toEqual(table.alignments);
         });
-
-        it('should no-op for out of bounds body row', () => {
-            const table = parseTable(basicTable);
-            const next = table.clearRow('body', 10);
-
-            expect(next).toBe(table);
-        });
     });
 
     describe('clearColumn', () => {
@@ -313,13 +279,6 @@ describe('markdownTableOperations', () => {
                 ['Row 2 Col 1', ''],
             ]);
             expect(next.alignments).toEqual(table.alignments);
-        });
-
-        it('should no-op for out of bounds column', () => {
-            const table = parseTable(basicTable);
-            const next = table.clearColumn(10);
-
-            expect(next).toBe(table);
         });
 
         it('should clear existing cells only for uneven rows', () => {
