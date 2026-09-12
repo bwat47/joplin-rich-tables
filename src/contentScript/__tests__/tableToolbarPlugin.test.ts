@@ -27,7 +27,7 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
     refocusNestedEditor: mockRefocusNestedEditor,
 }));
 
-import { tableToolbarPlugin, type TableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
+import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
 const createdViews: EditorView[] = [];
 
@@ -72,22 +72,13 @@ function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
     } as unknown as ResolvedActiveCell;
 }
 
-function getToolbarButton(plugin: TableToolbarPlugin, ariaLabel: string): HTMLButtonElement {
-    const button = plugin.dom.querySelector(`button[aria-label="${ariaLabel}"]`);
+function getToolbarButton(view: EditorView, ariaLabel: string): HTMLButtonElement {
+    const button = view.dom.querySelector(`button[aria-label="${ariaLabel}"]`);
     if (!(button instanceof HTMLButtonElement)) {
         throw new Error(`Missing toolbar button: ${ariaLabel}`);
     }
 
     return button;
-}
-
-function requireToolbarPlugin(view: EditorView): TableToolbarPlugin {
-    const plugin = view.plugin(tableToolbarPlugin);
-    if (!plugin) {
-        throw new Error('Expected table toolbar plugin');
-    }
-
-    return plugin;
 }
 
 function activateCell(view: EditorView, cell: ActiveCell): void {
@@ -108,7 +99,6 @@ describe('tableToolbarPlugin', () => {
 
     it('refocuses the nested editor when a toolbar action is a no-op', () => {
         const view = createView();
-        const plugin = requireToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
@@ -117,7 +107,7 @@ describe('tableToolbarPlugin', () => {
         mockRunStructuralAction.mockReturnValue(false);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Move row up').click();
+        getToolbarButton(view, 'Move row up').click();
 
         expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
@@ -126,7 +116,6 @@ describe('tableToolbarPlugin', () => {
 
     it('does not refocus the nested editor after a handled toolbar action', () => {
         const view = createView();
-        const plugin = requireToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
@@ -135,7 +124,7 @@ describe('tableToolbarPlugin', () => {
         mockRunStructuralAction.mockReturnValue(true);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Move row up').click();
+        getToolbarButton(view, 'Move row up').click();
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).not.toHaveBeenCalled();
@@ -143,13 +132,12 @@ describe('tableToolbarPlugin', () => {
 
     it('does not run a toolbar action when the active cell no longer resolves', () => {
         const view = createView();
-        const plugin = requireToolbarPlugin(view);
 
         activateCell(view, createCell());
         mockGetResolvedActiveCell.mockReturnValue(null);
         mockIsNestedEditorOpen.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Move row up').click();
+        getToolbarButton(view, 'Move row up').click();
 
         expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
         expect(mockRunStructuralAction).not.toHaveBeenCalled();
@@ -158,7 +146,6 @@ describe('tableToolbarPlugin', () => {
 
     it('routes the ascending sort button through the active column action', () => {
         const view = createView();
-        const plugin = requireToolbarPlugin(view);
         const cell = createCell();
         const resolvedCell = createResolvedCell(cell);
 
@@ -166,7 +153,7 @@ describe('tableToolbarPlugin', () => {
         mockGetResolvedActiveCell.mockReturnValue(resolvedCell);
         mockRunStructuralAction.mockReturnValue(true);
 
-        getToolbarButton(plugin, 'Sort rows by column (A to Z)').click();
+        getToolbarButton(view, 'Sort rows by column (A to Z)').click();
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'sortColumnAscending', resolvedCell);
     });

@@ -62,7 +62,7 @@ interface ToolbarGeometry {
     viewport: ViewportBounds;
 }
 
-export class TableToolbarPlugin {
+class TableToolbarPlugin {
     dom: HTMLElement;
     private currentActiveCell: ActiveCell | null = null;
     private cleanupAutoUpdate: (() => void) | null = null;
