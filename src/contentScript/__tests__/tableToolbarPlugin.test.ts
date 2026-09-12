@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
@@ -29,6 +29,8 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
 
 import { tableToolbarPlugin, type TableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
+const createdViews: EditorView[] = [];
+
 function createCell(): ActiveCell {
     return {
         tableFrom: 12,
@@ -41,12 +43,14 @@ function createCell(): ActiveCell {
 function createView(): EditorView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
-    return new EditorView({
+    const view = new EditorView({
         parent,
         state: EditorState.create({
             extensions: [activeCellField, hostEditorConfigFacet.of(defaultHostEditorConfig()), tableToolbarPlugin],
         }),
     });
+    createdViews.push(view);
+    return view;
 }
 
 function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
@@ -92,8 +96,14 @@ function activateCell(view: EditorView, cell: ActiveCell): void {
 
 describe('tableToolbarPlugin', () => {
     beforeEach(() => {
-        document.body.innerHTML = '';
         vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        for (const view of createdViews.splice(0)) {
+            view.destroy();
+        }
+        document.body.replaceChildren();
     });
 
     it('refocuses the nested editor when a toolbar action is a no-op', () => {
@@ -112,8 +122,6 @@ describe('tableToolbarPlugin', () => {
         expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
-
-        view.destroy();
     });
 
     it('does not refocus the nested editor after a handled toolbar action', () => {
@@ -131,8 +139,6 @@ describe('tableToolbarPlugin', () => {
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'moveRowUp', resolvedCell);
         expect(mockRefocusNestedEditor).not.toHaveBeenCalled();
-
-        view.destroy();
     });
 
     it('does not run a toolbar action when the active cell no longer resolves', () => {
@@ -148,8 +154,6 @@ describe('tableToolbarPlugin', () => {
         expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(view.state);
         expect(mockRunStructuralAction).not.toHaveBeenCalled();
         expect(mockRefocusNestedEditor).toHaveBeenCalledWith(view);
-
-        view.destroy();
     });
 
     it('routes the ascending sort button through the active column action', () => {
@@ -165,7 +169,5 @@ describe('tableToolbarPlugin', () => {
         getToolbarButton(plugin, 'Sort rows by column (A to Z)').click();
 
         expect(mockRunStructuralAction).toHaveBeenCalledWith(view, 'sortColumnAscending', resolvedCell);
-
-        view.destroy();
     });
 });
