@@ -47,10 +47,8 @@ function createCell(): ActiveCell {
 }
 
 function createView(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
     const view = new EditorView({
-        parent,
+        parent: document.body,
         state: EditorState.create({
             extensions: [activeCellField, hostEditorConfigFacet.of(defaultHostEditorConfig()), tableToolbarPlugin],
         }),
