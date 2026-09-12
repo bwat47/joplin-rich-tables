@@ -44,11 +44,7 @@ function createView(): EditorView {
     return new EditorView({
         parent,
         state: EditorState.create({
-            extensions: [
-                activeCellField,
-                hostEditorConfigFacet.of(defaultHostEditorConfig()),
-                tableToolbarPlugin,
-            ],
+            extensions: [activeCellField, hostEditorConfigFacet.of(defaultHostEditorConfig()), tableToolbarPlugin],
         }),
     });
 }
