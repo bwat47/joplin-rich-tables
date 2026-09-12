@@ -23,6 +23,30 @@ const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
  */
 const HOST_PASSTHROUGH_KEYS: readonly string[] = ['s', 'p', 'v'];
 
+/** Vertical tolerance (px) for treating two caret rects as the same visual line. */
+const SAME_VISUAL_LINE_TOLERANCE_PX = 2;
+
+/**
+ * True when the nested caret sits on the same visual (wrapped) line as `pos`.
+ *
+ * `coordsAtPos` returns null when the view is not laid out (notably under jsdom),
+ * so the exact-position check is both the fast path and the measurement fallback.
+ */
+function isCaretOnSameVisualLine(view: EditorView, pos: number): boolean {
+    const { head } = view.state.selection.main;
+    if (head === pos) {
+        return true;
+    }
+
+    const headRect = view.coordsAtPos(head);
+    const posRect = view.coordsAtPos(pos);
+    if (!headRect || !posRect) {
+        return false;
+    }
+
+    return Math.abs(headRect.top - posRect.top) < SAME_VISUAL_LINE_TOLERANCE_PX;
+}
+
 export function createNestedEditorKeymap(
     mainView: EditorView,
     options: {
@@ -89,54 +113,30 @@ export function createNestedEditorKeymap(
             key: 'ArrowUp',
             run: (nestedView) => {
                 const { from } = options.getSelectionBounds(nestedView);
-                const { head } = nestedView.state.selection.main;
-                const headRect = nestedView.coordsAtPos(head);
-                const fromRect = nestedView.coordsAtPos(from);
-
-                if (headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) {
-                    options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'up', {
-                        initialCursorPos: 'lastLineStart',
-                        exitTableAtBoundary: true,
-                    });
+                if (!isCaretOnSameVisualLine(nestedView, from)) {
+                    return false;
                 }
 
-                if (head === from) {
-                    options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'up', {
-                        initialCursorPos: 'lastLineStart',
-                        exitTableAtBoundary: true,
-                    });
-                }
-
-                return false;
+                options.syncPendingChangesToRoot();
+                return navigateCell(mainView, 'up', {
+                    initialCursorPos: 'lastLineStart',
+                    exitTableAtBoundary: true,
+                });
             },
         },
         {
             key: 'ArrowDown',
             run: (nestedView) => {
                 const { to } = options.getSelectionBounds(nestedView);
-                const { head } = nestedView.state.selection.main;
-                const headRect = nestedView.coordsAtPos(head);
-                const toRect = nestedView.coordsAtPos(to);
-
-                if (headRect && toRect && Math.abs(headRect.top - toRect.top) < 2) {
-                    options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'down', {
-                        initialCursorPos: 'start',
-                        exitTableAtBoundary: true,
-                    });
+                if (!isCaretOnSameVisualLine(nestedView, to)) {
+                    return false;
                 }
 
-                if (head === to) {
-                    options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'down', {
-                        initialCursorPos: 'start',
-                        exitTableAtBoundary: true,
-                    });
-                }
-
-                return false;
+                options.syncPendingChangesToRoot();
+                return navigateCell(mainView, 'down', {
+                    initialCursorPos: 'start',
+                    exitTableAtBoundary: true,
+                });
             },
         },
         {
@@ -167,11 +167,7 @@ export function createNestedEditorKeymap(
             key: 'Shift-ArrowUp',
             run: (nestedView) => {
                 const { from } = options.getSelectionBounds(nestedView);
-                const { head } = nestedView.state.selection.main;
-                const headRect = nestedView.coordsAtPos(head);
-                const fromRect = nestedView.coordsAtPos(from);
-
-                if (!((headRect && fromRect && Math.abs(headRect.top - fromRect.top) < 2) || head === from)) {
+                if (!isCaretOnSameVisualLine(nestedView, from)) {
                     return false;
                 }
 
@@ -183,11 +179,7 @@ export function createNestedEditorKeymap(
             key: 'Shift-ArrowDown',
             run: (nestedView) => {
                 const { to } = options.getSelectionBounds(nestedView);
-                const { head } = nestedView.state.selection.main;
-                const headRect = nestedView.coordsAtPos(head);
-                const toRect = nestedView.coordsAtPos(to);
-
-                if (!((headRect && toRect && Math.abs(headRect.top - toRect.top) < 2) || head === to)) {
+                if (!isCaretOnSameVisualLine(nestedView, to)) {
                     return false;
                 }
 
