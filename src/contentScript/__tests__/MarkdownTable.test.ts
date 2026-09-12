@@ -223,6 +223,20 @@ describe('MarkdownTable', () => {
         expect(withoutFirstColumn.bodyRows).toEqual([['A2'], ['B2']]);
     });
 
+    it('keeps a header-only table when deleting the last body row', () => {
+        const table = MarkdownTable.fromParts({
+            headerCells: ['H1', 'H2'],
+            alignments: ['left', 'right'],
+            bodyRows: [['A1', 'A2']],
+        });
+
+        const headerOnly = table.deleteRowAt('body', 0);
+
+        expect(headerOnly.headerCells).toEqual(['H1', 'H2']);
+        expect(headerOnly.alignments).toEqual(['left', 'right']);
+        expect(headerOnly.bodyRows).toEqual([]);
+    });
+
     it('keeps header semantics for row operations', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1', 'H2'],
