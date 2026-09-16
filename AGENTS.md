@@ -7,13 +7,6 @@ docs/Architecture/
 
 Architecture overview: docs/Architecture/Overview.md
 
-## Guidelines
-
-- Read AGENTS.md before editing code
-- Stop being agreeable: be direct and honest; no flattery, no validation, no sugar-coating.
-- Challenge weak reasoning; point out missing assumptions and trade-offs.
-- If something is underspecified/contradictory/risky — say so and list what must be clarified.
-
 ## Rules
 
 - Never guess or invent. If unsure, say "I don't know" and propose how to verify.
