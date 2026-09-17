@@ -42,6 +42,9 @@ second invalidation algorithm and do not reliably account for container and fenc
 - Duplicate and unchanged table text reuses model/range derivation without process-global cache state.
 - Warm point lookup is an indexed read, and timeout recovery cannot blank an existing rendered note.
 - Raw-mode and selection behavior explicitly distinguish table presence from rendering availability.
+- Active-cell resolution is a plain selector over the index rather than a separately cached state field.
+- Widget coordinates resolve live ranges from the index at the DOM position; rendering snapshots cannot supply stale
+  coordinate fallbacks.
 
 **Negative:**
 

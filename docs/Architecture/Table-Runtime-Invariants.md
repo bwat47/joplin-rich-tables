@@ -17,7 +17,8 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Active Cell Identity
 
 - `ActiveCell` is logical identity: table start position, section, row, column, and selection anchor intent.
-- `ResolvedActiveCell` is a derived lookup against the current document. Treat it as disposable after document changes.
+- `ResolvedActiveCell` is produced by a plain selector over `tableContextField`; it has no cached state field or
+  fallback resolution path. Treat each result as disposable after document changes.
 - Runtime code must re-resolve an active cell before using document offsets such as editable cell bounds.
 - If the active cell can no longer resolve after a non-sync document change, clear it instead of keeping stale positions.
 

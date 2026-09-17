@@ -72,7 +72,10 @@ is deleted.
 
 **`coordsAt()`**: Maps positions in replaced table source to rendered cell rectangles for
 CodeMirror coordinate consumers, notably cursor-positioned tooltips. Keyboard cell navigation
-scrolls through nested-editor focus and does not depend on it.
+scrolls through nested-editor focus and does not depend on it. Coordinate lookup gets the widget's
+live document start through `posAtDOM()` and resolves current cell ranges from `tableContextField`.
+The widget's `TableContext` remains a rendering and height-estimation snapshot; it is never a
+fallback for live coordinates.
 
 ## Display Modes
 

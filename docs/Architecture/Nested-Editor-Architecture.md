@@ -54,8 +54,11 @@ lifecycle plugin owns nested-editor side effects.
 1. User types in the isolated editor.
 2. `NestedEditorSession` sanitizes local display text (`\n` -> `<br>`, `|` -> `\|`) via `shared/cellTextNormalization.ts` and maps the local selection into root cell coordinates via `editorBridge/cellTextCodec.ts`.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
-4. After root dispatch, the session refreshes its `ResolvedActiveCell` from the current active-cell identity.
-5. External non-sync root changes re-resolve the logical cell and rebase the isolated editor from authoritative root text.
+4. After root dispatch, the controller resolves the current active-cell identity through the plain
+   `tableContextField`-backed selector and refreshes the session.
+5. External non-sync root changes use the same selector and rebase the isolated editor from authoritative root text.
+   Closing is the exception: activation may already be cleared, so close-time rendering resolves the session's saved
+   logical anchor against the current index.
 
 ### Selection Sync
 
