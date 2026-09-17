@@ -34,6 +34,12 @@ import { parseTableFixture } from './testUtils';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
+
+class ResizeObserverMock {
+    observe(): void {}
+    disconnect(): void {}
+}
 
 const { activateCellAtPositionMock, activateTableCellMock, findCellElementMock } = vi.hoisted(() => ({
     activateCellAtPositionMock: vi.fn(),
@@ -93,6 +99,7 @@ function createLifecycleState(params: {
             searchForceSourceModeField,
             sourceModeField,
             hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+            tableDecorationField,
             nestedEditorLifecyclePlugin,
         ],
     });
@@ -139,12 +146,14 @@ vi.mock('../tableRuntime/activeCell/cellActivation', () => ({
     activateTableCell: (...args: unknown[]) => activateTableCellMock(...args),
 }));
 
-vi.mock('../tableWidget/domHelpers', () => ({
+vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../tableWidget/domHelpers')>()),
     findCellElement: (view: unknown, tableId: unknown, activeCell: unknown) =>
         findCellElementMock(view, tableId, activeCell),
 }));
 
 vi.mock('../nestedEditor/nestedEditorController', () => ({
+    cleanupHostedNestedEditors: vi.fn(),
     closeNestedEditor: vi.fn(),
     handleMainEditorUpdate: vi.fn(),
     isNestedEditorOpen: vi.fn(() => false),
@@ -175,6 +184,7 @@ describe('nestedEditorLifecycle', () => {
             animationFrameQueue.push(callback);
             return animationFrameQueue.length;
         }) as typeof requestAnimationFrame);
+        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
     });
 
     afterEach(() => {

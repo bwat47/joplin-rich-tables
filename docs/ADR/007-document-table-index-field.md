@@ -34,6 +34,20 @@ does not confuse semantic table presence with visible widgets.
 Mapped untouched spans, padded scan windows, retained syntax nodes, and overlap fallbacks were rejected. They add a
 second invalidation algorithm and do not reliably account for container and fence changes outside a table's old span.
 
+### Decoration reconciliation
+
+Decorations rebuild from the index by default. The one exception carries the mapped active-table decoration when the
+old cell resolves, changes are confined to that cell or strictly outside its table, activation is unchanged, the new
+index confirms the mapped span and syntax-derived shape, and the old decoration exists there. This keeps the nested
+editor host alive while refreshing every other table. The field records a failed carry-over on a document change as
+`activeHostInvalidated`, which the lifecycle consumes directly.
+
+Undo and redo carry the host only for in-cell changes. History restores the selection recorded with the changed text,
+so an undo elsewhere should follow that cursor and reopen there rather than preserve a host the lifecycle must discard.
+A transaction-wide continuity classifier and isolated reparsing were rejected: both duplicate facts already owned by
+the current index and would need separate root-membership validation. Index reconciliation also fixes external edits
+to another table remaining visually stale while a cell editor is open.
+
 ## Consequences
 
 **Positive:**

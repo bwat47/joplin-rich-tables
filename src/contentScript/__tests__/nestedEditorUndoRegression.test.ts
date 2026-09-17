@@ -1,7 +1,7 @@
 import { undo } from '@codemirror/commands';
 import { history } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
-import { EditorSelection, EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
@@ -149,6 +149,140 @@ describe('nested editor undo regression', () => {
 
         expect(getActiveCell(view.state)).toEqual(activeCell);
         expect(isNestedEditorOpen(view)).toBe(true);
+
+        view.destroy();
+    });
+
+    it('refreshes another table after an external edit without replacing the active table host', () => {
+        const tableA = ['| A |', '| --- |', '| active |'].join('\n');
+        const tableB = ['| B |', '| --- |', '| stale |'].join('\n');
+        const doc = `${tableA}\n\n${tableB}`;
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: 0,
+        };
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                selection: EditorSelection.single(doc.indexOf('active')),
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                    markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
+                    nestedEditorPlugin,
+                    tableContextField,
+                    activeCellField,
+                    openCellRequestField,
+                    nestedEditorLifecyclePlugin,
+                    tableDecorationField,
+                ],
+            }),
+        });
+
+        view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
+        const cellElement = findCellElement(view, makeTableId(0), activeCell);
+        if (!cellElement) throw new Error('Expected active cell element');
+        expect(
+            view.plugin(nestedEditorPlugin)?.controller.open({
+                mainView: view,
+                cellElement,
+                featureSettings: TEST_HOST_CONFIG.nestedEditor,
+            })
+        ).toBe(true);
+
+        const activeWidget = cellElement.closest('[data-table-from]');
+        const nestedEditorDom = cellElement.querySelector('.cm-editor');
+        const resolved = getResolvedActiveCell(view.state);
+        if (!resolved) throw new Error('Expected active cell to resolve');
+        view.dispatch({
+            changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'typed' },
+            annotations: syncAnnotation.of(true),
+        });
+
+        const tableBCellFrom = view.state.doc.toString().indexOf('stale');
+        view.dispatch({ changes: { from: tableBCellFrom, to: tableBCellFrom + 'stale'.length, insert: 'fresh' } });
+
+        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(cellElement.closest('[data-table-from]')).toBe(activeWidget);
+        expect(cellElement.querySelector('.cm-editor')).toBe(nestedEditorDom);
+        expect(cellElement.textContent).toContain('typed');
+        expect(view.contentDOM.querySelectorAll('tbody')[1]?.textContent).toContain('fresh');
+
+        view.destroy();
+    });
+
+    it('closes the active editor and follows the restored cursor when undo targets another table', () => {
+        const tableA = ['| A |', '| --- |', '| active |'].join('\n');
+        const tableB = ['| B |', '| --- |', '| old |'].join('\n');
+        const doc = `${tableA}\n\n${tableB}`;
+        const tableBCellFrom = doc.indexOf('old');
+        const activeCell: ActiveCell = {
+            tableFrom: 0,
+            section: 'body',
+            row: 0,
+            col: 0,
+        };
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc,
+                selection: EditorSelection.single(tableBCellFrom),
+                extensions: [
+                    history(),
+                    markdown({ extensions: [GFM] }),
+                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                    markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
+                    nestedEditorPlugin,
+                    tableContextField,
+                    activeCellField,
+                    openCellRequestField,
+                    nestedEditorLifecyclePlugin,
+                    tableDecorationField,
+                ],
+            }),
+        });
+
+        view.dispatch({
+            changes: { from: tableBCellFrom, to: tableBCellFrom + 3, insert: 'new' },
+            selection: { anchor: tableBCellFrom + 3 },
+        });
+        view.dispatch({
+            selection: { anchor: doc.indexOf('active') },
+            effects: setActiveCellEffect.of(activeCell),
+            annotations: Transaction.addToHistory.of(false),
+        });
+        const cellElement = findCellElement(view, makeTableId(0), activeCell);
+        if (!cellElement) throw new Error('Expected active cell element');
+        expect(
+            view.plugin(nestedEditorPlugin)?.controller.open({
+                mainView: view,
+                cellElement,
+                featureSettings: TEST_HOST_CONFIG.nestedEditor,
+            })
+        ).toBe(true);
+        const resolved = getResolvedActiveCell(view.state);
+        if (!resolved) throw new Error('Expected active cell to resolve');
+        view.dispatch({
+            changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'typed' },
+            annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+        });
+        const tableBFrom = view.state.field(tableContextField).tables[1].from;
+
+        expect(undo(view)).toBe(true);
+        flushAnimationFrames();
+
+        expect(view.state.doc.toString()).toContain('| old |');
+        expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
+        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(cellElement.querySelector('.cm-editor')).toBeNull();
+        expect(document.activeElement?.closest(`[data-table-from="${tableBFrom}"]`)).not.toBeNull();
 
         view.destroy();
     });

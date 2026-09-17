@@ -30,17 +30,27 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 ### 1. Decoration Update Strategy
 
-- **Structural Edits**: Rebuild all table decorations for simpler, more reliable widget lifecycle handling.
-- **In-Cell Edits**: No rebuild; decorations mapped to preserve existing DOM.
-- **Sync Transactions**: From nested editor explicitly skip rebuilds.
+Every document change reconciles decorations against the current `tableContextField` index. All tables receive fresh
+decorations except the table hosting the active nested editor, whose existing decoration is carried through only when:
+
+1. the old active cell resolves;
+2. changes stay inside that cell or strictly outside its table;
+3. activation remains the same and no clear/open request intervenes;
+4. the new index confirms the mapped table span, syntax-derived shape, and active coordinates; and
+5. the mapped old decoration exists at that span.
+
+Undo and redo preserve the host only for changes confined to the active cell, so history follows its restored cursor.
+Any activation change ends carry-over. `syncAnnotation` continues to prevent cross-editor loops but has no decoration
+policy role. Other tables always refresh from current contexts, including during an external edit while a cell editor
+is open.
 
 ### 2. DOM Reuse (Exact Source Text)
 
 Each rendered widget root is associated with the exact table source it was built from.
 
 `eq()` compares source text and document position, so a table that neither changed nor moved is
-skipped entirely during a rebuild. Position is part of the comparison because in-cell edits map
-decorations rather than rebuilding them, leaving a widget's recorded position stale.
+skipped entirely during reconciliation. Position is part of the comparison because active-host preservation maps
+that decoration without replacing its widget snapshot, leaving the widget's recorded position stale after shifts.
 
 When `eq()` reports a difference, `updateDOM()` decides between reuse and rebuild:
 

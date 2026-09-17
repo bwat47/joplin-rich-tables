@@ -210,7 +210,7 @@ function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
 }
 
 function requiresCellReposition(facts: TableRuntimeFacts): boolean {
-    if (!facts.docChanged || facts.isSync || facts.effectiveRawMode) {
+    if (!facts.docChanged || facts.isSync || facts.isCellSelectionTransition || facts.effectiveRawMode) {
         return false;
     }
 

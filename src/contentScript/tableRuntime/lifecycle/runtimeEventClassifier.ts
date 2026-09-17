@@ -10,8 +10,8 @@ import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
-import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
+import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
 import {
     hasCellSelectionTransitionAnnotation,
     hasFullDocumentReplace,
@@ -57,7 +57,7 @@ export function classifyTableRuntimeFacts(
         openRequestId: extractOpenRequestId(update),
         rebuildTouchesPreviousActiveTable:
             update.docChanged && activeCellBeforeStatus === 'resolved'
-                ? update.transactions.some((tr) => transactionRequiresTableRebuild(tr, resolvedCellBefore))
+                ? update.transactions.some((tr) => wasActiveHostInvalidated(tr.state))
                 : false,
         isUndoRedoInsideTable,
     };

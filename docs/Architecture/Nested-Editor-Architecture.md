@@ -80,6 +80,8 @@ from the local editor.
 - `Ctrl+Z/Y/Shift+Z` intercepted → forwarded to main editor.
 - Undo to different cell → nested editor closes, new one opens.
 - Undo outside table → nested editor closes, main gains focus.
+- A non-history edit elsewhere in the document keeps the current nested editor open while all other table widgets
+  refresh from the document index.
 
 ### Full Document Replacement (Sync)
 

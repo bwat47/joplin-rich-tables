@@ -102,11 +102,9 @@ describe('TableWidget coordsAt', () => {
     });
 
     describe('with a live, unrebuilt widget', () => {
-        // In-cell edits are forwarded from the nested editor as transactions carrying
-        // syncAnnotation. tableDecorationPolicy routes those through the mapDecorations path,
-        // which shifts the decoration's range but does NOT rebuild the TableWidget — so the
-        // widget's own `cellRanges` stay frozen at pre-edit offsets even though the live document
-        // has changed underneath it. coordsAt must still resolve positions correctly in that state.
+        // In-cell edits preserve the active decoration so its nested editor host survives. The
+        // widget's own `cellRanges` therefore stay frozen at pre-edit offsets even though the live
+        // document changed underneath it. coordsAt must still resolve positions in that state.
         const TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const TABLE_FROM = 0;
 
@@ -225,10 +223,9 @@ describe('TableWidget coordsAt', () => {
     });
 
     it('resolves coords in a previously edited table after activation switches to another table', () => {
-        // Regression test: editing table A freezes its widget via mapDecorations, and a bare
-        // setActiveCellEffect switch to table B (no doc change, no normalization needed) moves
-        // active-cell resolution to B. The decoration policy must rebuild on the switch so A's widget picks up
-        // post-edit cellRanges; otherwise coordsAt() resolves A against pre-edit offsets.
+        // Regression test: editing table A preserves its widget, and a bare setActiveCellEffect
+        // switch to table B (no doc change, no normalization needed) moves active-cell resolution
+        // to B. Reconciliation must refresh A so it picks up post-edit cellRanges.
         const tableA = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const tableB = ['| X1 | X2 |', '| --- | --- |', '| x | y |'].join('\n');
 

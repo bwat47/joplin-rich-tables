@@ -2,7 +2,7 @@ import { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
-import { transactionRequiresTableRebuild } from './tableTransactionHelpers';
+import { classifyActiveCellChanges } from './activeCell/activeCellChangeScope';
 
 /**
  * Injects a scroll snapshot effect into undo/redo transactions while a nested
@@ -26,7 +26,7 @@ export function createUndoScrollPreservation(getView: () => EditorView): Extensi
         const resolvedActiveCell = getResolvedActiveCell(tr.startState);
         if (!resolvedActiveCell) return null;
 
-        if (transactionRequiresTableRebuild(tr, resolvedActiveCell)) return null;
+        if (classifyActiveCellChanges(tr.changes, resolvedActiveCell) !== 'inCell') return null;
 
         return { effects: view.scrollSnapshot() };
     });

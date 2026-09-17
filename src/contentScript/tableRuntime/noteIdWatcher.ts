@@ -1,5 +1,5 @@
-import { EditorState, Extension, Facet, Transaction } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { Extension, Facet } from '@codemirror/state';
+import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { moveCursorOutOfTable } from './navigation/cursorUtils';
 import { logger } from '../../logger';
@@ -22,41 +22,31 @@ type NoteIdFacet = Facet<string, string>;
  * Modified from: https://github.com/personalizedrefrigerator/joplin-plugin-diff-tool (watchForNoteIdChanges.ts)
  */
 export function createNoteIdWatcher(noteIdFacet: NoteIdFacet, getView: () => EditorView): Extension {
-    let lastNoteId: string | null = null;
-
-    return EditorState.transactionExtender.of((tr: Transaction) => {
-        const currentId = tr.state.facet(noteIdFacet);
-
-        // Initialize on first transaction
-        if (lastNoteId === null) {
-            lastNoteId = currentId;
-            return null;
-        }
-
-        if (lastNoteId !== currentId) {
-            logger.debug('Note ID changed:', { from: lastNoteId, to: currentId });
-            lastNoteId = currentId;
-
-            const view = getView();
-            const hasActiveCell = getActiveCell(tr.startState) !== null;
-
-            // Move cursor out of table if inside one (prevents state where cursor is inside
-            // rendered table widget when Joplin restores cursor position on note switch).
-            // Schedule for after transaction completes since we can't dispatch during
-            // a transaction extender.
-            setTimeout(() => {
-                const moved = moveCursorOutOfTable(view);
-                if (moved) {
-                    logger.debug('Moved cursor out of table on note switch');
+    return ViewPlugin.fromClass(
+        class {
+            update(update: ViewUpdate): void {
+                const previousId = update.startState.facet(noteIdFacet);
+                const currentId = update.state.facet(noteIdFacet);
+                if (previousId === currentId) {
+                    return;
                 }
-            }, 0);
 
-            // Clear active cell state
-            if (hasActiveCell) {
-                return { effects: clearActiveCellEffect.of(undefined) };
+                logger.debug('Note ID changed:', { from: previousId, to: currentId });
+
+                // Run after the note-switch update has settled. Keeping facet inspection in a
+                // view update avoids forcing `tr.state` from a transaction extender, which would
+                // construct and then discard a provisional state when another extender contributes.
+                setTimeout(() => {
+                    const view = getView();
+                    const moved = moveCursorOutOfTable(view);
+                    if (moved) {
+                        logger.debug('Moved cursor out of table on note switch');
+                    }
+                    if (getActiveCell(view.state)) {
+                        view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                    }
+                }, 0);
             }
         }
-
-        return null;
-    });
+    );
 }

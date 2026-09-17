@@ -55,13 +55,22 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 
 ## Widget Rebuilds
 
-- Decoration policy owns only the table projection decision: keep, map, rebuild, or hide widgets.
+- The decoration field is the single owner of active-host preservation. It rebuilds from the current index by default
+  and carries the active decoration only after its change-scope, activation, index-shape, and existing-decoration
+  checks pass.
+- Each transaction records that decision as `activeHostInvalidated`; lifecycle classification reads that value rather
+  than re-deriving structural impact from transaction text.
+- Undo and redo preserve the host only for in-cell changes. Otherwise the host is invalidated so lifecycle repositioning
+  follows the selection restored by history.
 - Widget rebuilds can invalidate DOM references and focus assumptions.
 - Code that needs an editor to remain active across a rebuild must express that as open intent, not by assuming DOM continuity.
 - `TableWidget` may reuse DOM for equivalent content, but runtime correctness must not depend on DOM reuse.
 - Block decorations must remain provided by `StateField`, not `ViewPlugin`.
 - An incomplete table index never supplies stale semantic spans. Existing rendering may remain mapped until parsing
   recovers, so rendering can temporarily be active while semantic selectors return no tables.
+- Transaction filters and extenders must read only `tr.startState`, `tr.changes`, and `tr.newDoc`. Forcing `tr.state`
+  there can construct and discard a provisional state, duplicating every field update. The state-free
+  `classifyActiveCellChanges()` signature keeps undo scroll preservation within this constraint.
 
 ## Focus and Editing Ownership
 

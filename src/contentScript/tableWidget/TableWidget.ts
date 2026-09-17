@@ -116,10 +116,10 @@ export class TableWidget extends WidgetType {
         // Lezer syntax projection. Text equality therefore implies that the normalized model,
         // cell ranges, rendered DOM, and estimated height match too.
         //
-        // `tableFrom` is load-bearing, not defensive: in-cell edits take the `mapDecorations`
-        // path, which shifts decoration ranges without rebuilding widgets, so a widget's
-        // `tableFrom` drifts from the document. Comparing it routes those tables through
-        // updateDOM() to refresh their recorded position.
+        // `tableFrom` is load-bearing, not defensive: active-host preservation maps the existing
+        // decoration through in-cell and outside-table edits, so its widget snapshot can drift
+        // from the document. Comparing it routes a later reconciliation through updateDOM() to
+        // refresh the recorded position.
         return this.ctx.text === other.ctx.text && this.ctx.from === other.ctx.from;
     }
 
