@@ -11,6 +11,7 @@ import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActi
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
 const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOpen, mockRefocusNestedEditor } =
     vi.hoisted(() => ({
@@ -202,5 +203,31 @@ describe('tableToolbarPlugin', () => {
 
         expect(toolbar.style.display).toBe('none');
         expect(toolbar.style.visibility).toBe('hidden');
+    });
+
+    it('repositions after activation moves to another cell in the same table', () => {
+        const view = createView();
+        activateCell(view, createCell());
+        const requestMeasure = vi.spyOn(view, 'requestMeasure');
+        requestMeasure.mockClear();
+
+        activateCell(view, { ...createCell(), col: 0 });
+
+        expect(requestMeasure).toHaveBeenCalledWith(
+            expect.objectContaining({ key: expect.anything(), read: expect.any(Function), write: expect.any(Function) })
+        );
+    });
+
+    it('repositions for an open request even when active-cell identity is unchanged', () => {
+        const view = createView();
+        activateCell(view, createCell());
+        const requestMeasure = vi.spyOn(view, 'requestMeasure');
+        requestMeasure.mockClear();
+
+        view.dispatch({ effects: triggerOpenCellRequestEffect.of({ requestId: 'same-cell' }) });
+
+        expect(requestMeasure).toHaveBeenCalledWith(
+            expect.objectContaining({ key: expect.anything(), read: expect.any(Function), write: expect.any(Function) })
+        );
     });
 });
