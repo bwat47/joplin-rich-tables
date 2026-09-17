@@ -1,7 +1,7 @@
 import type { EditorState } from '@codemirror/state';
 import type { TableContext } from '../tableModel/tableContext';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { isBlankLineContent } from './tableBoundarySpacing';
-import { resolveTableContextAtPos } from './tableResolution';
 
 /** Which side of a boundary a table sits on. */
 export type TableSide = 'before' | 'after';
@@ -22,10 +22,6 @@ export interface NewlineScan {
     count: number;
     edge: number;
 }
-
-// A rendered widget implies that table parsing has already completed. Keyboard handling
-// must never block waiting for syntax work on the keyboard event path.
-export const TABLE_LOOKUP_TIMEOUT_MS = 0;
 
 /** Newlines before `pos`, crossing only blank-line whitespace and stopping at `limit`. */
 export function scanNewlinesBackward(state: EditorState, pos: number, limit: number): NewlineScan {
@@ -71,7 +67,7 @@ function resolveTableEndingAt(state: EditorState, pos: number): TableContext | n
     if (pos < 0 || pos > state.doc.length) {
         return null;
     }
-    const ctx = resolveTableContextAtPos(state, pos, TABLE_LOOKUP_TIMEOUT_MS);
+    const ctx = getTableContextAtPos(state, pos);
     return ctx && ctx.to === pos ? ctx : null;
 }
 
@@ -79,7 +75,7 @@ function resolveTableStartingAt(state: EditorState, pos: number): TableContext |
     if (pos < 0 || pos > state.doc.length) {
         return null;
     }
-    const ctx = resolveTableContextAtPos(state, pos, TABLE_LOOKUP_TIMEOUT_MS);
+    const ctx = getTableContextAtPos(state, pos);
     return ctx && ctx.from === pos ? ctx : null;
 }
 

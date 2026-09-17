@@ -9,6 +9,7 @@ import {
     setCellSelectionEffect,
 } from '../tableState/cellSelectionState';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
+import { tableContextField } from '../tableState/tableContextField';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const PREFIX = 'above';
@@ -25,7 +26,7 @@ function mountView(): EditorView {
     const view = new EditorView({
         parent,
         doc: DOC,
-        extensions: [markdown({ extensions: [GFM] }), cellSelectionField, cellSelectionScopeGuard],
+        extensions: [markdown({ extensions: [GFM] }), tableContextField, cellSelectionField, cellSelectionScopeGuard],
     });
     mountedViews.push(view);
 

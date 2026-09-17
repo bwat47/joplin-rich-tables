@@ -1,7 +1,8 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import { describe, expect, it, vi } from 'vitest';
-import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { isTableRenderingActive, tableDecorationField } from '../tableWidget/tableDecorationField';
+import { tableContextField } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE_COUNT = 5;
@@ -30,8 +31,9 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableDecorationField)).toMatchObject({
             decorations: { size: 0 },
-            treeIncomplete: true,
+            rendering: false,
         });
+        expect(state.field(tableContextField).treeIncomplete).toBe(true);
 
         expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
 
@@ -43,7 +45,39 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableDecorationField)).toMatchObject({
             decorations: { size: TABLE_COUNT },
-            treeIncomplete: false,
+            rendering: true,
         });
+        expect(state.field(tableContextField).treeIncomplete).toBe(false);
+    });
+
+    it('maps existing decorations while an updated index is incomplete, then rebuilds on recovery', () => {
+        let state = createMarkdownState(TABLE, [tableDecorationField]);
+        expect(state.field(tableDecorationField).decorations.size).toBe(1);
+
+        let now = 0;
+        const dateNow = vi.spyOn(Date, 'now').mockImplementation(() => {
+            now += CLOCK_ADVANCE_MS;
+            return now;
+        });
+        try {
+            state = state.update({ changes: { from: state.doc.length, insert: `\n\n${LONG_TABLE_DOCUMENT}` } }).state;
+        } finally {
+            dateNow.mockRestore();
+        }
+
+        expect(state.field(tableContextField).treeIncomplete).toBe(true);
+        expect(state.field(tableDecorationField).decorations.size).toBe(1);
+        expect(isTableRenderingActive(state)).toBe(true);
+
+        expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
+        state = state.update({}).state;
+
+        expect(state.field(tableContextField).treeIncomplete).toBe(false);
+        expect(state.field(tableDecorationField).decorations.size).toBe(TABLE_COUNT + 1);
+        expect(isTableRenderingActive(state)).toBe(true);
+    });
+
+    it('reports rendering inactive when the decoration field is absent', () => {
+        expect(isTableRenderingActive(createMarkdownState(TABLE))).toBe(false);
     });
 });

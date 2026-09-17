@@ -20,7 +20,7 @@ import {
 } from '../../tableState/cellSelectionState';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { resolveTableContextAtPos } from '../tableResolution';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
@@ -63,7 +63,7 @@ export interface TableClipboardRewrite {
 }
 
 export function extractSelectedCellContents(state: EditorState, selection: CellSelection): string[][] {
-    const ctx = resolveTableContextAtPos(state, selection.tableFrom);
+    const ctx = getTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return [];
     }
@@ -88,7 +88,7 @@ export function extractSelectedCellContents(state: EditorState, selection: CellS
 }
 
 export function copySelectionAsMarkdown(state: EditorState, selection: CellSelection): string | null {
-    const ctx = resolveTableContextAtPos(state, selection.tableFrom);
+    const ctx = getTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return null;
     }
@@ -329,7 +329,7 @@ export function buildSelectionRemovalRewrite(
     state: EditorState,
     selection: CellSelection
 ): TableClipboardRewrite | null {
-    const ctx = resolveTableContextAtPos(state, selection.tableFrom);
+    const ctx = getTableContextAtPos(state, selection.tableFrom);
     if (!ctx) {
         return null;
     }
@@ -377,7 +377,7 @@ export function buildMultiCellPasteRewrite(
     target: TableClipboardTarget,
     clipboardText: string
 ): TableClipboardRewrite | null {
-    const ctx = resolveTableContextAtPos(state, target.tableFrom);
+    const ctx = getTableContextAtPos(state, target.tableFrom);
     if (!ctx) {
         return null;
     }
@@ -414,7 +414,7 @@ export function buildMultiCellPasteRewrite(
 }
 
 export function createTableClipboardRewriteSpec(state: EditorState, rewrite: TableClipboardRewrite): TransactionSpec {
-    const currentTable = resolveTableContextAtPos(state, rewrite.tableFrom);
+    const currentTable = getTableContextAtPos(state, rewrite.tableFrom);
     const effects = [
         ...(rewrite.selection
             ? [setCellSelectionEffect.of(rewrite.selection)]

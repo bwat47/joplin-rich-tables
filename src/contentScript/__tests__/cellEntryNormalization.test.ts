@@ -10,7 +10,7 @@ import {
     type CellEntryMode,
 } from '../tableRuntime/openCellRequest';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
 
 const canonicalTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -32,7 +32,7 @@ function enterCell(params: { doc: string; tableFrom: number; activeCell?: Active
         effects: setActiveCellEffect.of(activeCell),
     }).state;
 
-    const ctx = resolveTableContextAtPos(state, params.tableFrom);
+    const ctx = getTableContextAtPos(state, params.tableFrom);
     if (!ctx) {
         throw new Error('Expected a table at tableFrom');
     }
@@ -99,7 +99,7 @@ describe('entering a cell', () => {
         const canonicalCell = 'value\\';
         const doc = [`| ${sourceCell}| next |`, '| --- | --- |', `| ${sourceCell}| next |`].join('\n');
         const { transaction } = enterCell({ doc, tableFrom: 0 });
-        const ctx = resolveTableContextAtPos(transaction.state, 1);
+        const ctx = getTableContextAtPos(transaction.state, 1);
 
         const canonicalRow = `| ${canonicalCell} | next |`;
         expect(ctx?.text).toBe([canonicalRow, '| --- | --- |', canonicalRow].join('\n'));

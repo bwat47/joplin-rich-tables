@@ -2,7 +2,7 @@ import { Annotation, EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { tableDecorationField, type TableSpan } from '../tableWidget/tableDecorationField';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { snapSelectionAroundTables, tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -12,6 +12,11 @@ const DOC = `${ABOVE}\n\n${TABLE}\n\nbelow`;
 const TABLE_FROM = ABOVE.length + 2;
 const TABLE_TO = TABLE_FROM + TABLE.length;
 const INSIDE_TABLE = TABLE_FROM + 4;
+
+interface TableSpan {
+    from: number;
+    to: number;
+}
 
 function createState(): EditorState {
     return createMarkdownState(DOC, [tableDecorationField, sourceModeField, activeCellField, tableSelectionSnapFilter]);

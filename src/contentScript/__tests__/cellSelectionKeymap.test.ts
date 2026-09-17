@@ -10,6 +10,7 @@ import { GFM } from '@lezer/markdown';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
+import { tableContextField } from '../tableState/tableContextField';
 import {
     cellSelectionFocusPlugin,
     setCellDragSelection,
@@ -42,6 +43,7 @@ function mountSelectionView(doc: string): EditorView {
         parent,
         extensions: [
             markdownExtension,
+            tableContextField,
             history(),
             activeCellField,
             cellSelectionField,

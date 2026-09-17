@@ -1,9 +1,11 @@
 import { EditorSelection, EditorState, type Extension, type SelectionRange } from '@codemirror/state';
-import { findRenderedTablesTouching, type TableSpan } from '../../tableWidget/tableDecorationField';
+import type { TableContext } from '../../tableModel/tableContext';
+import { getTableContextsTouching } from '../../tableState/tableContextField';
+import { isTableRenderingActive } from '../../tableWidget/tableDecorationField';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 
 /** Looks up every rendered table a document range reaches. */
-export type TablesTouching = (from: number, to: number) => readonly TableSpan[];
+export type TablesTouching = (from: number, to: number) => readonly Pick<TableContext, 'from' | 'to'>[];
 
 /** Grows one range until it contains every table it touches, keeping its direction. */
 function snapRange(range: SelectionRange, findTablesTouching: TablesTouching): SelectionRange {
@@ -70,12 +72,17 @@ export function snapSelectionAroundTables(
  * carries survives. The second, sequential spec only replaces its selection with the snapped one.
  */
 export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter.of((tr) => {
-    if (tr.docChanged || !tr.selection || !hasPlainRenderedTableCaret(tr.startState)) {
+    if (
+        tr.docChanged ||
+        !tr.selection ||
+        !hasPlainRenderedTableCaret(tr.startState) ||
+        !isTableRenderingActive(tr.startState)
+    ) {
         return tr;
     }
 
     const snapped = snapSelectionAroundTables(tr.selection, (from, to) =>
-        findRenderedTablesTouching(tr.startState, from, to)
+        getTableContextsTouching(tr.startState, from, to)
     );
     if (!snapped) {
         return tr;

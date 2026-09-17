@@ -1,12 +1,8 @@
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFactPredicates';
-import { resolveContainingTableAtPos } from '../tableResolution';
-
-// The selected table is rendered as a widget, so the syntax tree already covers its start.
-// Resolution runs on the keyboard event path and must never block waiting for parse work.
-const SELECTION_SCOPE_SYNTAX_TREE_TIMEOUT_MS = 0;
 
 /**
  * True when the caret no longer sits inside the table the cell selection belongs to.
@@ -21,11 +17,7 @@ function selectionLeftSelectedTable(view: EditorView): boolean {
         return false;
     }
 
-    const table = resolveContainingTableAtPos(
-        view.state,
-        cellSelection.tableFrom,
-        SELECTION_SCOPE_SYNTAX_TREE_TIMEOUT_MS
-    );
+    const table = getTableContextAtPos(view.state, cellSelection.tableFrom);
     if (!table) {
         return false;
     }

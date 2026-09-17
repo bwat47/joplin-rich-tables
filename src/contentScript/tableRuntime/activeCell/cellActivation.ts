@@ -5,9 +5,9 @@
 import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
 import type { TableContext } from '../../tableModel/tableContext';
-import { resolveContainingTableAtPos, resolveTableContext, resolveTableContextAtPos } from '../tableResolution';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { resolveClampedCell } from './activeCellFactory';
 import { createResolvedActiveCell } from './resolvedActiveCell';
@@ -65,9 +65,9 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         return false;
     }
 
-    const table = resolveContainingTableAtPos(view.state, pos);
+    const ctx = getTableContextAtPos(view.state, pos);
 
-    if (!table) {
+    if (!ctx) {
         // Position is outside any table
         if (options?.clearIfOutside) {
             view.dispatch({
@@ -81,14 +81,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     }
 
     // Find which cell contains the position
-    const relativePos = pos - table.from;
-    const ctx = resolveTableContext(view.state, table);
-    if (!ctx) {
-        if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-        return false;
-    }
+    const relativePos = pos - ctx.from;
 
     // Cursor restoration during undo/redo can land on table punctuation or padding.
     // Preserve the current logical cell in that case instead of arbitrarily snapping to (0,0).
@@ -132,7 +125,7 @@ export function activateTableCell(
     // Don't activate cells in source mode (no widgets exist)
     if (isSourceModeEnabled(view.state)) return false;
 
-    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    const ctx = getTableContextAtPos(view.state, tableFrom);
     if (!ctx) return false;
 
     const spec = prepareCellEntryTransaction({

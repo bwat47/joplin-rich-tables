@@ -7,10 +7,10 @@ import {
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 
 function buildContext(text: string) {
-    return resolveTableContextAtPos(createMarkdownState(text), 0);
+    return getTableContextAtPos(createMarkdownState(text), 0);
 }
 
 function createState(doc: string, activeCell?: ActiveCell) {

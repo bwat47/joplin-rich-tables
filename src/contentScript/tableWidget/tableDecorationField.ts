@@ -1,20 +1,16 @@
 import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
-import { syntaxTreeAvailable } from '@codemirror/language';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { findTableRanges, resolveTableContext } from '../tableRuntime/tableResolution';
+import { clearActiveCellEffect } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
+import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { TableWidget } from './TableWidget';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 interface TableDecorationState {
     decorations: DecorationSet;
-    /**
-     * True when the last build ran before the document was fully parsed
-     * (ensureSyntaxTree timed out), so tables may be missing. The background
-     * parser dispatches transactions as it progresses; once the full tree is
-     * available, the field rebuilds instead of keeping the incomplete set.
-     */
-    treeIncomplete: boolean;
+    /** True when table widgets are displayed at the current index spans. */
+    rendering: boolean;
 }
 
 /**
@@ -22,30 +18,33 @@ interface TableDecorationState {
  * Tables are always rendered as widgets - editing happens via nested cell editors.
  */
 function buildTableDecorations(state: EditorState): TableDecorationState {
-    const tables = findTableRanges(state);
-    if (!tables) {
-        logger.warn('Syntax tree unavailable within timeout; table rendering deferred until parsing completes');
-        return { decorations: Decoration.none, treeIncomplete: true };
+    const index = state.field(tableContextField);
+    if (index.treeIncomplete) {
+        return { decorations: Decoration.none, rendering: false };
     }
 
     const decorations = new RangeSetBuilder<Decoration>();
-    for (const table of tables) {
+    for (const ctx of index.tables) {
         // RangeSetBuilder requires ranges in ascending document order.
-        const ctx = resolveTableContext(state, table);
-        if (!ctx) {
-            continue;
-        }
-
         const widget = new TableWidget(ctx.table, ctx.cellRanges, ctx.text, ctx.from);
         const decoration = Decoration.replace({
             widget,
             block: true,
         });
 
-        decorations.add(table.from, table.to, decoration);
+        decorations.add(ctx.from, ctx.to, decoration);
     }
 
-    return { decorations: decorations.finish(), treeIncomplete: false };
+    return { decorations: decorations.finish(), rendering: true };
+}
+
+function hasExplicitInvalidation(transaction: Parameters<typeof decideTableDecorationUpdate>[0]): boolean {
+    return transaction.effects.some(
+        (effect) =>
+            effect.is(clearActiveCellEffect) ||
+            effect.is(rebuildTableWidgetsEffect) ||
+            effect.is(rebuildAllTableWidgetsEffect)
+    );
 }
 
 /**
@@ -63,67 +62,37 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
 
         switch (decision.type) {
             case 'noneDecorations':
-                return { decorations: Decoration.none, treeIncomplete: false };
+                return { decorations: Decoration.none, rendering: false };
             case 'keepDecorations':
-                if (value.treeIncomplete && syntaxTreeAvailable(transaction.state)) {
+                if (transaction.state.field(tableContextField).treeIncomplete) {
+                    return value;
+                }
+                if (transaction.startState.field(tableContextField).treeIncomplete || !value.rendering) {
                     return buildTableDecorations(transaction.state);
                 }
                 return value;
             case 'mapDecorations':
                 return {
                     decorations: value.decorations.map(transaction.changes),
-                    treeIncomplete: value.treeIncomplete,
+                    rendering: value.rendering,
                 };
             case 'rebuildAllDecorations':
+                if (
+                    transaction.state.field(tableContextField).treeIncomplete &&
+                    !hasExplicitInvalidation(transaction)
+                ) {
+                    return {
+                        decorations: value.decorations.map(transaction.changes),
+                        rendering: value.rendering,
+                    };
+                }
                 return buildTableDecorations(transaction.state);
         }
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
 
-/** A rendered table's document range. */
-export interface TableSpan {
-    from: number;
-    to: number;
-}
-
-/**
- * The widget decorations currently in effect, or an empty set.
- *
- * Falls back to `Decoration.none` rather than throwing so callers work in states that never
- * registered the field, and so raw mode (where the field holds no decorations) reads as
- * "no rendered tables" without a separate mode check.
- */
-function getTableDecorations(state: EditorState): DecorationSet {
-    return state.field(tableDecorationField, false)?.decorations ?? Decoration.none;
-}
-
-/**
- * Every rendered table whose range overlaps or abuts `[from, to]`, in document order.
- *
- * Abutting counts as touching: a selection endpoint that stops exactly on a table edge has
- * been dragged onto the widget, since the document positions either side of a table belong to
- * the blank lines that separate it from its neighbours.
- */
-export function findRenderedTablesTouching(state: EditorState, from: number, to: number): TableSpan[] {
-    const spans: TableSpan[] = [];
-
-    getTableDecorations(state).between(from, to, (tableFrom, tableTo) => {
-        spans.push({ from: tableFrom, to: tableTo });
-    });
-
-    return spans;
-}
-
-/** Every rendered table whose range lies entirely inside `[from, to]`, in document order. */
-export function findRenderedTablesWithin(state: EditorState, from: number, to: number): TableSpan[] {
-    const spans: TableSpan[] = [];
-
-    getTableDecorations(state).between(from, to, (tableFrom, tableTo) => {
-        if (tableFrom >= from && tableTo <= to) {
-            spans.push({ from: tableFrom, to: tableTo });
-        }
-    });
-
-    return spans;
+/** True when table widgets are currently being rendered at the index's spans. */
+export function isTableRenderingActive(state: EditorState): boolean {
+    return state.field(tableDecorationField, false)?.rendering ?? false;
 }

@@ -1,5 +1,6 @@
 import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
 import {
     exitSearchForceSourceModeEffect,
@@ -8,7 +9,6 @@ import {
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { resolveContainingTableAtPos } from '../tableResolution';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
@@ -155,7 +155,7 @@ function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell:
 
 function cursorInsideAnyTable(update: ViewUpdate): boolean {
     const cursorPos = update.state.selection.main.head;
-    return resolveContainingTableAtPos(update.state, cursorPos) !== null;
+    return getTableContextAtPos(update.state, cursorPos) !== null;
 }
 
 function isUndoRedo(update: ViewUpdate): boolean {

@@ -17,6 +17,7 @@ import {
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { tableContextField } from '../tableState/tableContextField';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -85,6 +86,7 @@ function createLifecycleState(params: {
         selection: params.selection,
         extensions: [
             markdown({ extensions: [GFM] }),
+            tableContextField,
             activeCellField,
             openCellRequestField,
             ...(params.includeInsertedTableActivation ? [insertedTableActivationField] : []),

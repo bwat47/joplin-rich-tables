@@ -8,7 +8,7 @@ import {
     extendExistingCellSelection,
     startCellSelectionFromActiveCell,
 } from './cellSelectionController';
-import { resolveTableContextAtPos } from '../tableResolution';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
@@ -33,7 +33,7 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+    const ctx = getTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }

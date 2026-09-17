@@ -14,8 +14,9 @@ import {
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
+import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { clamp } from '../../shared/numberUtils';
-import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
 import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -36,7 +37,7 @@ function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords):
 }
 
 function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoords): CellCoords | null {
-    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    const ctx = getTableContextAtPos(view.state, tableFrom);
     if (!ctx) {
         return null;
     }
@@ -104,7 +105,7 @@ function dispatchSelectionWithContext(
     selection: CellSelection,
     options: SelectionDispatchOptions
 ): boolean {
-    const focusRange = resolveCellDocRange({
+    const focusRange = getCellDocRange({
         tableFrom: ctx.from,
         ranges: ctx.cellRanges,
         coords: selection.focus,
@@ -147,7 +148,7 @@ function dispatchSelectionWithContext(
 }
 
 function dispatchSelection(view: EditorView, selection: CellSelection, options: SelectionDispatchOptions): boolean {
-    const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+    const ctx = getTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }
@@ -168,7 +169,7 @@ export function setCellDragSelection(
     anchor: CellCoords,
     focus: CellCoords
 ): boolean {
-    const ctx = resolveTableContextAtPos(view.state, tableFrom);
+    const ctx = getTableContextAtPos(view.state, tableFrom);
     if (!ctx) {
         return false;
     }
@@ -244,7 +245,7 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     }
 
     if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
-        const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+        const ctx = getTableContextAtPos(view.state, selection.tableFrom);
         const resolvedAnchor = ctx ? createResolvedActiveCell({ ctx, coords: selection.anchor }) : null;
         if (resolvedAnchor) {
             requestOpenCell(view, {
@@ -287,7 +288,7 @@ export function collapseCellSelectionOutOfTable(view: EditorView, direction: Cel
         return false;
     }
 
-    const ctx = resolveTableContextAtPos(view.state, selection.tableFrom);
+    const ctx = getTableContextAtPos(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }

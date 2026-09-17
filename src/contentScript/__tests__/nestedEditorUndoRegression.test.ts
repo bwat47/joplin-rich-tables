@@ -10,6 +10,7 @@ import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { nestedEditorPlugin, isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { resolvedActiveCellField, getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
@@ -107,6 +108,7 @@ describe('nested editor undo regression', () => {
                     hostEditorConfigFacet.of(TEST_HOST_CONFIG),
                     markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
                     nestedEditorPlugin,
+                    tableContextField,
                     activeCellField,
                     resolvedActiveCellField,
                     openCellRequestField,

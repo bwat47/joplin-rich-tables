@@ -1,9 +1,10 @@
 import type { EditorState } from '@codemirror/state';
 import { StateField } from '@codemirror/state';
 import { activeCellField, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
+import { getTableContextAtPos, tableContextField } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
-import { resolveCellDocRange, resolveTableContextAtPos } from '../tableResolution';
+import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;
@@ -18,7 +19,7 @@ export interface ResolvedActiveCell {
 
 export function createResolvedActiveCell(params: { ctx: TableContext; coords: CellCoords }): ResolvedActiveCell | null {
     const { ctx, coords } = params;
-    const range = resolveCellDocRange({
+    const range = getCellDocRange({
         tableFrom: ctx.from,
         ranges: ctx.cellRanges,
         coords,
@@ -68,7 +69,7 @@ function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): 
         return null;
     }
 
-    const ctx = resolveTableContextAtPos(state, activeCell.tableFrom);
+    const ctx = getTableContextAtPos(state, activeCell.tableFrom);
     if (!ctx) {
         return null;
     }
@@ -98,7 +99,7 @@ export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | nu
     },
     update(value, tr) {
         // Re-derive when doc or active cell identity changes.
-        if (!tr.docChanged) {
+        if (!tr.docChanged && tr.startState.field(tableContextField) === tr.state.field(tableContextField)) {
             // Use the false flag so states without activeCellField (e.g. nested editor
             // states, autocomplete states) return undefined instead of throwing.
             if (tr.startState.field(activeCellField, false) === tr.state.field(activeCellField, false)) {

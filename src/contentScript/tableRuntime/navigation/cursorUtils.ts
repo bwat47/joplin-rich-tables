@@ -1,9 +1,9 @@
 import { EditorView } from '@codemirror/view';
-import { resolveContainingTableAtPos } from '../tableResolution';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 
 export function moveCursorOutOfTable(view: EditorView, offset = 1): boolean {
     const cursor = view.state.selection.main.head;
-    const tableContainingCursor = resolveContainingTableAtPos(view.state, cursor);
+    const tableContainingCursor = getTableContextAtPos(view.state, cursor);
     if (!tableContainingCursor) {
         return false;
     }

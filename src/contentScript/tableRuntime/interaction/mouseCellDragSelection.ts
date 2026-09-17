@@ -3,7 +3,7 @@ import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
 import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
-import { resolveTableContextAtPos } from '../tableResolution';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';
@@ -411,7 +411,7 @@ class MouseCellDragSelectionController {
 
         try {
             const tablePos = this.view.posAtDOM(gesture.widget, 0);
-            const ctx = resolveTableContextAtPos(this.view.state, tablePos);
+            const ctx = getTableContextAtPos(this.view.state, tablePos);
             return ctx
                 ? createResolvedActiveCell({
                       ctx,

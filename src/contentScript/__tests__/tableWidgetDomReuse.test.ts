@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
@@ -94,6 +95,7 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
                 render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
+            tableContextField,
             tableDecorationField,
         ],
     });

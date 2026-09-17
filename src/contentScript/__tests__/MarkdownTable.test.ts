@@ -1,12 +1,12 @@
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { getCellRange } from '../tableModel/markdownTableCellRanges';
 import type { CellCoords } from '../tableModel/types';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
 import { parseCellRangesFixture } from './testUtils';
 
 function buildContext(text: string) {
-    return resolveTableContextAtPos(createMarkdownState(text), 0);
+    return getTableContextAtPos(createMarkdownState(text), 0);
 }
 
 describe('MarkdownTable', () => {

@@ -1,6 +1,7 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorState, type Extension } from '@codemirror/state';
 import { GFM, type InlineContext, type MarkdownConfig } from '@lezer/markdown';
+import { tableContextField } from '../tableState/tableContextField';
 
 const EQUALS_SIGN = 61;
 const PLUS_SIGN = 43;
@@ -48,6 +49,7 @@ export function createMarkdownState(doc: string, extensions: Extension[] = []): 
             markdown({
                 extensions: [GFM, ...hostMarkdownExtensions],
             }),
+            tableContextField,
             ...extensions,
         ],
     });

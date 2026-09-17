@@ -8,6 +8,7 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
@@ -32,6 +33,7 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
                 render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
+            tableContextField,
             activeCellField,
             resolvedActiveCellField,
             tableDecorationField,

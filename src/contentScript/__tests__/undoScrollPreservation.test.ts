@@ -4,6 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { vi, type Mock } from 'vitest';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 
@@ -34,6 +35,7 @@ function createHarness(activeCell: ActiveCell): UndoHarness {
         parent,
         extensions: [
             markdownExtension,
+            tableContextField,
             activeCellField,
             createUndoScrollPreservation(() => view),
             EditorView.updateListener.of((update) => transactions.push(...update.transactions)),
