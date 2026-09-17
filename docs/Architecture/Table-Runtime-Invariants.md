@@ -5,7 +5,12 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Source of Truth
 
 - The main CodeMirror document is the only authoritative table state.
-- `MarkdownTable`, `TableContext`, and cell ranges are derived from current document text.
+- `tableContextField` is the only semantic table index. `MarkdownTable`, `TableContext`, and cell ranges are derived
+  from current document text.
+- Table presence and rendering availability are separate questions. Index selectors provide spans;
+  `isTableRenderingActive()` reports whether widgets are displayed at those spans.
+- Rendering availability is deliberately document-level and must not grow into per-span decoration lookup or a second
+  table index. Semantic selectors fail fast when the state has no `tableContextField`.
 - Widget DOM is a projection of document state. It must not be used as durable table state.
 - Nested editor text is temporary local state for one active cell. It must be synchronized back to the main document before commands depend on it.
 
@@ -54,6 +59,8 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 - Code that needs an editor to remain active across a rebuild must express that as open intent, not by assuming DOM continuity.
 - `TableWidget` may reuse DOM for equivalent content, but runtime correctness must not depend on DOM reuse.
 - Block decorations must remain provided by `StateField`, not `ViewPlugin`.
+- An incomplete table index never supplies stale semantic spans. Existing rendering may remain mapped until parsing
+  recovers, so rendering can temporarily be active while semantic selectors return no tables.
 
 ## Focus and Editing Ownership
 

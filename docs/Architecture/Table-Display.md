@@ -5,7 +5,13 @@
 ### Detection
 
 Direct `Document` table nodes from the Lezer syntax tree are replaced with
-`Decoration.replace({ widget, block: true })` via a `StateField`.
+`Decoration.replace({ widget, block: true })` via a `StateField`. `tableDecorationField` builds every decoration from
+the current `tableContextField` index rather than scanning syntax or deriving table models itself.
+
+If the index becomes temporarily unavailable, an existing decoration set is mapped through the transaction and kept
+on screen. It is rebuilt wholesale on the parser-progress transaction that restores a complete index. Only field
+creation with an unavailable index renders nothing, because there is no previous projection to preserve. Raw mode,
+explicit invalidation, and the deferred full-document-replacement path still take precedence.
 
 ### Widget Structure
 
@@ -47,18 +53,7 @@ probable, and a collision would silently reuse DOM showing stale rows.
 Prevents flicker when rebuilding decorations for position sync, and keeps stateful embedded
 content (videos, iframes) alive across rebuilds.
 
-### 3. Table Context Cache
-
-`buildTableContext()` maintains an **LRU cache** (50 entries) keyed by table source text.
-
-Each cache entry stores:
-
-- Parsed `MarkdownTable`.
-- Computed `cellRanges`.
-
-`tableWidgetExtension.ts` reuses this shared context when building or rebuilding widgets, instead of parsing table structure and cell ranges independently.
-
-### 4. Height Estimation
+### 3. Height Estimation
 
 Prevents scroll jumping via multi-layered approach:
 

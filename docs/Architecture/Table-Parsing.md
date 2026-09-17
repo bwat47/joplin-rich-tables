@@ -56,16 +56,25 @@ cell without parsing their own output back.
 
 ## Runtime Resolution and Context
 
-`tableResolution.ts` returns a root-classified span and its syntax node, reading no source text. Point lookup and
-full-document discovery therefore share the same range and root classification, and callers that only test containment
-pay nothing more.
+`tableContextField` is the sole semantic index of root tables in the main document. On creation and every document
+change it scans the complete current Lezer tree once, then publishes document-ordered `TableContext` values. Selectors
+read containment and range queries from that field; they fail fast when used with a state that did not register it.
 
-`buildTableContext()` owns the whole derivation behind one 50-entry LRU keyed by exact table source text: syntax
-extraction, the normalized model, and cell ranges. Identical tables share an entry safely because that text determines
-every value derived from it.
+The warm path uses `syntaxTree()` directly when `syntaxTreeAvailable()` confirms the complete document is parsed.
+Otherwise the field calls `ensureSyntaxTree()` with the centralized `SYNTAX_TREE_BUDGET_MS` value of 1000 ms. That
+budget is a worst-case ceiling for cold or replaced documents, not a per-keystroke target; warm incremental parsing
+normally finishes before the fallback is needed.
 
-`TableContext` is passive derived state and never rewrites the document. Canonicalization occurs only at existing cell
-entry, paste, or structural-operation boundaries. Existing adjacent pipe-free text is normalized as a row. Separately,
+Each scan builds a text-keyed reuse map from the previous index and adds newly derived entries to it. Exact duplicate
+table text therefore shares the normalized model and relative cell ranges within the current scan, while every context
+gets current syntax-tree spans. There is no module-level cache or independent incremental invalidation algorithm.
+
+If parsing misses the budget, the field publishes an explicitly incomplete empty index rather than stale spans. A
+later parser-progress transaction rescans once the complete tree is available.
+
+`buildTableContext()` is a cache-free derivation, and `TableContext` is passive state that never rewrites the document.
+Canonicalization occurs only at existing cell entry, paste, or structural-operation boundaries. Existing adjacent
+pipe-free text is normalized as a row. Separately,
 transaction-aware boundary maintenance detects text written into a previously blank line beside a rendered table and
 restores spacing in the same transaction, keeping that new text outside the table. It inspects every document change
 except composition, deletion, and undo/redo, because host commands such as Joplin's `insertText` - the path other
