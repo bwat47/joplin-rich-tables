@@ -98,6 +98,17 @@ describe('findSelectedTableSpans', () => {
         expect(findSelectedTableSpans(state)).toEqual([]);
     });
 
+    it('draws nothing in raw mode, where the tables the selection covers are plain markdown', () => {
+        const rendered = createState(EditorSelection.single(0, FIRST_TO));
+        expect(findSelectedTableSpans(rendered)).toEqual([{ from: FIRST_FROM, to: FIRST_TO }]);
+
+        const rawMode = rendered.update({ effects: toggleSourceModeEffect.of(true) }).state;
+
+        // The index still reports the table; only the rendering is gone.
+        expect(toSpans(getTableContextsWithin(rawMode, 0, FIRST_TO))).toEqual([{ from: FIRST_FROM, to: FIRST_TO }]);
+        expect(findSelectedTableSpans(rawMode)).toEqual([]);
+    });
+
     it('collects tables covered by separate ranges of a multi-range selection', () => {
         const state = createState(
             EditorSelection.create([
