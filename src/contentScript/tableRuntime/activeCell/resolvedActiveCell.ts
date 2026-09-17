@@ -98,8 +98,12 @@ export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | nu
         return resolveActiveCell(state, getActiveCell(state));
     },
     update(value, tr) {
+        // Joplin appends the plugin configuration to an existing editor. A host transaction
+        // extender can force the provisional state while the start state still lacks this field.
+        const startIndex = tr.startState.field(tableContextField, false);
+        const currentIndex = tr.state.field(tableContextField, false);
         // Re-derive when doc or active cell identity changes.
-        if (!tr.docChanged && tr.startState.field(tableContextField) === tr.state.field(tableContextField)) {
+        if (!tr.docChanged && startIndex !== undefined && startIndex === currentIndex) {
             // Use the false flag so states without activeCellField (e.g. nested editor
             // states, autocomplete states) return undefined instead of throwing.
             if (tr.startState.field(activeCellField, false) === tr.state.field(activeCellField, false)) {

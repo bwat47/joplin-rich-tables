@@ -67,7 +67,9 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
                 if (transaction.state.field(tableContextField).treeIncomplete) {
                     return value;
                 }
-                if (transaction.startState.field(tableContextField).treeIncomplete || !value.rendering) {
+                // Dynamic appendConfig transactions can update a provisionally created field
+                // whose start state predates tableContextField registration.
+                if (transaction.startState.field(tableContextField, false)?.treeIncomplete || !value.rendering) {
                     return buildTableDecorations(transaction.state);
                 }
                 return value;

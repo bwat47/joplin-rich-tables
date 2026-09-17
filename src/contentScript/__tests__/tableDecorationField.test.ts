@@ -1,8 +1,12 @@
 import { ensureSyntaxTree } from '@codemirror/language';
-import type { EditorState } from '@codemirror/state';
+import { markdown } from '@codemirror/lang-markdown';
+import { EditorState, StateEffect } from '@codemirror/state';
+import { GFM } from '@lezer/markdown';
 import { describe, expect, it, vi } from 'vitest';
 import { isTableRenderingActive, tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
+import { activeCellField } from '../tableState/activeCellState';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE_COUNT = 5;
@@ -12,7 +16,33 @@ const LONG_TABLE_DOCUMENT = Array.from({ length: TABLE_COUNT }, () => `${FILLER}
 const CLOCK_ADVANCE_MS = 2_000;
 const COMPLETE_PARSE_TIMEOUT_MS = 1_000;
 
+function forceState(_state: EditorState): null {
+    return null;
+}
+
 describe('tableDecorationField', () => {
+    it('registers into an existing editor whose transaction extenders force the new state', () => {
+        const forceStateExtender = EditorState.transactionExtender.of((transaction) => {
+            return forceState(transaction.state);
+        });
+        const state = EditorState.create({
+            doc: TABLE,
+            extensions: [markdown({ extensions: [GFM] }), forceStateExtender],
+        });
+
+        const registration = state.update({
+            effects: StateEffect.appendConfig.of([
+                tableContextField,
+                activeCellField,
+                resolvedActiveCellField,
+                tableDecorationField,
+            ]),
+        });
+
+        expect(() => registration.state).not.toThrow();
+        expect(registration.state.field(tableDecorationField).decorations.size).toBe(1);
+    });
+
     it('rebuilds incomplete decorations when parsing finishes without a document change', () => {
         // CodeMirror checks Date.now between parser steps. Advancing the clock beyond the
         // production budget on every check forces a deterministic timeout.
