@@ -1,10 +1,9 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { findCellForPos, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
-import type { CellCoords } from '../tableModel/types';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { findCellForPos } from '../tableModel/markdownTableCellRanges';
+import type { TableContext } from '../tableModel/tableContext';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
@@ -108,12 +107,7 @@ function isSelectionInsideRenderedCell(event: Event): boolean {
  * Supports rendering markdown content inside cells
  */
 export class TableWidget extends WidgetType {
-    constructor(
-        private readonly tableData: MarkdownTable,
-        private readonly cellRanges: TableCellRanges,
-        private readonly tableText: string,
-        private readonly tableFrom: number
-    ) {
+    constructor(private readonly ctx: TableContext) {
         super();
     }
 
@@ -126,7 +120,7 @@ export class TableWidget extends WidgetType {
         // path, which shifts decoration ranges without rebuilding widgets, so a widget's
         // `tableFrom` drifts from the document. Comparing it routes those tables through
         // updateDOM() to refresh their recorded position.
-        return this.tableText === other.tableText && this.tableFrom === other.tableFrom;
+        return this.ctx.text === other.ctx.text && this.ctx.from === other.ctx.from;
     }
 
     updateDOM(dom: HTMLElement, view: EditorView): boolean {
@@ -136,7 +130,7 @@ export class TableWidget extends WidgetType {
         //
         // An unrecognised DOM has no recorded state, so it falls through to a rebuild.
         const state = widgetDomState.get(dom);
-        if (!state || state.tableText !== this.tableText) {
+        if (!state || state.tableText !== this.ctx.text) {
             // Content changed (structural edit) - must rebuild DOM via toDOM().
             return false;
         }
@@ -144,8 +138,8 @@ export class TableWidget extends WidgetType {
         // Only the position changed, so the DOM stays as-is — preserving heavy elements like
         // videos — and the recorded state is advanced to match. This is the single write point.
         state.view = view;
-        state.tableFrom = this.tableFrom;
-        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+        state.tableFrom = this.ctx.from;
+        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.ctx.from));
 
         // Prime CodeMirror's vertical layout info immediately on reuse instead of
         // waiting for ResizeObserver, which may fire too late for the first undo.
@@ -164,18 +158,18 @@ export class TableWidget extends WidgetType {
         // Mirrors the recorded position for DOM inspection. Written only from widgetDomState,
         // and never read back: interaction handlers resolve identity via posAtDOM() instead;
         // see findTableWidgetElement().
-        container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.tableFrom));
+        container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.ctx.from));
 
         const table = doc.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
-        const headerCells = this.tableData.headerCells;
-        const bodyRows = this.tableData.bodyRows;
-        const alignments = this.tableData.alignments;
+        const headerCells = this.ctx.table.headerCells;
+        const bodyRows = this.ctx.table.bodyRows;
+        const alignments = this.ctx.table.alignments;
 
         // Render header — skip synthetic cells that have no source range
         const thead = doc.createElement('thead');
         const headerRow = doc.createElement('tr');
-        const headerCount = this.cellRanges.headers.length;
+        const headerCount = this.ctx.cellRanges.headers.length;
         for (let i = 0; i < headerCount; i++) {
             const th = doc.createElement('th');
             th.dataset[DATA_SECTION] = SECTION_HEADER;
@@ -199,7 +193,7 @@ export class TableWidget extends WidgetType {
         for (let r = 0; r < bodyRows.length; r++) {
             const row = bodyRows[r];
             const tr = doc.createElement('tr');
-            const colCount = this.cellRanges.rows[r]?.length ?? row.length;
+            const colCount = this.ctx.cellRanges.rows[r]?.length ?? row.length;
             for (let c = 0; c < colCount; c++) {
                 const td = doc.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
@@ -235,8 +229,8 @@ export class TableWidget extends WidgetType {
         widgetDomState.set(container, {
             view,
             observer,
-            tableText: this.tableText,
-            tableFrom: this.tableFrom,
+            tableText: this.ctx.text,
+            tableFrom: this.ctx.from,
         });
         observer.observe(container);
 
@@ -276,11 +270,11 @@ export class TableWidget extends WidgetType {
      * and jumps the scroll position.
      */
     get estimatedHeight(): number {
-        const cached = tableHeightCache.get({ tableFrom: this.tableFrom, tableText: this.tableText });
+        const cached = tableHeightCache.get({ tableFrom: this.ctx.from, tableText: this.ctx.text });
         if (cached !== undefined && cached > 0) {
             return cached;
         }
-        return estimateTableHeight(this.tableData);
+        return estimateTableHeight(this.ctx.table);
     }
 
     /**
@@ -291,21 +285,38 @@ export class TableWidget extends WidgetType {
      * CodeMirror subtracts the widget's document start offset before calling this, so `pos` is
      * already relative to the widget — do not subtract `tableFrom` here.
      *
-     * `this.cellRanges` reflects the table text as of the last full rebuild. In-cell edits are
-     * forwarded through the `mapDecorations` path (see tableDecorationPolicy.ts) precisely so the
-     * widget is *not* rebuilt while a nested editor is open, which leaves `cellRanges` stale for
-     * the whole editing session — long enough for `pos` to resolve to the wrong cell once the
-     * edited cell's length changes. `resolveLiveCellCoords()` reads the live ranges instead, so it
-     * takes priority whenever it succeeds; the cached ranges remain as the fallback for every
-     * widget it does not cover (see there).
+     * The context held by the widget is a rendering snapshot and can be stale while a nested
+     * editor keeps the widget DOM alive. Coordinate lookup therefore resolves the current table
+     * from the document index at the widget's live DOM position.
      */
     coordsAt(
         dom: HTMLElement,
         pos: number,
         _side: number
     ): { top: number; bottom: number; left: number; right: number } | null {
-        const liveCoords = this.resolveLiveCellCoords(dom, pos);
-        const coords = liveCoords === undefined ? findCellForPos(this.cellRanges, pos) : liveCoords;
+        const state = widgetDomState.get(dom);
+        if (!state) {
+            return null;
+        }
+
+        let tableFrom: number;
+        try {
+            tableFrom = state.view.posAtDOM(dom);
+        } catch {
+            return null;
+        }
+
+        const ctx = getTableContextAtPos(state.view.state, tableFrom);
+        if (!ctx) {
+            return null;
+        }
+
+        const docPos = tableFrom + pos;
+        if (docPos < ctx.from || docPos > ctx.to) {
+            return null;
+        }
+
+        const coords = findCellForPos(ctx.cellRanges, docPos - ctx.from);
         if (!coords) {
             return null;
         }
@@ -316,55 +327,6 @@ export class TableWidget extends WidgetType {
         }
 
         return cell.getBoundingClientRect();
-    }
-
-    /**
-     * Resolves `pos` against the live cell ranges held in `resolvedActiveCellField` rather than
-     * the `cellRanges` snapshot captured at the last full rebuild.
-     *
-     * The field covers exactly the window in which `cellRanges` is frozen: both `mapDecorations`
-     * branches require an active cell, and the field re-derives the table's `TableContext` on
-     * every `docChanged` — so the current ranges were already computed in the transaction that
-     * froze them. This runs inside CodeMirror's synchronous measure phase; re-deriving them from
-     * the syntax tree here would parse and slice the document again per call.
-     *
-     * `undefined` means the live ranges do not cover this widget and the cached ranges are
-     * trustworthy (no active cell means no `mapDecorations` window; a widget outside the active
-     * table's span never goes stale). `null` is authoritative: the live position is not in a cell.
-     */
-    private resolveLiveCellCoords(dom: HTMLElement, pos: number): CellCoords | null | undefined {
-        const state = widgetDomState.get(dom);
-        if (!state) {
-            return undefined;
-        }
-
-        // Read the field directly rather than through getResolvedActiveCell(): its fallback for
-        // states without the field recomputes the context from the syntax tree, which is the
-        // measure-phase work this exists to avoid.
-        const resolved = state.view.state.field(resolvedActiveCellField, false);
-        if (!resolved) {
-            return undefined;
-        }
-
-        let liveTableFrom: number;
-        try {
-            // Mirrors findTableWidgetElement()'s posAtDOM-based lookup: avoids trusting any
-            // cached position field, which is exactly what's stale here.
-            liveTableFrom = state.view.posAtDOM(dom);
-        } catch {
-            return undefined;
-        }
-
-        // Containment rather than `liveTableFrom === ctx.from`: the widget may be a different
-        // table than the active one, and comparing spans tolerates any drift between the mapped
-        // decoration start and the freshly resolved table start.
-        const { ctx } = resolved;
-        const docPos = liveTableFrom + pos;
-        if (docPos < ctx.from || docPos > ctx.to) {
-            return undefined;
-        }
-
-        return findCellForPos(ctx.cellRanges, docPos - ctx.from);
     }
 
     ignoreEvent(event: Event): boolean {

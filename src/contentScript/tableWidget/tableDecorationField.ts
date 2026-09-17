@@ -26,7 +26,7 @@ function buildTableDecorations(state: EditorState): TableDecorationState {
     const decorations = new RangeSetBuilder<Decoration>();
     for (const ctx of index.tables) {
         // RangeSetBuilder requires ranges in ascending document order.
-        const widget = new TableWidget(ctx.table, ctx.cellRanges, ctx.text, ctx.from);
+        const widget = new TableWidget(ctx);
         const decoration = Decoration.replace({
             widget,
             block: true,

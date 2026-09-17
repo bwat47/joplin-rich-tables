@@ -12,7 +12,6 @@ import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField } from '../tableState/cellDragState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
@@ -131,7 +130,6 @@ async function registerTableWidgetExtension(
         nestedEditorPlugin,
         tableContextField,
         activeCellField,
-        resolvedActiveCellField,
         openCellRequestField,
         insertedTableActivationField,
         cellSelectionField,

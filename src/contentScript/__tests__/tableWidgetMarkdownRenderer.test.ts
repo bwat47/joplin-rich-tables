@@ -43,7 +43,7 @@ describe('TableWidget markdown rendering', () => {
             requestMeasure: vi.fn(),
         } as unknown as EditorView;
 
-        const widget = new TableWidget(table, cellRanges, tableText, 0);
+        const widget = new TableWidget({ from: 0, to: tableText.length, text: tableText, table, cellRanges });
         const dom = widget.toDOM(view);
         document.body.appendChild(dom);
         rendered.resolve(htmlFragment('<p><strong>rendered</strong></p>'));

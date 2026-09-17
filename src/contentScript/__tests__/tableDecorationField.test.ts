@@ -7,7 +7,6 @@ import { isTableRenderingActive, tableDecorationField } from '../tableWidget/tab
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE_COUNT = 5;
@@ -32,12 +31,7 @@ describe('tableDecorationField', () => {
         });
 
         const registration = state.update({
-            effects: StateEffect.appendConfig.of([
-                tableContextField,
-                activeCellField,
-                resolvedActiveCellField,
-                tableDecorationField,
-            ]),
+            effects: StateEffect.appendConfig.of([tableContextField, activeCellField, tableDecorationField]),
         });
 
         expect(() => registration.state).not.toThrow();
@@ -113,7 +107,7 @@ describe('tableDecorationField', () => {
     });
 
     it('keeps decorations dropped after a full replace until the deferred rebuild arrives', () => {
-        const base = createMarkdownState(TABLE, [activeCellField, resolvedActiveCellField, tableDecorationField]);
+        const base = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);
         const active = base.update({
             effects: setActiveCellEffect.of({ tableFrom: 0, section: 'header', row: 0, col: 0 }),
         }).state;

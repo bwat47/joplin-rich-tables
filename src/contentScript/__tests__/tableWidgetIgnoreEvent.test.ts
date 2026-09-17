@@ -13,7 +13,13 @@ function createWidget(): TableWidget {
         throw new Error('Expected the test table to parse');
     }
 
-    return new TableWidget(table, parseCellRangesFixture(DOC), DOC, 0);
+    return new TableWidget({
+        from: 0,
+        to: DOC.length,
+        text: DOC,
+        table,
+        cellRanges: parseCellRangesFixture(DOC),
+    });
 }
 
 /**

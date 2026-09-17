@@ -56,7 +56,7 @@ function createWidget(tableText: string, tableFrom = 0): TableWidget {
     if (!table) {
         throw new Error('Expected test table to parse');
     }
-    return new TableWidget(table, cellRanges, tableText, tableFrom);
+    return new TableWidget({ from: tableFrom, to: tableFrom + tableText.length, text: tableText, table, cellRanges });
 }
 
 function createView(): EditorView {

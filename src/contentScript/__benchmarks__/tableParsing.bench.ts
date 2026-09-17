@@ -4,7 +4,6 @@ import { computeCellAnchorForTable } from '../tableModel/cellAnchors';
 import { getTableContextAtPos, getTableContexts } from '../tableState/tableContextField';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from '../__tests__/testMarkdownState';
@@ -123,12 +122,7 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
     const document = Array.from({ length: spec.tableCount }, (_value, index) => `paragraph ${index}\n\n${table}`).join(
         '\n\n'
     );
-    const noActiveState = createMarkdownState(document, [
-        sourceModeField,
-        activeCellField,
-        resolvedActiveCellField,
-        tableDecorationField,
-    ]);
+    const noActiveState = createMarkdownState(document, [sourceModeField, activeCellField, tableDecorationField]);
     const firstContext = getTableContexts(noActiveState)[0];
     if (!firstContext) {
         throw new Error('tableContextField found no document benchmark table');

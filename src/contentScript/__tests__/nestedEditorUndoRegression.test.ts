@@ -12,7 +12,7 @@ import { nestedEditorPlugin, isNestedEditorOpen } from '../nestedEditor/nestedEd
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
-import { resolvedActiveCellField, getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement } from '../tableWidget/domHelpers';
@@ -110,7 +110,6 @@ describe('nested editor undo regression', () => {
                     nestedEditorPlugin,
                     tableContextField,
                     activeCellField,
-                    resolvedActiveCellField,
                     openCellRequestField,
                     nestedEditorLifecyclePlugin,
                     tableDecorationField,

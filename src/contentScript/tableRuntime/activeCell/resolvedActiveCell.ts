@@ -1,7 +1,6 @@
 import type { EditorState } from '@codemirror/state';
-import { StateField } from '@codemirror/state';
-import { activeCellField, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
-import { getTableContextAtPos, tableContextField } from '../../tableState/tableContextField';
+import { getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
 import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
@@ -88,44 +87,6 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
     return resolveAnchoredActiveCell(state, activeCell);
 }
 
-/**
- * Caches the resolved active cell per EditorState so transaction filters,
- * lifecycle handling, and decoration policy can share one resolution result
- * instead of each re-running table lookup and cell range derivation.
- */
-export const resolvedActiveCellField = StateField.define<ResolvedActiveCell | null>({
-    create(state) {
-        return resolveActiveCell(state, getActiveCell(state));
-    },
-    update(value, tr) {
-        // Joplin appends the plugin configuration to an existing editor. A host transaction
-        // extender can force the provisional state while the start state still lacks this field.
-        const startIndex = tr.startState.field(tableContextField, false);
-        const currentIndex = tr.state.field(tableContextField, false);
-        // Re-derive when doc or active cell identity changes.
-        if (!tr.docChanged && startIndex !== undefined && startIndex === currentIndex) {
-            // Use the false flag so states without activeCellField (e.g. nested editor
-            // states, autocomplete states) return undefined instead of throwing.
-            if (tr.startState.field(activeCellField, false) === tr.state.field(activeCellField, false)) {
-                return value;
-            }
-        }
-        return resolveActiveCell(tr.state, getActiveCell(tr.state));
-    },
-});
-
-/**
- * Returns the resolved active cell for `state`.
- *
- * When `resolvedActiveCellField` is registered, this is a cached read.
- * Falls back to a fresh computation for states that do not include the field
- * (for example isolated test states or other partial editor states), so
- * callers remain correct without needing to register the field everywhere.
- */
 export function getResolvedActiveCell(state: EditorState): ResolvedActiveCell | null {
-    const cached = state.field(resolvedActiveCellField, false);
-    if (cached !== undefined) {
-        return cached;
-    }
     return resolveActiveCell(state, getActiveCell(state));
 }

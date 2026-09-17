@@ -68,7 +68,7 @@ function decideFullDocumentReplaceDecoration(tr: Transaction): DecorationDecisio
 /**
  * Switching activation to a different table ends the previous table's `mapDecorations`
  * window without a clear effect, leaving its widget frozen with cell ranges that predate
- * any in-cell edits — while `resolvedActiveCellField` moves on to the new table, so
+ * any in-cell edits — while active-cell resolution moves on to the new table, so
  * `coordsAt()` can no longer live-resolve the old one. Rebuilding restores the invariant
  * that a frozen widget is always covered by the resolved active cell.
  */

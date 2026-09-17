@@ -8,7 +8,6 @@ import { insertedTableActivationField } from '../tableState/insertedTableActivat
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
@@ -17,7 +16,6 @@ const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 const runtimeState: Extension[] = [
     activeCellField,
-    resolvedActiveCellField,
     cellSelectionField,
     insertedTableActivationField,
     searchForceSourceModeField,
