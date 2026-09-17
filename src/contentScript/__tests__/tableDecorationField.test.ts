@@ -7,6 +7,7 @@ import { isTableRenderingActive, tableDecorationField } from '../tableWidget/tab
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE_COUNT = 5;
@@ -73,6 +74,38 @@ describe('tableDecorationField', () => {
             rendering: true,
         });
         expect(state.field(tableContextField).treeIncomplete).toBe(false);
+    });
+
+    it('resolves the active cell after parser recovery without an activation change', () => {
+        let now = 0;
+        const dateNow = vi.spyOn(Date, 'now').mockImplementation(() => {
+            now += CLOCK_ADVANCE_MS;
+            return now;
+        });
+
+        let state: EditorState;
+        try {
+            state = createMarkdownState(LONG_TABLE_DOCUMENT, [activeCellField]);
+            state = state.update({
+                effects: setActiveCellEffect.of({
+                    tableFrom: FILLER.length + 2,
+                    section: 'header',
+                    row: 0,
+                    col: 0,
+                }),
+            }).state;
+        } finally {
+            dateNow.mockRestore();
+        }
+
+        expect(state.field(tableContextField).treeIncomplete).toBe(true);
+        expect(getResolvedActiveCell(state)).toBeNull();
+
+        expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
+        state = state.update({}).state;
+
+        expect(state.field(tableContextField).treeIncomplete).toBe(false);
+        expect(getResolvedActiveCell(state)?.tableFrom).toBe(FILLER.length + 2);
     });
 
     it('maps existing decorations while an updated index is incomplete, then rebuilds on recovery', () => {
