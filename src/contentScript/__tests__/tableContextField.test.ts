@@ -18,6 +18,14 @@ function spans(state: EditorState): { from: number; to: number }[] {
     return getTableContexts(state).map(({ from, to }) => ({ from, to }));
 }
 
+function expectSameIndexAsFresh(state: EditorState): void {
+    const fresh = createMarkdownState(state.doc.toString());
+    expect(spans(state)).toEqual(spans(fresh));
+    expect(getTableContexts(state).map((context) => context.text)).toEqual(
+        getTableContexts(fresh).map((context) => context.text)
+    );
+}
+
 describe('tableContextField selectors', () => {
     it('indexes root tables in document order', () => {
         const state = createMarkdownState(TWO_TABLES);
@@ -113,12 +121,51 @@ describe('tableContextField updates', () => {
         ['replace', { from: 0, to: TABLE.length, insert: SECOND_TABLE }],
     ])('matches a fresh index after %s', (_label, changes) => {
         const updated = createMarkdownState(TABLE).update({ changes }).state;
-        const fresh = createMarkdownState(updated.doc.toString());
+        expectSameIndexAsFresh(updated);
+    });
 
-        expect(spans(updated)).toEqual(spans(fresh));
-        expect(getTableContexts(updated).map((context) => context.text)).toEqual(
-            getTableContexts(fresh).map((context) => context.text)
-        );
+    it('matches a fresh index after merging adjacent table source', () => {
+        const state = createMarkdownState(TWO_TABLES);
+        const merged = state.update({ changes: { from: TABLE.length, to: SECOND_TABLE_FROM } }).state;
+
+        expectSameIndexAsFresh(merged);
+    });
+
+    it('matches a fresh index after mixed edits to multiple tables and their surrounding paragraph', () => {
+        const doc = `before\n\n${TWO_TABLES}\n\nafter`;
+        const firstCell = doc.indexOf('c');
+        const secondCell = doc.indexOf('g');
+        const after = doc.lastIndexOf('after');
+        const updated = createMarkdownState(doc).update({
+            changes: [
+                { from: firstCell, to: firstCell + 1, insert: 'first' },
+                { from: secondCell, to: secondCell + 1, insert: 'second' },
+                { from: after, to: after + 'after'.length, insert: 'tail' },
+            ],
+        }).state;
+
+        expectSameIndexAsFresh(updated);
+    });
+
+    it('rescans root membership when a table becomes a blockquote', () => {
+        const lineStarts = [
+            0,
+            ...TABLE.split('\n')
+                .slice(0, -1)
+                .map((_line, index) => {
+                    return (
+                        TABLE.split('\n')
+                            .slice(0, index + 1)
+                            .join('\n').length + 1
+                    );
+                }),
+        ];
+        const nested = createMarkdownState(TABLE).update({
+            changes: lineStarts.map((from) => ({ from, insert: '> ' })),
+        }).state;
+
+        expect(getTableContexts(nested)).toEqual([]);
+        expectSameIndexAsFresh(nested);
     });
 
     it('rescans later table membership when a fence is inserted at the first boundary', () => {
@@ -128,5 +175,14 @@ describe('tableContextField updates', () => {
         expect(getTableContexts(fenced)).toEqual([]);
         const restored = fenced.update({ changes: { from: 0, to: 4 } }).state;
         expect(spans(restored)).toEqual(spans(createMarkdownState(TWO_TABLES)));
+    });
+
+    it('keeps an already parsed document complete during ordinary typing', () => {
+        const doc = Array.from({ length: 200 }, (_value, index) => `paragraph ${index}\n\n${TABLE}`).join('\n\n');
+        const state = createMarkdownState(doc);
+        const updated = state.update({ changes: { from: doc.indexOf('c'), insert: 'x' } }).state;
+
+        expect(updated.field(tableContextField).treeIncomplete).toBe(false);
+        expectSameIndexAsFresh(updated);
     });
 });
