@@ -1,7 +1,12 @@
 import { bench, describe } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeCellAnchorForTable } from '../tableModel/cellAnchors';
-import { resolveTableContextAtPos, findTableRanges } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos, getTableContexts } from '../tableState/tableContextField';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from '../__tests__/testMarkdownState';
 
 interface TableFixtureSpec {
@@ -24,7 +29,10 @@ const FIXTURE_SPECS: readonly TableFixtureSpec[] = [
     { label: 'wide 100x128', bodyRows: 100, columns: 128 },
 ];
 
-const CACHE_CHURN_TABLE_COUNT = 64;
+const DOCUMENT_FIXTURE_SPECS = [
+    { label: '200-table document', tableCount: 200 },
+    { label: '1000-table stress document', tableCount: 1000 },
+] as const;
 
 function bodyCell(row: number, column: number, columns: number, variant: number): string {
     const index = row * columns + column + variant;
@@ -61,13 +69,12 @@ const fixtures = FIXTURE_SPECS.map((spec) => {
     // Bottom-right is the worst case: the offset walk passes every preceding row and cell.
     const anchorTarget = { section: 'body', row: spec.bodyRows - 1, col: spec.columns - 1 } as const;
     const state = createMarkdownState(text);
-    const tableFrom = requireParsed(findTableRanges(state), 'findTableRanges')[0]?.from;
+    const tableFrom = getTableContexts(state)[0]?.from;
     if (tableFrom === undefined) {
-        throw new Error('findTableRanges found no benchmark table');
+        throw new Error('tableContextField found no benchmark table');
     }
 
-    // Complete incremental parsing and warm the TableContext LRU before timings begin.
-    requireParsed(resolveTableContextAtPos(state, tableFrom), 'resolveTableContextAtPos');
+    requireParsed(getTableContextAtPos(state, tableFrom), 'getTableContextAtPos');
     return { ...spec, text, table, anchorTarget, state, tableFrom };
 });
 
@@ -94,42 +101,88 @@ for (const fixture of fixtures) {
         );
 
         bench(
-            'existing-tree findTableRanges',
+            'read complete table index',
             () => {
-                findTableRanges(fixture.state);
+                getTableContexts(fixture.state);
             },
             BENCHMARK_OPTIONS
         );
 
         bench(
-            'warm resolveTableContextAtPos',
+            'indexed getTableContextAtPos',
             () => {
-                resolveTableContextAtPos(fixture.state, fixture.tableFrom);
+                getTableContextAtPos(fixture.state, fixture.tableFrom);
             },
             BENCHMARK_OPTIONS
         );
     });
 }
 
-const cacheChurnFixtures = Array.from({ length: CACHE_CHURN_TABLE_COUNT }, (_value, variant) => {
-    const text = buildTable(100, 10, variant);
-    const state = createMarkdownState(text);
-    const tableFrom = requireParsed(findTableRanges(state), 'findTableRanges')[0]?.from;
-    if (tableFrom === undefined) {
-        throw new Error('findTableRanges found no cache-churn table');
-    }
-    return { state, tableFrom };
-});
-let cacheChurnIndex = 0;
-
-describe('medium 100x10 cache churn', () => {
-    bench(
-        'resolveTableContextAtPos across 64 tables',
-        () => {
-            const fixture = cacheChurnFixtures[cacheChurnIndex];
-            cacheChurnIndex = (cacheChurnIndex + 1) % cacheChurnFixtures.length;
-            resolveTableContextAtPos(fixture.state, fixture.tableFrom);
-        },
-        BENCHMARK_OPTIONS
+for (const spec of DOCUMENT_FIXTURE_SPECS) {
+    const table = buildTable(3, 5);
+    const document = Array.from({ length: spec.tableCount }, (_value, index) => `paragraph ${index}\n\n${table}`).join(
+        '\n\n'
     );
-});
+    const noActiveState = createMarkdownState(document, [
+        sourceModeField,
+        activeCellField,
+        resolvedActiveCellField,
+        tableDecorationField,
+    ]);
+    const firstContext = getTableContexts(noActiveState)[0];
+    if (!firstContext) {
+        throw new Error('tableContextField found no document benchmark table');
+    }
+    const activeState = noActiveState.update({
+        effects: setActiveCellEffect.of({ tableFrom: firstContext.from, section: 'body', row: 0, col: 0 }),
+    }).state;
+    const rawModeState = noActiveState.update({ effects: toggleSourceModeEffect.of(true) }).state;
+    const activeCell = firstContext.cellRanges.rows[0][0];
+    const activeInsert = firstContext.from + activeCell.editableFrom;
+    const paragraphInsert = document.lastIndexOf('paragraph');
+
+    describe(spec.label, () => {
+        bench(
+            'reuse-key slicing only',
+            () => {
+                for (const context of getTableContexts(noActiveState)) {
+                    noActiveState.doc.sliceString(context.from, context.to);
+                }
+            },
+            BENCHMARK_OPTIONS
+        );
+
+        bench(
+            'no active cell: warmed paragraph edit',
+            () => {
+                noActiveState
+                    .update({ changes: { from: paragraphInsert, insert: 'x' } })
+                    .state.field(tableDecorationField);
+            },
+            BENCHMARK_OPTIONS
+        );
+
+        bench(
+            'active table near start: warmed nested-cell edit',
+            () => {
+                activeState
+                    .update({
+                        changes: { from: activeInsert, insert: 'x' },
+                        annotations: syncAnnotation.of(true),
+                    })
+                    .state.field(tableDecorationField);
+            },
+            BENCHMARK_OPTIONS
+        );
+
+        bench(
+            'raw mode: warmed paragraph edit',
+            () => {
+                rawModeState
+                    .update({ changes: { from: paragraphInsert, insert: 'x' } })
+                    .state.field(tableDecorationField);
+            },
+            BENCHMARK_OPTIONS
+        );
+    });
+}
