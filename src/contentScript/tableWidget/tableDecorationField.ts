@@ -67,9 +67,12 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
                 if (transaction.state.field(tableContextField).treeIncomplete) {
                     return value;
                 }
-                // Dynamic appendConfig transactions can update a provisionally created field
-                // whose start state predates tableContextField registration.
-                if (transaction.startState.field(tableContextField, false)?.treeIncomplete || !value.rendering) {
+                // A start state without the index is the registration transaction itself: Joplin
+                // appends the plugin configuration to an existing editor, and a host transaction
+                // extender can force the provisional state before the index exists. Build once.
+                // `value.rendering` deliberately does not force a rebuild here, so the paths that
+                // dropped decorations on purpose keep them dropped until they ask for them back.
+                if (transaction.startState.field(tableContextField, false)?.treeIncomplete ?? true) {
                     return buildTableDecorations(transaction.state);
                 }
                 return value;

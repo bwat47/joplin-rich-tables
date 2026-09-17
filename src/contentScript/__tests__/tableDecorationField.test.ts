@@ -5,7 +5,8 @@ import { GFM } from '@lezer/markdown';
 import { describe, expect, it, vi } from 'vitest';
 import { isTableRenderingActive, tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
-import { activeCellField } from '../tableState/activeCellState';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -109,5 +110,27 @@ describe('tableDecorationField', () => {
 
     it('reports rendering inactive when the decoration field is absent', () => {
         expect(isTableRenderingActive(createMarkdownState(TABLE))).toBe(false);
+    });
+
+    it('keeps decorations dropped after a full replace until the deferred rebuild arrives', () => {
+        const base = createMarkdownState(TABLE, [activeCellField, resolvedActiveCellField, tableDecorationField]);
+        const active = base.update({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'header', row: 0, col: 0 }),
+        }).state;
+        expect(active.field(tableDecorationField).decorations.size).toBe(1);
+
+        // A full replace while a cell is active drops the widgets; the lifecycle rebuilds them
+        // on the next animation frame, once the stale active cell has been cleared.
+        const replaced = active.update({ changes: { from: 0, to: active.doc.length, insert: TABLE } }).state;
+        expect(replaced.field(tableDecorationField).decorations.size).toBe(0);
+        expect(isTableRenderingActive(replaced)).toBe(false);
+
+        const afterSelection = replaced.update({ selection: { anchor: 1 } }).state;
+        expect(afterSelection.field(tableDecorationField).decorations.size).toBe(0);
+        expect(isTableRenderingActive(afterSelection)).toBe(false);
+
+        const rebuilt = afterSelection.update({ effects: rebuildAllTableWidgetsEffect.of(undefined) }).state;
+        expect(rebuilt.field(tableDecorationField).decorations.size).toBe(1);
+        expect(isTableRenderingActive(rebuilt)).toBe(true);
     });
 });
