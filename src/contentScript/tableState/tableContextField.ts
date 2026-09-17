@@ -4,7 +4,7 @@ import { logger } from '../../logger';
 import { isRootTableNode } from '../tableModel/lezerTableSyntax';
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 
-export const SYNTAX_TREE_BUDGET_MS = 1000;
+const SYNTAX_TREE_BUDGET_MS = 1000;
 
 export interface TableIndex {
     /** Root tables in document order, non-overlapping. */
