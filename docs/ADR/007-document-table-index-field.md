@@ -29,8 +29,8 @@ shares the same derived values. The global LRU, per-call resolution timeouts, de
 An unavailable parse publishes an empty index marked incomplete and clears table decorations. This exposes raw
 Markdown and destroys any hosted nested editor until a later transaction restores a complete index. Keeping mapped
 decorations during timeouts was rejected because it leaves visible widgets without semantic spans for selection and
-interaction. `isTableRenderingActive()` separately exposes the document-level rendering state so selection code does
-not confuse semantic table presence with visible widgets in raw mode or while the index is incomplete.
+interaction. Widgets are therefore on screen exactly when the index is complete and raw mode is off, so selection code
+distinguishes table presence from visible widgets with a raw-mode check rather than a separate rendering flag.
 
 Mapped untouched spans, padded scan windows, retained syntax nodes, and overlap fallbacks were rejected. They add a
 second invalidation algorithm and do not reliably account for container and fence changes outside a table's old span.

@@ -4,11 +4,7 @@ import { EditorState, StateEffect, Transaction } from '@codemirror/state';
 import type { Decoration } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { describe, expect, it, vi } from 'vitest';
-import {
-    isTableRenderingActive,
-    tableDecorationField,
-    wasActiveHostInvalidated,
-} from '../tableWidget/tableDecorationField';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
@@ -84,7 +80,6 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableDecorationField)).toMatchObject({
             decorations: { size: 0 },
-            rendering: false,
         });
         expect(state.field(tableContextField).treeIncomplete).toBe(true);
 
@@ -98,7 +93,6 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableDecorationField)).toMatchObject({
             decorations: { size: TABLE_COUNT },
-            rendering: true,
         });
         expect(state.field(tableContextField).treeIncomplete).toBe(false);
     });
@@ -155,23 +149,16 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableContextField).treeIncomplete).toBe(true);
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
-        expect(isTableRenderingActive(state)).toBe(false);
         expect(wasActiveHostInvalidated(state)).toBe(true);
 
         state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
-        expect(isTableRenderingActive(state)).toBe(false);
 
         expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
         state = state.update({}).state;
 
         expect(state.field(tableContextField).treeIncomplete).toBe(false);
         expect(state.field(tableDecorationField).decorations.size).toBe(TABLE_COUNT + 1);
-        expect(isTableRenderingActive(state)).toBe(true);
-    });
-
-    it('reports rendering inactive when the decoration field is absent', () => {
-        expect(isTableRenderingActive(createMarkdownState(TABLE))).toBe(false);
     });
 
     it('renders the replacement document immediately after a full replace with an active cell', () => {
@@ -195,7 +182,6 @@ ${TABLE.replace('a', 'c')}`;
             getDecoratedSpans(replaced)
         );
         expect(replaced.field(tableContextField).tables).toHaveLength(2);
-        expect(isTableRenderingActive(replaced)).toBe(true);
         expect(wasActiveHostInvalidated(replaced)).toBe(true);
     });
 

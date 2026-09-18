@@ -12,8 +12,6 @@ import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 interface TableDecorationState {
     decorations: DecorationSet;
-    /** True when decorations project the complete index, even if it contains no tables. */
-    rendering: boolean;
     /** A document change rebuilt or dropped the previously active table's decoration. */
     activeHostInvalidated: boolean;
 }
@@ -25,7 +23,7 @@ interface TableDecorationState {
 function buildTableDecorations(state: EditorState, activeHostInvalidated = false): TableDecorationState {
     const index = state.field(tableContextField);
     if (index.treeIncomplete) {
-        return { decorations: Decoration.none, rendering: false, activeHostInvalidated };
+        return { decorations: Decoration.none, activeHostInvalidated };
     }
 
     const decorations = new RangeSetBuilder<Decoration>();
@@ -40,7 +38,7 @@ function buildTableDecorations(state: EditorState, activeHostInvalidated = false
         decorations.add(ctx.from, ctx.to, decoration);
     }
 
-    return { decorations: decorations.finish(), rendering: true, activeHostInvalidated };
+    return { decorations: decorations.finish(), activeHostInvalidated };
 }
 
 function hasSameTableShape(before: TableCellRanges, after: TableCellRanges): boolean {
@@ -139,7 +137,6 @@ function reconcileTableDecorations(
 
     return {
         decorations: decorations.finish(),
-        rendering: true,
         activeHostInvalidated: invalidated && !preserved,
     };
 }
@@ -161,7 +158,7 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
 
         switch (decision.type) {
             case 'noneDecorations':
-                return { decorations: Decoration.none, rendering: false, activeHostInvalidated };
+                return { decorations: Decoration.none, activeHostInvalidated };
             case 'rebuildAllDecorations':
                 return buildTableDecorations(transaction.state, activeHostInvalidated);
             case 'reconcileDecorations':
@@ -170,11 +167,6 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
-
-/** True when decorations project the complete index; false in raw mode or while the index is incomplete. */
-export function isTableRenderingActive(state: EditorState): boolean {
-    return state.field(tableDecorationField, false)?.rendering ?? false;
-}
 
 /** True when this state's transaction invalidated the previously active table's host. */
 export function wasActiveHostInvalidated(state: EditorState): boolean {
