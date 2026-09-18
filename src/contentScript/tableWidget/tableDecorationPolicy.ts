@@ -1,10 +1,7 @@
 import { Transaction, type StateEffectType } from '@codemirror/state';
-import { getActiveCell } from '../tableState/activeCellState';
 import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import { rebuildAllTableWidgetsEffect, rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 
 export type DecorationDecision =
     { type: 'noneDecorations' } | { type: 'rebuildAllDecorations' } | { type: 'reconcileDecorations' };
@@ -28,7 +25,7 @@ function decideRawModeDecoration(tr: Transaction): DecorationDecision | null {
 }
 
 function decideRebuildRequestDecoration(tr: Transaction): DecorationDecision | null {
-    if (hasEffect(tr, rebuildAllTableWidgetsEffect) || hasEffect(tr, rebuildTableWidgetsEffect)) {
+    if (hasEffect(tr, rebuildTableWidgetsEffect)) {
         return { type: 'rebuildAllDecorations' };
     }
 
@@ -36,38 +33,12 @@ function decideRebuildRequestDecoration(tr: Transaction): DecorationDecision | n
 }
 
 /**
- * A full replace while a cell is active (e.g. external sync) invalidates the
- * active cell; decorations stay dropped until the lifecycle's deferred rebuild
- * or the next document change.
- *
- * A requested entry is exempt: normalizing a note that is a single table replaces
- * the whole document, but that is a controlled edit, not an external replace.
- */
-function decideFullDocumentReplaceDecoration(tr: Transaction): DecorationDecision | null {
-    if (
-        !tr.docChanged ||
-        !getActiveCell(tr.startState) ||
-        !isFullDocumentReplace(tr) ||
-        hasEffect(tr, triggerOpenCellRequestEffect)
-    ) {
-        return null;
-    }
-
-    return { type: 'noneDecorations' };
-}
-
-/**
  * Routes a transaction to drop, force-render, or reconcile table decorations.
- * `reconcileTableDecorations()` owns deferral after a dropped render, parser
- * recovery, and active-host preservation.
+ * `reconcileTableDecorations()` owns parser recovery and active-host preservation.
  *
  * The order of the checks below is significant: earlier decisions deliberately
  * win over later ones (raw mode, for example, outranks any rebuild request).
  */
 export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
-    return (
-        decideRawModeDecoration(tr) ??
-        decideFullDocumentReplaceDecoration(tr) ??
-        decideRebuildRequestDecoration(tr) ?? { type: 'reconcileDecorations' }
-    );
+    return decideRawModeDecoration(tr) ?? decideRebuildRequestDecoration(tr) ?? { type: 'reconcileDecorations' };
 }

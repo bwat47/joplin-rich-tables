@@ -30,7 +30,7 @@ An unavailable parse publishes an empty index marked incomplete and clears table
 Markdown and destroys any hosted nested editor until a later transaction restores a complete index. Keeping mapped
 decorations during timeouts was rejected because it leaves visible widgets without semantic spans for selection and
 interaction. `isTableRenderingActive()` separately exposes the document-level rendering state so selection code does
-not confuse semantic table presence with visible widgets in raw mode or during a deferred rebuild.
+not confuse semantic table presence with visible widgets in raw mode or while the index is incomplete.
 
 Mapped untouched spans, padded scan windows, retained syntax nodes, and overlap fallbacks were rejected. They add a
 second invalidation algorithm and do not reliably account for container and fence changes outside a table's old span.
@@ -51,6 +51,11 @@ so an undo elsewhere should follow that cursor and reopen there rather than pres
 A transaction-wide continuity classifier and isolated reparsing were rejected: both duplicate facts already owned by
 the current index and would need separate root-membership validation. Index reconciliation also fixes external edits
 to another table remaining visually stale while a cell editor is open.
+
+A full-document replacement (e.g. Joplin sync) with a cell open previously dropped every decoration and rebuilt on the
+next animation frame, guarding against a syntax tree still mapped from the old document. The index only scans a tree
+covering the whole current document, so that deferral was removed: the replacement reconciles like any change that
+touches the active table, avoiding a frame of raw Markdown and the rendering-suspended window.
 
 ## Consequences
 

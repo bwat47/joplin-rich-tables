@@ -16,10 +16,3 @@ import { StateEffect } from '@codemirror/state';
  * `tableToolbarPlugin` defers repositioning until the rebuilt DOM exists.
  */
 export const rebuildTableWidgetsEffect = StateEffect.define<void>();
-
-/**
- * Forces a rebuild from a transaction that carries no document change, which would otherwise be
- * treated as "keep decorations". Used to recover after an external full-document replace
- * (e.g. a Joplin sync update) once the replacing transaction has settled.
- */
-export const rebuildAllTableWidgetsEffect = StateEffect.define<void>();

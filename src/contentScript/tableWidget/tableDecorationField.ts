@@ -111,17 +111,6 @@ function reconcileTableDecorations(
     const index = transaction.state.field(tableContextField);
     const invalidated = transaction.docChanged && previousCell !== null;
 
-    // A full replacement deliberately leaves widgets absent until the lifecycle's deferred
-    // rebuild. Ordinary selection/effect-free transactions in that window must not resurrect
-    // them. Parser recovery is different: its start-state index is incomplete.
-    if (
-        !value.rendering &&
-        !transaction.docChanged &&
-        !transaction.startState.field(tableContextField).treeIncomplete
-    ) {
-        return { ...value, activeHostInvalidated: false };
-    }
-
     // Nothing the projection depends on changed: same index, and the same active cell, so a
     // preserved active host stays preserved. Both fields keep their value identity when unchanged,
     // while parser recovery, clears, and activation effects all produce new values. The start
@@ -182,7 +171,7 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
 
-/** True when decorations project the complete index; false in raw mode or while rendering is deferred. */
+/** True when decorations project the complete index; false in raw mode or while the index is incomplete. */
 export function isTableRenderingActive(state: EditorState): boolean {
     return state.field(tableDecorationField, false)?.rendering ?? false;
 }

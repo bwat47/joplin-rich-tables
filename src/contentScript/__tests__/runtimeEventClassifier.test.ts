@@ -7,7 +7,6 @@ import {
     classifyTableRuntimeFacts,
     type TableRuntimeExternalFacts,
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
-import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
@@ -22,7 +21,6 @@ const SURROUNDING_TABLE_FROM = 'before\n\n'.length;
 
 const DEFAULT_EXTERNAL_FACTS: TableRuntimeExternalFacts = {
     nestedEditorOpen: false,
-    pendingFullReplaceRebuild: false,
 };
 
 class ResizeObserverMock {
@@ -118,7 +116,6 @@ describe('runtimeEventClassifier', () => {
         const externalFacts: TableRuntimeExternalFacts = {
             ...DEFAULT_EXTERNAL_FACTS,
             nestedEditorOpen: true,
-            pendingFullReplaceRebuild: true,
         };
         const update = dispatchAndCaptureUpdate({
             activeCell: getHeaderCell(),
@@ -134,11 +131,9 @@ describe('runtimeEventClassifier', () => {
             cellDragInProgress: false,
             effectiveRawMode: false,
             nestedEditorOpen: true,
-            pendingFullReplaceRebuild: true,
             docChanged: false,
             selectionChanged: true,
             isSync: false,
-            isNormalizeBeforeEdit: false,
             isCellSelectionTransition: false,
             rawModeTransition: {
                 enteredRawMode: false,
@@ -146,7 +141,6 @@ describe('runtimeEventClassifier', () => {
                 exitedSourceMode: false,
                 exitedSearchForce: false,
             },
-            hasFullDocumentReplace: false,
             rebuildTouchesPreviousActiveTable: false,
             isUndoRedoInsideTable: false,
             hasInsertedTableActivation: false,
@@ -165,13 +159,12 @@ describe('runtimeEventClassifier', () => {
                         triggerOpenCellRequestEffect.of({ requestId: 'first-request' }),
                         triggerOpenCellRequestEffect.of({ requestId: 'latest-request' }),
                     ],
-                    annotations: [normalizeBeforeEditAnnotation.of(true), cellSelectionTransitionAnnotation.of(true)],
+                    annotations: cellSelectionTransitionAnnotation.of(true),
                 });
             },
         });
         const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
-        expect(facts.isNormalizeBeforeEdit).toBe(true);
         expect(facts.isCellSelectionTransition).toBe(true);
         expect(facts.hasInsertedTableActivation).toBe(false);
         expect(facts.openRequestId).toBe('latest-request');

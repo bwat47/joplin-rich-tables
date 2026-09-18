@@ -68,11 +68,9 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
         activeCellIdentityUnchanged: false,
         effectiveRawMode: false,
         nestedEditorOpen: false,
-        pendingFullReplaceRebuild: false,
         docChanged: false,
         selectionChanged: false,
         isSync: false,
-        isNormalizeBeforeEdit: false,
         isCellSelectionTransition: false,
         cellDragInProgress: false,
         rawModeTransition: {
@@ -81,7 +79,6 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
             exitedSourceMode: false,
             exitedSearchForce: false,
         },
-        hasFullDocumentReplace: false,
         rebuildTouchesPreviousActiveTable: false,
         isUndoRedoInsideTable: false,
         hasInsertedTableActivation: false,
@@ -104,7 +101,6 @@ describe('tableRuntimePolicies', () => {
                 nestedEditorOpen: true,
                 docChanged: true,
                 selectionChanged: true,
-                hasFullDocumentReplace: true,
                 rebuildTouchesPreviousActiveTable: true,
                 rawModeTransition: {
                     enteredRawMode: true,
@@ -141,30 +137,6 @@ describe('tableRuntimePolicies', () => {
                     },
                 },
                 { type: 'scheduleInsertedTableActivation' },
-            ],
-        },
-        {
-            name: 'full-replace rebuild precedes raw-mode exit activation',
-            overrides: {
-                activeCellBefore: 'resolved',
-                hasFullDocumentReplace: true,
-                rawModeTransition: {
-                    enteredRawMode: false,
-                    exitedRawMode: true,
-                    exitedSourceMode: true,
-                    exitedSearchForce: false,
-                },
-            },
-            expected: [
-                { type: 'scheduleRebuildAllAfterFullReplace' },
-                {
-                    type: 'scheduleActivateCellAtCursor',
-                    options: {
-                        clearIfOutside: false,
-                        ensureCursorVisibleIfNotActivated: true,
-                        entryMode: 'adopt',
-                    },
-                },
             ],
         },
         {
@@ -270,38 +242,25 @@ describe('tableRuntimePolicies', () => {
             expected: [],
         },
         {
-            name: 'continuing active-cell removal follows accumulated full-replace rebuild work',
+            name: 'a full replace that invalidates the open cell repositions to the cell under the cursor',
             overrides: {
                 activeCell: { status: 'absent' },
                 activeCellBefore: 'resolved',
+                nestedEditorOpen: true,
                 docChanged: true,
-                hasFullDocumentReplace: true,
+                rebuildTouchesPreviousActiveTable: true,
             },
             expected: [
-                { type: 'scheduleRebuildAllAfterFullReplace' },
-                { type: 'closeNestedEditor', reason: 'activeCellRemoved' },
+                { type: 'closeNestedEditor', reason: 'cellReposition' },
+                {
+                    type: 'scheduleActivateCellAtCursor',
+                    options: {
+                        clearIfOutside: true,
+                        ensureCursorVisibleIfNotActivated: false,
+                        entryMode: 'enter',
+                    },
+                },
             ],
-        },
-        {
-            name: 'continuing stale cleanup follows accumulated full-replace rebuild work',
-            overrides: {
-                activeCell: { status: 'unresolved' },
-                activeCellBefore: 'resolved',
-                docChanged: true,
-                hasFullDocumentReplace: true,
-            },
-            expected: [{ type: 'scheduleRebuildAllAfterFullReplace' }, { type: 'clearActiveCell' }],
-        },
-        {
-            name: 'a pending full-replace rebuild suppresses a duplicate rebuild without blocking continuing work',
-            overrides: {
-                activeCell: { status: 'unresolved' },
-                activeCellBefore: 'resolved',
-                docChanged: true,
-                hasFullDocumentReplace: true,
-                pendingFullReplaceRebuild: true,
-            },
-            expected: [{ type: 'clearActiveCell' }],
         },
     ])('$name', ({ overrides, expected }) => {
         expect(reduceTableRuntime(defaultRuntimeFacts(overrides))).toEqual(expected);
@@ -364,25 +323,14 @@ describe('tableRuntimePolicies', () => {
         expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
     });
 
-    it('suppresses immediate rebuild on full document replace with active cell', () => {
+    it('reconciles a full document replace with an active cell', () => {
         const activeCell = getHeaderCell();
         const state = createState({ activeCell });
         const tr = state.update({
             changes: { from: 0, to: doc.length, insert: '# replaced' },
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
-    });
-
-    it('prefers the full document replace decision over a rebuild effect in the same transaction', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const tr = state.update({
-            changes: { from: 0, to: doc.length, insert: '# replaced' },
-            effects: rebuildTableWidgetsEffect.of(undefined),
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('keeps decorations for sync transactions that do not change the document', () => {
@@ -743,8 +691,6 @@ describe('tableRuntimePolicies', () => {
             activeCellBefore: 'resolved',
             docChanged: true,
             selectionChanged: true,
-            isNormalizeBeforeEdit: true,
-            hasFullDocumentReplace: true,
             openRequestId: 'normalize-request',
         });
 
@@ -801,7 +747,6 @@ describe('tableRuntimePolicies', () => {
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             docChanged: true,
-            hasFullDocumentReplace: true,
             openRequestId: 'explicit-request',
             rebuildTouchesPreviousActiveTable: true,
             selectionChanged: true,
