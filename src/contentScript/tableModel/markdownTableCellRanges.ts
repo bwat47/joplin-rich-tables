@@ -96,7 +96,7 @@ export function computeMarkdownTableCellRangesFromSyntax(
 
 /**
  * Finds the cell coordinates for a given position within the table text.
- * This is the inverse of resolveCellDocRange - given a position, find which cell contains it.
+ * This is the inverse of getCellDocRange - given a position, find which cell contains it.
  *
  * @param ranges - The computed cell ranges for the table
  * @param relativePos - Position relative to the start of the table text
