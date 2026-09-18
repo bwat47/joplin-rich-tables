@@ -122,6 +122,18 @@ function reconcileTableDecorations(
         return { ...value, activeHostInvalidated: false };
     }
 
+    // Nothing the projection depends on changed: same index, and the same active cell, so a
+    // preserved active host stays preserved. Both fields keep their value identity when unchanged,
+    // while parser recovery, clears, and activation effects all produce new values. The start
+    // state lacks the index when the fields are registered by this transaction.
+    if (
+        !transaction.docChanged &&
+        index === transaction.startState.field(tableContextField, false) &&
+        getActiveCell(transaction.state) === getActiveCell(transaction.startState)
+    ) {
+        return value.activeHostInvalidated ? { ...value, activeHostInvalidated: false } : value;
+    }
+
     if (index.treeIncomplete) {
         return buildTableDecorations(transaction.state, invalidated);
     }

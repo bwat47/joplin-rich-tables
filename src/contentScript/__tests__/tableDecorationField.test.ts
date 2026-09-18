@@ -320,6 +320,55 @@ describe('tableDecorationField', () => {
         expect(wasActiveHostInvalidated(state)).toBe(false);
     });
 
+    it('keeps the decoration set for a selection-only transaction', () => {
+        let state = createMarkdownState(`${TABLE}\n\n${TABLE}`, [activeCellField, tableDecorationField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        }).state;
+        const before = state.field(tableDecorationField).decorations;
+
+        state = state.update({ selection: { anchor: 1 } }).state;
+
+        expect(state.field(tableDecorationField).decorations).toBe(before);
+    });
+
+    it('clears host invalidation on the next selection-only transaction', () => {
+        const doc = `before\n\n${TABLE}`;
+        let state = createMarkdownState(doc, [activeCellField, tableDecorationField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 'before\n\n'.length, section: 'body', row: 0, col: 0 }),
+        }).state;
+        state = state.update({
+            changes: { from: 0, to: 6, insert: 'earlier' },
+            annotations: Transaction.userEvent.of('undo'),
+        }).state;
+        expect(wasActiveHostInvalidated(state)).toBe(true);
+
+        state = state.update({ selection: { anchor: 0 } }).state;
+
+        expect(wasActiveHostInvalidated(state)).toBe(false);
+    });
+
+    it('keeps a stale active host through selection changes, then refreshes it on clear', () => {
+        let state = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        }).state;
+        const resolved = getResolvedActiveCell(state);
+        if (!resolved) throw new Error('Expected active cell to resolve');
+        const before = getDecorationAt(state, 0, TABLE.length);
+
+        state = state.update({
+            changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'changed' },
+        }).state;
+        state = state.update({ selection: { anchor: 1 } }).state;
+        expect(getDecorationAt(state, 0, state.doc.length)).toBe(before);
+
+        state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
+
+        expect(getDecorationAt(state, 0, state.doc.length)).not.toBe(before);
+    });
+
     it('rejects preservation when an outside edit removes root-table membership', () => {
         const prefix = 'before\n\n';
         let state = createMarkdownState(`${prefix}${TABLE}`, [activeCellField, tableDecorationField]);
