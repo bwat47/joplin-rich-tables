@@ -1,12 +1,11 @@
 import { EditorState, RangeSetBuilder, StateField, type Transaction } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { tableContextField, type TableIndex } from '../tableState/tableContextField';
 import { TableWidget } from './TableWidget';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
@@ -62,18 +61,13 @@ function findExactDecoration(decorations: DecorationSet, from: number, to: numbe
     return found;
 }
 
-function hasActivationInvalidation(transaction: Transaction): boolean {
-    return transaction.effects.some(
-        (effect) => effect.is(clearActiveCellEffect) || effect.is(triggerOpenCellRequestEffect)
-    );
-}
-
 interface PreservedActiveDecoration {
     context: TableContext;
     decoration: Decoration;
 }
 
-function getPreservedActiveDecoration(
+/** Cell switches keep the table host; the nested editor controller refreshes the departing cell. */
+function getPreservedActiveTableDecoration(
     value: TableDecorationState,
     transaction: Transaction,
     previousCell: ResolvedActiveCell,
@@ -83,15 +77,15 @@ function getPreservedActiveDecoration(
     if (
         scope === 'touchesTable' ||
         (scope === 'outsideTable' && (transaction.isUserEvent('undo') || transaction.isUserEvent('redo'))) ||
-        hasActivationInvalidation(transaction)
+        transaction.effects.some((effect) => effect.is(clearActiveCellEffect))
     ) {
         return null;
     }
 
     const mappedTableFrom = transaction.changes.mapPos(previousCell.tableFrom, 1);
     const mappedTableTo = transaction.changes.mapPos(previousCell.tableTo, -1);
-    const expectedActiveCell = { ...previousCell.activeCell, tableFrom: mappedTableFrom };
-    if (!isSameActiveCell(expectedActiveCell, getActiveCell(transaction.state))) {
+    const activeCell = getActiveCell(transaction.state);
+    if (!activeCell || activeCell.tableFrom !== mappedTableFrom) {
         return null;
     }
 
@@ -99,7 +93,7 @@ function getPreservedActiveDecoration(
     if (
         !context ||
         !hasSameTableShape(previousCell.ctx.cellRanges, context.cellRanges) ||
-        !getCellRange(context.cellRanges, previousCell.activeCell)
+        !getCellRange(context.cellRanges, activeCell)
     ) {
         return null;
     }
@@ -132,7 +126,7 @@ function reconcileTableDecorations(
         return buildTableDecorations(transaction.state, invalidated);
     }
 
-    const preserved = previousCell ? getPreservedActiveDecoration(value, transaction, previousCell, index) : null;
+    const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell, index) : null;
     const decorations = new RangeSetBuilder<Decoration>();
     for (const context of index.tables) {
         const decoration =

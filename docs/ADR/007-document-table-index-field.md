@@ -38,10 +38,13 @@ second invalidation algorithm and do not reliably account for container and fenc
 ### Decoration reconciliation
 
 Decorations rebuild from the index by default. The one exception carries the mapped active-table decoration when the
-old cell resolves, changes are confined to that cell or strictly outside its table, activation is unchanged, the new
+old cell resolves, changes are confined to that cell or strictly outside its table, activation stays in that table, the new
 index confirms the mapped span and syntax-derived shape, and the old decoration exists there. This keeps the nested
 editor host alive while refreshing every other table. The field records a failed carry-over on a document change as
 `activeHostInvalidated`, which the lifecycle consumes directly.
+
+Cell switches and open requests within the same table retain the table DOM. The nested editor controller renders the
+departing cell's current content before opening the destination. Clear effects and explicit rebuilds end preservation.
 
 Undo and redo carry the host only for in-cell changes. History restores the selection recorded with the changed text,
 so an undo elsewhere should follow that cursor and reopen there rather than preserve a host the lifecycle must discard.

@@ -225,9 +225,9 @@ describe('tableDecorationField', () => {
     });
 
     it.each([
-        ['a cell switch', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 1 })]],
+        ['an invalid cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 2 })]],
         ['a clear', [clearActiveCellEffect.of(undefined)]],
-        ['an open request', [triggerOpenCellRequestEffect.of({ requestId: 'test-request' })]],
+        ['an explicit rebuild', [rebuildAllTableWidgetsEffect.of(undefined)]],
         [
             'a clear followed by the same activation',
             [
@@ -248,15 +248,34 @@ describe('tableDecorationField', () => {
         expect(wasActiveHostInvalidated(state)).toBe(false);
     });
 
-    it('preserves a redundant assignment to the same active cell', () => {
+    it.each([
+        ['the same cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 0 })]],
+        ['a cell switch', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 1 })]],
+        ['an open request', [triggerOpenCellRequestEffect.of({ requestId: 'test-request' })]],
+    ])('preserves the active table for %s', (_name, effects) => {
         const activeCell = { tableFrom: 0, section: 'body' as const, row: 0, col: 0 };
         let state = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);
         state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
         const before = getDecorationAt(state, 0, TABLE.length);
 
-        state = state.update({ effects: setActiveCellEffect.of(activeCell) }).state;
+        state = state.update({ effects }).state;
 
         expect(getDecorationAt(state, 0, TABLE.length)).toBe(before);
+    });
+
+    it('ends preservation when activation moves to another table', () => {
+        const secondTableFrom = TABLE.length + 2;
+        let state = createMarkdownState(`${TABLE}\n\n${TABLE}`, [activeCellField, tableDecorationField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        }).state;
+        const before = getDecorationAt(state, 0, TABLE.length);
+
+        state = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: secondTableFrom, section: 'body', row: 0, col: 0 }),
+        }).state;
+
+        expect(getDecorationAt(state, 0, TABLE.length)).not.toBe(before);
     });
 
     it('rejects preservation when an in-cell edit changes the syntax shape', () => {

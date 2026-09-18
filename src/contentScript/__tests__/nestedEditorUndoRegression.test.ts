@@ -12,8 +12,8 @@ import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/
 import { nestedEditorPlugin, isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
-import { openCellRequestField } from '../tableRuntime/openCellRequest';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { openCellRequestField, requestOpenCell } from '../tableRuntime/openCellRequest';
+import { getResolvedActiveCell, resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement } from '../tableWidget/domHelpers';
@@ -215,6 +215,67 @@ describe('nested editor undo regression', () => {
         expect(view.contentDOM.querySelectorAll('tbody')[1]?.textContent).toContain('fresh');
 
         view.destroy();
+    });
+
+    it('keeps table and unrelated media DOM when editing and opening another cell in the same table', () => {
+        const doc = '| A | B |\n| --- | --- |\n| first | second |';
+        const firstCell: ActiveCell = { tableFrom: 0, section: 'body', row: 0, col: 0 };
+        const secondCell: ActiveCell = { ...firstCell, col: 1 };
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
+                nestedEditorPlugin,
+                tableContextField,
+                activeCellField,
+                openCellRequestField,
+                nestedEditorLifecyclePlugin,
+                tableDecorationField,
+            ],
+        });
+        try {
+            const openCell = (cell: ActiveCell): void => {
+                const resolvedCell = resolveActiveCell(view.state, cell);
+                if (!resolvedCell) throw new Error('Expected cell to resolve');
+                requestOpenCell(view, { resolvedCell, entryMode: 'enter' });
+                flushAnimationFrames();
+            };
+            openCell(firstCell);
+            const firstElement = findCellElement(view, makeTableId(0), firstCell);
+            const secondElement = findCellElement(view, makeTableId(0), secondCell);
+            const table = view.contentDOM.querySelector('table');
+            if (!firstElement || !secondElement || !table) throw new Error('Expected table DOM');
+            // Stand in for media mounted by the renderer in an unrelated cell.
+            const media = document.createElement('video');
+            table.querySelector('th')!.appendChild(media);
+            const editorDom = firstElement.querySelector<HTMLElement>('.cm-editor');
+            if (!editorDom) throw new Error('Expected first cell editor');
+            const editor = EditorView.findFromDOM(editorDom);
+            if (!editor) throw new Error('Expected nested editor view');
+            editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: 'updated first' } });
+
+            openCell(secondCell);
+
+            expect(view.contentDOM.querySelector('table')).toBe(table);
+            expect(view.contentDOM.querySelector('video')).toBe(media);
+            expect(firstElement.querySelector('.cm-editor')).toBeNull();
+            expect(firstElement.textContent).toContain('updated first');
+            expect(secondElement.querySelector('.cm-editor')).not.toBeNull();
+            expect(secondElement.querySelector('.cm-content')?.textContent).toBe('second');
+            expect(getActiveCell(view.state)).toEqual(secondCell);
+            expect(isNestedEditorOpen(view)).toBe(true);
+
+            openCell(firstCell);
+            expect(firstElement.querySelector('.cm-content')?.textContent).toBe('updated first');
+            expect(view.contentDOM.querySelector('video')).toBe(media);
+        } finally {
+            view.destroy();
+        }
     });
 
     it('closes the active editor on a parser timeout and restores widgets after recovery', () => {

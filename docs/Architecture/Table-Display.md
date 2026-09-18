@@ -35,12 +35,13 @@ decorations except the table hosting the active nested editor, whose existing de
 
 1. the old active cell resolves;
 2. changes stay inside that cell or strictly outside its table;
-3. activation remains the same and no clear/open request intervenes;
+3. activation stays within the same table and no clear effect intervenes;
 4. the new index confirms the mapped table span, syntax-derived shape, and active coordinates; and
 5. the mapped old decoration exists at that span.
 
 Undo and redo preserve the host only for changes confined to the active cell, so history follows its restored cursor.
-Any activation change ends carry-over. `syncAnnotation` continues to prevent cross-editor loops but has no decoration
+Cell switches and open requests within the same table preserve its DOM; the controller refreshes the departing cell.
+Clearing activation, switching tables, and explicit rebuilds end carry-over. `syncAnnotation` prevents cross-editor loops but has no decoration
 policy role. Other tables always refresh from current contexts, including during an external edit while a cell editor
 is open.
 

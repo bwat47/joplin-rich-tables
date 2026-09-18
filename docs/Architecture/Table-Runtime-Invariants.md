@@ -56,7 +56,7 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Widget Rebuilds
 
 - The decoration field is the single owner of active-host preservation. It rebuilds from the current index by default
-  and carries the active decoration only after its change-scope, activation, index-shape, and existing-decoration
+  and carries the active decoration only after its change-scope, same-table activation, index-shape, and existing-decoration
   checks pass.
 - Each transaction records that decision as `activeHostInvalidated`; lifecycle classification reads that value rather
   than re-deriving structural impact from transaction text.

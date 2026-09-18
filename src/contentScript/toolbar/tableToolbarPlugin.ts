@@ -458,7 +458,7 @@ function createPositioningMiddleware(): Middleware[] {
 /**
  * Conditions that usually imply the widget DOM was replaced/rebuilt:
  * 1. rebuildTableWidgetsEffect (explicit structural edit)
- * 2. An open request, which ends active-host preservation even when activation is unchanged.
+ * 2. An open request, which may follow a rebuild or switch the nested editor's host cell.
  * 3. Doc changes that are NOT sync (e.g. Undo/Redo, external edits), which may invalidate
  *    the active host or move its document anchor.
  */
