@@ -10,7 +10,7 @@ import {
     type VirtualElement,
 } from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
@@ -457,19 +457,19 @@ function createPositioningMiddleware(): Middleware[] {
 
 /**
  * Conditions that usually imply the widget DOM was replaced/rebuilt:
- * 1. rebuildTableWidgetsEffect (explicit structural edit)
+ * 1. structuralTableEditEffect (explicit structural edit)
  * 2. An open request, which may follow a rebuild or switch the nested editor's host cell.
  * 3. Doc changes that are NOT sync (e.g. Undo/Redo, external edits), which may invalidate
  *    the active host or move its document anchor.
  */
 function hasRebuiltWidgetDom(update: ViewUpdate): boolean {
-    const hasRebuildEffect = update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)));
+    const hasStructuralEdit = update.transactions.some((tr) => tr.effects.some((e) => e.is(structuralTableEditEffect)));
     const hasOpenRequest = update.transactions.some((tr) =>
         tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))
     );
     const isNonSyncDocChange = update.transactions.some((tr) => tr.docChanged && !tr.annotation(syncAnnotation));
 
-    return hasRebuildEffect || hasOpenRequest || isNonSyncDocChange;
+    return hasStructuralEdit || hasOpenRequest || isNonSyncDocChange;
 }
 
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);

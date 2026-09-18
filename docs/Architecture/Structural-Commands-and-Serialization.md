@@ -80,7 +80,7 @@ falls back to `buildRootTableInsertRewrite`, so both paths share the same blank-
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
 6. **Dispatch**: `runStructuralMutationAndReopen()` replaces the table range when needed, sets the
    main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
-   forces a widget rebuild, and can run an immediate post-dispatch callback such as main-editor focus handoff.
+   marks the transaction with `structuralTableEditEffect`, and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
 toolbar buttons do not maintain separate switchboards.
@@ -143,7 +143,10 @@ row to the sorted position.
 
 ## Rebuild Trigger
 
-Command-driven structural mutations dispatch both `rebuildTableWidgetsEffect` and an explicit open request, so
+Command-driven structural mutations dispatch both `structuralTableEditEffect` and an explicit open request, so
 lifecycle follows the open-request path. Rebuild-only transitions do not implicitly reopen a nested editor.
+
+The effect does not steer decorations. Each mutation replaces the whole table range, so decoration reconciliation
+classifies it as touching the table and renders a fresh widget. The main editor guard and the toolbar read the effect.
 
 Full table rebuild; no row/column DOM diffing.

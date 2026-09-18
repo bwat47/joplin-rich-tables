@@ -113,7 +113,7 @@ Blocks unintended main editor edits during cell editing (Android IME focus issue
 - Allows external updates not overlapping table.
 - Whitelists `syncAnnotation` transactions.
 - Whitelists `tableClipboardRewriteAnnotation` transactions: table clipboard rewrites replace the whole table by design, so the active-cell range check does not apply to them.
-- Whitelists structural operations with `rebuildTableWidgetsEffect`.
+- Whitelists structural operations with `structuralTableEditEffect`.
 - Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
 - Upgrades root-editor `input.paste` transactions into multi-cell table paste when Joplin routes Cmd/Ctrl+V to the main editor while a nested editor is open.
 - Also upgrades plain root-editor `input.paste` of a standalone markdown table at a block boundary into canonical table markdown plus deferred cell activation when no nested editor or cell selection is active.

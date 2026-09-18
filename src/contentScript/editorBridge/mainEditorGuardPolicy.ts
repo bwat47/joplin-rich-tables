@@ -1,7 +1,7 @@
 import { ChangeSet, EditorSelection, Transaction } from '@codemirror/state';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection } from '../tableState/cellSelectionState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
@@ -162,7 +162,7 @@ function decideActiveCellEdit(tr: Transaction): GuardDecision {
         return clearActiveCellDecision(tr);
     }
 
-    if (tr.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))) {
+    if (tr.effects.some((effect) => effect.is(structuralTableEditEffect))) {
         return { type: 'allowTransaction' };
     }
 

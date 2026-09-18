@@ -41,7 +41,7 @@ decorations except the table hosting the active nested editor, whose existing de
 
 Undo and redo preserve the host only for changes confined to the active cell, so history follows its restored cursor.
 Cell switches and open requests within the same table preserve its DOM; the controller refreshes the departing cell.
-Clearing activation, switching tables, and explicit rebuilds end carry-over. `syncAnnotation` prevents cross-editor loops but has no decoration
+Clearing activation, switching tables, and structural edits (which replace the whole table range) end carry-over. `syncAnnotation` prevents cross-editor loops but has no decoration
 policy role. Other tables always refresh from current contexts, including during an external edit while a cell editor
 is open.
 

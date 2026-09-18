@@ -15,7 +15,7 @@ import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
  *
  * Allowed through without filtering:
  * - sync transactions forwarded from the nested editor (`syncAnnotation`)
- * - structural table operations that force a widget rebuild (`rebuildTableWidgetsEffect`)
+ * - structural table operations (`structuralTableEditEffect`)
  * - full document replacements (e.g., sync updates), handled by guard cleanup
  * - changes that don't overlap the active table at all
  *

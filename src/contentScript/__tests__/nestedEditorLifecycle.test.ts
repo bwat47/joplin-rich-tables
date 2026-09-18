@@ -16,7 +16,7 @@ import {
 } from '../tableState/activeCellState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { tableContextField } from '../tableState/tableContextField';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
@@ -393,7 +393,7 @@ describe('nestedEditorLifecycle', () => {
         };
 
         view.dispatch({
-            effects: [setActiveCellEffect.of(nextActiveCell), rebuildTableWidgetsEffect.of(undefined)],
+            effects: [setActiveCellEffect.of(nextActiveCell), structuralTableEditEffect.of(undefined)],
         });
 
         expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
@@ -702,7 +702,7 @@ describe('nestedEditorLifecycle', () => {
             changes: { from: tableFrom, to: tableTo, insert: updatedTable },
             effects: [
                 setActiveCellEffect.of(nextCell),
-                rebuildTableWidgetsEffect.of(undefined),
+                structuralTableEditEffect.of(undefined),
                 ...openRequestEffects({
                     requestId: 'request-structural-reopen',
                     activeCell: nextCell,

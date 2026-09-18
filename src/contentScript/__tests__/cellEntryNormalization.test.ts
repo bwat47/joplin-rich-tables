@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
     beginOpenCellRequestEffect,
@@ -88,7 +88,7 @@ describe('entering a cell', () => {
         });
         expect(transaction.state.selection.main.anchor).toBeGreaterThan(0);
         expect(transaction.annotation(normalizeBeforeEditAnnotation)).toBe(true);
-        expect(transaction.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))).toBe(true);
+        expect(transaction.effects.some((effect) => effect.is(structuralTableEditEffect))).toBe(true);
     });
 
     it.each([

@@ -9,7 +9,7 @@ import {
 } from '../tableRuntime/selection/cellSelectionClipboard';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { createMarkdownState } from './testMarkdownState';
 import { parseCellRangesFixture } from './testUtils';
 
@@ -115,7 +115,7 @@ describe('createMainEditorActiveCellGuard', () => {
 
         const tr = state.update({
             changes: { from: 0, to: firstLineEnd, insert: '| X | Y |' },
-            effects: rebuildTableWidgetsEffect.of(undefined),
+            effects: structuralTableEditEffect.of(undefined),
         });
 
         expect(tr.state.doc.toString()).toContain('| X | Y |');

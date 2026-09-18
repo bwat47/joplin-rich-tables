@@ -4,7 +4,7 @@ import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -103,7 +103,7 @@ describe('structural mutation dispatch', () => {
             true
         );
         expect(
-            effects.some((effect: { is?: (value: unknown) => boolean }) => effect.is?.(rebuildTableWidgetsEffect))
+            effects.some((effect: { is?: (value: unknown) => boolean }) => effect.is?.(structuralTableEditEffect))
         ).toBe(true);
         const openRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
             effect.is?.(triggerOpenCellRequestEffect)
@@ -160,7 +160,7 @@ describe('structural mutation dispatch', () => {
         const effects = dispatched.effects;
         expect(effects.some((effect) => effect.is?.(setActiveCellEffect))).toBe(true);
         expect(effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
-        expect(effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
+        expect(effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
     });
 
     it('dispatches explicit reopen effects for non-row structural mutations too', () => {
@@ -194,7 +194,7 @@ describe('structural mutation dispatch', () => {
         };
         expect(dispatched.changes?.insert).toBe(updatedTableText);
         expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
-        expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
     });
 
     it.each([
@@ -231,7 +231,7 @@ describe('structural mutation dispatch', () => {
         });
         expect(dispatched.selection).toBeUndefined();
         expect(dispatched.effects.some((effect) => effect.is?.(clearActiveCellEffect))).toBe(true);
-        expect(dispatched.effects.some((effect) => effect.is?.(rebuildTableWidgetsEffect))).toBe(true);
+        expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(false);
         expect(dispatched.effects.some((effect) => effect.is?.(beginOpenCellRequestEffect))).toBe(false);
     });
