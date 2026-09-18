@@ -10,7 +10,7 @@ import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellF
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { parseTableFixture, parseCellRangesFixture } from './testUtils';
 
-describe('tableTransactionHelpers', () => {
+describe('structural mutation dispatch', () => {
     let currentTableText = '';
 
     function createView(tableText: string) {

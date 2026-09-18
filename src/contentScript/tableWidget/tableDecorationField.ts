@@ -1,51 +1,158 @@
-import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
-import { syntaxTreeAvailable } from '@codemirror/language';
+import { EditorState, RangeSetBuilder, StateField, type Transaction } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { findTableRanges, resolveTableContext } from '../tableRuntime/tableResolution';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
+import type { TableContext } from '../tableModel/tableContext';
+import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { tableContextField, type TableIndex } from '../tableState/tableContextField';
 import { TableWidget } from './TableWidget';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 interface TableDecorationState {
     decorations: DecorationSet;
-    /**
-     * True when the last build ran before the document was fully parsed
-     * (ensureSyntaxTree timed out), so tables may be missing. The background
-     * parser dispatches transactions as it progresses; once the full tree is
-     * available, the field rebuilds instead of keeping the incomplete set.
-     */
-    treeIncomplete: boolean;
+    /** True when decorations project the complete index, even if it contains no tables. */
+    rendering: boolean;
+    /** A document change rebuilt or dropped the previously active table's decoration. */
+    activeHostInvalidated: boolean;
 }
 
 /**
  * Build decorations for all tables in the document.
  * Tables are always rendered as widgets - editing happens via nested cell editors.
  */
-function buildTableDecorations(state: EditorState): TableDecorationState {
-    const tables = findTableRanges(state);
-    if (!tables) {
-        logger.warn('Syntax tree unavailable within timeout; table rendering deferred until parsing completes');
-        return { decorations: Decoration.none, treeIncomplete: true };
+function buildTableDecorations(state: EditorState, activeHostInvalidated = false): TableDecorationState {
+    const index = state.field(tableContextField);
+    if (index.treeIncomplete) {
+        return { decorations: Decoration.none, rendering: false, activeHostInvalidated };
     }
 
     const decorations = new RangeSetBuilder<Decoration>();
-    for (const table of tables) {
+    for (const ctx of index.tables) {
         // RangeSetBuilder requires ranges in ascending document order.
-        const ctx = resolveTableContext(state, table);
-        if (!ctx) {
-            continue;
-        }
-
-        const widget = new TableWidget(ctx.table, ctx.cellRanges, ctx.text, ctx.from);
+        const widget = new TableWidget(ctx);
         const decoration = Decoration.replace({
             widget,
             block: true,
         });
 
-        decorations.add(table.from, table.to, decoration);
+        decorations.add(ctx.from, ctx.to, decoration);
     }
 
-    return { decorations: decorations.finish(), treeIncomplete: false };
+    return { decorations: decorations.finish(), rendering: true, activeHostInvalidated };
+}
+
+function hasSameTableShape(before: TableCellRanges, after: TableCellRanges): boolean {
+    return (
+        before.headers.length === after.headers.length &&
+        before.rows.length === after.rows.length &&
+        before.rows.every((row, index) => row.length === after.rows[index]?.length)
+    );
+}
+
+function findExactDecoration(decorations: DecorationSet, from: number, to: number): Decoration | null {
+    let found: Decoration | null = null;
+    decorations.between(from, to, (rangeFrom, rangeTo, decoration) => {
+        if (rangeFrom === from && rangeTo === to) {
+            found = decoration;
+        }
+    });
+    return found;
+}
+
+interface PreservedActiveDecoration {
+    context: TableContext;
+    decoration: Decoration;
+}
+
+/** Cell switches keep the table host; the nested editor controller refreshes the departing cell. */
+function getPreservedActiveTableDecoration(
+    value: TableDecorationState,
+    transaction: Transaction,
+    previousCell: ResolvedActiveCell,
+    index: TableIndex
+): PreservedActiveDecoration | null {
+    const scope = classifyActiveCellChanges(transaction.changes, previousCell);
+    if (
+        scope === 'touchesTable' ||
+        (scope === 'outsideTable' && (transaction.isUserEvent('undo') || transaction.isUserEvent('redo'))) ||
+        transaction.effects.some((effect) => effect.is(clearActiveCellEffect))
+    ) {
+        return null;
+    }
+
+    const mappedTableFrom = transaction.changes.mapPos(previousCell.tableFrom, 1);
+    const mappedTableTo = transaction.changes.mapPos(previousCell.tableTo, -1);
+    const activeCell = getActiveCell(transaction.state);
+    if (!activeCell || activeCell.tableFrom !== mappedTableFrom) {
+        return null;
+    }
+
+    const context = index.tables.find((table) => table.from === mappedTableFrom && table.to === mappedTableTo);
+    if (
+        !context ||
+        !hasSameTableShape(previousCell.ctx.cellRanges, context.cellRanges) ||
+        !getCellRange(context.cellRanges, activeCell)
+    ) {
+        return null;
+    }
+
+    const mappedDecorations = value.decorations.map(transaction.changes);
+    const decoration = findExactDecoration(mappedDecorations, mappedTableFrom, mappedTableTo);
+    return decoration ? { context, decoration } : null;
+}
+
+function reconcileTableDecorations(
+    value: TableDecorationState,
+    transaction: Transaction,
+    previousCell: ResolvedActiveCell | null
+): TableDecorationState {
+    const index = transaction.state.field(tableContextField);
+    const invalidated = transaction.docChanged && previousCell !== null;
+
+    // A full replacement deliberately leaves widgets absent until the lifecycle's deferred
+    // rebuild. Ordinary selection/effect-free transactions in that window must not resurrect
+    // them. Parser recovery is different: its start-state index is incomplete.
+    if (
+        !value.rendering &&
+        !transaction.docChanged &&
+        !transaction.startState.field(tableContextField).treeIncomplete
+    ) {
+        return { ...value, activeHostInvalidated: false };
+    }
+
+    // Nothing the projection depends on changed: same index, and the same active cell, so a
+    // preserved active host stays preserved. Both fields keep their value identity when unchanged,
+    // while parser recovery, clears, and activation effects all produce new values. The start
+    // state lacks the index when the fields are registered by this transaction.
+    if (
+        !transaction.docChanged &&
+        index === transaction.startState.field(tableContextField, false) &&
+        getActiveCell(transaction.state) === getActiveCell(transaction.startState)
+    ) {
+        return value.activeHostInvalidated ? { ...value, activeHostInvalidated: false } : value;
+    }
+
+    if (index.treeIncomplete) {
+        return buildTableDecorations(transaction.state, invalidated);
+    }
+
+    const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell, index) : null;
+    const decorations = new RangeSetBuilder<Decoration>();
+    for (const context of index.tables) {
+        const decoration =
+            preserved?.context === context
+                ? preserved.decoration
+                : Decoration.replace({ widget: new TableWidget(context), block: true });
+        decorations.add(context.from, context.to, decoration);
+    }
+
+    return {
+        decorations: decorations.finish(),
+        rendering: true,
+        activeHostInvalidated: invalidated && !preserved,
+    };
 }
 
 /**
@@ -59,71 +166,28 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
         return buildTableDecorations(state);
     },
     update(value, transaction) {
+        const previousCell = getResolvedActiveCell(transaction.startState);
+        const activeHostInvalidated = transaction.docChanged && previousCell !== null;
         const decision = decideTableDecorationUpdate(transaction);
 
         switch (decision.type) {
             case 'noneDecorations':
-                return { decorations: Decoration.none, treeIncomplete: false };
-            case 'keepDecorations':
-                if (value.treeIncomplete && syntaxTreeAvailable(transaction.state)) {
-                    return buildTableDecorations(transaction.state);
-                }
-                return value;
-            case 'mapDecorations':
-                return {
-                    decorations: value.decorations.map(transaction.changes),
-                    treeIncomplete: value.treeIncomplete,
-                };
+                return { decorations: Decoration.none, rendering: false, activeHostInvalidated };
             case 'rebuildAllDecorations':
-                return buildTableDecorations(transaction.state);
+                return buildTableDecorations(transaction.state, activeHostInvalidated);
+            case 'reconcileDecorations':
+                return reconcileTableDecorations(value, transaction, previousCell);
         }
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
 
-/** A rendered table's document range. */
-export interface TableSpan {
-    from: number;
-    to: number;
+/** True when decorations project the complete index; false in raw mode or while rendering is deferred. */
+export function isTableRenderingActive(state: EditorState): boolean {
+    return state.field(tableDecorationField, false)?.rendering ?? false;
 }
 
-/**
- * The widget decorations currently in effect, or an empty set.
- *
- * Falls back to `Decoration.none` rather than throwing so callers work in states that never
- * registered the field, and so raw mode (where the field holds no decorations) reads as
- * "no rendered tables" without a separate mode check.
- */
-function getTableDecorations(state: EditorState): DecorationSet {
-    return state.field(tableDecorationField, false)?.decorations ?? Decoration.none;
-}
-
-/**
- * Every rendered table whose range overlaps or abuts `[from, to]`, in document order.
- *
- * Abutting counts as touching: a selection endpoint that stops exactly on a table edge has
- * been dragged onto the widget, since the document positions either side of a table belong to
- * the blank lines that separate it from its neighbours.
- */
-export function findRenderedTablesTouching(state: EditorState, from: number, to: number): TableSpan[] {
-    const spans: TableSpan[] = [];
-
-    getTableDecorations(state).between(from, to, (tableFrom, tableTo) => {
-        spans.push({ from: tableFrom, to: tableTo });
-    });
-
-    return spans;
-}
-
-/** Every rendered table whose range lies entirely inside `[from, to]`, in document order. */
-export function findRenderedTablesWithin(state: EditorState, from: number, to: number): TableSpan[] {
-    const spans: TableSpan[] = [];
-
-    getTableDecorations(state).between(from, to, (tableFrom, tableTo) => {
-        if (tableFrom >= from && tableTo <= to) {
-            spans.push({ from: tableFrom, to: tableTo });
-        }
-    });
-
-    return spans;
+/** True when this state's transaction invalidated the previously active table's host. */
+export function wasActiveHostInvalidated(state: EditorState): boolean {
+    return state.field(tableDecorationField, false)?.activeHostInvalidated ?? false;
 }

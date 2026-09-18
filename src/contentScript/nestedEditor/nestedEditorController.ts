@@ -174,8 +174,7 @@ class NestedEditorController {
             return;
         }
 
-        const stateActiveCell = getActiveCell(update.state);
-        const resolved = resolveActiveCell(update.state, stateActiveCell ?? this.session.resolvedCell.activeCell);
+        const resolved = getResolvedActiveCell(update.state);
         if (!resolved) {
             const mainView = this.mainView;
             this.close();
@@ -398,11 +397,7 @@ class NestedEditorController {
             return;
         }
 
-        const stateActiveCell = getActiveCell(this.mainView.state);
-        const resolved = resolveActiveCell(
-            this.mainView.state,
-            stateActiveCell ?? this.session.resolvedCell.activeCell
-        );
+        const resolved = getResolvedActiveCell(this.mainView.state);
         if (!resolved) {
             return;
         }

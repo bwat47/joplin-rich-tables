@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import type { TableContext } from '../tableModel/tableContext';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
-import { resolveTableContextAtPos } from './tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 
 /**
  * Resolve a table context from an event target, using a best-effort set of fallbacks.
@@ -16,7 +16,7 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
     // Best case: map DOM->doc position.
     try {
         const pos = view.posAtDOM(target, 0);
-        const context = resolveTableContextAtPos(view.state, pos);
+        const context = getTableContextAtPos(view.state, pos);
         if (context) {
             return context;
         }
@@ -31,7 +31,7 @@ export function resolveTableContextFromEventTarget(view: EditorView, target: HTM
     if (container) {
         try {
             const pos = view.posAtDOM(container, 0);
-            const context = resolveTableContextAtPos(view.state, pos);
+            const context = getTableContextAtPos(view.state, pos);
             if (context) {
                 return context;
             }

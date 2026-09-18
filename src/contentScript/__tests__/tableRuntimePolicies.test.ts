@@ -17,12 +17,13 @@ import {
     type TableRuntimeAction,
     type TableRuntimeFacts,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
-import { transactionRequiresTableRebuild } from '../tableRuntime/tableTransactionHelpers';
+import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
 import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { parseTableFixture } from './testUtils';
 
@@ -314,7 +315,7 @@ describe('tableRuntimePolicies', () => {
             changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'x' },
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'mapDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('rebuilds decorations for undo structural edits while active', () => {
@@ -325,7 +326,7 @@ describe('tableRuntimePolicies', () => {
             annotations: Transaction.userEvent.of('undo'),
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('rebuilds all decorations when active cell is cleared', () => {
@@ -333,7 +334,7 @@ describe('tableRuntimePolicies', () => {
         const state = createState({ activeCell });
         const tr = state.update({ effects: clearActiveCellEffect.of(undefined) });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('rebuilds all decorations when activation switches to a different table', () => {
@@ -344,7 +345,7 @@ describe('tableRuntimePolicies', () => {
             effects: setActiveCellEffect.of({ tableFrom: 50, section: 'body', row: 0, col: 0 }),
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('keeps decorations when activation moves within the same table', () => {
@@ -353,7 +354,7 @@ describe('tableRuntimePolicies', () => {
             effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'keepDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('returns none decorations in raw mode', () => {
@@ -392,7 +393,7 @@ describe('tableRuntimePolicies', () => {
             annotations: syncAnnotation.of(true),
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'keepDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('allows sync transactions through the guard untouched', () => {
@@ -730,7 +731,11 @@ describe('tableRuntimePolicies', () => {
         const tr = startState.update({
             changes: { from: 0, to: nonCanonicalDoc.length, insert: canonicalDoc },
             selection: { anchor: nextActiveCell.selectionAnchor },
-            effects: [setActiveCellEffect.of(nextActiveCell.activeCell), rebuildTableWidgetsEffect.of(undefined)],
+            effects: [
+                setActiveCellEffect.of(nextActiveCell.activeCell),
+                rebuildTableWidgetsEffect.of(undefined),
+                triggerOpenCellRequestEffect.of({ requestId: 'normalize-request' }),
+            ],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const facts = defaultRuntimeFacts({
@@ -933,7 +938,7 @@ describe('tableRuntimePolicies', () => {
             annotations: Transaction.userEvent.of('undo'),
         });
 
-        expect(transactionRequiresTableRebuild(tr, resolved)).toBe(false);
+        expect(classifyActiveCellChanges(tr.changes, resolved)).toBe('inCell');
     });
 
     it('clears stale active cell when the resolver cannot find the table', () => {

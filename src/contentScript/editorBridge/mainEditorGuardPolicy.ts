@@ -17,7 +17,6 @@ import {
     type RootTablePasteRewrite,
 } from '../tableRuntime/operations/pasteTableNormalizer';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
-import { mapSelectionRange } from '../tableRuntime/tableTransactionHelpers';
 
 export type GuardDecision =
     | { type: 'allowTransaction' }
@@ -143,7 +142,9 @@ function decideCellSanitization(tr: Transaction, resolvedActiveCell: ResolvedAct
 
     const changeSet = ChangeSet.of(sanitized.changes, tr.startState.doc.length);
     const selection = EditorSelection.create(
-        tr.startState.selection.ranges.map((range) => mapSelectionRange(range, changeSet)),
+        tr.startState.selection.ranges.map((range) =>
+            EditorSelection.range(changeSet.mapPos(range.anchor, 1), changeSet.mapPos(range.head, 1))
+        ),
         tr.startState.selection.mainIndex
     );
 

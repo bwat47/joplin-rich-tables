@@ -38,7 +38,7 @@ interface TableTextSource {
 
 const markdownTableParser = parser.configure([GFM]);
 
-export function isRootTableNode(tableNode: SyntaxNode): boolean {
+function isRootTableNode(tableNode: SyntaxNode): boolean {
     return tableNode.name === 'Table' && tableNode.parent?.name === 'Document';
 }
 

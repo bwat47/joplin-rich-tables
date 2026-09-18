@@ -22,8 +22,8 @@ import {
     refocusNestedEditor,
 } from '../nestedEditor/nestedEditorController';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { htmlFragment } from './testUtils';
 
@@ -64,8 +64,8 @@ function createHarness(params: {
             selection: params.selection,
             extensions: [
                 markdown({ extensions: [GFM] }),
+                tableContextField,
                 activeCellField,
-                resolvedActiveCellField,
                 markdownRenderServiceFacet.of(renderer),
                 nestedEditorPlugin,
                 EditorView.updateListener.of((update) => {

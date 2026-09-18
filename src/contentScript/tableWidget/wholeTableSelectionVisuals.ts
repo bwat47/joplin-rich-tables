@@ -7,7 +7,8 @@ import {
     CLASS_TABLE_WIDGET_TABLE,
     getWidgetSelector,
 } from './domHelpers';
-import { findRenderedTablesWithin, type TableSpan } from './tableDecorationField';
+import { getTableContextsWithin } from '../tableState/tableContextField';
+import { isTableRenderingActive } from './tableDecorationField';
 import { measuredClassSyncPlugin } from './measuredClassSync';
 import { selectedCellRules } from './selectionTint';
 
@@ -21,9 +22,17 @@ import { selectedCellRules } from './selectionTint';
  * No table can appear twice: selection ranges never overlap, so containing the same table whole
  * would take a range of zero length.
  */
-export function findSelectedTableSpans(state: EditorState): TableSpan[] {
+export interface SelectedTableSpan {
+    readonly from: number;
+    readonly to: number;
+}
+
+export function findSelectedTableSpans(state: EditorState): SelectedTableSpan[] {
+    if (!isTableRenderingActive(state)) {
+        return [];
+    }
     return state.selection.ranges.flatMap((range) =>
-        range.empty ? [] : findRenderedTablesWithin(state, range.from, range.to)
+        range.empty ? [] : getTableContextsWithin(state, range.from, range.to).map(({ from, to }) => ({ from, to }))
     );
 }
 

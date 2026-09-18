@@ -48,7 +48,7 @@ mutable state.
 | **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                         |
 | **Syntax**    | `contentScript/tableModel/lezerTableSyntax.ts`                  | Root-table syntax projection from Lezer.                         |
 | **Model**     | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, serialization, mutations.                |
-| **Context**   | `contentScript/tableModel/tableContext.ts`                      | Shared parsed table + cell ranges + table span.                  |
+| **Context**   | `contentScript/tableState/tableContextField.ts`                 | Authoritative root-table index and selectors.                    |
 | **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
 | **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Editor transaction orchestration for structural table commands.  |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row, column, alignment, and sorting actions.     |
@@ -57,8 +57,9 @@ mutable state.
 
 ### 1. Detection and Display
 
-Lezer identifies root table blocks and provides their row, delimiter, and cell spans. `tableDecorationField` builds
-shared `TableContext` objects and replaces exact table source ranges with `TableWidget` block decorations.
+Lezer identifies root table blocks and provides their row, delimiter, and cell spans. `tableContextField` scans those
+root tables once per document change and owns the current `TableContext` index. `tableDecorationField` consumes the
+index and replaces its exact source ranges with `TableWidget` block decorations.
 
 See [Table-Parsing.md](./Table-Parsing.md) and [Table-Display.md](./Table-Display.md).
 

@@ -11,7 +11,7 @@ import { createJoplinBridge } from '../services/joplinBridge';
 import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/linkOpener';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { tableContextField } from '../tableState/tableContextField';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField } from '../tableState/cellDragState';
 import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
@@ -128,8 +128,8 @@ async function registerTableWidgetExtension(
         searchForceSourceModeField,
         sourceModeField,
         nestedEditorPlugin,
+        tableContextField,
         activeCellField,
-        resolvedActiveCellField,
         openCellRequestField,
         insertedTableActivationField,
         cellSelectionField,

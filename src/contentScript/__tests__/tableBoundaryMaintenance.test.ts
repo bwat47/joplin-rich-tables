@@ -8,16 +8,14 @@ import { insertedTableActivationField } from '../tableState/insertedTableActivat
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 const runtimeState: Extension[] = [
     activeCellField,
-    resolvedActiveCellField,
     cellSelectionField,
     insertedTableActivationField,
     searchForceSourceModeField,
@@ -77,8 +75,8 @@ describe('table boundary maintenance', () => {
         const transaction = input(createState(doc), blankLinePos(doc, 'after'), 'x', userEvent);
 
         expect(transaction.state.doc.toString()).toBe(`\n${TABLE}\n\nx\nafter`);
-        expect(resolveTableContextAtPos(transaction.state, 1)?.cellRanges.rows).toHaveLength(1);
-        expect(resolveTableContextAtPos(transaction.state, transaction.state.doc.toString().indexOf('x'))).toBeNull();
+        expect(getTableContextAtPos(transaction.state, 1)?.cellRanges.rows).toHaveLength(1);
+        expect(getTableContextAtPos(transaction.state, transaction.state.doc.toString().indexOf('x'))).toBeNull();
     });
 
     it('keeps the caret with the typed text', () => {

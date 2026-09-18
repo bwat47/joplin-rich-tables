@@ -1,5 +1,5 @@
 import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
+import { activeCellField, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import {
     computePosition,
     autoUpdate,
@@ -19,6 +19,7 @@ import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
+import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     computePinnedAbsolutePlacement,
@@ -102,8 +103,8 @@ class TableToolbarPlugin {
             return;
         }
 
-        const movedToDifferentTable = prevActiveCell !== null && prevActiveCell.tableFrom !== activeCell.tableFrom;
-        if (movedToDifferentTable || hasRebuiltWidgetDom(update)) {
+        const activeCellChanged = !isSameActiveCell(prevActiveCell, activeCell);
+        if (activeCellChanged || hasRebuiltWidgetDom(update)) {
             // Defer until the new/rebuilt widget DOM is ready
             this.schedulePositionUpdate();
         }
@@ -457,15 +458,18 @@ function createPositioningMiddleware(): Middleware[] {
 /**
  * Conditions that usually imply the widget DOM was replaced/rebuilt:
  * 1. rebuildTableWidgetsEffect (explicit structural edit)
- * 2. Doc changes that are NOT sync (e.g. Undo/Redo, external edits).
- *    Non-sync changes cause `tableDecorationField` to rebuild decorations,
- *    which leads to CodeMirror replacing the widget DOM if content changed.
+ * 2. An open request, which may follow a rebuild or switch the nested editor's host cell.
+ * 3. Doc changes that are NOT sync (e.g. Undo/Redo, external edits), which may invalidate
+ *    the active host or move its document anchor.
  */
 function hasRebuiltWidgetDom(update: ViewUpdate): boolean {
     const hasRebuildEffect = update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)));
+    const hasOpenRequest = update.transactions.some((tr) =>
+        tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))
+    );
     const isNonSyncDocChange = update.transactions.some((tr) => tr.docChanged && !tr.annotation(syncAnnotation));
 
-    return hasRebuildEffect || isNonSyncDocChange;
+    return hasRebuildEffect || hasOpenRequest || isNonSyncDocChange;
 }
 
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);

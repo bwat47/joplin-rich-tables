@@ -3,8 +3,8 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
 
 const markdownExtension = markdown({
     extensions: [GFM],
@@ -21,7 +21,7 @@ describe('nested editor navigation', () => {
 
         const mainView = new EditorView({
             parent,
-            extensions: [markdownExtension, activeCellField, resolvedActiveCellField, nestedEditorPlugin],
+            extensions: [markdownExtension, tableContextField, activeCellField, nestedEditorPlugin],
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 
@@ -92,7 +92,7 @@ describe('nested editor navigation', () => {
 
         const mainView = new EditorView({
             parent,
-            extensions: [markdownExtension, activeCellField, resolvedActiveCellField, nestedEditorPlugin],
+            extensions: [markdownExtension, tableContextField, activeCellField, nestedEditorPlugin],
             doc: ['| H1 | H2 |', '| --- | --- |', '| misspelled | other |'].join('\n'),
         });
 
@@ -161,7 +161,7 @@ describe('nested editor navigation', () => {
 
         const mainView = new EditorView({
             parent,
-            extensions: [markdownExtension, activeCellField, resolvedActiveCellField, nestedEditorPlugin],
+            extensions: [markdownExtension, tableContextField, activeCellField, nestedEditorPlugin],
             doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
         });
 

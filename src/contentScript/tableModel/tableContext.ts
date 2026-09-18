@@ -9,7 +9,8 @@
 import { MarkdownTable } from './MarkdownTable';
 import { extractRootMarkdownTableSyntax } from './lezerTableSyntax';
 import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from './markdownTableCellRanges';
-import type { ResolvedTable, TableGridBounds } from './types';
+import type { SyntaxNode } from '@lezer/common';
+import type { TableGridBounds } from './types';
 
 export interface TableContext {
     from: number;
@@ -30,45 +31,19 @@ export function getTableGridBounds(ctx: TableContext): TableGridBounds {
     };
 }
 
-interface CacheEntry {
-    table: MarkdownTable;
-    cellRanges: TableCellRanges;
-}
-
-/** Keyed by the table's exact source text, which determines every derived value below. */
-const tableContextCache = new Map<string, CacheEntry>();
-const MAX_CACHE_SIZE = 50;
-
 /**
- * Builds a TableContext for a resolved table, given its exact source text.
- *
- * This is the single cache for the whole derivation: syntax extraction, the normalized
- * model, and cell ranges all hang off one LRU keyed by that text. Returns null only for
- * a node arrangement the syntax projection rejects.
+ * Builds a TableContext for a root table node and its exact source text.
+ * Returns null only for a node arrangement the syntax projection rejects.
  */
-export function buildTableContext(resolved: ResolvedTable, text: string): TableContext | null {
-    const { from, to } = resolved;
-    let entry = tableContextCache.get(text);
+export function buildTableContext(node: SyntaxNode, text: string): TableContext | null {
+    const syntax = extractRootMarkdownTableSyntax(node, text);
+    if (!syntax) return null;
 
-    if (entry) {
-        // LRU refresh: move to end of Map
-        tableContextCache.delete(text);
-        tableContextCache.set(text, entry);
-    } else {
-        const syntax = extractRootMarkdownTableSyntax(resolved.node, text);
-        if (!syntax) return null;
-
-        entry = {
-            table: MarkdownTable.fromSyntax(text, syntax),
-            cellRanges: computeMarkdownTableCellRangesFromSyntax(text, syntax),
-        };
-
-        if (tableContextCache.size >= MAX_CACHE_SIZE) {
-            const firstKey = tableContextCache.keys().next().value;
-            if (firstKey !== undefined) tableContextCache.delete(firstKey);
-        }
-        tableContextCache.set(text, entry);
-    }
-
-    return { from, to, text, table: entry.table, cellRanges: entry.cellRanges };
+    return {
+        from: node.from,
+        to: node.to,
+        text,
+        table: MarkdownTable.fromSyntax(text, syntax),
+        cellRanges: computeMarkdownTableCellRangesFromSyntax(text, syntax),
+    };
 }

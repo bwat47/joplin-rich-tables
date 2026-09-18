@@ -1,6 +1,6 @@
 import { type Extension, Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
@@ -14,6 +14,7 @@ import { activateInsertedTableEffect } from '../tableState/insertedTableActivati
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC_WITH_SURROUNDING_TEXT = ['before', '', TABLE_DOC, '', 'after'].join('\n');
@@ -23,6 +24,19 @@ const DEFAULT_EXTERNAL_FACTS: TableRuntimeExternalFacts = {
     nestedEditorOpen: false,
     pendingFullReplaceRebuild: false,
 };
+
+class ResizeObserverMock {
+    observe(): void {}
+    disconnect(): void {}
+}
+
+beforeAll(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+});
+
+afterAll(() => {
+    vi.unstubAllGlobals();
+});
 
 function getHeaderCell(tableFrom = 0): ActiveCell {
     return {
@@ -47,6 +61,7 @@ function dispatchAndCaptureUpdate(params: {
         activeCellField,
         sourceModeField,
         searchForceSourceModeField,
+        tableDecorationField,
         EditorView.updateListener.of((update) => {
             if (update.transactions.length > 0) {
                 captured = update;

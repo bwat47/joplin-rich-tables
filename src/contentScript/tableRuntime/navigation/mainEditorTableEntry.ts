@@ -9,6 +9,7 @@ import {
 import { BlockType, Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { fromUnifiedRow } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -19,11 +20,9 @@ import {
     resolveAdjoiningTable,
     scanNewlinesBackward,
     scanNewlinesForward,
-    TABLE_LOOKUP_TIMEOUT_MS,
     type AdjoiningTable,
     type TableSide,
 } from '../tableBoundaryResolution';
-import { resolveTableContextAtPos } from '../tableResolution';
 import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
@@ -165,7 +164,7 @@ function resolveDeletionTargetTable(
         return null;
     }
 
-    return resolveTableContextAtPos(state, targetPos, TABLE_LOOKUP_TIMEOUT_MS);
+    return getTableContextAtPos(state, targetPos);
 }
 
 /**
@@ -328,7 +327,7 @@ function prepareTableBoundaryDeletion(
 function hasUncuttableLine(transaction: Transaction): boolean {
     const state = transaction.startState;
     return state.selection.ranges.some((range) => {
-        if (resolveTableContextAtPos(state, range.head, TABLE_LOOKUP_TIMEOUT_MS)) {
+        if (getTableContextAtPos(state, range.head)) {
             return true;
         }
 
@@ -436,7 +435,7 @@ function resolveSkippedTableBlock(
         return null;
     }
 
-    return resolveTableContextAtPos(view.state, skippedBlock.from, TABLE_LOOKUP_TIMEOUT_MS);
+    return getTableContextAtPos(view.state, skippedBlock.from);
 }
 
 /**
@@ -453,7 +452,7 @@ function resolveVerticalEntryContext(
         return null;
     }
 
-    const directCtx = resolveTableContextAtPos(view.state, targetPos, TABLE_LOOKUP_TIMEOUT_MS);
+    const directCtx = getTableContextAtPos(view.state, targetPos);
     if (directCtx && entersTableFromExpectedSide(currentPos, directCtx, direction)) {
         return directCtx;
     }
@@ -513,7 +512,7 @@ function activateTableAtHorizontalTarget(view: EditorView, direction: Horizontal
         return false;
     }
 
-    const ctx = resolveTableContextAtPos(view.state, target.head, TABLE_LOOKUP_TIMEOUT_MS);
+    const ctx = getTableContextAtPos(view.state, target.head);
     if (!ctx || (movesForward ? current.head >= ctx.from : current.head <= ctx.to)) {
         return false;
     }

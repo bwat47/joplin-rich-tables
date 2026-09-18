@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
@@ -55,7 +56,7 @@ function createWidget(tableText: string, tableFrom = 0): TableWidget {
     if (!table) {
         throw new Error('Expected test table to parse');
     }
-    return new TableWidget(table, cellRanges, tableText, tableFrom);
+    return new TableWidget({ from: tableFrom, to: tableFrom + tableText.length, text: tableText, table, cellRanges });
 }
 
 function createView(): EditorView {
@@ -94,6 +95,7 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
                 render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
+            tableContextField,
             tableDecorationField,
         ],
     });

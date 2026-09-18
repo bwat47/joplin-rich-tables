@@ -5,14 +5,20 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Source of Truth
 
 - The main CodeMirror document is the only authoritative table state.
-- `MarkdownTable`, `TableContext`, and cell ranges are derived from current document text.
+- `tableContextField` is the only semantic table index. `MarkdownTable`, `TableContext`, and cell ranges are derived
+  from current document text.
+- Table presence and rendering availability are separate questions. Index selectors provide spans;
+  `isTableRenderingActive()` reports whether widgets are displayed at those spans.
+- Rendering availability is deliberately document-level and must not grow into per-span decoration lookup or a second
+  table index. Semantic selectors fail fast when the state has no `tableContextField`.
 - Widget DOM is a projection of document state. It must not be used as durable table state.
 - Nested editor text is temporary local state for one active cell. It must be synchronized back to the main document before commands depend on it.
 
 ## Active Cell Identity
 
 - `ActiveCell` is logical identity: table start position, section, row, column, and selection anchor intent.
-- `ResolvedActiveCell` is a derived lookup against the current document. Treat it as disposable after document changes.
+- `ResolvedActiveCell` is produced by a plain selector over `tableContextField`; it has no cached state field or
+  fallback resolution path. Treat each result as disposable after document changes.
 - Runtime code must re-resolve an active cell before using document offsets such as editable cell bounds.
 - If the active cell can no longer resolve after a non-sync document change, clear it instead of keeping stale positions.
 
@@ -49,11 +55,22 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 
 ## Widget Rebuilds
 
-- Decoration policy owns only the table projection decision: keep, map, rebuild, or hide widgets.
+- The decoration field is the single owner of active-host preservation. It rebuilds from the current index by default
+  and carries the active decoration only after its change-scope, same-table activation, index-shape, and existing-decoration
+  checks pass.
+- Each transaction records that decision as `activeHostInvalidated`; lifecycle classification reads that value rather
+  than re-deriving structural impact from transaction text.
+- Undo and redo preserve the host only for in-cell changes. Otherwise the host is invalidated so lifecycle repositioning
+  follows the selection restored by history.
 - Widget rebuilds can invalidate DOM references and focus assumptions.
 - Code that needs an editor to remain active across a rebuild must express that as open intent, not by assuming DOM continuity.
 - `TableWidget` may reuse DOM for equivalent content, but runtime correctness must not depend on DOM reuse.
 - Block decorations must remain provided by `StateField`, not `ViewPlugin`.
+- An incomplete table index supplies neither semantic spans nor table decorations. Rendering resumes only once the
+  complete index is available, so visible widgets never outlive their semantic index during parser recovery.
+- Transaction filters and extenders must read only `tr.startState`, `tr.changes`, and `tr.newDoc`. Forcing `tr.state`
+  there can construct and discard a provisional state, duplicating every field update. The state-free
+  `classifyActiveCellChanges()` signature keeps undo scroll preservation within this constraint.
 
 ## Focus and Editing Ownership
 

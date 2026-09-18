@@ -13,7 +13,7 @@ import { MarkdownTable } from '../tableModel/MarkdownTable';
 import type { CellCoords } from '../tableModel/types';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
-import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
@@ -92,7 +92,6 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
                 clear: vi.fn(),
             }),
             activeCellField,
-            resolvedActiveCellField,
             cellSelectionField,
             cellDragField,
             openCellRequestField,
@@ -110,7 +109,7 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
     if (!table) {
         throw new Error('Expected the test table to parse');
     }
-    const widget = new TableWidget(table, cellRanges, doc, 0).toDOM(view);
+    const widget = new TableWidget({ from: 0, to: doc.length, text: doc, table, cellRanges }).toDOM(view);
     view.dom.appendChild(widget);
 
     const cells = {

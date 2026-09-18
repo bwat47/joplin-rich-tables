@@ -11,7 +11,7 @@ import {
 } from '../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { LocalSelection } from '../editorBridge/cellTextCodec';
 import type { CellCoords } from '../tableModel/types';
@@ -219,7 +219,7 @@ function resolveCell(
     coords: CellCoords
 ): { state: ReturnType<typeof createMarkdownState>; resolvedCell: ResolvedActiveCell } {
     const state = createMarkdownState(doc);
-    const ctx = resolveTableContextAtPos(state, doc.indexOf('|'));
+    const ctx = getTableContextAtPos(state, doc.indexOf('|'));
     if (!ctx) {
         throw new Error('Expected a table context');
     }

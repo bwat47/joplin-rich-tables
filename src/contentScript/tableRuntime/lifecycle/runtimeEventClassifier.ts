@@ -1,5 +1,6 @@
 import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
 import {
     exitSearchForceSourceModeEffect,
@@ -8,10 +9,9 @@ import {
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { resolveContainingTableAtPos } from '../tableResolution';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
-import { transactionRequiresTableRebuild } from '../tableTransactionHelpers';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
+import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
 import {
     hasCellSelectionTransitionAnnotation,
     hasFullDocumentReplace,
@@ -57,7 +57,7 @@ export function classifyTableRuntimeFacts(
         openRequestId: extractOpenRequestId(update),
         rebuildTouchesPreviousActiveTable:
             update.docChanged && activeCellBeforeStatus === 'resolved'
-                ? update.transactions.some((tr) => transactionRequiresTableRebuild(tr, resolvedCellBefore))
+                ? update.transactions.some((tr) => wasActiveHostInvalidated(tr.state))
                 : false,
         isUndoRedoInsideTable,
     };
@@ -155,7 +155,7 @@ function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell:
 
 function cursorInsideAnyTable(update: ViewUpdate): boolean {
     const cursorPos = update.state.selection.main.head;
-    return resolveContainingTableAtPos(update.state, cursorPos) !== null;
+    return getTableContextAtPos(update.state, cursorPos) !== null;
 }
 
 function isUndoRedo(update: ViewUpdate): boolean {

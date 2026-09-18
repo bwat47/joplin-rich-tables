@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import {
     createResolvedActiveCell,
+    getResolvedActiveCell,
     resolveActiveCell,
     resolveCellWithinResolvedTable,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { getResolvedActiveCell, resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
-import { resolveTableContextAtPos } from '../tableRuntime/tableResolution';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 
 function buildContext(text: string) {
-    return resolveTableContextAtPos(createMarkdownState(text), 0);
+    return getTableContextAtPos(createMarkdownState(text), 0);
 }
 
 function createState(doc: string, activeCell?: ActiveCell) {
@@ -238,8 +238,8 @@ describe('resolvedActiveCell', () => {
         expect(resolvedWithSelection).toEqual(resolved);
     });
 
-    it('reuses the cached resolved active cell across selection-only updates', () => {
-        let state = createMarkdownState(['| foo  |', '| --- |'].join('\n'), [activeCellField, resolvedActiveCellField]);
+    it('resolves the same active cell across selection-only updates', () => {
+        let state = createMarkdownState(['| foo  |', '| --- |'].join('\n'), [activeCellField]);
         state = state.update({
             effects: setActiveCellEffect.of({
                 tableFrom: 0,
@@ -256,7 +256,8 @@ describe('resolvedActiveCell', () => {
         const nextResolved = getResolvedActiveCell(nextState);
 
         expect(initialResolved).not.toBeNull();
-        expect(nextResolved).toBe(initialResolved);
+        expect(nextResolved).toEqual(initialResolved);
+        expect(nextResolved?.ctx).toBe(initialResolved?.ctx);
     });
 
     it('resolves the anchored table from tableFrom when another table follows', () => {

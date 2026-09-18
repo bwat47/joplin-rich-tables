@@ -5,7 +5,13 @@
 ### Detection
 
 Direct `Document` table nodes from the Lezer syntax tree are replaced with
-`Decoration.replace({ widget, block: true })` via a `StateField`.
+`Decoration.replace({ widget, block: true })` via a `StateField`. `tableDecorationField` builds every decoration from
+the current `tableContextField` index rather than scanning syntax or deriving table models itself.
+
+If parsing times out, decorations are cleared along with the index, exposing raw Markdown and destroying any hosted
+nested editor. Decorations rebuild when a later transaction exposes a complete index. Background parsing may stop
+before completing a large document, so recovery is not guaranteed to be immediate. Raw mode, explicit invalidation,
+and the deferred full-document-replacement path still take precedence.
 
 ### Widget Structure
 
@@ -24,17 +30,28 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 ### 1. Decoration Update Strategy
 
-- **Structural Edits**: Rebuild all table decorations for simpler, more reliable widget lifecycle handling.
-- **In-Cell Edits**: No rebuild; decorations mapped to preserve existing DOM.
-- **Sync Transactions**: From nested editor explicitly skip rebuilds.
+Every document change reconciles decorations against the current `tableContextField` index. All tables receive fresh
+decorations except the table hosting the active nested editor, whose existing decoration is carried through only when:
+
+1. the old active cell resolves;
+2. changes stay inside that cell or strictly outside its table;
+3. activation stays within the same table and no clear effect intervenes;
+4. the new index confirms the mapped table span, syntax-derived shape, and active coordinates; and
+5. the mapped old decoration exists at that span.
+
+Undo and redo preserve the host only for changes confined to the active cell, so history follows its restored cursor.
+Cell switches and open requests within the same table preserve its DOM; the controller refreshes the departing cell.
+Clearing activation, switching tables, and explicit rebuilds end carry-over. `syncAnnotation` prevents cross-editor loops but has no decoration
+policy role. Other tables always refresh from current contexts, including during an external edit while a cell editor
+is open.
 
 ### 2. DOM Reuse (Exact Source Text)
 
 Each rendered widget root is associated with the exact table source it was built from.
 
 `eq()` compares source text and document position, so a table that neither changed nor moved is
-skipped entirely during a rebuild. Position is part of the comparison because in-cell edits map
-decorations rather than rebuilding them, leaving a widget's recorded position stale.
+skipped entirely during reconciliation. Position is part of the comparison because active-host preservation maps
+that decoration without replacing its widget snapshot, leaving the widget's recorded position stale after shifts.
 
 When `eq()` reports a difference, `updateDOM()` decides between reuse and rebuild:
 
@@ -47,18 +64,7 @@ probable, and a collision would silently reuse DOM showing stale rows.
 Prevents flicker when rebuilding decorations for position sync, and keeps stateful embedded
 content (videos, iframes) alive across rebuilds.
 
-### 3. Table Context Cache
-
-`buildTableContext()` maintains an **LRU cache** (50 entries) keyed by table source text.
-
-Each cache entry stores:
-
-- Parsed `MarkdownTable`.
-- Computed `cellRanges`.
-
-`tableWidgetExtension.ts` reuses this shared context when building or rebuilding widgets, instead of parsing table structure and cell ranges independently.
-
-### 4. Height Estimation
+### 3. Height Estimation
 
 Prevents scroll jumping via multi-layered approach:
 
@@ -77,7 +83,10 @@ is deleted.
 
 **`coordsAt()`**: Maps positions in replaced table source to rendered cell rectangles for
 CodeMirror coordinate consumers, notably cursor-positioned tooltips. Keyboard cell navigation
-scrolls through nested-editor focus and does not depend on it.
+scrolls through nested-editor focus and does not depend on it. Coordinate lookup gets the widget's
+live document start through `posAtDOM()` and resolves current cell ranges from `tableContextField`.
+The widget's `TableContext` remains a rendering and height-estimation snapshot; it is never a
+fallback for live coordinates.
 
 ## Display Modes
 

@@ -1,6 +1,10 @@
 import type { StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import type { ResolvedTable } from '../../tableModel/types';
+
+interface TableSpan {
+    readonly from: number;
+    readonly to: number;
+}
 
 /** Which side of a table the caret leaves through. */
 export type TableExitSide = 'before' | 'after';
@@ -12,7 +16,7 @@ export type TableExitSide = 'before' | 'after';
  */
 export function exitTableToAdjacentLine(
     view: EditorView,
-    table: Pick<ResolvedTable, 'from' | 'to'>,
+    table: TableSpan,
     side: TableExitSide,
     effects: StateEffect<unknown>[]
 ): boolean {

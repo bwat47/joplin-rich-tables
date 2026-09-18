@@ -25,6 +25,14 @@ export interface TableCellRanges {
     rows: CellRange[][];
 }
 
+export interface CellDocRange {
+    contentFrom: number;
+    contentTo: number;
+    editableFrom: number;
+    editableTo: number;
+    relRange: CellRange;
+}
+
 function offsetRange(range: MarkdownTableSourceRange, tableFrom: number): MarkdownTableSourceRange {
     return { from: tableFrom + range.from, to: tableFrom + range.to };
 }
@@ -88,7 +96,7 @@ export function computeMarkdownTableCellRangesFromSyntax(
 
 /**
  * Finds the cell coordinates for a given position within the table text.
- * This is the inverse of resolveCellDocRange - given a position, find which cell contains it.
+ * This is the inverse of getCellDocRange - given a position, find which cell contains it.
  *
  * @param ranges - The computed cell ranges for the table
  * @param relativePos - Position relative to the start of the table text
@@ -127,4 +135,25 @@ export function findCellForPos(ranges: TableCellRanges, relativePos: number): Ce
  */
 export function getCellRange(ranges: TableCellRanges, coords: CellCoords): CellRange | undefined {
     return coords.section === 'header' ? ranges.headers[coords.col] : ranges.rows[coords.row]?.[coords.col];
+}
+
+/** Resolves a table-relative cell range to absolute document positions. */
+export function getCellDocRange(params: {
+    tableFrom: number;
+    ranges: TableCellRanges;
+    coords: CellCoords;
+}): CellDocRange | null {
+    const { tableFrom, ranges, coords } = params;
+    const relRange = getCellRange(ranges, coords);
+    if (!relRange) {
+        return null;
+    }
+
+    return {
+        contentFrom: tableFrom + relRange.from,
+        contentTo: tableFrom + relRange.to,
+        editableFrom: tableFrom + relRange.editableFrom,
+        editableTo: tableFrom + relRange.editableTo,
+        relRange,
+    };
 }

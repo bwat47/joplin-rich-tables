@@ -8,7 +8,7 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { resolvedActiveCellField } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
@@ -32,8 +32,8 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
                 render: vi.fn(async () => htmlFragment('')),
                 clear: vi.fn(),
             }),
+            tableContextField,
             activeCellField,
-            resolvedActiveCellField,
             tableDecorationField,
         ],
     });
@@ -61,8 +61,12 @@ describe('TableWidget coordsAt', () => {
             throw new Error('Expected test table to parse');
         }
 
+        const tableFrom = 50;
         const state = EditorState.create({
+            doc: `${'x'.repeat(tableFrom - 2)}\n\n${tableText}`,
             extensions: [
+                markdown({ extensions: [GFM] }),
+                tableContextField,
                 markdownRenderServiceFacet.of({
                     getCached: vi.fn(() => htmlFragment('')),
                     render: vi.fn(async () => htmlFragment('')),
@@ -74,10 +78,16 @@ describe('TableWidget coordsAt', () => {
             state,
             dom: document.createElement('div'),
             requestMeasure: vi.fn(),
+            posAtDOM: vi.fn(() => tableFrom),
         } as unknown as EditorView;
 
-        const tableFrom = 50;
-        const widget = new TableWidget(table, cellRanges, tableText, tableFrom);
+        const widget = new TableWidget({
+            from: tableFrom,
+            to: tableFrom + tableText.length,
+            text: tableText,
+            table,
+            cellRanges,
+        });
         const dom = widget.toDOM(view);
         const targetCell = dom.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
         if (!targetCell) {
@@ -92,17 +102,15 @@ describe('TableWidget coordsAt', () => {
     });
 
     describe('with a live, unrebuilt widget', () => {
-        // In-cell edits are forwarded from the nested editor as transactions carrying
-        // syncAnnotation. tableDecorationPolicy routes those through the mapDecorations path,
-        // which shifts the decoration's range but does NOT rebuild the TableWidget — so the
-        // widget's own `cellRanges` stay frozen at pre-edit offsets even though the live document
-        // has changed underneath it. coordsAt must still resolve positions correctly in that state.
+        // In-cell edits preserve the active decoration so its nested editor host survives. The
+        // widget's own `cellRanges` therefore stay frozen at pre-edit offsets even though the live
+        // document changed underneath it. coordsAt must still resolve positions in that state.
         const TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const TABLE_FROM = 0;
 
         // A sync transaction only ever originates from an open nested editor, so the active cell
         // is always set alongside it. Reproducing that here matters: coordsAt reads the live cell
-        // ranges from resolvedActiveCellField, which is only populated while a cell is active.
+        // ranges from the document-level table index.
         function editCellAWithoutRebuild(view: EditorView, insertText: string): void {
             const cellARanges = parseCellRangesFixture(view.state.doc.toString());
             const cellAFrom = cellARanges.rows[0][0].editableFrom;
@@ -185,7 +193,13 @@ describe('TableWidget coordsAt', () => {
             }
 
             const { parent, view } = createRealView(longTableText);
-            const widget = new TableWidget(table, cachedRanges, longTableText, 0);
+            const widget = new TableWidget({
+                from: 0,
+                to: longTableText.length,
+                text: longTableText,
+                table,
+                cellRanges: cachedRanges,
+            });
             const dom = widget.toDOM(view);
             vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
 
@@ -209,11 +223,9 @@ describe('TableWidget coordsAt', () => {
     });
 
     it('resolves coords in a previously edited table after activation switches to another table', () => {
-        // Regression test: editing table A freezes its widget via mapDecorations, and a bare
-        // setActiveCellEffect switch to table B (no doc change, no normalization needed) moves
-        // resolvedActiveCellField to B — so A's frozen widget is no longer covered by the live
-        // ranges. The decoration policy must rebuild on the switch so A's widget picks up
-        // post-edit cellRanges; otherwise coordsAt() resolves A against pre-edit offsets.
+        // Regression test: editing table A preserves its widget, and a bare setActiveCellEffect
+        // switch to table B (no doc change, no normalization needed) moves active-cell resolution
+        // to B. Reconciliation must refresh A so it picks up post-edit cellRanges.
         const tableA = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const tableB = ['| X1 | X2 |', '| --- | --- |', '| x | y |'].join('\n');
 
@@ -265,10 +277,7 @@ describe('TableWidget coordsAt', () => {
         }
     });
 
-    it('falls back to cached cellRanges when the DOM has no live view registered', () => {
-        // toDOM() was called directly (as in the test above), bypassing the widgetDomState entry
-        // that resolveLiveCellCoords() needs -- coordsAt must still resolve via the constructor's
-        // cellRanges rather than fail outright.
+    it('returns null when the DOM has no live view registered', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| body 1 | body 2 |'].join('\n');
         const table = MarkdownTable.parse(tableText);
         const cellRanges = parseCellRangesFixture(tableText);
@@ -291,9 +300,15 @@ describe('TableWidget coordsAt', () => {
             requestMeasure: vi.fn(),
         } as unknown as EditorView;
 
-        const widget = new TableWidget(table, cellRanges, tableText, 0);
+        const widget = new TableWidget({
+            from: 0,
+            to: tableText.length,
+            text: tableText,
+            table,
+            cellRanges,
+        });
         // toDOM() records widgetDomState for this dom, so route through a detached clone instead
-        // to exercise the "no state registered" fallback path.
+        // to exercise the unavailable-DOM-state path.
         const dom = widget.toDOM(view).cloneNode(true) as HTMLElement;
 
         const targetCell = dom.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
@@ -303,6 +318,6 @@ describe('TableWidget coordsAt', () => {
         const rect = { top: 10, bottom: 20, left: 30, right: 40 } as DOMRect;
         vi.spyOn(targetCell, 'getBoundingClientRect').mockReturnValue(rect);
 
-        expect(widget.coordsAt(dom, cellRanges.rows[0][1].from, 1)).toBe(rect);
+        expect(widget.coordsAt(dom, cellRanges.rows[0][1].from, 1)).toBeNull();
     });
 });
