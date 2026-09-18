@@ -13,7 +13,12 @@ import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 interface TableDecorationState {
     decorations: DecorationSet;
-    /** True when table widgets are displayed at the current index spans. */
+    /**
+     * True when table widgets are currently mounted. They normally sit at the index's spans,
+     * but the incomplete-parse branch below carries the previous projection at mapped positions
+     * while the index is empty, so this reports that widgets are on screen rather than that the
+     * index agrees with them.
+     */
     rendering: boolean;
     /** A document change rebuilt or dropped the previously active table's decoration. */
     activeHostInvalidated: boolean;
@@ -183,7 +188,7 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
 
-/** True when table widgets are currently being rendered at the index's spans. */
+/** True when table widgets are currently mounted; see `TableDecorationState.rendering`. */
 export function isTableRenderingActive(state: EditorState): boolean {
     return state.field(tableDecorationField, false)?.rendering ?? false;
 }
