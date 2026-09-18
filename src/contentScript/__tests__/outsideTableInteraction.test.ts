@@ -1,16 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EditorView, type BlockInfo } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { handleOutsideMouseDown } from '../tableRuntime/interaction/outsideTableInteraction';
+import { closeOnOutsideMouseDown, handleOutsideMouseDown } from '../tableRuntime/interaction/outsideTableInteraction';
 
 const DOC = 'above\nbelow';
 const INITIAL_SELECTION = 2;
 const VALID_CLICK_POSITION = 8;
-const SECOND_LINE_START = 6;
 
 const mountedViews: EditorView[] = [];
 
-function mountActiveView(): EditorView {
+function mountActiveView(laterMouseDown?: (event: MouseEvent) => boolean): EditorView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
 
@@ -18,7 +17,11 @@ function mountActiveView(): EditorView {
         parent,
         doc: DOC,
         selection: { anchor: INITIAL_SELECTION },
-        extensions: [activeCellField],
+        extensions: [
+            activeCellField,
+            closeOnOutsideMouseDown,
+            ...(laterMouseDown ? [EditorView.domEventHandlers({ mousedown: laterMouseDown })] : []),
+        ],
     });
     activateCell(view);
     mountedViews.push(view);
@@ -51,11 +54,6 @@ function makeOutsideMouseDown(view: EditorView): MouseEvent {
     return event;
 }
 
-/** Stands in for the height map, which reports a line start rather than an exact column. */
-function stubHeightMap(view: EditorView, from: number): void {
-    vi.spyOn(view, 'lineBlockAtHeight').mockReturnValue({ from } as BlockInfo);
-}
-
 afterEach(() => {
     while (mountedViews.length > 0) {
         mountedViews.pop()?.destroy();
@@ -68,16 +66,27 @@ describe('outside table interaction', () => {
     it('moves the caret to the mapped coordinate and closes the table', () => {
         const view = mountActiveView();
         vi.spyOn(view, 'posAtCoords').mockReturnValue(VALID_CLICK_POSITION);
-        const lineBlockAtHeight = vi.spyOn(view, 'lineBlockAtHeight');
         const focus = vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
-        const handled = handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
 
-        expect(handled).toBe(true);
         expect(view.state.selection.main.anchor).toBe(VALID_CLICK_POSITION);
         expect(getActiveCell(view.state)).toBeNull();
         expect(focus).toHaveBeenCalledOnce();
-        expect(lineBlockAtHeight).not.toHaveBeenCalled();
+    });
+
+    it('leaves the press to CodeMirror so a drag can extend the selection', () => {
+        // Registered after the outside handler, so it only runs when that handler declines the
+        // press. Taking it here keeps CodeMirror's built-in mouse selection out of jsdom.
+        const laterMouseDown = vi.fn(() => true);
+        const view = mountActiveView(laterMouseDown);
+        vi.spyOn(view, 'posAtCoords').mockReturnValue(VALID_CLICK_POSITION);
+        vi.spyOn(view, 'focus').mockImplementation(() => undefined);
+
+        view.contentDOM.dispatchEvent(makeOutsideMouseDown(view));
+
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(laterMouseDown).toHaveBeenCalledOnce();
     });
 
     it.each([
@@ -87,31 +96,13 @@ describe('outside table interaction', () => {
         ['negative', -1],
         ['fractional', 1.5],
         ['past the document end', DOC.length + 1],
-    ])('falls back to the height map when coordinate mapping returns %s', (_label, mappedPos) => {
+    ])('closes the table but leaves the caret alone when coordinate mapping returns %s', (_label, mappedPos) => {
         const view = mountActiveView();
         vi.spyOn(view, 'posAtCoords').mockReturnValue(mappedPos as never);
-        stubHeightMap(view, SECOND_LINE_START);
         const focus = vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
-        const handled = handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
 
-        // Consuming the event keeps CodeMirror's own handler from repeating the failed
-        // mapping and dispatching its unusable result.
-        expect(handled).toBe(true);
-        expect(view.state.selection.main.anchor).toBe(SECOND_LINE_START);
-        expect(getActiveCell(view.state)).toBeNull();
-        expect(focus).toHaveBeenCalledOnce();
-    });
-
-    it('leaves the caret alone when the height map cannot place the pointer either', () => {
-        const view = mountActiveView();
-        vi.spyOn(view, 'posAtCoords').mockReturnValue(undefined as never);
-        stubHeightMap(view, Number.NaN);
-        const focus = vi.spyOn(view, 'focus').mockImplementation(() => undefined);
-
-        const handled = handleOutsideMouseDown(view, makeOutsideMouseDown(view));
-
-        expect(handled).toBe(false);
         expect(view.state.selection.main.anchor).toBe(INITIAL_SELECTION);
         expect(getActiveCell(view.state)).toBeNull();
         expect(focus).not.toHaveBeenCalled();
@@ -123,12 +114,12 @@ describe('outside table interaction', () => {
         vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
         posAtCoords.mockReturnValueOnce(0);
-        expect(handleOutsideMouseDown(view, makeOutsideMouseDown(view))).toBe(true);
+        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
         expect(view.state.selection.main.anchor).toBe(0);
 
         activateCell(view);
         posAtCoords.mockReturnValueOnce(DOC.length);
-        expect(handleOutsideMouseDown(view, makeOutsideMouseDown(view))).toBe(true);
+        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
         expect(view.state.selection.main.anchor).toBe(DOC.length);
     });
 });
