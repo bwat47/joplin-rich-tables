@@ -57,7 +57,7 @@ cell without parsing their own output back.
 ## Runtime Resolution and Context
 
 `tableContextField` is the sole semantic index of root tables in the main document. On creation and every document
-change it scans the complete current Lezer tree once, then publishes document-ordered `TableContext` values. Selectors
+change it scans the current Lezer tree's top-level nodes once, then publishes document-ordered `TableContext` values. Selectors
 read containment and range queries from that field; they fail fast when used with a state that did not register it.
 
 The warm path uses `syntaxTree()` directly when `syntaxTreeAvailable()` confirms the complete document is parsed.

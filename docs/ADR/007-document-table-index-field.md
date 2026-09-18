@@ -17,7 +17,8 @@ later table nodes remain root tables even when their own source is untouched.
 ## Decision
 
 Register `tableContextField` before dependent main-editor fields and make it the only semantic root-table index. On
-creation and every document change it scans the complete current syntax tree. A complete warm tree is read directly;
+creation and every document change it scans the current syntax tree's top-level nodes, which is where every
+root table sits. A complete warm tree is read directly;
 otherwise `ensureSyntaxTree()` gets the centralized 1000 ms worst-case budget.
 
 Derivation reuse is local to consecutive scans. Exact source text reuses only the normalized `MarkdownTable` and
@@ -62,7 +63,7 @@ to another table remaining visually stale while a cell editor is open.
 
 **Negative:**
 
-- Every document change scans the full current tree and slices each root table's source for reuse keys.
+- Every document change rescans the tree's top-level nodes and slices each root table's source for reuse keys.
 - Nested-cell edits now pay that scan even though the previous decoration path only mapped widgets.
 - States that call semantic selectors must register the field; missing registration fails fast.
 
