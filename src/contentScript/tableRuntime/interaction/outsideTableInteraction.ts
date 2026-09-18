@@ -77,7 +77,7 @@ function moveCaretAndClearTableState(
     }
 }
 
-/** Last resort when no mapping places the pointer: clear state, leave the caret alone. */
+/** Fallback when the pointer maps to no document position: clear state, leave the caret alone. */
 function clearTableStateInPlace(view: EditorView, live: LiveTableState): void {
     if (!live.hasActiveCell && !live.hasCellSelection) {
         return;
@@ -101,65 +101,55 @@ function isValidDocumentPosition(position: unknown, docLength: number): position
     return Number.isInteger(position) && position >= 0 && position <= docLength;
 }
 
-/**
- * The clicked document position, or null when neither mapping can supply a usable one.
- *
- * The fallback reads the height map instead of the DOM, so it survives the decorations that
- * defeat `posAtCoords` and yields a document position by construction. It only resolves the
- * clicked line rather than the column, which is enough to move the caret out of the table.
- */
+/** The clicked document position, or null when coordinate mapping cannot supply a usable one. */
 function resolveClickPosition(view: EditorView, event: MouseEvent | PointerEvent): number | null {
-    const docLength = view.state.doc.length;
-
     const mapped = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
-    if (isValidDocumentPosition(mapped, docLength)) {
+    if (isValidDocumentPosition(mapped, view.state.doc.length)) {
         return mapped;
     }
 
-    logger.debug('Coordinate mapping returned no usable position; estimating from height map', {
+    logger.debug('Coordinate mapping returned no usable position; leaving the caret in place', {
         mapped,
     });
-    const estimated = view.lineBlockAtHeight(event.clientY - view.documentTop).from;
-    return isValidDocumentPosition(estimated, docLength) ? estimated : null;
+    return null;
 }
 
 function handleOutsideTableInteraction(
     view: EditorView,
     event: MouseEvent | PointerEvent,
     options: OutsideInteractionOptions
-): boolean {
+): void {
     // Keep editor open if interaction is inside the widget or nested editor.
     const target = getEventTargetElement(event);
     if (!target || isInsideTableUi(target)) {
-        return false;
+        return;
     }
 
     const live = resolveLiveTableState(view);
     if (!live) {
-        return false;
+        return;
     }
 
     const clickPos = resolveClickPosition(view, event);
     if (clickPos === null) {
         clearTableStateInPlace(view, live);
-        return false;
+        return;
     }
 
     moveCaretAndClearTableState(view, clickPos, live, options);
-    // Consume mousedown after positioning the caret. Otherwise CodeMirror runs its own
-    // coordinate lookup; on the height-map fallback path, that lookup can reproduce the
-    // invalid position we recovered from (see: https://github.com/bwat47/joplin-rich-tables/issues/212).
-    // Never consume contextmenu so native/Joplin menus open.
-    return !options.preserveContextMenu;
 }
 
 /** Handles an outside-table mousedown and closes any live table interaction state. */
-export function handleOutsideMouseDown(view: EditorView, event: MouseEvent): boolean {
-    return handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
+export function handleOutsideMouseDown(view: EditorView, event: MouseEvent): void {
+    handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
 }
 
 export const closeOnOutsideMouseDown = EditorView.domEventHandlers({
-    mousedown: (event, view) => handleOutsideMouseDown(view, event),
+    mousedown: (event, view) => {
+        handleOutsideMouseDown(view, event);
+        // Never consume the press: CodeMirror's own mousedown handling starts drag selection.
+        return false;
+    },
 });
 
 export const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
@@ -168,8 +158,6 @@ export const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
 
         constructor(private readonly view: EditorView) {
             this.onContextMenu = (event) => {
-                // Return value is intentionally ignored for document-level contextmenu.
-                // We only need side effects (close/clear), not event consumption control.
                 handleOutsideTableInteraction(this.view, event, { preserveContextMenu: true });
             };
 
