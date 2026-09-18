@@ -1,4 +1,5 @@
 import { bench, describe } from 'vitest';
+import { EditorSelection } from '@codemirror/state';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeCellAnchorForTable } from '../tableModel/cellAnchors';
 import { getTableContextAtPos, getTableContexts } from '../tableState/tableContextField';
@@ -134,6 +135,8 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
     const activeCell = firstContext.cellRanges.rows[0][0];
     const activeInsert = firstContext.from + activeCell.editableFrom;
     const paragraphInsert = document.lastIndexOf('paragraph');
+    // Inside the trailing paragraph, so the caret never lands in a table.
+    const outsideTableCaret = paragraphInsert + 1;
 
     describe(spec.label, () => {
         bench(
@@ -174,6 +177,31 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
             () => {
                 rawModeState
                     .update({ changes: { from: paragraphInsert, insert: 'x' } })
+                    .state.field(tableDecorationField);
+            },
+            BENCHMARK_OPTIONS
+        );
+
+        // Selection-only transactions carry no changes and leave the index object identical,
+        // yet still reconcile: the decoration set is rebuilt and a widget allocated per table.
+        // That rebuild is load-bearing — it is what refreshes a carried-over active host once
+        // activation clears — so these track the cost rather than argue for skipping it.
+        bench(
+            'no active cell: selection-only caret move',
+            () => {
+                noActiveState
+                    .update({ selection: EditorSelection.cursor(outsideTableCaret) })
+                    .state.field(tableDecorationField);
+            },
+            BENCHMARK_OPTIONS
+        );
+
+        // Exercises the active-host preservation checks against an empty change set.
+        bench(
+            'active table near start: selection-only caret move',
+            () => {
+                activeState
+                    .update({ selection: EditorSelection.cursor(outsideTableCaret) })
                     .state.field(tableDecorationField);
             },
             BENCHMARK_OPTIONS
