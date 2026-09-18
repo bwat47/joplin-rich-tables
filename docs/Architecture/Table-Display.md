@@ -10,8 +10,8 @@ the current `tableContextField` index rather than scanning syntax or deriving ta
 
 If parsing times out, decorations are cleared along with the index, exposing raw Markdown and destroying any hosted
 nested editor. Decorations rebuild when a later transaction exposes a complete index. Background parsing may stop
-before completing a large document, so recovery is not guaranteed to be immediate. Raw mode, explicit invalidation,
-and the deferred full-document-replacement path still take precedence.
+before completing a large document, so recovery is not guaranteed to be immediate. Raw mode and explicit invalidation
+still take precedence.
 
 ### Widget Structure
 

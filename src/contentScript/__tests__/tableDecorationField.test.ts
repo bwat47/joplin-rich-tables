@@ -4,14 +4,10 @@ import { EditorState, StateEffect, Transaction } from '@codemirror/state';
 import type { Decoration } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { describe, expect, it, vi } from 'vitest';
-import {
-    isTableRenderingActive,
-    tableDecorationField,
-    wasActiveHostInvalidated,
-} from '../tableWidget/tableDecorationField';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
-import { rebuildAllTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -22,6 +18,14 @@ const FILLER = 'lorem ipsum dolor sit amet '.repeat(40);
 const LONG_TABLE_DOCUMENT = Array.from({ length: TABLE_COUNT }, () => `${FILLER}\n\n${TABLE}`).join('\n\n');
 const CLOCK_ADVANCE_MS = 2_000;
 const COMPLETE_PARSE_TIMEOUT_MS = 1_000;
+
+function getDecoratedSpans(state: EditorState): number[][] {
+    const spans: number[][] = [];
+    state.field(tableDecorationField).decorations.between(0, state.doc.length, (from, to) => {
+        spans.push([from, to]);
+    });
+    return spans;
+}
 
 function getDecorationAt(state: EditorState, from: number, to: number): Decoration {
     let result: Decoration | null = null;
@@ -76,7 +80,6 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableDecorationField)).toMatchObject({
             decorations: { size: 0 },
-            rendering: false,
         });
         expect(state.field(tableContextField).treeIncomplete).toBe(true);
 
@@ -90,7 +93,6 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableDecorationField)).toMatchObject({
             decorations: { size: TABLE_COUNT },
-            rendering: true,
         });
         expect(state.field(tableContextField).treeIncomplete).toBe(false);
     });
@@ -147,45 +149,40 @@ describe('tableDecorationField', () => {
 
         expect(state.field(tableContextField).treeIncomplete).toBe(true);
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
-        expect(isTableRenderingActive(state)).toBe(false);
         expect(wasActiveHostInvalidated(state)).toBe(true);
 
         state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
-        expect(isTableRenderingActive(state)).toBe(false);
 
         expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
         state = state.update({}).state;
 
         expect(state.field(tableContextField).treeIncomplete).toBe(false);
         expect(state.field(tableDecorationField).decorations.size).toBe(TABLE_COUNT + 1);
-        expect(isTableRenderingActive(state)).toBe(true);
     });
 
-    it('reports rendering inactive when the decoration field is absent', () => {
-        expect(isTableRenderingActive(createMarkdownState(TABLE))).toBe(false);
-    });
-
-    it('keeps decorations dropped after a full replace until the deferred rebuild arrives', () => {
+    it('renders the replacement document immediately after a full replace with an active cell', () => {
         const base = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);
         const active = base.update({
             effects: setActiveCellEffect.of({ tableFrom: 0, section: 'header', row: 0, col: 0 }),
         }).state;
-        expect(active.field(tableDecorationField).decorations.size).toBe(1);
+        const replacement = `intro
 
-        // A full replace while a cell is active drops the widgets; the lifecycle rebuilds them
-        // on the next animation frame, once the stale active cell has been cleared.
-        const replaced = active.update({ changes: { from: 0, to: active.doc.length, insert: TABLE } }).state;
-        expect(replaced.field(tableDecorationField).decorations.size).toBe(0);
-        expect(isTableRenderingActive(replaced)).toBe(false);
+${TABLE}
 
-        const afterSelection = replaced.update({ selection: { anchor: 1 } }).state;
-        expect(afterSelection.field(tableDecorationField).decorations.size).toBe(0);
-        expect(isTableRenderingActive(afterSelection)).toBe(false);
+${TABLE.replace('a', 'c')}`;
 
-        const rebuilt = afterSelection.update({ effects: rebuildAllTableWidgetsEffect.of(undefined) }).state;
-        expect(rebuilt.field(tableDecorationField).decorations.size).toBe(1);
-        expect(isTableRenderingActive(rebuilt)).toBe(true);
+        // The main editor guard clears the stale active cell in the same transaction.
+        const replaced = active.update({
+            changes: { from: 0, to: active.doc.length, insert: replacement },
+            effects: clearActiveCellEffect.of(undefined),
+        }).state;
+
+        expect(replaced.field(tableContextField).tables.map((table) => [table.from, table.to])).toEqual(
+            getDecoratedSpans(replaced)
+        );
+        expect(replaced.field(tableContextField).tables).toHaveLength(2);
+        expect(wasActiveHostInvalidated(replaced)).toBe(true);
     });
 
     it('preserves the active decoration while rebuilding another edited table', () => {
@@ -227,7 +224,7 @@ describe('tableDecorationField', () => {
     it.each([
         ['an invalid cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 2 })]],
         ['a clear', [clearActiveCellEffect.of(undefined)]],
-        ['an explicit rebuild', [rebuildAllTableWidgetsEffect.of(undefined)]],
+        ['an explicit rebuild', [rebuildTableWidgetsEffect.of(undefined)]],
         [
             'a clear followed by the same activation',
             [

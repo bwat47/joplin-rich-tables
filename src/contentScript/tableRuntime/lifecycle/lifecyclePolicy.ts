@@ -20,16 +20,13 @@ export interface TableRuntimeFacts {
     nestedEditorOpen: boolean;
     // A mouse drag is sweeping out a cell selection and owns the table's geometry until release.
     cellDragInProgress: boolean;
-    pendingFullReplaceRebuild: boolean;
 
     // Transaction facts
     docChanged: boolean;
     selectionChanged: boolean;
     isSync: boolean;
-    isNormalizeBeforeEdit: boolean;
     isCellSelectionTransition: boolean;
     rawModeTransition: RawModeTransitionFacts;
-    hasFullDocumentReplace: boolean;
     rebuildTouchesPreviousActiveTable: boolean;
     isUndoRedoInsideTable: boolean;
 
@@ -66,13 +63,12 @@ export type TableRuntimeAction =
           options: ActivateCellAtCursorOptions;
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
-    | { type: 'scheduleRebuildAllAfterFullReplace' }
     | { type: 'scheduleInsertedTableActivation' };
 
 // Precedence:
 // 1. Explicit open requests short-circuit all but inserted-table activation.
-// 2. Accumulating full-replace rebuild and visibility work precedes terminal raw-mode
-//    exit, reposition, or selection-departure transitions (the first match returns).
+// 2. Forced raw-mode exit is terminal. Otherwise cursor-visibility work accumulates
+//    before the terminal reposition or selection-departure transitions (the first match returns).
 // 3. Continuing close, sync, and stale-clear actions follow; inserted-table activation
 //    is independently appended.
 export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
@@ -98,10 +94,6 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
             requestId: facts.openRequestId,
         });
         return actions;
-    }
-
-    if (shouldRebuildAllAfterFullReplace(facts)) {
-        actions.push({ type: 'scheduleRebuildAllAfterFullReplace' });
     }
 
     if (exitedForcedRawMode(facts)) {
@@ -149,15 +141,6 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     return actions;
-}
-
-function shouldRebuildAllAfterFullReplace(facts: TableRuntimeFacts): boolean {
-    return (
-        facts.activeCellBefore !== 'absent' &&
-        facts.hasFullDocumentReplace &&
-        !facts.isNormalizeBeforeEdit &&
-        !facts.pendingFullReplaceRebuild
-    );
 }
 
 // Source-mode and search-force exits bypass the normal raw-mode exit flow and

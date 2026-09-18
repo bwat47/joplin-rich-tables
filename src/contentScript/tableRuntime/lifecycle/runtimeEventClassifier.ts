@@ -12,16 +12,11 @@ import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/re
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
 import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
-import {
-    hasCellSelectionTransitionAnnotation,
-    hasFullDocumentReplace,
-    hasNormalizeBeforeEditAnnotation,
-} from './transactionFactPredicates';
+import { hasCellSelectionTransitionAnnotation } from './transactionFactPredicates';
 import type { ActiveCellFacts, RawModeTransitionFacts, TableRuntimeFacts } from './lifecyclePolicy';
 
 export interface TableRuntimeExternalFacts {
     nestedEditorOpen: boolean;
-    pendingFullReplaceRebuild: boolean;
 }
 
 export function classifyTableRuntimeFacts(
@@ -45,14 +40,11 @@ export function classifyTableRuntimeFacts(
         effectiveRawMode,
         nestedEditorOpen: externalFacts.nestedEditorOpen,
         cellDragInProgress: isCellDragInProgress(update.state),
-        pendingFullReplaceRebuild: externalFacts.pendingFullReplaceRebuild,
         docChanged: update.docChanged,
         selectionChanged: update.selectionSet,
         isSync,
-        isNormalizeBeforeEdit: hasNormalizeBeforeEditAnnotation(update.transactions),
         isCellSelectionTransition: hasCellSelectionTransitionAnnotation(update.transactions),
         rawModeTransition: scanRawModeTransitionFacts(update, effectiveRawMode),
-        hasFullDocumentReplace: hasFullDocumentReplace(update.transactions),
         hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
         rebuildTouchesPreviousActiveTable:

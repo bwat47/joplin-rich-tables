@@ -8,7 +8,7 @@ import {
     getWidgetSelector,
 } from './domHelpers';
 import { getTableContextsWithin } from '../tableState/tableContextField';
-import { isTableRenderingActive } from './tableDecorationField';
+import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { measuredClassSyncPlugin } from './measuredClassSync';
 import { selectedCellRules } from './selectionTint';
 
@@ -28,7 +28,7 @@ export interface SelectedTableSpan {
 }
 
 export function findSelectedTableSpans(state: EditorState): SelectedTableSpan[] {
-    if (!isTableRenderingActive(state)) {
+    if (isEffectiveRawMode(state)) {
         return [];
     }
     return state.selection.ranges.flatMap((range) =>

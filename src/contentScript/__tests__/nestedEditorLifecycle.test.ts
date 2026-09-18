@@ -272,6 +272,35 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('renders tables immediately and repositions after a full replace with a cell open', () => {
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+
+        const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
+        const replacement = ['intro', '', CANONICAL_DOC, '', CANONICAL_DOC.replace('a', 'c')].join('\n');
+
+        // Mirrors an external sync: the main editor guard adds the clear to the replacing transaction.
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: replacement },
+            selection: { anchor: 0 },
+            effects: clearActiveCellEffect.of(undefined),
+        });
+
+        expect(view.contentDOM.querySelectorAll('table')).toHaveLength(2);
+        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledTimes(1);
+
+        const decorationsAfterReplace = view.state.field(tableDecorationField).decorations;
+        flushAnimationFrames();
+
+        expect(activateCellAtPositionMock).toHaveBeenCalledWith(
+            view,
+            0,
+            expect.objectContaining({ clearIfOutside: true })
+        );
+        expect(view.state.field(tableDecorationField).decorations).toBe(decorationsAfterReplace);
+
+        view.destroy();
+    });
+
     it('passes the pre-undo active cell as a fallback hint during undo or redo reactivation', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
         const activeCell = headerCell({

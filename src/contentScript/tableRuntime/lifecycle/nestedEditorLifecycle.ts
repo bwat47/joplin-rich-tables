@@ -10,7 +10,6 @@ import {
     getPendingInsertedTableActivation,
 } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { rebuildAllTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
@@ -55,16 +54,11 @@ interface OpenRequestExecutionGuardResult {
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
-        private pendingFullReplaceRebuild: boolean;
-
-        constructor(private view: EditorView) {
-            this.pendingFullReplaceRebuild = false;
-        }
+        constructor(private view: EditorView) {}
 
         update(update: ViewUpdate): void {
             const facts = classifyTableRuntimeFacts(update, {
                 nestedEditorOpen: isNestedEditorOpen(this.view),
-                pendingFullReplaceRebuild: this.pendingFullReplaceRebuild,
             });
             const actions = reduceTableRuntime(facts);
 
@@ -86,9 +80,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
             for (const action of actions) {
                 switch (action.type) {
-                    case 'scheduleRebuildAllAfterFullReplace':
-                        this.scheduleRebuildAllAfterFullReplace();
-                        break;
                     case 'scheduleActivateCellAtCursor':
                         this.scheduleActivateCellAtCursor(update, action.options);
                         break;
@@ -119,15 +110,6 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                 }
             }
-        }
-
-        private scheduleRebuildAllAfterFullReplace(): void {
-            this.pendingFullReplaceRebuild = true;
-            requestViewAnimationFrame(this.view, () => {
-                this.pendingFullReplaceRebuild = false;
-                if (!this.view.dom.isConnected) return;
-                this.view.dispatch({ effects: rebuildAllTableWidgetsEffect.of(undefined) });
-            });
         }
 
         private scheduleActivateCellAtCursor(update: ViewUpdate, activateOptions: ActivateCellAtCursorOptions): void {

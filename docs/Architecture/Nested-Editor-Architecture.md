@@ -89,9 +89,10 @@ Joplin sync replaces entire document. Detected by `isFullDocumentReplace()` (sin
 
 Response (to prevent stale document state):
 
-1. `mainEditorGuard` dispatches `clearActiveCellEffect`.
-2. `tableDecorationField` returns `Decoration.none` during replacement.
-3. `rebuildAllTableWidgetsEffect` scheduled via `requestAnimationFrame`.
+1. `mainEditorGuard` adds `clearActiveCellEffect` to the replacing transaction.
+2. `tableDecorationField` rebuilds every table from the new index in the same transaction and records
+   `activeHostInvalidated`.
+3. The lifecycle closes the nested editor and activates the cell under the cursor, as for any invalidated host.
 
 ## Boundary Enforcement
 
