@@ -37,7 +37,11 @@ function decideRebuildRequestDecoration(tr: Transaction): DecorationDecision | n
 
 /**
  * A full replace while a cell is active (e.g. external sync) invalidates the
- * active cell; decorations are dropped and rebuilt once the lifecycle settles.
+ * active cell; decorations stay dropped until the lifecycle's deferred rebuild
+ * or the next document change.
+ *
+ * A requested entry is exempt: normalizing a note that is a single table replaces
+ * the whole document, but that is a controlled edit, not an external replace.
  */
 function decideFullDocumentReplaceDecoration(tr: Transaction): DecorationDecision | null {
     if (
@@ -53,10 +57,12 @@ function decideFullDocumentReplaceDecoration(tr: Transaction): DecorationDecisio
 }
 
 /**
- * Decides how the table decoration field reacts to a transaction.
+ * Routes a transaction to drop, force-render, or reconcile table decorations.
+ * `reconcileTableDecorations()` owns deferral after a dropped render, parser
+ * recovery, and active-host preservation.
+ *
  * The order of the checks below is significant: earlier decisions deliberately
- * win over later ones (a full document replace, for example, outranks a
- * rebuildTableWidgetsEffect in the same transaction).
+ * win over later ones (raw mode, for example, outranks any rebuild request).
  */
 export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
     return (
