@@ -8,7 +8,7 @@ Accepted
 
 Table consumers previously resolved syntax independently through `tableResolution.ts`, while `buildTableContext()`
 kept a module-level 50-entry LRU and table decorations doubled as a range index. These owners had different timeout,
-cache, and invalidation behavior. A syntax timeout could also replace every rendered table with raw Markdown.
+cache, and invalidation behavior.
 
 The main document is already the authority, and Lezer already reparses incrementally. Maintaining another custom
 incremental window or mapped-span algorithm would duplicate membership logic: surrounding Markdown can change whether
@@ -79,11 +79,11 @@ the 200-table document was 28,088 characters and the 1,000-table stress document
 below are benchmark means in milliseconds and should be treated as local comparative measurements, not absolute user
 latency:
 
-| Path                              | 200 tables before | 200 tables Stage 1 | 1,000 tables before | 1,000 tables Stage 1 |
-| :-------------------------------- | ----------------: | -----------------: | ------------------: | -------------------: |
-| No active cell, paragraph edit    |             0.494 |              0.548 |               2.611 |                2.330 |
+| Path                               | 200 tables before | 200 tables Stage 1 | 1,000 tables before | 1,000 tables Stage 1 |
+| :--------------------------------- | ----------------: | -----------------: | ------------------: | -------------------: |
+| No active cell, paragraph edit     |             0.494 |              0.548 |               2.611 |                2.330 |
 | Active table near start, cell edit |             0.296 |              0.566 |               1.358 |                2.288 |
-| Raw mode, paragraph edit          |             0.280 |              0.495 |               1.307 |                2.222 |
+| Raw mode, paragraph edit           |             0.280 |              0.495 |               1.307 |                2.222 |
 
 The common no-active path remained in the same range and was slightly faster on the larger fixture; the active and raw
 paths gained the expected full-scan cost. Exact-text reuse-key slicing alone measured 0.032 ms for 200 tables and
