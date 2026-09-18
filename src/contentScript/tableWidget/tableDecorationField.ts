@@ -128,7 +128,7 @@ function reconcileTableDecorations(
     if (
         !value.rendering &&
         !transaction.docChanged &&
-        !(transaction.startState.field(tableContextField, false)?.treeIncomplete ?? true)
+        !transaction.startState.field(tableContextField).treeIncomplete
     ) {
         return { ...value, activeHostInvalidated: false };
     }
