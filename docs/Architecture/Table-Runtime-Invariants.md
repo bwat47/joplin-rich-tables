@@ -66,8 +66,8 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 - Code that needs an editor to remain active across a rebuild must express that as open intent, not by assuming DOM continuity.
 - `TableWidget` may reuse DOM for equivalent content, but runtime correctness must not depend on DOM reuse.
 - Block decorations must remain provided by `StateField`, not `ViewPlugin`.
-- An incomplete table index never supplies stale semantic spans. Existing rendering may remain mapped until parsing
-  recovers, so rendering can temporarily be active while semantic selectors return no tables.
+- An incomplete table index supplies neither semantic spans nor table decorations. Rendering resumes only once the
+  complete index is available, so visible widgets never outlive their semantic index during parser recovery.
 - Transaction filters and extenders must read only `tr.startState`, `tr.changes`, and `tr.newDoc`. Forcing `tr.state`
   there can construct and discard a provisional state, duplicating every field update. The state-free
   `classifyActiveCellChanges()` signature keeps undo scroll preservation within this constraint.

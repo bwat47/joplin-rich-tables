@@ -26,11 +26,11 @@ relative cell ranges; current spans always come from the current tree. Duplicate
 shares the same derived values. The global LRU, per-call resolution timeouts, decoration range accessors, and
 `tableResolution.ts` are removed.
 
-An unavailable parse publishes an empty index marked incomplete. Semantic selectors therefore never expose stale
-spans. If decorations already exist, `tableDecorationField` maps and preserves the complete previous projection until
-the parser-progress transaction rebuilds it from a complete index. Raw mode and deliberate clear/rebuild paths outrank
-that preservation. `isTableRenderingActive()` separately exposes the document-level rendering state so selection code
-does not confuse semantic table presence with visible widgets.
+An unavailable parse publishes an empty index marked incomplete and clears table decorations. This exposes raw
+Markdown and destroys any hosted nested editor until a later transaction restores a complete index. Keeping mapped
+decorations during timeouts was rejected because it leaves visible widgets without semantic spans for selection and
+interaction. `isTableRenderingActive()` separately exposes the document-level rendering state so selection code does
+not confuse semantic table presence with visible widgets in raw mode or during a deferred rebuild.
 
 Mapped untouched spans, padded scan windows, retained syntax nodes, and overlap fallbacks were rejected. They add a
 second invalidation algorithm and do not reliably account for container and fence changes outside a table's old span.
@@ -55,7 +55,7 @@ to another table remaining visually stale while a cell editor is open.
 
 - All semantic readers observe one current, root-only table index.
 - Duplicate and unchanged table text reuses model/range derivation without process-global cache state.
-- Warm point lookup is an indexed read, and timeout recovery cannot blank an existing rendered note.
+- Warm point lookup is an indexed read, and rendering stays consistent with the index during parser timeouts.
 - Raw-mode and selection behavior explicitly distinguish table presence from rendering availability.
 - Active-cell resolution is a plain selector over the index rather than a separately cached state field.
 - Widget coordinates resolve live ranges from the index at the DOM position; rendering snapshots cannot supply stale
@@ -63,6 +63,8 @@ to another table remaining visually stale while a cell editor is open.
 
 **Negative:**
 
+- A parser timeout exposes raw Markdown even for visible or active tables. Background parsing may stop before the
+  complete document is available, so rendering recovery is not guaranteed to be immediate.
 - Every document change rescans the tree's top-level nodes and slices each root table's source for reuse keys.
 - Nested-cell edits now pay that scan even though the previous decoration path only mapped widgets.
 - States that call semantic selectors must register the field; missing registration fails fast.

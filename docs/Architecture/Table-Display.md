@@ -8,10 +8,10 @@ Direct `Document` table nodes from the Lezer syntax tree are replaced with
 `Decoration.replace({ widget, block: true })` via a `StateField`. `tableDecorationField` builds every decoration from
 the current `tableContextField` index rather than scanning syntax or deriving table models itself.
 
-If the index becomes temporarily unavailable, an existing decoration set is mapped through the transaction and kept
-on screen. It is rebuilt wholesale on the parser-progress transaction that restores a complete index. Only field
-creation with an unavailable index renders nothing, because there is no previous projection to preserve. Raw mode,
-explicit invalidation, and the deferred full-document-replacement path still take precedence.
+If parsing times out, decorations are cleared along with the index, exposing raw Markdown and destroying any hosted
+nested editor. Decorations rebuild when a later transaction exposes a complete index. Background parsing may stop
+before completing a large document, so recovery is not guaranteed to be immediate. Raw mode, explicit invalidation,
+and the deferred full-document-replacement path still take precedence.
 
 ### Widget Structure
 

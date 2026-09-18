@@ -1,6 +1,7 @@
 import { undo } from '@codemirror/commands';
 import { history } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
@@ -214,6 +215,67 @@ describe('nested editor undo regression', () => {
         expect(view.contentDOM.querySelectorAll('tbody')[1]?.textContent).toContain('fresh');
 
         view.destroy();
+    });
+
+    it('closes the active editor on a parser timeout and restores widgets after recovery', () => {
+        const doc = '| H |\n| --- |\n| edited text |';
+        const activeCell: ActiveCell = { tableFrom: 0, section: 'body', row: 0, col: 0 };
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            parent,
+            doc,
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
+                nestedEditorPlugin,
+                tableContextField,
+                activeCellField,
+                openCellRequestField,
+                nestedEditorLifecyclePlugin,
+                tableDecorationField,
+            ],
+        });
+        try {
+            view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
+            const cellElement = findCellElement(view, makeTableId(0), activeCell);
+            if (!cellElement) throw new Error('Expected active cell element');
+            expect(
+                view.plugin(nestedEditorPlugin)?.controller.open({
+                    mainView: view,
+                    cellElement,
+                    featureSettings: TEST_HOST_CONFIG.nestedEditor,
+                })
+            ).toBe(true);
+
+            const filler = 'lorem ipsum dolor sit amet '.repeat(40);
+            const appendedTableCount = 5;
+            const appended = Array.from({ length: appendedTableCount }, () => `${filler}\n\n${doc}`).join('\n\n');
+            const clockAdvanceMs = 2_000;
+            let now = 0;
+            const clock = vi.spyOn(Date, 'now').mockImplementation(() => (now += clockAdvanceMs));
+            try {
+                view.dispatch({ changes: { from: doc.length, insert: `\n\n${appended}` } });
+            } finally {
+                clock.mockRestore();
+            }
+
+            expect(view.state.field(tableContextField).treeIncomplete).toBe(true);
+            expect(isNestedEditorOpen(view)).toBe(false);
+            expect(view.contentDOM.querySelector('[data-table-from]')).toBeNull();
+            expect(view.state.doc.sliceString(0, doc.length)).toBe(doc);
+            flushAnimationFrames();
+
+            const completeParseTimeoutMs = 1_000;
+            expect(ensureSyntaxTree(view.state, view.state.doc.length, completeParseTimeoutMs)).not.toBeNull();
+            view.dispatch({});
+            expect(view.state.field(tableDecorationField).decorations.size).toBe(appendedTableCount + 1);
+            expect(view.contentDOM.querySelector('[data-table-from]')).not.toBeNull();
+            expect(isNestedEditorOpen(view)).toBe(false);
+        } finally {
+            view.destroy();
+        }
     });
 
     it('closes the active editor and follows the restored cursor when undo targets another table', () => {

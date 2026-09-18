@@ -127,8 +127,11 @@ describe('tableDecorationField', () => {
         expect(getResolvedActiveCell(state)?.tableFrom).toBe(FILLER.length + 2);
     });
 
-    it('maps existing decorations while an updated index is incomplete, then rebuilds on recovery', () => {
-        let state = createMarkdownState(TABLE, [tableDecorationField]);
+    it('drops the active decoration while the index is incomplete, then rebuilds on recovery', () => {
+        let state = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);
+        state = state.update({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+        }).state;
         expect(state.field(tableDecorationField).decorations.size).toBe(1);
 
         let now = 0;
@@ -143,8 +146,13 @@ describe('tableDecorationField', () => {
         }
 
         expect(state.field(tableContextField).treeIncomplete).toBe(true);
-        expect(state.field(tableDecorationField).decorations.size).toBe(1);
-        expect(isTableRenderingActive(state)).toBe(true);
+        expect(state.field(tableDecorationField).decorations.size).toBe(0);
+        expect(isTableRenderingActive(state)).toBe(false);
+        expect(wasActiveHostInvalidated(state)).toBe(true);
+
+        state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
+        expect(state.field(tableDecorationField).decorations.size).toBe(0);
+        expect(isTableRenderingActive(state)).toBe(false);
 
         expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
         state = state.update({}).state;

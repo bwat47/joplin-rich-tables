@@ -13,12 +13,7 @@ import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 interface TableDecorationState {
     decorations: DecorationSet;
-    /**
-     * True when table widgets are currently mounted. They normally sit at the index's spans,
-     * but the incomplete-parse branch below carries the previous projection at mapped positions
-     * while the index is empty, so this reports that widgets are on screen rather than that the
-     * index agrees with them.
-     */
+    /** True when decorations project the complete index, even if it contains no tables. */
     rendering: boolean;
     /** A document change rebuilt or dropped the previously active table's decoration. */
     activeHostInvalidated: boolean;
@@ -134,14 +129,7 @@ function reconcileTableDecorations(
     }
 
     if (index.treeIncomplete) {
-        if (transaction.effects.some((effect) => effect.is(clearActiveCellEffect))) {
-            return buildTableDecorations(transaction.state, invalidated);
-        }
-        return {
-            decorations: value.decorations.map(transaction.changes),
-            rendering: value.rendering,
-            activeHostInvalidated: invalidated,
-        };
+        return buildTableDecorations(transaction.state, invalidated);
     }
 
     const preserved = previousCell ? getPreservedActiveDecoration(value, transaction, previousCell, index) : null;
@@ -188,7 +176,7 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
 
-/** True when table widgets are currently mounted; see `TableDecorationState.rendering`. */
+/** True when decorations project the complete index; false in raw mode or while rendering is deferred. */
 export function isTableRenderingActive(state: EditorState): boolean {
     return state.field(tableDecorationField, false)?.rendering ?? false;
 }
