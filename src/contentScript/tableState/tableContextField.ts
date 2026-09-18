@@ -1,7 +1,6 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from '@codemirror/language';
 import { StateField, type EditorState } from '@codemirror/state';
 import { logger } from '../../logger';
-import { isRootTableNode } from '../tableModel/lezerTableSyntax';
 import { buildTableContext, type TableContext } from '../tableModel/tableContext';
 
 const SYNTAX_TREE_BUDGET_MS = 1000;
@@ -38,30 +37,28 @@ function buildTableIndex(state: EditorState, previous?: TableIndex): TableIndex 
     const tables: TableContext[] = [];
     const reuse = buildReuseMap(previous);
 
-    tree.iterate({
-        enter(node) {
-            if (node.name !== 'Table') {
-                return undefined;
-            }
-            if (!isRootTableNode(node.node)) {
-                return false;
-            }
+    // Root tables are direct children of the tree's top node, so scanning the top-level
+    // siblings reaches every candidate. Descending further would only walk prose that cannot
+    // contain one. `buildTableContext()` re-validates root membership, so the scan shape is
+    // not what enforces it.
+    for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+        if (node.name !== 'Table') {
+            continue;
+        }
 
-            const text = state.doc.sliceString(node.from, node.to);
-            const reused = reuse.get(text);
-            if (reused) {
-                tables.push({ from: node.from, to: node.to, text, ...reused });
-                return false;
-            }
+        const text = state.doc.sliceString(node.from, node.to);
+        const reused = reuse.get(text);
+        if (reused) {
+            tables.push({ from: node.from, to: node.to, text, ...reused });
+            continue;
+        }
 
-            const context = buildTableContext(node.node, text);
-            if (context) {
-                tables.push(context);
-                reuse.set(text, { table: context.table, cellRanges: context.cellRanges });
-            }
-            return false;
-        },
-    });
+        const context = buildTableContext(node, text);
+        if (context) {
+            tables.push(context);
+            reuse.set(text, { table: context.table, cellRanges: context.cellRanges });
+        }
+    }
 
     return { tables, treeIncomplete: false };
 }
