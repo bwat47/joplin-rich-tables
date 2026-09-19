@@ -11,6 +11,7 @@ import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../t
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { createMarkdownState } from './testMarkdownState';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { parseCellRangesFixture } from './testUtils';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -91,8 +92,11 @@ describe('createMainEditorActiveCellGuard', () => {
         // sanitization would reject it and the paste would silently do nothing.
         const state = createActiveHeaderState();
         const rewrite = buildMultiCellPasteRewrite(
-            state,
-            { tableFrom: 0, anchor: { section: 'header', row: 0, col: 0 }, source: 'activeCell' },
+            {
+                ctx: getTableContextAtPos(state, 0)!,
+                anchor: { section: 'header', row: 0, col: 0 },
+                source: 'activeCell',
+            },
             ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n')
         );
         expect(rewrite).not.toBeNull();

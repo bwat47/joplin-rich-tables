@@ -8,6 +8,7 @@ import {
     type CellSelection,
 } from '../tableState/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import {
     buildMultiCellPasteRewrite,
     buildSelectionRemovalRewrite,
@@ -151,7 +152,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         expect(resolveTableClipboardTarget(state, { nestedEditorOpen: false })).toEqual({
-            tableFrom: 0,
+            ctx: getTableContextAtPos(state, 0),
             anchor: { section: 'header', row: 0, col: 1 },
             source: 'selection',
             rect: { minRow: 0, maxRow: 2, minCol: 1, maxCol: 2 },
@@ -170,7 +171,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toEqual({
-            tableFrom: 0,
+            ctx: getTableContextAtPos(state, 0),
             anchor: { section: 'body', row: 0, col: 1 },
             source: 'activeCell',
         });
@@ -193,7 +194,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toEqual({
-            tableFrom: 0,
+            ctx: getTableContextAtPos(state, 0),
             anchor: { section: 'body', row: 0, col: 1 },
             source: 'activeCell',
         });
@@ -225,7 +226,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         expect(resolveTableClipboardTarget(state, { nestedEditorOpen: true })).toEqual({
-            tableFrom: 0,
+            ctx: getTableContextAtPos(state, 0),
             anchor: { section: 'body', row: 0, col: 1 },
             source: 'selection',
             rect: { minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 },
@@ -398,7 +399,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| --- |', '| Q1 |'].join('\n'));
+        const rewrite = buildMultiCellPasteRewrite(target!, ['| P1 |', '| --- |', '| Q1 |'].join('\n'));
 
         expect(rewrite).not.toBeNull();
         expect(rewrite?.tableText).toBe(
@@ -419,7 +420,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| --- |'].join('\n'));
+        const rewrite = buildMultiCellPasteRewrite(target!, ['| P1 |', '| --- |'].join('\n'));
 
         expect(rewrite?.tableText).toBe(
             [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 | P1 |', '| x | P1 | P1 |'].join('\n')
@@ -438,7 +439,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 | P2 |', '| --- | --- |'].join('\n'));
+        const rewrite = buildMultiCellPasteRewrite(target!, ['| P1 | P2 |', '| --- | --- |'].join('\n'));
 
         expect(rewrite?.tableText).toBe(
             [String.raw`| H\|1 | H2 | H3 |`, '| :--- | ---: | --- |', '| a | P1 | P2 |', '| x | P1 | P2 |'].join('\n')
@@ -454,7 +455,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| :---: |'].join('\n'));
+        const rewrite = buildMultiCellPasteRewrite(target!, ['| P1 |', '| :---: |'].join('\n'));
 
         expect(rewrite?.tableText).toBe(
             [String.raw`| H\|1 | P1 | H3 |`, '| :--- | ---: | --- |', '| a | P1 |  |', '| x | P1 | z |'].join('\n')
@@ -473,7 +474,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: true });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, ['| P1 |', '| --- |'].join('\n'));
+        const rewrite = buildMultiCellPasteRewrite(target!, ['| P1 |', '| --- |'].join('\n'));
 
         expect(target?.source).toBe('activeCell');
         expect(rewrite?.tableText).toBe(
@@ -494,7 +495,6 @@ describe('cellSelectionClipboard', () => {
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: true });
         const rewrite = buildMultiCellPasteRewrite(
-            state,
             target!,
             ['| P1 | P2 | P3 |', '| :--- | ---: | :---: |', '| Q1 | Q2 | Q3 |', '| R1 | R2 | R3 |'].join('\n')
         );
@@ -518,12 +518,12 @@ describe('cellSelectionClipboard', () => {
     it('leaves plain clipboard text to the nested editor when an active cell owns the paste', () => {
         const state = createMarkdownState(doc);
         const target = {
-            tableFrom: 0,
+            ctx: getTableContextAtPos(state, 0)!,
             anchor: { section: 'body', row: 0, col: 1 } as const,
             source: 'activeCell' as const,
         };
 
-        expect(buildMultiCellPasteRewrite(state, target, 'plain text')).toBeNull();
+        expect(buildMultiCellPasteRewrite(target, 'plain text')).toBeNull();
     });
 
     it('fills the selection with clipboard text that is not a table', () => {
@@ -535,7 +535,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, 'plain text');
+        const rewrite = buildMultiCellPasteRewrite(target!, 'plain text');
 
         expect(rewrite?.tableText).toBe(
             [
@@ -560,7 +560,7 @@ describe('cellSelectionClipboard', () => {
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
         const twoTables = ['| P1 |', '| --- |', '| Q1 |', '', '| R1 |', '| --- |', '| S1 |'].join('\n');
-        const rewrite = buildMultiCellPasteRewrite(state, target!, twoTables);
+        const rewrite = buildMultiCellPasteRewrite(target!, twoTables);
 
         const filledCell = String.raw`\| P1 \|<br>\| --- \|<br>\| Q1 \|<br><br>\| R1 \|<br>\| --- \|<br>\| S1 \|`;
 
@@ -577,13 +577,13 @@ describe('cellSelectionClipboard', () => {
     it('leaves a multi-table clipboard to the nested editor when an active cell owns the paste', () => {
         const state = createMarkdownState(doc);
         const target = {
-            tableFrom: 0,
+            ctx: getTableContextAtPos(state, 0)!,
             anchor: { section: 'body', row: 0, col: 1 } as const,
             source: 'activeCell' as const,
         };
         const twoTables = ['| P1 |', '| --- |', '| Q1 |', '', '| R1 |', '| --- |', '| S1 |'].join('\n');
 
-        expect(buildMultiCellPasteRewrite(state, target, twoTables)).toBeNull();
+        expect(buildMultiCellPasteRewrite(target, twoTables)).toBeNull();
     });
 
     it('sanitizes line breaks and pipes out of filled clipboard text', () => {
@@ -595,7 +595,7 @@ describe('cellSelectionClipboard', () => {
         }).state;
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
-        const rewrite = buildMultiCellPasteRewrite(state, target!, 'one\ntwo|three');
+        const rewrite = buildMultiCellPasteRewrite(target!, 'one\ntwo|three');
 
         expect(rewrite?.tableText).toBe(
             [
@@ -617,7 +617,7 @@ describe('cellSelectionClipboard', () => {
 
         const target = resolveTableClipboardTarget(state, { nestedEditorOpen: false });
 
-        expect(buildMultiCellPasteRewrite(state, target!, '   \n  ')).toBeNull();
+        expect(buildMultiCellPasteRewrite(target!, '   \n  ')).toBeNull();
     });
 
     it('handles nested-editor paste through the main capture path', () => {

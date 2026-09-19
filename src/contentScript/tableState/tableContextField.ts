@@ -38,9 +38,8 @@ function buildTableIndex(state: EditorState, previous?: TableIndex): TableIndex 
     const reuse = buildReuseMap(previous);
 
     // Root tables are direct children of the tree's top node, so scanning the top-level
-    // siblings reaches every candidate. Descending further would only walk prose that cannot
-    // contain one. `buildTableContext()` re-validates root membership, so the scan shape is
-    // not what enforces it.
+    // siblings reaches every candidate and nothing else. The scan shape is what keeps tables
+    // nested in Markdown containers out of the index.
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
         if (node.name !== 'Table') {
             continue;

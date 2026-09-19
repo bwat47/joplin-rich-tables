@@ -43,19 +43,22 @@ export const tableClipboardRewriteAnnotation = Annotation.define<boolean>();
  */
 export type TableClipboardTarget =
     | {
-          tableFrom: number;
+          ctx: TableContext;
           anchor: CellCoords;
           source: 'activeCell';
       }
     | {
-          tableFrom: number;
+          ctx: TableContext;
           anchor: CellCoords;
           source: 'selection';
           rect: TableRect;
       };
 
+/** A whole-table replacement, built against the table it replaces in the same editor state. */
 export interface TableClipboardRewrite {
     tableFrom: number;
+    /** End of the replaced table source. */
+    tableTo: number;
     tableText: string;
     selection: CellSelection | null;
     clearActiveCell: boolean;
@@ -64,11 +67,10 @@ export interface TableClipboardRewrite {
 
 export function extractSelectedCellContents(state: EditorState, selection: CellSelection): string[][] {
     const ctx = getTableContextAtPos(state, selection.tableFrom);
-    if (!ctx) {
-        return [];
-    }
+    return ctx ? extractCellContents(ctx, toSelectionRect(selection)) : [];
+}
 
-    const rect = toSelectionRect(selection);
+function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
     const rows: string[][] = [];
 
     for (let unifiedRow = rect.minRow; unifiedRow <= rect.maxRow; unifiedRow++) {
@@ -93,12 +95,12 @@ export function copySelectionAsMarkdown(state: EditorState, selection: CellSelec
         return null;
     }
 
-    const rows = extractSelectedCellContents(state, selection);
+    const rect = toSelectionRect(selection);
+    const rows = extractCellContents(ctx, rect);
     if (rows.length === 0) {
         return null;
     }
 
-    const rect = toSelectionRect(selection);
     const selectionIncludesHeader = rect.minRow === 0;
     const headerCells = rows[0];
     const bodyRows = rows.slice(1);
@@ -163,7 +165,7 @@ export function resolveTableClipboardTarget(
     if (resolvedActiveCell) {
         const activeCell = resolvedActiveCell.activeCell;
         return {
-            tableFrom: resolvedActiveCell.ctx.from,
+            ctx: resolvedActiveCell.ctx,
             anchor: {
                 section: activeCell.section,
                 row: activeCell.row,
@@ -174,13 +176,14 @@ export function resolveTableClipboardTarget(
     }
 
     const selection = getCellSelection(state);
-    if (!selection) {
+    const ctx = selection ? getTableContextAtPos(state, selection.tableFrom) : null;
+    if (!selection || !ctx) {
         return null;
     }
 
     const rect = toSelectionRect(selection);
     return {
-        tableFrom: selection.tableFrom,
+        ctx,
         anchor: fromUnifiedRow(rect.minRow, rect.minCol),
         source: 'selection',
         rect,
@@ -198,18 +201,19 @@ function computeSelectionAnchorPos(tableFrom: number, serialized: SerializedTabl
 }
 
 function buildTableRewrite(params: {
-    tableFrom: number;
+    ctx: TableContext;
     table: MarkdownTable;
     selection: CellSelection | null;
     clearActiveCell: boolean;
 }): TableClipboardRewrite | null {
+    const { from: tableFrom, to: tableTo } = params.ctx;
     const serialized = params.table.serializeWithOffsets();
 
-    let selectionAnchorPos = params.tableFrom;
+    let selectionAnchorPos = tableFrom;
     if (params.selection) {
         const rect = toSelectionRect(params.selection);
         const topLeft = fromUnifiedRow(rect.minRow, rect.minCol);
-        const nextSelectionAnchorPos = computeSelectionAnchorPos(params.tableFrom, serialized, topLeft);
+        const nextSelectionAnchorPos = computeSelectionAnchorPos(tableFrom, serialized, topLeft);
         if (nextSelectionAnchorPos === null) {
             return null;
         }
@@ -217,7 +221,8 @@ function buildTableRewrite(params: {
     }
 
     return {
-        tableFrom: params.tableFrom,
+        tableFrom,
+        tableTo,
         tableText: serialized.text,
         selection: params.selection,
         clearActiveCell: params.clearActiveCell,
@@ -225,13 +230,14 @@ function buildTableRewrite(params: {
     };
 }
 
-function buildTableDeletionRewrite(tableFrom: number): TableClipboardRewrite {
+function buildTableDeletionRewrite(ctx: TableContext): TableClipboardRewrite {
     return {
-        tableFrom,
+        tableFrom: ctx.from,
+        tableTo: ctx.to,
         tableText: '',
         selection: null,
         clearActiveCell: true,
-        selectionAnchorPos: tableFrom,
+        selectionAnchorPos: ctx.from,
     };
 }
 
@@ -279,7 +285,7 @@ function buildEmptyRowRangeRemoval(ctx: TableContext, rect: TableRect): TableCli
     }
 
     return buildTableRewrite({
-        tableFrom: ctx.from,
+        ctx,
         table: nextTable,
         selection: remapSelectionAfterRowDelete(ctx.from, rect, nextTable),
         clearActiveCell: false,
@@ -294,7 +300,7 @@ function buildEmptyColumnRangeRemoval(ctx: TableContext, rect: TableRect): Table
     }
 
     return buildTableRewrite({
-        tableFrom: ctx.from,
+        ctx,
         table: nextTable,
         selection: remapSelectionAfterColumnDelete(ctx.from, rect, nextTable),
         clearActiveCell: false,
@@ -311,7 +317,7 @@ function buildEmptySelectionRemoval(ctx: TableContext, rect: TableRect): TableCl
     const spansAllCols = rect.minCol === 0 && rect.maxCol === ctx.table.columnCount - 1;
 
     if (spansAllRows && spansAllCols) {
-        return buildTableDeletionRewrite(ctx.from);
+        return buildTableDeletionRewrite(ctx);
     }
 
     if (spansAllCols) {
@@ -344,7 +350,7 @@ export function buildSelectionRemovalRewrite(
 
     // Rectangles that still hold text (or that no structural deletion accepted) are cleared in place.
     return buildTableRewrite({
-        tableFrom: ctx.from,
+        ctx,
         table: ctx.table.clearRect(rect),
         selection: selectionFromRect(ctx.from, rect),
         clearActiveCell: false,
@@ -373,15 +379,10 @@ function createPlainTextFragment(clipboardText: string, target: TableClipboardTa
 }
 
 export function buildMultiCellPasteRewrite(
-    state: EditorState,
     target: TableClipboardTarget,
     clipboardText: string
 ): TableClipboardRewrite | null {
-    const ctx = getTableContextAtPos(state, target.tableFrom);
-    if (!ctx) {
-        return null;
-    }
-
+    const { ctx } = target;
     const fragment = parseMarkdownTableClipboard(clipboardText) ?? createPlainTextFragment(clipboardText, target);
     if (!fragment) {
         return null;
@@ -406,6 +407,7 @@ export function buildMultiCellPasteRewrite(
 
     return {
         tableFrom: ctx.from,
+        tableTo: ctx.to,
         tableText: serialized.text,
         selection: nextSelection,
         clearActiveCell: target.source === 'activeCell',
@@ -414,7 +416,6 @@ export function buildMultiCellPasteRewrite(
 }
 
 export function createTableClipboardRewriteSpec(state: EditorState, rewrite: TableClipboardRewrite): TransactionSpec {
-    const currentTable = getTableContextAtPos(state, rewrite.tableFrom);
     const effects = [
         ...(rewrite.selection
             ? [setCellSelectionEffect.of(rewrite.selection)]
@@ -423,11 +424,11 @@ export function createTableClipboardRewriteSpec(state: EditorState, rewrite: Tab
     ];
 
     return {
-        ...(rewrite.tableText !== (currentTable?.text ?? '')
+        ...(rewrite.tableText !== state.sliceDoc(rewrite.tableFrom, rewrite.tableTo)
             ? {
                   changes: {
                       from: rewrite.tableFrom,
-                      to: currentTable?.to ?? rewrite.tableFrom,
+                      to: rewrite.tableTo,
                       insert: rewrite.tableText,
                   },
               }
@@ -533,7 +534,7 @@ export function handleTableClipboardTextPaste(
         return false;
     }
 
-    const rewrite = buildMultiCellPasteRewrite(view.state, target, clipboardText);
+    const rewrite = buildMultiCellPasteRewrite(target, clipboardText);
     if (!rewrite) {
         return false;
     }

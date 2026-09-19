@@ -38,10 +38,6 @@ interface TableTextSource {
 
 const markdownTableParser = parser.configure([GFM]);
 
-function isRootTableNode(tableNode: SyntaxNode): boolean {
-    return tableNode.name === 'Table' && tableNode.parent?.name === 'Document';
-}
-
 function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: number): MarkdownTableSourceRange {
     return { from: node.from - tableFrom, to: node.to - tableFrom };
 }
@@ -176,13 +172,10 @@ function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: n
 
 /**
  * Converts a root-level Lezer `Table` node into stable, table-relative syntax facts.
- * Tables nested in any Markdown container are intentionally unsupported.
+ * Tables nested in any Markdown container are intentionally unsupported: callers only pass
+ * direct children of the document node, which is what keeps nested tables out.
  */
 function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: SyntaxNode): MarkdownTableSyntax | null {
-    if (!isRootTableNode(tableNode)) {
-        return null;
-    }
-
     const headers = tableNode.getChildren('TableHeader');
     const separators = tableNode.getChildren('TableDelimiter');
     if (headers.length !== 1 || separators.length !== 1) {
@@ -218,7 +211,7 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
 
 /**
  * Extracts syntax for a root table already located in a document.
- * `tableText` must be the exact source covered by `tableNode`.
+ * `tableNode` must be a direct child of the document node, and `tableText` the exact source it covers.
  */
 export function extractRootMarkdownTableSyntax(tableNode: SyntaxNode, tableText: string): MarkdownTableSyntax | null {
     return extractValidatedRootTableSyntax({ text: tableText, base: tableNode.from }, tableNode);

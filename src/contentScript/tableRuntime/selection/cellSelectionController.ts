@@ -36,15 +36,6 @@ function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords):
     return fromUnifiedRow(unifiedRow, col);
 }
 
-function clampSelectionFocus(view: EditorView, tableFrom: number, focus: CellCoords): CellCoords | null {
-    const ctx = getTableContextAtPos(view.state, tableFrom);
-    if (!ctx) {
-        return null;
-    }
-
-    return clampSelectionFocusWithinContext(ctx, focus);
-}
-
 /**
  * Hands focus to the main editor for a cell selection it does not already hold.
  *
@@ -146,15 +137,6 @@ function dispatchSelectionWithContext(
     return true;
 }
 
-function dispatchSelection(view: EditorView, selection: CellSelection, options: SelectionDispatchOptions): boolean {
-    const ctx = getTableContextAtPos(view.state, selection.tableFrom);
-    if (!ctx) {
-        return false;
-    }
-
-    return dispatchSelectionWithContext(view, ctx, selection, options);
-}
-
 /**
  * Sets the rectangle a mouse drag has swept out so far.
  *
@@ -234,18 +216,18 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
 
 export function extendExistingCellSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     const selection = getCellSelection(view.state);
-    if (!selection) {
+    const ctx = selection ? getTableContextAtPos(view.state, selection.tableFrom) : null;
+    if (!selection || !ctx) {
         return false;
     }
 
-    const clampedFocus = clampSelectionFocus(view, selection.tableFrom, moveCellCoords(selection.focus, direction));
+    const clampedFocus = clampSelectionFocusWithinContext(ctx, moveCellCoords(selection.focus, direction));
     if (!clampedFocus) {
         return false;
     }
 
     if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
-        const ctx = getTableContextAtPos(view.state, selection.tableFrom);
-        const resolvedAnchor = ctx ? createResolvedActiveCell({ ctx, coords: selection.anchor }) : null;
+        const resolvedAnchor = createResolvedActiveCell({ ctx, coords: selection.anchor });
         if (resolvedAnchor) {
             requestOpenCell(view, {
                 resolvedCell: resolvedAnchor,
@@ -256,10 +238,11 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
         // Without a resolvable anchor, fall through and just contract the selection.
     }
 
-    return dispatchSelection(
+    return dispatchSelectionWithContext(
         view,
+        ctx,
         {
-            tableFrom: selection.tableFrom,
+            tableFrom: ctx.from,
             anchor: selection.anchor,
             focus: clampedFocus,
         },
@@ -302,16 +285,18 @@ export function collapseCellSelectionOutOfTable(view: EditorView, direction: Cel
 
 export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCoords, tableFrom: number): boolean {
     const selection = getCellSelection(view.state);
-    if (selection && selection.tableFrom === tableFrom) {
-        const clampedFocus = clampSelectionFocus(view, selection.tableFrom, focus);
+    const selectedCtx = selection?.tableFrom === tableFrom ? getTableContextAtPos(view.state, tableFrom) : null;
+    if (selection && selectedCtx) {
+        const clampedFocus = clampSelectionFocusWithinContext(selectedCtx, focus);
         if (!clampedFocus) {
             return false;
         }
 
-        return dispatchSelection(
+        return dispatchSelectionWithContext(
             view,
+            selectedCtx,
             {
-                tableFrom: selection.tableFrom,
+                tableFrom: selectedCtx.from,
                 anchor: selection.anchor,
                 focus: clampedFocus,
             },

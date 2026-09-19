@@ -61,9 +61,8 @@ function decideNestedEditorPaste(tr: Transaction, pastedText: string): GuardDeci
 
     const activeCell = resolvedActiveCell.activeCell;
     const rewrite = buildMultiCellPasteRewrite(
-        tr.startState,
         {
-            tableFrom: resolvedActiveCell.ctx.from,
+            ctx: resolvedActiveCell.ctx,
             anchor: {
                 section: activeCell.section,
                 row: activeCell.row,
