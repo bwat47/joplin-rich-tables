@@ -104,12 +104,12 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(getCellSelection(tr.state)).not.toBeNull();
     });
 
-    it('allows structural table edits that force rebuild', () => {
+    it('allows transactions marked as structural table edits', () => {
         const doc = TABLE_DOC;
 
         const state = createActiveHeaderState();
 
-        // Replace the first line (outside cell range) but mark as rebuild, like toolbar does.
+        // Replace the first line (outside the active cell range) and mark it as a structural edit.
         const firstLineEnd = doc.indexOf('\n');
         expect(firstLineEnd).toBeGreaterThan(0);
 
