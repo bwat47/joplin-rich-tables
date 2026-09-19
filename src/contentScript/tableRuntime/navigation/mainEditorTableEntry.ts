@@ -6,7 +6,7 @@ import {
     type Transaction,
     type TransactionSpec,
 } from '@codemirror/state';
-import { BlockType, Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
+import { Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { fromUnifiedRow } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getTableContextAtPos } from '../../tableState/tableContextField';
@@ -406,10 +406,11 @@ function leavesBlock(block: BlockInfo, targetPos: number, direction: VerticalEnt
  * decorations, so the returned target sits on the far side of the table rather than inside
  * it, and resolving the target position alone finds nothing.
  *
- * So ask the layout which block was skipped instead of searching the document for one that
- * fits. The block adjacent to the caret's own block, on the side being moved toward, is
- * exactly the block CodeMirror scanned past. Both lookups are height-map queries, and the
- * table itself comes from the document table index.
+ * The line next to the caret's own block, on the side being moved toward, is where that
+ * skipped block starts or ends, so the table whose edge sits there is the one scanned past.
+ * Every table in the index is rendered as a widget while arrow-key entry is available, which
+ * excludes raw mode, so the index alone identifies it. The caret's block still comes from the
+ * layout so movement within a wrapped line is not mistaken for leaving it.
  */
 function resolveSkippedTableBlock(
     view: EditorView,
@@ -427,14 +428,7 @@ function resolveSkippedTableBlock(
         return null;
     }
 
-    // A composite `type` means the line is split by block widgets, which a whole-line
-    // table replacement never produces; treating it as "not a table" is the safe read.
-    const skippedBlock = view.lineBlockAt(probePos);
-    if (skippedBlock.type !== BlockType.WidgetRange) {
-        return null;
-    }
-
-    return getTableContextAtPos(view.state, skippedBlock.from);
+    return getTableContextAtPos(view.state, probePos);
 }
 
 /**

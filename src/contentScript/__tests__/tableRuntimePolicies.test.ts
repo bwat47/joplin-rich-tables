@@ -79,7 +79,7 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
             exitedSourceMode: false,
             exitedSearchForce: false,
         },
-        rebuildTouchesPreviousActiveTable: false,
+        activeHostInvalidated: false,
         isUndoRedoInsideTable: false,
         hasInsertedTableActivation: false,
         openRequestId: null,
@@ -101,7 +101,7 @@ describe('tableRuntimePolicies', () => {
                 nestedEditorOpen: true,
                 docChanged: true,
                 selectionChanged: true,
-                rebuildTouchesPreviousActiveTable: true,
+                activeHostInvalidated: true,
                 rawModeTransition: {
                     enteredRawMode: true,
                     exitedRawMode: false,
@@ -123,7 +123,7 @@ describe('tableRuntimePolicies', () => {
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
-                rebuildTouchesPreviousActiveTable: true,
+                activeHostInvalidated: true,
                 hasInsertedTableActivation: true,
             },
             expected: [
@@ -147,7 +147,7 @@ describe('tableRuntimePolicies', () => {
                 nestedEditorOpen: true,
                 docChanged: true,
                 selectionChanged: true,
-                rebuildTouchesPreviousActiveTable: true,
+                activeHostInvalidated: true,
                 rawModeTransition: {
                     enteredRawMode: true,
                     exitedRawMode: false,
@@ -196,7 +196,7 @@ describe('tableRuntimePolicies', () => {
                 nestedEditorOpen: true,
                 docChanged: true,
                 selectionChanged: true,
-                rebuildTouchesPreviousActiveTable: true,
+                activeHostInvalidated: true,
                 rawModeTransition: {
                     enteredRawMode: true,
                     exitedRawMode: false,
@@ -248,7 +248,7 @@ describe('tableRuntimePolicies', () => {
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
-                rebuildTouchesPreviousActiveTable: true,
+                activeHostInvalidated: true,
             },
             expected: [
                 { type: 'closeNestedEditor', reason: 'cellReposition' },
@@ -609,7 +609,7 @@ describe('tableRuntimePolicies', () => {
             activeCellBefore: 'resolved',
             hasInsertedTableActivation: true,
             openRequestId: 'explicit-request',
-            rebuildTouchesPreviousActiveTable: true,
+            activeHostInvalidated: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
@@ -748,7 +748,7 @@ describe('tableRuntimePolicies', () => {
             activeCellBefore: 'resolved',
             docChanged: true,
             openRequestId: 'explicit-request',
-            rebuildTouchesPreviousActiveTable: true,
+            activeHostInvalidated: true,
             selectionChanged: true,
         });
 
@@ -772,7 +772,7 @@ describe('tableRuntimePolicies', () => {
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             docChanged: true,
-            rebuildTouchesPreviousActiveTable: true,
+            activeHostInvalidated: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
