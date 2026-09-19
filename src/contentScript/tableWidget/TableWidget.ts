@@ -311,12 +311,9 @@ export class TableWidget extends WidgetType {
             return null;
         }
 
-        const docPos = tableFrom + pos;
-        if (docPos < ctx.from || docPos > ctx.to) {
-            return null;
-        }
-
-        const coords = findCellForPos(ctx.cellRanges, docPos - ctx.from);
+        // Widgets sit exactly on index spans, so `tableFrom` is `ctx.from` and `pos` is already
+        // table-relative.
+        const coords = findCellForPos(ctx.cellRanges, tableFrom + pos - ctx.from);
         if (!coords) {
             return null;
         }
