@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
-import { activeCellField } from '../tableState/activeCellState';
-import { sourceModeField } from '../tableState/sourceMode';
+import { activateCellAtPosition, activateTableCell } from '../tableRuntime/activeCell/cellActivation';
+import { activeCellField, getActiveCell } from '../tableState/activeCellState';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -12,7 +14,7 @@ function withView<T>(doc: string, run: (view: EditorView) => T): T {
     document.body.appendChild(parent);
     const view = new EditorView({
         parent,
-        state: createMarkdownState(doc, [activeCellField, sourceModeField]),
+        state: createMarkdownState(doc, [activeCellField, sourceModeField, searchForceSourceModeField]),
     });
 
     try {
@@ -42,5 +44,44 @@ describe('activateCellAtPosition table boundaries', () => {
         const doc = `${TABLE}\n\nparagraph`;
 
         expect(withView(doc, (view) => activateCellAtPosition(view, doc.indexOf('paragraph')))).toBe(false);
+    });
+});
+
+describe('cell activation in raw mode', () => {
+    const RAW_MODES: ReadonlyArray<[string, StateEffect<boolean>]> = [
+        ['source mode', toggleSourceModeEffect.of(true)],
+        ['search-forced raw mode', setSearchForceSourceModeEffect.of(true)],
+    ];
+
+    /** Enters raw mode, runs an activation, and reports whether it left any trace. */
+    function activateInRawMode(rawModeEffect: StateEffect<boolean>, activate: (view: EditorView) => boolean) {
+        return withView(TABLE, (view) => {
+            view.dispatch({ effects: rawModeEffect });
+            const before = view.state;
+            return {
+                activated: activate(view),
+                docUnchanged: view.state.doc.eq(before.doc),
+                selectionUnchanged: view.state.selection.eq(before.selection),
+                activeCell: getActiveCell(view.state),
+            };
+        });
+    }
+
+    const UNTOUCHED = { activated: false, docUnchanged: true, selectionUnchanged: true, activeCell: null };
+
+    it.each(RAW_MODES)('does not activate the cell at a position in %s', (_name, rawModeEffect) => {
+        expect(
+            activateInRawMode(rawModeEffect, (view) =>
+                activateCellAtPosition(view, TABLE.indexOf('a2'), { clearIfOutside: true, entryMode: 'enter' })
+            )
+        ).toEqual(UNTOUCHED);
+    });
+
+    it.each(RAW_MODES)('does not activate a table cell by coordinates in %s', (_name, rawModeEffect) => {
+        expect(
+            activateInRawMode(rawModeEffect, (view) =>
+                activateTableCell(view, 0, { section: 'header', row: 0, col: 0 })
+            )
+        ).toEqual(UNTOUCHED);
     });
 });

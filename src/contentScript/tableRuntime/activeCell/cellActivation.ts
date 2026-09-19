@@ -5,7 +5,7 @@ import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { getTableContextAtPos, getTableContextStartingAt } from '../../tableState/tableContextField';
-import { isSourceModeEnabled } from '../../tableState/sourceMode';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import type { TableContext } from '../../tableModel/tableContext';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { resolveClampedCell } from './activeCellFactory';
@@ -59,8 +59,9 @@ export function resolveActivationTargetCell(params: {
  * @returns true if a cell was activated, false otherwise
  */
 export function activateCellAtPosition(view: EditorView, pos: number, options?: ActivateCellOptions): boolean {
-    // In source mode, tables are not rendered as widgets, so we cannot activate cells.
-    if (isSourceModeEnabled(view.state)) {
+    // Raw mode (source mode or search) renders no widgets, so there is no cell to activate.
+    // The table index still reports raw tables, so this check is what keeps activation out.
+    if (isEffectiveRawMode(view.state)) {
         return false;
     }
 
@@ -120,8 +121,8 @@ export function activateTableCell(
     coords: CellCoords,
     options: ActivateTableCellOptions = {}
 ): boolean {
-    // Don't activate cells in source mode (no widgets exist)
-    if (isSourceModeEnabled(view.state)) return false;
+    // Raw mode (source mode or search) renders no widgets, so there is no cell to activate.
+    if (isEffectiveRawMode(view.state)) return false;
 
     const ctx = getTableContextStartingAt(view.state, tableFrom);
     if (!ctx) return false;
