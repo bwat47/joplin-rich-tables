@@ -262,7 +262,7 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
     }
 
     const hasSelection = Boolean(getCellSelection(view.state));
-    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, resolvedCell.activeCell, resolvedCell.tableFrom)) {
+    if (event.shiftKey && setOrExtendCellSelectionToCoords(view, resolvedCell.activeCell, resolvedCell.ctx.from)) {
         return true;
     }
 

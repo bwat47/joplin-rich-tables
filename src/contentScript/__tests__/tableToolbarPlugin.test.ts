@@ -8,6 +8,7 @@ import {
     type ActiveCell,
 } from '../tableState/activeCellState';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import type { MarkdownTable } from '../tableModel/MarkdownTable';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
@@ -61,8 +62,6 @@ function createView(): EditorView {
 function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
     return {
         activeCell,
-        tableFrom: activeCell.tableFrom,
-        tableTo: 100,
         contentFrom: 0,
         contentTo: 0,
         editableFrom: 0,
@@ -71,10 +70,10 @@ function createResolvedCell(activeCell: ActiveCell): ResolvedActiveCell {
             from: activeCell.tableFrom,
             to: 100,
             text: '',
-            table: {},
+            table: {} as MarkdownTable,
             cellRanges: { headers: [], rows: [] },
         },
-    } as unknown as ResolvedActiveCell;
+    };
 }
 
 function getToolbarButton(view: EditorView, ariaLabel: string): HTMLButtonElement {

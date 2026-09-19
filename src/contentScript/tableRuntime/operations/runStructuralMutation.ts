@@ -44,7 +44,8 @@ type PreparedStructuralMutation = PreparedTableMutation | PreparedTableDeletion;
 function prepareStructuralMutation(params: RunStructuralMutationAndReopenParams): PreparedStructuralMutation | null {
     const { resolvedCell } = params;
     const cell = resolvedCell.activeCell;
-    const { tableFrom, tableTo, ctx } = resolvedCell;
+    const { ctx } = resolvedCell;
+    const { from: tableFrom, to: tableTo } = ctx;
     const text = ctx.text;
 
     const mutationResult = applyStructuralTableCommand(ctx.table, cell, params.command);

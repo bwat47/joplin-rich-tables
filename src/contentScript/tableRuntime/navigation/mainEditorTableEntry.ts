@@ -130,11 +130,11 @@ function isDeletingIntoPendingOpenCell(transaction: Transaction): boolean {
     }
 
     const { head } = state.selection.main;
-    if (head < resolved.tableFrom || head > resolved.tableTo) {
+    if (head < resolved.ctx.from || head > resolved.ctx.to) {
         return false;
     }
 
-    return Boolean(transaction.changes.touchesRange(resolved.tableFrom, resolved.tableTo));
+    return Boolean(transaction.changes.touchesRange(resolved.ctx.from, resolved.ctx.to));
 }
 
 /** The table this range's deletion would reach, or null when it stays outside one. */

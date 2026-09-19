@@ -225,7 +225,7 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
         view,
         resolvedActiveCell.ctx,
         {
-            tableFrom: resolvedActiveCell.tableFrom,
+            tableFrom: resolvedActiveCell.ctx.from,
             anchor: activeCell,
             focus: clampedFocus,
         },
@@ -321,7 +321,7 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
     }
 
     const resolvedActiveCell = getResolvedActiveCell(view.state);
-    if (resolvedActiveCell && resolvedActiveCell.tableFrom === tableFrom) {
+    if (resolvedActiveCell && resolvedActiveCell.ctx.from === tableFrom) {
         const activeCell = resolvedActiveCell.activeCell;
         const clampedFocus = clampSelectionFocusWithinContext(resolvedActiveCell.ctx, focus);
         if (!clampedFocus) {
@@ -332,7 +332,7 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
             view,
             resolvedActiveCell.ctx,
             {
-                tableFrom: resolvedActiveCell.tableFrom,
+                tableFrom: resolvedActiveCell.ctx.from,
                 anchor: activeCell,
                 focus: clampedFocus,
             },

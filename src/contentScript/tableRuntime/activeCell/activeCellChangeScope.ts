@@ -1,8 +1,9 @@
 import type { ChangeSet } from '@codemirror/state';
+import type { TableContext } from '../../tableModel/tableContext';
 
+/** The spans of an active cell and its table; a `ResolvedActiveCell` satisfies it. */
 export interface ActiveCellSpan {
-    tableFrom: number;
-    tableTo: number;
+    ctx: Pick<TableContext, 'from' | 'to'>;
     editableFrom: number;
     editableTo: number;
 }
@@ -14,7 +15,7 @@ function isInsideEditableSpan(from: number, to: number, span: ActiveCellSpan): b
 }
 
 function isStrictlyOutsideTable(from: number, to: number, span: ActiveCellSpan): boolean {
-    return to < span.tableFrom || from > span.tableTo;
+    return to < span.ctx.from || from > span.ctx.to;
 }
 
 /** Classifies changes in start-document coordinates against an active cell's spans. */

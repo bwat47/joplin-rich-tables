@@ -63,7 +63,7 @@ function decideNestedEditorPaste(tr: Transaction, pastedText: string): GuardDeci
     const rewrite = buildMultiCellPasteRewrite(
         tr.startState,
         {
-            tableFrom: resolvedActiveCell.tableFrom,
+            tableFrom: resolvedActiveCell.ctx.from,
             anchor: {
                 section: activeCell.section,
                 row: activeCell.row,
@@ -166,7 +166,7 @@ function decideActiveCellEdit(tr: Transaction): GuardDecision {
         return { type: 'allowTransaction' };
     }
 
-    if (!changesOverlapRange(tr, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)) {
+    if (!changesOverlapRange(tr, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to)) {
         return { type: 'allowTransaction' };
     }
 

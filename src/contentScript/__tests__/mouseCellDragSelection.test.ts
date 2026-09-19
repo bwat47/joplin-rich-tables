@@ -401,7 +401,7 @@ describe('mouse cell drag selection', () => {
             row: 0,
             col: 0,
         });
-        expect(getResolvedActiveCell(view.state)?.tableFrom).toBe(prefix.length);
+        expect(getResolvedActiveCell(view.state)?.ctx.from).toBe(prefix.length);
     });
 
     it('abandons a provisional press when its widget no longer identifies a table', () => {
