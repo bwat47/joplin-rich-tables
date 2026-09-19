@@ -25,6 +25,8 @@ import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
 import { requestViewAnimationFrame } from '../../shared/domContext';
+import { getPositionOutsideTable } from '../navigation/cursorUtils';
+import { logger } from '../../../logger';
 
 // ============================================================================
 // Utilities
@@ -108,8 +110,34 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                             this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
                         });
                         break;
+                    case 'scheduleNoteSwitchCleanup':
+                        this.scheduleNoteSwitchCleanup();
+                        break;
                 }
             }
+        }
+
+        /**
+         * Leaves the newly shown note with no table state from the previous one. Reads the state
+         * when it runs, so a selection the host restored after the switch is respected, and a
+         * cursor already outside every table is left alone along with focus and scroll.
+         */
+        private scheduleNoteSwitchCleanup(): void {
+            requestViewAnimationFrame(this.view, () => {
+                if (!this.view.dom.isConnected) return;
+
+                const positionOutsideTable = getPositionOutsideTable(this.view.state);
+                const hasActiveCell = getActiveCell(this.view.state) !== null;
+                if (positionOutsideTable === null && !hasActiveCell) return;
+
+                this.view.dispatch({
+                    selection: positionOutsideTable === null ? undefined : { anchor: positionOutsideTable },
+                    effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+                });
+                if (positionOutsideTable !== null) {
+                    logger.debug('Moved cursor out of table on note switch');
+                }
+            });
         }
 
         private scheduleActivateCellAtCursor(update: ViewUpdate, activateOptions: ActivateCellAtCursorOptions): void {

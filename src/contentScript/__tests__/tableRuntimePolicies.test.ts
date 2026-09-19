@@ -651,6 +651,41 @@ describe('tableRuntimePolicies', () => {
         ]);
     });
 
+    it('plans only note-switch cleanup when the note changes, ahead of every reactivation path', () => {
+        const facts = defaultRuntimeFacts({
+            noteChanged: true,
+            docChanged: true,
+            activeCell: { status: 'absent' },
+            activeCellBefore: 'resolved',
+            activeHostInvalidated: true,
+            openRequestId: 'explicit-request',
+            hasInsertedTableActivation: true,
+            rawModeTransition: {
+                enteredRawMode: false,
+                exitedRawMode: true,
+                exitedSourceMode: true,
+                exitedSearchForce: false,
+            },
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'scheduleNoteSwitchCleanup' }]);
+    });
+
+    it('closes an open nested editor before note-switch cleanup', () => {
+        const facts = defaultRuntimeFacts({
+            noteChanged: true,
+            docChanged: true,
+            nestedEditorOpen: true,
+            activeCellBefore: 'resolved',
+            activeHostInvalidated: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([
+            { type: 'closeNestedEditor', reason: 'noteChanged' },
+            { type: 'scheduleNoteSwitchCleanup' },
+        ]);
+    });
+
     it('treats normalize-before-edit full table replacement as a controlled requested reopen', () => {
         const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
         let startState = createMarkdownState(nonCanonicalDoc, [
