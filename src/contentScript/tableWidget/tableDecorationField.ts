@@ -99,12 +99,7 @@ function getPreservedActiveTableDecoration(
     return decoration ? { context, decoration } : null;
 }
 
-function reconcileTableDecorations(
-    value: TableDecorationState,
-    transaction: Transaction,
-    previousCell: ResolvedActiveCell | null,
-    docChangedWithActiveCell: boolean
-): TableDecorationState {
+function reconcileTableDecorations(value: TableDecorationState, transaction: Transaction): TableDecorationState {
     const index = transaction.state.field(tableContextField);
 
     // Nothing the projection depends on changed: same index, and the same active cell, so a
@@ -119,8 +114,15 @@ function reconcileTableDecorations(
         return value.activeHostInvalidated ? { ...value, activeHostInvalidated: false } : value;
     }
 
+    const previousCell = getResolvedActiveCell(transaction.startState);
     const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell, index) : null;
-    return buildTableDecorations(transaction.state, docChangedWithActiveCell && !preserved, preserved);
+    const invalidated = !preserved && transaction.docChanged && previousCell !== null;
+    return buildTableDecorations(transaction.state, invalidated, preserved);
+}
+
+/** True when a document change occurred while a cell was active, which invalidates that table's host. */
+function invalidatesActiveHost(transaction: Transaction): boolean {
+    return transaction.docChanged && getResolvedActiveCell(transaction.startState) !== null;
 }
 
 /**
@@ -134,18 +136,18 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
         return buildTableDecorations(state);
     },
     update(value, transaction) {
-        const previousCell = getResolvedActiveCell(transaction.startState);
-        // A document change invalidates the previously active host unless reconciliation preserves it.
-        const docChangedWithActiveCell = transaction.docChanged && previousCell !== null;
         const decision = decideTableDecorationUpdate(transaction);
 
         switch (decision.type) {
             case 'noneDecorations':
-                return { decorations: Decoration.none, activeHostInvalidated: docChangedWithActiveCell };
+                return {
+                    decorations: Decoration.none,
+                    activeHostInvalidated: invalidatesActiveHost(transaction),
+                };
             case 'rebuildAllDecorations':
-                return buildTableDecorations(transaction.state, docChangedWithActiveCell);
+                return buildTableDecorations(transaction.state, invalidatesActiveHost(transaction));
             case 'reconcileDecorations':
-                return reconcileTableDecorations(value, transaction, previousCell, docChangedWithActiveCell);
+                return reconcileTableDecorations(value, transaction);
         }
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),

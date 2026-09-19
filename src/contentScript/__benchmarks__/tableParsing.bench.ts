@@ -182,10 +182,8 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
             BENCHMARK_OPTIONS
         );
 
-        // Selection-only transactions carry no changes and leave the index object identical,
-        // yet still reconcile: the decoration set is rebuilt and a widget allocated per table.
-        // That rebuild is load-bearing — it is what refreshes a carried-over active host once
-        // activation clears — so these track the cost rather than argue for skipping it.
+        // Selection-only transactions with unchanged index and active-cell identities keep the
+        // existing decoration set. Track the no-active and active-cell variants of that fast path.
         bench(
             'no active cell: selection-only caret move',
             () => {
@@ -196,7 +194,8 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
             BENCHMARK_OPTIONS
         );
 
-        // Exercises the active-host preservation checks against an empty change set.
+        // An unchanged active cell takes the fast path without resolving it or checking
+        // active-host preservation.
         bench(
             'active table near start: selection-only caret move',
             () => {
