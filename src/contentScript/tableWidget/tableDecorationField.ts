@@ -102,10 +102,10 @@ function getPreservedActiveTableDecoration(
 function reconcileTableDecorations(
     value: TableDecorationState,
     transaction: Transaction,
-    previousCell: ResolvedActiveCell | null
+    previousCell: ResolvedActiveCell | null,
+    docChangedWithActiveCell: boolean
 ): TableDecorationState {
     const index = transaction.state.field(tableContextField);
-    const invalidated = transaction.docChanged && previousCell !== null;
 
     // Nothing the projection depends on changed: same index, and the same active cell, so a
     // preserved active host stays preserved. Both fields keep their value identity when unchanged,
@@ -120,7 +120,7 @@ function reconcileTableDecorations(
     }
 
     const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell, index) : null;
-    return buildTableDecorations(transaction.state, invalidated && !preserved, preserved);
+    return buildTableDecorations(transaction.state, docChangedWithActiveCell && !preserved, preserved);
 }
 
 /**
@@ -135,16 +135,17 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
     },
     update(value, transaction) {
         const previousCell = getResolvedActiveCell(transaction.startState);
-        const activeHostInvalidated = transaction.docChanged && previousCell !== null;
+        // A document change invalidates the previously active host unless reconciliation preserves it.
+        const docChangedWithActiveCell = transaction.docChanged && previousCell !== null;
         const decision = decideTableDecorationUpdate(transaction);
 
         switch (decision.type) {
             case 'noneDecorations':
-                return { decorations: Decoration.none, activeHostInvalidated };
+                return { decorations: Decoration.none, activeHostInvalidated: docChangedWithActiveCell };
             case 'rebuildAllDecorations':
-                return buildTableDecorations(transaction.state, activeHostInvalidated);
+                return buildTableDecorations(transaction.state, docChangedWithActiveCell);
             case 'reconcileDecorations':
-                return reconcileTableDecorations(value, transaction, previousCell);
+                return reconcileTableDecorations(value, transaction, previousCell, docChangedWithActiveCell);
         }
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
