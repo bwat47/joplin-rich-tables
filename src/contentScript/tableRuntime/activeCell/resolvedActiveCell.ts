@@ -44,27 +44,13 @@ export function createResolvedActiveCell(params: { ctx: TableContext; coords: Ce
     };
 }
 
-export function resolveCellWithinResolvedTable(
-    resolved: ResolvedActiveCell,
-    coords: CellCoords
-): ResolvedActiveCell | null {
-    return createResolvedActiveCell({
-        ctx: resolved.ctx,
-        coords,
-    });
-}
-
 /**
- * An anchor outside the document cannot identify a table. Rejecting it outright keeps
- * resolution honest: clamping such an anchor to a document edge would resolve it against
- * whatever happens to sit there, yielding a confident answer for an anchor we know is bad.
- *
- * Note this only covers anchors outside the document. An in-range anchor that no longer
+ * Resolves the active cell against the table containing its anchor. An anchor that no longer
  * points at a table start still resolves to the table containing it, which nested-editor
  * sessions rely on to recover from document drift.
  */
-function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): ResolvedActiveCell | null {
-    if (activeCell.tableFrom < 0 || activeCell.tableFrom > state.doc.length) {
+export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
+    if (!activeCell) {
         return null;
     }
 
@@ -77,14 +63,6 @@ function resolveAnchoredActiveCell(state: EditorState, activeCell: ActiveCell): 
         ctx,
         coords: activeCell,
     });
-}
-
-export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
-    if (!activeCell) {
-        return null;
-    }
-
-    return resolveAnchoredActiveCell(state, activeCell);
 }
 
 export function getResolvedActiveCell(state: EditorState): ResolvedActiveCell | null {

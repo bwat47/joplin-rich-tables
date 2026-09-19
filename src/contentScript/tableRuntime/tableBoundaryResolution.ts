@@ -64,17 +64,11 @@ export function scanNewlinesForward(state: EditorState, pos: number, limit: numb
 }
 
 function resolveTableEndingAt(state: EditorState, pos: number): TableContext | null {
-    if (pos < 0 || pos > state.doc.length) {
-        return null;
-    }
     const ctx = getTableContextAtPos(state, pos);
     return ctx && ctx.to === pos ? ctx : null;
 }
 
 function resolveTableStartingAt(state: EditorState, pos: number): TableContext | null {
-    if (pos < 0 || pos > state.doc.length) {
-        return null;
-    }
     const ctx = getTableContextAtPos(state, pos);
     return ctx && ctx.from === pos ? ctx : null;
 }
@@ -82,9 +76,8 @@ function resolveTableStartingAt(state: EditorState, pos: number): TableContext |
 /**
  * The table that the span `[from, to)` separates from its neighbour, or null.
  *
- * A span between two tables separates both, so `preferred` decides which one wins. Table
- * resolution parses the table it finds, so the preferred side is probed first and the other
- * only when it misses.
+ * A span between two tables separates both, so `preferred` decides which one wins: the
+ * preferred side is probed first and the other only when it misses.
  */
 export function resolveAdjoiningTable(
     state: EditorState,

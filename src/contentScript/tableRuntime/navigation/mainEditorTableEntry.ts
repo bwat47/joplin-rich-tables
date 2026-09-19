@@ -408,9 +408,8 @@ function leavesBlock(block: BlockInfo, targetPos: number, direction: VerticalEnt
  *
  * So ask the layout which block was skipped instead of searching the document for one that
  * fits. The block adjacent to the caret's own block, on the side being moved toward, is
- * exactly the block CodeMirror scanned past. Both lookups are height-map queries and the
- * table resolution is a point lookup, so this stays correct far down a long note where
- * enumerating every table would require a full-document parse.
+ * exactly the block CodeMirror scanned past. Both lookups are height-map queries, and the
+ * table itself comes from the document table index.
  */
 function resolveSkippedTableBlock(
     view: EditorView,

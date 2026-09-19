@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import {
+    createResolvedActiveCell,
     getResolvedActiveCell,
-    resolveCellWithinResolvedTable,
     type ResolvedActiveCell,
 } from '../activeCell/resolvedActiveCell';
 import { insertRowAtBottom } from '../operations/structuralOperations';
@@ -59,7 +59,7 @@ export function navigateCell(
         return true;
     }
 
-    const nextResolvedCell = resolveCellWithinResolvedTable(resolvedActiveCell, target.coords);
+    const nextResolvedCell = createResolvedActiveCell({ ctx: resolvedActiveCell.ctx, coords: target.coords });
     if (!nextResolvedCell) {
         return false;
     }

@@ -2,9 +2,7 @@
  * TableContext: a single derived object that bundles a table's document span,
  * parsed MarkdownTable, and computed cell ranges.
  *
- * Eliminates the repeated resolveTable → parse → computeCellRanges chain
- * that was independently performed across commands, interactions, navigation,
- * and the widget extension.
+ * Built by `tableContextField`, the document table index; consumers read contexts from there.
  */
 import { MarkdownTable } from './MarkdownTable';
 import { extractRootMarkdownTableSyntax } from './lezerTableSyntax';
