@@ -115,6 +115,21 @@ describe('openCellRequestField', () => {
         expect(getPendingOpenCellRequest(mapped)).toBeNull();
     });
 
+    it('keeps the request when a deletion ends at the table start', () => {
+        const prefix = 'prefix\n';
+        const state = beginRequest(
+            EditorState.create({
+                doc: `${prefix}| H1 |\n| --- |\n| a |`,
+                extensions: [activeCellField, openCellRequestField],
+            }),
+            { activeCell: { ...activeCell, tableFrom: prefix.length } }
+        );
+
+        const mapped = state.update({ changes: { from: 0, to: prefix.length } }).state;
+
+        expect(getPendingOpenCellRequest(mapped)?.activeCell.tableFrom).toBe(0);
+    });
+
     it('drops a request anchored past the end of the pre-change document', () => {
         const base = createState();
         const state = beginRequest(base, {
