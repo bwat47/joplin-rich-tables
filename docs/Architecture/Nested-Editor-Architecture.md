@@ -28,7 +28,7 @@ editor — which tears down the nested editor.
 
 Mounting: ensureSyntaxTree (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
 
-**Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → lifecycle plugin destroys the instance.
+**Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → lifecycle plugin destroys the instance. A note switch is detected by the lifecycle itself (see [Note Switch](#note-switch)).
 
 Policy is split by concern:
 
@@ -36,7 +36,7 @@ Policy is split by concern:
   transactions, resolving active-cell geometry, checking table ranges, and classifying raw-mode/open-request/sync
   conditions.
 - `tableRuntime/lifecycle/lifecyclePolicy.ts` reduces those facts into ordered lifecycle actions. It owns action
-  precedence, including explicit open-request priority, and does not consume `ViewUpdate`, transactions, resolved
+  precedence, including note-switch and explicit open-request priority, and does not consume `ViewUpdate`, transactions, resolved
   geometry, or table scans.
 - `tableRuntime/lifecycle/nestedEditorLifecycle.ts` stores plugin-local previous-state flags, calls the classifier and
   reducer, maps fallback hints, and executes the planned CodeMirror/nested-editor side effects. Execution-time guards
@@ -93,6 +93,15 @@ Response (to prevent stale document state):
 2. `tableDecorationField` rebuilds every table from the new index in the same transaction and records
    `activeHostInvalidated`.
 3. The lifecycle closes the nested editor and activates the cell under the cursor, as for any invalidated host.
+
+### Note Switch
+
+Joplin switches notes with one full-document replacement that also changes its note ID facet, mirrored into
+`services/noteIdentity.ts`. The classifier reports `noteChanged` only when both states carry an ID, so extension
+registration is not a switch. `noteChanged` takes precedence over every other lifecycle path: the lifecycle closes the
+nested editor and, on the next frame, moves the cursor out of any table and clears a leftover active cell. It never
+reactivates a cell, because the cursor belongs to the new note. On a fresh editor (mobile note load, desktop cold
+launch) `startupCursorCorrection` does the cursor move instead.
 
 ## Boundary Enforcement
 
