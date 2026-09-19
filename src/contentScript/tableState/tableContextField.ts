@@ -97,6 +97,16 @@ export function getTableContextAtPos(state: EditorState, pos: number): TableCont
     return getTableContexts(state).find((table) => pos >= table.from && pos <= table.to) ?? null;
 }
 
+/** Returns the root table starting exactly at `pos`, the anchor that identifies a table in runtime state. */
+export function getTableContextStartingAt(state: EditorState, pos: number): TableContext | null {
+    return getTableContexts(state).find((table) => table.from === pos) ?? null;
+}
+
+/** Returns the root table ending exactly at `pos`. */
+export function getTableContextEndingAt(state: EditorState, pos: number): TableContext | null {
+    return getTableContexts(state).find((table) => table.to === pos) ?? null;
+}
+
 /** Returns root tables overlapping or abutting the inclusive range `[from, to]`. */
 export function getTableContextsTouching(state: EditorState, from: number, to: number): readonly TableContext[] {
     if (!isDocRange(state, from, to)) {

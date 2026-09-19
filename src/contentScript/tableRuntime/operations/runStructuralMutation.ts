@@ -1,15 +1,12 @@
 import { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-
-function isSameCellCoords(a: ActiveCell, b: ActiveCell): boolean {
-    return a.section === b.section && a.row === b.row && a.col === b.col;
-}
+import { isSameCellCoords } from '../../tableModel/types';
 
 export interface StructuralReopenOptions {
     initialCursorPos?: InitialCursorPos;

@@ -5,7 +5,7 @@
 import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { getTableContextAtPos, getTableContextStartingAt } from '../../tableState/tableContextField';
 import { isSourceModeEnabled } from '../../tableState/sourceMode';
 import type { TableContext } from '../../tableModel/tableContext';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
@@ -125,7 +125,7 @@ export function activateTableCell(
     // Don't activate cells in source mode (no widgets exist)
     if (isSourceModeEnabled(view.state)) return false;
 
-    const ctx = getTableContextAtPos(view.state, tableFrom);
+    const ctx = getTableContextStartingAt(view.state, tableFrom);
     if (!ctx) return false;
 
     const spec = prepareCellEntryTransaction({

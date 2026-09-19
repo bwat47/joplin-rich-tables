@@ -15,7 +15,7 @@ import {
 } from '../../tableState/cellSelectionState';
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { clamp } from '../../shared/numberUtils';
 import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
@@ -150,7 +150,7 @@ export function setCellDragSelection(
     anchor: CellCoords,
     focus: CellCoords
 ): boolean {
-    const ctx = getTableContextAtPos(view.state, tableFrom);
+    const ctx = getTableContextStartingAt(view.state, tableFrom);
     if (!ctx) {
         return false;
     }
@@ -216,7 +216,7 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
 
 export function extendExistingCellSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     const selection = getCellSelection(view.state);
-    const ctx = selection ? getTableContextAtPos(view.state, selection.tableFrom) : null;
+    const ctx = selection ? getTableContextStartingAt(view.state, selection.tableFrom) : null;
     if (!selection || !ctx) {
         return false;
     }
@@ -270,7 +270,7 @@ export function collapseCellSelectionOutOfTable(view: EditorView, direction: Cel
         return false;
     }
 
-    const ctx = getTableContextAtPos(view.state, selection.tableFrom);
+    const ctx = getTableContextStartingAt(view.state, selection.tableFrom);
     if (!ctx) {
         return false;
     }
@@ -285,7 +285,7 @@ export function collapseCellSelectionOutOfTable(view: EditorView, direction: Cel
 
 export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCoords, tableFrom: number): boolean {
     const selection = getCellSelection(view.state);
-    const selectedCtx = selection?.tableFrom === tableFrom ? getTableContextAtPos(view.state, tableFrom) : null;
+    const selectedCtx = selection?.tableFrom === tableFrom ? getTableContextStartingAt(view.state, tableFrom) : null;
     if (selection && selectedCtx) {
         const clampedFocus = clampSelectionFocusWithinContext(selectedCtx, focus);
         if (!clampedFocus) {

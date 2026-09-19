@@ -2,6 +2,8 @@ import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import {
     getTableContextAtPos,
+    getTableContextEndingAt,
+    getTableContextStartingAt,
     getTableContexts,
     getTableContextsTouching,
     getTableContextsWithin,
@@ -73,6 +75,25 @@ describe('tableContextField selectors', () => {
 
         expect(context?.to).toBe(doc.length);
         expect(context?.cellRanges.rows).toHaveLength(2);
+    });
+
+    it('resolves a table start only at the exact start position', () => {
+        const state = createMarkdownState(TWO_TABLES);
+
+        expect(getTableContextStartingAt(state, 0)?.to).toBe(TABLE.length);
+        expect(getTableContextStartingAt(state, SECOND_TABLE_FROM)?.from).toBe(SECOND_TABLE_FROM);
+        expect(getTableContextStartingAt(state, SECOND_TABLE_FROM + 1)).toBeNull();
+        expect(getTableContextStartingAt(state, TABLE.length)).toBeNull();
+        expect(getTableContextStartingAt(state, -1)).toBeNull();
+    });
+
+    it('resolves a table end only at the exact end position', () => {
+        const state = createMarkdownState(TWO_TABLES);
+
+        expect(getTableContextEndingAt(state, TABLE.length)?.from).toBe(0);
+        expect(getTableContextEndingAt(state, TWO_TABLES.length)?.from).toBe(SECOND_TABLE_FROM);
+        expect(getTableContextEndingAt(state, TABLE.length - 1)).toBeNull();
+        expect(getTableContextEndingAt(state, SECOND_TABLE_FROM)).toBeNull();
     });
 
     it('returns touching and contained tables with inclusive edge semantics', () => {

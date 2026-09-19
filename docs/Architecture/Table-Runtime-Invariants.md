@@ -88,6 +88,7 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Selection and Clipboard
 
 - Cell selection state is logical table state, not DOM selection.
+- `CellSelection.tableFrom` resolves only when it is exactly an indexed table start, like `ActiveCell`.
 - Clipboard extraction and paste rewrites must resolve against current `TableContext`.
 - Selection transitions must be annotated so lifecycle logic does not treat them as ordinary cursor movement outside the table.
 - Pasting over a selected range should produce one table rewrite and one explicit post-rewrite selection or open intent.

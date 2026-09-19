@@ -1,6 +1,6 @@
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFactPredicates';
 
@@ -17,7 +17,7 @@ function selectionLeftSelectedTable(view: EditorView): boolean {
         return false;
     }
 
-    const table = getTableContextAtPos(view.state, cellSelection.tableFrom);
+    const table = getTableContextStartingAt(view.state, cellSelection.tableFrom);
     if (!table) {
         return false;
     }

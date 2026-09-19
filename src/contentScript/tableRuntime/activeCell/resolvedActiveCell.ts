@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
 import { getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
 import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
@@ -50,8 +50,8 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
         return null;
     }
 
-    const ctx = getTableContextAtPos(state, activeCell.tableFrom);
-    if (!ctx || ctx.from !== activeCell.tableFrom) {
+    const ctx = getTableContextStartingAt(state, activeCell.tableFrom);
+    if (!ctx) {
         return null;
     }
 

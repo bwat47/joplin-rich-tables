@@ -52,12 +52,8 @@ function collectSelectedTableWidgets(view: EditorView): HTMLElement[] {
     const selectedWidgets: HTMLElement[] = [];
 
     for (const widget of view.contentDOM.querySelectorAll<HTMLElement>(getWidgetSelector())) {
-        try {
-            if (selectedTableStarts.has(view.posAtDOM(widget))) {
-                selectedWidgets.push(widget);
-            }
-        } catch {
-            // posAtDOM can fail for widget DOM that is on its way out; skip it.
+        if (selectedTableStarts.has(view.posAtDOM(widget))) {
+            selectedWidgets.push(widget);
         }
     }
 

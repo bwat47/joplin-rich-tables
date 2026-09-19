@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
 import type { TableContext } from '../tableModel/tableContext';
-import { getTableContextAtPos } from '../tableState/tableContextField';
+import { getTableContextEndingAt, getTableContextStartingAt } from '../tableState/tableContextField';
 import { isBlankLineContent } from './tableBoundarySpacing';
 
 /** Which side of a boundary a table sits on. */
@@ -63,16 +63,6 @@ export function scanNewlinesForward(state: EditorState, pos: number, limit: numb
     return { count, edge };
 }
 
-function resolveTableEndingAt(state: EditorState, pos: number): TableContext | null {
-    const ctx = getTableContextAtPos(state, pos);
-    return ctx && ctx.to === pos ? ctx : null;
-}
-
-function resolveTableStartingAt(state: EditorState, pos: number): TableContext | null {
-    const ctx = getTableContextAtPos(state, pos);
-    return ctx && ctx.from === pos ? ctx : null;
-}
-
 /**
  * The table that the span `[from, to)` separates from its neighbour, or null.
  *
@@ -87,7 +77,7 @@ export function resolveAdjoiningTable(
 ): AdjoiningTable | null {
     const sides: TableSide[] = preferred === 'before' ? ['before', 'after'] : ['after', 'before'];
     for (const side of sides) {
-        const ctx = side === 'before' ? resolveTableEndingAt(state, from) : resolveTableStartingAt(state, to);
+        const ctx = side === 'before' ? getTableContextEndingAt(state, from) : getTableContextStartingAt(state, to);
         if (ctx) {
             return { ctx, side };
         }
@@ -99,7 +89,7 @@ export function resolveAdjoiningTable(
 /** Both tables the span `[from, to)` separates. A span can sit between two of them. */
 export function resolveAdjacentTables(state: EditorState, from: number, to: number): AdjacentTables {
     return {
-        before: resolveTableEndingAt(state, from),
-        after: resolveTableStartingAt(state, to),
+        before: getTableContextEndingAt(state, from),
+        after: getTableContextStartingAt(state, to),
     };
 }

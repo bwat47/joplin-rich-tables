@@ -20,7 +20,7 @@ import {
 } from '../../tableState/cellSelectionState';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
@@ -66,7 +66,7 @@ export interface TableClipboardRewrite {
 }
 
 export function extractSelectedCellContents(state: EditorState, selection: CellSelection): string[][] {
-    const ctx = getTableContextAtPos(state, selection.tableFrom);
+    const ctx = getTableContextStartingAt(state, selection.tableFrom);
     return ctx ? extractCellContents(ctx, toSelectionRect(selection)) : [];
 }
 
@@ -90,7 +90,7 @@ function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
 }
 
 export function copySelectionAsMarkdown(state: EditorState, selection: CellSelection): string | null {
-    const ctx = getTableContextAtPos(state, selection.tableFrom);
+    const ctx = getTableContextStartingAt(state, selection.tableFrom);
     if (!ctx) {
         return null;
     }
@@ -176,7 +176,7 @@ export function resolveTableClipboardTarget(
     }
 
     const selection = getCellSelection(state);
-    const ctx = selection ? getTableContextAtPos(state, selection.tableFrom) : null;
+    const ctx = selection ? getTableContextStartingAt(state, selection.tableFrom) : null;
     if (!selection || !ctx) {
         return null;
     }
@@ -335,7 +335,7 @@ export function buildSelectionRemovalRewrite(
     state: EditorState,
     selection: CellSelection
 ): TableClipboardRewrite | null {
-    const ctx = getTableContextAtPos(state, selection.tableFrom);
+    const ctx = getTableContextStartingAt(state, selection.tableFrom);
     if (!ctx) {
         return null;
     }
