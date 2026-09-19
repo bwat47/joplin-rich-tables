@@ -56,7 +56,7 @@ that decoration without replacing its widget snapshot, leaving the widget's reco
 
 When `eq()` reports a difference, `updateDOM()` decides between reuse and rebuild:
 
-- Source text matches → DOM reused (return `true`); position-only changes refresh `data-table-from`.
+- Source text matches → DOM reused (return `true`); position-only changes refresh the per-DOM measurement state.
 - Source text differs, or the element is unrecognised → CodeMirror destroys/recreates.
 
 Comparison is against the text itself, not a hash: a hash match only makes identical content

@@ -11,7 +11,6 @@ import {
     getWidgetSelector,
     readCellCoords,
 } from './domHelpers';
-import { makeTableId } from '../tableModel/types';
 import { measuredClassSyncPlugin } from './measuredClassSync';
 import { selectedCellRules } from './selectionTint';
 
@@ -21,7 +20,7 @@ function collectSelectedCells(view: EditorView): HTMLElement[] {
         return [];
     }
 
-    const widget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
+    const widget = findTableWidgetElement(view, selection.tableFrom);
     if (!widget) {
         return [];
     }

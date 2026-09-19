@@ -16,8 +16,7 @@ import { openCellRequestField, requestOpenCell } from '../tableRuntime/openCellR
 import { getResolvedActiveCell, resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { findCellElement } from '../tableWidget/domHelpers';
-import { makeTableId } from '../tableModel/types';
+import { findCellElement, getWidgetSelector } from '../tableWidget/domHelpers';
 
 class ResizeObserverMock {
     observe(): void {}
@@ -119,7 +118,7 @@ describe('nested editor undo regression', () => {
         });
 
         view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
-        const cellElement = findCellElement(view, makeTableId(activeCell.tableFrom), activeCell);
+        const cellElement = findCellElement(view, activeCell.tableFrom, activeCell);
         expect(cellElement).not.toBeNull();
         if (!cellElement) {
             throw new Error('Expected first body cell element');
@@ -186,7 +185,7 @@ describe('nested editor undo regression', () => {
         });
 
         view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
-        const cellElement = findCellElement(view, makeTableId(0), activeCell);
+        const cellElement = findCellElement(view, 0, activeCell);
         if (!cellElement) throw new Error('Expected active cell element');
         expect(
             view.plugin(nestedEditorPlugin)?.controller.open({
@@ -196,7 +195,7 @@ describe('nested editor undo regression', () => {
             })
         ).toBe(true);
 
-        const activeWidget = cellElement.closest('[data-table-from]');
+        const activeWidget = cellElement.closest(getWidgetSelector());
         const nestedEditorDom = cellElement.querySelector('.cm-editor');
         const resolved = getResolvedActiveCell(view.state);
         if (!resolved) throw new Error('Expected active cell to resolve');
@@ -209,7 +208,7 @@ describe('nested editor undo regression', () => {
         view.dispatch({ changes: { from: tableBCellFrom, to: tableBCellFrom + 'stale'.length, insert: 'fresh' } });
 
         expect(isNestedEditorOpen(view)).toBe(true);
-        expect(cellElement.closest('[data-table-from]')).toBe(activeWidget);
+        expect(cellElement.closest(getWidgetSelector())).toBe(activeWidget);
         expect(cellElement.querySelector('.cm-editor')).toBe(nestedEditorDom);
         expect(cellElement.textContent).toContain('typed');
         expect(view.contentDOM.querySelectorAll('tbody')[1]?.textContent).toContain('fresh');
@@ -246,8 +245,8 @@ describe('nested editor undo regression', () => {
                 flushAnimationFrames();
             };
             openCell(firstCell);
-            const firstElement = findCellElement(view, makeTableId(0), firstCell);
-            const secondElement = findCellElement(view, makeTableId(0), secondCell);
+            const firstElement = findCellElement(view, 0, firstCell);
+            const secondElement = findCellElement(view, 0, secondCell);
             const table = view.contentDOM.querySelector('table');
             if (!firstElement || !secondElement || !table) throw new Error('Expected table DOM');
             // Stand in for media mounted by the renderer in an unrelated cell.
@@ -300,7 +299,7 @@ describe('nested editor undo regression', () => {
         });
         try {
             view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
-            const cellElement = findCellElement(view, makeTableId(0), activeCell);
+            const cellElement = findCellElement(view, 0, activeCell);
             if (!cellElement) throw new Error('Expected active cell element');
             expect(
                 view.plugin(nestedEditorPlugin)?.controller.open({
@@ -324,7 +323,7 @@ describe('nested editor undo regression', () => {
 
             expect(view.state.field(tableContextField).treeIncomplete).toBe(true);
             expect(isNestedEditorOpen(view)).toBe(false);
-            expect(view.contentDOM.querySelector('[data-table-from]')).toBeNull();
+            expect(view.contentDOM.querySelector(getWidgetSelector())).toBeNull();
             expect(view.state.doc.sliceString(0, doc.length)).toBe(doc);
             flushAnimationFrames();
 
@@ -332,7 +331,7 @@ describe('nested editor undo regression', () => {
             expect(ensureSyntaxTree(view.state, view.state.doc.length, completeParseTimeoutMs)).not.toBeNull();
             view.dispatch({});
             expect(view.state.field(tableDecorationField).decorations.size).toBe(appendedTableCount + 1);
-            expect(view.contentDOM.querySelector('[data-table-from]')).not.toBeNull();
+            expect(view.contentDOM.querySelector(getWidgetSelector())).not.toBeNull();
             expect(isNestedEditorOpen(view)).toBe(false);
         } finally {
             view.destroy();
@@ -381,7 +380,7 @@ describe('nested editor undo regression', () => {
             effects: setActiveCellEffect.of(activeCell),
             annotations: Transaction.addToHistory.of(false),
         });
-        const cellElement = findCellElement(view, makeTableId(0), activeCell);
+        const cellElement = findCellElement(view, 0, activeCell);
         if (!cellElement) throw new Error('Expected active cell element');
         expect(
             view.plugin(nestedEditorPlugin)?.controller.open({
@@ -405,7 +404,10 @@ describe('nested editor undo regression', () => {
         expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
         expect(isNestedEditorOpen(view)).toBe(true);
         expect(cellElement.querySelector('.cm-editor')).toBeNull();
-        expect(document.activeElement?.closest(`[data-table-from="${tableBFrom}"]`)).not.toBeNull();
+        const focusedWidget = document.activeElement?.closest(getWidgetSelector());
+        expect(focusedWidget).not.toBeNull();
+        if (!focusedWidget) throw new Error('Expected focus inside the restored table widget');
+        expect(view.posAtDOM(focusedWidget)).toBe(tableBFrom);
 
         view.destroy();
     });

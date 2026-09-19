@@ -139,11 +139,12 @@ describe('TableWidget DOM reuse', () => {
     it('reuses the DOM when only the document position changed', () => {
         const view = createView();
         const dom = createWidget(TABLE_TEXT, 0).toDOM(view);
+        const originalTable = dom.querySelector('table');
 
         const reused = createWidget(TABLE_TEXT, 120).updateDOM(dom, view);
 
         expect(reused).toBe(true);
-        expect(dom.getAttribute('data-table-from')).toBe('120');
+        expect(dom.querySelector('table')).toBe(originalTable);
     });
 
     it('rebuilds when the DOM was not produced by a table widget', () => {
@@ -185,7 +186,8 @@ describe('TableWidget DOM reuse', () => {
 
                 const movedWidget = view.contentDOM.querySelector(getWidgetSelector());
                 expect(movedWidget?.querySelector('table')).toBe(originalTable);
-                expect(movedWidget?.getAttribute('data-table-from')).toBe(String(prefix.length));
+                if (!movedWidget) throw new Error('Expected the moved table widget');
+                expect(view.posAtDOM(movedWidget)).toBe(prefix.length);
             } finally {
                 view.destroy();
                 parent.remove();

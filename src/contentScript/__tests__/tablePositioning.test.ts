@@ -12,7 +12,7 @@ import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement } from '../tableWidget/domHelpers';
-import { makeTableId, type CellCoords } from '../tableModel/types';
+import type { CellCoords } from '../tableModel/types';
 
 class ResizeObserverMock {
     observe(): void {}
@@ -61,7 +61,7 @@ function createView(): EditorView {
 }
 
 function requireCell(view: EditorView, tableFrom: number, cell: CellCoords): HTMLElement {
-    const element = findCellElement(view, makeTableId(tableFrom), cell);
+    const element = findCellElement(view, tableFrom, cell);
     if (!element) {
         throw new Error(`Expected a rendered cell in the table at ${tableFrom}`);
     }

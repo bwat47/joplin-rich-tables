@@ -17,7 +17,7 @@ import { getTableGridBounds, type TableContext } from '../../tableModel/tableCon
 import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
 import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { clamp } from '../../shared/numberUtils';
-import { isSameCellCoords, makeTableId, type CellCoords } from '../../tableModel/types';
+import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
@@ -132,7 +132,7 @@ function dispatchSelectionWithContext(
     focusMainEditorForCellSelection(view);
 
     const cellElement =
-        (options.scrollFocusIntoView ?? true) ? findCellElement(view, makeTableId(ctx.from), selection.focus) : null;
+        (options.scrollFocusIntoView ?? true) ? findCellElement(view, ctx.from, selection.focus) : null;
     if (cellElement) {
         view.requestMeasure({
             read: () => cellElement.isConnected,

@@ -1,4 +1,4 @@
-import { type CellCoords, type TableId, type TableSection, makeTableId } from '../tableModel/types';
+import { type CellCoords, type TableSection } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
 
 // Main widget structure classes
@@ -10,9 +10,6 @@ export const CLASS_TABLE_WIDGET_SELECTED = 'cm-table-widget-selected';
 
 // Floating toolbar container (positioned relative to the active table widget)
 export const CLASS_FLOATING_TOOLBAR = 'cm-table-floating-toolbar';
-
-// Data attribute names (as they appear in the DOM, use with setAttribute/getAttribute)
-export const ATTR_TABLE_FROM = 'table-from';
 
 // Data attribute names (simple names that work with both dataset API and selectors)
 export const DATA_SECTION = 'section';
@@ -26,7 +23,7 @@ export const SECTION_BODY = 'body';
  * Returns the CSS selector matching every table widget root.
  *
  * Deliberately position-agnostic: identity comes from `posAtDOM()` via
- * `findTableWidgetElement()`, never from `data-table-from`.
+ * `findTableWidgetElement()`.
  *
  * @returns The CSS selector string.
  *
@@ -102,17 +99,17 @@ export function readCellCoords(cell: HTMLElement): CellCoords | null {
 /**
  * Locate a table widget root element by matching its current document position.
  *
- * We deliberately avoid relying on `data-table-from` for identity because it may
- * become stale when decorations are mapped (but not rebuilt) through edits.
+ * Widget identity comes from CodeMirror's live DOM-to-document mapping, which stays current
+ * when decorations are mapped without rebuilding their DOM.
  */
-export function findTableWidgetElement(view: EditorView, tableId: TableId): HTMLElement | null {
+export function findTableWidgetElement(view: EditorView, tableFrom: number): HTMLElement | null {
     // Prefer contentDOM so we only scan editor content (not gutters/toolbars).
     const allWidgets = view.contentDOM.querySelectorAll(getWidgetSelector());
 
     for (const widget of allWidgets) {
         try {
             const widgetPos = view.posAtDOM(widget);
-            if (makeTableId(widgetPos) === tableId) {
+            if (widgetPos === tableFrom) {
                 return widget as HTMLElement;
             }
         } catch {
@@ -139,13 +136,13 @@ export function findWidgetTableElement(widgetElement: HTMLElement): HTMLElement 
  * Helper to locate a specific cell element in the DOM for a given table.
  *
  * @param view - The main EditorView
- * @param tableId - The TableId (current table position from syntax tree)
+ * @param tableFrom - Current table position from the document table index.
  * @param coords - The coordinates of the cell to find
  * @returns The matching HTMLElement for the cell if found, otherwise null.
  */
 
-export function findCellElement(view: EditorView, tableId: TableId, coords: CellCoords): HTMLElement | null {
-    const widgetDOM = findTableWidgetElement(view, tableId);
+export function findCellElement(view: EditorView, tableFrom: number, coords: CellCoords): HTMLElement | null {
+    const widgetDOM = findTableWidgetElement(view, tableFrom);
     if (!widgetDOM) return null;
 
     // Find the cell within that widget

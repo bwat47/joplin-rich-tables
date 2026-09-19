@@ -12,7 +12,6 @@ import {
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
-import { makeTableId } from '../tableModel/types';
 import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
@@ -255,7 +254,7 @@ class TableToolbarPlugin {
             return;
         }
 
-        const widgetElement = findTableWidgetElement(this.view, makeTableId(activeCell.tableFrom));
+        const widgetElement = findTableWidgetElement(this.view, activeCell.tableFrom);
         const tableElement = widgetElement && findWidgetTableElement(widgetElement);
 
         if (!widgetElement || !tableElement) {
