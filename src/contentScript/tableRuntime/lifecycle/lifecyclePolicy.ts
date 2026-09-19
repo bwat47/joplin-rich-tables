@@ -30,6 +30,8 @@ export interface TableRuntimeFacts {
     // A document change rebuilt or dropped the decoration hosting the previously active cell.
     activeHostInvalidated: boolean;
     isUndoRedoInsideTable: boolean;
+    // The editor switched to a different note; the replaced document belongs to it.
+    noteChanged: boolean;
 
     // Requests
     hasInsertedTableActivation: boolean;

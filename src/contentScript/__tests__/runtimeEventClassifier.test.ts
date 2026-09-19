@@ -1,4 +1,4 @@
-import { type Extension, Transaction } from '@codemirror/state';
+import { Compartment, type Extension, StateEffect, Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
@@ -14,6 +14,7 @@ import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../t
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { noteIdentityFacet } from '../services/noteIdentity';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC_WITH_SURROUNDING_TEXT = ['before', '', TABLE_DOC, '', 'after'].join('\n');
@@ -145,7 +146,41 @@ describe('runtimeEventClassifier', () => {
             isUndoRedoInsideTable: false,
             hasInsertedTableActivation: false,
             openRequestId: null,
+            noteChanged: false,
         });
+    });
+
+    it('classifies a note ID change as a note switch', () => {
+        const noteConfiguration = new Compartment();
+        const update = dispatchAndCaptureUpdate({
+            extensions: [noteConfiguration.of(noteIdentityFacet.of('note-a'))],
+            dispatch(view) {
+                view.dispatch({ effects: noteConfiguration.reconfigure(noteIdentityFacet.of('note-b')) });
+            },
+        });
+
+        expect(classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS).noteChanged).toBe(true);
+    });
+
+    it('does not classify an unchanged note ID as a note switch', () => {
+        const update = dispatchAndCaptureUpdate({
+            extensions: [noteIdentityFacet.of('note-a')],
+            dispatch(view) {
+                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: TABLE_DOC } });
+            },
+        });
+
+        expect(classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS).noteChanged).toBe(false);
+    });
+
+    it('does not classify the first note ID registration as a note switch', () => {
+        const update = dispatchAndCaptureUpdate({
+            dispatch(view) {
+                view.dispatch({ effects: StateEffect.appendConfig.of(noteIdentityFacet.of('note-a')) });
+            },
+        });
+
+        expect(classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS).noteChanged).toBe(false);
     });
 
     it('classifies annotations, raw mode entry, and the latest open request id', () => {

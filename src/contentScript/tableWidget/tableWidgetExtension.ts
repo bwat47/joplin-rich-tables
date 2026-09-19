@@ -9,6 +9,7 @@ import {
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createJoplinBridge } from '../services/joplinBridge';
 import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/linkOpener';
+import { noteIdentityFacet } from '../services/noteIdentity';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
@@ -118,6 +119,7 @@ async function registerTableWidgetExtension(
         hostEditorConfigFacet.of(hostEditorConfig),
         markdownRenderServiceFacet.of(services.markdownRenderer),
         linkOpenerFacet.of(services.linkOpener),
+        noteIdentityFacet.compute([noteIdFacet], (state) => state.facet(noteIdFacet)),
 
         // Close nested editor on note switch (detected via noteIdFacet)
         createNoteIdWatcher(noteIdFacet, () => cm6View),

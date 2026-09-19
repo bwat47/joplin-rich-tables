@@ -81,6 +81,7 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
         },
         activeHostInvalidated: false,
         isUndoRedoInsideTable: false,
+        noteChanged: false,
         hasInsertedTableActivation: false,
         openRequestId: null,
         ...overrides,
