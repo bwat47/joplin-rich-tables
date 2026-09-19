@@ -1,4 +1,4 @@
-import { type CellCoords, type TableSection } from '../tableModel/types';
+import type { CellCoords, TableSection } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
 
 // Main widget structure classes
@@ -136,11 +136,11 @@ export function findWidgetTableElement(widgetElement: HTMLElement): HTMLElement 
  * Helper to locate a specific cell element in the DOM for a given table.
  *
  * @param view - The main EditorView
- * @param tableFrom - Current table position from the document table index.
+ * @param tableFrom - Current table position from the document table index. A stale mapped
+ *   position will not match the widget's live `posAtDOM()` position.
  * @param coords - The coordinates of the cell to find
  * @returns The matching HTMLElement for the cell if found, otherwise null.
  */
-
 export function findCellElement(view: EditorView, tableFrom: number, coords: CellCoords): HTMLElement | null {
     const widgetDOM = findTableWidgetElement(view, tableFrom);
     if (!widgetDOM) return null;
