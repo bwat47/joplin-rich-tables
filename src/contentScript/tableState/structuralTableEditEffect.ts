@@ -9,7 +9,6 @@ import { StateEffect } from '@codemirror/state';
  * Same-text structural edits may only move the active cell and preserve the existing host.
  *
  * `mainEditorGuardPolicy` uses the signal to allow structural document changes without cell-range
- * sanitization. `tableToolbarPlugin` uses it to schedule positioning because the active-cell or
- * table geometry may have changed.
+ * sanitization.
  */
 export const structuralTableEditEffect = StateEffect.define<void>();
