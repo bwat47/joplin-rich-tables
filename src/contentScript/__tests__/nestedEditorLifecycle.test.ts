@@ -1,4 +1,4 @@
-import { EditorState, Transaction } from '@codemirror/state';
+import { Compartment, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
@@ -35,6 +35,7 @@ import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { noteIdentityFacet } from '../services/noteIdentity';
 
 class ResizeObserverMock {
     observe(): void {}
@@ -70,6 +71,14 @@ const nestedEditorControllerMock = nestedEditorController as unknown as {
 };
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+const INITIAL_NOTE_ID = 'note-a';
+const noteConfiguration = new Compartment();
+const NOTE_SWITCH_PREFIX = 'intro\n\n';
+const NOTE_SWITCH_DOC = [NOTE_SWITCH_PREFIX + CANONICAL_DOC, '', 'outro'].join('\n');
+const NOTE_SWITCH_TABLE_FROM = NOTE_SWITCH_PREFIX.length;
+const NOTE_SWITCH_TABLE_TO = NOTE_SWITCH_TABLE_FROM + CANONICAL_DOC.length;
+const NOTE_SWITCH_POS_IN_TABLE = NOTE_SWITCH_TABLE_FROM + '| H'.length;
+const NOTE_SWITCH_POS_OUTSIDE_TABLE = NOTE_SWITCH_DOC.indexOf('outro') + 2;
 
 function headerCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
     return {
@@ -99,6 +108,7 @@ function createLifecycleState(params: {
             searchForceSourceModeField,
             sourceModeField,
             hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+            noteConfiguration.of(noteIdentityFacet.of(INITIAL_NOTE_ID)),
             tableDecorationField,
             nestedEditorLifecyclePlugin,
         ],
@@ -299,6 +309,78 @@ describe('nestedEditorLifecycle', () => {
         expect(view.state.field(tableDecorationField).decorations).toBe(decorationsAfterReplace);
 
         view.destroy();
+    });
+
+    describe('note switch', () => {
+        /** Mirrors Joplin's switch: one transaction replaces the document and changes the note ID. */
+        function switchNote(view: EditorView, params: { anchor: number; hadActiveCell: boolean }): void {
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: NOTE_SWITCH_DOC },
+                selection: { anchor: params.anchor },
+                effects: [
+                    noteConfiguration.reconfigure(noteIdentityFacet.of('note-b')),
+                    // The main editor guard adds this clear when a cell was active.
+                    ...(params.hadActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+                ],
+            });
+        }
+
+        it('closes the open cell and moves the cursor out of a table without reopening a cell', () => {
+            nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+            const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
+            view.dispatch({ effects: openRequestEffects({ requestId: 'queued-open', activeCell: headerCell() }) });
+
+            switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: true });
+            flushAnimationFrames();
+
+            expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
+            expect(activateCellAtPositionMock).not.toHaveBeenCalled();
+            expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+            expect(view.state.selection.main.head).toBe(NOTE_SWITCH_TABLE_TO + 1);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+            view.destroy();
+        });
+
+        it('leaves a cursor outside every table where the switch put it', () => {
+            nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+            const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
+
+            switchNote(view, { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE, hadActiveCell: true });
+            flushAnimationFrames();
+
+            expect(activateCellAtPositionMock).not.toHaveBeenCalled();
+            expect(view.state.selection.main.head).toBe(NOTE_SWITCH_POS_OUTSIDE_TABLE);
+            expect(getActiveCell(view.state)).toBeNull();
+
+            view.destroy();
+        });
+
+        it('moves the cursor out of a table when no cell was open', () => {
+            const view = createLifecycleView({ doc: CANONICAL_DOC });
+
+            switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
+            flushAnimationFrames();
+
+            expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
+            expect(activateCellAtPositionMock).not.toHaveBeenCalled();
+            expect(view.state.selection.main.head).toBe(NOTE_SWITCH_TABLE_TO + 1);
+
+            view.destroy();
+        });
+
+        it('keeps a selection the host restored after the switch', () => {
+            const view = createLifecycleView({ doc: CANONICAL_DOC });
+
+            switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
+            view.dispatch({ selection: { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE } });
+            flushAnimationFrames();
+
+            expect(view.state.selection.main.head).toBe(NOTE_SWITCH_POS_OUTSIDE_TABLE);
+
+            view.destroy();
+        });
     });
 
     it('passes the pre-undo active cell as a fallback hint during undo or redo reactivation', () => {

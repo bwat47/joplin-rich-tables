@@ -30,6 +30,8 @@ export interface TableRuntimeFacts {
     // A document change rebuilt or dropped the decoration hosting the previously active cell.
     activeHostInvalidated: boolean;
     isUndoRedoInsideTable: boolean;
+    // The editor switched to a different note; the replaced document belongs to it.
+    noteChanged: boolean;
 
     // Requests
     hasInsertedTableActivation: boolean;
@@ -52,7 +54,7 @@ export interface ActivateCellAtCursorOptions {
     entryMode: Extract<CellEntryMode, 'enter' | 'adopt'>;
 }
 
-type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved';
+type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved' | 'noteChanged';
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
@@ -64,21 +66,38 @@ export type TableRuntimeAction =
           options: ActivateCellAtCursorOptions;
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
-    | { type: 'scheduleInsertedTableActivation' };
+    | { type: 'scheduleInsertedTableActivation' }
+    | { type: 'scheduleNoteSwitchCleanup' };
 
 // Precedence:
-// 1. Explicit open requests short-circuit all but inserted-table activation.
-// 2. Forced raw-mode exit is terminal. Otherwise cursor-visibility work accumulates
+// 1. A note switch short-circuits everything: no cell from the previous note is reopened.
+// 2. Explicit open requests short-circuit all but inserted-table activation.
+// 3. Forced raw-mode exit is terminal. Otherwise cursor-visibility work accumulates
 //    before the terminal reposition or selection-departure transitions (the first match returns).
-// 3. Continuing close, sync, and stale-clear actions follow; inserted-table activation
+// 4. Continuing close, sync, and stale-clear actions follow; inserted-table activation
 //    is independently appended.
 export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
+    if (facts.noteChanged) {
+        return reduceNoteSwitch(facts);
+    }
+
     const actions = reduceCoreTableRuntime(facts);
     if (facts.hasInsertedTableActivation) {
         return [...actions, { type: 'scheduleInsertedTableActivation' }];
     }
 
     return actions;
+}
+
+// The replaced document belongs to another note, so the cursor it carries says nothing about
+// which cell the user wants. Cleanup reads the settled state instead of reactivating a cell.
+function reduceNoteSwitch(facts: TableRuntimeFacts): TableRuntimeAction[] {
+    const cleanup: TableRuntimeAction = { type: 'scheduleNoteSwitchCleanup' };
+    if (facts.nestedEditorOpen) {
+        return [{ type: 'closeNestedEditor', reason: 'noteChanged' }, cleanup];
+    }
+
+    return [cleanup];
 }
 
 function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {

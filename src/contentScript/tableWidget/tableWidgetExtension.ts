@@ -9,6 +9,7 @@ import {
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createJoplinBridge } from '../services/joplinBridge';
 import { createLinkOpener, linkOpenerFacet, type LinkOpener } from '../services/linkOpener';
+import { noteIdentityFacet } from '../services/noteIdentity';
 import { logger } from '../../logger';
 import { activeCellField } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
@@ -41,7 +42,6 @@ import {
     openCellRequestKeymap,
     openCellRequestTimeoutPlugin,
 } from '../tableRuntime/openCellRequest';
-import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
@@ -118,9 +118,8 @@ async function registerTableWidgetExtension(
         hostEditorConfigFacet.of(hostEditorConfig),
         markdownRenderServiceFacet.of(services.markdownRenderer),
         linkOpenerFacet.of(services.linkOpener),
+        noteIdentityFacet.compute([noteIdFacet], (state) => state.facet(noteIdFacet)),
 
-        // Close nested editor on note switch (detected via noteIdFacet)
-        createNoteIdWatcher(noteIdFacet, () => cm6View),
         createStartupCursorCorrection(() => cm6View),
         createUndoScrollPreservation(() => cm6View),
 

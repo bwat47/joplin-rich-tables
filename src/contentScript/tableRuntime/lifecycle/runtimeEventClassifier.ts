@@ -10,6 +10,7 @@ import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from
 import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
+import { noteIdentityFacet } from '../../services/noteIdentity';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';
 import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
 import { hasCellSelectionTransitionAnnotation } from './transactionFactPredicates';
@@ -49,7 +50,15 @@ export function classifyTableRuntimeFacts(
         openRequestId: extractOpenRequestId(update),
         activeHostInvalidated: update.transactions.some((tr) => wasActiveHostInvalidated(tr.state)),
         isUndoRedoInsideTable,
+        noteChanged: isNoteChange(update),
     };
+}
+
+/** A note switch, as opposed to the host registering its note ID for the first time. */
+function isNoteChange(update: ViewUpdate): boolean {
+    const previousNoteId = update.startState.facet(noteIdentityFacet);
+    const currentNoteId = update.state.facet(noteIdentityFacet);
+    return previousNoteId !== null && currentNoteId !== null && previousNoteId !== currentNoteId;
 }
 
 function getActiveCellStatus(

@@ -1,15 +1,26 @@
+import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { getTableContextAtPos } from '../../tableState/tableContextField';
 
-export function moveCursorOutOfTable(view: EditorView, offset = 1): boolean {
-    const cursor = view.state.selection.main.head;
-    const tableContainingCursor = getTableContextAtPos(view.state, cursor);
+/**
+ * Where the main cursor should go to leave the table containing it, or null when the cursor
+ * is not inside a table. The position is right after the table (start of the next line).
+ */
+export function getPositionOutsideTable(state: EditorState, offset = 1): number | null {
+    const tableContainingCursor = getTableContextAtPos(state, state.selection.main.head);
     if (!tableContainingCursor) {
+        return null;
+    }
+
+    return Math.min(tableContainingCursor.to + offset, state.doc.length);
+}
+
+export function moveCursorOutOfTable(view: EditorView, offset = 1): boolean {
+    const newPos = getPositionOutsideTable(view.state, offset);
+    if (newPos === null) {
         return false;
     }
 
-    // Place cursor right after the table (start of next line).
-    const newPos = Math.min(tableContainingCursor.to + offset, view.state.doc.length);
     view.dispatch({ selection: { anchor: newPos } });
     return true;
 }
