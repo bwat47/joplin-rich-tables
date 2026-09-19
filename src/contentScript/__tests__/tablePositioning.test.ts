@@ -12,7 +12,7 @@ import { tableContextField } from '../tableState/tableContextField';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { findCellElement } from '../tableWidget/domHelpers';
+import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
 import type { CellCoords } from '../tableModel/types';
 
 class ResizeObserverMock {
@@ -113,6 +113,35 @@ describe('resolveTableContextFromEventTarget', () => {
         const nestedLine = requireCell(view, TABLE_A_FROM, activeCell).querySelector<HTMLElement>('.cm-line');
         expect(nestedLine).not.toBeNull();
         expect(resolveTableContextFromEventTarget(view, nestedLine as HTMLElement)?.from).toBe(TABLE_A_FROM);
+
+        view.destroy();
+    });
+
+    // Table lookups from widget DOM match the table by its exact start, which relies on this.
+    it('maps every node inside a widget, including a nested editor, to exactly its table start', () => {
+        const view = createView();
+        const activeCell: ActiveCell = { tableFrom: TABLE_A_FROM, section: 'body', row: 0, col: 1 };
+        view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
+        openNestedEditor({
+            mainView: view,
+            resolvedCell: requireResolvedActiveCell(view.state),
+            cellElement: requireCell(view, TABLE_A_FROM, activeCell),
+            featureSettings: TEST_HOST_CONFIG.nestedEditor,
+        });
+        expect(requireCell(view, TABLE_A_FROM, activeCell).querySelector('.cm-editor .cm-line')).not.toBeNull();
+
+        for (const tableFrom of [TABLE_A_FROM, TABLE_B_FROM]) {
+            const widget = findTableWidgetElement(view, tableFrom);
+            expect(widget).not.toBeNull();
+
+            const walker = document.createTreeWalker(widget as HTMLElement);
+            for (let node: Node | null = widget; node; node = walker.nextNode()) {
+                const endOffset =
+                    node.nodeType === Node.TEXT_NODE ? (node.textContent ?? '').length : node.childNodes.length;
+                expect(view.posAtDOM(node, 0)).toBe(tableFrom);
+                expect(view.posAtDOM(node, endOffset)).toBe(tableFrom);
+            }
+        }
 
         view.destroy();
     });

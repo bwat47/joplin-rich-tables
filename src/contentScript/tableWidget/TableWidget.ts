@@ -3,7 +3,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
-import { getTableContextAtPos } from '../tableState/tableContextField';
+import { getTableContextStartingAt } from '../tableState/tableContextField';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
@@ -281,7 +281,7 @@ export class TableWidget extends WidgetType {
      *
      * The context held by the widget is a rendering snapshot and can be stale while a nested
      * editor keeps the widget DOM alive. Coordinate lookup therefore resolves the current table
-     * from the document index at the widget's live DOM position.
+     * from the document index starting at the widget's live DOM position.
      */
     coordsAt(
         dom: HTMLElement,
@@ -293,7 +293,7 @@ export class TableWidget extends WidgetType {
             return null;
         }
 
-        const ctx = getTableContextAtPos(state.view.state, state.view.posAtDOM(dom));
+        const ctx = getTableContextStartingAt(state.view.state, state.view.posAtDOM(dom));
         if (!ctx) {
             return null;
         }
