@@ -47,25 +47,11 @@ describe('tableContextField selectors', () => {
         expect(getTableContextAtPos(state, TABLE.length + 1)).toBeNull();
     });
 
-    it('rejects invalid and out-of-document positions', () => {
+    it('finds no table at positions outside the document', () => {
         const state = createMarkdownState(TABLE);
 
         expect(getTableContextAtPos(state, -1)).toBeNull();
         expect(getTableContextAtPos(state, state.doc.length + 1)).toBeNull();
-        expect(getTableContextAtPos(state, 0.5)).toBeNull();
-    });
-
-    it.each([
-        ['a negative start', -1, TABLE.length],
-        ['an end past the document', 0, Number.MAX_SAFE_INTEGER],
-        ['an inverted range', TABLE.length, 0],
-        ['a fractional endpoint', 0.5, TABLE.length],
-        ['a NaN endpoint', Number.NaN, TABLE.length],
-    ])('rejects %s in range lookups', (_name, from, to) => {
-        const state = createMarkdownState(TABLE);
-
-        expect(getTableContextsTouching(state, from, to)).toEqual([]);
-        expect(getTableContextsWithin(state, from, to)).toEqual([]);
     });
 
     it("includes a pipe-free trailing row in Lezer's exact table range", () => {

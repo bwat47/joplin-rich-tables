@@ -79,21 +79,8 @@ export function getTableContexts(state: EditorState): readonly TableContext[] {
     return state.field(tableContextField).tables;
 }
 
-/** True when `pos` is a valid position in the document. */
-function isDocPos(state: EditorState, pos: number): boolean {
-    return Number.isInteger(pos) && pos >= 0 && pos <= state.doc.length;
-}
-
-/** True when `[from, to]` is a valid, non-inverted document range. */
-function isDocRange(state: EditorState, from: number, to: number): boolean {
-    return isDocPos(state, from) && isDocPos(state, to) && from <= to;
-}
-
 /** Returns the root table inclusively containing `pos`. */
 export function getTableContextAtPos(state: EditorState, pos: number): TableContext | null {
-    if (!isDocPos(state, pos)) {
-        return null;
-    }
     return getTableContexts(state).find((table) => pos >= table.from && pos <= table.to) ?? null;
 }
 
@@ -109,16 +96,10 @@ export function getTableContextEndingAt(state: EditorState, pos: number): TableC
 
 /** Returns root tables overlapping or abutting the inclusive range `[from, to]`. */
 export function getTableContextsTouching(state: EditorState, from: number, to: number): readonly TableContext[] {
-    if (!isDocRange(state, from, to)) {
-        return [];
-    }
     return getTableContexts(state).filter((table) => table.from <= to && table.to >= from);
 }
 
 /** Returns root tables entirely contained by the inclusive range `[from, to]`. */
 export function getTableContextsWithin(state: EditorState, from: number, to: number): readonly TableContext[] {
-    if (!isDocRange(state, from, to)) {
-        return [];
-    }
     return getTableContexts(state).filter((table) => table.from >= from && table.to <= to);
 }
