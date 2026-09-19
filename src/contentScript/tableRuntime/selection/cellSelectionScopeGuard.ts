@@ -7,9 +7,9 @@ import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFa
 /**
  * True when the caret no longer sits inside the table the cell selection belongs to.
  *
- * An unresolvable table reads as "cannot tell" rather than "left": the selection is stale
- * either way, and clearing it here would pre-empt the paths that already handle a table
- * disappearing out from under a selection.
+ * A document rewrite can install a replacement cell selection while the table index is
+ * temporarily incomplete. Treat an unresolvable table as "cannot tell" rather than "left":
+ * parser recovery may resolve the selection without another selection change.
  */
 function selectionLeftSelectedTable(view: EditorView): boolean {
     const cellSelection = getCellSelection(view.state);

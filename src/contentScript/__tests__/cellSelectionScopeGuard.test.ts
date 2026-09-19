@@ -1,7 +1,8 @@
+import { ensureSyntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     cellSelectionField,
     cellSelectionTransitionAnnotation,
@@ -9,13 +10,17 @@ import {
     setCellSelectionEffect,
 } from '../tableState/cellSelectionState';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
-import { tableContextField } from '../tableState/tableContextField';
+import { getTableContextAtPos, tableContextField } from '../tableState/tableContextField';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const PREFIX = 'above';
 const DOC = `${PREFIX}\n\n${TABLE}\n\nbelow`;
 const TABLE_FROM = PREFIX.length + 2;
 const TABLE_TO = TABLE_FROM + TABLE.length;
+const FILLER = 'lorem ipsum dolor sit amet '.repeat(40);
+const LONG_TABLE_DOCUMENT = Array.from({ length: 5 }, () => `${FILLER}\n\n${TABLE}`).join('\n\n');
+const CLOCK_ADVANCE_MS = 2_000;
+const COMPLETE_PARSE_TIMEOUT_MS = 1_000;
 
 const mountedViews: EditorView[] = [];
 
@@ -98,19 +103,51 @@ describe('cellSelectionScopeGuard', () => {
         expect(getCellSelection(view.state)).toBeNull();
     });
 
-    it('leaves a selection whose table no longer resolves to the existing cleanup paths', async () => {
+    it('preserves a replacement selection through parser recovery', async () => {
         const view = mountView();
-        view.dispatch({
-            effects: setCellSelectionEffect.of({
-                tableFrom: DOC.length,
-                anchor: { section: 'header', row: 0, col: 0 },
-                focus: { section: 'header', row: 0, col: 0 },
-            }),
+        selectTable(view);
+
+        // CodeMirror checks Date.now between parser steps. Advancing the clock beyond the
+        // production budget on every check forces a deterministic timeout.
+        let now = 0;
+        const dateNow = vi.spyOn(Date, 'now').mockImplementation(() => {
+            now += CLOCK_ADVANCE_MS;
+            return now;
         });
 
-        view.dispatch({ selection: { anchor: 0 } });
+        try {
+            view.dispatch({
+                changes: { from: view.state.doc.length, insert: `\n\n${LONG_TABLE_DOCUMENT}` },
+                selection: { anchor: TABLE_FROM + 1 },
+                effects: setCellSelectionEffect.of({
+                    tableFrom: TABLE_FROM,
+                    anchor: { section: 'header', row: 0, col: 0 },
+                    focus: { section: 'body', row: 0, col: 1 },
+                }),
+                annotations: cellSelectionTransitionAnnotation.of(true),
+            });
+
+            expect(view.state.field(tableContextField).treeIncomplete).toBe(true);
+            expect(getTableContextAtPos(view.state, TABLE_FROM)).toBeNull();
+
+            view.dispatch({ selection: { anchor: 0 } });
+            await flushFrames();
+
+            expect(getCellSelection(view.state)).not.toBeNull();
+        } finally {
+            dateNow.mockRestore();
+        }
+
+        expect(ensureSyntaxTree(view.state, view.state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
+        view.dispatch({});
+
+        expect(view.state.field(tableContextField).treeIncomplete).toBe(false);
+        expect(getTableContextAtPos(view.state, TABLE_FROM)).not.toBeNull();
+        expect(getCellSelection(view.state)).not.toBeNull();
+
+        view.dispatch({ selection: { anchor: 1 } });
         await flushFrames();
 
-        expect(getCellSelection(view.state)).not.toBeNull();
+        expect(getCellSelection(view.state)).toBeNull();
     });
 });
