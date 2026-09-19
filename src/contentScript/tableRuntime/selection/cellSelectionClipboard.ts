@@ -13,14 +13,15 @@ import {
     clearCellSelectionEffect,
     fromUnifiedRow,
     getCellSelection,
+    getSelectedTable,
     selectionFromRect,
     setCellSelectionEffect,
     toSelectionRect,
     type CellSelection,
+    type SelectedTable,
 } from '../../tableState/cellSelectionState';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
@@ -84,12 +85,7 @@ function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
     return rows;
 }
 
-export function copySelectionAsMarkdown(state: EditorState, selection: CellSelection): string | null {
-    const ctx = getTableContextStartingAt(state, selection.tableFrom);
-    if (!ctx) {
-        return null;
-    }
-
+export function copySelectionAsMarkdown({ selection, ctx }: SelectedTable): string | null {
     const rect = toSelectionRect(selection);
     const rows = extractCellContents(ctx, rect);
     if (rows.length === 0) {
@@ -170,15 +166,14 @@ export function resolveTableClipboardTarget(
         };
     }
 
-    const selection = getCellSelection(state);
-    const ctx = selection ? getTableContextStartingAt(state, selection.tableFrom) : null;
-    if (!selection || !ctx) {
+    const selected = getSelectedTable(state);
+    if (!selected) {
         return null;
     }
 
-    const rect = toSelectionRect(selection);
+    const rect = toSelectionRect(selected.selection);
     return {
-        ctx,
+        ctx: selected.ctx,
         anchor: fromUnifiedRow(rect.minRow, rect.minCol),
         source: 'selection',
         rect,
@@ -326,15 +321,7 @@ function buildEmptySelectionRemoval(ctx: TableContext, rect: TableRect): TableCl
     return null;
 }
 
-export function buildSelectionRemovalRewrite(
-    state: EditorState,
-    selection: CellSelection
-): TableClipboardRewrite | null {
-    const ctx = getTableContextStartingAt(state, selection.tableFrom);
-    if (!ctx) {
-        return null;
-    }
-
+export function buildSelectionRemovalRewrite({ selection, ctx }: SelectedTable): TableClipboardRewrite | null {
     const rect = toSelectionRect(selection);
     if (ctx.table.isRectEmpty(rect)) {
         const structuralRewrite = buildEmptySelectionRemoval(ctx, rect);
@@ -445,8 +432,8 @@ function dispatchTableClipboardRewrite(view: EditorView, rewrite: TableClipboard
 }
 
 export function handleSelectionDelete(view: EditorView): boolean {
-    const selection = getCellSelection(view.state);
-    if (!selection) {
+    const selected = getSelectedTable(view.state);
+    if (!selected) {
         return false;
     }
 
@@ -454,7 +441,7 @@ export function handleSelectionDelete(view: EditorView): boolean {
         return false;
     }
 
-    const rewrite = buildSelectionRemovalRewrite(view.state, selection);
+    const rewrite = buildSelectionRemovalRewrite(selected);
     if (!rewrite) {
         return false;
     }
@@ -465,14 +452,14 @@ export function handleSelectionDelete(view: EditorView): boolean {
 
 interface SelectionClipboardCopy {
     clipboardData: DataTransfer;
-    selection: CellSelection;
+    selected: SelectedTable;
     markdown: string;
 }
 
 /** Shared copy/cut prelude: null whenever this event is not ours to serialize. */
 function resolveSelectionClipboardCopy(event: ClipboardEvent, view: EditorView): SelectionClipboardCopy | null {
-    const selection = getCellSelection(view.state);
-    if (!selection || !event.clipboardData) {
+    const selected = getSelectedTable(view.state);
+    if (!selected || !event.clipboardData) {
         return null;
     }
 
@@ -480,12 +467,12 @@ function resolveSelectionClipboardCopy(event: ClipboardEvent, view: EditorView):
         return null;
     }
 
-    const markdown = copySelectionAsMarkdown(view.state, selection);
+    const markdown = copySelectionAsMarkdown(selected);
     if (!markdown) {
         return null;
     }
 
-    return { clipboardData: event.clipboardData, selection, markdown };
+    return { clipboardData: event.clipboardData, selected, markdown };
 }
 
 export function handleSelectionCopy(event: ClipboardEvent, view: EditorView): boolean {
@@ -506,7 +493,7 @@ export function handleSelectionCut(event: ClipboardEvent, view: EditorView): boo
     }
 
     // Cutting copies the selection, then applies the same table rewrite as Delete.
-    const rewrite = buildSelectionRemovalRewrite(view.state, copy.selection);
+    const rewrite = buildSelectionRemovalRewrite(copy.selected);
     if (!rewrite) {
         return false;
     }

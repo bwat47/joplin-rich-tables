@@ -1,6 +1,6 @@
 import { redo, undo } from '@codemirror/commands';
 import { EditorView, ViewPlugin, type Command } from '@codemirror/view';
-import { getCellSelection, type CellSelectionDirection } from '../../tableState/cellSelectionState';
+import { getCellSelection, getSelectedTable, type CellSelectionDirection } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import {
@@ -8,7 +8,6 @@ import {
     extendExistingCellSelection,
     startCellSelectionFromActiveCell,
 } from './cellSelectionController';
-import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
@@ -28,18 +27,13 @@ function extendOrStartSelection(view: EditorView, direction: CellSelectionDirect
 }
 
 function activateSelectionFocus(view: EditorView): boolean {
-    const selection = getCellSelection(view.state);
-    if (!selection) {
-        return false;
-    }
-
-    const ctx = getTableContextStartingAt(view.state, selection.tableFrom);
-    if (!ctx) {
+    const selected = getSelectedTable(view.state);
+    if (!selected) {
         return false;
     }
 
     requestOpenCell(view, {
-        resolvedCell: resolveClampedCell({ ctx, target: selection.focus }),
+        resolvedCell: resolveClampedCell({ ctx: selected.ctx, target: selected.selection.focus }),
         clearCellSelection: true,
         scrollIntoView: false,
     });

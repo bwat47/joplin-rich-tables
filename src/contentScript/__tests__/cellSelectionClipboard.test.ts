@@ -1,3 +1,4 @@
+import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -6,9 +7,10 @@ import {
     getCellSelection,
     setCellSelectionEffect,
     type CellSelection,
+    type SelectedTable,
 } from '../tableState/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';
-import { getTableContextAtPos } from '../tableState/tableContextField';
+import { getTableContextAtPos, getTableContextStartingAt } from '../tableState/tableContextField';
 import {
     buildMultiCellPasteRewrite,
     buildSelectionRemovalRewrite,
@@ -30,6 +32,18 @@ const doc = [
 
 function selection(anchor: CellSelection['anchor'], focus: CellSelection['focus']): CellSelection {
     return { tableFrom: 0, anchor, focus };
+}
+
+function selectedTable(
+    state: EditorState,
+    anchor: CellSelection['anchor'],
+    focus: CellSelection['focus']
+): SelectedTable {
+    const ctx = getTableContextStartingAt(state, 0);
+    if (!ctx) {
+        throw new Error('Expected the test document to start with a table');
+    }
+    return { selection: selection(anchor, focus), ctx };
 }
 
 interface MutableClipboardTestView {
@@ -59,8 +73,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(
             copySelectionAsMarkdown(
-                state,
-                selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+                selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
             )
         ).toBe([String.raw`| H\|1 | H2 |`, '| :--- | ---: |'].join('\n'));
     });
@@ -70,8 +83,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(
             copySelectionAsMarkdown(
-                state,
-                selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+                selectedTable(state, { section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
             )
         ).toBe([String.raw`| b\|c |  |`, '| --- | --- |', '| <br> | z |'].join('\n'));
     });
@@ -81,8 +93,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(
             copySelectionAsMarkdown(
-                state,
-                selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 2 })
+                selectedTable(state, { section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 2 })
             )
         ).toBe(['| H2 | H3 |', '| ---: | --- |', String.raw`| b\|c |  |`].join('\n'));
     });
@@ -92,8 +103,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(
             copySelectionAsMarkdown(
-                state,
-                selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 1 })
+                selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 1 })
             )
         ).toBe([String.raw`| H\|1 | H2 |`, '| :--- | ---: |', String.raw`| a | b\|c |`, '| x | <br> |'].join('\n'));
     });
@@ -103,8 +113,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(
             copySelectionAsMarkdown(
-                state,
-                selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 1, col: 1 })
+                selectedTable(state, { section: 'body', row: 0, col: 0 }, { section: 'body', row: 1, col: 1 })
             )
         ).toBe([String.raw`| a | b\|c |`, '| --- | --- |', '| x | <br> |'].join('\n'));
     });
@@ -114,8 +123,7 @@ describe('cellSelectionClipboard', () => {
 
         expect(
             copySelectionAsMarkdown(
-                state,
-                selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 1, col: 0 })
+                selectedTable(state, { section: 'body', row: 0, col: 0 }, { section: 'body', row: 1, col: 0 })
             )
         ).toBe(['| a |', '| --- |', '| x |'].join('\n'));
     });
@@ -235,8 +243,7 @@ describe('cellSelectionClipboard', () => {
     it('builds a removal rewrite that preserves the selected rectangle', () => {
         const state = createMarkdownState(doc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
+            selectedTable(state, { section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -251,8 +258,7 @@ describe('cellSelectionClipboard', () => {
     it('clears non-empty selections instead of structurally deleting them', () => {
         const state = createMarkdownState(doc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 2 })
+            selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'body', row: 1, col: 2 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -266,8 +272,7 @@ describe('cellSelectionClipboard', () => {
         const emptyRowDoc = ['| H1 | H2 |', '| --- | --- |', '| A1 | A2 |', '|  |  |', '| B1 | B2 |'].join('\n');
         const state = createMarkdownState(emptyRowDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'body', row: 1, col: 0 }, { section: 'body', row: 1, col: 1 })
+            selectedTable(state, { section: 'body', row: 1, col: 0 }, { section: 'body', row: 1, col: 1 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -281,8 +286,7 @@ describe('cellSelectionClipboard', () => {
         const emptyColumnDoc = ['| H1 |  | H3 |', '| --- | --- | --- |', '| A1 |  | A3 |', '| B1 |  | B3 |'].join('\n');
         const state = createMarkdownState(emptyColumnDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
+            selectedTable(state, { section: 'header', row: 0, col: 1 }, { section: 'body', row: 1, col: 1 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -296,8 +300,7 @@ describe('cellSelectionClipboard', () => {
         const emptyTableDoc = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
         const state = createMarkdownState(emptyTableDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
+            selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -311,8 +314,7 @@ describe('cellSelectionClipboard', () => {
         const emptyHeaderOnlyDoc = ['|  |  |', '| --- | --- |'].join('\n');
         const state = createMarkdownState(emptyHeaderOnlyDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+            selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -325,8 +327,7 @@ describe('cellSelectionClipboard', () => {
         const emptySingleColumnDoc = ['|  |', '| --- |', '|  |'].join('\n');
         const state = createMarkdownState(emptySingleColumnDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
+            selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -339,8 +340,7 @@ describe('cellSelectionClipboard', () => {
         const headerOnlyDoc = ['| H1 | H2 |', '| --- | --- |'].join('\n');
         const state = createMarkdownState(headerOnlyDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
+            selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -355,8 +355,7 @@ describe('cellSelectionClipboard', () => {
         const singleColumnDoc = ['| H1 |', '| --- |', '| A1 |'].join('\n');
         const state = createMarkdownState(singleColumnDoc);
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
+            selectedTable(state, { section: 'header', row: 0, col: 0 }, { section: 'body', row: 0, col: 0 })
         );
 
         expect(rewrite).not.toBeNull();
@@ -370,8 +369,7 @@ describe('cellSelectionClipboard', () => {
     it('deletes the final empty body row and remaps the selection to the header row', () => {
         const state = createMarkdownState(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
         const rewrite = buildSelectionRemovalRewrite(
-            state,
-            selection({ section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
+            selectedTable(state, { section: 'body', row: 0, col: 0 }, { section: 'body', row: 0, col: 1 })
         );
 
         expect(rewrite).not.toBeNull();

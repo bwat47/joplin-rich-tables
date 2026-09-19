@@ -1,5 +1,7 @@
 import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/state';
 import { setActiveCellEffect } from './activeCellState';
+import { getTableContextStartingAt } from './tableContextField';
+import type { TableContext } from '../tableModel/tableContext';
 import { toUnifiedRowIndex, type CellCoords, type TableRect } from '../tableModel/types';
 
 export interface CellSelection {
@@ -57,6 +59,24 @@ export function isCellInRect(rect: SelectionRect, coords: CellCoords): boolean {
 
 export function getCellSelection(state: EditorState): CellSelection | null {
     return state.field(cellSelectionField, false) ?? null;
+}
+
+/** A cell selection together with the indexed table it belongs to. */
+export interface SelectedTable {
+    selection: CellSelection;
+    ctx: TableContext;
+}
+
+/**
+ * Returns the cell selection and its table, or null when there is no selection.
+ *
+ * Also null when the index cannot resolve the selection's table: a document rewrite can
+ * install a replacement selection while the table index is temporarily incomplete.
+ */
+export function getSelectedTable(state: EditorState): SelectedTable | null {
+    const selection = getCellSelection(state);
+    const ctx = selection ? getTableContextStartingAt(state, selection.tableFrom) : null;
+    return selection && ctx ? { selection, ctx } : null;
 }
 
 export const cellSelectionField = StateField.define<CellSelection | null>({

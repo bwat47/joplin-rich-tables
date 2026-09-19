@@ -1,29 +1,23 @@
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
-import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
-import { getTableContextStartingAt } from '../../tableState/tableContextField';
+import { clearCellSelectionEffect, getSelectedTable } from '../../tableState/cellSelectionState';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFactPredicates';
 
 /**
  * True when the caret no longer sits inside the table the cell selection belongs to.
  *
- * A document rewrite can install a replacement cell selection while the table index is
- * temporarily incomplete. Treat an unresolvable table as "cannot tell" rather than "left":
- * parser recovery may resolve the selection without another selection change.
+ * A selection whose table the index cannot resolve yet counts as "cannot tell" rather than
+ * "left": parser recovery may resolve the selection without another selection change.
  */
 function selectionLeftSelectedTable(view: EditorView): boolean {
-    const cellSelection = getCellSelection(view.state);
-    if (!cellSelection) {
+    const selected = getSelectedTable(view.state);
+    if (!selected) {
         return false;
     }
 
-    const table = getTableContextStartingAt(view.state, cellSelection.tableFrom);
-    if (!table) {
-        return false;
-    }
-
+    const { ctx } = selected;
     const { anchor, head } = view.state.selection.main;
-    const isInsideTable = (pos: number): boolean => pos >= table.from && pos <= table.to;
+    const isInsideTable = (pos: number): boolean => pos >= ctx.from && pos <= ctx.to;
 
     return !isInsideTable(anchor) || !isInsideTable(head);
 }

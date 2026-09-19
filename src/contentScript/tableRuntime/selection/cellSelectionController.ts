@@ -6,6 +6,7 @@ import {
     clearCellSelectionEffect,
     fromUnifiedRow,
     getCellSelection,
+    getSelectedTable,
     moveCellCoords,
     normalizeCellCoords,
     setCellSelectionEffect,
@@ -204,12 +205,12 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
 }
 
 export function extendExistingCellSelection(view: EditorView, direction: CellSelectionDirection): boolean {
-    const selection = getCellSelection(view.state);
-    const ctx = selection ? getTableContextStartingAt(view.state, selection.tableFrom) : null;
-    if (!selection || !ctx) {
+    const selected = getSelectedTable(view.state);
+    if (!selected) {
         return false;
     }
 
+    const { selection, ctx } = selected;
     const clampedFocus = clampSelectionFocusWithinContext(ctx, moveCellCoords(selection.focus, direction));
 
     // A selection is dropped on every document change it does not replace, and its anchor always
@@ -249,18 +250,13 @@ function exitSideForDirection(direction: CellSelectionDirection): TableExitSide 
  * caret around inside the table's hidden Markdown with the highlight left behind.
  */
 export function collapseCellSelectionOutOfTable(view: EditorView, direction: CellSelectionDirection): boolean {
-    const selection = getCellSelection(view.state);
-    if (!selection) {
-        return false;
-    }
-
-    const ctx = getTableContextStartingAt(view.state, selection.tableFrom);
-    if (!ctx) {
+    const selected = getSelectedTable(view.state);
+    if (!selected) {
         return false;
     }
 
     const effects = [clearCellSelectionEffect.of(undefined)];
-    if (!exitTableToAdjacentLine(view, ctx, exitSideForDirection(direction), effects)) {
+    if (!exitTableToAdjacentLine(view, selected.ctx, exitSideForDirection(direction), effects)) {
         view.dispatch({ effects });
     }
 
@@ -268,16 +264,16 @@ export function collapseCellSelectionOutOfTable(view: EditorView, direction: Cel
 }
 
 export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCoords, tableFrom: number): boolean {
-    const selection = getCellSelection(view.state);
-    const selectedCtx = selection?.tableFrom === tableFrom ? getTableContextStartingAt(view.state, tableFrom) : null;
-    if (selection && selectedCtx) {
-        const clampedFocus = clampSelectionFocusWithinContext(selectedCtx, focus);
+    const selected = getSelectedTable(view.state);
+    if (selected?.ctx.from === tableFrom) {
+        const { selection, ctx } = selected;
+        const clampedFocus = clampSelectionFocusWithinContext(ctx, focus);
 
         return dispatchSelectionWithContext(
             view,
-            selectedCtx,
+            ctx,
             {
-                tableFrom: selectedCtx.from,
+                tableFrom: ctx.from,
                 anchor: selection.anchor,
                 focus: clampedFocus,
             },
