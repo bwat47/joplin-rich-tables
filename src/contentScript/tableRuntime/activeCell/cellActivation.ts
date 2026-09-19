@@ -1,6 +1,5 @@
 /**
  * Shared cell activation logic for activating table cells and opening nested editors.
- * Consolidated from nestedEditorLifecycle.ts and searchPanelWatcher.ts.
  */
 import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -111,7 +110,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
 /**
  * Activates a specific cell by table position and coordinates.
  * Callers that depend on newly mounted widgets should schedule this after the
- * relevant DOM update has had a chance to render.
+ * relevant DOM update has had a chance to render, and must check that
+ * `view.dom.isConnected` first, since a scheduled frame can outlive the view.
  * @returns true when an open-cell request was dispatched.
  */
 export function activateTableCell(
@@ -120,8 +120,6 @@ export function activateTableCell(
     coords: CellCoords,
     options: ActivateTableCellOptions = {}
 ): boolean {
-    if (!view.dom.isConnected) return false;
-
     // Don't activate cells in source mode (no widgets exist)
     if (isSourceModeEnabled(view.state)) return false;
 

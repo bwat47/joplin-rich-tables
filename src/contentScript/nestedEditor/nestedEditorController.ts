@@ -18,7 +18,6 @@ import {
     resolveActiveCell,
     type ResolvedActiveCell,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { renderCellMarkdownInto } from '../services/renderCellInto';
@@ -165,22 +164,19 @@ class NestedEditorController {
         return true;
     }
 
+    /**
+     * Mirrors a main-editor update into the open session. Lifecycle policy calls this only for a
+     * document or selection change that leaves the active cell resolved. When the cell stops
+     * resolving, the main editor guard clears it in the same transaction and the lifecycle closes
+     * the session.
+     */
     handleMainEditorUpdate(update: ViewUpdate): void {
         if (!this.session || !this.mainView) {
             return;
         }
 
-        if (!update.docChanged && !update.selectionSet) {
-            return;
-        }
-
         const resolved = getResolvedActiveCell(update.state);
         if (!resolved) {
-            const mainView = this.mainView;
-            this.close();
-            if (mainView && getActiveCell(update.state)) {
-                mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-            }
             return;
         }
 

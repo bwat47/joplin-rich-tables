@@ -6,7 +6,7 @@ import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableC
 import type { TableContext } from '../tableModel/tableContext';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { tableContextField, type TableIndex } from '../tableState/tableContextField';
+import { getTableContextStartingAt, tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from './TableWidget';
 import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
@@ -66,8 +66,7 @@ interface PreservedActiveDecoration {
 function getPreservedActiveTableDecoration(
     value: TableDecorationState,
     transaction: Transaction,
-    previousCell: ResolvedActiveCell,
-    index: TableIndex
+    previousCell: ResolvedActiveCell
 ): PreservedActiveDecoration | null {
     const scope = classifyActiveCellChanges(transaction.changes, previousCell);
     if (
@@ -85,9 +84,9 @@ function getPreservedActiveTableDecoration(
         return null;
     }
 
-    const context = index.tables.find((table) => table.from === mappedTableFrom && table.to === mappedTableTo);
+    const context = getTableContextStartingAt(transaction.state, mappedTableFrom);
     if (
-        !context ||
+        context?.to !== mappedTableTo ||
         !hasSameTableShape(previousCell.ctx.cellRanges, context.cellRanges) ||
         !getCellRange(context.cellRanges, activeCell)
     ) {
@@ -115,7 +114,7 @@ function reconcileTableDecorations(value: TableDecorationState, transaction: Tra
     }
 
     const previousCell = getResolvedActiveCell(transaction.startState);
-    const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell, index) : null;
+    const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell) : null;
     const invalidated = !preserved && transaction.docChanged && previousCell !== null;
     return buildTableDecorations(transaction.state, invalidated, preserved);
 }

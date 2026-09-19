@@ -22,7 +22,7 @@ import {
     refocusNestedEditor,
 } from '../nestedEditor/nestedEditorController';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { htmlFragment } from './testUtils';
@@ -40,7 +40,8 @@ function bodyCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
 
 /**
  * Builds a main editor wired the way the runtime wires it: the controller only
- * reacts to main-document changes when the host forwards its view updates.
+ * reacts to main-document changes when the host forwards its view updates, and the
+ * lifecycle forwards only document and selection changes.
  */
 function createHarness(params: {
     doc: string;
@@ -69,7 +70,7 @@ function createHarness(params: {
                 markdownRenderServiceFacet.of(renderer),
                 nestedEditorPlugin,
                 EditorView.updateListener.of((update) => {
-                    if (mainView) {
+                    if (mainView && (update.docChanged || update.selectionSet)) {
                         handleMainEditorUpdate(mainView, update);
                     }
                 }),
@@ -295,20 +296,6 @@ describe('nestedEditorController handleMainEditorUpdate', () => {
 
         expect(isNestedEditorOpen(view)).toBe(true);
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('abc');
-
-        view.destroy();
-    });
-
-    it('closes the editor and clears the active cell when the table is deleted', () => {
-        const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
-        const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
-
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'no table here' } });
-
-        expect(isNestedEditorOpen(view)).toBe(false);
-        expect(getActiveCell(view.state)).toBeNull();
-        expect(nestedViewIn(cellElement)).toBeNull();
 
         view.destroy();
     });

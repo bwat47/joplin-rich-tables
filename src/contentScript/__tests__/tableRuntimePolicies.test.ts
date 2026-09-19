@@ -763,6 +763,19 @@ describe('tableRuntimePolicies', () => {
         expect(reduceTableRuntime({ ...facts, selectionChanged: true })).toEqual([]);
     });
 
+    it('does not plan nested editor sync for an active cell that no longer resolves', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'unresolved' },
+            nestedEditorOpen: true,
+            activeCellBefore: 'resolved',
+            docChanged: true,
+            selectionChanged: true,
+            activeCellIdentityUnchanged: true,
+        });
+
+        expect(reduceTableRuntime(facts)).not.toContainEqual({ type: 'syncMainToNested' });
+    });
+
     it('does not mirror cell-drag selection transitions into the retained nested editor', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
