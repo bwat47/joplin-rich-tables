@@ -26,8 +26,7 @@ function decideRawModeDecoration(tr: Transaction): DecorationDecision | null {
 /**
  * Routes a transaction to drop, force-render, or reconcile table decorations.
  * `reconcileTableDecorations()` owns parser recovery and active-host preservation.
- * Structural table edits need no branch here: they replace the whole table range, so
- * reconciliation already renders a fresh widget for them.
+ * Structural edits need no branch: reconciliation sees their whole-table replacement.
  */
 export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
     return decideRawModeDecoration(tr) ?? { type: 'reconcileDecorations' };

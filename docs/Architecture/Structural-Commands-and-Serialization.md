@@ -146,9 +146,6 @@ row to the sorted position.
 Command-driven structural mutations dispatch both `structuralTableEditEffect` and an explicit open request, so
 lifecycle follows the open-request path. A structural-edit signal alone does not implicitly reopen a nested editor.
 
-The effect does not steer decorations or guarantee that widget DOM was replaced. A mutation that changes source text
-replaces the whole table range, so decoration reconciliation classifies it as touching the table and renders a fresh
-widget. A same-text mutation may preserve the existing host. The main editor guard and toolbar read the effect for
-their own policy decisions.
-
-Source-changing structural edits replace the whole table widget; there is no row/column DOM diffing.
+Source-changing structural edits replace the whole table range, so decoration reconciliation renders a fresh widget;
+there is no row/column DOM diffing. See `tableState/structuralTableEditEffect.ts` for what the signal does and does not
+guarantee, and which modules read it.
