@@ -4,7 +4,6 @@ import {
     createResolvedActiveCell,
     getResolvedActiveCell,
     resolveActiveCell,
-    resolveCellWithinResolvedTable,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
@@ -183,10 +182,9 @@ describe('resolvedActiveCell', () => {
             throw new Error('Expected resolved cell');
         }
 
-        const resolvedCell = resolveCellWithinResolvedTable(resolved, {
-            section: 'body',
-            row: 0,
-            col: 1,
+        const resolvedCell = createResolvedActiveCell({
+            ctx: resolved.ctx,
+            coords: { section: 'body', row: 0, col: 1 },
         });
 
         expect(resolvedCell).not.toBeNull();

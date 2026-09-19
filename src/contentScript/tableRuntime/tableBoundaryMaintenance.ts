@@ -67,7 +67,7 @@ function insertsNonWhitespace(inserted: Text): boolean {
  *
  * A table's separation is made of blank lines, so the only way an insertion can consume it
  * is by putting non-whitespace on one of them. Starting from the touched lines keeps table
- * resolution - which parses the table it finds - off the common keystroke path.
+ * lookups off the common keystroke path, which fills no blank line.
  */
 function collectFilledBlankLines(transaction: Transaction): Line[] {
     const { doc } = transaction.startState;

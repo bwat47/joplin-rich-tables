@@ -17,25 +17,23 @@ interface TableDecorationState {
 }
 
 /**
- * Build decorations for all tables in the document.
+ * Build decorations for all tables in the index, substituting a preserved active-table
+ * decoration when one is given. An incomplete index has no tables, so it builds none.
  * Tables are always rendered as widgets - editing happens via nested cell editors.
  */
-function buildTableDecorations(state: EditorState, activeHostInvalidated = false): TableDecorationState {
-    const index = state.field(tableContextField);
-    if (index.treeIncomplete) {
-        return { decorations: Decoration.none, activeHostInvalidated };
-    }
-
+function buildTableDecorations(
+    state: EditorState,
+    activeHostInvalidated = false,
+    preserved: PreservedActiveDecoration | null = null
+): TableDecorationState {
     const decorations = new RangeSetBuilder<Decoration>();
-    for (const ctx of index.tables) {
-        // RangeSetBuilder requires ranges in ascending document order.
-        const widget = new TableWidget(ctx);
-        const decoration = Decoration.replace({
-            widget,
-            block: true,
-        });
-
-        decorations.add(ctx.from, ctx.to, decoration);
+    // RangeSetBuilder requires ranges in ascending document order, which the index guarantees.
+    for (const context of state.field(tableContextField).tables) {
+        const decoration =
+            preserved?.context === context
+                ? preserved.decoration
+                : Decoration.replace({ widget: new TableWidget(context), block: true });
+        decorations.add(context.from, context.to, decoration);
     }
 
     return { decorations: decorations.finish(), activeHostInvalidated };
@@ -121,24 +119,8 @@ function reconcileTableDecorations(
         return value.activeHostInvalidated ? { ...value, activeHostInvalidated: false } : value;
     }
 
-    if (index.treeIncomplete) {
-        return buildTableDecorations(transaction.state, invalidated);
-    }
-
     const preserved = previousCell ? getPreservedActiveTableDecoration(value, transaction, previousCell, index) : null;
-    const decorations = new RangeSetBuilder<Decoration>();
-    for (const context of index.tables) {
-        const decoration =
-            preserved?.context === context
-                ? preserved.decoration
-                : Decoration.replace({ widget: new TableWidget(context), block: true });
-        decorations.add(context.from, context.to, decoration);
-    }
-
-    return {
-        decorations: decorations.finish(),
-        activeHostInvalidated: invalidated && !preserved,
-    };
+    return buildTableDecorations(transaction.state, invalidated && !preserved, preserved);
 }
 
 /**
