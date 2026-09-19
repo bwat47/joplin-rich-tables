@@ -1,45 +1,117 @@
-import { describe, expect, it } from 'vitest';
+import { markdown } from '@codemirror/lang-markdown';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { createMarkdownState } from './testMarkdownState';
+import { GFM } from '@lezer/markdown';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { tableContextField } from '../tableState/tableContextField';
+import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { findCellElement } from '../tableWidget/domHelpers';
+import { makeTableId, type CellCoords } from '../tableModel/types';
+
+class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+}
+
+const TEST_HOST_CONFIG = {
+    nestedEditor: { autoMatchingBraces: true, spellcheck: false },
+    tableAppearance: { zebraStriping: false },
+    toolbar: {
+        showMoveButtons: true,
+        showClearButtons: true,
+        showAlignmentButtons: true,
+        showDeleteTableButton: true,
+        showSortButtons: true,
+    },
+};
+
+const TABLE_A = ['| A1 | A2 |', '| --- | --- |', '| **a** | b |'].join('\n');
+const TABLE_B = ['| B1 | B2 |', '| --- | --- |', '| c | d |'].join('\n');
+const DOC = `intro\n\n${TABLE_A}\n\n${TABLE_B}\n\nend`;
+const TABLE_A_FROM = DOC.indexOf(TABLE_A);
+const TABLE_B_FROM = DOC.indexOf(TABLE_B);
+
+function createView(): EditorView {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    return new EditorView({
+        parent,
+        state: EditorState.create({
+            doc: DOC,
+            selection: EditorSelection.single(0),
+            extensions: [
+                markdown({ extensions: [GFM] }),
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
+                nestedEditorPlugin,
+                tableContextField,
+                activeCellField,
+                openCellRequestField,
+                tableDecorationField,
+            ],
+        }),
+    });
+}
+
+function requireCell(view: EditorView, tableFrom: number, cell: CellCoords): HTMLElement {
+    const element = findCellElement(view, makeTableId(tableFrom), cell);
+    if (!element) {
+        throw new Error(`Expected a rendered cell in the table at ${tableFrom}`);
+    }
+    return element;
+}
 
 describe('resolveTableContextFromEventTarget', () => {
-    it('uses activeCell.tableFrom as the fallback identity when DOM lookup fails', () => {
-        const doc = [
-            '| H1 | H2 |',
-            '| --- | --- |',
-            '| a1 |  |',
-            '',
-            '|  | Bands |',
-            '| --- | :--- |',
-            '| **2G:** | `GSM 850 / 900 / 1800 / 1900 CDMA 800` a |',
-        ].join('\n');
-        let state = createMarkdownState(doc, [activeCellField]);
-        state = state.update({
-            effects: setActiveCellEffect.of({
-                tableFrom: 0,
-                section: 'body',
-                row: 0,
-                col: 1,
-            }),
-        }).state;
+    beforeEach(() => {
+        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+    });
 
-        const view = {
-            state,
-            posAtDOM: () => {
-                throw new Error('force active-cell fallback');
-            },
-        } as unknown as EditorView;
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        document.body.innerHTML = '';
+    });
 
-        const target = {
-            closest: () => null,
-        } as unknown as HTMLElement;
+    it('resolves each cell and its rendered content to the table that renders it', () => {
+        const view = createView();
 
-        const context = resolveTableContextFromEventTarget(view, target);
+        for (const tableFrom of [TABLE_A_FROM, TABLE_B_FROM]) {
+            const cell = requireCell(view, tableFrom, { section: 'body', row: 0, col: 0 });
+            expect(resolveTableContextFromEventTarget(view, cell)?.from).toBe(tableFrom);
+            for (const descendant of cell.querySelectorAll<HTMLElement>('*')) {
+                expect(resolveTableContextFromEventTarget(view, descendant)?.from).toBe(tableFrom);
+            }
+        }
 
-        expect(context).not.toBeNull();
-        expect(context?.from).toBe(0);
-        expect(context?.table.bodyRows[0][1]).toBe('');
+        view.destroy();
+    });
+
+    it('resolves a cell in another table while a nested editor is open, and the editor to its own table', () => {
+        const view = createView();
+        const activeCell: ActiveCell = { tableFrom: TABLE_A_FROM, section: 'body', row: 0, col: 1 };
+        view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
+        expect(
+            view.plugin(nestedEditorPlugin)?.controller.open({
+                mainView: view,
+                cellElement: requireCell(view, TABLE_A_FROM, activeCell),
+                featureSettings: TEST_HOST_CONFIG.nestedEditor,
+            })
+        ).toBe(true);
+        expect(isNestedEditorOpen(view)).toBe(true);
+
+        const otherTableCell = requireCell(view, TABLE_B_FROM, { section: 'header', row: 0, col: 1 });
+        expect(resolveTableContextFromEventTarget(view, otherTableCell)?.from).toBe(TABLE_B_FROM);
+
+        const nestedLine = requireCell(view, TABLE_A_FROM, activeCell).querySelector<HTMLElement>('.cm-line');
+        expect(nestedLine).not.toBeNull();
+        expect(resolveTableContextFromEventTarget(view, nestedLine as HTMLElement)?.from).toBe(TABLE_A_FROM);
+
+        view.destroy();
     });
 });
