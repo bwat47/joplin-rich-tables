@@ -173,10 +173,6 @@ class TableToolbarPlugin {
 
     private getActionHandler(actionId: ToolbarActionId): () => boolean {
         return () => {
-            if (!this.currentActiveCell) {
-                return false;
-            }
-
             const resolvedCell = getResolvedActiveCell(this.view.state);
             if (!resolvedCell) {
                 return false;
