@@ -739,12 +739,54 @@ describe('nestedEditorLifecycle', () => {
             activeCell,
         });
 
+        const resolved = resolveActiveCell(view.state, activeCell);
+        if (!resolved) {
+            throw new Error('Expected the active cell to resolve');
+        }
+
         view.dispatch({
             selection: { anchor: 0 },
         });
         flushAnimationFrames();
 
-        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
+        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenNthCalledWith(1, view, {
+            contentFrom: resolved.contentFrom,
+            contentTo: resolved.contentTo,
+        });
+        expect(getActiveCell(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
+    it('closes with the shifted cell range when an edit before the table also moves selection out', () => {
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+
+        const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
+        const tableFrom = 'before\n\n'.length;
+        const insertedText = 'top\n';
+        const view = createLifecycleView({
+            doc: prefixedDoc,
+            selection: { anchor: tableFrom + 2 },
+            activeCell: headerCell({ tableFrom }),
+        });
+
+        // One transaction that shifts the table without touching it and leaves the table:
+        // the active host is preserved, so the cell's widget stays mounted.
+        view.dispatch({
+            changes: { from: 0, to: 0, insert: insertedText },
+            selection: { anchor: 0 },
+        });
+
+        const closeParams = nestedEditorControllerMock.closeNestedEditor.mock.calls[0]?.[1] as
+            { contentFrom: number; contentTo: number } | undefined;
+        expect(closeParams).toBeDefined();
+        if (!closeParams) {
+            throw new Error('Expected the close to carry a cell range');
+        }
+        expect(closeParams.contentFrom).toBe(tableFrom + insertedText.length + '| '.length);
+        expect(view.state.doc.sliceString(closeParams.contentFrom, closeParams.contentTo)).toBe('H1');
+
+        flushAnimationFrames();
         expect(getActiveCell(view.state)).toBeNull();
 
         view.destroy();

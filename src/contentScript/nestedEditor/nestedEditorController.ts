@@ -237,16 +237,16 @@ class NestedEditorController {
     }
 
     /**
-     * Resolve cell range for close(), preferring freshly-resolved positions over
-     * cached session positions. After undo/redo, the cached resolved cell may
-     * point to stale document positions until it is refreshed, causing close()
-     * to read the wrong cell text.
+     * Resolve cell range for close().
      *
-     * Re-resolves the cell using the session's own identity and cached table
-     * position against the current editor state. This stays anchored to the
-     * session's table (avoiding cross-table misreads when open() closes a
-     * previous session after activating a cell in a different table) while
-     * picking up any position shifts from undo/redo.
+     * A lifecycle close that runs inside a document-changing update passes the range explicitly:
+     * the session is only synced from main-editor updates it is not closed by, so its cached
+     * positions still reflect that update's start state.
+     *
+     * Otherwise the session's own cell identity is re-resolved against the current state. That
+     * stays anchored to the session's table, rather than the newly active cell when open() closes
+     * a previous session. An anchor that no longer matches a table start does not resolve, and the
+     * cell keeps the rendering it had before the session opened.
      */
     private resolveCellRangeForClose(
         params: { contentFrom?: number; contentTo?: number } | undefined,
