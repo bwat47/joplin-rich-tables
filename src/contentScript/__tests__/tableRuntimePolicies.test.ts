@@ -14,6 +14,7 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
     reduceTableRuntime,
+    type ActiveCellFacts,
     type TableRuntimeAction,
     type TableRuntimeFacts,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
@@ -61,6 +62,20 @@ function requireResolvedActiveCell(state: EditorState) {
     return resolved;
 }
 
+const RESOLVED_HEADER_CELL = requireResolvedActiveCell(createState({ activeCell: getHeaderCell() }));
+const RESOLVED_HEADER_CELL_RANGE = {
+    contentFrom: RESOLVED_HEADER_CELL.contentFrom,
+    contentTo: RESOLVED_HEADER_CELL.contentTo,
+};
+
+function resolvedActiveCellFacts(selectionLeftActiveTable: boolean): ActiveCellFacts {
+    return {
+        status: 'resolved',
+        resolvedCell: RESOLVED_HEADER_CELL,
+        selectionLeftActiveTable,
+    };
+}
+
 function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableRuntimeFacts {
     return {
         activeCell: { status: 'absent' },
@@ -97,7 +112,7 @@ describe('tableRuntimePolicies', () => {
         {
             name: 'explicit open suppresses other lifecycle work but keeps inserted-table activation',
             overrides: {
-                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCell: resolvedActiveCellFacts(true),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
@@ -120,7 +135,7 @@ describe('tableRuntimePolicies', () => {
         {
             name: 'inserted-table activation is appended after a reposition terminal branch',
             overrides: {
-                activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+                activeCell: resolvedActiveCellFacts(false),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
@@ -128,7 +143,7 @@ describe('tableRuntimePolicies', () => {
                 hasInsertedTableActivation: true,
             },
             expected: [
-                { type: 'closeNestedEditor', reason: 'cellReposition' },
+                { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
                 {
                     type: 'scheduleActivateCellAtCursor',
                     options: {
@@ -143,7 +158,7 @@ describe('tableRuntimePolicies', () => {
         {
             name: 'source-mode exit suppresses visibility, reposition, selection cleanup, and continuing work',
             overrides: {
-                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCell: resolvedActiveCellFacts(true),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
@@ -192,7 +207,7 @@ describe('tableRuntimePolicies', () => {
         {
             name: 'visibility work precedes reposition',
             overrides: {
-                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCell: resolvedActiveCellFacts(true),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
@@ -207,7 +222,7 @@ describe('tableRuntimePolicies', () => {
             },
             expected: [
                 { type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' },
-                { type: 'closeNestedEditor', reason: 'cellReposition' },
+                { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
                 {
                     type: 'scheduleActivateCellAtCursor',
                     options: {
@@ -221,19 +236,26 @@ describe('tableRuntimePolicies', () => {
         {
             name: 'selection cleanup wins over sync and stale cleanup',
             overrides: {
-                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCell: resolvedActiveCellFacts(true),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
                 selectionChanged: true,
                 activeCellIdentityUnchanged: true,
             },
-            expected: [{ type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' }, { type: 'clearActiveCell' }],
+            expected: [
+                {
+                    type: 'closeNestedEditor',
+                    reason: 'selectionLeftActiveTable',
+                    mappedRange: RESOLVED_HEADER_CELL_RANGE,
+                },
+                { type: 'clearActiveCell' },
+            ],
         },
         {
             name: 'a mouse cell drag keeps its anchor editor open while the caret follows the pointer',
             overrides: {
-                activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+                activeCell: resolvedActiveCellFacts(true),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 selectionChanged: true,
@@ -605,7 +627,7 @@ describe('tableRuntimePolicies', () => {
 
     it('appends inserted-table activation after explicit open requests', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             hasInsertedTableActivation: true,
@@ -723,7 +745,7 @@ describe('tableRuntimePolicies', () => {
             annotations: normalizeBeforeEditAnnotation.of(true),
         });
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             activeCellBefore: 'resolved',
             docChanged: true,
             selectionChanged: true,
@@ -739,7 +761,7 @@ describe('tableRuntimePolicies', () => {
 
     it('does not plan a generic reopen without an explicit request', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
         });
@@ -749,17 +771,18 @@ describe('tableRuntimePolicies', () => {
 
     it('plans nested editor sync from document changes or same-cell selection changes', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
         });
 
         expect(reduceTableRuntime({ ...facts, docChanged: true })).toContainEqual({
             type: 'syncMainToNested',
+            resolvedCell: RESOLVED_HEADER_CELL,
         });
         expect(
             reduceTableRuntime({ ...facts, selectionChanged: true, activeCellIdentityUnchanged: true })
-        ).toContainEqual({ type: 'syncMainToNested' });
+        ).toContainEqual({ type: 'syncMainToNested', resolvedCell: RESOLVED_HEADER_CELL });
         expect(reduceTableRuntime({ ...facts, selectionChanged: true })).toEqual([]);
     });
 
@@ -773,12 +796,12 @@ describe('tableRuntimePolicies', () => {
             activeCellIdentityUnchanged: true,
         });
 
-        expect(reduceTableRuntime(facts)).not.toContainEqual({ type: 'syncMainToNested' });
+        expect(reduceTableRuntime(facts).some((action) => action.type === 'syncMainToNested')).toBe(false);
     });
 
     it('does not mirror cell-drag selection transitions into the retained nested editor', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             activeCellIdentityUnchanged: true,
@@ -792,7 +815,7 @@ describe('tableRuntimePolicies', () => {
 
     it('prefers an explicit open request over generic branches', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+            activeCell: resolvedActiveCellFacts(true),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             docChanged: true,
@@ -806,7 +829,7 @@ describe('tableRuntimePolicies', () => {
 
     it('uses the classified open request id', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             openRequestId: 'latest-request',
@@ -817,7 +840,7 @@ describe('tableRuntimePolicies', () => {
 
     it('uses the resolved update range when undo or redo repositions the active cell', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             docChanged: true,
@@ -825,7 +848,7 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditor', reason: 'cellReposition' },
+            { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
             {
                 type: 'scheduleActivateCellAtCursor',
                 options: {
@@ -857,14 +880,14 @@ describe('tableRuntimePolicies', () => {
 
     it('closes and clears the active cell when selection moves outside the active table', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+            activeCell: resolvedActiveCellFacts(true),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             selectionChanged: true,
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' },
+            { type: 'closeNestedEditor', reason: 'selectionLeftActiveTable', mappedRange: RESOLVED_HEADER_CELL_RANGE },
             { type: 'clearActiveCell' },
         ]);
     });
@@ -881,7 +904,7 @@ describe('tableRuntimePolicies', () => {
 
     it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+            activeCell: resolvedActiveCellFacts(true),
             nestedEditorOpen: true,
             activeCellBefore: 'resolved',
             selectionChanged: true,
@@ -894,7 +917,7 @@ describe('tableRuntimePolicies', () => {
 
     it('does not clear the active cell when selection leaves the table after the nested editor already closed', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: true },
+            activeCell: resolvedActiveCellFacts(true),
             nestedEditorOpen: false,
             activeCellBefore: 'resolved',
             selectionChanged: true,
@@ -905,7 +928,7 @@ describe('tableRuntimePolicies', () => {
 
     it('plans stale active cell cleanup when the nested editor is gone', () => {
         const facts = defaultRuntimeFacts({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: resolvedActiveCellFacts(false),
             nestedEditorOpen: false,
             activeCellBefore: 'resolved',
             docChanged: true,

@@ -66,6 +66,7 @@ const TEST_HOST_CONFIG = {
 } satisfies HostEditorConfig;
 const nestedEditorControllerMock = nestedEditorController as unknown as {
     closeNestedEditor: Mock;
+    handleMainEditorUpdate: Mock;
     isNestedEditorOpen: Mock;
     openNestedEditor: Mock;
 };
@@ -185,6 +186,7 @@ describe('nestedEditorLifecycle', () => {
         activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
         nestedEditorControllerMock.closeNestedEditor.mockReset();
+        nestedEditorControllerMock.handleMainEditorUpdate.mockReset();
         nestedEditorControllerMock.isNestedEditorOpen.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReturnValue(true);
@@ -282,6 +284,28 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    it('passes the classified resolved cell when syncing a main-editor update', () => {
+        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+
+        const view = createLifecycleView({
+            doc: CANONICAL_DOC,
+            activeCell: headerCell(),
+            selection: { anchor: CANONICAL_DOC.indexOf('H1') },
+        });
+
+        view.dispatch({ selection: { anchor: CANONICAL_DOC.indexOf('H1') + 1 } });
+
+        const resolvedCell = resolveActiveCell(view.state, getActiveCell(view.state));
+        expect(resolvedCell).not.toBeNull();
+        expect(nestedEditorControllerMock.handleMainEditorUpdate).toHaveBeenCalledWith(
+            view,
+            expect.anything(),
+            resolvedCell
+        );
+
+        view.destroy();
+    });
+
     it('renders tables immediately and repositions after a full replace with a cell open', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
@@ -333,7 +357,7 @@ describe('nestedEditorLifecycle', () => {
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: true });
             flushAnimationFrames();
 
-            expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view);
+            expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, undefined);
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
             expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_TABLE_TO + 1);

@@ -84,6 +84,7 @@ function getActiveCellFacts(
     }
     return {
         status: 'resolved',
+        resolvedCell: resolvedActiveCell,
         selectionLeftActiveTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
     };
 }

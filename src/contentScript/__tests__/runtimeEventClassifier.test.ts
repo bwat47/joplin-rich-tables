@@ -15,6 +15,7 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { createMarkdownState } from './testMarkdownState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
+import { requireResolvedActiveCell } from './testUtils';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC_WITH_SURROUNDING_TEXT = ['before', '', TABLE_DOC, '', 'after'].join('\n');
@@ -126,7 +127,11 @@ describe('runtimeEventClassifier', () => {
         });
 
         expect(classifyTableRuntimeFacts(update, externalFacts)).toEqual({
-            activeCell: { status: 'resolved', selectionLeftActiveTable: false },
+            activeCell: {
+                status: 'resolved',
+                resolvedCell: requireResolvedActiveCell(update.state),
+                selectionLeftActiveTable: false,
+            },
             activeCellBefore: 'resolved',
             activeCellIdentityUnchanged: true,
             cellDragInProgress: false,
@@ -278,7 +283,11 @@ describe('runtimeEventClassifier', () => {
         });
         const facts = classifyTableRuntimeFacts(update, externalFacts);
 
-        expect(facts.activeCell).toEqual({ status: 'resolved', selectionLeftActiveTable: true });
+        expect(facts.activeCell).toEqual({
+            status: 'resolved',
+            resolvedCell: requireResolvedActiveCell(update.state),
+            selectionLeftActiveTable: true,
+        });
     });
 
     it('detects redo edits outside the active cell as reposition events', () => {

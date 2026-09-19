@@ -27,6 +27,7 @@ import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { htmlFragment, requireResolvedActiveCell } from './testUtils';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 
 // jsdom does not implement Range measurement, which CodeMirror's selection layer calls.
 if (!Range.prototype.getClientRects) {
@@ -71,8 +72,9 @@ function createHarness(params: {
                 markdownRenderServiceFacet.of(renderer),
                 nestedEditorPlugin,
                 EditorView.updateListener.of((update) => {
-                    if (mainView && (update.docChanged || update.selectionSet)) {
-                        handleMainEditorUpdate(mainView, update);
+                    const resolvedCell = getResolvedActiveCell(update.state);
+                    if (mainView && resolvedCell && (update.docChanged || update.selectionSet)) {
+                        handleMainEditorUpdate(mainView, update, resolvedCell);
                     }
                 }),
             ],

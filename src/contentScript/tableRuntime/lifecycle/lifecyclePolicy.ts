@@ -1,13 +1,19 @@
 import type { CellEntryMode } from '../openCellRequest';
+import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
 export type ActiveCellFacts =
     | { status: 'absent' }
     | { status: 'unresolved' }
     | {
           status: 'resolved';
+          resolvedCell: ResolvedActiveCell;
           // True when either main-selection endpoint is outside the resolved table.
           selectionLeftActiveTable: boolean;
       };
+
+type ResolvedActiveCellFacts = Extract<ActiveCellFacts, { status: 'resolved' }>;
+
+type MappedCellRange = Pick<ResolvedActiveCell, 'contentFrom' | 'contentTo'>;
 
 export interface TableRuntimeFacts {
     // Post-update editor state
@@ -54,13 +60,19 @@ export interface ActivateCellAtCursorOptions {
     entryMode: Extract<CellEntryMode, 'enter' | 'adopt'>;
 }
 
-export type NestedEditorCloseReason =
+type NestedEditorCloseReason =
     'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved' | 'noteChanged';
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
-    | { type: 'closeNestedEditor'; reason: NestedEditorCloseReason }
-    | { type: 'syncMainToNested' }
+    | {
+          type: 'closeNestedEditor';
+          reason: NestedEditorCloseReason;
+          // Set for closes whose widget stays mounted, so the re-rendered text lands in the cell's
+          // range after the update.
+          mappedRange?: MappedCellRange;
+      }
+    | { type: 'syncMainToNested'; resolvedCell: ResolvedActiveCell }
     | { type: 'clearActiveCell' }
     | {
           type: 'scheduleActivateCellAtCursor';
@@ -132,7 +144,11 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
 
     if (requiresCellReposition(facts)) {
         if (facts.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', reason: 'cellReposition' });
+            actions.push({
+                type: 'closeNestedEditor',
+                reason: 'cellReposition',
+                mappedRange: getMappedCellRange(facts.activeCell),
+            });
         }
         actions.push({
             type: 'scheduleActivateCellAtCursor',
@@ -143,7 +159,11 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
 
     if (shouldClearActiveCellWhenSelectionLeavesTable(facts)) {
         if (facts.nestedEditorOpen) {
-            actions.push({ type: 'closeNestedEditor', reason: 'selectionLeftActiveTable' });
+            actions.push({
+                type: 'closeNestedEditor',
+                reason: 'selectionLeftActiveTable',
+                mappedRange: getMappedCellRange(facts.activeCell),
+            });
         }
         actions.push({ type: 'clearActiveCell' });
         return actions;
@@ -154,7 +174,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     if (shouldSyncMainToNested(facts)) {
-        actions.push({ type: 'syncMainToNested' });
+        actions.push({ type: 'syncMainToNested', resolvedCell: facts.activeCell.resolvedCell });
     }
 
     if (shouldClearStaleActiveCell(facts)) {
@@ -162,6 +182,26 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     return actions;
+}
+
+/**
+ * The active cell's range after the update, for closes whose widget can stay mounted so the text
+ * re-rendered into the cell is what the user sees.
+ *
+ * These closes run inside the update that triggered them, before the controller syncs the session
+ * from it, so the session's cached cell still reflects the start state. The cell classified from
+ * the post-update state is the session's own cell mapped through the transaction, so its range is
+ * correct even when the same transaction edited the document or shifted the table.
+ */
+function getMappedCellRange(activeCell: ActiveCellFacts): MappedCellRange | undefined {
+    if (activeCell.status !== 'resolved') {
+        return undefined;
+    }
+
+    return {
+        contentFrom: activeCell.resolvedCell.contentFrom,
+        contentTo: activeCell.resolvedCell.contentTo,
+    };
 }
 
 // Source-mode and search-force exits bypass the normal raw-mode exit flow and
@@ -203,7 +243,9 @@ function shouldClearStaleActiveCell(facts: TableRuntimeFacts): boolean {
 
 // A drag parks the main caret in the cell under the pointer; syncing the open cell from it
 // would overwrite the cell's text with the drag's own selection.
-function shouldSyncMainToNested(facts: TableRuntimeFacts): boolean {
+function shouldSyncMainToNested(
+    facts: TableRuntimeFacts
+): facts is TableRuntimeFacts & { activeCell: ResolvedActiveCellFacts } {
     return (
         facts.nestedEditorOpen &&
         !facts.isSync &&

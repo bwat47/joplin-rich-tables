@@ -168,20 +168,19 @@ class NestedEditorController {
      * resolving, the main editor guard clears it in the same transaction and the lifecycle closes
      * the session.
      */
-    handleMainEditorUpdate(update: ViewUpdate): void {
+    handleMainEditorUpdate(update: ViewUpdate, resolvedCell: ResolvedActiveCell): void {
         if (!this.session || !this.mainView) {
             return;
         }
 
-        const resolved = getResolvedActiveCell(update.state);
-        if (!resolved) {
-            return;
-        }
+        this.session.resolvedCell = resolvedCell;
 
-        this.session.resolvedCell = resolved;
-
-        const rootText = update.state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
-        const rootSelection = toRelativeSelection(update.state.selection, resolved.editableFrom, resolved.editableTo);
+        const rootText = update.state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo);
+        const rootSelection = toRelativeSelection(
+            update.state.selection,
+            resolvedCell.editableFrom,
+            resolvedCell.editableTo
+        );
         const mainSelection = update.state.selection.main;
 
         forceRootDomSelection(this.mainView, {
@@ -477,8 +476,8 @@ export function isNestedEditorOpen(view: EditorView): boolean {
     return getController(view)?.isOpen() ?? false;
 }
 
-export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate): void {
-    getController(view)?.handleMainEditorUpdate(update);
+export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate, resolvedCell: ResolvedActiveCell): void {
+    getController(view)?.handleMainEditorUpdate(update, resolvedCell);
 }
 
 export function refocusNestedEditor(view: EditorView): void {

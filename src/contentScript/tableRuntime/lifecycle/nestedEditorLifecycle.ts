@@ -21,12 +21,7 @@ import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
-import {
-    reduceTableRuntime,
-    type ActivateCellAtCursorOptions,
-    type NestedEditorCloseReason,
-    type TableRuntimeAction,
-} from './lifecyclePolicy';
+import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { getPositionOutsideTable } from '../navigation/cursorUtils';
@@ -97,17 +92,13 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.scheduleEnsureCursorVisible(action.mode);
                         break;
                     case 'closeNestedEditor':
-                        if (rendersFromMappedCell(action.reason)) {
-                            closeNestedEditor(this.view, snapshotResolvedCellRange(update.state) ?? undefined);
-                        } else {
-                            closeNestedEditor(this.view);
-                        }
+                        closeNestedEditor(this.view, action.mappedRange);
                         break;
                     case 'openRequestedCell':
                         this.scheduleOpenRequestedCell(action.requestId);
                         break;
                     case 'syncMainToNested':
-                        handleMainEditorUpdate(this.view, update);
+                        handleMainEditorUpdate(this.view, update, action.resolvedCell);
                         break;
                     case 'clearActiveCell':
                         requestViewAnimationFrame(this.view, () => {
@@ -247,27 +238,3 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
     }
 );
-
-/**
- * Closes whose widget can stay mounted, so the text re-rendered into the cell is what the user sees.
- *
- * These closes run inside the update that triggered them, before the controller syncs the session
- * from it, so the session's cached cell still reflects the start state. The cell resolved from
- * `update.state` is the session's own cell mapped through the transaction, so its range is correct
- * even when the same transaction edited the document or shifted the table.
- */
-function rendersFromMappedCell(reason: NestedEditorCloseReason): boolean {
-    return reason === 'cellReposition' || reason === 'selectionLeftActiveTable';
-}
-
-function snapshotResolvedCellRange(state: EditorView['state']): { contentFrom: number; contentTo: number } | null {
-    const resolved = getResolvedActiveCell(state);
-    if (!resolved) {
-        return null;
-    }
-
-    return {
-        contentFrom: resolved.contentFrom,
-        contentTo: resolved.contentTo,
-    };
-}
