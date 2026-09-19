@@ -1,5 +1,6 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import { isSameCellCoords, type CellCoords } from '../tableModel/types';
+import { mapTableStartThroughChanges } from './tableStartMapping';
 
 export interface ActiveCell extends CellCoords {
     tableFrom: number;
@@ -18,23 +19,16 @@ export const clearActiveCellEffect = StateEffect.define<void>();
 /**
  * Maps an active-cell anchor from the pre-change document into the changed document.
  *
- * Stale anchors are rejected up front, before `mapPos` can throw for a position outside
- * the pre-change document. `Number.isFinite` is load-bearing here: both range comparisons
- * evaluate false for NaN, so neither one would reject it. Once the anchor is known to be
- * within `[0, changes.length]`, `mapPos` always returns a finite in-document position, so
- * the result needs no further checking.
+ * Stale anchors outside the pre-change document are dropped. Deleting the table's first
+ * character keeps the active cell at the deletion point.
  */
 export function mapActiveCellThroughChanges(activeCell: ActiveCell | null, changes: ChangeDesc): ActiveCell | null {
-    if (
-        !activeCell ||
-        !Number.isFinite(activeCell.tableFrom) ||
-        activeCell.tableFrom < 0 ||
-        activeCell.tableFrom > changes.length
-    ) {
+    if (!activeCell) {
         return null;
     }
 
-    return { ...activeCell, tableFrom: changes.mapPos(activeCell.tableFrom, 1) };
+    const tableFrom = mapTableStartThroughChanges(activeCell.tableFrom, changes);
+    return tableFrom === null ? null : { ...activeCell, tableFrom };
 }
 
 export const activeCellField = StateField.define<ActiveCell | null>({

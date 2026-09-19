@@ -1,9 +1,10 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc, type TransactionSpec } from '@codemirror/state';
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
-import { mapActiveCellThroughChanges, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
+import { mapTableStartUnlessDeleted } from '../tableState/tableStartMapping';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
@@ -77,24 +78,14 @@ let nextOpenCellRequestId = 1;
  * Maps a pending request's anchor through a change set, dropping the request when the
  * anchor can no longer identify the table it was made against.
  *
- * The deletion scan is specific to open requests: an anchor sitting inside a deleted range
- * maps to the deletion point rather than disappearing, so a request whose table was removed
- * would otherwise survive and reopen against whatever text replaced it. Bounds-safe mapping
- * is shared with the active-cell field so both agree on which anchors are salvageable.
+ * Deletion-aware table-start mapping prevents a request whose table was removed from
+ * surviving at the deletion point and reopening against whatever text replaced it.
  */
 function mapActiveCell(activeCell: ActiveCell, changes: ChangeDesc): ActiveCell | undefined {
-    let tableStartDeleted = false;
-    changes.iterChangedRanges((fromA, toA) => {
-        if (fromA <= activeCell.tableFrom && activeCell.tableFrom < toA) {
-            tableStartDeleted = true;
-        }
-    });
-    if (tableStartDeleted) {
-        return undefined;
-    }
+    const tableFrom = mapTableStartUnlessDeleted(activeCell.tableFrom, changes);
 
     // `undefined` (not null) is what StateEffect.map needs in order to drop the effect.
-    return mapActiveCellThroughChanges(activeCell, changes) ?? undefined;
+    return tableFrom === null ? undefined : { ...activeCell, tableFrom };
 }
 
 function createOpenCellRequestId(): string {
