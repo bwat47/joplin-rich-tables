@@ -86,7 +86,7 @@ describe('resolvedActiveCell', () => {
         }
     });
 
-    it('resolves an in-document anchor that no longer points at the table start', () => {
+    it('returns null for an in-table anchor that no longer points at the table start', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const state = createState(doc);
 
@@ -97,8 +97,7 @@ describe('resolvedActiveCell', () => {
             col: 0,
         });
 
-        expect(resolved?.ctx.from).toBe(0);
-        expect(state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('H1');
+        expect(resolved).toBeNull();
     });
 
     it('returns null when the logical cell no longer exists in the anchored table', () => {

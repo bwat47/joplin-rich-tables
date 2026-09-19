@@ -41,9 +41,9 @@ export function createResolvedActiveCell(params: { ctx: TableContext; coords: Ce
 }
 
 /**
- * Resolves the active cell against the table containing its anchor. An anchor that no longer
- * points at a table start still resolves to the table containing it, which nested-editor
- * sessions rely on to recover from document drift.
+ * Resolves the active cell against the table starting at its anchor. An anchor that no longer
+ * points at a table start does not resolve, so every resolved cell's identity matches its
+ * table; lifecycle policy repositions or clears the stale cell.
  */
 export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | null): ResolvedActiveCell | null {
     if (!activeCell) {
@@ -51,7 +51,7 @@ export function resolveActiveCell(state: EditorState, activeCell: ActiveCell | n
     }
 
     const ctx = getTableContextAtPos(state, activeCell.tableFrom);
-    if (!ctx) {
+    if (!ctx || ctx.from !== activeCell.tableFrom) {
         return null;
     }
 
