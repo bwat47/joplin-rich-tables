@@ -10,8 +10,8 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@joplin/fork-uslug': path.resolve(__dirname, '__mocks__/@joplin/fork-uslug.ts'),
-            api: path.resolve(__dirname, 'api/index.ts'),
+            '@joplin/fork-uslug': path.resolve(import.meta.dirname, '__mocks__/@joplin/fork-uslug.ts'),
+            api: path.resolve(import.meta.dirname, 'api/index.ts'),
         },
     },
 });
