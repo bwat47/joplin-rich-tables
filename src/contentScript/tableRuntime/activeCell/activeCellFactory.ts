@@ -1,14 +1,13 @@
-import type { TableCellRanges } from '../../tableModel/markdownTableCellRanges';
 import type { SerializedTable } from '../../tableModel/MarkdownTable';
 import {
+    clampCellToRanges,
     computeCellAnchorForTable,
-    computeCellAnchorFromRanges,
     type TargetCell,
     type TableCellAnchor,
 } from '../../tableModel/cellAnchors';
 import type { ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
-import { createResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
+import { toResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
 
 export interface ActiveCellSelectionTarget {
     activeCell: ActiveCell;
@@ -25,18 +24,6 @@ function toActiveCellSelectionTarget(tableFrom: number, anchor: TableCellAnchor)
         },
         selectionAnchor: tableFrom + anchor.anchorOffset,
     };
-}
-
-function createActiveCellFromRanges(params: {
-    tableFrom: number;
-    ranges: TableCellRanges;
-    target: TargetCell;
-}): ActiveCellSelectionTarget | null {
-    const anchor = computeCellAnchorFromRanges({
-        ranges: params.ranges,
-        target: params.target,
-    });
-    return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;
 }
 
 export function createActiveCellForTable(params: {
@@ -59,11 +46,7 @@ export function createActiveCellForTable(params: {
  * Cell identity read back from editor state must never be clamped: `createResolvedActiveCell`
  * returning null is how the lifecycle learns that an active cell no longer exists.
  */
-export function resolveClampedCell(params: { ctx: TableContext; target: TargetCell }): ResolvedActiveCell | null {
-    const clamped = createActiveCellFromRanges({
-        tableFrom: params.ctx.from,
-        ranges: params.ctx.cellRanges,
-        target: params.target,
-    });
-    return clamped ? createResolvedActiveCell({ ctx: params.ctx, coords: clamped.activeCell }) : null;
+export function resolveClampedCell(params: { ctx: TableContext; target: TargetCell }): ResolvedActiveCell {
+    const { coords, range } = clampCellToRanges(params.ctx.cellRanges, params.target);
+    return toResolvedActiveCell({ ctx: params.ctx, coords, range });
 }

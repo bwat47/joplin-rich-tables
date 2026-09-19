@@ -13,7 +13,6 @@ import {
     buildMultiCellPasteRewrite,
     buildSelectionRemovalRewrite,
     copySelectionAsMarkdown,
-    extractSelectedCellContents,
     handleSelectionDelete,
     handleTableClipboardPaste,
     handleTableClipboardTextPaste,
@@ -55,43 +54,37 @@ describe('cellSelectionClipboard', () => {
         setActiveElement(document.body);
     });
 
-    it('extracts header-only selections', () => {
+    it('copies header-only selections', () => {
         const state = createMarkdownState(doc);
 
         expect(
-            extractSelectedCellContents(
+            copySelectionAsMarkdown(
                 state,
                 selection({ section: 'header', row: 0, col: 0 }, { section: 'header', row: 0, col: 1 })
             )
-        ).toEqual([[String.raw`H\|1`, 'H2']]);
+        ).toBe([String.raw`| H\|1 | H2 |`, '| :--- | ---: |'].join('\n'));
     });
 
-    it('extracts body-only selections', () => {
+    it('copies body-only selections including empty cells', () => {
         const state = createMarkdownState(doc);
 
         expect(
-            extractSelectedCellContents(
+            copySelectionAsMarkdown(
                 state,
                 selection({ section: 'body', row: 0, col: 1 }, { section: 'body', row: 1, col: 2 })
             )
-        ).toEqual([
-            [String.raw`b\|c`, ''],
-            ['<br>', 'z'],
-        ]);
+        ).toBe([String.raw`| b\|c |  |`, '| --- | --- |', '| <br> | z |'].join('\n'));
     });
 
-    it('extracts selections spanning header and body rows', () => {
+    it('copies selections spanning header and body rows', () => {
         const state = createMarkdownState(doc);
 
         expect(
-            extractSelectedCellContents(
+            copySelectionAsMarkdown(
                 state,
                 selection({ section: 'header', row: 0, col: 1 }, { section: 'body', row: 0, col: 2 })
             )
-        ).toEqual([
-            ['H2', 'H3'],
-            [String.raw`b\|c`, ''],
-        ]);
+        ).toBe(['| H2 | H3 |', '| ---: | --- |', String.raw`| b\|c |  |`].join('\n'));
     });
 
     it('serializes selections with original alignments when the header is included', () => {

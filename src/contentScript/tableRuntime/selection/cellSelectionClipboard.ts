@@ -65,11 +65,6 @@ export interface TableClipboardRewrite {
     selectionAnchorPos: number;
 }
 
-export function extractSelectedCellContents(state: EditorState, selection: CellSelection): string[][] {
-    const ctx = getTableContextStartingAt(state, selection.tableFrom);
-    return ctx ? extractCellContents(ctx, toSelectionRect(selection)) : [];
-}
-
 function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
     const rows: string[][] = [];
 

@@ -3,7 +3,7 @@ import { getActiveCell, type ActiveCell } from '../../tableState/activeCellState
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import type { CellCoords } from '../../tableModel/types';
-import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
+import { getCellRange, type CellRange } from '../../tableModel/markdownTableCellRanges';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;
@@ -14,17 +14,13 @@ export interface ResolvedActiveCell {
     editableTo: number;
 }
 
-export function createResolvedActiveCell(params: { ctx: TableContext; coords: CellCoords }): ResolvedActiveCell | null {
-    const { ctx, coords } = params;
-    const range = getCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords,
-    });
-    if (!range) {
-        return null;
-    }
-
+/** Builds a resolved cell from coordinates already known to name `range` in `ctx`. */
+export function toResolvedActiveCell(params: {
+    ctx: TableContext;
+    coords: CellCoords;
+    range: CellRange;
+}): ResolvedActiveCell {
+    const { ctx, coords, range } = params;
     return {
         activeCell: {
             tableFrom: ctx.from,
@@ -33,11 +29,16 @@ export function createResolvedActiveCell(params: { ctx: TableContext; coords: Ce
             col: coords.col,
         },
         ctx,
-        contentFrom: range.contentFrom,
-        contentTo: range.contentTo,
-        editableFrom: range.editableFrom,
-        editableTo: range.editableTo,
+        contentFrom: ctx.from + range.from,
+        contentTo: ctx.from + range.to,
+        editableFrom: ctx.from + range.editableFrom,
+        editableTo: ctx.from + range.editableTo,
     };
+}
+
+export function createResolvedActiveCell(params: { ctx: TableContext; coords: CellCoords }): ResolvedActiveCell | null {
+    const range = getCellRange(params.ctx.cellRanges, params.coords);
+    return range ? toResolvedActiveCell({ ...params, range }) : null;
 }
 
 /**
