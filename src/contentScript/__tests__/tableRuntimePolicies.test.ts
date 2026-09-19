@@ -9,7 +9,7 @@ import {
 } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
@@ -681,7 +681,7 @@ describe('tableRuntimePolicies', () => {
             selection: { anchor: nextActiveCell.selectionAnchor },
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
-                rebuildTableWidgetsEffect.of(undefined),
+                structuralTableEditEffect.of(undefined),
                 triggerOpenCellRequestEffect.of({ requestId: 'normalize-request' }),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
@@ -694,14 +694,14 @@ describe('tableRuntimePolicies', () => {
             openRequestId: 'normalize-request',
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'rebuildAllDecorations' });
+        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
         expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
             type: 'allowTransaction',
         });
         expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
     });
 
-    it('does not plan a generic reopen for rebuild-only transactions', () => {
+    it('does not plan a generic reopen without an explicit request', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,

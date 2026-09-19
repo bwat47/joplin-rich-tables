@@ -9,7 +9,7 @@ import {
 } from '../tableRuntime/selection/cellSelectionClipboard';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { createMarkdownState } from './testMarkdownState';
 import { parseCellRangesFixture } from './testUtils';
 
@@ -104,18 +104,18 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(getCellSelection(tr.state)).not.toBeNull();
     });
 
-    it('allows structural table edits that force rebuild', () => {
+    it('allows transactions marked as structural table edits', () => {
         const doc = TABLE_DOC;
 
         const state = createActiveHeaderState();
 
-        // Replace the first line (outside cell range) but mark as rebuild, like toolbar does.
+        // Replace the first line (outside the active cell range) and mark it as a structural edit.
         const firstLineEnd = doc.indexOf('\n');
         expect(firstLineEnd).toBeGreaterThan(0);
 
         const tr = state.update({
             changes: { from: 0, to: firstLineEnd, insert: '| X | Y |' },
-            effects: rebuildTableWidgetsEffect.of(undefined),
+            effects: structuralTableEditEffect.of(undefined),
         });
 
         expect(tr.state.doc.toString()).toContain('| X | Y |');

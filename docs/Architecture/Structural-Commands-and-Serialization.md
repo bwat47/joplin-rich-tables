@@ -80,7 +80,7 @@ falls back to `buildRootTableInsertRewrite`, so both paths share the same blank-
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
 6. **Dispatch**: `runStructuralMutationAndReopen()` replaces the table range when needed, sets the
    main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
-   forces a widget rebuild, and can run an immediate post-dispatch callback such as main-editor focus handoff.
+   marks the transaction with `structuralTableEditEffect`, and can run an immediate post-dispatch callback such as main-editor focus handoff.
 
 `structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
 toolbar buttons do not maintain separate switchboards.
@@ -101,8 +101,8 @@ toolbar buttons do not maintain separate switchboards.
 All surviving-table structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
 delete, move, clear, and alignment updates. Whole-table deletion uses the same runner but clears active-cell state
 instead of reopening a cell. That means command-driven structural edits don't rely on lifecycle
-inferring reopen intent from a rebuild-only transaction. Reopen intent is explicit: if a transition should reopen,
-it must dispatch an open-cell request alongside the rebuild.
+inferring reopen intent from the structural-edit signal. Reopen intent is explicit: if a transition should reopen,
+it must dispatch an open-cell request alongside the signal.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 
@@ -141,9 +141,11 @@ numeric comparison and base sensitivity provides natural digit ordering and case
 remain last in both directions, equal values keep their original order, and the active body row follows its original
 row to the sorted position.
 
-## Rebuild Trigger
+## Structural Edit Signal
 
-Command-driven structural mutations dispatch both `rebuildTableWidgetsEffect` and an explicit open request, so
-lifecycle follows the open-request path. Rebuild-only transitions do not implicitly reopen a nested editor.
+Command-driven structural mutations dispatch both `structuralTableEditEffect` and an explicit open request, so
+lifecycle follows the open-request path. A structural-edit signal alone does not implicitly reopen a nested editor.
 
-Full table rebuild; no row/column DOM diffing.
+Source-changing structural edits replace the whole table range, so decoration reconciliation renders a fresh widget;
+there is no row/column DOM diffing. See `tableState/structuralTableEditEffect.ts` for what the signal does and does not
+guarantee, and which modules read it.

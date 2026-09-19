@@ -7,7 +7,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -224,7 +223,6 @@ ${TABLE.replace('a', 'c')}`;
     it.each([
         ['an invalid cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 2 })]],
         ['a clear', [clearActiveCellEffect.of(undefined)]],
-        ['an explicit rebuild', [rebuildTableWidgetsEffect.of(undefined)]],
         [
             'a clear followed by the same activation',
             [

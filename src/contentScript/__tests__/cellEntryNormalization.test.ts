@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
     beginOpenCellRequestEffect,
@@ -11,12 +11,14 @@ import {
 } from '../tableRuntime/openCellRequest';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { getTableContextAtPos } from '../tableState/tableContextField';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 
 const canonicalTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const nonCanonicalTable = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
 
 const REQUEST_ID = 'test-open-request';
+const ENTRY_STATE_FIELDS = [activeCellField, openCellRequestField, tableDecorationField];
 
 function headerCellAt(tableFrom: number): ActiveCell {
     return { tableFrom, section: 'header', row: 0, col: 0 };
@@ -28,7 +30,7 @@ function headerCellAt(tableFrom: number): ActiveCell {
  */
 function enterCell(params: { doc: string; tableFrom: number; activeCell?: ActiveCell; entryMode?: CellEntryMode }) {
     const activeCell = params.activeCell ?? headerCellAt(params.tableFrom);
-    const state = createMarkdownState(params.doc, [activeCellField, openCellRequestField]).update({
+    const state = createMarkdownState(params.doc, ENTRY_STATE_FIELDS).update({
         effects: setActiveCellEffect.of(activeCell),
     }).state;
 
@@ -72,6 +74,14 @@ describe('entering a cell', () => {
         expect(transaction.state.doc.toString()).toBe(nonCanonicalTable);
     });
 
+    it('replaces the active table host when entry repairs the table', () => {
+        // The cell is already active in this table, so a repair confined to it could preserve a stale host.
+        const { transaction } = enterCell({ doc: nonCanonicalTable, tableFrom: 0 });
+
+        expect(transaction.docChanged).toBe(true);
+        expect(wasActiveHostInvalidated(transaction.state)).toBe(true);
+    });
+
     it('rewrites the table and remaps the active cell in the transaction that opens it', () => {
         const { transaction } = enterCell({
             doc: nonCanonicalTable,
@@ -88,7 +98,7 @@ describe('entering a cell', () => {
         });
         expect(transaction.state.selection.main.anchor).toBeGreaterThan(0);
         expect(transaction.annotation(normalizeBeforeEditAnnotation)).toBe(true);
-        expect(transaction.effects.some((effect) => effect.is(rebuildTableWidgetsEffect))).toBe(true);
+        expect(transaction.effects.some((effect) => effect.is(structuralTableEditEffect))).toBe(true);
     });
 
     it.each([

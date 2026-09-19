@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, type ActiveCell } from '../../tableState/activeCellState';
-import { rebuildTableWidgetsEffect } from '../../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
@@ -94,7 +94,7 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
     if (prepared.kind === 'deleteTable') {
         params.view.dispatch({
             changes: { from: prepared.tableFrom, to: prepared.tableTo, insert: '' },
-            effects: [clearActiveCellEffect.of(undefined), rebuildTableWidgetsEffect.of(undefined)],
+            effects: [clearActiveCellEffect.of(undefined), structuralTableEditEffect.of(undefined)],
         });
         params.afterDispatch?.();
 
@@ -120,7 +120,7 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
               }
             : {}),
         ...openRequest,
-        effects: [...openRequest.effects, rebuildTableWidgetsEffect.of(undefined)],
+        effects: [...openRequest.effects, structuralTableEditEffect.of(undefined)],
     });
     params.afterDispatch?.();
 

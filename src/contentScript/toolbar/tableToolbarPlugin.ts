@@ -10,7 +10,6 @@ import {
     type VirtualElement,
 } from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { makeTableId } from '../tableModel/types';
@@ -104,8 +103,8 @@ class TableToolbarPlugin {
         }
 
         const activeCellChanged = !isSameActiveCell(prevActiveCell, activeCell);
-        if (activeCellChanged || hasRebuiltWidgetDom(update)) {
-            // Defer until the new/rebuilt widget DOM is ready
+        if (activeCellChanged || shouldRefreshToolbarPosition(update)) {
+            // Defer until CodeMirror has applied any host or geometry updates.
             this.schedulePositionUpdate();
         }
 
@@ -456,20 +455,20 @@ function createPositioningMiddleware(): Middleware[] {
 }
 
 /**
- * Conditions that usually imply the widget DOM was replaced/rebuilt:
- * 1. rebuildTableWidgetsEffect (explicit structural edit)
- * 2. An open request, which may follow a rebuild or switch the nested editor's host cell.
- * 3. Doc changes that are NOT sync (e.g. Undo/Redo, external edits), which may invalidate
- *    the active host or move its document anchor.
+ * Conditions that can change the toolbar's active-cell anchor or table geometry:
+ * 1. An open request, which may switch the nested editor's host cell.
+ * 2. Doc changes that are NOT sync (e.g. structural edits, Undo/Redo, external edits), which may
+ *    invalidate the active host or move its document anchor.
+ *
+ * Structural edits need no check of their own: each one carries an open request or changes the document.
  */
-function hasRebuiltWidgetDom(update: ViewUpdate): boolean {
-    const hasRebuildEffect = update.transactions.some((tr) => tr.effects.some((e) => e.is(rebuildTableWidgetsEffect)));
+function shouldRefreshToolbarPosition(update: ViewUpdate): boolean {
     const hasOpenRequest = update.transactions.some((tr) =>
         tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))
     );
     const isNonSyncDocChange = update.transactions.some((tr) => tr.docChanged && !tr.annotation(syncAnnotation));
 
-    return hasRebuildEffect || hasOpenRequest || isNonSyncDocChange;
+    return hasOpenRequest || isNonSyncDocChange;
 }
 
 export const tableToolbarPlugin = ViewPlugin.fromClass(TableToolbarPlugin);

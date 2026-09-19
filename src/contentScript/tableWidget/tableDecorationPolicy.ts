@@ -1,7 +1,6 @@
 import { Transaction, type StateEffectType } from '@codemirror/state';
 import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 
 export type DecorationDecision =
     { type: 'noneDecorations' } | { type: 'rebuildAllDecorations' } | { type: 'reconcileDecorations' };
@@ -24,21 +23,11 @@ function decideRawModeDecoration(tr: Transaction): DecorationDecision | null {
     return effectiveRawMode ? { type: 'noneDecorations' } : null;
 }
 
-function decideRebuildRequestDecoration(tr: Transaction): DecorationDecision | null {
-    if (hasEffect(tr, rebuildTableWidgetsEffect)) {
-        return { type: 'rebuildAllDecorations' };
-    }
-
-    return null;
-}
-
 /**
  * Routes a transaction to drop, force-render, or reconcile table decorations.
  * `reconcileTableDecorations()` owns parser recovery and active-host preservation.
- *
- * The order of the checks below is significant: earlier decisions deliberately
- * win over later ones (raw mode, for example, outranks any rebuild request).
+ * Structural edits need no branch: reconciliation sees their whole-table replacement.
  */
 export function decideTableDecorationUpdate(tr: Transaction): DecorationDecision {
-    return decideRawModeDecoration(tr) ?? decideRebuildRequestDecoration(tr) ?? { type: 'reconcileDecorations' };
+    return decideRawModeDecoration(tr) ?? { type: 'reconcileDecorations' };
 }

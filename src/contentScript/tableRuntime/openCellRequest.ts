@@ -3,12 +3,12 @@ import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
 import { mapActiveCellThroughChanges, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
-// Explicit open requests are single-flight, may survive normalization/rebuilds,
+// Explicit open requests are single-flight, may survive normalization/structural edits,
 // and temporarily suppress navigation until settled.
 const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 
@@ -179,7 +179,7 @@ export function prepareOpenCellRequestTransaction(
         ...(entryMode === 'adopt' ? {} : { selection: { anchor: selectionAnchor } }),
         effects: [
             ...buildOpenCellRequestEffects({ ...params, requestId, activeCell }),
-            ...(normalization ? [rebuildTableWidgetsEffect.of(undefined)] : []),
+            ...(normalization ? [structuralTableEditEffect.of(undefined)] : []),
         ],
     };
 }

@@ -5,7 +5,6 @@ import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { rebuildTableWidgetsEffect } from '../tableState/tableWidgetEffects';
 import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
@@ -156,13 +155,14 @@ describe('TableWidget DOM reuse', () => {
 
     describe('CodeMirror reconciliation', () => {
         it('keeps the DOM node when an unchanged table decoration is rebuilt', () => {
-            const { parent, view } = createRealView(TABLE_TEXT);
+            const { parent, view } = createRealView(`${TABLE_TEXT}\n\noutro`);
 
             try {
                 const originalTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
                 expect(originalTable).not.toBeNull();
 
-                view.dispatch({ effects: rebuildTableWidgetsEffect.of(undefined) });
+                // An edit away from the table re-renders its decoration without changing its text or position.
+                view.dispatch({ changes: { from: view.state.doc.length, insert: ' text' } });
 
                 expect(view.contentDOM.querySelector(`${getWidgetSelector()} table`)).toBe(originalTable);
             } finally {
