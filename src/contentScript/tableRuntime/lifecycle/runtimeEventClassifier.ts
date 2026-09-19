@@ -76,9 +76,11 @@ function getActiveCellFacts(
     activeCell: ReturnType<typeof getActiveCell>,
     resolvedActiveCell: ResolvedActiveCell | null
 ): ActiveCellFacts {
-    const status = getActiveCellStatus(activeCell, resolvedActiveCell);
-    if (status !== 'resolved') {
-        return { status };
+    if (!activeCell) {
+        return { status: 'absent' };
+    }
+    if (!resolvedActiveCell) {
+        return { status: 'unresolved' };
     }
     return {
         status: 'resolved',
@@ -139,11 +141,7 @@ function isPositionInsideRange(pos: number, from: number, to: number): boolean {
     return pos >= from && pos <= to;
 }
 
-function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell: ResolvedActiveCell | null): boolean {
-    if (!resolvedActiveCell) {
-        return false;
-    }
-
+function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell: ResolvedActiveCell): boolean {
     const { main } = update.state.selection;
     return (
         !isPositionInsideRange(main.anchor, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to) ||
