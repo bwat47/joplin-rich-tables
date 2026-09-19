@@ -107,13 +107,9 @@ export function findTableWidgetElement(view: EditorView, tableFrom: number): HTM
     const allWidgets = view.contentDOM.querySelectorAll(getWidgetSelector());
 
     for (const widget of allWidgets) {
-        try {
-            const widgetPos = view.posAtDOM(widget);
-            if (widgetPos === tableFrom) {
-                return widget as HTMLElement;
-            }
-        } catch {
-            // posAtDOM can fail for edge cases, continue
+        const widgetPos = view.posAtDOM(widget);
+        if (widgetPos === tableFrom) {
+            return widget as HTMLElement;
         }
     }
 

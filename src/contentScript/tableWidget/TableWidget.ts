@@ -183,10 +183,11 @@ export class TableWidget extends WidgetType {
 
         // Render body — skip synthetic cells that have no source range
         const tbody = doc.createElement('tbody');
-        for (let r = 0; r < bodyRows.length; r++) {
+        const rowRanges = this.ctx.cellRanges.rows;
+        for (let r = 0; r < rowRanges.length; r++) {
             const row = bodyRows[r];
             const tr = doc.createElement('tr');
-            const colCount = this.ctx.cellRanges.rows[r]?.length ?? row.length;
+            const colCount = rowRanges[r].length;
             for (let c = 0; c < colCount; c++) {
                 const td = doc.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
