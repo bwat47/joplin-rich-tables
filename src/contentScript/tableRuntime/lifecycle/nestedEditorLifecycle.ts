@@ -10,7 +10,7 @@ import {
     getPendingInsertedTableActivation,
 } from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -51,6 +51,7 @@ function ensureCursorVisible(view: EditorView): void {
 
 interface OpenRequestExecutionGuardResult {
     request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
+    resolvedCell: ResolvedActiveCell;
     cellElement: HTMLElement;
 }
 
@@ -183,6 +184,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 const opened = openNestedEditor({
                     mainView: this.view,
                     cellElement: guardResult.cellElement,
+                    resolvedCell: guardResult.resolvedCell,
                     featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
                     initialCursorPos: guardResult.request.initialCursorPos,
                 });
@@ -231,6 +233,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
             return {
                 request,
+                resolvedCell: resolvedActiveCell,
                 cellElement,
             };
         }

@@ -5,7 +5,8 @@ import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { isNestedEditorOpen, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { requireResolvedActiveCell } from './testUtils';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
@@ -97,8 +98,9 @@ describe('resolveTableContextFromEventTarget', () => {
         const activeCell: ActiveCell = { tableFrom: TABLE_A_FROM, section: 'body', row: 0, col: 1 };
         view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
         expect(
-            view.plugin(nestedEditorPlugin)?.controller.open({
+            openNestedEditor({
                 mainView: view,
+                resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement: requireCell(view, TABLE_A_FROM, activeCell),
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,
             })

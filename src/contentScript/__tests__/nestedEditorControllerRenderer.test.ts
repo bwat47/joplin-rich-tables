@@ -4,7 +4,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { closeNestedEditor, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { createMarkdownState } from './testMarkdownState';
-import { htmlFragment } from './testUtils';
+import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 
 describe('nestedEditorController markdown rendering', () => {
     afterEach(() => {
@@ -43,6 +43,7 @@ describe('nestedEditorController markdown rendering', () => {
             openNestedEditor({
                 mainView: view,
                 cellElement,
+                resolvedCell: requireResolvedActiveCell(view.state),
                 featureSettings: { autoMatchingBraces: true, spellcheck: false },
             })
         ).toBe(true);
@@ -98,6 +99,7 @@ describe('nestedEditorController markdown rendering', () => {
             openNestedEditor({
                 mainView: view,
                 cellElement,
+                resolvedCell: requireResolvedActiveCell(view.state),
                 featureSettings: { autoMatchingBraces: true, spellcheck: false },
             })
         ).toBe(true);

@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { requireResolvedActiveCell } from './testUtils';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 
@@ -44,6 +45,7 @@ describe('nested editor navigation', () => {
         openNestedEditor({
             mainView,
             cellElement,
+            resolvedCell: requireResolvedActiveCell(mainView.state),
             featureSettings: defaultHostEditorConfig().nestedEditor,
         });
 
@@ -111,6 +113,7 @@ describe('nested editor navigation', () => {
         openNestedEditor({
             mainView,
             cellElement,
+            resolvedCell: requireResolvedActiveCell(mainView.state),
             featureSettings: defaultHostEditorConfig().nestedEditor,
         });
 
@@ -151,30 +154,6 @@ describe('nested editor navigation', () => {
             controller.session.resolvedCell.editableFrom + clickedLocalPos
         );
         expect(mainView.state.selection.main.head).toBe(controller.session.resolvedCell.editableFrom + clickedLocalPos);
-
-        mainView.destroy();
-    });
-
-    it('does not open when no current active cell resolves', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-
-        const mainView = new EditorView({
-            parent,
-            extensions: [markdownExtension, tableContextField, activeCellField, nestedEditorPlugin],
-            doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-        });
-
-        const cellElement = document.createElement('td');
-        document.body.appendChild(cellElement);
-
-        expect(
-            openNestedEditor({
-                mainView,
-                cellElement,
-                featureSettings: defaultHostEditorConfig().nestedEditor,
-            })
-        ).toBe(false);
 
         mainView.destroy();
     });

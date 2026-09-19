@@ -53,6 +53,15 @@ interface NestedEditorSession {
     applyingRootToLocal: boolean;
 }
 
+export interface OpenNestedEditorParams {
+    mainView: EditorView;
+    cellElement: HTMLElement;
+    /** The active cell, already resolved against the main editor's current state by the caller. */
+    resolvedCell: ResolvedActiveCell;
+    featureSettings: NestedEditorHostConfig;
+    initialCursorPos?: InitialCursorPos;
+}
+
 function isEditorFocused(view: EditorView | null): boolean {
     return Boolean(view?.hasFocus);
 }
@@ -64,19 +73,10 @@ class NestedEditorController {
     private cellElement: HTMLElement | null = null;
     private mainView: EditorView | null = null;
 
-    open(params: {
-        mainView: EditorView;
-        cellElement: HTMLElement;
-        featureSettings: NestedEditorHostConfig;
-        initialCursorPos?: InitialCursorPos;
-    }): boolean {
+    open(params: OpenNestedEditorParams): void {
         this.close();
 
-        const resolved = getResolvedActiveCell(params.mainView.state);
-        if (!resolved) {
-            return false;
-        }
-
+        const resolved = params.resolvedCell;
         this.mainView = params.mainView;
         this.cellElement = params.cellElement;
 
@@ -160,8 +160,6 @@ class NestedEditorController {
 
         this.flushSelectionToRoot();
         session.editor.contentDOM.focus();
-
-        return true;
     }
 
     /**
@@ -460,13 +458,15 @@ function getController(view: EditorView): NestedEditorController | null {
     return plugin ? plugin.controller : null;
 }
 
-export function openNestedEditor(params: {
-    mainView: EditorView;
-    cellElement: HTMLElement;
-    featureSettings: NestedEditorHostConfig;
-    initialCursorPos?: InitialCursorPos;
-}): boolean {
-    return getController(params.mainView)?.open(params) ?? false;
+/** Mounts a nested editor for `params.resolvedCell`; false when the view has no controller. */
+export function openNestedEditor(params: OpenNestedEditorParams): boolean {
+    const controller = getController(params.mainView);
+    if (!controller) {
+        return false;
+    }
+
+    controller.open(params);
+    return true;
 }
 
 export function closeNestedEditor(view: EditorView, params?: { contentFrom?: number; contentTo?: number }): void {

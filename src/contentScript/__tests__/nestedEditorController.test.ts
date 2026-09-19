@@ -23,9 +23,10 @@ import {
 } from '../nestedEditor/nestedEditorController';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { htmlFragment } from './testUtils';
+import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 
 // jsdom does not implement Range measurement, which CodeMirror's selection layer calls.
 if (!Range.prototype.getClientRects) {
@@ -89,6 +90,17 @@ function createHarness(params: {
     return { view, cellElement, renderer, parent };
 }
 
+/** Opens the nested editor on the active cell, resolved the way the lifecycle resolves it before opening. */
+function openInCell(view: EditorView, cellElement: HTMLElement, initialCursorPos?: InitialCursorPos): boolean {
+    return openNestedEditor({
+        mainView: view,
+        cellElement,
+        resolvedCell: requireResolvedActiveCell(view.state),
+        featureSettings: FEATURE_SETTINGS,
+        initialCursorPos,
+    });
+}
+
 /** The nested editor mounted inside `cellElement`, or null when none is mounted. */
 function nestedViewIn(cellElement: HTMLElement): EditorView | null {
     const host = cellElement.querySelector(`.${CLASS_CELL_EDITOR}`);
@@ -112,21 +124,10 @@ describe('nestedEditorController open', () => {
         const doc = ['| H1 |', '| --- |', '| a \\| b<br>c |'].join('\n');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        expect(openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS })).toBe(true);
+        expect(openInCell(view, cellElement)).toBe(true);
         expect(isNestedEditorOpen(view)).toBe(true);
         expect(cellElement.classList.contains(CLASS_CELL_ACTIVE)).toBe(true);
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('a | b\nc');
-
-        view.destroy();
-    });
-
-    it('returns false and mounts nothing when no active cell resolves', () => {
-        const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
-        const { view, cellElement } = createHarness({ doc });
-
-        expect(openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS })).toBe(false);
-        expect(isNestedEditorOpen(view)).toBe(false);
-        expect(nestedViewIn(cellElement)).toBeNull();
 
         view.destroy();
     });
@@ -140,7 +141,7 @@ describe('nestedEditorController open', () => {
             selection: { anchor: cellStart + 2, head: cellStart + 4 },
         });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
 
         expect(requireNestedView(cellElement).state.selection.main).toMatchObject({ from: 2, to: 4 });
 
@@ -156,7 +157,7 @@ describe('nestedEditorController open', () => {
         const doc = ['| H1 |', '| --- |', '| first<br>second |'].join('\n');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS, initialCursorPos });
+        openInCell(view, cellElement, initialCursorPos);
 
         const nested = requireNestedView(cellElement);
         expect(nested.state.selection.main).toMatchObject({ anchor: expectedPos, head: expectedPos });
@@ -168,12 +169,12 @@ describe('nestedEditorController open', () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| aaa | bbb |'].join('\n');
         const { view, cellElement, parent } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
 
         const secondCell = document.createElement('td');
         parent.appendChild(secondCell);
         view.dispatch({ effects: setActiveCellEffect.of(bodyCell({ col: 1 })) });
-        openNestedEditor({ mainView: view, cellElement: secondCell, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, secondCell);
 
         expect(nestedViewIn(cellElement)).toBeNull();
         expect(cellElement.classList.contains(CLASS_CELL_ACTIVE)).toBe(false);
@@ -200,7 +201,7 @@ describe('nestedEditorController local-to-root forwarding', () => {
             });
 
             try {
-                openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+                openInCell(view, cellElement);
                 const nested = requireNestedView(cellElement);
                 nested.dispatch({
                     changes: { from: originalText.length, insert: '\\' },
@@ -225,7 +226,7 @@ describe('nestedEditorController local-to-root forwarding', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         const nested = requireNestedView(cellElement);
         nested.dispatch({ changes: { from: 0, to: nested.state.doc.length, insert: 'x | y\nz' } });
 
@@ -239,7 +240,7 @@ describe('nestedEditorController local-to-root forwarding', () => {
         const cellStart = doc.indexOf('abcdef');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         const nested = requireNestedView(cellElement);
         nested.dispatch({ selection: EditorSelection.single(3) });
 
@@ -254,7 +255,7 @@ describe('nestedEditorController local-to-root forwarding', () => {
         const cellStart = doc.indexOf('a \\| b');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         const nested = requireNestedView(cellElement);
         // Local text is `a | b`; the caret after the pipe sits one char later in root text.
         nested.dispatch({ selection: EditorSelection.single(3) });
@@ -275,7 +276,7 @@ describe('nestedEditorController handleMainEditorUpdate', () => {
         const cellStart = doc.indexOf('abc');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         view.dispatch({ changes: { from: cellStart, to: cellStart + 3, insert: 'updated' } });
 
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('updated');
@@ -291,7 +292,7 @@ describe('nestedEditorController handleMainEditorUpdate', () => {
             activeCell: bodyCell({ tableFrom }),
         });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         view.dispatch({ changes: { from: 0, to: 0, insert: 'more ' } });
 
         expect(isNestedEditorOpen(view)).toBe(true);
@@ -311,7 +312,7 @@ describe('nestedEditorController close', () => {
         const { view, cellElement, renderer } = createHarness({ doc, activeCell: bodyCell() });
         vi.mocked(renderer.getCached).mockReturnValue(htmlFragment('<p><strong>bold</strong></p>'));
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         closeNestedEditor(view);
 
         expect(isNestedEditorOpen(view)).toBe(false);
@@ -327,7 +328,7 @@ describe('nestedEditorController close', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, cellElement, renderer } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         closeNestedEditor(view, { contentFrom: 2, contentTo: 4 });
 
         expect(renderer.getCached).toHaveBeenCalledWith('H1');
@@ -357,7 +358,7 @@ describe('nestedEditorController host cleanup', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, cellElement, parent } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         cleanupHostedNestedEditors(view, parent);
 
         expect(isNestedEditorOpen(view)).toBe(false);
@@ -369,7 +370,7 @@ describe('nestedEditorController host cleanup', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
-        openNestedEditor({ mainView: view, cellElement, featureSettings: FEATURE_SETTINGS });
+        openInCell(view, cellElement);
         cleanupHostedNestedEditors(view, document.createElement('div'));
 
         expect(isNestedEditorOpen(view)).toBe(true);

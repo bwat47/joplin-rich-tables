@@ -1,4 +1,6 @@
+import type { EditorState } from '@codemirror/state';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
 import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 
@@ -46,4 +48,13 @@ export function fragmentHtml(fragment: DocumentFragment): string {
     const container = document.createElement('div');
     container.appendChild(fragment);
     return container.innerHTML;
+}
+
+/** The state's active cell resolved against its table, failing when it does not resolve. */
+export function requireResolvedActiveCell(state: EditorState): ResolvedActiveCell {
+    const resolvedCell = getResolvedActiveCell(state);
+    if (!resolvedCell) {
+        throw new Error('Expected the active cell to resolve');
+    }
+    return resolvedCell;
 }

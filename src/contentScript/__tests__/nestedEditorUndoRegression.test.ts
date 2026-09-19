@@ -9,7 +9,8 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { nestedEditorPlugin, isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
+import { nestedEditorPlugin, isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { requireResolvedActiveCell } from './testUtils';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { openCellRequestField, requestOpenCell } from '../tableRuntime/openCellRequest';
@@ -124,8 +125,9 @@ describe('nested editor undo regression', () => {
             throw new Error('Expected first body cell element');
         }
 
-        const opened = view.plugin(nestedEditorPlugin)?.controller.open({
+        const opened = openNestedEditor({
             mainView: view,
+            resolvedCell: requireResolvedActiveCell(view.state),
             cellElement,
             featureSettings: TEST_HOST_CONFIG.nestedEditor,
         });
@@ -188,8 +190,9 @@ describe('nested editor undo regression', () => {
         const cellElement = findCellElement(view, 0, activeCell);
         if (!cellElement) throw new Error('Expected active cell element');
         expect(
-            view.plugin(nestedEditorPlugin)?.controller.open({
+            openNestedEditor({
                 mainView: view,
+                resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement,
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,
             })
@@ -302,8 +305,9 @@ describe('nested editor undo regression', () => {
             const cellElement = findCellElement(view, 0, activeCell);
             if (!cellElement) throw new Error('Expected active cell element');
             expect(
-                view.plugin(nestedEditorPlugin)?.controller.open({
+                openNestedEditor({
                     mainView: view,
+                    resolvedCell: requireResolvedActiveCell(view.state),
                     cellElement,
                     featureSettings: TEST_HOST_CONFIG.nestedEditor,
                 })
@@ -383,8 +387,9 @@ describe('nested editor undo regression', () => {
         const cellElement = findCellElement(view, 0, activeCell);
         if (!cellElement) throw new Error('Expected active cell element');
         expect(
-            view.plugin(nestedEditorPlugin)?.controller.open({
+            openNestedEditor({
                 mainView: view,
+                resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement,
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,
             })

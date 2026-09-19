@@ -507,6 +507,7 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
+                resolvedCell: expect.objectContaining({ activeCell }),
                 featureSettings: DEFAULT_FEATURE_SETTINGS,
                 initialCursorPos: 'end',
             })
@@ -572,6 +573,31 @@ describe('nestedEditorLifecycle', () => {
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        view.destroy();
+    });
+
+    it('fails the request and clears the active cell when it no longer resolves to a table', () => {
+        // The anchor sits in the paragraph, so no table starts there.
+        const activeCell = headerCell({ tableFrom: 1 });
+        const view = createLifecycleView({
+            doc: `intro\n\n${CANONICAL_DOC}`,
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                ...openRequestEffects({
+                    requestId: 'request-unresolved',
+                    activeCell,
+                }),
+            ],
+        });
+        flushAnimationFrames();
+
+        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toBeNull();
 
         view.destroy();
     });
