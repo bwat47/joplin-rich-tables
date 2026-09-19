@@ -7,7 +7,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -200,24 +199,6 @@ ${TABLE.replace('a', 'c')}`;
         expect(getDecorationAt(state, 0, TABLE.length)).toBe(activeBefore);
         expect(wasActiveHostInvalidated(state)).toBe(false);
         expect(state.field(tableContextField).tables[1].text).toContain('changed');
-    });
-
-    it('does not preserve the active decoration for a structural edit that only changes the active cell', () => {
-        let state = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);
-        state = state.update({
-            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
-        }).state;
-        const before = getDecorationAt(state, 0, TABLE.length);
-        const rewritten = TABLE.replace('| a |', '| z |');
-
-        // Structural edits replace the whole table range, even when the new text differs only inside the active cell.
-        state = state.update({
-            changes: { from: 0, to: TABLE.length, insert: rewritten },
-            effects: structuralTableEditEffect.of(undefined),
-        }).state;
-
-        expect(getDecorationAt(state, 0, rewritten.length)).not.toBe(before);
-        expect(wasActiveHostInvalidated(state)).toBe(true);
     });
 
     it('does not preserve the active decoration for an outside-table undo', () => {

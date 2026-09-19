@@ -1,13 +1,20 @@
+import type { EditorState, TransactionSpec } from '@codemirror/state';
 import { describe, expect, it, vi } from 'vitest';
-import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import type { ActiveCell } from '../tableState/activeCellState';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import {
+    activeCellField,
+    clearActiveCellEffect,
+    setActiveCellEffect,
+    type ActiveCell,
+} from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
-import { clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
+import { createMarkdownState } from './testMarkdownState';
 import { parseTableFixture, parseCellRangesFixture } from './testUtils';
 
 describe('structural mutation dispatch', () => {
@@ -57,6 +64,36 @@ describe('structural mutation dispatch', () => {
             },
         };
     }
+
+    it('replaces the active table host when the edit only changes the active cell', () => {
+        // Clearing the only non-empty cell leaves every change inside the active cell's text.
+        const tableText = ['| H1 | H2 |', '| --- | --- |', '| a |  |'].join('\n');
+        let state: EditorState = createMarkdownState(tableText, [activeCellField, tableDecorationField]).update({
+            effects: setActiveCellEffect.of(createCell(tableText, 0, 0)),
+        }).state;
+        const resolvedCell = getResolvedActiveCell(state);
+        if (!resolvedCell) {
+            throw new Error('Expected the active cell to resolve');
+        }
+        const view = {
+            get state() {
+                return state;
+            },
+            dispatch: (spec: TransactionSpec) => {
+                state = state.update(spec).state;
+            },
+        };
+
+        const result = runStructuralMutationAndReopen({
+            view: view as never,
+            resolvedCell,
+            command: { type: 'clearRow' },
+        });
+
+        expect(result).toBe(true);
+        expect(state.doc.toString()).not.toBe(tableText);
+        expect(wasActiveHostInvalidated(state)).toBe(true);
+    });
 
     it('dispatches an explicit reopen transaction for row insertion', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
