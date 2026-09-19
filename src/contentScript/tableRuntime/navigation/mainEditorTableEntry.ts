@@ -423,11 +423,8 @@ function resolveSkippedTableBlock(
         return null;
     }
 
+    // A probe past either document edge finds no table.
     const probePos = direction === 'down' ? currentBlock.to + 1 : currentBlock.from - 1;
-    if (probePos < 0 || probePos > view.state.doc.length) {
-        return null;
-    }
-
     return getTableContextAtPos(view.state, probePos);
 }
 
