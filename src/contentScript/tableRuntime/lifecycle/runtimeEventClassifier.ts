@@ -47,10 +47,7 @@ export function classifyTableRuntimeFacts(
         rawModeTransition: scanRawModeTransitionFacts(update, effectiveRawMode),
         hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
-        rebuildTouchesPreviousActiveTable:
-            update.docChanged && activeCellBeforeStatus === 'resolved'
-                ? update.transactions.some((tr) => wasActiveHostInvalidated(tr.state))
-                : false,
+        activeHostInvalidated: update.transactions.some((tr) => wasActiveHostInvalidated(tr.state)),
         isUndoRedoInsideTable,
     };
 }

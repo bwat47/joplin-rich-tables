@@ -27,7 +27,8 @@ export interface TableRuntimeFacts {
     isSync: boolean;
     isCellSelectionTransition: boolean;
     rawModeTransition: RawModeTransitionFacts;
-    rebuildTouchesPreviousActiveTable: boolean;
+    // A document change rebuilt or dropped the decoration hosting the previously active cell.
+    activeHostInvalidated: boolean;
     isUndoRedoInsideTable: boolean;
 
     // Requests
@@ -197,9 +198,7 @@ function requiresCellReposition(facts: TableRuntimeFacts): boolean {
         return false;
     }
 
-    return facts.activeCellBefore === 'resolved'
-        ? facts.rebuildTouchesPreviousActiveTable
-        : facts.isUndoRedoInsideTable;
+    return facts.activeCellBefore === 'resolved' ? facts.activeHostInvalidated : facts.isUndoRedoInsideTable;
 }
 
 // A drag parks the main caret in the cell under the pointer, so the active cell it left open

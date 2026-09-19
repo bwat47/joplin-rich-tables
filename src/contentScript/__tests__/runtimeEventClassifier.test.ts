@@ -141,7 +141,7 @@ describe('runtimeEventClassifier', () => {
                 exitedSourceMode: false,
                 exitedSearchForce: false,
             },
-            rebuildTouchesPreviousActiveTable: false,
+            activeHostInvalidated: false,
             isUndoRedoInsideTable: false,
             hasInsertedTableActivation: false,
             openRequestId: null,
@@ -260,7 +260,7 @@ describe('runtimeEventClassifier', () => {
 
         expect(facts.docChanged).toBe(true);
         expect(facts.activeCellBefore).toBe('resolved');
-        expect(facts.rebuildTouchesPreviousActiveTable).toBe(true);
+        expect(facts.activeHostInvalidated).toBe(true);
         expect(facts.isUndoRedoInsideTable).toBe(false);
     });
 
