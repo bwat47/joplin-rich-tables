@@ -114,18 +114,18 @@ function resolveClickPosition(view: EditorView, event: MouseEvent | PointerEvent
     return null;
 }
 
-function handleOutsideTableInteraction(
-    view: EditorView,
-    event: MouseEvent | PointerEvent,
-    options: OutsideInteractionOptions
-): void {
+function resolveOutsideTableState(view: EditorView, event: MouseEvent | PointerEvent): LiveTableState | null {
     // Keep editor open if interaction is inside the widget or nested editor.
     const target = getEventTargetElement(event);
     if (!target || isInsideTableUi(target)) {
-        return;
+        return null;
     }
 
-    const live = resolveLiveTableState(view);
+    return resolveLiveTableState(view);
+}
+
+function handleOutsideContextMenu(view: EditorView, event: MouseEvent): void {
+    const live = resolveOutsideTableState(view, event);
     if (!live) {
         return;
     }
@@ -136,12 +136,35 @@ function handleOutsideTableInteraction(
         return;
     }
 
-    moveCaretAndClearTableState(view, clickPos, live, options);
+    moveCaretAndClearTableState(view, clickPos, live, { preserveContextMenu: true });
 }
 
-/** Handles an outside-table mousedown and closes any live table interaction state. */
+/** Closes table state after CodeMirror has established the outside mouse selection. */
 export function handleOutsideMouseDown(view: EditorView, event: MouseEvent): void {
-    handleOutsideTableInteraction(view, event, { preserveContextMenu: false });
+    if (!resolveOutsideTableState(view, event)) return;
+
+    const clickPos = resolveClickPosition(view, event);
+    const startState = view.state;
+    // CodeMirror must read the press against the geometry the user clicked. Closing
+    // a multiline cell here can shrink the table before its native mouse handler runs.
+    queueMicrotask(() => {
+        if (!view.dom.isConnected) return;
+        const currentLive = resolveLiveTableState(view);
+        if (!currentLive) return;
+
+        // A document change remaps the active cell to a new object, so identity only
+        // detects another handler switching cells while the document is unchanged.
+        const docChanged = view.state.doc !== startState.doc;
+        if (!docChanged && getActiveCell(view.state) !== getActiveCell(startState)) return;
+
+        // A document change makes the mapped click position stale, but the press still closes the table.
+        if (!docChanged && clickPos !== null && view.state.selection.eq(startState.selection)) {
+            moveCaretAndClearTableState(view, clickPos, currentLive, { preserveContextMenu: false });
+        } else {
+            // Preserve native shift/double clicks and the anchor established for dragging.
+            clearTableStateInPlace(view, currentLive);
+        }
+    });
 }
 
 export const closeOnOutsideMouseDown = EditorView.domEventHandlers({
@@ -158,7 +181,7 @@ export const outsideInteractionCapturePlugin = ViewPlugin.fromClass(
 
         constructor(private readonly view: EditorView) {
             this.onContextMenu = (event) => {
-                handleOutsideTableInteraction(this.view, event, { preserveContextMenu: true });
+                handleOutsideContextMenu(this.view, event);
             };
 
             const doc = this.view.dom.ownerDocument;

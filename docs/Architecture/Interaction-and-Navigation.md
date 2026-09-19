@@ -87,6 +87,10 @@ the same cell-selection tint; their extent distinguishes them.
 
 Moving the main-editor caret outside the selected table clears table-owned selection state.
 
+Outside mouse presses resolve their fallback position before closing the cell, then defer cleanup until CodeMirror
+has established its native mouse selection. This keeps a tall cell's closing reflow from changing the initial hit
+test, while preserving shift-click, double-click, and drag selections. Context-menu cleanup remains synchronous.
+
 ## Click-to-Caret Placement
 
 A click on a rendered cell opens it with the caret at the clicked point in the Markdown source, so clicking inside a
