@@ -3,7 +3,6 @@ import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { getCellSelection, type CellSelection } from '../../tableState/cellSelectionState';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
-import { makeTableId } from '../../tableModel/types';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from '../../tableWidget/domHelpers';
 
 /** Native HTML elements that handle their own keyboard/clipboard events. */
@@ -77,7 +76,7 @@ function isStructuralFocusHost(view: EditorView, element: Element): boolean {
 
 /** True when `element` is the widget rendering `selection`'s table, or lives inside it. */
 function isInsideSelectedTableWidget(view: EditorView, selection: CellSelection, element: Element): boolean {
-    const selectedWidget = findTableWidgetElement(view, makeTableId(selection.tableFrom));
+    const selectedWidget = findTableWidgetElement(view, selection.tableFrom);
 
     // `contains()` is self-inclusive, so this also covers the widget root itself.
     return Boolean(selectedWidget?.contains(element));

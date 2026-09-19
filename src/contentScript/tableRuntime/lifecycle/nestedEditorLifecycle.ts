@@ -18,7 +18,6 @@ import {
     openNestedEditor,
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { makeTableId } from '../../tableModel/types';
 import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
@@ -218,7 +217,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                 return null;
             }
 
-            const cellElement = findCellElement(this.view, makeTableId(targetActiveCell.tableFrom), targetActiveCell);
+            const cellElement = findCellElement(this.view, targetActiveCell.tableFrom, targetActiveCell);
             if (!cellElement) {
                 this.failOpenRequest(requestId);
                 this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });

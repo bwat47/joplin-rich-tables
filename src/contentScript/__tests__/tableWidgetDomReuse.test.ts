@@ -49,6 +49,13 @@ function stubHeight(element: HTMLElement, heightPx: number): void {
 const TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 const EDITED_TABLE_TEXT = ['| H1 | H2 |', '| --- | --- |', '| a | CHANGED |'].join('\n');
 
+const MEASURED_HEIGHT = 250;
+const ORIGINAL_FROM = 0;
+const MOVED_FROM = 120;
+// Queries the cache by position alone: tableHeightCache.get() also matches on text, so
+// an unrelated text forces the lookup to be satisfied by the position key or not at all.
+const UNRELATED_TEXT = 'unrelated';
+
 function createWidget(tableText: string, tableFrom = 0): TableWidget {
     const table = MarkdownTable.parse(tableText);
     const cellRanges = parseCellRangesFixture(tableText);
@@ -136,14 +143,20 @@ describe('TableWidget DOM reuse', () => {
         expect(createWidget(EDITED_TABLE_TEXT).updateDOM(dom, view)).toBe(false);
     });
 
-    it('reuses the DOM when only the document position changed', () => {
+    it('reuses the DOM and measures at the new position when only the document position changed', () => {
         const view = createView();
-        const dom = createWidget(TABLE_TEXT, 0).toDOM(view);
+        const dom = createWidget(TABLE_TEXT, ORIGINAL_FROM).toDOM(view);
+        document.body.appendChild(dom);
+        stubHeight(dom, MEASURED_HEIGHT);
 
-        const reused = createWidget(TABLE_TEXT, 120).updateDOM(dom, view);
+        const reused = createWidget(TABLE_TEXT, MOVED_FROM).updateDOM(dom, view);
 
         expect(reused).toBe(true);
-        expect(dom.getAttribute('data-table-from')).toBe('120');
+        // Reuse primes an immediate measurement, which must be keyed by the refreshed position.
+        expect(tableHeightCache.get({ tableFrom: MOVED_FROM, tableText: UNRELATED_TEXT })).toBe(MEASURED_HEIGHT);
+        expect(tableHeightCache.get({ tableFrom: ORIGINAL_FROM, tableText: UNRELATED_TEXT })).toBeUndefined();
+
+        dom.remove();
     });
 
     it('rebuilds when the DOM was not produced by a table widget', () => {
@@ -185,7 +198,8 @@ describe('TableWidget DOM reuse', () => {
 
                 const movedWidget = view.contentDOM.querySelector(getWidgetSelector());
                 expect(movedWidget?.querySelector('table')).toBe(originalTable);
-                expect(movedWidget?.getAttribute('data-table-from')).toBe(String(prefix.length));
+                if (!movedWidget) throw new Error('Expected the moved table widget');
+                expect(view.posAtDOM(movedWidget)).toBe(prefix.length);
             } finally {
                 view.destroy();
                 parent.remove();
@@ -219,13 +233,6 @@ describe('TableWidget DOM reuse', () => {
     });
 
     describe('height measurement', () => {
-        const MEASURED_HEIGHT = 250;
-        const ORIGINAL_FROM = 0;
-        const MOVED_FROM = 120;
-        // Queries the cache by position alone: tableHeightCache.get() also matches on text, so
-        // an unrelated text forces the lookup to be satisfied by the position key or not at all.
-        const UNRELATED_TEXT = 'unrelated';
-
         it('records the current position after the table moved, not the mounted one', () => {
             const view = createView();
             const dom = createWidget(TABLE_TEXT, ORIGINAL_FROM).toDOM(view);

@@ -7,7 +7,6 @@ import { getTableContextAtPos } from '../tableState/tableContextField';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
-    ATTR_TABLE_FROM,
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
@@ -139,7 +138,6 @@ export class TableWidget extends WidgetType {
         // videos — and the recorded state is advanced to match. This is the single write point.
         state.view = view;
         state.tableFrom = this.ctx.from;
-        dom.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.ctx.from));
 
         // Prime CodeMirror's vertical layout info immediately on reuse instead of
         // waiting for ResizeObserver, which may fire too late for the first undo.
@@ -154,11 +152,6 @@ export class TableWidget extends WidgetType {
         const renderer = view.state.facet(markdownRenderServiceFacet);
         const container = doc.createElement('div');
         container.className = CLASS_TABLE_WIDGET;
-
-        // Mirrors the recorded position for DOM inspection. Written only from widgetDomState,
-        // and never read back: interaction handlers resolve identity via posAtDOM() instead;
-        // see findTableWidgetElement().
-        container.setAttribute(`data-${ATTR_TABLE_FROM}`, String(this.ctx.from));
 
         const table = doc.createElement('table');
         table.className = CLASS_TABLE_WIDGET_TABLE;
