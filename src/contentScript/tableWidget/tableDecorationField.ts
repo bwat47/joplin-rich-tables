@@ -78,8 +78,8 @@ function getPreservedActiveTableDecoration(
         return null;
     }
 
-    const mappedTableFrom = transaction.changes.mapPos(previousCell.tableFrom, 1);
-    const mappedTableTo = transaction.changes.mapPos(previousCell.tableTo, -1);
+    const mappedTableFrom = transaction.changes.mapPos(previousCell.ctx.from, 1);
+    const mappedTableTo = transaction.changes.mapPos(previousCell.ctx.to, -1);
     const activeCell = getActiveCell(transaction.state);
     if (!activeCell || activeCell.tableFrom !== mappedTableFrom) {
         return null;

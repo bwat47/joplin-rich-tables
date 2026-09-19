@@ -4,8 +4,7 @@ import { classifyActiveCellChanges, type ActiveCellSpan } from '../tableRuntime/
 
 const DOC_LENGTH = 100;
 const SPAN: ActiveCellSpan = {
-    tableFrom: 10,
-    tableTo: 50,
+    ctx: { from: 10, to: 50 },
     editableFrom: 20,
     editableTo: 30,
 };

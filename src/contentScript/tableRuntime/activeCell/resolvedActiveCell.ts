@@ -8,8 +8,6 @@ import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;
     ctx: TableContext;
-    tableFrom: number;
-    tableTo: number;
     contentFrom: number;
     contentTo: number;
     editableFrom: number;
@@ -35,8 +33,6 @@ export function createResolvedActiveCell(params: { ctx: TableContext; coords: Ce
             col: coords.col,
         },
         ctx,
-        tableFrom: ctx.from,
-        tableTo: ctx.to,
         contentFrom: range.contentFrom,
         contentTo: range.contentTo,
         editableFrom: range.editableFrom,

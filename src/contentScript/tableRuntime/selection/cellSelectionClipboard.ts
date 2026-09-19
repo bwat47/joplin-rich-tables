@@ -163,7 +163,7 @@ export function resolveTableClipboardTarget(
     if (resolvedActiveCell) {
         const activeCell = resolvedActiveCell.activeCell;
         return {
-            tableFrom: resolvedActiveCell.tableFrom,
+            tableFrom: resolvedActiveCell.ctx.from,
             anchor: {
                 section: activeCell.section,
                 row: activeCell.row,

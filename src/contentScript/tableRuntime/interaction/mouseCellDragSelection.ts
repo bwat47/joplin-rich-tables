@@ -442,7 +442,7 @@ class MouseCellDragSelectionController {
             return true;
         }
 
-        if (!setCellDragSelection(this.view, gesture.resolvedCell.tableFrom, gesture.resolvedCell.activeCell, focus)) {
+        if (!setCellDragSelection(this.view, gesture.resolvedCell.ctx.from, gesture.resolvedCell.activeCell, focus)) {
             return false;
         }
 

@@ -25,8 +25,6 @@ describe('structuralActions', () => {
 
         return {
             activeCell,
-            tableFrom: activeCell.tableFrom,
-            tableTo: 100,
             contentFrom: 0,
             contentTo: 0,
             editableFrom: 0,

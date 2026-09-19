@@ -57,7 +57,7 @@ describe('resolvedActiveCell', () => {
 
         expect(resolved).not.toBeNull();
         expect(tr.state.field(activeCellField)?.tableFrom).toBe('before\n'.length);
-        expect(resolved?.tableFrom).toBe('before\n'.length);
+        expect(resolved?.ctx.from).toBe('before\n'.length);
         expect(tr.state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('H1');
     });
 
@@ -97,7 +97,7 @@ describe('resolvedActiveCell', () => {
             col: 0,
         });
 
-        expect(resolved?.tableFrom).toBe(0);
+        expect(resolved?.ctx.from).toBe(0);
         expect(state.doc.sliceString(resolved!.contentFrom, resolved!.contentTo)).toBe('H1');
     });
 
@@ -159,8 +159,8 @@ describe('resolvedActiveCell', () => {
             row: 0,
             col: 1,
         });
-        expect(resolved?.tableFrom).toBe(0);
-        expect(resolved?.tableTo).toBe(doc.length);
+        expect(resolved?.ctx.from).toBe(0);
+        expect(resolved?.ctx.to).toBe(doc.length);
         expect(resolved?.contentFrom).toBe(doc.indexOf('a2'));
         expect(resolved?.contentTo).toBe(doc.indexOf('a2') + 2);
         expect(resolved?.editableFrom).toBe(doc.indexOf('a2'));
@@ -278,7 +278,7 @@ describe('resolvedActiveCell', () => {
         const resolved = resolveActiveCell(state, getActiveCell(state));
 
         expect(resolved).not.toBeNull();
-        expect(resolved?.tableFrom).toBe(0);
+        expect(resolved?.ctx.from).toBe(0);
         expect(resolved?.activeCell.section).toBe('body');
         expect(resolved?.activeCell.row).toBe(0);
         expect(resolved?.activeCell.col).toBe(1);

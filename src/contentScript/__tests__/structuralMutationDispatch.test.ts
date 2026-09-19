@@ -49,8 +49,6 @@ describe('structural mutation dispatch', () => {
 
         return {
             activeCell: cell,
-            tableFrom: 0,
-            tableTo: currentTableText.length,
             contentFrom: 0,
             contentTo: 0,
             editableFrom: 0,

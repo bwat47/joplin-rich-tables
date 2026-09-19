@@ -125,7 +125,7 @@ describe('tableDecorationField', () => {
         state = state.update({}).state;
 
         expect(state.field(tableContextField).treeIncomplete).toBe(false);
-        expect(getResolvedActiveCell(state)?.tableFrom).toBe(FILLER.length + 2);
+        expect(getResolvedActiveCell(state)?.ctx.from).toBe(FILLER.length + 2);
     });
 
     it('drops the active decoration while the index is incomplete, then rebuilds on recovery', () => {

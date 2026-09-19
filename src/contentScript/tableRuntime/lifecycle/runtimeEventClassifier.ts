@@ -146,8 +146,8 @@ function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell:
 
     const { main } = update.state.selection;
     return (
-        !isPositionInsideRange(main.anchor, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo) ||
-        !isPositionInsideRange(main.head, resolvedActiveCell.tableFrom, resolvedActiveCell.tableTo)
+        !isPositionInsideRange(main.anchor, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to) ||
+        !isPositionInsideRange(main.head, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to)
     );
 }
 
