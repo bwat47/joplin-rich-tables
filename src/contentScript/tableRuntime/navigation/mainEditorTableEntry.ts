@@ -12,7 +12,7 @@ import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, toResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../openCellRequest';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
@@ -23,7 +23,6 @@ import {
     type AdjoiningTable,
     type TableSide,
 } from '../tableBoundaryResolution';
-import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 type DeletionDirection = 'backward' | 'forward';
@@ -83,30 +82,30 @@ function deletedCharOffset(head: number, direction: DeletionDirection): number {
     return direction === 'forward' ? head : head - 1;
 }
 
-function resolveSourceEdgeCellCoords(ctx: TableContext, edges: EdgeCellTarget): CellCoords | null {
+/**
+ * Resolves the edge cell from the table's own source rows. Every indexed table has a header
+ * row and every row has at least one cell, so the edge always names a real cell.
+ */
+function resolveSourceEdgeCell(ctx: TableContext, edges: EdgeCellTarget): ResolvedActiveCell {
     const rows = [ctx.cellRanges.headers, ...ctx.cellRanges.rows];
     const rowIndex = edges.row === 'first' ? 0 : rows.length - 1;
     const row = rows[rowIndex];
-    if (!row?.length) {
-        return null;
-    }
-
     const colIndex = edges.col === 'first' ? 0 : row.length - 1;
-    return fromUnifiedRow(rowIndex, colIndex);
+
+    return toResolvedActiveCell({ ctx, coords: fromUnifiedRow(rowIndex, colIndex), range: row[colIndex] });
 }
 
-/** Transaction opening a table's edge cell, or null when the table has no usable grid. */
+/** Transaction opening a table's edge cell. */
 function prepareEdgeCellEntry(
     state: EditorState,
     ctx: TableContext,
     edges: EdgeCellTarget,
     initialCursorPos: InitialCursorPos
-): TransactionSpec | null {
+): TransactionSpec {
     // Open requests must start from a source-backed cell. Normalization can make a
     // ragged table rectangular after activation, but it cannot resolve a synthetic
     // padded cell before that transaction has run.
-    const coords = resolveSourceEdgeCellCoords(ctx, edges);
-    return coords ? prepareCellEntryTransaction({ state, ctx, coords, initialCursorPos }) : null;
+    return prepareCellEntryTransaction({ state, resolvedCell: resolveSourceEdgeCell(ctx, edges), initialCursorPos });
 }
 
 /**
@@ -471,17 +470,14 @@ function activateTableAtVerticalTarget(view: EditorView, direction: VerticalEntr
     }
 
     const isDown = direction === 'down';
-    const spec = prepareEdgeCellEntry(
-        view.state,
-        ctx,
-        { row: isDown ? 'first' : 'last', col: 'first' },
-        isDown ? 'start' : 'lastLineStart'
+    view.dispatch(
+        prepareEdgeCellEntry(
+            view.state,
+            ctx,
+            { row: isDown ? 'first' : 'last', col: 'first' },
+            isDown ? 'start' : 'lastLineStart'
+        )
     );
-    if (!spec) {
-        return false;
-    }
-
-    view.dispatch(spec);
     return true;
 }
 
@@ -507,17 +503,14 @@ function activateTableAtHorizontalTarget(view: EditorView, direction: Horizontal
         return false;
     }
 
-    const spec = prepareEdgeCellEntry(
-        view.state,
-        ctx,
-        movesForward ? { row: 'first', col: 'first' } : { row: 'last', col: 'last' },
-        movesForward ? 'start' : 'end'
+    view.dispatch(
+        prepareEdgeCellEntry(
+            view.state,
+            ctx,
+            movesForward ? { row: 'first', col: 'first' } : { row: 'last', col: 'last' },
+            movesForward ? 'start' : 'end'
+        )
     );
-    if (!spec) {
-        return false;
-    }
-
-    view.dispatch(spec);
     return true;
 }
 

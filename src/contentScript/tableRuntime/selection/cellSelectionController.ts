@@ -19,7 +19,8 @@ import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { clamp } from '../../shared/numberUtils';
 import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
@@ -211,16 +212,14 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
 
     const clampedFocus = clampSelectionFocusWithinContext(ctx, moveCellCoords(selection.focus, direction));
 
+    // A selection is dropped on every document change it does not replace, and its anchor always
+    // comes from a source-backed cell, so it names a real cell of this table.
     if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
-        const resolvedAnchor = createResolvedActiveCell({ ctx, coords: selection.anchor });
-        if (resolvedAnchor) {
-            requestOpenCell(view, {
-                resolvedCell: resolvedAnchor,
-                clearCellSelection: true,
-            });
-            return true;
-        }
-        // Without a resolvable anchor, fall through and just contract the selection.
+        requestOpenCell(view, {
+            resolvedCell: resolveClampedCell({ ctx, target: selection.anchor }),
+            clearCellSelection: true,
+        });
+        return true;
     }
 
     return dispatchSelectionWithContext(

@@ -6,10 +6,9 @@ import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { getTableContextAtPos, getTableContextStartingAt } from '../../tableState/tableContextField';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import type { TableContext } from '../../tableModel/tableContext';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { resolveClampedCell } from './activeCellFactory';
-import { createResolvedActiveCell } from './resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
 import {
     prepareOpenCellRequestTransaction,
     requestOpenCell,
@@ -117,23 +116,22 @@ export function activateTableCell(
     if (isEffectiveRawMode(view.state)) return false;
 
     const ctx = getTableContextStartingAt(view.state, tableFrom);
-    if (!ctx) return false;
+    const resolvedCell = ctx ? createResolvedActiveCell({ ctx, coords }) : null;
+    if (!resolvedCell) return false;
 
-    const spec = prepareCellEntryTransaction({
-        state: view.state,
-        ctx,
-        coords,
-        initialCursorPos: options.initialCursorPos,
-    });
-    if (!spec) return false;
-
-    view.dispatch(spec);
+    view.dispatch(
+        prepareCellEntryTransaction({
+            state: view.state,
+            resolvedCell,
+            initialCursorPos: options.initialCursorPos,
+        })
+    );
 
     return true;
 }
 
 /**
- * Builds the transaction that opens `coords` as the active cell.
+ * Builds the transaction that opens `resolvedCell` as the active cell.
  *
  * Shared by the dispatching entry points and by the boundary-deletion transaction
  * filter, which can only return a spec.
@@ -147,18 +145,12 @@ export function activateTableCell(
  */
 export function prepareCellEntryTransaction(params: {
     state: EditorState;
-    ctx: TableContext;
-    coords: CellCoords;
+    resolvedCell: ResolvedActiveCell;
     initialCursorPos?: InitialCursorPos;
-}): PreparedOpenCellRequestTransaction | null {
-    const resolvedCell = createResolvedActiveCell({ ctx: params.ctx, coords: params.coords });
-    if (!resolvedCell) {
-        return null;
-    }
-
+}): PreparedOpenCellRequestTransaction {
     return prepareOpenCellRequestTransaction({
         state: params.state,
-        resolvedCell,
+        resolvedCell: params.resolvedCell,
         initialCursorPos: params.initialCursorPos,
         suppressKeys: true,
     });

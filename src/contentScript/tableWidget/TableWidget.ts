@@ -3,7 +3,7 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
-import { getTableContextStartingAt } from '../tableState/tableContextField';
+import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
@@ -293,7 +293,7 @@ export class TableWidget extends WidgetType {
             return null;
         }
 
-        const ctx = getTableContextStartingAt(state.view.state, state.view.posAtDOM(dom));
+        const ctx = resolveTableContextFromEventTarget(state.view, dom);
         if (!ctx) {
             return null;
         }
