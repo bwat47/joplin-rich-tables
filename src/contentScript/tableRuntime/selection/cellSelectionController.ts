@@ -131,8 +131,7 @@ function dispatchSelectionWithContext(
 
     focusMainEditorForCellSelection(view);
 
-    const cellElement =
-        (options.scrollFocusIntoView ?? true) ? findCellElement(view, ctx.from, selection.focus) : null;
+    const cellElement = (options.scrollFocusIntoView ?? true) ? findCellElement(view, ctx.from, selection.focus) : null;
     if (cellElement) {
         view.requestMeasure({
             read: () => cellElement.isConnected,
