@@ -8,7 +8,7 @@ import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tab
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
 
-// Explicit open requests are single-flight, may survive normalization/rebuilds,
+// Explicit open requests are single-flight, may survive normalization/structural edits,
 // and temporarily suppress navigation until settled.
 const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
 
