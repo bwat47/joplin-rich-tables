@@ -42,7 +42,6 @@ import {
     openCellRequestKeymap,
     openCellRequestTimeoutPlugin,
 } from '../tableRuntime/openCellRequest';
-import { createNoteIdWatcher } from '../tableRuntime/noteIdWatcher';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
@@ -121,8 +120,6 @@ async function registerTableWidgetExtension(
         linkOpenerFacet.of(services.linkOpener),
         noteIdentityFacet.compute([noteIdFacet], (state) => state.facet(noteIdFacet)),
 
-        // Close nested editor on note switch (detected via noteIdFacet)
-        createNoteIdWatcher(noteIdFacet, () => cm6View),
         createStartupCursorCorrection(() => cm6View),
         createUndoScrollPreservation(() => cm6View),
 
