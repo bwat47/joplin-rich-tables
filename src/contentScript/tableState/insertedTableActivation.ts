@@ -1,6 +1,6 @@
 import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
 import type { CellCoords } from '../tableModel/types';
-import { mapTableStartThroughChanges } from './tableStartMapping';
+import { mapTableStartUnlessDeleted } from './tableStartMapping';
 
 export interface InsertedTableActivationRequest {
     tableFrom: number;
@@ -11,7 +11,7 @@ function mapInsertedTableActivation(
     value: InsertedTableActivationRequest,
     changes: ChangeDesc
 ): InsertedTableActivationRequest | null {
-    const tableFrom = mapTableStartThroughChanges(value.tableFrom, changes);
+    const tableFrom = mapTableStartUnlessDeleted(value.tableFrom, changes);
 
     return tableFrom === null ? null : { ...value, tableFrom };
 }

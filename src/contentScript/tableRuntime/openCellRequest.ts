@@ -4,7 +4,7 @@ import { logger } from '../../logger';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { mapTableStartThroughChanges } from '../tableState/tableStartMapping';
+import { mapTableStartUnlessDeleted } from '../tableState/tableStartMapping';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
@@ -82,7 +82,7 @@ let nextOpenCellRequestId = 1;
  * surviving at the deletion point and reopening against whatever text replaced it.
  */
 function mapActiveCell(activeCell: ActiveCell, changes: ChangeDesc): ActiveCell | undefined {
-    const tableFrom = mapTableStartThroughChanges(activeCell.tableFrom, changes);
+    const tableFrom = mapTableStartUnlessDeleted(activeCell.tableFrom, changes);
 
     // `undefined` (not null) is what StateEffect.map needs in order to drop the effect.
     return tableFrom === null ? undefined : { ...activeCell, tableFrom };

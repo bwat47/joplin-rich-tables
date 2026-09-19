@@ -42,7 +42,8 @@ describe('insertedTableActivationField', () => {
     it('drops an anchor past the end of the pre-change document without throwing', () => {
         const state = createPendingState(TABLE, TABLE.length + 1);
 
-        expect(() => state.update({ changes: { from: 0, insert: 'x' } })).not.toThrow();
-        expect(getPendingInsertedTableActivation(state.update({ changes: { from: 0, insert: 'x' } }).state)).toBeNull();
+        const mapped = state.update({ changes: { from: 0, insert: 'x' } }).state;
+
+        expect(getPendingInsertedTableActivation(mapped)).toBeNull();
     });
 });
