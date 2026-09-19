@@ -104,8 +104,8 @@ class TableToolbarPlugin {
         }
 
         const activeCellChanged = !isSameActiveCell(prevActiveCell, activeCell);
-        if (activeCellChanged || hasRebuiltWidgetDom(update)) {
-            // Defer until the new/rebuilt widget DOM is ready
+        if (activeCellChanged || shouldRefreshToolbarPosition(update)) {
+            // Defer until CodeMirror has applied any host or geometry updates.
             this.schedulePositionUpdate();
         }
 
@@ -456,13 +456,13 @@ function createPositioningMiddleware(): Middleware[] {
 }
 
 /**
- * Conditions that usually imply the widget DOM was replaced/rebuilt:
- * 1. structuralTableEditEffect (explicit structural edit)
- * 2. An open request, which may follow a rebuild or switch the nested editor's host cell.
+ * Conditions that can change the toolbar's active-cell anchor or table geometry:
+ * 1. An explicit structural edit.
+ * 2. An open request, which may switch the nested editor's host cell.
  * 3. Doc changes that are NOT sync (e.g. Undo/Redo, external edits), which may invalidate
  *    the active host or move its document anchor.
  */
-function hasRebuiltWidgetDom(update: ViewUpdate): boolean {
+function shouldRefreshToolbarPosition(update: ViewUpdate): boolean {
     const hasStructuralEdit = update.transactions.some((tr) => tr.effects.some((e) => e.is(structuralTableEditEffect)));
     const hasOpenRequest = update.transactions.some((tr) =>
         tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))

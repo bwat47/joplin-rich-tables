@@ -44,7 +44,8 @@ editor host alive while refreshing every other table. The field records a failed
 `activeHostInvalidated`, which the lifecycle consumes directly.
 
 Cell switches and open requests within the same table retain the table DOM. The nested editor controller renders the
-departing cell's current content before opening the destination. Clear effects and explicit rebuilds end preservation.
+departing cell's current content before opening the destination. Clear effects end preservation, as do source changes
+that touch the active table. Structural-edit signals do not independently control preservation.
 
 Undo and redo carry the host only for in-cell changes. History restores the selection recorded with the changed text,
 so an undo elsewhere should follow that cursor and reopen there rather than preserve a host the lifecycle must discard.

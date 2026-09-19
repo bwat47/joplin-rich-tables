@@ -375,7 +375,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('does not close the nested editor for rebuild-only active-cell changes without an explicit request', () => {
+    it('does not close the nested editor for a structural-edit signal without an explicit request', () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

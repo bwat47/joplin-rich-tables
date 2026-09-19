@@ -701,7 +701,7 @@ describe('tableRuntimePolicies', () => {
         expect(reduceTableRuntime(facts)).toEqual([{ type: 'openRequestedCell', requestId: 'normalize-request' }]);
     });
 
-    it('does not plan a generic reopen for rebuild-only transactions', () => {
+    it('does not plan a generic reopen without an explicit request', () => {
         const facts = defaultRuntimeFacts({
             activeCell: { status: 'resolved', selectionLeftActiveTable: false },
             nestedEditorOpen: true,

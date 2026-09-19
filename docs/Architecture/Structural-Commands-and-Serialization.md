@@ -101,8 +101,8 @@ toolbar buttons do not maintain separate switchboards.
 All surviving-table structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
 delete, move, clear, and alignment updates. Whole-table deletion uses the same runner but clears active-cell state
 instead of reopening a cell. That means command-driven structural edits don't rely on lifecycle
-inferring reopen intent from a rebuild-only transaction. Reopen intent is explicit: if a transition should reopen,
-it must dispatch an open-cell request alongside the rebuild.
+inferring reopen intent from the structural-edit signal. Reopen intent is explicit: if a transition should reopen,
+it must dispatch an open-cell request alongside the signal.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 
@@ -141,12 +141,14 @@ numeric comparison and base sensitivity provides natural digit ordering and case
 remain last in both directions, equal values keep their original order, and the active body row follows its original
 row to the sorted position.
 
-## Rebuild Trigger
+## Structural Edit Signal
 
 Command-driven structural mutations dispatch both `structuralTableEditEffect` and an explicit open request, so
-lifecycle follows the open-request path. Rebuild-only transitions do not implicitly reopen a nested editor.
+lifecycle follows the open-request path. A structural-edit signal alone does not implicitly reopen a nested editor.
 
-The effect does not steer decorations. Each mutation replaces the whole table range, so decoration reconciliation
-classifies it as touching the table and renders a fresh widget. The main editor guard and the toolbar read the effect.
+The effect does not steer decorations or guarantee that widget DOM was replaced. A mutation that changes source text
+replaces the whole table range, so decoration reconciliation classifies it as touching the table and renders a fresh
+widget. A same-text mutation may preserve the existing host. The main editor guard and toolbar read the effect for
+their own policy decisions.
 
-Full table rebuild; no row/column DOM diffing.
+Source-changing structural edits replace the whole table widget; there is no row/column DOM diffing.
