@@ -155,14 +155,14 @@ describe('TableWidget DOM reuse', () => {
 
     describe('CodeMirror reconciliation', () => {
         it('keeps the DOM node when an unchanged table decoration is rebuilt', () => {
-            const { parent, view } = createRealView(TABLE_TEXT);
+            const { parent, view } = createRealView(`${TABLE_TEXT}\n\noutro`);
 
             try {
                 const originalTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
                 expect(originalTable).not.toBeNull();
 
-                // An edit after the table re-renders its decoration without changing its text or position.
-                view.dispatch({ changes: { from: view.state.doc.length, insert: '\n\noutro' } });
+                // An edit away from the table re-renders its decoration without changing its text or position.
+                view.dispatch({ changes: { from: view.state.doc.length, insert: ' text' } });
 
                 expect(view.contentDOM.querySelector(`${getWidgetSelector()} table`)).toBe(originalTable);
             } finally {
