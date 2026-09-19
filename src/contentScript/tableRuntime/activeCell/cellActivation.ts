@@ -92,16 +92,8 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         activeCell: options?.preferredActiveCell ?? getActiveCell(view.state),
     });
 
-    const resolvedCell = resolveClampedCell({ ctx, target: targetCell });
-    if (!resolvedCell) {
-        if (options?.clearIfOutside) {
-            view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-        }
-        return false;
-    }
-
     requestOpenCell(view, {
-        resolvedCell,
+        resolvedCell: resolveClampedCell({ ctx, target: targetCell }),
         entryMode: options?.entryMode,
     });
 

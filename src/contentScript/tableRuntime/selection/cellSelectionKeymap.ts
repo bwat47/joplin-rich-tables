@@ -38,13 +38,8 @@ function activateSelectionFocus(view: EditorView): boolean {
         return false;
     }
 
-    const resolvedCell = resolveClampedCell({ ctx, target: selection.focus });
-    if (!resolvedCell) {
-        return false;
-    }
-
     requestOpenCell(view, {
-        resolvedCell,
+        resolvedCell: resolveClampedCell({ ctx, target: selection.focus }),
         clearCellSelection: true,
         scrollIntoView: false,
     });

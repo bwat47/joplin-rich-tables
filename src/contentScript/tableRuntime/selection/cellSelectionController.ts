@@ -24,12 +24,9 @@ import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '..
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
 
-function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords | null {
+/** Every indexed table has a header cell, so the grid is never empty and clamping always lands on it. */
+function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords {
     const bounds = getTableGridBounds(ctx);
-    if (bounds.totalCols <= 0) {
-        return null;
-    }
-
     const unifiedRow = clamp(toUnifiedRow(focus), 0, bounds.totalRows - 1);
     const col = clamp(focus.col, 0, bounds.totalCols - 1);
 
@@ -155,19 +152,13 @@ export function setCellDragSelection(
         return false;
     }
 
-    const clampedAnchor = clampSelectionFocusWithinContext(ctx, anchor);
-    const clampedFocus = clampSelectionFocusWithinContext(ctx, focus);
-    if (!clampedAnchor || !clampedFocus) {
-        return false;
-    }
-
     return dispatchSelectionWithContext(
         view,
         ctx,
         {
             tableFrom: ctx.from,
-            anchor: clampedAnchor,
-            focus: clampedFocus,
+            anchor: clampSelectionFocusWithinContext(ctx, anchor),
+            focus: clampSelectionFocusWithinContext(ctx, focus),
         },
         {
             clearActiveCell: false,
@@ -198,9 +189,6 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
         resolvedActiveCell.ctx,
         moveCellCoords(activeCell, direction)
     );
-    if (!clampedFocus) {
-        return false;
-    }
 
     return dispatchSelectionWithContext(
         view,
@@ -222,9 +210,6 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     }
 
     const clampedFocus = clampSelectionFocusWithinContext(ctx, moveCellCoords(selection.focus, direction));
-    if (!clampedFocus) {
-        return false;
-    }
 
     if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
         const resolvedAnchor = createResolvedActiveCell({ ctx, coords: selection.anchor });
@@ -288,9 +273,6 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
     const selectedCtx = selection?.tableFrom === tableFrom ? getTableContextStartingAt(view.state, tableFrom) : null;
     if (selection && selectedCtx) {
         const clampedFocus = clampSelectionFocusWithinContext(selectedCtx, focus);
-        if (!clampedFocus) {
-            return false;
-        }
 
         return dispatchSelectionWithContext(
             view,
@@ -308,9 +290,6 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
     if (resolvedActiveCell && resolvedActiveCell.ctx.from === tableFrom) {
         const activeCell = resolvedActiveCell.activeCell;
         const clampedFocus = clampSelectionFocusWithinContext(resolvedActiveCell.ctx, focus);
-        if (!clampedFocus) {
-            return false;
-        }
 
         return dispatchSelectionWithContext(
             view,
