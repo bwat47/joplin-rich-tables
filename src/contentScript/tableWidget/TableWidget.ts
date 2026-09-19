@@ -299,21 +299,13 @@ export class TableWidget extends WidgetType {
             return null;
         }
 
-        let tableFrom: number;
-        try {
-            tableFrom = state.view.posAtDOM(dom);
-        } catch {
-            return null;
-        }
-
-        const ctx = getTableContextAtPos(state.view.state, tableFrom);
+        const ctx = getTableContextAtPos(state.view.state, state.view.posAtDOM(dom));
         if (!ctx) {
             return null;
         }
 
-        // Widgets sit exactly on index spans, so `tableFrom` is `ctx.from` and `pos` is already
-        // table-relative.
-        const coords = findCellForPos(ctx.cellRanges, tableFrom + pos - ctx.from);
+        // Widgets sit exactly on index spans, so `pos` is already relative to `ctx.from`.
+        const coords = findCellForPos(ctx.cellRanges, pos);
         if (!coords) {
             return null;
         }

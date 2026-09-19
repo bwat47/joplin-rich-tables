@@ -3,7 +3,7 @@ import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
 import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { resolveTableContextFromEventTarget } from '../tablePositioning';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';
@@ -409,19 +409,8 @@ class MouseCellDragSelectionController {
             return null;
         }
 
-        try {
-            const tablePos = this.view.posAtDOM(gesture.widget, 0);
-            const ctx = getTableContextAtPos(this.view.state, tablePos);
-            return ctx
-                ? createResolvedActiveCell({
-                      ctx,
-                      coords: gesture.resolvedCell.activeCell,
-                  })
-                : null;
-        } catch {
-            // A replaced or detached widget cannot safely identify the table that was pressed.
-            return null;
-        }
+        const ctx = resolveTableContextFromEventTarget(this.view, gesture.widget);
+        return ctx ? createResolvedActiveCell({ ctx, coords: gesture.resolvedCell.activeCell }) : null;
     }
 
     private resolveVisibleCellAtPointer(gesture: MouseCellGesture): CellCoords | null {
