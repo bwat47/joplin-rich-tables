@@ -4,18 +4,17 @@
 import type { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
-import { getTableContextAtPos, getTableContextStartingAt } from '../../tableState/tableContextField';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { resolveClampedCell } from './activeCellFactory';
-import { createResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
+import type { ResolvedActiveCell } from './resolvedActiveCell';
 import {
     prepareOpenCellRequestTransaction,
     requestOpenCell,
     type CellEntryMode,
     type PreparedOpenCellRequestTransaction,
 } from '../openCellRequest';
-import type { CellCoords } from '../../tableModel/types';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 export interface ActivateCellOptions {
@@ -25,10 +24,6 @@ export interface ActivateCellOptions {
     entryMode?: CellEntryMode;
     /** Optional fallback identity used when the cursor lands on table structure during lifecycle-driven reactivation */
     preferredActiveCell?: ActiveCell | null;
-}
-
-export interface ActivateTableCellOptions {
-    initialCursorPos?: InitialCursorPos;
 }
 
 export function resolveActivationTargetCell(params: {
@@ -95,37 +90,6 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         resolvedCell: resolveClampedCell({ ctx, target: targetCell }),
         entryMode: options?.entryMode,
     });
-
-    return true;
-}
-
-/**
- * Activates a specific cell by table position and coordinates.
- * Callers that depend on newly mounted widgets should schedule this after the
- * relevant DOM update has had a chance to render, and must check that
- * `view.dom.isConnected` first, since a scheduled frame can outlive the view.
- * @returns true when an open-cell request was dispatched.
- */
-export function activateTableCell(
-    view: EditorView,
-    tableFrom: number,
-    coords: CellCoords,
-    options: ActivateTableCellOptions = {}
-): boolean {
-    // Raw mode (source mode or search) renders no widgets, so there is no cell to activate.
-    if (isEffectiveRawMode(view.state)) return false;
-
-    const ctx = getTableContextStartingAt(view.state, tableFrom);
-    const resolvedCell = ctx ? createResolvedActiveCell({ ctx, coords }) : null;
-    if (!resolvedCell) return false;
-
-    view.dispatch(
-        prepareCellEntryTransaction({
-            state: view.state,
-            resolvedCell,
-            initialCursorPos: options.initialCursorPos,
-        })
-    );
 
     return true;
 }

@@ -91,7 +91,6 @@ function defaultRuntimeFacts(overrides: Partial<TableRuntimeFacts> = {}): TableR
         activeHostInvalidated: false,
         isUndoRedoInsideTable: false,
         noteChanged: false,
-        hasInsertedTableActivation: false,
         openRequestId: null,
         ...overrides,
     };
@@ -104,7 +103,7 @@ describe('tableRuntimePolicies', () => {
         expected: TableRuntimeAction[];
     }>([
         {
-            name: 'explicit open suppresses other lifecycle work but keeps inserted-table activation',
+            name: 'explicit open suppresses other lifecycle work',
             overrides: {
                 activeCell: resolvedActiveCellFacts(true),
                 activeCellBefore: 'resolved',
@@ -119,22 +118,17 @@ describe('tableRuntimePolicies', () => {
                     exitedSearchForce: false,
                 },
                 openRequestId: 'explicit-request',
-                hasInsertedTableActivation: true,
             },
-            expected: [
-                { type: 'openRequestedCell', requestId: 'explicit-request' },
-                { type: 'scheduleInsertedTableActivation' },
-            ],
+            expected: [{ type: 'openRequestedCell', requestId: 'explicit-request' }],
         },
         {
-            name: 'inserted-table activation is appended after a reposition terminal branch',
+            name: 'reposition closes the nested editor and reactivates at the cursor',
             overrides: {
                 activeCell: resolvedActiveCellFacts(false),
                 activeCellBefore: 'resolved',
                 nestedEditorOpen: true,
                 docChanged: true,
                 activeHostInvalidated: true,
-                hasInsertedTableActivation: true,
             },
             expected: [
                 { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
@@ -146,7 +140,6 @@ describe('tableRuntimePolicies', () => {
                         entryMode: 'enter',
                     },
                 },
-                { type: 'scheduleInsertedTableActivation' },
             ],
         },
         {
@@ -597,54 +590,6 @@ describe('tableRuntimePolicies', () => {
         ]);
     });
 
-    it('appends inserted-table activation after explicit open requests', () => {
-        const facts = defaultRuntimeFacts({
-            activeCell: resolvedActiveCellFacts(false),
-            nestedEditorOpen: true,
-            activeCellBefore: 'resolved',
-            hasInsertedTableActivation: true,
-            openRequestId: 'explicit-request',
-            activeHostInvalidated: true,
-        });
-
-        expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'openRequestedCell', requestId: 'explicit-request' },
-            { type: 'scheduleInsertedTableActivation' },
-        ]);
-    });
-
-    it('appends inserted-table activation after raw-mode exit actions', () => {
-        const facts = defaultRuntimeFacts({
-            activeCell: { status: 'unresolved' },
-            activeCellBefore: 'resolved',
-            hasInsertedTableActivation: true,
-            rawModeTransition: {
-                enteredRawMode: false,
-                exitedRawMode: true,
-                exitedSourceMode: true,
-                exitedSearchForce: false,
-            },
-        });
-
-        expect(reduceTableRuntime(facts)).toEqual([
-            {
-                type: 'scheduleActivateCellAtCursor',
-                options: {
-                    clearIfOutside: false,
-                    ensureCursorVisibleIfNotActivated: true,
-                    entryMode: 'adopt',
-                },
-            },
-            { type: 'scheduleInsertedTableActivation' },
-        ]);
-    });
-
-    it('plans inserted-table activation when no other lifecycle work is needed', () => {
-        expect(reduceTableRuntime(defaultRuntimeFacts({ hasInsertedTableActivation: true }))).toEqual([
-            { type: 'scheduleInsertedTableActivation' },
-        ]);
-    });
-
     it('plans only note-switch cleanup when the note changes, ahead of every reactivation path', () => {
         const facts = defaultRuntimeFacts({
             noteChanged: true,
@@ -653,7 +598,6 @@ describe('tableRuntimePolicies', () => {
             activeCellBefore: 'resolved',
             activeHostInvalidated: true,
             openRequestId: 'explicit-request',
-            hasInsertedTableActivation: true,
             rawModeTransition: {
                 enteredRawMode: false,
                 exitedRawMode: true,

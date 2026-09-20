@@ -1,4 +1,5 @@
 import type { EditorState } from '@codemirror/state';
+import type { SerializedTable } from '../../tableModel/MarkdownTable';
 import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { buildIsolatedRootTableInsertRewrite, buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 
@@ -8,11 +9,11 @@ export interface RootTablePasteRewrite {
         to: number;
         insert: string;
     };
-    selectionAnchor: number;
     /**
      * Absolute table start in the post-change document.
      */
     tableFrom: number;
+    serialized: SerializedTable;
 }
 
 export function buildRootTablePasteRewrite(
@@ -25,13 +26,13 @@ export function buildRootTablePasteRewrite(
     if (!table) {
         return null;
     }
-    const canonicalTableText = table.serialize();
+    const serialized = table.serializeWithOffsets();
     const rewrite =
-        buildIsolatedRootTableInsertRewrite(state, from, to, canonicalTableText) ??
-        buildRootTableInsertRewrite(state, from, to, canonicalTableText);
+        buildIsolatedRootTableInsertRewrite(state, from, to, serialized.text) ??
+        buildRootTableInsertRewrite(state, from, to, serialized.text);
 
     return {
         ...rewrite,
-        selectionAnchor: rewrite.tableFrom,
+        serialized,
     };
 }

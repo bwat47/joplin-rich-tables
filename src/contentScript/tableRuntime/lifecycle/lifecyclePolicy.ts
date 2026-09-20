@@ -40,7 +40,6 @@ export interface TableRuntimeFacts {
     noteChanged: boolean;
 
     // Requests
-    hasInsertedTableActivation: boolean;
     openRequestId: string | null;
 }
 
@@ -78,27 +77,20 @@ export type TableRuntimeAction =
           options: ActivateCellAtCursorOptions;
       }
     | { type: 'scheduleEnsureCursorVisible'; mode: 'enteredRawMode' | 'exitedRawModeWithoutActiveCell' }
-    | { type: 'scheduleInsertedTableActivation' }
     | { type: 'scheduleNoteSwitchCleanup' };
 
 // Precedence:
 // 1. A note switch short-circuits everything: no cell from the previous note is reopened.
-// 2. Explicit open requests short-circuit all but inserted-table activation.
+// 2. Explicit open requests short-circuit remaining lifecycle work.
 // 3. Forced raw-mode exit is terminal. Otherwise cursor-visibility work accumulates
 //    before the terminal reposition or selection-departure transitions (the first match returns).
-// 4. Continuing close, sync, and stale-clear actions follow; inserted-table activation
-//    is independently appended.
+// 4. Continuing close, sync, and stale-clear actions follow.
 export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
     if (facts.noteChanged) {
         return reduceNoteSwitch(facts);
     }
 
-    const actions = reduceCoreTableRuntime(facts);
-    if (facts.hasInsertedTableActivation) {
-        return [...actions, { type: 'scheduleInsertedTableActivation' }];
-    }
-
-    return actions;
+    return reduceCoreTableRuntime(facts);
 }
 
 // The replaced document belongs to another note, so the cursor it carries says nothing about

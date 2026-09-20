@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Transaction } from '@codemirror/state';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { activateInsertedTableEffect, insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import {
     buildMultiCellPasteRewrite,
@@ -10,6 +10,11 @@ import {
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
+import {
+    beginOpenCellRequestEffect,
+    openCellRequestField,
+    triggerOpenCellRequestEffect,
+} from '../tableRuntime/openCellRequest';
 import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { parseCellRangesFixture } from './testUtils';
@@ -22,7 +27,7 @@ function createState(params: { doc: string; nestedOpen: boolean }) {
         cellSelectionField,
         searchForceSourceModeField,
         sourceModeField,
-        insertedTableActivationField,
+        openCellRequestField,
         createMainEditorActiveCellGuard(() => params.nestedOpen),
     ]);
 }
@@ -35,6 +40,20 @@ function headerCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
         col: 0,
         ...overrides,
     };
+}
+
+function hasOpenCellRequestEffects(tr: Transaction): boolean {
+    return (
+        tr.effects.some((effect) => effect.is(beginOpenCellRequestEffect)) &&
+        tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))
+    );
+}
+
+function expectRootTablePasteOpenRequest(tr: Transaction, tableFrom: number): void {
+    expect(tr.state.selection.main.head).toBe(tableFrom + 2);
+    expect(hasOpenCellRequestEffects(tr)).toBe(true);
+    expect(getActiveCell(tr.state)).toEqual(headerCell({ tableFrom }));
+    expect(getCellSelection(tr.state)).toBeNull();
 }
 
 function createActiveHeaderState(params?: {
@@ -251,7 +270,7 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(getCellSelection(tr.state)).toBeNull();
     });
 
-    it('rewrites plain root markdown-table paste into canonical table text and activation effect', () => {
+    it('rewrites plain root markdown-table paste into canonical table text and an open-cell request', () => {
         const state = createState({
             doc: ['before', '', 'after'].join('\n'),
             nestedOpen: false,
@@ -272,10 +291,7 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(tr.state.doc.toString()).toBe(
             ['before', '', '| H1 | H2 |', '| --- | --- |', '| a | b |', '', 'after'].join('\n')
         );
-        expect(tr.state.selection.main.head).toBe(8);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
-        expect(getActiveCell(tr.state)).toBeNull();
-        expect(getCellSelection(tr.state)).toBeNull();
+        expectRootTablePasteOpenRequest(tr, 8);
     });
 
     it('leaves non-table paste unchanged in the plain root editor', () => {
@@ -287,7 +303,7 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toBe('plain text');
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+        expect(hasOpenCellRequestEffects(tr)).toBe(false);
     });
 
     it('leaves multiple blank-line-separated tables unchanged in the plain root editor', () => {
@@ -308,7 +324,7 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toBe(pasteText);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+        expect(hasOpenCellRequestEffects(tr)).toBe(false);
     });
 
     it('rewrites plain root markdown-table paste in an empty document with surrounding newlines', () => {
@@ -321,11 +337,10 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toBe(`\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`);
-        expect(tr.state.selection.main.head).toBe(1);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
+        expectRootTablePasteOpenRequest(tr, 1);
     });
 
-    it('rewrites mid-line table paste with canonical spacing and activation effect', () => {
+    it('rewrites mid-line table paste with canonical spacing and an open-cell request', () => {
         const doc = 'before after';
         const state = createState({ doc, nestedOpen: false });
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
@@ -339,8 +354,7 @@ describe('createMainEditorActiveCellGuard', () => {
         expect(tr.state.doc.toString()).toBe(
             `before\n\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n\n after`
         );
-        expect(tr.state.selection.main.head).toBe(pastePos + 2);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(true);
+        expectRootTablePasteOpenRequest(tr, pastePos + 2);
     });
 
     it('leaves table paste unchanged in source mode', () => {
@@ -354,7 +368,7 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toBe(pasteText);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+        expect(hasOpenCellRequestEffects(tr)).toBe(false);
     });
 
     it('leaves table paste unchanged when search forces raw mode', () => {
@@ -372,7 +386,7 @@ describe('createMainEditorActiveCellGuard', () => {
         });
 
         expect(tr.state.doc.toString()).toBe(`before\n${pasteText}\nafter`);
-        expect(tr.effects.some((effect) => effect.is(activateInsertedTableEffect))).toBe(false);
+        expect(hasOpenCellRequestEffects(tr)).toBe(false);
     });
 
     it('allows full document replacement and clears active cell', () => {

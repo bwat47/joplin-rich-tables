@@ -9,7 +9,6 @@ import {
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
-import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
@@ -149,7 +148,6 @@ describe('runtimeEventClassifier', () => {
             },
             activeHostInvalidated: false,
             isUndoRedoInsideTable: false,
-            hasInsertedTableActivation: false,
             openRequestId: null,
             noteChanged: false,
         });
@@ -206,7 +204,6 @@ describe('runtimeEventClassifier', () => {
         const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
 
         expect(facts.isCellSelectionTransition).toBe(true);
-        expect(facts.hasInsertedTableActivation).toBe(false);
         expect(facts.openRequestId).toBe('latest-request');
         expect(facts.rawModeTransition).toEqual({
             enteredRawMode: true,
@@ -214,22 +211,6 @@ describe('runtimeEventClassifier', () => {
             exitedSourceMode: false,
             exitedSearchForce: false,
         });
-    });
-
-    it('classifies inserted-table activation effects', () => {
-        const update = dispatchAndCaptureUpdate({
-            dispatch(view) {
-                view.dispatch({
-                    effects: activateInsertedTableEffect.of({
-                        tableFrom: 0,
-                        target: { section: 'header', row: 0, col: 0 },
-                    }),
-                });
-            },
-        });
-        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
-
-        expect(facts.hasInsertedTableActivation).toBe(true);
     });
 
     it('classifies raw mode exit from the update start state', () => {

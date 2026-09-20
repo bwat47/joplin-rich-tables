@@ -1,13 +1,28 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach, beforeEach, vi } from 'vitest';
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';
 import { planCellEntryNormalization } from '../tableRuntime/tableCanonicalForm';
-import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
+import {
+    beginOpenCellRequestEffect,
+    getPendingOpenCellRequest,
+    openCellRequestField,
+    triggerOpenCellRequestEffect,
+} from '../tableRuntime/openCellRequest';
+import { activeCellField } from '../tableState/activeCellState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
+import { findCellElement } from '../tableWidget/domHelpers';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 
 const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
+const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
+
+class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+}
 
 interface CapturedDispatch {
     spec: TransactionSpec;
@@ -35,17 +50,25 @@ function createMockView(doc: string, cursorPos: number): EditorView & { state: E
     return view as unknown as EditorView & { state: EditorState };
 }
 
-function getActivateInsertedTableEffect(
-    view: ReturnType<typeof createMockView>
-): { tableFrom: number; target: unknown } | null {
+function expectInsertOpenCellRequest(view: ReturnType<typeof createMockView>, tableFrom: number): void {
+    let begin: ReturnType<typeof beginOpenCellRequestEffect.of>['value'] | null = null;
+    let trigger: ReturnType<typeof triggerOpenCellRequestEffect.of>['value'] | null = null;
+
     for (const { effects } of (view as unknown as { dispatches: CapturedDispatch[] }).dispatches) {
         for (const effect of effects) {
-            if (effect.is(activateInsertedTableEffect)) {
-                return effect.value;
+            if (effect.is(beginOpenCellRequestEffect)) {
+                begin = effect.value;
+            } else if (effect.is(triggerOpenCellRequestEffect)) {
+                trigger = effect.value;
             }
         }
     }
-    return null;
+
+    expect(begin).toMatchObject({
+        activeCell: { tableFrom, ...INSERTED_TABLE_HEADER_CELL },
+        suppressKeys: true,
+    });
+    expect(trigger).toEqual({ requestId: begin?.requestId });
 }
 
 function expectCellEntryWouldNotRewrite(view: ReturnType<typeof createMockView>, tableFrom: number): void {
@@ -55,7 +78,7 @@ function expectCellEntryWouldNotRewrite(view: ReturnType<typeof createMockView>,
         planCellEntryNormalization({
             state: view.state,
             ctx: ctx!,
-            coords: { section: 'header', row: 0, col: 0 },
+            coords: INSERTED_TABLE_HEADER_CELL,
         })
     ).toBeNull();
 }
@@ -72,11 +95,7 @@ describe('insertTableAndActivate', () => {
         );
         expect(view.state.selection.main.head).toBe(10);
 
-        const activationEffect = getActivateInsertedTableEffect(view);
-        expect(activationEffect).toEqual({
-            tableFrom: 8,
-            target: { section: 'header', row: 0, col: 0 },
-        });
+        expectInsertOpenCellRequest(view, 8);
         expectCellEntryWouldNotRewrite(view, 8);
     });
 
@@ -90,11 +109,7 @@ describe('insertTableAndActivate', () => {
         expect(view.state.doc.toString()).toBe(`before\n\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n\n after`);
         expect(view.state.selection.main.head).toBe(10);
 
-        const activationEffect = getActivateInsertedTableEffect(view);
-        expect(activationEffect).toEqual({
-            tableFrom: 8,
-            target: { section: 'header', row: 0, col: 0 },
-        });
+        expectInsertOpenCellRequest(view, 8);
         expectCellEntryWouldNotRewrite(view, 8);
     });
 
@@ -142,11 +157,38 @@ describe('insertTableAndActivate', () => {
         expect(view.state.doc.toString()).toBe(expectedDoc);
         expect(view.state.selection.main.head).toBe(tableFrom + 2);
 
-        const activationEffect = getActivateInsertedTableEffect(view);
-        expect(activationEffect).toEqual({
-            tableFrom,
-            target: { section: 'header', row: 0, col: 0 },
-        });
+        expectInsertOpenCellRequest(view, tableFrom);
         expectCellEntryWouldNotRewrite(view, tableFrom);
+    });
+
+    describe('mounted widget', () => {
+        beforeEach(() => {
+            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            document.body.innerHTML = '';
+        });
+
+        it('resolves the new cell and leaves the open request pending without a frame', () => {
+            const parent = document.createElement('div');
+            document.body.appendChild(parent);
+            const view = new EditorView({
+                parent,
+                state: createMarkdownState('', [activeCellField, openCellRequestField, tableDecorationField]),
+            });
+
+            insertTableAndActivate(view);
+
+            const request = getPendingOpenCellRequest(view.state);
+            expect(request).toMatchObject({
+                activeCell: { tableFrom: 1, ...INSERTED_TABLE_HEADER_CELL },
+                suppressKeys: true,
+            });
+            expect(findCellElement(view, request!.activeCell.tableFrom, request!.activeCell)).not.toBeNull();
+
+            view.destroy();
+        });
     });
 });

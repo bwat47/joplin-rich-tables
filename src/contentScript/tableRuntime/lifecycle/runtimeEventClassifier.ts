@@ -7,7 +7,6 @@ import {
     setSearchForceSourceModeEffect,
 } from '../../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
-import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { noteIdentityFacet } from '../../services/noteIdentity';
@@ -46,7 +45,6 @@ export function classifyTableRuntimeFacts(
         isSync,
         isCellSelectionTransition: hasCellSelectionTransitionAnnotation(update.transactions),
         rawModeTransition: scanRawModeTransitionFacts(update, effectiveRawMode),
-        hasInsertedTableActivation: hasInsertedTableActivationEffect(update),
         openRequestId: extractOpenRequestId(update),
         activeHostInvalidated: update.transactions.some((tr) => wasActiveHostInvalidated(tr.state)),
         isUndoRedoInsideTable,
@@ -87,10 +85,6 @@ function getActiveCellFacts(
         resolvedCell: resolvedActiveCell,
         selectionLeftActiveTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
     };
-}
-
-function hasInsertedTableActivationEffect(update: ViewUpdate): boolean {
-    return update.transactions.some((tr) => tr.effects.some((effect) => effect.is(activateInsertedTableEffect)));
 }
 
 function scanRawModeTransitionFacts(update: ViewUpdate, effectiveRawMode: boolean): RawModeTransitionFacts {
