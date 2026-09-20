@@ -133,7 +133,6 @@ class NestedEditorController {
                     ensureRootSelectionForCommand: () => this.flushSelectionToRoot(),
                 }),
                 createNestedEditorKeymap(params.mainView, {
-                    getSelectionBounds: (view) => ({ from: 0, to: view.state.doc.length }),
                     closeEditor: () => this.close(),
                     syncPendingChangesToRoot: () => this.flushLocalStateToRoot(),
                     extraBindings: {

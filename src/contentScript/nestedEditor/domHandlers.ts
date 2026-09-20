@@ -111,7 +111,6 @@ function isCaretOnSameVisualLine(view: EditorView, pos: number): boolean {
 export function createNestedEditorKeymap(
     mainView: EditorView,
     options: {
-        getSelectionBounds: (view: EditorView) => { from: number; to: number };
         closeEditor: () => void;
         syncPendingChangesToRoot: () => void;
         extraBindings?: Record<string, StateCommand>;
@@ -143,8 +142,7 @@ export function createNestedEditorKeymap(
         {
             key: 'ArrowLeft',
             run: (nestedView) => {
-                const { from } = options.getSelectionBounds(nestedView);
-                if (nestedView.state.selection.main.head === from) {
+                if (nestedView.state.selection.main.head === 0) {
                     options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'previous', {
                         initialCursorPos: 'end',
@@ -157,8 +155,7 @@ export function createNestedEditorKeymap(
         {
             key: 'ArrowRight',
             run: (nestedView) => {
-                const { to } = options.getSelectionBounds(nestedView);
-                if (nestedView.state.selection.main.head === to) {
+                if (nestedView.state.selection.main.head === nestedView.state.doc.length) {
                     options.syncPendingChangesToRoot();
                     return navigateCell(mainView, 'next', {
                         initialCursorPos: 'start',
@@ -171,8 +168,7 @@ export function createNestedEditorKeymap(
         {
             key: 'ArrowUp',
             run: (nestedView) => {
-                const { from } = options.getSelectionBounds(nestedView);
-                if (!isCaretOnSameVisualLine(nestedView, from)) {
+                if (!isCaretOnSameVisualLine(nestedView, 0)) {
                     return false;
                 }
 
@@ -186,8 +182,7 @@ export function createNestedEditorKeymap(
         {
             key: 'ArrowDown',
             run: (nestedView) => {
-                const { to } = options.getSelectionBounds(nestedView);
-                if (!isCaretOnSameVisualLine(nestedView, to)) {
+                if (!isCaretOnSameVisualLine(nestedView, nestedView.state.doc.length)) {
                     return false;
                 }
 
@@ -201,8 +196,7 @@ export function createNestedEditorKeymap(
         {
             key: 'Shift-ArrowLeft',
             run: (nestedView) => {
-                const { from } = options.getSelectionBounds(nestedView);
-                if (nestedView.state.selection.main.head !== from) {
+                if (nestedView.state.selection.main.head !== 0) {
                     return false;
                 }
 
@@ -213,8 +207,7 @@ export function createNestedEditorKeymap(
         {
             key: 'Shift-ArrowRight',
             run: (nestedView) => {
-                const { to } = options.getSelectionBounds(nestedView);
-                if (nestedView.state.selection.main.head !== to) {
+                if (nestedView.state.selection.main.head !== nestedView.state.doc.length) {
                     return false;
                 }
 
@@ -225,8 +218,7 @@ export function createNestedEditorKeymap(
         {
             key: 'Shift-ArrowUp',
             run: (nestedView) => {
-                const { from } = options.getSelectionBounds(nestedView);
-                if (!isCaretOnSameVisualLine(nestedView, from)) {
+                if (!isCaretOnSameVisualLine(nestedView, 0)) {
                     return false;
                 }
 
@@ -237,8 +229,7 @@ export function createNestedEditorKeymap(
         {
             key: 'Shift-ArrowDown',
             run: (nestedView) => {
-                const { to } = options.getSelectionBounds(nestedView);
-                if (!isCaretOnSameVisualLine(nestedView, to)) {
+                if (!isCaretOnSameVisualLine(nestedView, nestedView.state.doc.length)) {
                     return false;
                 }
 
