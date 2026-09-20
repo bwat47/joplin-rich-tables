@@ -2,9 +2,9 @@ import { history, isolateHistory, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNestedEditorKeymap } from '../nestedEditor/domHandlers';
+import { createNestedEditorDomHandlers, createNestedEditorKeymap } from '../nestedEditor/domHandlers';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
-import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { startCellDragEffect } from '../tableState/cellDragState';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
@@ -18,7 +18,7 @@ import {
     installRangeLayoutStubs,
     nestedEditorTestExtensions,
 } from './tableEditorFixtures';
-import type { SimulatedPlatform } from './historyShortcutNavigator';
+import type { SimulatedPlatform } from './keymapPlatformNavigator';
 
 type HistoryAction = 'undo' | 'redo';
 
@@ -80,6 +80,121 @@ const REJECTED_EVERYWHERE: RejectedShortcutCase[] = [
     { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
 ];
 
+interface KeyCase {
+    label: string;
+    init: KeyboardEventInit & { key: string };
+}
+
+const WINDOWS_LINUX_DELETION: KeyCase[] = [
+    { label: 'Ctrl-Backspace', init: { key: 'Backspace', ctrlKey: true } },
+    { label: 'Ctrl-Delete', init: { key: 'Delete', ctrlKey: true } },
+    { label: 'Ctrl-Shift-K', init: { key: 'k', ctrlKey: true, shiftKey: true } },
+];
+
+const DELETION_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Option-Backspace', init: { key: 'Backspace', altKey: true } },
+        { label: 'Option-Delete', init: { key: 'Delete', altKey: true } },
+        { label: 'Cmd-Backspace', init: { key: 'Backspace', metaKey: true } },
+        { label: 'Cmd-Delete', init: { key: 'Delete', metaKey: true } },
+        { label: 'Ctrl-D', init: { key: 'd', ctrlKey: true } },
+        { label: 'Ctrl-H', init: { key: 'h', ctrlKey: true } },
+        { label: 'Ctrl-K', init: { key: 'k', ctrlKey: true } },
+        { label: 'Ctrl-Option-H', init: { key: 'h', ctrlKey: true, altKey: true } },
+        { label: 'Cmd-Shift-K', init: { key: 'k', metaKey: true, shiftKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_DELETION,
+    Linux: WINDOWS_LINUX_DELETION,
+};
+
+const WINDOWS_LINUX_DELETION_REJECTED: KeyCase[] = [
+    { label: 'Cmd-Backspace', init: { key: 'Backspace', metaKey: true } },
+    { label: 'Option-Backspace', init: { key: 'Backspace', altKey: true } },
+    { label: 'Ctrl-D', init: { key: 'd', ctrlKey: true } },
+    { label: 'Cmd-Shift-K', init: { key: 'k', metaKey: true, shiftKey: true } },
+];
+
+const DELETION_REJECTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Ctrl-Backspace', init: { key: 'Backspace', ctrlKey: true } },
+        { label: 'Ctrl-Delete', init: { key: 'Delete', ctrlKey: true } },
+        { label: 'Ctrl-Shift-K', init: { key: 'k', ctrlKey: true, shiftKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_DELETION_REJECTED,
+    Linux: WINDOWS_LINUX_DELETION_REJECTED,
+};
+
+const DELETION_REJECTED_EVERYWHERE: KeyCase[] = [
+    { label: 'Alt-Ctrl-Backspace', init: { key: 'Backspace', ctrlKey: true, altKey: true } },
+    { label: 'Ctrl-Shift-Delete', init: { key: 'Delete', ctrlKey: true, shiftKey: true } },
+    { label: 'Ctrl+Meta-Backspace', init: { key: 'Backspace', ctrlKey: true, metaKey: true } },
+];
+
+const WINDOWS_LINUX_SEARCH: KeyCase[] = [{ label: 'Ctrl-F', init: { key: 'f', ctrlKey: true } }];
+const WINDOWS_LINUX_FORMATTING: KeyCase[] = [
+    { label: 'Ctrl-B', init: { key: 'b', ctrlKey: true } },
+    { label: 'Ctrl-I', init: { key: 'i', ctrlKey: true } },
+    { label: 'Ctrl-U', init: { key: 'u', ctrlKey: true } },
+    { label: 'Ctrl-`', init: { key: '`', ctrlKey: true } },
+    { label: 'Ctrl-E', init: { key: 'e', ctrlKey: true } },
+    { label: 'Ctrl-K', init: { key: 'k', ctrlKey: true } },
+];
+const WINDOWS_LINUX_HOST_PASSTHROUGH: KeyCase[] = [
+    { label: 'Ctrl-S', init: { key: 's', ctrlKey: true } },
+    { label: 'Ctrl-P', init: { key: 'p', ctrlKey: true } },
+    { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
+];
+const WINDOWS_LINUX_ROUTING_REJECTED: KeyCase[] = [
+    { label: 'Cmd-F', init: { key: 'f', metaKey: true } },
+    { label: 'Cmd-B', init: { key: 'b', metaKey: true } },
+    { label: 'Ctrl-N', init: { key: 'n', ctrlKey: true } },
+];
+
+const SEARCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [{ label: 'Cmd-F', init: { key: 'f', metaKey: true } }],
+    Windows: WINDOWS_LINUX_SEARCH,
+    Linux: WINDOWS_LINUX_SEARCH,
+};
+
+const FORMATTING_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Cmd-B', init: { key: 'b', metaKey: true } },
+        { label: 'Cmd-I', init: { key: 'i', metaKey: true } },
+        { label: 'Cmd-U', init: { key: 'u', metaKey: true } },
+        { label: 'Cmd-`', init: { key: '`', metaKey: true } },
+        { label: 'Cmd-E', init: { key: 'e', metaKey: true } },
+        { label: 'Cmd-K', init: { key: 'k', metaKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_FORMATTING,
+    Linux: WINDOWS_LINUX_FORMATTING,
+};
+
+const HOST_PASSTHROUGH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Cmd-S', init: { key: 's', metaKey: true } },
+        { label: 'Cmd-P', init: { key: 'p', metaKey: true } },
+        { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_HOST_PASSTHROUGH,
+    Linux: WINDOWS_LINUX_HOST_PASSTHROUGH,
+};
+
+const ROUTING_REJECTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Ctrl-F', init: { key: 'f', ctrlKey: true } },
+        { label: 'Ctrl-B', init: { key: 'b', ctrlKey: true } },
+        { label: 'Cmd-N', init: { key: 'n', metaKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_ROUTING_REJECTED,
+    Linux: WINDOWS_LINUX_ROUTING_REJECTED,
+};
+
+const ROUTING_REJECTED_EVERYWHERE: KeyCase[] = [
+    { label: 'Alt-Ctrl-B', init: { key: 'b', ctrlKey: true, altKey: true } },
+    { label: 'Ctrl-Shift-S', init: { key: 's', ctrlKey: true, shiftKey: true } },
+    { label: 'Ctrl+Meta-F', init: { key: 'f', ctrlKey: true, metaKey: true } },
+];
+
 /** The keymap platform each simulated platform must resolve to. */
 const EXPECTED_KEYMAP_PLATFORM: Record<SimulatedPlatform, string> = {
     macOS: 'mac',
@@ -123,26 +238,25 @@ function detectKeymapPlatform(): string {
 }
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+const EMPTY_BODY_DOC = ['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n');
 const FIRST_EDIT = '\n#one';
 const SECOND_EDIT = '\n#two';
+const LETTER_KEY = /^[a-z]$/i;
 installRangeLayoutStubs();
 
 function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }): KeyboardEvent {
-    const letter = init.key.toLowerCase();
-    const key = init.shiftKey ? letter.toUpperCase() : letter;
+    const isLetter = LETTER_KEY.test(init.key);
+    const key = isLetter && init.shiftKey ? init.key.toUpperCase() : init.key;
     const event = new KeyboardEvent('keydown', {
         bubbles: true,
         cancelable: true,
         ...init,
         key,
     });
-    let keyCode = 0;
-    if (letter === 'z') {
-        keyCode = 90;
-    } else if (letter === 'y') {
-        keyCode = 89;
+    if (isLetter) {
+        const keyCode = init.key.toUpperCase().charCodeAt(0);
+        Object.defineProperty(event, 'keyCode', { get: () => keyCode });
     }
-    Object.defineProperty(event, 'keyCode', { get: () => keyCode });
     target.dispatchEvent(event);
     return event;
 }
@@ -198,7 +312,7 @@ function typeIntoFocusedEditor(text: string): void {
     });
 }
 
-export function registerHistoryShortcutTests(
+export function registerPlatformShortcutTests(
     platform: SimulatedPlatform,
     options: { includeSharedBehavior?: boolean } = {}
 ): void {
@@ -247,6 +361,11 @@ export function registerHistoryShortcutTests(
                 parent,
                 doc: 'cell',
                 extensions: [
+                    createNestedEditorDomHandlers(mainView, {
+                        syncSelectionToMain: vi.fn(),
+                        closeEditor: vi.fn(),
+                        ensureRootSelectionForCommand: vi.fn(),
+                    }),
                     createNestedEditorKeymap(mainView, {
                         getSelectionBounds: (nestedView) => ({ from: 0, to: nestedView.state.doc.length }),
                         closeEditor: vi.fn(),
@@ -257,6 +376,54 @@ export function registerHistoryShortcutTests(
         );
         view.contentDOM.focus();
         return view;
+    }
+
+    function mountMainActiveCellView(): EditorView {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = trackView(
+            new EditorView({
+                parent,
+                doc: TABLE_DOC,
+                extensions: [activeCellField],
+            })
+        );
+        view.dispatch({
+            effects: setActiveCellEffect.of({
+                tableFrom: 0,
+                section: 'body',
+                row: 0,
+                col: 0,
+            }),
+        });
+        return view;
+    }
+
+    function mountNestedRoutingView(mainView: EditorView): {
+        view: EditorView;
+        parentKeyDown: ReturnType<typeof vi.fn>;
+        closeEditor: ReturnType<typeof vi.fn>;
+        ensureRootSelectionForCommand: ReturnType<typeof vi.fn>;
+    } {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const parentKeyDown = vi.fn();
+        parent.addEventListener('keydown', parentKeyDown);
+        const closeEditor = vi.fn();
+        const ensureRootSelectionForCommand = vi.fn();
+        const view = trackView(
+            new EditorView({
+                parent,
+                doc: 'cell',
+                extensions: createNestedEditorDomHandlers(mainView, {
+                    syncSelectionToMain: vi.fn(),
+                    closeEditor,
+                    ensureRootSelectionForCommand,
+                }),
+            })
+        );
+        view.contentDOM.focus();
+        return { view, parentKeyDown, closeEditor, ensureRootSelectionForCommand };
     }
 
     function mountSelectionView(): { view: EditorView; historyCounter: ReturnType<typeof createHistoryCounter> } {
@@ -364,6 +531,119 @@ export function registerHistoryShortcutTests(
         expectSelectionShortcutIgnored(init);
     });
 
+    function expectSelectionDeleted(init: KeyboardEventInit & { key: string }): void {
+        const { view } = mountSelectionView();
+        selectBodyCells(view);
+
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(view.state.doc.toString()).toBe(EMPTY_BODY_DOC);
+    }
+
+    function expectSelectionDeleteIgnored(init: KeyboardEventInit & { key: string }): void {
+        const { view } = mountSelectionView();
+        selectBodyCells(view);
+
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(view.state.doc.toString()).toBe(TABLE_DOC);
+        expect(getCellSelection(view.state)).not.toBeNull();
+    }
+
+    it.each(DELETION_SUPPORTED[platform])('cell selection $label deletes the rectangle', ({ init }) => {
+        expectSelectionDeleted(init);
+    });
+
+    it.each(DELETION_REJECTED[platform])('cell selection $label does not delete the rectangle', ({ init }) => {
+        expectSelectionDeleteIgnored(init);
+    });
+
+    /**
+     * A selection whose table the index cannot resolve, which is what a document rewrite
+     * leaves behind while the index is briefly incomplete. Removal declines, but the chord
+     * still belongs to the table runtime: the main caret is parked inside the focus cell,
+     * so letting it through would delete document text the user cannot see.
+     */
+    function expectSelectionDeleteSwallowed(init: KeyboardEventInit & { key: string }): void {
+        const { view } = mountSelectionView();
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: view.state.doc.length,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(view.state.doc.toString()).toBe(TABLE_DOC);
+    }
+
+    it.each(DELETION_SUPPORTED[platform])(
+        'cell selection $label is swallowed rather than deleting text when the table does not resolve',
+        ({ init }) => {
+            expectSelectionDeleteSwallowed(init);
+        }
+    );
+
+    function expectRoutedBubble(
+        nested: ReturnType<typeof mountNestedRoutingView>,
+        event: KeyboardEvent,
+        options: { closeEditor?: boolean; ensureRootSelection?: boolean }
+    ): void {
+        expect(nested.closeEditor).toHaveBeenCalledTimes(options.closeEditor ? 1 : 0);
+        expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(options.ensureRootSelection ? 1 : 0);
+        expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
+        expect(event.defaultPrevented).toBe(false);
+    }
+
+    it.each(SEARCH_SUPPORTED[platform])(
+        'nested $label closes the nested editor, clears the active cell, and bubbles',
+        ({ init }) => {
+            const mainView = mountMainActiveCellView();
+            const nested = mountNestedRoutingView(mainView);
+
+            const event = pressKey(nested.view.contentDOM, init);
+
+            expectRoutedBubble(nested, event, { closeEditor: true });
+            expect(getActiveCell(mainView.state)).toBeNull();
+        }
+    );
+
+    it.each(FORMATTING_SUPPORTED[platform])('nested $label synchronizes the root selection and bubbles', ({ init }) => {
+        const mainView = mountMainActiveCellView();
+        const nested = mountNestedRoutingView(mainView);
+
+        const event = pressKey(nested.view.contentDOM, init);
+
+        expectRoutedBubble(nested, event, { ensureRootSelection: true });
+        expect(getActiveCell(mainView.state)).not.toBeNull();
+    });
+
+    it.each(HOST_PASSTHROUGH_SUPPORTED[platform])('nested $label bubbles without nested bookkeeping', ({ init }) => {
+        const mainView = mountMainActiveCellView();
+        const nested = mountNestedRoutingView(mainView);
+
+        const event = pressKey(nested.view.contentDOM, init);
+
+        expectRoutedBubble(nested, event, {});
+    });
+
+    it.each(ROUTING_REJECTED[platform])('nested $label stays inside the nested editor', ({ init }) => {
+        const mainView = mountMainActiveCellView();
+        const nested = mountNestedRoutingView(mainView);
+
+        const event = pressKey(nested.view.contentDOM, init);
+
+        expect(nested.parentKeyDown).not.toHaveBeenCalled();
+        expect(nested.closeEditor).not.toHaveBeenCalled();
+        expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+    });
+
     // Nothing below depends on the simulated platform, so one platform file runs it.
     if (!options.includeSharedBehavior) {
         return;
@@ -375,6 +655,26 @@ export function registerHistoryShortcutTests(
 
     it.each(REJECTED_EVERYWHERE)('cell selection $label does not change root history', ({ init }) => {
         expectSelectionShortcutIgnored(init);
+    });
+
+    it.each(DELETION_REJECTED_EVERYWHERE)('cell selection $label does not delete the rectangle', ({ init }) => {
+        expectSelectionDeleteIgnored(init);
+    });
+
+    it('leaves Shift+Delete to native cut instead of rectangle deletion', () => {
+        expectSelectionDeleteIgnored({ key: 'Delete', shiftKey: true });
+    });
+
+    it.each(ROUTING_REJECTED_EVERYWHERE)('nested $label stays inside the nested editor', ({ init }) => {
+        const mainView = mountMainActiveCellView();
+        const nested = mountNestedRoutingView(mainView);
+
+        const event = pressKey(nested.view.contentDOM, init);
+
+        expect(nested.parentKeyDown).not.toHaveBeenCalled();
+        expect(nested.closeEditor).not.toHaveBeenCalled();
+        expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
     });
 
     it('keeps scoped history bindings out of the root editor keyboard scope', () => {

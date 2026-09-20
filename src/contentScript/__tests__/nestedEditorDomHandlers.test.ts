@@ -7,7 +7,8 @@ import { installRangeLayoutStubs } from './tableEditorFixtures';
 
 installRangeLayoutStubs();
 
-vi.mock('../tableRuntime/selection/cellSelectionClipboard', () => ({
+vi.mock('../tableRuntime/selection/cellSelectionClipboard', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../tableRuntime/selection/cellSelectionClipboard')>()),
     handleTableClipboardTextPaste: vi.fn(() => false),
 }));
 

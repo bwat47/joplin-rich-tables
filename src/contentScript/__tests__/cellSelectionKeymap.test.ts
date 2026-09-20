@@ -142,15 +142,7 @@ describe('cellSelectionKeymap', () => {
         });
     });
 
-    it.each([
-        { label: 'Ctrl+Backspace', init: { key: 'Backspace', ctrlKey: true } },
-        { label: 'Ctrl+Delete', init: { key: 'Delete', ctrlKey: true } },
-        { label: 'Shift+Backspace', init: { key: 'Backspace', shiftKey: true } },
-        { label: 'Option+Backspace', init: { key: 'Backspace', altKey: true } },
-        { label: 'Option+Delete', init: { key: 'Delete', altKey: true } },
-        { label: 'Command+Backspace', init: { key: 'Backspace', metaKey: true } },
-        { label: 'Command+Delete', init: { key: 'Delete', metaKey: true } },
-    ])('routes $label through selection removal', ({ init }) => {
+    it('routes Shift+Backspace through selection removal', () => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
 
         view.dispatch({
@@ -161,7 +153,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey(init);
+        pressKey({ key: 'Backspace', shiftKey: true });
 
         expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
     });
@@ -354,8 +346,30 @@ describe('cellSelectionKeymap', () => {
         }
     );
 
-    // Each direction is wired up by hand in the keymap's dispatch table, so a
-    // transposed entry would be invisible without per-direction coverage.
+    it.each([
+        { label: 'Ctrl+Enter', init: { key: 'Enter', ctrlKey: true } },
+        { label: 'Alt+Tab', init: { key: 'Tab', altKey: true } },
+        { label: 'Meta+Escape', init: { key: 'Escape', metaKey: true } },
+        { label: 'Shift+Escape', init: { key: 'Escape', shiftKey: true } },
+        { label: 'Ctrl+Shift+Enter', init: { key: 'Enter', ctrlKey: true, shiftKey: true } },
+    ])('leaves the selection untouched on $label', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+
+        const selection = {
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of(selection) });
+
+        pressKey(init);
+
+        expect(getCellSelection(view.state)).toEqual(selection);
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    // Each direction is a separate binding, so a transposed entry would be
+    // invisible without per-direction coverage.
     it.each([
         { key: 'ArrowRight', expected: { section: 'body', row: 0, col: 2 } },
         { key: 'ArrowLeft', expected: { section: 'body', row: 0, col: 0 } },
@@ -450,7 +464,14 @@ describe('cellSelectionKeymap', () => {
         }
     );
 
-    it.each(['ArrowRight', 'ArrowDown'])('leaves %s with a modifier to the main editor', (key) => {
+    it.each([
+        { label: 'Ctrl+ArrowRight', init: { key: 'ArrowRight', ctrlKey: true } },
+        { label: 'Alt+ArrowDown', init: { key: 'ArrowDown', altKey: true } },
+        { label: 'Meta+ArrowLeft', init: { key: 'ArrowLeft', metaKey: true } },
+        { label: 'Ctrl+Shift+ArrowRight', init: { key: 'ArrowRight', ctrlKey: true, shiftKey: true } },
+        { label: 'Alt+Shift+ArrowDown', init: { key: 'ArrowDown', altKey: true, shiftKey: true } },
+        { label: 'Meta+Shift+ArrowUp', init: { key: 'ArrowUp', metaKey: true, shiftKey: true } },
+    ])('leaves $label to the main editor', ({ init }) => {
         const view = mountSelectionView(GRID_DOC);
         const selection = {
             tableFrom: 0,
@@ -459,7 +480,7 @@ describe('cellSelectionKeymap', () => {
         } as const;
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-        pressKey({ key, ctrlKey: true });
+        pressKey(init);
 
         expect(getCellSelection(view.state)).toEqual(selection);
     });
