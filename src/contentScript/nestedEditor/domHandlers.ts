@@ -1,5 +1,5 @@
 import { EditorSelection, StateCommand, Transaction, type Extension } from '@codemirror/state';
-import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
+import { EditorView, keymap, runScopeHandlers, type Command, type KeyBinding } from '@codemirror/view';
 import { openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
@@ -23,9 +23,15 @@ const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
  */
 const HOST_PASSTHROUGH_KEYS: readonly string[] = ['s', 'p', 'v'];
 
-function allowHostBubble(): boolean {
-    return true;
-}
+/**
+ * Routing commands invert CodeMirror's usual `Command` contract. The keydown handler below
+ * stops propagation for every chord this scope does not claim, so a command returning true
+ * means "this chord belongs to the host, let it bubble" rather than "handled, stop here".
+ */
+const BUBBLE_TO_HOST = true;
+
+/** Claims a chord for the host without any nested-editor bookkeeping. */
+const bubbleToHost: Command = () => BUBBLE_TO_HOST;
 
 function isOpenSearchBinding(binding: KeyBinding): boolean {
     return binding.run === openSearchPanel;
@@ -34,7 +40,7 @@ function isOpenSearchBinding(binding: KeyBinding): boolean {
 /**
  * Adapts CodeMirror's `openSearchPanel` chord, inheriting only its platform key
  * fields. Search replaces the nested editor, so the command closes it and clears
- * active-cell state before the event bubbles. Returning true means "allow bubbling".
+ * active-cell state before the event bubbles.
  */
 function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => void): KeyBinding[] {
     return searchKeymap.filter(isOpenSearchBinding).map((binding) => ({
@@ -47,7 +53,7 @@ function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => voi
             if (getActiveCell(mainView.state)) {
                 mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
             }
-            return true;
+            return BUBBLE_TO_HOST;
         },
         scope: NESTED_EDITOR_ROUTING_SCOPE,
     }));
@@ -66,13 +72,13 @@ function createNestedEditorRoutingBindings(
             key: `Mod-${key}`,
             run: () => {
                 options.ensureRootSelectionForCommand();
-                return true;
+                return BUBBLE_TO_HOST;
             },
             scope: NESTED_EDITOR_ROUTING_SCOPE,
         })),
         ...HOST_PASSTHROUGH_KEYS.map((key) => ({
             key: `Mod-${key}`,
-            run: allowHostBubble,
+            run: bubbleToHost,
             scope: NESTED_EDITOR_ROUTING_SCOPE,
         })),
     ];
@@ -297,8 +303,8 @@ export function createNestedEditorDomHandlers(
                 return false;
             },
             // Never marks the event as handled; local CodeMirror keymaps still run on
-            // this element. A routing hit returns true from the scoped command to mean
-            // "allow bubbling"; unmatched chords stay inside the nested editor.
+            // this element. A routing hit means the chord belongs to the host (see
+            // `BUBBLE_TO_HOST`); unmatched chords stay inside the nested editor.
             keydown: (e, view) => {
                 if (!runScopeHandlers(view, e, NESTED_EDITOR_ROUTING_SCOPE)) {
                     e.stopPropagation();
