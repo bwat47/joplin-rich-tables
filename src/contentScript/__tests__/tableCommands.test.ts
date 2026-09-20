@@ -6,11 +6,7 @@ import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runSt
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../tableModel/structuralCommandSemantics';
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import {
-    getDefaultRowInsertOpenOptions,
-    getDefaultStructuralReopenOptions,
-    runStructuralCommand,
-} from '../tableRuntime/operations/structuralOperations';
+import { runStructuralCommand } from '../tableRuntime/operations/structuralOperations';
 
 // Mock dependencies
 vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
@@ -57,8 +53,6 @@ describe('tableCommands', () => {
         }) satisfies ResolvedActiveCell;
 
     describe('runtime structural operations', () => {
-        // What the defaults themselves do is covered below; this is only which set each
-        // command picks.
         it.each([
             { command: { type: 'insertRowAfter' }, initialCursorPos: 'start' },
             { command: { type: 'insertColumnAfter' }, initialCursorPos: undefined },
@@ -74,50 +68,11 @@ describe('tableCommands', () => {
                         view: mockView,
                         resolvedCell,
                         command,
-                        afterDispatch: expect.any(Function),
                     })
                 );
                 expect(mockRunStructuralMutationAndReopen.mock.calls[0][0].initialCursorPos).toBe(initialCursorPos);
             }
         );
-    });
-
-    describe('defaults', () => {
-        let view: EditorView;
-
-        beforeEach(() => {
-            const parent = document.createElement('div');
-            document.body.appendChild(parent);
-            view = new EditorView({
-                parent,
-                doc: ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
-            });
-            view.contentDOM.blur();
-        });
-
-        afterEach(() => {
-            const parent = view.dom.parentElement;
-            view.destroy();
-            parent?.remove();
-        });
-
-        it('getDefaultStructuralReopenOptions hands focus back to the main editor after dispatch', () => {
-            expect(document.activeElement).not.toBe(view.contentDOM);
-
-            getDefaultStructuralReopenOptions(view).afterDispatch?.();
-
-            expect(document.activeElement).toBe(view.contentDOM);
-        });
-
-        it('getDefaultRowInsertOpenOptions adds start cursor placement on top of structural defaults', () => {
-            const options = getDefaultRowInsertOpenOptions(view);
-
-            expect(options.initialCursorPos).toBe('start');
-
-            options.afterDispatch?.();
-
-            expect(document.activeElement).toBe(view.contentDOM);
-        });
     });
 
     describe('registerTableCommands', () => {
