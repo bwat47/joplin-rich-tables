@@ -49,9 +49,9 @@ function parseAlignment(cell: string): TableAlignment {
  * flat `TableDelimiter` node with no cell children to project. It is safe here because the
  * row's grammar admits only `-`, `:`, `|`, and spaces, so an escaped pipe cannot appear.
  */
-function parseSeparatorRow(text: string, syntax: MarkdownTableSyntax, tableFrom: number): string[] {
-    const separator = text
-        .slice(tableFrom + syntax.separator.from, tableFrom + syntax.separator.to)
+function parseSeparatorRow(tableText: string, syntax: MarkdownTableSyntax): string[] {
+    const separator = tableText
+        .slice(syntax.separator.from, syntax.separator.to)
         .trim()
         .replace(/^\|/, '')
         .replace(/\|$/, '');
@@ -59,15 +59,14 @@ function parseSeparatorRow(text: string, syntax: MarkdownTableSyntax, tableFrom:
 }
 
 function readCellContents(
-    text: string,
-    syntax: MarkdownTableSyntax,
-    tableFrom: number
+    tableText: string,
+    syntax: MarkdownTableSyntax
 ): {
     headers: string[];
     rows: string[][];
 } {
     const readCell = (cell: MarkdownTableSyntaxCell): string =>
-        cell.content ? text.slice(tableFrom + cell.content.from, tableFrom + cell.content.to) : '';
+        cell.content ? tableText.slice(cell.content.from, cell.content.to) : '';
 
     return {
         headers: syntax.header.cells.map(readCell),
@@ -291,17 +290,21 @@ export class MarkdownTable {
 
     /**
      * Parses text containing exactly one root-level Markdown table into the
-     * canonical normalized model.
+     * canonical normalized model. Optional outer whitespace is accepted and is
+     * not part of the projected table.
      */
     static parse(text: string): MarkdownTable | null {
         const parsed = parseRootMarkdownTableSyntax(text);
-        return parsed ? MarkdownTable.fromSyntax(text, parsed.syntax, parsed.from) : null;
+        return parsed ? MarkdownTable.fromSyntax(parsed.tableText, parsed.syntax) : null;
     }
 
-    /** Builds a normalized table from syntax facts already extracted by Lezer. */
-    static fromSyntax(text: string, syntax: MarkdownTableSyntax, tableFrom = 0): MarkdownTable {
-        const { headers, rows } = readCellContents(text, syntax, tableFrom);
-        const alignments = parseSeparatorRow(text, syntax, tableFrom).map(parseAlignment);
+    /**
+     * Builds a normalized table from syntax facts already extracted by Lezer.
+     * `tableText` must be the exact table source matching `syntax`.
+     */
+    static fromSyntax(tableText: string, syntax: MarkdownTableSyntax): MarkdownTable {
+        const { headers, rows } = readCellContents(tableText, syntax);
+        const alignments = parseSeparatorRow(tableText, syntax).map(parseAlignment);
         return MarkdownTable.create({ headerCells: headers, alignments, bodyRows: rows });
     }
 

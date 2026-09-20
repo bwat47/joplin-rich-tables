@@ -2,7 +2,8 @@
  * Computes source ranges (from/to positions) for each table cell.
  *
  * Lezer owns table and cell syntax. This module derives editor-specific semantic and
- * editable ranges from those syntax facts.
+ * editable ranges from those syntax facts. Callers must pass the exact table text;
+ * all returned ranges are table-relative.
  */
 import type {
     MarkdownTableSourceRange,
@@ -25,23 +26,19 @@ export interface TableCellRanges {
     readonly rows: readonly (readonly CellRange[])[];
 }
 
-function offsetRange(range: MarkdownTableSourceRange, tableFrom: number): MarkdownTableSourceRange {
-    return { from: tableFrom + range.from, to: tableFrom + range.to };
-}
-
-function emptyCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
-    const insertion = raw.from < raw.to && isTablePadding(text[raw.from]) ? raw.from + 1 : raw.from;
+function emptyCellBounds(tableText: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
+    const insertion = raw.from < raw.to && isTablePadding(tableText[raw.from]) ? raw.from + 1 : raw.from;
     return { from: insertion, to: insertion };
 }
 
-function editableCellBounds(text: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
+function editableCellBounds(tableText: string, raw: MarkdownTableSourceRange): MarkdownTableSourceRange {
     let from = raw.from;
     let to = raw.to;
 
-    if (from < to && isTablePadding(text[from])) {
+    if (from < to && isTablePadding(tableText[from])) {
         from++;
     }
-    if (to > from && isTablePadding(text[to - 1])) {
+    if (to > from && isTablePadding(tableText[to - 1])) {
         to--;
     }
 
@@ -50,10 +47,9 @@ function editableCellBounds(text: string, raw: MarkdownTableSourceRange): Markdo
     return { from, to };
 }
 
-function toCellRange(text: string, cell: MarkdownTableSyntaxCell, tableFrom: number): CellRange {
-    const raw = offsetRange(cell.raw, tableFrom);
-    const semantic = cell.content ? offsetRange(cell.content, tableFrom) : emptyCellBounds(text, raw);
-    const editable = editableCellBounds(text, raw);
+function toCellRange(tableText: string, cell: MarkdownTableSyntaxCell): CellRange {
+    const semantic = cell.content ?? emptyCellBounds(tableText, cell.raw);
+    const editable = editableCellBounds(tableText, cell.raw);
 
     return {
         from: semantic.from,
@@ -63,26 +59,27 @@ function toCellRange(text: string, cell: MarkdownTableSyntaxCell, tableFrom: num
     };
 }
 
-function toRowCellRanges(text: string, row: MarkdownTableSyntaxRow, tableFrom: number): readonly CellRange[] {
-    return row.cells.map((cell) => toCellRange(text, cell, tableFrom));
+function toRowCellRanges(tableText: string, row: MarkdownTableSyntaxRow): readonly CellRange[] {
+    return row.cells.map((cell) => toCellRange(tableText, cell));
 }
 
 /**
- * Computes per-cell source ranges (relative to `text`) for header/body rows.
+ * Computes per-cell source ranges (relative to `tableText`) for header/body rows.
  *
  * Notes:
+ * - `tableText` must be the exact table source matching `syntax`.
+ * - All returned ranges are table-relative.
  * - Lezer supplies row membership, delimiter positions, and non-empty content bounds.
  * - Exposes both syntax-backed semantic bounds (`from/to`) and editable bounds
  *   (`editableFrom/editableTo`) for nested editing and selection sync.
  */
 export function computeMarkdownTableCellRangesFromSyntax(
-    text: string,
-    syntax: MarkdownTableSyntax,
-    tableFrom = 0
+    tableText: string,
+    syntax: MarkdownTableSyntax
 ): TableCellRanges {
     return {
-        headers: toRowCellRanges(text, syntax.header, tableFrom),
-        rows: syntax.bodyRows.map((row) => toRowCellRanges(text, row, tableFrom)),
+        headers: toRowCellRanges(tableText, syntax.header),
+        rows: syntax.bodyRows.map((row) => toRowCellRanges(tableText, row)),
     };
 }
 

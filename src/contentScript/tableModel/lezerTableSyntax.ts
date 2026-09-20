@@ -25,8 +25,9 @@ export interface MarkdownTableSyntax {
     readonly bodyRows: readonly MarkdownTableSyntaxRow[];
 }
 
-export interface ParsedRootMarkdownTableSyntax extends MarkdownTableSourceRange {
-    /** Syntax ranges rebased to `from`, so the table itself starts at offset zero. */
+export interface ParsedRootMarkdownTableSyntax {
+    /** Exact source of the accepted table. Syntax offsets are relative to this slice. */
+    readonly tableText: string;
     readonly syntax: MarkdownTableSyntax;
 }
 
@@ -220,6 +221,7 @@ export function extractRootMarkdownTableSyntax(tableNode: SyntaxNode, tableText:
 /**
  * Parses text containing exactly one root-level GFM table and optional outer whitespace.
  * Non-whitespace content outside the table, additional tables, and nested tables are rejected.
+ * On success, `tableText` is the exact table slice and `syntax` is relative to that slice.
  */
 export function parseRootMarkdownTableSyntax(text: string): ParsedRootMarkdownTableSyntax | null {
     const root = markdownTableParser.parse(text).topNode;
@@ -234,5 +236,5 @@ export function parseRootMarkdownTableSyntax(text: string): ParsedRootMarkdownTa
     }
 
     const syntax = extractValidatedRootTableSyntax({ text, base: 0 }, table);
-    return syntax ? { from: table.from, to: table.to, syntax } : null;
+    return syntax ? { tableText: text.slice(table.from, table.to), syntax } : null;
 }

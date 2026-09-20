@@ -12,6 +12,11 @@ See [ADR-001](../ADR/001-lezer-table-syntax.md) for the decision rationale.
 - Optional `TableCell` children define non-empty semantic content spans after trailing ASCII spaces and tabs are removed.
 - The table-level separator node supplies the already validated alignment-row source.
 
+`parseRootMarkdownTableSyntax()` returns `{ tableText, syntax }`. After the enclosing input is validated, `tableText`
+is the exact accepted table slice, and every syntax offset is relative to that slice. Optional outer whitespace is
+accepted and dropped; it never appears in `tableText` or in syntax coordinates. Row-internal whitespace and padding
+remain part of `tableText`.
+
 Document resolution extracts this value from the existing CodeMirror tree and accepts only `Table` nodes directly
 under `Document`. Tables inside lists, blockquotes, or other containers are not rendered. Clipboard parsing uses a
 shared GFM Lezer parser and accepts exactly one root table plus optional outer whitespace.
@@ -27,7 +32,7 @@ matching Lezer's treatment of pipe-free lines adjacent to a table.
 ## Cell Ranges
 
 `computeMarkdownTableCellRangesFromSyntax()` converts syntax spans into editing coordinates relative to the supplied
-text, rebasing them when the table starts at a nonzero offset:
+exact table text. Callers must pass that table text; all returned ranges are table-relative:
 
 - `from/to` use a `TableCell` span minus trailing ASCII padding for non-empty content.
 - Empty cells receive a stable zero-width insertion point reconstructed from the raw delimiter gap.
@@ -38,14 +43,16 @@ text, rebasing them when the table starts at a nonzero offset:
 - Other whitespace, including Unicode whitespace that Lezer includes in `TableCell`, remains content.
 
 Cell lookup uses editable bounds; the nested editor uses both semantic and editable bounds. Tests compose the Lezer
-parser and range projection through `parseCellRangesFixture()` in their shared utilities. The resulting ranges also
-provide an independent check of `MarkdownTable.serializedCellOffset()` arithmetic.
+parser and range projection through `parseCellRangesFixture()` in their shared utilities. That helper projects
+`parsed.tableText`, so returned ranges stay table-relative even when a fixture includes outer whitespace. The resulting
+ranges also provide an independent check of `MarkdownTable.serializedCellOffset()` arithmetic.
 
 ## Normalized Model
 
-`MarkdownTable.fromSyntax()` reads cell content from syntax spans and alignment markers from the separator-node source.
-It then pads the header, alignments, and body rows to a rectangular grid. A pipe-free row is consequently padded to the
-table width and serializes canonically—for example, `text` in a two-column table becomes `| text |  |`.
+`MarkdownTable.fromSyntax()` reads cell content from syntax spans and alignment markers from the separator-node source
+against the exact table text. It then pads the header, alignments, and body rows to a rectangular grid. A pipe-free row
+is consequently padded to the table width and serializes canonically—for example, `text` in a two-column table becomes
+`| text |  |`.
 
 `MarkdownTable.parse(text)` delegates to the shared Lezer parser and is reached only from clipboard handling. Lezer
 validates table and separator syntax; the model does not maintain a competing row scanner or separator validator.

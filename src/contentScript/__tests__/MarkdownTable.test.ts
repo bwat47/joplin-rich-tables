@@ -33,6 +33,17 @@ describe('MarkdownTable', () => {
         expect(table?.serialize()).toBe(['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n'));
     });
 
+    it('parses enclosing whitespace without keeping it in the model or serialization', () => {
+        const markdown = ['| H1 | H2 |', '| :--- | ---: |', '| a | b |'].join('\n');
+        const table = MarkdownTable.parse(`\n  \n${markdown}\n\t`);
+
+        expect(table).not.toBeNull();
+        expect(table!.headerCells).toEqual(['H1', 'H2']);
+        expect(table!.alignments).toEqual(['left', 'right']);
+        expect(table!.bodyRows).toEqual([['a', 'b']]);
+        expect(table!.serialize()).toBe(markdown);
+    });
+
     it('fromParts normalizes ragged input', () => {
         const table = MarkdownTable.fromParts({
             headerCells: ['H1'],

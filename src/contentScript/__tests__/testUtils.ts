@@ -4,13 +4,13 @@ import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
 import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 
-/** Parses a real Markdown fixture into source-relative ranges, failing on invalid input. */
+/** Parses a real Markdown fixture into table-relative ranges, failing on invalid input. */
 export function parseCellRangesFixture(text: string): TableCellRanges {
     const parsed = parseRootMarkdownTableSyntax(text);
     if (!parsed) {
         throw new Error('Expected a valid root table fixture for cell ranges');
     }
-    return computeMarkdownTableCellRangesFromSyntax(text, parsed.syntax, parsed.from);
+    return computeMarkdownTableCellRangesFromSyntax(parsed.tableText, parsed.syntax);
 }
 
 export function parseTableFixture(text: string): MarkdownTable {
