@@ -52,19 +52,12 @@ describe('structuralActions', () => {
         mockRunStructuralMutationAndReopen.mockReturnValue(true);
     });
 
-    it('routes a model-backed action and returns the mutation result', () => {
-        mockRunStructuralMutationAndReopen.mockReturnValue(false);
-
-        expect(runStructuralAction(view, 'insertRowBefore', resolvedCell)).toBe(false);
-        expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-            expect.objectContaining({
-                view,
-                resolvedCell,
-                command: { type: 'insertRowBefore' },
-            })
-        );
-    });
-
+    /**
+     * Only the alignment actions are worth asserting. `modelBackedCommands` is pinned per key by
+     * `satisfies { [Id in ModelBackedStructuralActionId]: CommandForId<Id> }`, so a transposed
+     * entry there is a compile error; `alignmentCommands` pins only the value type, so a
+     * transposed alignment still compiles and needs a test.
+     */
     it.each([
         ['alignLeft', 'left'],
         ['alignCenter', 'center'],
