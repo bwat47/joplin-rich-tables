@@ -44,16 +44,16 @@ export function countLeadingBlankLinesAfterBoundary(text: string): number {
 /**
  * True when `pos` already has the required blank lines above its line.
  *
- * The document start counts as separated: there is no neighbouring text to run into.
- * Line lookups keep this cheap enough to run on every keystroke, unlike the slice-based
- * counters above.
+ * Document edges count as unseparated: walking off the start of the note before finding
+ * those blank lines means the table still needs padding. Line lookups keep this cheap
+ * enough to run on every keystroke.
  */
 export function hasRequiredBlankLinesBefore(doc: Text, pos: number): boolean {
     let lineNumber = doc.lineAt(pos).number;
     for (let remaining = REQUIRED_TABLE_BOUNDARY_BLANK_LINES; remaining > 0; remaining--) {
         lineNumber--;
         if (lineNumber < 1) {
-            return true;
+            return false;
         }
         if (!isBlankLineContent(doc.line(lineNumber).text)) {
             return false;
@@ -62,13 +62,13 @@ export function hasRequiredBlankLinesBefore(doc: Text, pos: number): boolean {
     return true;
 }
 
-/** True when `pos` already has the required blank lines below its line. */
+/** True when `pos` already has the required blank lines below its line. Document end is unseparated. */
 export function hasRequiredBlankLinesAfter(doc: Text, pos: number): boolean {
     let lineNumber = doc.lineAt(pos).number;
     for (let remaining = REQUIRED_TABLE_BOUNDARY_BLANK_LINES; remaining > 0; remaining--) {
         lineNumber++;
         if (lineNumber > doc.lines) {
-            return true;
+            return false;
         }
         if (!isBlankLineContent(doc.line(lineNumber).text)) {
             return false;

@@ -56,6 +56,20 @@ function blankLinePos(doc: string, followingText: string): number {
 }
 
 describe('table boundary maintenance', () => {
+    it('pads a table at the document start when text is typed below it', () => {
+        const doc = `${TABLE}\n\nafter`;
+        const transaction = input(createState(doc), blankLinePos(doc, 'after'), 'x', 'input.type');
+
+        expect(transaction.state.doc.toString()).toBe(`\n${TABLE}\n\nx\nafter`);
+    });
+
+    it('pads a table at the document end when text is typed above it', () => {
+        const doc = `intro\n\n${TABLE}`;
+        const transaction = input(createState(doc), blankLinePos(doc, TABLE), 'x', 'input.type');
+
+        expect(transaction.state.doc.toString()).toBe(`intro\nx\n\n${TABLE}\n`);
+    });
+
     it('restores the blank line when text is typed above a table', () => {
         const doc = `intro\n\n${TABLE}\n`;
         const transaction = input(createState(doc), blankLinePos(doc, TABLE), 'x', 'input.type');
