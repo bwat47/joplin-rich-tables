@@ -11,11 +11,11 @@ import type { SyntaxNode } from '@lezer/common';
 import type { TableGridBounds } from './types';
 
 export interface TableContext {
-    from: number;
-    to: number;
-    text: string;
-    table: MarkdownTable;
-    cellRanges: TableCellRanges;
+    readonly from: number;
+    readonly to: number;
+    readonly text: string;
+    readonly table: MarkdownTable;
+    readonly cellRanges: TableCellRanges;
 }
 
 /** The header occupies unified row 0, so it contributes one row to the grid. */

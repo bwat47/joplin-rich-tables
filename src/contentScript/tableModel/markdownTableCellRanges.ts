@@ -14,15 +14,15 @@ import { isTablePadding } from '../shared/tablePadding';
 import type { CellCoords } from './types';
 
 export interface CellRange {
-    from: number;
-    to: number;
-    editableFrom: number;
-    editableTo: number;
+    readonly from: number;
+    readonly to: number;
+    readonly editableFrom: number;
+    readonly editableTo: number;
 }
 
 export interface TableCellRanges {
-    headers: CellRange[];
-    rows: CellRange[][];
+    readonly headers: readonly CellRange[];
+    readonly rows: readonly (readonly CellRange[])[];
 }
 
 function offsetRange(range: MarkdownTableSourceRange, tableFrom: number): MarkdownTableSourceRange {
@@ -63,7 +63,7 @@ function toCellRange(text: string, cell: MarkdownTableSyntaxCell, tableFrom: num
     };
 }
 
-function toRowCellRanges(text: string, row: MarkdownTableSyntaxRow, tableFrom: number): CellRange[] {
+function toRowCellRanges(text: string, row: MarkdownTableSyntaxRow, tableFrom: number): readonly CellRange[] {
     return row.cells.map((cell) => toCellRange(text, cell, tableFrom));
 }
 
