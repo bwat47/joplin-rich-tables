@@ -1,10 +1,10 @@
 import type { ChangeSet } from '@codemirror/state';
 import { rangeTouchesInclusive } from '../../shared/transactionUtils';
-import type { TableContext } from '../../tableModel/tableContext';
+import type { TableSpan } from '../../tableModel/tableContext';
 
 /** The spans of an active cell and its table; a `ResolvedActiveCell` satisfies it. */
 export interface ActiveCellSpan {
-    ctx: Pick<TableContext, 'from' | 'to'>;
+    ctx: TableSpan;
     editableFrom: number;
     editableTo: number;
 }

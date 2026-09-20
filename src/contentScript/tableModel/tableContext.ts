@@ -10,9 +10,13 @@ import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from '
 import type { SyntaxNode } from '@lezer/common';
 import type { TableGridBounds } from './types';
 
-export interface TableContext {
+/** A table's inclusive `[from, to]` document bounds. */
+export interface TableSpan {
     readonly from: number;
     readonly to: number;
+}
+
+export interface TableContext extends TableSpan {
     readonly text: string;
     readonly table: MarkdownTable;
     readonly cellRanges: TableCellRanges;

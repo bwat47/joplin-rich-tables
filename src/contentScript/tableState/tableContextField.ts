@@ -1,7 +1,7 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from '@codemirror/language';
 import { StateField, type EditorState } from '@codemirror/state';
 import { logger } from '../../logger';
-import { buildTableContext, type TableContext } from '../tableModel/tableContext';
+import { buildTableContext, type TableContext, type TableSpan } from '../tableModel/tableContext';
 
 const SYNTAX_TREE_BUDGET_MS = 1000;
 
@@ -94,7 +94,7 @@ export function getTableContexts(state: EditorState): readonly TableContext[] {
 }
 
 /** True when `pos` sits inclusively inside the table's `[from, to]` span. */
-export function containsPos(ctx: Pick<TableContext, 'from' | 'to'>, pos: number): boolean {
+export function containsPos(ctx: TableSpan, pos: number): boolean {
     return pos >= ctx.from && pos <= ctx.to;
 }
 

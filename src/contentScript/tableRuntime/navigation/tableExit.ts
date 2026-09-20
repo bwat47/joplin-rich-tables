@@ -1,10 +1,6 @@
 import type { StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-
-interface TableSpan {
-    readonly from: number;
-    readonly to: number;
-}
+import type { TableSpan } from '../../tableModel/tableContext';
 
 /** Which side of a table the caret leaves through. */
 export type TableExitSide = 'before' | 'after';

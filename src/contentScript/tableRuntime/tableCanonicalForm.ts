@@ -1,7 +1,7 @@
 import { Annotation } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
 import type { SerializedTable } from '../tableModel/MarkdownTable';
-import type { TableContext } from '../tableModel/tableContext';
+import type { TableContext, TableSpan } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
 import { createActiveCellForTable, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
 import { needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
@@ -42,7 +42,7 @@ export interface CellEntryNormalization {
  *
  * `needsLeadingSeparator` / `needsTrailingSeparator` own whether to pad, including document edges.
  */
-function resolveBoundaryPadding(state: EditorState, ctx: Pick<TableContext, 'from' | 'to'>): TableBoundaryPadding {
+function resolveBoundaryPadding(state: EditorState, ctx: TableSpan): TableBoundaryPadding {
     const { doc } = state;
     return {
         prefix: needsLeadingSeparator(doc, ctx.from) ? '\n' : '',
