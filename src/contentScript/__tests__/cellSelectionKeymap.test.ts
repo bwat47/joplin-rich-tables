@@ -17,6 +17,8 @@ import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 /** Table with three columns and two body rows, so selection can move in every direction. */
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
+/** Last body row is short of the header, so grid-width clamping would name a missing cell. */
+const RAGGED_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 |'].join('\n');
 
 const mountedViews: EditorView[] = [];
 
@@ -547,6 +549,35 @@ describe('cellSelectionKeymap', () => {
 
         await nextAnimationFrame();
         expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it('clamps Shift+Arrow onto the last source cell of a ragged row', () => {
+        // Header-width clamping would name column 2, which this body row does not have.
+        const view = mountSelectionView(RAGGED_DOC);
+        view.dispatch({
+            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 2 }),
+        });
+
+        expect(startCellSelectionFromActiveCell(view, 'down')).toBe(true);
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 2 },
+            focus: { section: 'body', row: 1, col: 1 },
+        });
+    });
+
+    it('extends Shift+ArrowDown onto the last source cell of a ragged row', () => {
+        const view = mountSelectionView(RAGGED_DOC);
+        const anchor = { section: 'body', row: 0, col: 2 } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }) });
+
+        pressKey({ key: 'ArrowDown', shiftKey: true });
+
+        expect(getCellSelection(view.state)).toEqual({
+            tableFrom: 0,
+            anchor,
+            focus: { section: 'body', row: 1, col: 1 },
+        });
     });
 
     it('does not start cell selection from a stale active cell', () => {

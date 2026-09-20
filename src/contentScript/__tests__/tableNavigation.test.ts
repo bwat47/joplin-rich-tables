@@ -16,6 +16,21 @@ const TABLE_FROM = DOC.indexOf(TABLE_LINES[0]);
 const TABLE_TO = TABLE_FROM + TABLE_LINES.join('\n').length;
 const DOC_WITH_APPENDED_ROW = ['before', '', ...TABLE_LINES, '|  |  |', '', 'after'].join('\n');
 
+/** Last body row is short of the header, so grid geometry can name a cell the source lacks. */
+const RAGGED_LINES = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 |'];
+const RAGGED_DOC = ['before', '', ...RAGGED_LINES, '', 'after'].join('\n');
+const RAGGED_TABLE_FROM = RAGGED_DOC.indexOf(RAGGED_LINES[0]);
+const RAGGED_DOC_REPAIRED = [
+    'before',
+    '',
+    '| H1 | H2 | H3 |',
+    '| --- | --- | --- |',
+    '| a1 | a2 | a3 |',
+    '| b1 | b2 |  |',
+    '',
+    'after',
+].join('\n');
+
 /** `exitTableToAdjacentLine` leaves through the character just outside the table span. */
 const EXIT_BEFORE_ANCHOR = TABLE_FROM - 1;
 const EXIT_AFTER_ANCHOR = TABLE_TO + 1;
@@ -157,6 +172,47 @@ describe('navigateCell', () => {
         expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_HEADER, row: 0, col: 0 });
         expect(view.state.selection.main.anchor).toBe(0);
         expect(focus).not.toHaveBeenCalled();
+    });
+
+    it('opens the last source cell when down steps into a missing column of a ragged row', () => {
+        const { view } = openHarness({
+            doc: RAGGED_DOC,
+            activeCell: activeCellAt(SECTION_BODY, 0, 2, RAGGED_TABLE_FROM),
+        });
+
+        expect(navigateCell(view, 'down')).toBe(true);
+
+        const activeCell = getActiveCell(view.state);
+        expect(activeCell).toMatchObject({
+            tableFrom: RAGGED_TABLE_FROM,
+            section: SECTION_BODY,
+            row: 1,
+            col: 1,
+        });
+        expect(view.state.doc.toString()).toBe(RAGGED_DOC_REPAIRED);
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            activeCell,
+            suppressKeys: true,
+        });
+    });
+
+    it('stays in the last source cell when Tab steps into a missing column of a ragged row', () => {
+        // Skipping the hole and wrapping to the next row would be a separate wrap rule.
+        const { view } = openHarness({
+            doc: RAGGED_DOC,
+            activeCell: activeCellAt(SECTION_BODY, 1, 1, RAGGED_TABLE_FROM),
+        });
+
+        expect(navigateCell(view, 'next')).toBe(true);
+
+        expect(getActiveCell(view.state)).toMatchObject({
+            tableFrom: RAGGED_TABLE_FROM,
+            section: SECTION_BODY,
+            row: 1,
+            col: 1,
+        });
+        expect(view.state.doc.toString()).toBe(RAGGED_DOC);
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
     it('stays blocked when the table sits against the document edge it would exit through', () => {

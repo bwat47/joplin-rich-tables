@@ -1,11 +1,9 @@
 import { EditorView } from '@codemirror/view';
-import {
-    createResolvedActiveCell,
-    getResolvedActiveCell,
-    type ResolvedActiveCell,
-} from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { insertRowAtBottom } from '../operations/structuralOperations';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import { isSameCellCoords } from '../../tableModel/types';
 import { getTableGridBounds } from '../../tableModel/tableContext';
 import { requestOpenCell, shouldSuppressNavigationKeys } from '../openCellRequest';
 import { resolveNavigationTarget, type NavigationDirection } from './navigationTarget';
@@ -59,9 +57,13 @@ export function navigateCell(
         return true;
     }
 
-    const nextResolvedCell = createResolvedActiveCell({ ctx: resolvedActiveCell.ctx, coords: target.coords });
-    if (!nextResolvedCell) {
-        return false;
+    // Wrap and new-row keep header-width geometry. The cell that actually opens is
+    // clamped onto a source-backed range so a ragged row cannot fail to resolve.
+    // Same-row Tab into a missing column therefore stays put; skipping holes would
+    // be a different wrap rule.
+    const nextResolvedCell = resolveClampedCell({ ctx: resolvedActiveCell.ctx, target: target.coords });
+    if (isSameCellCoords(nextResolvedCell.activeCell, resolvedActiveCell.activeCell)) {
+        return true;
     }
 
     requestOpenCell(view, {

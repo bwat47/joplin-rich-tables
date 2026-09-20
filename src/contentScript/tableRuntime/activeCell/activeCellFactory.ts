@@ -41,8 +41,9 @@ export function createActiveCellForTable(params: {
 /**
  * Resolves `target` against `ctx`, clamping coordinates the table does not have.
  *
- * Entry points that derive a target from user intent - a click, a selection focus - can
- * name a cell a ragged row is missing, and clamping lands them on the nearest real one.
+ * Entry points that derive a target from user intent - a click, a selection focus, a
+ * navigation step - can name a cell a ragged row is missing, and clamping lands them on
+ * the nearest real one.
  * Cell identity read back from editor state must never be clamped: `createResolvedActiveCell`
  * returning null is how the lifecycle learns that an active cell no longer exists.
  */

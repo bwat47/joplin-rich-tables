@@ -4,34 +4,22 @@ import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
-    fromUnifiedRow,
     getCellSelection,
     getSelectedTable,
     moveCellCoords,
     setCellSelectionEffect,
-    toUnifiedRow,
     type CellSelection,
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
-import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
+import type { TableContext } from '../../tableModel/tableContext';
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
-import { clamp } from '../../shared/numberUtils';
 import { isSameCellCoords, normalizeCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
-
-/** Every indexed table has a header cell, so the grid is never empty and clamping always lands on it. */
-function clampSelectionFocusWithinContext(ctx: TableContext, focus: CellCoords): CellCoords {
-    const bounds = getTableGridBounds(ctx);
-    const unifiedRow = clamp(toUnifiedRow(focus), 0, bounds.totalRows - 1);
-    const col = clamp(focus.col, 0, bounds.totalCols - 1);
-
-    return fromUnifiedRow(unifiedRow, col);
-}
 
 /**
  * Hands focus to the main editor for a cell selection it does not already hold.
@@ -93,18 +81,19 @@ function dispatchSelectionWithContext(
     selection: CellSelection,
     options: SelectionDispatchOptions
 ): boolean {
-    const resolvedFocus = createResolvedActiveCell({ ctx, coords: selection.focus });
-    if (!resolvedFocus) {
-        return false;
-    }
+    // User-intent coordinates can name a column a ragged row is missing. Identity
+    // resolution would return null there; clamping lands on the nearest real cell.
+    const resolvedAnchor = resolveClampedCell({ ctx, target: selection.anchor });
+    const resolvedFocus = resolveClampedCell({ ctx, target: selection.focus });
+    const focus = normalizeCellCoords(resolvedFocus.activeCell);
 
     view.dispatch({
         selection: EditorSelection.single(resolvedFocus.editableFrom),
         effects: [
             setCellSelectionEffect.of({
                 tableFrom: ctx.from,
-                anchor: normalizeCellCoords(selection.anchor),
-                focus: normalizeCellCoords(selection.focus),
+                anchor: normalizeCellCoords(resolvedAnchor.activeCell),
+                focus,
             }),
             ...(options.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
             ...(options.extraEffects ?? []),
@@ -115,7 +104,7 @@ function dispatchSelectionWithContext(
 
     focusMainEditorForCellSelection(view);
 
-    const cellElement = (options.scrollFocusIntoView ?? true) ? findCellElement(view, ctx.from, selection.focus) : null;
+    const cellElement = (options.scrollFocusIntoView ?? true) ? findCellElement(view, ctx.from, focus) : null;
     if (cellElement) {
         view.requestMeasure({
             read: () => cellElement.isConnected,
@@ -153,8 +142,8 @@ export function setCellDragSelection(
         ctx,
         {
             tableFrom: ctx.from,
-            anchor: clampSelectionFocusWithinContext(ctx, anchor),
-            focus: clampSelectionFocusWithinContext(ctx, focus),
+            anchor,
+            focus,
         },
         {
             clearActiveCell: false,
@@ -181,10 +170,6 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
     }
 
     const activeCell = resolvedActiveCell.activeCell;
-    const clampedFocus = clampSelectionFocusWithinContext(
-        resolvedActiveCell.ctx,
-        moveCellCoords(activeCell, direction)
-    );
 
     return dispatchSelectionWithContext(
         view,
@@ -192,7 +177,7 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
         {
             tableFrom: resolvedActiveCell.ctx.from,
             anchor: activeCell,
-            focus: clampedFocus,
+            focus: moveCellCoords(activeCell, direction),
         },
         { clearActiveCell: true }
     );
@@ -205,7 +190,12 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     }
 
     const { selection, ctx } = selected;
-    const clampedFocus = clampSelectionFocusWithinContext(ctx, moveCellCoords(selection.focus, direction));
+    const clampedFocus = normalizeCellCoords(
+        resolveClampedCell({
+            ctx,
+            target: moveCellCoords(selection.focus, direction),
+        }).activeCell
+    );
 
     // A selection is dropped on every document change it does not replace, and its anchor always
     // comes from a source-backed cell, so it names a real cell of this table.
@@ -261,7 +251,6 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
     const selected = getSelectedTable(view.state);
     if (selected?.ctx.from === tableFrom) {
         const { selection, ctx } = selected;
-        const clampedFocus = clampSelectionFocusWithinContext(ctx, focus);
 
         return dispatchSelectionWithContext(
             view,
@@ -269,7 +258,7 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
             {
                 tableFrom: ctx.from,
                 anchor: selection.anchor,
-                focus: clampedFocus,
+                focus,
             },
             { clearActiveCell: false }
         );
@@ -278,7 +267,6 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
     const resolvedActiveCell = getResolvedActiveCell(view.state);
     if (resolvedActiveCell && resolvedActiveCell.ctx.from === tableFrom) {
         const activeCell = resolvedActiveCell.activeCell;
-        const clampedFocus = clampSelectionFocusWithinContext(resolvedActiveCell.ctx, focus);
 
         return dispatchSelectionWithContext(
             view,
@@ -286,7 +274,7 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
             {
                 tableFrom: resolvedActiveCell.ctx.from,
                 anchor: activeCell,
-                focus: clampedFocus,
+                focus,
             },
             { clearActiveCell: true }
         );
