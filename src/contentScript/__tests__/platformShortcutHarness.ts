@@ -560,6 +560,35 @@ export function registerPlatformShortcutTests(
         expectSelectionDeleteIgnored(init);
     });
 
+    /**
+     * A selection whose table the index cannot resolve, which is what a document rewrite
+     * leaves behind while the index is briefly incomplete. Removal declines, but the chord
+     * still belongs to the table runtime: the main caret is parked inside the focus cell,
+     * so letting it through would delete document text the user cannot see.
+     */
+    function expectSelectionDeleteSwallowed(init: KeyboardEventInit & { key: string }): void {
+        const { view } = mountSelectionView();
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: view.state.doc.length,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(view.state.doc.toString()).toBe(TABLE_DOC);
+    }
+
+    it.each(DELETION_SUPPORTED[platform])(
+        'cell selection $label is swallowed rather than deleting text when the table does not resolve',
+        ({ init }) => {
+            expectSelectionDeleteSwallowed(init);
+        }
+    );
+
     function expectRoutedBubble(
         nested: ReturnType<typeof mountNestedRoutingView>,
         event: KeyboardEvent,

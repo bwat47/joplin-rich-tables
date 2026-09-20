@@ -60,7 +60,8 @@ keyboard, clipboard, and history commands while this mode is active.
 - **Arrow** collapses the selection and exits the table.
 - **Enter**, **Tab**, and **Escape** activate the focus cell as exact keys; additional modifiers fall through.
 - **Deletion** follows CodeMirror's default chords (character, group, line-boundary, line, and line-end). Each clears
-  the rectangle. **Shift+Delete** remains native cut.
+  the rectangle and is always consumed, even when the rewrite declines, because the main caret is parked inside the
+  focus cell and would otherwise be edited. **Shift+Delete** remains native cut.
 - **Copy/Cut/Paste** operates on the rectangle and may expand the table.
 - **Undo/Redo** uses main-editor history.
 

@@ -57,9 +57,25 @@ function isRectangleDeletionBinding(binding: KeyBinding): boolean {
 }
 
 /**
+ * Clears the rectangle and claims the chord either way. While a cell selection is live the
+ * main caret is parked inside the focus cell, so a deletion chord that fell through would
+ * edit document text the user cannot see. A rewrite that declines is a no-op, not a reason
+ * to hand the key to the main editor.
+ */
+const clearSelectionRectangle: Command = (view) => {
+    handleSelectionDelete(view);
+    return true;
+};
+
+/**
  * Rectangle deletion follows CodeMirror's default chords, including Shift-Mod-K and
  * macOS Emacs-style Ctrl-D/H/K and Ctrl-Alt-H. Shift+Delete is not adapted: it is the
  * platform cut gesture and belongs to the clipboard handler.
+ *
+ * `preventDefault` is deliberately not inherited: `clearSelectionRectangle` always reports
+ * the chord as handled, so the capture plugin suppresses the event itself. Copying the flag
+ * would make suppression depend on which chord was pressed, since `standardKeymap` drops it
+ * when it re-maps the Emacs-style bindings.
  */
 function createRectangleDeletionBindings(): KeyBinding[] {
     return defaultKeymap.filter(isRectangleDeletionBinding).map((binding) => ({
@@ -67,9 +83,8 @@ function createRectangleDeletionBindings(): KeyBinding[] {
         mac: binding.mac,
         win: binding.win,
         linux: binding.linux,
-        preventDefault: binding.preventDefault,
-        run: handleSelectionDelete,
-        ...(binding.shift ? { shift: handleSelectionDelete } : {}),
+        run: clearSelectionRectangle,
+        ...(binding.shift ? { shift: clearSelectionRectangle } : {}),
         scope: CELL_SELECTION_SCOPE,
     }));
 }
