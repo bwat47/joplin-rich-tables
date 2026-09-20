@@ -69,11 +69,19 @@ export function scanNewlinesForward(state: EditorState, pos: number, limit: numb
     return { count, edge, reachesDocumentEdge: cursor === state.doc.length };
 }
 
+/** Both tables the span `[from, to)` separates. A span can sit between two of them. */
+export function resolveAdjacentTables(state: EditorState, from: number, to: number): AdjacentTables {
+    return {
+        before: getTableContextEndingAt(state, from),
+        after: getTableContextStartingAt(state, to),
+    };
+}
+
 /**
  * The table that the span `[from, to)` separates from its neighbour, or null.
  *
  * A span between two tables separates both, so `preferred` decides which one wins: the
- * preferred side is probed first and the other only when it misses.
+ * preferred side is taken when present, otherwise the other.
  */
 export function resolveAdjoiningTable(
     state: EditorState,
@@ -81,21 +89,15 @@ export function resolveAdjoiningTable(
     to: number,
     preferred: TableSide
 ): AdjoiningTable | null {
-    const sides: TableSide[] = preferred === 'before' ? ['before', 'after'] : ['after', 'before'];
-    for (const side of sides) {
-        const ctx = side === 'before' ? getTableContextEndingAt(state, from) : getTableContextStartingAt(state, to);
-        if (ctx) {
-            return { ctx, side };
-        }
+    const adjacent = resolveAdjacentTables(state, from, to);
+    const other: TableSide = preferred === 'before' ? 'after' : 'before';
+    const preferredCtx = adjacent[preferred];
+    if (preferredCtx) {
+        return { ctx: preferredCtx, side: preferred };
     }
-
+    const otherCtx = adjacent[other];
+    if (otherCtx) {
+        return { ctx: otherCtx, side: other };
+    }
     return null;
-}
-
-/** Both tables the span `[from, to)` separates. A span can sit between two of them. */
-export function resolveAdjacentTables(state: EditorState, from: number, to: number): AdjacentTables {
-    return {
-        before: getTableContextEndingAt(state, from),
-        after: getTableContextStartingAt(state, to),
-    };
 }
