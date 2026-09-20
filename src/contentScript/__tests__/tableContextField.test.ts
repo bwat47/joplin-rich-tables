@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import {
+    containsPos,
     getTableContextAtPos,
     getTableContextEndingAt,
     getTableContextStartingAt,
@@ -40,6 +41,11 @@ describe('tableContextField selectors', () => {
 
     it('uses inclusive containment at both table boundaries', () => {
         const state = createMarkdownState(TWO_TABLES);
+        const first = getTableContexts(state)[0]!;
+
+        expect(containsPos(first, 0)).toBe(true);
+        expect(containsPos(first, TABLE.length)).toBe(true);
+        expect(containsPos(first, TABLE.length + 1)).toBe(false);
 
         expect(getTableContextAtPos(state, 0)?.from).toBe(0);
         expect(getTableContextAtPos(state, TABLE.length)?.from).toBe(0);

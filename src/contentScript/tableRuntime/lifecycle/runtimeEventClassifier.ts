@@ -1,6 +1,6 @@
 import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
 import {
     exitSearchForceSourceModeEffect,
@@ -138,16 +138,9 @@ function extractOpenRequestId(update: ViewUpdate): string | null {
     return requestId;
 }
 
-function isPositionInsideRange(pos: number, from: number, to: number): boolean {
-    return pos >= from && pos <= to;
-}
-
 function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell: ResolvedActiveCell): boolean {
     const { main } = update.state.selection;
-    return (
-        !isPositionInsideRange(main.anchor, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to) ||
-        !isPositionInsideRange(main.head, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to)
-    );
+    return !containsPos(resolvedActiveCell.ctx, main.anchor) || !containsPos(resolvedActiveCell.ctx, main.head);
 }
 
 function cursorInsideAnyTable(update: ViewUpdate): boolean {
