@@ -4,6 +4,7 @@ import type { ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
+import type { StructuralTableCommand } from '../tableModel/structuralCommandSemantics';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import {
     getDefaultRowInsertOpenOptions,
@@ -56,39 +57,29 @@ describe('tableCommands', () => {
         }) satisfies ResolvedActiveCell;
 
     describe('runtime structural operations', () => {
-        it('routes row insertion through runStructuralMutationAndReopen with row defaults', () => {
-            const cell = createCell('body', 1, 1);
-            const resolvedCell = createResolvedCell(cell);
+        // What the defaults themselves do is covered below; this is only which set each
+        // command picks.
+        it.each([
+            { command: { type: 'insertRowAfter' }, initialCursorPos: 'start' },
+            { command: { type: 'insertColumnAfter' }, initialCursorPos: undefined },
+        ] satisfies Array<{ command: StructuralTableCommand; initialCursorPos?: 'start' }>)(
+            'gives $command.type an initialCursorPos of $initialCursorPos',
+            ({ command, initialCursorPos }) => {
+                const resolvedCell = createResolvedCell(createCell('body', 1, 1));
 
-            runStructuralCommand(mockView, resolvedCell, { type: 'insertRowAfter' });
+                runStructuralCommand(mockView, resolvedCell, command);
 
-            expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    view: mockView,
-                    resolvedCell,
-                    command: { type: 'insertRowAfter' },
-                    initialCursorPos: 'start',
-                    afterDispatch: expect.any(Function),
-                })
-            );
-        });
-
-        it('routes non-row structural operations through shared reopen defaults', () => {
-            const cell = createCell('body', 2, 3);
-            const resolvedCell = createResolvedCell(cell);
-
-            runStructuralCommand(mockView, resolvedCell, { type: 'insertColumnAfter' });
-
-            expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    view: mockView,
-                    resolvedCell,
-                    command: { type: 'insertColumnAfter' },
-                    afterDispatch: expect.any(Function),
-                })
-            );
-            expect(mockRunStructuralMutationAndReopen.mock.calls[0][0].initialCursorPos).toBeUndefined();
-        });
+                expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        view: mockView,
+                        resolvedCell,
+                        command,
+                        afterDispatch: expect.any(Function),
+                    })
+                );
+                expect(mockRunStructuralMutationAndReopen.mock.calls[0][0].initialCursorPos).toBe(initialCursorPos);
+            }
+        );
     });
 
     describe('defaults', () => {
