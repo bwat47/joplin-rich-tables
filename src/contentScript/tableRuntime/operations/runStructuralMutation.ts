@@ -10,7 +10,6 @@ import { isSameCellCoords } from '../../tableModel/types';
 
 export interface StructuralReopenOptions {
     initialCursorPos?: InitialCursorPos;
-    afterDispatch?: () => void;
     clearCellSelection?: boolean;
     suppressKeys?: boolean;
 }
@@ -94,7 +93,7 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
             changes: { from: prepared.tableFrom, to: prepared.tableTo, insert: '' },
             effects: [clearActiveCellEffect.of(undefined), structuralTableEditEffect.of(undefined)],
         });
-        params.afterDispatch?.();
+        params.view.focus();
 
         return true;
     }
@@ -120,7 +119,7 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
         ...openRequest,
         effects: [...openRequest.effects, structuralTableEditEffect.of(undefined)],
     });
-    params.afterDispatch?.();
+    params.view.focus();
 
     return true;
 }

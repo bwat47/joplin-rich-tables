@@ -7,14 +7,13 @@ import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
 
-export type RowInsertOpenOptions = StructuralReopenOptions;
-
 const DEFAULT_INSERTED_TABLE_COLUMNS = 2;
 const DEFAULT_INSERTED_TABLE_BODY_ROWS = 1;
 const DEFAULT_INSERTED_TABLE_ALIGNMENT: TableAlignment = null;
 const EMPTY_CELL = '';
 const DEFAULT_INSERTED_TABLE = buildDefaultInsertedTable();
 const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
+const ROW_INSERT_REOPEN_DEFAULTS: StructuralReopenOptions = { initialCursorPos: 'start' };
 
 /** Builds the empty table used by the insert command directly from known parts, without parsing. */
 function buildDefaultInsertedTable(): SerializedTable {
@@ -24,19 +23,6 @@ function buildDefaultInsertedTable(): SerializedTable {
         alignments: new Array<TableAlignment>(DEFAULT_INSERTED_TABLE_COLUMNS).fill(DEFAULT_INSERTED_TABLE_ALIGNMENT),
         bodyRows: Array.from({ length: DEFAULT_INSERTED_TABLE_BODY_ROWS }, emptyRow),
     }).serializeWithOffsets();
-}
-
-export function getDefaultStructuralReopenOptions(view: EditorView): StructuralReopenOptions {
-    return {
-        afterDispatch: () => view.focus(),
-    };
-}
-
-export function getDefaultRowInsertOpenOptions(view: EditorView): RowInsertOpenOptions {
-    return {
-        ...getDefaultStructuralReopenOptions(view),
-        initialCursorPos: 'start',
-    };
 }
 
 function commandUsesRowInsertDefaults(command: StructuralTableCommand): boolean {
@@ -49,15 +35,11 @@ export function runStructuralCommand(
     command: StructuralTableCommand,
     options?: StructuralReopenOptions
 ): boolean {
-    const defaults = commandUsesRowInsertDefaults(command)
-        ? getDefaultRowInsertOpenOptions(view)
-        : getDefaultStructuralReopenOptions(view);
-
     return runStructuralMutationAndReopen({
         view,
         resolvedCell,
         command,
-        ...defaults,
+        ...(commandUsesRowInsertDefaults(command) ? ROW_INSERT_REOPEN_DEFAULTS : {}),
         ...options,
     });
 }
@@ -66,7 +48,7 @@ export function insertRowAtBottom(
     view: EditorView,
     resolvedCell: ResolvedActiveCell,
     targetCol: number,
-    options?: RowInsertOpenOptions
+    options?: StructuralReopenOptions
 ): boolean {
     return runStructuralCommand(view, resolvedCell, { type: 'insertRowAfter', targetCol }, options);
 }
