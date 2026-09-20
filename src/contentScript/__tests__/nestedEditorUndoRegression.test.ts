@@ -67,10 +67,16 @@ const TEST_HOST_CONFIG = {
 describe('nested editor undo regression', () => {
     let animationFrameQueue: FrameRequestCallback[] = [];
 
-    const flushAnimationFrames = (): void => {
+    /**
+     * Drains the frame queue, letting queued microtasks run between frames so work the
+     * lifecycle schedules as a microtask (opening a requested cell) settles too.
+     */
+    const flushAnimationFrames = async (): Promise<void> => {
+        await Promise.resolve();
         while (animationFrameQueue.length > 0) {
             const callback = animationFrameQueue.shift();
             callback?.(0);
+            await Promise.resolve();
         }
     };
 
@@ -88,7 +94,7 @@ describe('nested editor undo regression', () => {
         document.body.innerHTML = '';
     });
 
-    it('keeps the first body cell editor usable after undo restores deleted text in a single-table document', () => {
+    it('keeps the first body cell editor usable after undo restores deleted text in a single-table document', async () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const activeCell: ActiveCell = {
             tableFrom: 0,
@@ -147,7 +153,7 @@ describe('nested editor undo regression', () => {
         });
 
         expect(undo(view)).toBe(true);
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(getActiveCell(view.state)).toEqual(activeCell);
         expect(isNestedEditorOpen(view)).toBe(true);
@@ -155,7 +161,7 @@ describe('nested editor undo regression', () => {
         view.destroy();
     });
 
-    it('refreshes another table after an external edit without replacing the active table host', () => {
+    it('refreshes another table after an external edit without replacing the active table host', async () => {
         const tableA = ['| A |', '| --- |', '| active |'].join('\n');
         const tableB = ['| B |', '| --- |', '| stale |'].join('\n');
         const doc = `${tableA}\n\n${tableB}`;
@@ -219,7 +225,7 @@ describe('nested editor undo regression', () => {
         view.destroy();
     });
 
-    it('keeps table and unrelated media DOM when editing and opening another cell in the same table', () => {
+    it('keeps table and unrelated media DOM when editing and opening another cell in the same table', async () => {
         const doc = '| A | B |\n| --- | --- |\n| first | second |';
         const firstCell: ActiveCell = { tableFrom: 0, section: 'body', row: 0, col: 0 };
         const secondCell: ActiveCell = { ...firstCell, col: 1 };
@@ -241,13 +247,13 @@ describe('nested editor undo regression', () => {
             ],
         });
         try {
-            const openCell = (cell: ActiveCell): void => {
+            const openCell = async (cell: ActiveCell): Promise<void> => {
                 const resolvedCell = resolveActiveCell(view.state, cell);
                 if (!resolvedCell) throw new Error('Expected cell to resolve');
                 requestOpenCell(view, { resolvedCell, entryMode: 'enter' });
-                flushAnimationFrames();
+                await flushAnimationFrames();
             };
-            openCell(firstCell);
+            await openCell(firstCell);
             const firstElement = findCellElement(view, 0, firstCell);
             const secondElement = findCellElement(view, 0, secondCell);
             const table = view.contentDOM.querySelector('table');
@@ -261,7 +267,7 @@ describe('nested editor undo regression', () => {
             if (!editor) throw new Error('Expected nested editor view');
             editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: 'updated first' } });
 
-            openCell(secondCell);
+            await openCell(secondCell);
 
             expect(view.contentDOM.querySelector('table')).toBe(table);
             expect(view.contentDOM.querySelector('video')).toBe(media);
@@ -272,7 +278,7 @@ describe('nested editor undo regression', () => {
             expect(getActiveCell(view.state)).toEqual(secondCell);
             expect(isNestedEditorOpen(view)).toBe(true);
 
-            openCell(firstCell);
+            await openCell(firstCell);
             expect(firstElement.querySelector('.cm-content')?.textContent).toBe('updated first');
             expect(view.contentDOM.querySelector('video')).toBe(media);
         } finally {
@@ -280,7 +286,7 @@ describe('nested editor undo regression', () => {
         }
     });
 
-    it('closes the active editor on a parser timeout and restores widgets after recovery', () => {
+    it('closes the active editor on a parser timeout and restores widgets after recovery', async () => {
         const doc = '| H |\n| --- |\n| edited text |';
         const activeCell: ActiveCell = { tableFrom: 0, section: 'body', row: 0, col: 0 };
         const parent = document.createElement('div');
@@ -329,7 +335,7 @@ describe('nested editor undo regression', () => {
             expect(isNestedEditorOpen(view)).toBe(false);
             expect(view.contentDOM.querySelector(getWidgetSelector())).toBeNull();
             expect(view.state.doc.sliceString(0, doc.length)).toBe(doc);
-            flushAnimationFrames();
+            await flushAnimationFrames();
 
             const completeParseTimeoutMs = 1_000;
             expect(ensureSyntaxTree(view.state, view.state.doc.length, completeParseTimeoutMs)).not.toBeNull();
@@ -342,7 +348,7 @@ describe('nested editor undo regression', () => {
         }
     });
 
-    it('closes the active editor and follows the restored cursor when undo targets another table', () => {
+    it('closes the active editor and follows the restored cursor when undo targets another table', async () => {
         const tableA = ['| A |', '| --- |', '| active |'].join('\n');
         const tableB = ['| B |', '| --- |', '| old |'].join('\n');
         const doc = `${tableA}\n\n${tableB}`;
@@ -403,7 +409,7 @@ describe('nested editor undo regression', () => {
         const tableBFrom = view.state.field(tableContextField).tables[1].from;
 
         expect(undo(view)).toBe(true);
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(view.state.doc.toString()).toContain('| old |');
         expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
