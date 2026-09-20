@@ -52,6 +52,21 @@ function createActiveHeaderState(params?: {
 }
 
 describe('createMainEditorActiveCellGuard', () => {
+    it('blocks inserting at the active table start when nested editor is open', () => {
+        const prefix = 'before\n\n';
+        const fullDoc = `${prefix}${TABLE_DOC}`;
+        const state = createActiveHeaderState({
+            doc: fullDoc,
+            activeCell: headerCell({ tableFrom: prefix.length }),
+        });
+
+        const tr = state.update({
+            changes: { from: prefix.length, insert: 'x' },
+        });
+
+        expect(tr.state.doc.toString()).toBe(fullDoc);
+    });
+
     it('blocks deleting a delimiter pipe outside the active cell when nested editor is open', () => {
         const doc = TABLE_DOC;
         const state = createActiveHeaderState();

@@ -80,6 +80,9 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 
 - While a nested editor is open, it owns text input for the active cell.
 - Main-editor guards must prevent edits that would corrupt the active cell or create sync loops.
+- Guard and decoration policy use the same inclusive table span as `containsPos`. An insertion or
+  deletion that only touches a table edge is a table edit, not an outside-table edit. Exclusive
+  overlap remains for boundary maintenance, where an endpoint insertion is a spacing repair.
 - Focus changes alone are not reliable lifecycle signals. Use explicit requests, transaction annotations, and resolved active-cell state.
 - Mobile IME stability depends on avoiding unnecessary close/reopen gaps. Explicit open requests should be executed as one open path when switching or creating cells.
 

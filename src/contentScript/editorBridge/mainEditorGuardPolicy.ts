@@ -5,7 +5,7 @@ import { structuralTableEditEffect } from '../tableState/structuralTableEditEffe
 import { sanitizeCellChanges } from './cellTextCodec';
 import { syncAnnotation } from './syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { changesOverlapRange, isFullDocumentReplace } from '../shared/transactionUtils';
+import { changesTouchInclusiveRange, isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import {
     buildMultiCellPasteRewrite,
@@ -165,7 +165,7 @@ function decideActiveCellEdit(tr: Transaction): GuardDecision {
         return { type: 'allowTransaction' };
     }
 
-    if (!changesOverlapRange(tr, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to)) {
+    if (!changesTouchInclusiveRange(tr, resolvedActiveCell.ctx.from, resolvedActiveCell.ctx.to)) {
         return { type: 'allowTransaction' };
     }
 
