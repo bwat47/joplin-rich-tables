@@ -1,5 +1,6 @@
 import type { EditorState, Text } from '@codemirror/state';
 import {
+    isBlankLineContent,
     needsLeadingSeparator,
     needsTrailingSeparator,
     REQUIRED_TABLE_BOUNDARY_BLANK_LINES,
@@ -72,7 +73,7 @@ export function buildIsolatedRootTableInsertRewrite(
     const selectedText = state.doc.sliceString(from, to);
     const textAfterTo = state.doc.sliceString(to, endLine.to);
 
-    if (textBeforeFrom.trim().length > 0 || selectedText.trim().length > 0 || textAfterTo.trim().length > 0) {
+    if (![textBeforeFrom, selectedText, textAfterTo].every(isBlankLineContent)) {
         return null;
     }
 

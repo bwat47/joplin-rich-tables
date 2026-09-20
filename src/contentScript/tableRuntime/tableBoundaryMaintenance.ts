@@ -22,6 +22,7 @@ interface BoundaryPadding {
     insert: string;
 }
 
+/** One newline restores the quota while `REQUIRED_TABLE_BOUNDARY_BLANK_LINES === 1`. */
 const BOUNDARY_PADDING_NEWLINE = '\n';
 
 /**
@@ -118,7 +119,8 @@ function resolveBoundaryPadding(transaction: Transaction, ctx: TableContext): Bo
     const { from, to } = mappedTable;
     const doc = transaction.newDoc;
     // Text merged onto a table's first or last line needs more than a blank line to undo;
-    // cell entry normalization repairs that shape.
+    // cell entry normalization repairs that shape. Keep this guard: it subsumes the line-edge
+    // checks in needsLeading/TrailingSeparator, which would otherwise pad that merged edge.
     if (doc.lineAt(from).from !== from || doc.lineAt(to).to !== to) {
         return [];
     }

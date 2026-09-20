@@ -36,10 +36,11 @@ export interface CellEntryNormalization {
 
 /**
  * Blank-line padding the table needs to stay separated from its surroundings.
- * A single newline per side is enough: the replaced range is line-bounded, so the
- * neighbouring line breaks already outside it combine with the padding to form the blank line.
+ * A single newline per side is enough while `REQUIRED_TABLE_BOUNDARY_BLANK_LINES === 1`:
+ * the replaced range is line-bounded, so the neighbouring line breaks already outside it
+ * combine with the padding to form the blank line.
  *
- * `needsLeadingSeparator` / `needsTrailingSeparator` own the policy, including document edges.
+ * `needsLeadingSeparator` / `needsTrailingSeparator` own whether to pad, including document edges.
  */
 function resolveBoundaryPadding(state: EditorState, ctx: Pick<TableContext, 'from' | 'to'>): TableBoundaryPadding {
     const { doc } = state;
