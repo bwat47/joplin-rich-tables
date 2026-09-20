@@ -1,16 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { EditorState, Transaction } from '@codemirror/state';
-import {
-    activeCellField,
-    clearActiveCellEffect,
-    getActiveCell,
-    setActiveCellEffect,
-    type ActiveCell,
-} from '../tableState/activeCellState';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { sourceModeField } from '../tableState/sourceMode';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import {
     reduceTableRuntime,
@@ -20,7 +14,6 @@ import {
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
-import { decideTableDecorationUpdate } from '../tableWidget/tableDecorationPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
@@ -287,84 +280,6 @@ describe('tableRuntimePolicies', () => {
         },
     ])('$name', ({ overrides, expected }) => {
         expect(reduceTableRuntime(defaultRuntimeFacts(overrides))).toEqual(expected);
-    });
-
-    it('maps decorations for in-cell edits while active', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const resolved = requireResolvedActiveCell(state);
-        const tr = state.update({
-            changes: { from: resolved.editableFrom, to: resolved.editableFrom, insert: 'x' },
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
-    });
-
-    it('rebuilds decorations for undo structural edits while active', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const tr = state.update({
-            changes: { from: doc.length, to: doc.length, insert: '\n| b1 | b2 |' },
-            annotations: Transaction.userEvent.of('undo'),
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
-    });
-
-    it('rebuilds all decorations when active cell is cleared', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const tr = state.update({ effects: clearActiveCellEffect.of(undefined) });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
-    });
-
-    it('rebuilds all decorations when activation switches to a different table', () => {
-        // The previous table's widget may hold cell ranges frozen by mapDecorations; once the
-        // resolved active cell moves to another table, only a rebuild keeps coordsAt() accurate.
-        const state = createState({ activeCell: getHeaderCell() });
-        const tr = state.update({
-            effects: setActiveCellEffect.of({ tableFrom: 50, section: 'body', row: 0, col: 0 }),
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
-    });
-
-    it('keeps decorations when activation moves within the same table', () => {
-        const state = createState({ activeCell: getHeaderCell() });
-        const tr = state.update({
-            effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
-    });
-
-    it('returns none decorations in raw mode', () => {
-        const state = createState();
-        const tr = state.update({ effects: toggleSourceModeEffect.of(true) });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'noneDecorations' });
-    });
-
-    it('reconciles a full document replace with an active cell', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const tr = state.update({
-            changes: { from: 0, to: doc.length, insert: '# replaced' },
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
-    });
-
-    it('keeps decorations for sync transactions that do not change the document', () => {
-        const activeCell = getHeaderCell();
-        const state = createState({ activeCell });
-        const tr = state.update({
-            selection: { anchor: 0 },
-            annotations: syncAnnotation.of(true),
-        });
-
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
     });
 
     it('allows sync transactions through the guard untouched', () => {
@@ -752,7 +667,6 @@ describe('tableRuntimePolicies', () => {
             openRequestId: 'normalize-request',
         });
 
-        expect(decideTableDecorationUpdate(tr)).toEqual({ type: 'reconcileDecorations' });
         expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
             type: 'allowTransaction',
         });

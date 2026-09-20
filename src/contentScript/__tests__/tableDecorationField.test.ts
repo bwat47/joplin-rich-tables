@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { tableContextField } from '../tableState/tableContextField';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
+import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -325,6 +327,23 @@ ${TABLE.replace('a', 'c')}`;
         state = state.update({ selection: { anchor: 1 } }).state;
 
         expect(state.field(tableDecorationField).decorations).toBe(before);
+    });
+
+    it.each([
+        ['source mode', toggleSourceModeEffect],
+        ['search-forced raw mode', setSearchForceSourceModeEffect],
+    ])('drops decorations in %s and rebuilds them on exit', (_name, effect) => {
+        let state = createMarkdownState(TABLE, [tableDecorationField, sourceModeField, searchForceSourceModeField]);
+        expect(state.field(tableDecorationField).decorations.size).toBe(1);
+        const index = state.field(tableContextField);
+
+        state = state.update({ effects: effect.of(true) }).state;
+        expect(state.field(tableDecorationField).decorations.size).toBe(0);
+
+        const exit = state.update({ effects: effect.of(false) });
+        expect(exit.docChanged).toBe(false);
+        expect(exit.state.field(tableContextField)).toBe(index);
+        expect(exit.state.field(tableDecorationField).decorations.size).toBe(1);
     });
 
     it('clears host invalidation on the next selection-only transaction', () => {

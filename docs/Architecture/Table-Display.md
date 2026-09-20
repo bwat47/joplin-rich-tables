@@ -30,7 +30,9 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 ### 1. Decoration Update Strategy
 
-Every document change reconciles decorations against the current `tableContextField` index. All tables receive fresh
+Every document change reconciles decorations against the current `tableContextField` index. Raw mode is the exception:
+widgets are replaced with `Decoration.none`, and exiting raw mode force-rebuilds them. That exit has no document change
+and keeps the same index object, so reconciliation would retain the empty set. All tables receive fresh
 decorations except the table hosting the active nested editor, whose existing decoration is carried through only when:
 
 1. the old active cell resolves;

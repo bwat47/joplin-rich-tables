@@ -42,7 +42,8 @@ Policy is split by concern:
   reducer, maps fallback hints, and executes the planned CodeMirror/nested-editor side effects. Execution-time guards
   revalidate delayed open requests before touching DOM or mounting the nested editor.
 - `editorBridge/mainEditorGuardPolicy.ts` decides whether main-editor transactions are allowed, rewritten, or sanitized.
-- `tableWidget/tableDecorationPolicy.ts` decides whether table decorations are kept, mapped, removed, or rebuilt.
+- `tableWidget/tableDecorationField.ts` drops widgets in raw mode, force-rebuilds on raw-mode exit, and otherwise
+  reconciles against the table index.
 
 The lifecycle classifier owns CodeMirror adaptation, the lifecycle policy owns action ordering and precedence, and the
 lifecycle plugin owns nested-editor side effects.
