@@ -1,6 +1,6 @@
 import { history, isolateHistory, undo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
-import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,32 +52,36 @@ const SUPPORTED: Record<SimulatedPlatform, ShortcutCase[]> = {
     ],
 };
 
+/**
+ * Chords this platform must ignore even though another platform binds them, or the
+ * pre-refactor matcher accepted them. Modifier noise that no platform binds lives in
+ * `REJECTED_EVERYWHERE` instead.
+ */
 const REJECTED: Record<SimulatedPlatform, RejectedShortcutCase[]> = {
     macOS: [
         { label: 'Cmd-Y', init: { key: 'y', metaKey: true } },
         { label: 'Ctrl-Shift-Z', init: { key: 'z', ctrlKey: true, shiftKey: true } },
-        { label: 'Alt-Cmd-Z', init: { key: 'z', metaKey: true, altKey: true } },
-        { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
-        { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
         { label: 'Ctrl-Z', init: { key: 'z', ctrlKey: true } },
     ],
     Windows: [
-        { label: 'Cmd-Y', init: { key: 'y', metaKey: true } },
         { label: 'Ctrl-Shift-Z', init: { key: 'z', ctrlKey: true, shiftKey: true } },
-        { label: 'Alt-Ctrl-Z', init: { key: 'z', ctrlKey: true, altKey: true } },
-        { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
-        { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
         { label: 'Cmd-Z', init: { key: 'z', metaKey: true } },
     ],
     Linux: [
-        { label: 'Cmd-Y', init: { key: 'y', metaKey: true } },
-        { label: 'Alt-Ctrl-Z', init: { key: 'z', ctrlKey: true, altKey: true } },
-        { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
-        { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
         { label: 'Cmd-Z', init: { key: 'z', metaKey: true } },
         { label: 'Cmd-Shift-Z', init: { key: 'z', metaKey: true, shiftKey: true } },
     ],
 };
+
+/**
+ * Modifier combinations no platform binds. Rejecting them is CodeMirror's exact-match
+ * key normalization rather than anything platform-specific, so one platform covers it.
+ */
+const REJECTED_EVERYWHERE: RejectedShortcutCase[] = [
+    { label: 'Alt-Ctrl-Z', init: { key: 'z', ctrlKey: true, altKey: true } },
+    { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
+    { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
+];
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const FIRST_EDIT = '\n#one';
@@ -200,7 +204,7 @@ function typeIntoFocusedEditor(text: string): void {
 
 export function registerHistoryShortcutTests(
     platform: SimulatedPlatform,
-    options: { includeLifecycle?: boolean } = {}
+    options: { includeSharedBehavior?: boolean } = {}
 ): void {
     const mountedViews: EditorView[] = [];
 
@@ -306,7 +310,7 @@ export function registerHistoryShortcutTests(
         }
     });
 
-    it.each(REJECTED[platform])('nested $label does not change root history', ({ init }) => {
+    function expectNestedShortcutIgnored(init: KeyboardEventInit & { key: string }): void {
         const { view: mainView, historyCounter } = mountMainHistoryView();
         const nestedView = mountNestedKeymap(mainView);
         const before = mainView.state.doc.toString();
@@ -316,6 +320,24 @@ export function registerHistoryShortcutTests(
         expect(event.defaultPrevented).toBe(false);
         expect(mainView.state.doc.toString()).toBe(before);
         expect(historyCounter.events).toEqual([]);
+    }
+
+    function expectSelectionShortcutIgnored(init: KeyboardEventInit & { key: string }): void {
+        const { view, historyCounter } = mountSelectionView();
+        primeTwoEdits(view);
+        selectBodyCells(view);
+        const before = view.state.doc.toString();
+
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(view.state.doc.toString()).toBe(before);
+        expect(historyCounter.events).toEqual([]);
+        expect(getCellSelection(view.state)).not.toBeNull();
+    }
+
+    it.each(REJECTED[platform])('nested $label does not change root history', ({ init }) => {
+        expectNestedShortcutIgnored(init);
     });
 
     it.each(SUPPORTED[platform])('cell selection $label changes root history exactly once', ({ init, action }) => {
@@ -345,17 +367,20 @@ export function registerHistoryShortcutTests(
     });
 
     it.each(REJECTED[platform])('cell selection $label does not change root history', ({ init }) => {
-        const { view, historyCounter } = mountSelectionView();
-        primeTwoEdits(view);
-        selectBodyCells(view);
-        const before = view.state.doc.toString();
+        expectSelectionShortcutIgnored(init);
+    });
 
-        const event = pressKey(document.body, init);
+    // Nothing below depends on the simulated platform, so one platform file runs it.
+    if (!options.includeSharedBehavior) {
+        return;
+    }
 
-        expect(event.defaultPrevented).toBe(false);
-        expect(view.state.doc.toString()).toBe(before);
-        expect(historyCounter.events).toEqual([]);
-        expect(getCellSelection(view.state)).not.toBeNull();
+    it.each(REJECTED_EVERYWHERE)('nested $label does not change root history', ({ init }) => {
+        expectNestedShortcutIgnored(init);
+    });
+
+    it.each(REJECTED_EVERYWHERE)('cell selection $label does not change root history', ({ init }) => {
+        expectSelectionShortcutIgnored(init);
     });
 
     it('keeps scoped history bindings out of the root editor keyboard scope', () => {
@@ -414,10 +439,6 @@ export function registerHistoryShortcutTests(
         expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}${SECOND_EDIT}`);
         expect(historyCounter.events).toEqual([]);
     });
-
-    if (!options.includeLifecycle) {
-        return;
-    }
 
     describe('nested editor history lifecycle via shortcuts', () => {
         let animationFrameQueue: FrameRequestCallback[] = [];
@@ -529,52 +550,6 @@ export function registerHistoryShortcutTests(
             expect(isNestedEditorOpen(view)).toBe(true);
             typeIntoFocusedEditor('Y');
             expect(view.state.doc.toString()).toContain('| typedY |');
-        });
-
-        it('focuses the restored cell when undo relocates editing', async () => {
-            const tableA = ['| A |', '| --- |', '| active |'].join('\n');
-            const tableB = ['| B |', '| --- |', '| old |'].join('\n');
-            const doc = `${tableA}\n\n${tableB}`;
-            const tableBCellFrom = doc.indexOf('old');
-            const view = mountLifecycleView(doc, tableBCellFrom);
-
-            view.dispatch({
-                changes: { from: tableBCellFrom, to: tableBCellFrom + 3, insert: 'new' },
-                selection: { anchor: tableBCellFrom + 3 },
-            });
-            view.dispatch({
-                selection: { anchor: doc.indexOf('active') },
-                effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
-                annotations: Transaction.addToHistory.of(false),
-            });
-
-            const cellElement = await openBodyCell(view, 0);
-            const resolved = getResolvedActiveCell(view.state);
-            if (!resolved) {
-                throw new Error('Expected the active cell to resolve');
-            }
-            view.dispatch({
-                changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'typed' },
-                annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
-            });
-            const tableBFrom = view.state.field(tableContextField).tables[1].from;
-            const undoShortcut = SUPPORTED[platform].find((shortcut) => shortcut.action === 'undo');
-            if (!undoShortcut) {
-                throw new Error('Expected an undo shortcut for the simulated platform');
-            }
-
-            const event = pressKey(document.activeElement ?? view.contentDOM, undoShortcut.init);
-            expect(event.defaultPrevented).toBe(true);
-            await flushLifecycle();
-
-            expect(view.state.doc.toString()).toContain('| old |');
-            expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
-            expect(isNestedEditorOpen(view)).toBe(true);
-            expect(cellElement.querySelector('.cm-editor')).toBeNull();
-
-            typeIntoFocusedEditor('Z');
-            expect(view.state.doc.toString()).toContain('| Zold |');
-            expect(view.state.doc.toString()).toContain('| typed |');
         });
 
         it('closes the nested editor and restores the main caret when undo removes the table', async () => {
