@@ -307,7 +307,8 @@ export class MarkdownTable {
 
     /**
      * Constructs a table directly from parts and normalizes ragged input immediately.
-     * Intended for tests, fixtures, and internal callers that already have cell arrays.
+     * Intended for callers that already have cell arrays, including tests, fixtures, and
+     * runtime code building a known table shape without going through the parser.
      */
     static fromParts(parts: MarkdownTableParts): MarkdownTable {
         return MarkdownTable.create(parts);

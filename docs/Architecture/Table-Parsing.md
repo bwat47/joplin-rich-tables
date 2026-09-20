@@ -49,6 +49,8 @@ table width and serializes canonically—for example, `text` in a two-column tab
 
 `MarkdownTable.parse(text)` delegates to the shared Lezer parser and is reached only from clipboard handling. Lezer
 validates table and separator syntax; the model does not maintain a competing row scanner or separator validator.
+Callers that already know a table's cells, such as the empty table produced by the insert command, build it with
+`MarkdownTable.fromParts()` rather than writing markdown only to parse it back.
 
 `MarkdownTable.serialize()` writes the canonical row format, and `MarkdownTable.serializedCellOffset()` reports where a
 cell lands in that output using the same format constants. Callers that have just serialized a table therefore locate a

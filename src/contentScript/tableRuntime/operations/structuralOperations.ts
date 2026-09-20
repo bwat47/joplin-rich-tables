@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { MarkdownTable, type SerializedTable } from '../../tableModel/MarkdownTable';
+import { MarkdownTable, type SerializedTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
@@ -9,16 +9,21 @@ import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './
 
 export type RowInsertOpenOptions = StructuralReopenOptions;
 
-const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
-const DEFAULT_INSERTED_TABLE = serializeDefaultInsertedTable();
+const DEFAULT_INSERTED_TABLE_COLUMNS = 2;
+const DEFAULT_INSERTED_TABLE_BODY_ROWS = 1;
+const DEFAULT_INSERTED_TABLE_ALIGNMENT: TableAlignment = null;
+const EMPTY_CELL = '';
+const DEFAULT_INSERTED_TABLE = buildDefaultInsertedTable();
 const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
 
-function serializeDefaultInsertedTable(): SerializedTable {
-    const table = MarkdownTable.parse(DEFAULT_INSERTED_TABLE_MARKDOWN);
-    if (!table) {
-        throw new Error('Default inserted table markdown must parse as a table');
-    }
-    return table.serializeWithOffsets();
+/** Builds the empty table used by the insert command directly from known parts, without parsing. */
+function buildDefaultInsertedTable(): SerializedTable {
+    const emptyRow = (): string[] => new Array<string>(DEFAULT_INSERTED_TABLE_COLUMNS).fill(EMPTY_CELL);
+    return MarkdownTable.fromParts({
+        headerCells: emptyRow(),
+        alignments: new Array<TableAlignment>(DEFAULT_INSERTED_TABLE_COLUMNS).fill(DEFAULT_INSERTED_TABLE_ALIGNMENT),
+        bodyRows: Array.from({ length: DEFAULT_INSERTED_TABLE_BODY_ROWS }, emptyRow),
+    }).serializeWithOffsets();
 }
 
 export function getDefaultStructuralReopenOptions(view: EditorView): StructuralReopenOptions {
