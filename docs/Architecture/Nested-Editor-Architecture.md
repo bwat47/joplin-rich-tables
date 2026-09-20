@@ -106,9 +106,15 @@ Response (to prevent stale document state):
 Joplin switches notes with one full-document replacement that also changes its note ID facet, mirrored into
 `services/noteIdentity.ts`. The classifier reports `noteChanged` only when both states carry an ID, so extension
 registration is not a switch. `noteChanged` takes precedence over every other lifecycle path: the lifecycle closes the
-nested editor and, on the next frame, moves the cursor out of any table and clears a leftover active cell. It never
-reactivates a cell, because the cursor belongs to the new note. On a fresh editor (mobile note load, desktop cold
-launch) `startupCursorCorrection` does the cursor move instead.
+nested editor and schedules the lifecycle's table-exit cleanup. It never reactivates a cell, because the cursor
+belongs to the new note.
+
+That cleanup moves the cursor out of any table and clears a leftover active cell, reading the settled state a frame
+later so a selection the host restored afterwards is respected. The lifecycle plugin also runs it from its
+constructor, for the fresh editor (mobile note load, desktop cold launch) whose restored cursor can already sit
+inside a table. Registration cannot reach it through `noteChanged`: that facet transition happens in the very
+transaction that installs the plugin, and CodeMirror does not call `update()` on a plugin for its own installing
+transaction.
 
 ## Boundary Enforcement
 

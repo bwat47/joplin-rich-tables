@@ -1,3 +1,4 @@
+import type { EditorState } from '@codemirror/state';
 import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
 import {
     clearActiveCellEffect,
@@ -21,6 +22,7 @@ import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntime
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
 import { requestViewAnimationFrame } from '../../shared/domContext';
 import { getPositionOutsideTable } from '../navigation/cursorUtils';
+import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { logger } from '../../../logger';
 
 // ============================================================================
@@ -40,6 +42,19 @@ function ensureCursorVisible(view: EditorView): void {
     view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
 }
 
+/** Why a document appeared under the runtime with a cursor that may sit inside a table. */
+type TableExitCleanupReason = 'note switch' | 'editor init';
+
+/**
+ * True when the main selection is a bare caret that no table owner put there.
+ *
+ * This is the shape the host restores a cursor in. A selection, even a collapsed one another
+ * owner is holding, came from something that meant to be inside the table.
+ */
+function isRestoredCaret(state: EditorState): boolean {
+    return state.selection.main.empty && hasPlainRenderedTableCaret(state);
+}
+
 interface OpenRequestExecutionGuardResult {
     request: NonNullable<ReturnType<typeof getOpenCellRequestById>>;
     resolvedCell: ResolvedActiveCell;
@@ -52,7 +67,13 @@ interface OpenRequestExecutionGuardResult {
 
 export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
     class {
-        constructor(private view: EditorView) {}
+        constructor(private view: EditorView) {
+            // A fresh editor arrives with whatever cursor the host restored, which can sit inside
+            // a table. The note-switch path cannot cover this: its facet transition happens in the
+            // transaction that registers this plugin, and CodeMirror does not call `update()` for
+            // the transaction that installs a plugin.
+            this.scheduleTableExitCleanup('editor init');
+        }
 
         update(update: ViewUpdate): void {
             const facts = classifyTableRuntimeFacts(update, {
@@ -88,20 +109,31 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         });
                         break;
                     case 'scheduleNoteSwitchCleanup':
-                        this.scheduleNoteSwitchCleanup();
+                        this.scheduleTableExitCleanup('note switch');
                         break;
                 }
             }
         }
 
         /**
-         * Leaves the newly shown note with no table state from the previous one. Reads the state
-         * when it runs, so a selection the host restored after the switch is respected, and a
-         * cursor already outside every table is left alone along with focus and scroll.
+         * Leaves a newly shown document with no table state carried into it: the cursor moves out
+         * of any table it landed in, and a leftover active cell is cleared.
+         *
+         * Runs for both documents that appear under the runtime - a note switch, and the editor's
+         * own registration. Reads the state when it runs, so a selection the host restored
+         * afterwards is respected, and a cursor already outside every table is left alone along
+         * with focus and scroll.
          */
-        private scheduleNoteSwitchCleanup(): void {
+        private scheduleTableExitCleanup(reason: TableExitCleanupReason): void {
             requestViewAnimationFrame(this.view, () => {
                 if (!this.view.dom.isConnected) return;
+
+                // Registration brings no table state of its own, so anything live by the time this
+                // runs was established after it: an owned table, or a selection someone made or
+                // preserved, and in both cases the caret is inside the table on purpose. Only a
+                // restored caret is this path's to move. A note switch is the opposite - the state
+                // it finds belongs to the note being left, so it clears it.
+                if (reason === 'editor init' && !isRestoredCaret(this.view.state)) return;
 
                 const positionOutsideTable = getPositionOutsideTable(this.view.state);
                 const hasActiveCell = getActiveCell(this.view.state) !== null;
@@ -112,7 +144,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
                 });
                 if (positionOutsideTable !== null) {
-                    logger.debug('Moved cursor out of table on note switch');
+                    logger.debug('Moved cursor out of table', { reason });
                 }
             });
         }
