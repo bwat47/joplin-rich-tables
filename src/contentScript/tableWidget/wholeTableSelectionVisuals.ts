@@ -13,7 +13,7 @@ import { measuredClassSyncPlugin } from './measuredClassSync';
 import { selectedCellRules } from './selectionTint';
 
 /**
- * Rendered tables the main editor's selection covers end to end.
+ * Document starts of rendered tables the main editor's selection covers end to end.
  *
  * Coverage is all-or-nothing by design: a block widget has no meaningful partial selection, and
  * `tableRuntime/selection/tableSelectionSnap.ts` grows any selection that touches a table until
@@ -22,17 +22,12 @@ import { selectedCellRules } from './selectionTint';
  * No table can appear twice: selection ranges never overlap, so containing the same table whole
  * would take a range of zero length.
  */
-export interface SelectedTableSpan {
-    readonly from: number;
-    readonly to: number;
-}
-
-export function findSelectedTableSpans(state: EditorState): SelectedTableSpan[] {
+export function findSelectedTableStarts(state: EditorState): readonly number[] {
     if (isEffectiveRawMode(state)) {
         return [];
     }
     return state.selection.ranges.flatMap((range) =>
-        range.empty ? [] : getTableContextsWithin(state, range.from, range.to).map(({ from, to }) => ({ from, to }))
+        range.empty ? [] : getTableContextsWithin(state, range.from, range.to).map((ctx) => ctx.from)
     );
 }
 
@@ -44,7 +39,7 @@ export function findSelectedTableSpans(state: EditorState): SelectedTableSpan[] 
  * select-all over a table-heavy note linear in the number of visible widgets.
  */
 function collectSelectedTableWidgets(view: EditorView): HTMLElement[] {
-    const selectedTableStarts = new Set(findSelectedTableSpans(view.state).map((span) => span.from));
+    const selectedTableStarts = new Set(findSelectedTableStarts(view.state));
     if (selectedTableStarts.size === 0) {
         return [];
     }

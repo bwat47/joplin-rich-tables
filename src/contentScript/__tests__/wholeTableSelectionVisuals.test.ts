@@ -1,9 +1,10 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+import type { TableSpan } from '../tableModel/tableContext';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getTableContextsTouching, getTableContextsWithin } from '../tableState/tableContextField';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { findSelectedTableSpans } from '../tableWidget/wholeTableSelectionVisuals';
+import { findSelectedTableStarts } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
 
 const FIRST_TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -26,7 +27,7 @@ function createState(selection?: EditorSelection) {
     return selection ? state.update({ selection }).state : state;
 }
 
-function toSpans(contexts: readonly { from: number; to: number }[]): { from: number; to: number }[] {
+function toSpans(contexts: readonly TableSpan[]): { from: number; to: number }[] {
     return contexts.map(({ from, to }) => ({ from, to }));
 }
 
@@ -70,43 +71,40 @@ describe('rendered table lookups', () => {
     });
 });
 
-describe('findSelectedTableSpans', () => {
+describe('findSelectedTableStarts', () => {
     it('reports a table the selection covers end to end', () => {
         const state = createState(EditorSelection.single(0, FIRST_TO));
 
-        expect(findSelectedTableSpans(state)).toEqual([{ from: FIRST_FROM, to: FIRST_TO }]);
+        expect(findSelectedTableStarts(state)).toEqual([FIRST_FROM]);
     });
 
     it('reports every covered table when the selection spans several', () => {
         const state = createState(EditorSelection.single(0, DOC.length));
 
-        expect(findSelectedTableSpans(state)).toEqual([
-            { from: FIRST_FROM, to: FIRST_TO },
-            { from: SECOND_FROM, to: SECOND_TO },
-        ]);
+        expect(findSelectedTableStarts(state)).toEqual([FIRST_FROM, SECOND_FROM]);
     });
 
     it('reports nothing for a selection that stops short of a table end', () => {
         const state = createState(EditorSelection.single(0, FIRST_TO - 1));
 
-        expect(findSelectedTableSpans(state)).toEqual([]);
+        expect(findSelectedTableStarts(state)).toEqual([]);
     });
 
     it('reports nothing for a caret', () => {
         const state = createState(EditorSelection.single(FIRST_FROM));
 
-        expect(findSelectedTableSpans(state)).toEqual([]);
+        expect(findSelectedTableStarts(state)).toEqual([]);
     });
 
     it('draws nothing in raw mode, where the tables the selection covers are plain markdown', () => {
         const rendered = createState(EditorSelection.single(0, FIRST_TO));
-        expect(findSelectedTableSpans(rendered)).toEqual([{ from: FIRST_FROM, to: FIRST_TO }]);
+        expect(findSelectedTableStarts(rendered)).toEqual([FIRST_FROM]);
 
         const rawMode = rendered.update({ effects: toggleSourceModeEffect.of(true) }).state;
 
         // The index still reports the table; only the rendering is gone.
         expect(toSpans(getTableContextsWithin(rawMode, 0, FIRST_TO))).toEqual([{ from: FIRST_FROM, to: FIRST_TO }]);
-        expect(findSelectedTableSpans(rawMode)).toEqual([]);
+        expect(findSelectedTableStarts(rawMode)).toEqual([]);
     });
 
     it('collects tables covered by separate ranges of a multi-range selection', () => {
@@ -117,9 +115,6 @@ describe('findSelectedTableSpans', () => {
             ])
         );
 
-        expect(findSelectedTableSpans(state)).toEqual([
-            { from: FIRST_FROM, to: FIRST_TO },
-            { from: SECOND_FROM, to: SECOND_TO },
-        ]);
+        expect(findSelectedTableStarts(state)).toEqual([FIRST_FROM, SECOND_FROM]);
     });
 });
