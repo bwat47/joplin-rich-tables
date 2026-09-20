@@ -80,7 +80,7 @@ falls back to `buildRootTableInsertRewrite`, so both paths share the same blank-
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
 6. **Dispatch**: `runStructuralMutationAndReopen()` replaces the table range when needed, sets the
    main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
-   marks the transaction with `structuralTableEditEffect`, and can run an immediate post-dispatch callback such as main-editor focus handoff.
+   marks the transaction with `structuralTableEditEffect`, and restores main-editor focus after a successful dispatch.
 
 `structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
 toolbar buttons do not maintain separate switchboards.
@@ -93,10 +93,9 @@ toolbar buttons do not maintain separate switchboards.
 
 `structuralOperations.ts` is the runtime adapter on top of the runner:
 
-- It applies shared reopen defaults for canonical `StructuralTableCommand` objects.
-- It owns shared reopen defaults such as main-editor focus handoff.
-- Row-insert helpers extend those defaults with `initialCursorPos: 'start'`.
-- It passes command objects to `runStructuralMutationAndReopen()`; callers cannot provide arbitrary mutation callbacks.
+- It applies command-specific reopen defaults for canonical `StructuralTableCommand` objects.
+- Row-insert helpers default to `initialCursorPos: 'start'`.
+- It passes command objects and reopen options to `runStructuralMutationAndReopen()`; focus handoff is owned by the runner.
 
 All surviving-table structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
 delete, move, clear, and alignment updates. Whole-table deletion uses the same runner but clears active-cell state
