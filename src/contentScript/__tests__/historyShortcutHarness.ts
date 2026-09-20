@@ -1,0 +1,602 @@
+import { history, isolateHistory, undo } from '@codemirror/commands';
+import { markdown } from '@codemirror/lang-markdown';
+import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { GFM } from '@lezer/markdown';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createNestedEditorKeymap } from '../nestedEditor/domHandlers';
+import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
+import { nestedEditorPlugin, isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
+import { tableContextField } from '../tableState/tableContextField';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { openCellRequestField } from '../tableRuntime/openCellRequest';
+import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { findCellElement } from '../tableWidget/domHelpers';
+import { requireResolvedActiveCell } from './testUtils';
+import type { SimulatedPlatform } from './historyShortcutNavigator';
+
+type HistoryAction = 'undo' | 'redo';
+
+interface ShortcutCase {
+    label: string;
+    init: KeyboardEventInit & { key: string };
+    action: HistoryAction;
+}
+
+interface RejectedShortcutCase {
+    label: string;
+    init: KeyboardEventInit & { key: string };
+}
+
+const SUPPORTED: Record<SimulatedPlatform, ShortcutCase[]> = {
+    macOS: [
+        { label: 'Cmd-Z', init: { key: 'z', metaKey: true }, action: 'undo' },
+        { label: 'Cmd-Shift-Z', init: { key: 'z', metaKey: true, shiftKey: true }, action: 'redo' },
+    ],
+    Windows: [
+        { label: 'Ctrl-Z', init: { key: 'z', ctrlKey: true }, action: 'undo' },
+        { label: 'Ctrl-Y', init: { key: 'y', ctrlKey: true }, action: 'redo' },
+    ],
+    Linux: [
+        { label: 'Ctrl-Z', init: { key: 'z', ctrlKey: true }, action: 'undo' },
+        { label: 'Ctrl-Y', init: { key: 'y', ctrlKey: true }, action: 'redo' },
+        { label: 'Ctrl-Shift-Z', init: { key: 'z', ctrlKey: true, shiftKey: true }, action: 'redo' },
+    ],
+};
+
+const REJECTED: Record<SimulatedPlatform, RejectedShortcutCase[]> = {
+    macOS: [
+        { label: 'Cmd-Y', init: { key: 'y', metaKey: true } },
+        { label: 'Ctrl-Shift-Z', init: { key: 'z', ctrlKey: true, shiftKey: true } },
+        { label: 'Alt-Cmd-Z', init: { key: 'z', metaKey: true, altKey: true } },
+        { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
+        { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
+        { label: 'Ctrl-Z', init: { key: 'z', ctrlKey: true } },
+    ],
+    Windows: [
+        { label: 'Cmd-Y', init: { key: 'y', metaKey: true } },
+        { label: 'Ctrl-Shift-Z', init: { key: 'z', ctrlKey: true, shiftKey: true } },
+        { label: 'Alt-Ctrl-Z', init: { key: 'z', ctrlKey: true, altKey: true } },
+        { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
+        { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
+        { label: 'Cmd-Z', init: { key: 'z', metaKey: true } },
+    ],
+    Linux: [
+        { label: 'Cmd-Y', init: { key: 'y', metaKey: true } },
+        { label: 'Alt-Ctrl-Z', init: { key: 'z', ctrlKey: true, altKey: true } },
+        { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
+        { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
+        { label: 'Cmd-Z', init: { key: 'z', metaKey: true } },
+        { label: 'Cmd-Shift-Z', init: { key: 'z', metaKey: true, shiftKey: true } },
+    ],
+};
+
+const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+const FIRST_EDIT = '\n#one';
+const SECOND_EDIT = '\n#two';
+const TEST_HOST_CONFIG = {
+    nestedEditor: {
+        autoMatchingBraces: true,
+        spellcheck: false,
+    },
+    tableAppearance: {
+        zebraStriping: false,
+    },
+    toolbar: {
+        showMoveButtons: true,
+        showClearButtons: true,
+        showAlignmentButtons: true,
+        showDeleteTableButton: true,
+        showSortButtons: true,
+    },
+};
+
+class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+}
+
+if (!Range.prototype.getBoundingClientRect) {
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+        value: () => ({
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            toJSON: () => ({}),
+        }),
+    });
+}
+
+if (!Range.prototype.getClientRects) {
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+        value: () => [],
+    });
+}
+
+function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }): KeyboardEvent {
+    const letter = init.key.toLowerCase();
+    const key = init.shiftKey ? letter.toUpperCase() : letter;
+    const event = new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        ...init,
+        key,
+    });
+    let keyCode = 0;
+    if (letter === 'z') {
+        keyCode = 90;
+    } else if (letter === 'y') {
+        keyCode = 89;
+    }
+    Object.defineProperty(event, 'keyCode', { get: () => keyCode });
+    target.dispatchEvent(event);
+    return event;
+}
+
+function appendHistoryEntry(view: EditorView, text: string): void {
+    view.dispatch({
+        changes: { from: view.state.doc.length, insert: text },
+        annotations: isolateHistory.of('full'),
+    });
+}
+
+function primeTwoEdits(view: EditorView): void {
+    appendHistoryEntry(view, FIRST_EDIT);
+    appendHistoryEntry(view, SECOND_EDIT);
+}
+
+function createHistoryCounter(): {
+    extension: ReturnType<typeof EditorView.updateListener.of>;
+    events: HistoryAction[];
+} {
+    const events: HistoryAction[] = [];
+    return {
+        events,
+        extension: EditorView.updateListener.of((update) => {
+            for (const transaction of update.transactions) {
+                if (transaction.isUserEvent('undo')) {
+                    events.push('undo');
+                }
+                if (transaction.isUserEvent('redo')) {
+                    events.push('redo');
+                }
+            }
+        }),
+    };
+}
+
+function typeIntoFocusedEditor(text: string): void {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) {
+        throw new Error('Expected an HTML focus target');
+    }
+
+    const view = EditorView.findFromDOM(active);
+    if (!view) {
+        throw new Error('Expected a CodeMirror editor to own focus');
+    }
+
+    const from = view.state.selection.main.from;
+    view.dispatch({
+        changes: { from, insert: text },
+        selection: { anchor: from + text.length },
+        userEvent: 'input.type',
+    });
+}
+
+export function registerHistoryShortcutTests(
+    platform: SimulatedPlatform,
+    options: { includeLifecycle?: boolean } = {}
+): void {
+    const mountedViews: EditorView[] = [];
+
+    afterEach(() => {
+        while (mountedViews.length > 0) {
+            mountedViews.pop()?.destroy();
+        }
+        document.body.replaceChildren();
+    });
+
+    function trackView(view: EditorView): EditorView {
+        mountedViews.push(view);
+        return view;
+    }
+
+    function mountMainHistoryView(): { view: EditorView; historyCounter: ReturnType<typeof createHistoryCounter> } {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const historyCounter = createHistoryCounter();
+        const view = trackView(
+            new EditorView({
+                parent,
+                doc: 'base',
+                extensions: [history(), historyCounter.extension],
+            })
+        );
+        primeTwoEdits(view);
+        return { view, historyCounter };
+    }
+
+    function mountNestedKeymap(mainView: EditorView): EditorView {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = trackView(
+            new EditorView({
+                parent,
+                doc: 'cell',
+                extensions: [
+                    createNestedEditorKeymap(mainView, {
+                        getSelectionBounds: (nestedView) => ({ from: 0, to: nestedView.state.doc.length }),
+                        closeEditor: vi.fn(),
+                        syncPendingChangesToRoot: vi.fn(),
+                    }),
+                ],
+            })
+        );
+        view.contentDOM.focus();
+        return view;
+    }
+
+    function mountSelectionView(): { view: EditorView; historyCounter: ReturnType<typeof createHistoryCounter> } {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const historyCounter = createHistoryCounter();
+        const view = trackView(
+            new EditorView({
+                parent,
+                doc: TABLE_DOC,
+                extensions: [
+                    markdown({ extensions: [GFM] }),
+                    history(),
+                    tableContextField,
+                    activeCellField,
+                    cellSelectionField,
+                    cellDragField,
+                    cellSelectionKeyCapturePlugin,
+                    cellSelectionFocusPlugin,
+                    historyCounter.extension,
+                ],
+            })
+        );
+        return { view, historyCounter };
+    }
+
+    function selectBodyCells(view: EditorView): void {
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+    }
+
+    it.each(SUPPORTED[platform])('nested $label changes root history exactly once', ({ init, action }) => {
+        const { view: mainView, historyCounter } = mountMainHistoryView();
+        const nestedView = mountNestedKeymap(mainView);
+
+        if (action === 'redo') {
+            expect(undo(mainView)).toBe(true);
+            historyCounter.events.length = 0;
+        }
+
+        const event = pressKey(nestedView.contentDOM, init);
+
+        expect(event.defaultPrevented).toBe(true);
+        if (action === 'undo') {
+            expect(mainView.state.doc.toString()).toBe(`base${FIRST_EDIT}`);
+            expect(historyCounter.events).toEqual(['undo']);
+        } else {
+            expect(mainView.state.doc.toString()).toBe(`base${FIRST_EDIT}${SECOND_EDIT}`);
+            expect(historyCounter.events).toEqual(['redo']);
+        }
+    });
+
+    it.each(REJECTED[platform])('nested $label does not change root history', ({ init }) => {
+        const { view: mainView, historyCounter } = mountMainHistoryView();
+        const nestedView = mountNestedKeymap(mainView);
+        const before = mainView.state.doc.toString();
+
+        const event = pressKey(nestedView.contentDOM, init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(mainView.state.doc.toString()).toBe(before);
+        expect(historyCounter.events).toEqual([]);
+    });
+
+    it.each(SUPPORTED[platform])('cell selection $label changes root history exactly once', ({ init, action }) => {
+        const { view, historyCounter } = mountSelectionView();
+        primeTwoEdits(view);
+
+        if (action === 'redo') {
+            expect(undo(view)).toBe(true);
+            historyCounter.events.length = 0;
+        }
+
+        selectBodyCells(view);
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(true);
+        if (action === 'undo') {
+            expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}`);
+            expect(historyCounter.events).toEqual(['undo']);
+        } else {
+            expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}${SECOND_EDIT}`);
+            expect(historyCounter.events).toEqual(['redo']);
+        }
+    });
+
+    it.each(REJECTED[platform])('cell selection $label does not change root history', ({ init }) => {
+        const { view, historyCounter } = mountSelectionView();
+        primeTwoEdits(view);
+        selectBodyCells(view);
+        const before = view.state.doc.toString();
+
+        const event = pressKey(document.body, init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(view.state.doc.toString()).toBe(before);
+        expect(historyCounter.events).toEqual([]);
+    });
+
+    it('keeps scoped history bindings out of the root editor keyboard scope', () => {
+        const { view, historyCounter } = mountSelectionView();
+        primeTwoEdits(view);
+        view.focus();
+
+        const event = pressKey(view.contentDOM, SUPPORTED[platform][0].init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}${SECOND_EDIT}`);
+        expect(historyCounter.events).toEqual([]);
+    });
+
+    it('does not move focus when cell-selection undo has empty history', () => {
+        const { view } = mountSelectionView();
+        selectBodyCells(view);
+        const focusSpy = vi.spyOn(view, 'focus');
+        const undoShortcut = SUPPORTED[platform].find((shortcut) => shortcut.action === 'undo');
+        if (!undoShortcut) {
+            throw new Error('Expected an undo shortcut for the simulated platform');
+        }
+
+        const event = pressKey(document.body, undoShortcut.init);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(focusSpy).not.toHaveBeenCalled();
+        expect(view.state.doc.toString()).toBe(TABLE_DOC);
+    });
+
+    it('yields cell-selection history capture while a drag is in progress', () => {
+        const { view, historyCounter } = mountSelectionView();
+        primeTwoEdits(view);
+        selectBodyCells(view);
+        view.dispatch({ effects: startCellDragEffect.of(undefined) });
+
+        const event = pressKey(document.body, SUPPORTED[platform][0].init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}${SECOND_EDIT}`);
+        expect(historyCounter.events).toEqual([]);
+    });
+
+    it('yields cell-selection history capture while an external control owns focus', () => {
+        const { view, historyCounter } = mountSelectionView();
+        primeTwoEdits(view);
+        selectBodyCells(view);
+
+        const externalInput = document.createElement('input');
+        document.body.appendChild(externalInput);
+        externalInput.focus();
+
+        const event = pressKey(externalInput, SUPPORTED[platform][0].init);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}${SECOND_EDIT}`);
+        expect(historyCounter.events).toEqual([]);
+    });
+
+    if (!options.includeLifecycle) {
+        return;
+    }
+
+    describe('nested editor history lifecycle via shortcuts', () => {
+        let animationFrameQueue: FrameRequestCallback[] = [];
+
+        const flushLifecycle = async (): Promise<void> => {
+            await Promise.resolve();
+            while (animationFrameQueue.length > 0) {
+                const callback = animationFrameQueue.shift();
+                callback?.(0);
+                await Promise.resolve();
+            }
+        };
+
+        beforeEach(() => {
+            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+            animationFrameQueue = [];
+            vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
+                animationFrameQueue.push(callback);
+                return animationFrameQueue.length;
+            }) as typeof requestAnimationFrame);
+        });
+
+        function lifecycleExtensions() {
+            return [
+                history(),
+                markdown({ extensions: [GFM] }),
+                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
+                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
+                nestedEditorPlugin,
+                tableContextField,
+                activeCellField,
+                openCellRequestField,
+                nestedEditorLifecyclePlugin,
+                tableDecorationField,
+            ];
+        }
+
+        function mountLifecycleView(doc: string, selectionAnchor: number): EditorView {
+            const parent = document.createElement('div');
+            document.body.appendChild(parent);
+            return trackView(
+                new EditorView({
+                    parent,
+                    state: EditorState.create({
+                        doc,
+                        selection: EditorSelection.single(selectionAnchor),
+                        extensions: lifecycleExtensions(),
+                    }),
+                })
+            );
+        }
+
+        async function openBodyCell(view: EditorView, tableFrom: number): Promise<HTMLElement> {
+            const activeCell = { tableFrom, section: 'body' as const, row: 0, col: 0 };
+            view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
+            const cellElement = findCellElement(view, tableFrom, activeCell);
+            if (!cellElement) {
+                throw new Error('Expected a body cell element');
+            }
+
+            expect(
+                openNestedEditor({
+                    mainView: view,
+                    resolvedCell: requireResolvedActiveCell(view.state),
+                    cellElement,
+                    featureSettings: TEST_HOST_CONFIG.nestedEditor,
+                })
+            ).toBe(true);
+            expect(isNestedEditorOpen(view)).toBe(true);
+            return cellElement;
+        }
+
+        it('keeps editable focus after undo and redo inside a surviving cell', async () => {
+            const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
+            const view = mountLifecycleView(doc, doc.indexOf('abc') + 'abc'.length);
+            await openBodyCell(view, 0);
+
+            const resolved = getResolvedActiveCell(view.state);
+            if (!resolved) {
+                throw new Error('Expected the active cell to resolve');
+            }
+
+            view.dispatch({
+                changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'typed' },
+                selection: EditorSelection.single(resolved.editableFrom + 'typed'.length),
+                annotations: syncAnnotation.of(true),
+            });
+
+            const undoShortcut = SUPPORTED[platform].find((shortcut) => shortcut.action === 'undo');
+            const redoShortcut = SUPPORTED[platform].find((shortcut) => shortcut.action === 'redo');
+            if (!undoShortcut || !redoShortcut) {
+                throw new Error('Expected undo and redo shortcuts for the simulated platform');
+            }
+
+            const event = pressKey(document.activeElement ?? view.contentDOM, undoShortcut.init);
+            expect(event.defaultPrevented).toBe(true);
+            await flushLifecycle();
+
+            expect(view.state.doc.toString()).toContain('| abc |');
+            expect(isNestedEditorOpen(view)).toBe(true);
+            expect(getActiveCell(view.state)).toMatchObject({ tableFrom: 0, section: 'body', row: 0, col: 0 });
+            expect(EditorView.findFromDOM(document.activeElement as HTMLElement)).not.toBe(view);
+
+            const redoEvent = pressKey(document.activeElement ?? view.contentDOM, redoShortcut.init);
+            expect(redoEvent.defaultPrevented).toBe(true);
+            await flushLifecycle();
+
+            expect(view.state.doc.toString()).toContain('| typed |');
+            expect(isNestedEditorOpen(view)).toBe(true);
+            typeIntoFocusedEditor('Y');
+            expect(view.state.doc.toString()).toContain('| typedY |');
+        });
+
+        it('focuses the restored cell when undo relocates editing', async () => {
+            const tableA = ['| A |', '| --- |', '| active |'].join('\n');
+            const tableB = ['| B |', '| --- |', '| old |'].join('\n');
+            const doc = `${tableA}\n\n${tableB}`;
+            const tableBCellFrom = doc.indexOf('old');
+            const view = mountLifecycleView(doc, tableBCellFrom);
+
+            view.dispatch({
+                changes: { from: tableBCellFrom, to: tableBCellFrom + 3, insert: 'new' },
+                selection: { anchor: tableBCellFrom + 3 },
+            });
+            view.dispatch({
+                selection: { anchor: doc.indexOf('active') },
+                effects: setActiveCellEffect.of({ tableFrom: 0, section: 'body', row: 0, col: 0 }),
+                annotations: Transaction.addToHistory.of(false),
+            });
+
+            const cellElement = await openBodyCell(view, 0);
+            const resolved = getResolvedActiveCell(view.state);
+            if (!resolved) {
+                throw new Error('Expected the active cell to resolve');
+            }
+            view.dispatch({
+                changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'typed' },
+                annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
+            });
+            const tableBFrom = view.state.field(tableContextField).tables[1].from;
+            const undoShortcut = SUPPORTED[platform].find((shortcut) => shortcut.action === 'undo');
+            if (!undoShortcut) {
+                throw new Error('Expected an undo shortcut for the simulated platform');
+            }
+
+            const event = pressKey(document.activeElement ?? view.contentDOM, undoShortcut.init);
+            expect(event.defaultPrevented).toBe(true);
+            await flushLifecycle();
+
+            expect(view.state.doc.toString()).toContain('| old |');
+            expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
+            expect(isNestedEditorOpen(view)).toBe(true);
+            expect(cellElement.querySelector('.cm-editor')).toBeNull();
+
+            typeIntoFocusedEditor('Z');
+            expect(view.state.doc.toString()).toContain('| Zold |');
+            expect(view.state.doc.toString()).toContain('| typed |');
+        });
+
+        it('closes the nested editor and restores the main caret when undo removes the table', async () => {
+            const intro = 'intro';
+            const table = ['| H1 |', '| --- |', '| abc |'].join('\n');
+            const view = mountLifecycleView(intro, intro.length);
+            view.dispatch({
+                changes: { from: intro.length, insert: `\n\n${table}` },
+            });
+
+            const tableFrom = view.state.doc.toString().indexOf(table);
+            await openBodyCell(view, tableFrom);
+            const undoShortcut = SUPPORTED[platform].find((shortcut) => shortcut.action === 'undo');
+            if (!undoShortcut) {
+                throw new Error('Expected an undo shortcut for the simulated platform');
+            }
+
+            const event = pressKey(document.activeElement ?? view.contentDOM, undoShortcut.init);
+            expect(event.defaultPrevented).toBe(true);
+            await flushLifecycle();
+
+            expect(view.state.doc.toString()).toBe(intro);
+            expect(isNestedEditorOpen(view)).toBe(false);
+            expect(getActiveCell(view.state)).toBeNull();
+
+            typeIntoFocusedEditor('X');
+            expect(view.state.doc.toString()).toBe(`${intro}X`);
+        });
+    });
+}

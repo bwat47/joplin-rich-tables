@@ -1,15 +1,11 @@
 import { EditorSelection, StateCommand, Transaction, type Extension } from '@codemirror/state';
-import { undo, redo } from '@codemirror/commands';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
-
-function runHistoryCommand(mainView: EditorView, command: StateCommand): boolean {
-    return command(mainView);
-}
+import { createHistoryKeyBindings } from '../tableRuntime/historyKeymap';
 
 /**
  * Mod-shortcuts that run as root editor commands (bold, italic, underline, code, link).
@@ -57,9 +53,7 @@ export function createNestedEditorKeymap(
     }
 ): Extension {
     const bindings: KeyBinding[] = [
-        { key: 'Mod-z', run: () => runHistoryCommand(mainView, undo) },
-        { key: 'Mod-y', run: () => runHistoryCommand(mainView, redo) },
-        { key: 'Mod-Shift-z', run: () => runHistoryCommand(mainView, redo) },
+        ...createHistoryKeyBindings((_view, command) => command(mainView)),
         {
             key: 'Tab',
             run: () => {
