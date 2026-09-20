@@ -23,41 +23,19 @@ import {
     openCellRequestField,
     type OpenCellRequest,
 } from '../tableRuntime/openCellRequest';
-import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { parseTableFixture } from './testUtils';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS, createFrameQueue } from './tableEditorFixtures';
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
-
-class ResizeObserverMock {
-    observe(): void {}
-    disconnect(): void {}
-}
 
 const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
     activateCellAtPositionMock: vi.fn(),
     findCellElementMock: vi.fn<(...args: unknown[]) => HTMLTableCellElement | null>(() => document.createElement('td')),
 }));
-const DEFAULT_FEATURE_SETTINGS = {
-    autoMatchingBraces: true,
-    spellcheck: false,
-} satisfies HostEditorConfig['nestedEditor'];
-const TEST_HOST_CONFIG = {
-    nestedEditor: DEFAULT_FEATURE_SETTINGS,
-    tableAppearance: {
-        zebraStriping: false,
-    },
-    toolbar: {
-        showMoveButtons: true,
-        showClearButtons: true,
-        showAlignmentButtons: true,
-        showDeleteTableButton: true,
-        showSortButtons: true,
-    },
-} satisfies HostEditorConfig;
 const nestedEditorControllerMock = nestedEditorController as unknown as {
     closeNestedEditor: Mock;
     handleMainEditorUpdate: Mock;
@@ -163,20 +141,7 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
 }));
 
 describe('nestedEditorLifecycle', () => {
-    let animationFrameQueue: FrameRequestCallback[] = [];
-
-    /**
-     * Drains the frame queue, letting queued microtasks run between frames so work the
-     * lifecycle schedules as a microtask (opening a requested cell) settles too.
-     */
-    const flushAnimationFrames = async (): Promise<void> => {
-        await Promise.resolve();
-        while (animationFrameQueue.length > 0) {
-            const callback = animationFrameQueue.shift();
-            callback?.(0);
-            await Promise.resolve();
-        }
-    };
+    const frames = createFrameQueue();
 
     beforeEach(() => {
         activateCellAtPositionMock.mockReset();
@@ -187,12 +152,7 @@ describe('nestedEditorLifecycle', () => {
         nestedEditorControllerMock.openNestedEditor.mockReset();
         nestedEditorControllerMock.openNestedEditor.mockReturnValue(true);
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
-        animationFrameQueue = [];
-        vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
-            animationFrameQueue.push(callback);
-            return animationFrameQueue.length;
-        }) as typeof requestAnimationFrame);
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        frames.install();
     });
 
     afterEach(() => {
@@ -268,7 +228,7 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledTimes(1);
 
         const decorationsAfterReplace = view.state.field(tableDecorationField).decorations;
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -300,7 +260,7 @@ describe('nestedEditorLifecycle', () => {
             view.dispatch({ effects: openRequestEffects({ requestId: 'queued-open', activeCell: headerCell() }) });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: true });
-            await flushAnimationFrames();
+            await frames.flush();
 
             expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, undefined);
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
@@ -317,7 +277,7 @@ describe('nestedEditorLifecycle', () => {
             const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE, hadActiveCell: true });
-            await flushAnimationFrames();
+            await frames.flush();
 
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_POS_OUTSIDE_TABLE);
@@ -330,7 +290,7 @@ describe('nestedEditorLifecycle', () => {
             const view = createLifecycleView({ doc: CANONICAL_DOC });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
-            await flushAnimationFrames();
+            await frames.flush();
 
             expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
@@ -344,7 +304,7 @@ describe('nestedEditorLifecycle', () => {
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
             view.dispatch({ selection: { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE } });
-            await flushAnimationFrames();
+            await frames.flush();
 
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_POS_OUTSIDE_TABLE);
 
@@ -374,7 +334,7 @@ describe('nestedEditorLifecycle', () => {
             annotations: Transaction.userEvent.of('undo'),
             selection: { anchor: doc.indexOf('| a2') },
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -408,7 +368,7 @@ describe('nestedEditorLifecycle', () => {
             annotations: Transaction.userEvent.of('redo'),
             selection: { anchor: insertedPrefix.length + doc.indexOf('| a2') },
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -470,14 +430,14 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 resolvedCell: expect.objectContaining({ activeCell }),
-                featureSettings: DEFAULT_FEATURE_SETTINGS,
+                featureSettings: TEST_NESTED_EDITOR_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
@@ -507,12 +467,12 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                featureSettings: DEFAULT_FEATURE_SETTINGS,
+                featureSettings: TEST_NESTED_EDITOR_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
@@ -538,7 +498,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -562,7 +522,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -579,7 +539,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             effects: triggerOpenCellRequestEffect.of({ requestId: 'missing-request' }),
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -638,13 +598,13 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                featureSettings: DEFAULT_FEATURE_SETTINGS,
+                featureSettings: TEST_NESTED_EDITOR_SETTINGS,
                 initialCursorPos: 'end',
             })
         );
@@ -675,12 +635,12 @@ describe('nestedEditorLifecycle', () => {
             changes: { from: 0, to: 0, insert: insertedPrefix },
         });
 
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                featureSettings: DEFAULT_FEATURE_SETTINGS,
+                featureSettings: TEST_NESTED_EDITOR_SETTINGS,
             })
         );
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -713,7 +673,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(view.state.selection.main.anchor).toBe(selectionFrom);
         expect(view.state.selection.main.head).toBe(selectionTo);
@@ -737,7 +697,7 @@ describe('nestedEditorLifecycle', () => {
                 effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
             })
         ).not.toThrow();
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -770,7 +730,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             selection: { anchor: 0 },
         });
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenNthCalledWith(1, view, {
             contentFrom: resolved.contentFrom,
@@ -809,7 +769,7 @@ describe('nestedEditorLifecycle', () => {
         expect(closeParams.contentFrom).toBe(tableFrom + insertedText.length + '| '.length);
         expect(view.state.doc.sliceString(closeParams.contentFrom, closeParams.contentTo)).toBe('H1');
 
-        await flushAnimationFrames();
+        await frames.flush();
         expect(getActiveCell(view.state)).toBeNull();
 
         view.destroy();
@@ -861,13 +821,13 @@ describe('nestedEditorLifecycle', () => {
             selection: { anchor: 0 },
         });
 
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(getActiveCell(view.state)).toEqual(nextCell);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
-                featureSettings: DEFAULT_FEATURE_SETTINGS,
+                featureSettings: TEST_NESTED_EDITOR_SETTINGS,
             })
         );
 

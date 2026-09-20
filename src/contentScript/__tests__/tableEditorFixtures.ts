@@ -2,6 +2,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { vi } from 'vitest';
 import type { Extension } from '@codemirror/state';
+import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
@@ -15,12 +16,15 @@ import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectio
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 
+/** Nested-editor settings a test can assert against when it does not set its own. */
+export const TEST_NESTED_EDITOR_SETTINGS = {
+    autoMatchingBraces: true,
+    spellcheck: false,
+} satisfies HostEditorConfig['nestedEditor'];
+
 /** Host settings for tests that do not exercise a particular toggle. */
 export const TEST_HOST_CONFIG = {
-    nestedEditor: {
-        autoMatchingBraces: true,
-        spellcheck: false,
-    },
+    nestedEditor: TEST_NESTED_EDITOR_SETTINGS,
     tableAppearance: {
         zebraStriping: false,
     },
@@ -31,7 +35,7 @@ export const TEST_HOST_CONFIG = {
         showDeleteTableButton: true,
         showSortButtons: true,
     },
-};
+} satisfies HostEditorConfig;
 
 class ResizeObserverMock {
     observe(): void {}
