@@ -1,14 +1,15 @@
 import { EditorState, RangeSetBuilder, StateField, type Transaction } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getTableContextStartingAt, tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from './TableWidget';
-import { decideTableDecorationUpdate } from './tableDecorationPolicy';
 
 interface TableDecorationState {
     decorations: DecorationSet;
@@ -135,19 +136,24 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
         return buildTableDecorations(state);
     },
     update(value, transaction) {
-        const decision = decideTableDecorationUpdate(transaction);
-
-        switch (decision.type) {
-            case 'noneDecorations':
-                return {
-                    decorations: Decoration.none,
-                    activeHostInvalidated: invalidatesActiveHost(transaction),
-                };
-            case 'rebuildAllDecorations':
-                return buildTableDecorations(transaction.state, invalidatesActiveHost(transaction));
-            case 'reconcileDecorations':
-                return reconcileTableDecorations(value, transaction);
+        if (isEffectiveRawMode(transaction.state)) {
+            return {
+                decorations: Decoration.none,
+                activeHostInvalidated: invalidatesActiveHost(transaction),
+            };
         }
+
+        if (
+            transaction.effects.some(
+                (effect) => effect.is(toggleSourceModeEffect) || effect.is(setSearchForceSourceModeEffect)
+            )
+        ) {
+            // Raw-mode exit has no document change and the index object is identical, so
+            // reconciliation would keep the Decoration.none held during raw mode.
+            return buildTableDecorations(transaction.state, invalidatesActiveHost(transaction));
+        }
+
+        return reconcileTableDecorations(value, transaction);
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
