@@ -89,7 +89,7 @@ describe('structural mutation dispatch', () => {
         });
 
         expect(result).toBe(true);
-        expect(state.doc.toString()).not.toBe(tableText);
+        expect(state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
         expect(wasActiveHostInvalidated(state)).toBe(true);
     });
 
