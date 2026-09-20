@@ -19,7 +19,7 @@ const PLATFORM_NAVIGATOR: Record<SimulatedPlatform, { platform: string; userAgen
 };
 
 /** Mutates `navigator` before `@codemirror/view` is imported. */
-export function stubHistoryShortcutNavigator(platform: SimulatedPlatform): void {
+export function stubKeymapPlatformNavigator(platform: SimulatedPlatform): void {
     const spec = PLATFORM_NAVIGATOR[platform];
     Object.defineProperty(navigator, 'platform', { configurable: true, value: spec.platform });
     Object.defineProperty(navigator, 'userAgent', { configurable: true, value: spec.userAgent });
