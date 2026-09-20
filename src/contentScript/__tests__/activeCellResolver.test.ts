@@ -215,6 +215,30 @@ describe('resolvedActiveCell', () => {
         ).toBeNull();
     });
 
+    it('pins a stale header row index to 0', () => {
+        const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
+        const ctx = buildContext(doc);
+
+        expect(ctx).not.toBeNull();
+        if (!ctx) {
+            throw new Error('Expected table context');
+        }
+
+        const resolved = createResolvedActiveCell({
+            ctx,
+            coords: { section: 'header', row: 4, col: 1 },
+        });
+
+        expect(resolved?.activeCell).toEqual({
+            tableFrom: 0,
+            section: 'header',
+            row: 0,
+            col: 1,
+        });
+        expect(resolved?.contentFrom).toBe(doc.indexOf('H2'));
+        expect(resolved?.contentTo).toBe(doc.indexOf('H2') + 2);
+    });
+
     it('is selection-independent even when the cursor moves into editable edge whitespace', () => {
         const doc = ['| foo  |', '| --- |'].join('\n');
         const state = createState(doc, {

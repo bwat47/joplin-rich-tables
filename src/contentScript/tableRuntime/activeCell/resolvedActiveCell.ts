@@ -2,7 +2,7 @@ import type { EditorState } from '@codemirror/state';
 import { getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
-import type { CellCoords } from '../../tableModel/types';
+import { normalizeCellCoords, type CellCoords } from '../../tableModel/types';
 import { getCellRange, type CellRange } from '../../tableModel/markdownTableCellRanges';
 
 export interface ResolvedActiveCell {
@@ -24,9 +24,7 @@ export function toResolvedActiveCell(params: {
     return {
         activeCell: {
             tableFrom: ctx.from,
-            section: coords.section,
-            row: coords.section === 'header' ? 0 : coords.row,
-            col: coords.col,
+            ...normalizeCellCoords(coords),
         },
         ctx,
         contentFrom: ctx.from + range.from,

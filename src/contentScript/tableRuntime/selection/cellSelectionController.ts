@@ -8,7 +8,6 @@ import {
     getCellSelection,
     getSelectedTable,
     moveCellCoords,
-    normalizeCellCoords,
     setCellSelectionEffect,
     toUnifiedRow,
     type CellSelection,
@@ -17,7 +16,7 @@ import {
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { clamp } from '../../shared/numberUtils';
-import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
+import { isSameCellCoords, normalizeCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';

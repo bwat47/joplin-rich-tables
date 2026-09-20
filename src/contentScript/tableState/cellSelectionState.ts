@@ -107,14 +107,6 @@ export const cellSelectionField = StateField.define<CellSelection | null>({
     },
 });
 
-export function normalizeCellCoords(coords: CellCoords): CellCoords {
-    return {
-        section: coords.section,
-        row: coords.section === 'header' ? 0 : coords.row,
-        col: coords.col,
-    };
-}
-
 export function moveCellCoords(coords: CellCoords, direction: CellSelectionDirection): CellCoords {
     const unifiedRow = toUnifiedRow(coords);
 

@@ -13,6 +13,21 @@ export interface CellCoords {
     col: number; // 0-based index
 }
 
+/**
+ * Pins a header cell's section-relative row to 0.
+ *
+ * Markdown tables have a single header row. Call this at ingresses that accept
+ * `CellCoords` from outside the model so a stale non-zero header row cannot leak
+ * into editor state.
+ */
+export function normalizeCellCoords(coords: CellCoords): CellCoords {
+    return {
+        section: coords.section,
+        row: coords.section === 'header' ? 0 : coords.row,
+        col: coords.col,
+    };
+}
+
 /** Cell-coordinate equality. Two nulls compare equal, matching `isSameActiveCell`. */
 export function isSameCellCoords(a: CellCoords | null, b: CellCoords | null): boolean {
     if (a === b) {

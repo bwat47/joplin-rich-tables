@@ -1,4 +1,4 @@
-import type { CellCoords, TableSection } from '../tableModel/types';
+import { normalizeCellCoords, type CellCoords, type TableSection } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
 
 // Main widget structure classes
@@ -92,8 +92,7 @@ export function readCellCoords(cell: HTMLElement): CellCoords | null {
         return null;
     }
 
-    // The header is always a single row, so its row index is pinned to 0.
-    return { section, row: section === SECTION_HEADER ? 0 : row, col };
+    return normalizeCellCoords({ section, row, col });
 }
 
 /**
