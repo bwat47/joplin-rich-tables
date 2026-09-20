@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from '@codemirror/language';
-import { StateField, type EditorState } from '@codemirror/state';
+import { StateField, type EditorState, type SelectionRange } from '@codemirror/state';
 import { logger } from '../../logger';
 import { buildTableContext, type TableContext, type TableSpan } from '../tableModel/tableContext';
 
@@ -96,6 +96,11 @@ export function getTableContexts(state: EditorState): readonly TableContext[] {
 /** True when `pos` sits inclusively inside the table's `[from, to]` span. */
 export function containsPos(ctx: TableSpan, pos: number): boolean {
     return pos >= ctx.from && pos <= ctx.to;
+}
+
+/** True when both ends of `range` sit inclusively inside the table's `[from, to]` span. */
+export function containsSelection(ctx: TableSpan, range: SelectionRange): boolean {
+    return containsPos(ctx, range.from) && containsPos(ctx, range.to);
 }
 
 /** Returns the root table inclusively containing `pos`. */

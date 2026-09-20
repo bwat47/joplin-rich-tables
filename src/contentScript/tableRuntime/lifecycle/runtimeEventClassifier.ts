@@ -1,6 +1,6 @@
 import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
-import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
+import { containsSelection, getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
 import {
     exitSearchForceSourceModeEffect,
@@ -83,7 +83,7 @@ function getActiveCellFacts(
     return {
         status: 'resolved',
         resolvedCell: resolvedActiveCell,
-        selectionLeftActiveTable: isSelectionOutsideResolvedTable(update, resolvedActiveCell),
+        selectionLeftActiveTable: !containsSelection(resolvedActiveCell.ctx, update.state.selection.main),
     };
 }
 
@@ -130,11 +130,6 @@ function extractOpenRequestId(update: ViewUpdate): string | null {
     }
 
     return requestId;
-}
-
-function isSelectionOutsideResolvedTable(update: ViewUpdate, resolvedActiveCell: ResolvedActiveCell): boolean {
-    const { main } = update.state.selection;
-    return !containsPos(resolvedActiveCell.ctx, main.anchor) || !containsPos(resolvedActiveCell.ctx, main.head);
 }
 
 function cursorInsideAnyTable(update: ViewUpdate): boolean {

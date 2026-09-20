@@ -1,7 +1,8 @@
-import { EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import {
     containsPos,
+    containsSelection,
     getTableContextAtPos,
     getTableContextEndingAt,
     getTableContextStartingAt,
@@ -59,6 +60,22 @@ describe('tableContextField selectors', () => {
         expect(getTableContextAtPos(state, TABLE.length)?.from).toBe(0);
         expect(getTableContextAtPos(state, SECOND_TABLE_FROM)?.from).toBe(SECOND_TABLE_FROM);
         expect(getTableContextAtPos(state, TABLE.length + 1)).toBeNull();
+    });
+
+    it('contains a selection only when both range ends sit in the table', () => {
+        const span = { from: 10, to: 20 };
+
+        expect(containsSelection(span, EditorSelection.cursor(10))).toBe(true);
+        expect(containsSelection(span, EditorSelection.cursor(20))).toBe(true);
+        expect(containsSelection(span, EditorSelection.range(10, 20))).toBe(true);
+        expect(containsSelection(span, EditorSelection.range(20, 10))).toBe(true);
+        expect(containsSelection(span, EditorSelection.range(12, 18))).toBe(true);
+
+        expect(containsSelection(span, EditorSelection.cursor(9))).toBe(false);
+        expect(containsSelection(span, EditorSelection.cursor(21))).toBe(false);
+        expect(containsSelection(span, EditorSelection.range(5, 15))).toBe(false);
+        expect(containsSelection(span, EditorSelection.range(15, 25))).toBe(false);
+        expect(containsSelection(span, EditorSelection.range(5, 25))).toBe(false);
     });
 
     it('finds no table at positions outside the document', () => {
