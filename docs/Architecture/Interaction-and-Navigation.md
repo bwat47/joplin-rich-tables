@@ -96,47 +96,20 @@ test, while preserving shift-click, double-click, and drag selections. Context-m
 A click on a rendered cell opens it with the caret at the clicked point in the Markdown source, so clicking inside a
 bolded word lands between the same two letters once the syntax is visible.
 
-The rendering service returns HTML without character offsets. Placement therefore combines DOM hit testing with
-CodeMirror's Markdown syntax tree:
+Because rendered HTML does not carry source offsets, placement uses a small mapping pipeline:
 
-1. `tableWidget/cellCaretHit.ts` reads the DOM caret before the rendered content is replaced.
-2. `tableRuntime/interaction/cellTextProjection.ts` projects visible source spans into text with a map back to
-   nested-editor offsets, so hidden Markdown cannot become an anchor.
-3. `tableRuntime/interaction/clickCursorPlacement.ts` maps the offset exactly wherever it can: directly when the cell
-   renders as its own text, which also covers the literal text the renderer shows before it resolves, and otherwise
-   through the projection when that matches what was rendered.
-4. When rendering transforms the text, `shared/textAlignment.ts` aligns rendered text against the projection with one
-   forward scan that resynchronises within a small window. Unknown renderer extensions remain approximate; a hidden run
-   wider than that window strands the rest of the cell, which collapses the matched ratio, and insufficient matches
-   decline placement.
+- `tableWidget/cellCaretHit.ts` captures the position or selection in the rendered cell.
+- `tableRuntime/interaction/clickCursorPlacement.ts` maps it to nested-editor offsets using the syntax-aware projection
+  in `cellTextProjection.ts`, with `shared/textAlignment.ts` handling renderer transformations.
+- The mapped position travels with the open-cell request. If the rendered text cannot be matched reliably, placement
+  falls back safely instead of guessing.
 
-The offset or range travels through the open-cell request to the nested editor.
+The nested editor mounts in a microtask so it can take focus before another keystroke reaches the main editor.
+`tableWidget/mainCaretSuppression.ts` hides the main caret during this handoff.
 
-That request moves the main selection into the table's block widget before the nested editor mounts, so
-`tableWidget/mainCaretSuppression.ts` hides the main caret until it settles. The mount runs in a microtask rather
-than on the next frame: the main editor still owns the keyboard until the cell editor takes focus, and a frame-long
-gap is wide enough that typing straight after Enter or Tab creates a row lands outside the table. The same
-extension hides it for a cell selection, which parks its caret in the table for the length of the selection.
-
-Every press inside a widget is routed by `handleWidgetPress` in `tableWidget/tableWidgetInteractions.ts`, registered
-for `pointerdown` and `mousedown` alongside the click handler. It reports whether it took the press. CodeMirror stops
-running handlers for an event once one returns true and appends its own built-ins after every plugin's, so a press the
-router takes reaches neither those nor `closeOnOutsideMouseDown`.
-
-A press on a rendered cell is consumed, and the gesture draws the DOM selection itself from the caret each pointer
-move hit-tests. The browser latches its own selection drag at mousedown, and nothing cancels it afterwards: left
-native, its auto-scroll keeps running once the gesture has become a cell rectangle, carrying the editor past the
-table. Pointerup maps both endpoints through one projection/alignment, preserving direction. A range is mapped from the characters it covers rather than as two carets,
-so Markdown syntax is included where the selection spans it and excluded at both ends otherwise, with paired markers
-kept balanced. Unresolved hits preserve the established selection fallback.
-
-Crossing into another cell after the movement threshold promotes the gesture to rectangular selection, clears rendered
-text selection, and suppresses it until release or cancellation. Returning to the anchor keeps rectangular mode; it
-does not restore the earlier text range. Active-editor drags retain their existing boundary margin and behavior.
-
-Only another cell promotes a drag; leaving the table keeps the gesture a text selection, with an endpoint outside the
-cell clamped to the end the drag left by. Once a rectangle is being dragged, a pointer outside the table tracks the
-nearest cell as before.
+Dragging within one rendered cell uses the same mapping for a text selection. Crossing into another cell promotes the
+gesture to rectangular cell selection; see
+[Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md#cell-drag-ownership) for ownership rules.
 
 ## Pointer, Links, and Scrolling
 
