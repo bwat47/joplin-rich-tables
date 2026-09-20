@@ -43,13 +43,14 @@ export interface CellEntryNormalization {
  * padded too. That is intended: a table flush against the document start is kept off the
  * first line so there is always a newline before it.
  *
- * A table that does not start or end on a line boundary still needs a newline, even if a
- * blank line already sits above or below that line: the prefix/suffix is what splits the
- * merged neighbour off the table.
+ * `ctx.from` carries no line-start check because `tableContextField` indexes only tables that
+ * begin at one. The end has no such guarantee, so it keeps its check: a table that does not end
+ * on a line boundary still needs a newline even where a blank line already sits below that line,
+ * because the suffix is what splits the merged neighbour off the table.
  */
 function resolveBoundaryPadding(state: EditorState, ctx: Pick<TableContext, 'from' | 'to'>): TableBoundaryPadding {
     const { doc } = state;
-    const needsLeadingSeparator = doc.lineAt(ctx.from).from !== ctx.from || !hasRequiredBlankLinesBefore(doc, ctx.from);
+    const needsLeadingSeparator = !hasRequiredBlankLinesBefore(doc, ctx.from);
     const needsTrailingSeparator = doc.lineAt(ctx.to).to !== ctx.to || !hasRequiredBlankLinesAfter(doc, ctx.to);
 
     return {
