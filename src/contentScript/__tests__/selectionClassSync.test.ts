@@ -15,11 +15,9 @@ import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment } from './testUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
 
-class ResizeObserverMock {
-    observe = vi.fn();
-    disconnect = vi.fn();
-}
+const resizeObserver = createResizeObserverStub();
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const PREFIX = 'above\n\n';
@@ -79,7 +77,7 @@ function getWidget(view: EditorView): HTMLElement {
 }
 
 beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+    resizeObserver.install();
 });
 
 afterEach(() => {

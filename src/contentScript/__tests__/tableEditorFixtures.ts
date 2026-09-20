@@ -37,10 +37,40 @@ export const TEST_HOST_CONFIG = {
     },
 } satisfies HostEditorConfig;
 
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
+export interface ResizeObserverStub {
+    /** Stubs `ResizeObserver`, dropping the observers of a previous install. Call from `beforeEach`. */
+    install(): void;
+    /** Fires every observer created since `install`, as a real resize would. */
+    trigger(): void;
+}
+
+/**
+ * jsdom implements no `ResizeObserver`, and `TableWidget` observes its own DOM for height
+ * changes, so mounting one throws without this.
+ */
+export function createResizeObserverStub(): ResizeObserverStub {
+    let callbacks: Array<() => void> = [];
+
+    class ResizeObserverMock {
+        constructor(callback: () => void) {
+            callbacks.push(callback);
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    }
+
+    return {
+        install(): void {
+            callbacks = [];
+            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        },
+        trigger(): void {
+            for (const callback of callbacks) {
+                callback();
+            }
+        },
+    };
 }
 
 /**
@@ -83,11 +113,12 @@ export interface FrameQueue {
 
 export function createFrameQueue(): FrameQueue {
     let queue: FrameRequestCallback[] = [];
+    const resizeObserver = createResizeObserverStub();
 
     return {
         install(): void {
             queue = [];
-            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+            resizeObserver.install();
             vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
                 queue.push(callback);
                 return queue.length;

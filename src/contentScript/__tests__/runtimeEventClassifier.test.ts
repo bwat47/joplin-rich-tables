@@ -15,6 +15,9 @@ import { createMarkdownState } from './testMarkdownState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
 import { requireResolvedActiveCell } from './testUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
+
+const resizeObserver = createResizeObserverStub();
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC_WITH_SURROUNDING_TEXT = ['before', '', TABLE_DOC, '', 'after'].join('\n');
@@ -24,13 +27,8 @@ const DEFAULT_EXTERNAL_FACTS: TableRuntimeExternalFacts = {
     nestedEditorOpen: false,
 };
 
-class ResizeObserverMock {
-    observe(): void {}
-    disconnect(): void {}
-}
-
 beforeAll(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+    resizeObserver.install();
 });
 
 afterAll(() => {

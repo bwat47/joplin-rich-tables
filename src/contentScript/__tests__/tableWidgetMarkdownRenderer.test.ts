@@ -5,15 +5,13 @@ import { markdownRenderServiceFacet, type MarkdownRenderService } from '../servi
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { deferred, htmlFragment, parseCellRangesFixture } from './testUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
 
-class ResizeObserverMock {
-    observe = vi.fn();
-    disconnect = vi.fn();
-}
+const resizeObserver = createResizeObserverStub();
 
 describe('TableWidget markdown rendering', () => {
     beforeEach(() => {
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        resizeObserver.install();
     });
 
     afterEach(() => {

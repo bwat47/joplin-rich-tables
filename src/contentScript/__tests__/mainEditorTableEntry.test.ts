@@ -11,6 +11,9 @@ import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
+import { createResizeObserverStub } from './tableEditorFixtures';
+
+const resizeObserver = createResizeObserverStub();
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 const BEFORE = 'before';
@@ -41,12 +44,6 @@ function currentTableFrom(view: EditorView, table: string = TABLE): number {
 }
 
 /** TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver. */
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-}
-
 function mountView(doc: string, selection: number | { anchor: number; head: number }): EditorView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
@@ -123,7 +120,7 @@ function expectBoundaryCellOpen(view: EditorView, edge: 'start' | 'end'): void {
 }
 
 beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+    resizeObserver.install();
 });
 
 afterEach(() => {

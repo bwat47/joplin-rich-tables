@@ -16,6 +16,9 @@ import { createMarkdownState } from './testMarkdownState';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
+
+const resizeObserver = createResizeObserverStub();
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -63,11 +66,6 @@ function pointerEvent(
         isPrimary: { value: init.isPrimary ?? true },
     });
     return event as unknown as PointerEvent;
-}
-
-class ResizeObserverMock {
-    observe = vi.fn();
-    disconnect = vi.fn();
 }
 
 /** Reads a cell out of a rendered widget, so tests bind to `TableWidget`'s own attributes. */
@@ -216,7 +214,7 @@ function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
 }
 
 beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+    resizeObserver.install();
     originalElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
     originalCaretRangeFromPoint = Object.getOwnPropertyDescriptor(document, 'caretRangeFromPoint');
     Object.defineProperty(document, 'elementFromPoint', {

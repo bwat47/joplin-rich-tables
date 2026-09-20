@@ -10,18 +10,10 @@ import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
+import { createResizeObserverStub } from './tableEditorFixtures';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
-const observerCallbacks: Array<() => void> = [];
-
-class ResizeObserverMock {
-    observe = vi.fn();
-    disconnect = vi.fn();
-
-    constructor(callback: () => void) {
-        observerCallbacks.push(callback);
-    }
-}
+const resizeObserver = createResizeObserverStub();
 
 if (!Range.prototype.getBoundingClientRect) {
     Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
@@ -33,13 +25,6 @@ if (!Range.prototype.getClientRects) {
     Object.defineProperty(Range.prototype, 'getClientRects', {
         value: () => [],
     });
-}
-
-/** Fires every ResizeObserver created during the test, as a real resize would. */
-function triggerResize(): void {
-    for (const callback of observerCallbacks) {
-        callback();
-    }
 }
 
 function stubHeight(element: HTMLElement, heightPx: number): void {
@@ -114,9 +99,8 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
 
 describe('TableWidget DOM reuse', () => {
     beforeEach(() => {
-        observerCallbacks.length = 0;
         tableHeightCache.clear();
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        resizeObserver.install();
     });
 
     afterEach(() => {
@@ -244,7 +228,7 @@ describe('TableWidget DOM reuse', () => {
             // callback is created once at mount and outlives the widget that created it, so it
             // must resolve the position at fire time rather than at creation time.
             stubHeight(dom, MEASURED_HEIGHT);
-            triggerResize();
+            resizeObserver.trigger();
 
             expect(tableHeightCache.get({ tableFrom: MOVED_FROM, tableText: UNRELATED_TEXT })).toBe(MEASURED_HEIGHT);
             expect(tableHeightCache.get({ tableFrom: ORIGINAL_FROM, tableText: UNRELATED_TEXT })).toBeUndefined();

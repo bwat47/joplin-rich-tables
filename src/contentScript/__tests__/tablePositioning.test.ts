@@ -14,12 +14,9 @@ import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositio
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
 import type { CellCoords } from '../tableModel/types';
+import { createResizeObserverStub } from './tableEditorFixtures';
 
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-}
+const resizeObserver = createResizeObserverStub();
 
 const TEST_HOST_CONFIG = {
     nestedEditor: { autoMatchingBraces: true, spellcheck: false },
@@ -71,7 +68,7 @@ function requireCell(view: EditorView, tableFrom: number, cell: CellCoords): HTM
 
 describe('resolveTableContextFromEventTarget', () => {
     beforeEach(() => {
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        resizeObserver.install();
     });
 
     afterEach(() => {

@@ -14,15 +14,12 @@ import { getTableContextAtPos } from '../tableState/tableContextField';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
+import { createResizeObserverStub } from './tableEditorFixtures';
+
+const resizeObserver = createResizeObserverStub();
 
 const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
 const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
-
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-}
 
 interface CapturedDispatch {
     spec: TransactionSpec;
@@ -163,7 +160,7 @@ describe('insertTableAndActivate', () => {
 
     describe('mounted widget', () => {
         beforeEach(() => {
-            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+            resizeObserver.install();
         });
 
         afterEach(() => {
