@@ -46,17 +46,3 @@ export function changesOverlapRange(tr: Transaction, from: number, to: number): 
     });
     return overlaps;
 }
-
-/** True when any change overlaps or abuts inclusive `[from, to]`. Touching an endpoint counts. */
-export function changesTouchInclusiveRange(tr: Transaction, from: number, to: number): boolean {
-    let touches = false;
-    tr.changes.iterChanges((fromA, toA) => {
-        if (touches) {
-            return;
-        }
-        if (rangeTouchesInclusive(fromA, toA, from, to)) {
-            touches = true;
-        }
-    });
-    return touches;
-}
