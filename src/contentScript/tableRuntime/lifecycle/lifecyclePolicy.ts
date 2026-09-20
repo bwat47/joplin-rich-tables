@@ -60,8 +60,7 @@ export interface ActivateCellAtCursorOptions {
     entryMode: Extract<CellEntryMode, 'enter' | 'adopt'>;
 }
 
-type NestedEditorCloseReason =
-    'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved' | 'noteChanged';
+type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved' | 'noteChanged';
 
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
