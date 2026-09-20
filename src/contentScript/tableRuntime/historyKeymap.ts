@@ -16,6 +16,6 @@ export function createHistoryKeyBindings(runCommand: HistoryCommandRunner, scope
     return historyKeymap.filter(isUndoRedoBinding).map((binding) => ({
         ...binding,
         run: (view) => runCommand(view, binding.run),
-        ...(scope === undefined ? {} : { scope }),
+        scope,
     }));
 }
