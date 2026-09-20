@@ -38,7 +38,6 @@ function mountNestedView(
         selection: { anchor: selection },
         extensions: [
             createNestedEditorKeymap(mainView, {
-                getSelectionBounds: (nestedView) => ({ from: 0, to: nestedView.state.doc.length }),
                 closeEditor: close,
                 syncPendingChangesToRoot: sync,
             }),

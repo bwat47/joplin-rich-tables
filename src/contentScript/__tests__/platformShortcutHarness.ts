@@ -367,7 +367,6 @@ export function registerPlatformShortcutTests(
                         ensureRootSelectionForCommand: vi.fn(),
                     }),
                     createNestedEditorKeymap(mainView, {
-                        getSelectionBounds: (nestedView) => ({ from: 0, to: nestedView.state.doc.length }),
                         closeEditor: vi.fn(),
                         syncPendingChangesToRoot: vi.fn(),
                     }),
