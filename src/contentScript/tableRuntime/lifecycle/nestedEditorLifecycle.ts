@@ -165,8 +165,16 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             });
         }
 
+        /**
+         * Mounts the cell editor in a microtask rather than on the next frame.
+         *
+         * CodeMirror finishes rebuilding the widget DOM synchronously before `update()` returns,
+         * so the cell element is already there when the microtask runs. Waiting for a frame instead
+         * leaves the main editor holding focus with the caret parked in the table's replaced range,
+         * and characters typed in that window land outside the table.
+         */
         private scheduleOpenRequestedCell(requestId: string): void {
-            requestViewAnimationFrame(this.view, () => {
+            queueMicrotask(() => {
                 const guardResult = this.validateOpenRequestForExecution(requestId);
                 if (!guardResult) {
                     return;

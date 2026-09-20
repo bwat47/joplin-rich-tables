@@ -174,10 +174,16 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
 describe('nestedEditorLifecycle', () => {
     let animationFrameQueue: FrameRequestCallback[] = [];
 
-    const flushAnimationFrames = (): void => {
+    /**
+     * Drains the frame queue, letting queued microtasks run between frames so work the
+     * lifecycle schedules as a microtask (opening a requested cell) settles too.
+     */
+    const flushAnimationFrames = async (): Promise<void> => {
+        await Promise.resolve();
         while (animationFrameQueue.length > 0) {
             const callback = animationFrameQueue.shift();
             callback?.(0);
+            await Promise.resolve();
         }
     };
 
@@ -204,7 +210,7 @@ describe('nestedEditorLifecycle', () => {
         document.body.innerHTML = '';
     });
 
-    it('schedules inserted-table activation from the effect payload', () => {
+    it('schedules inserted-table activation from the effect payload', async () => {
         const view = createLifecycleView({
             doc: '',
             includeInsertedTableActivation: true,
@@ -216,7 +222,7 @@ describe('nestedEditorLifecycle', () => {
                 target: { section: 'header', row: 0, col: 0 },
             }),
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(activateTableCellMock).toHaveBeenCalledWith(view, 42, {
             section: 'header',
@@ -227,7 +233,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('uses the mapped pending inserted-table activation when text shifts before the scheduled frame', () => {
+    it('uses the mapped pending inserted-table activation when text shifts before the scheduled frame', async () => {
         const doc = ['before', '', CANONICAL_DOC].join('\n');
         const tableFrom = 'before\n\n'.length;
         const insertedText = 'top\n';
@@ -243,7 +249,7 @@ describe('nestedEditorLifecycle', () => {
             }),
         });
         view.dispatch({ changes: { from: 0, to: 0, insert: insertedText } });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(activateTableCellMock).toHaveBeenCalledWith(view, tableFrom + insertedText.length, {
             section: 'header',
@@ -255,7 +261,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('passes the mapped cell range when undo or redo closes the nested editor', () => {
+    it('passes the mapped cell range when undo or redo closes the nested editor', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -284,7 +290,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('passes the classified resolved cell when syncing a main-editor update', () => {
+    it('passes the classified resolved cell when syncing a main-editor update', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const view = createLifecycleView({
@@ -306,7 +312,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('renders tables immediately and repositions after a full replace with a cell open', () => {
+    it('renders tables immediately and repositions after a full replace with a cell open', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
@@ -323,7 +329,7 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledTimes(1);
 
         const decorationsAfterReplace = view.state.field(tableDecorationField).decorations;
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -349,13 +355,13 @@ describe('nestedEditorLifecycle', () => {
             });
         }
 
-        it('closes the open cell and moves the cursor out of a table without reopening a cell', () => {
+        it('closes the open cell and moves the cursor out of a table without reopening a cell', async () => {
             nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
             const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
             view.dispatch({ effects: openRequestEffects({ requestId: 'queued-open', activeCell: headerCell() }) });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: true });
-            flushAnimationFrames();
+            await flushAnimationFrames();
 
             expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, undefined);
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
@@ -367,12 +373,12 @@ describe('nestedEditorLifecycle', () => {
             view.destroy();
         });
 
-        it('leaves a cursor outside every table where the switch put it', () => {
+        it('leaves a cursor outside every table where the switch put it', async () => {
             nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
             const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE, hadActiveCell: true });
-            flushAnimationFrames();
+            await flushAnimationFrames();
 
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_POS_OUTSIDE_TABLE);
@@ -381,11 +387,11 @@ describe('nestedEditorLifecycle', () => {
             view.destroy();
         });
 
-        it('moves the cursor out of a table when no cell was open', () => {
+        it('moves the cursor out of a table when no cell was open', async () => {
             const view = createLifecycleView({ doc: CANONICAL_DOC });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
-            flushAnimationFrames();
+            await flushAnimationFrames();
 
             expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
@@ -394,12 +400,12 @@ describe('nestedEditorLifecycle', () => {
             view.destroy();
         });
 
-        it('keeps a selection the host restored after the switch', () => {
+        it('keeps a selection the host restored after the switch', async () => {
             const view = createLifecycleView({ doc: CANONICAL_DOC });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
             view.dispatch({ selection: { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE } });
-            flushAnimationFrames();
+            await flushAnimationFrames();
 
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_POS_OUTSIDE_TABLE);
 
@@ -407,7 +413,7 @@ describe('nestedEditorLifecycle', () => {
         });
     });
 
-    it('passes the pre-undo active cell as a fallback hint during undo or redo reactivation', () => {
+    it('passes the pre-undo active cell as a fallback hint during undo or redo reactivation', async () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
         const activeCell = headerCell({
             section: 'body',
@@ -429,7 +435,7 @@ describe('nestedEditorLifecycle', () => {
             annotations: Transaction.userEvent.of('undo'),
             selection: { anchor: doc.indexOf('| a2') },
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -444,7 +450,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('maps the fallback hint when undo or redo shifts the table start before reactivation', () => {
+    it('maps the fallback hint when undo or redo shifts the table start before reactivation', async () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
         const insertedPrefix = 'abc\n';
         const activeCell = headerCell({
@@ -463,7 +469,7 @@ describe('nestedEditorLifecycle', () => {
             annotations: Transaction.userEvent.of('redo'),
             selection: { anchor: insertedPrefix.length + doc.indexOf('| a2') },
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -481,7 +487,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('does not close the nested editor for a structural-edit signal without an explicit request', () => {
+    it('does not close the nested editor for a structural-edit signal without an explicit request', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -508,7 +514,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('opens the nested editor directly when no normalization is requested', () => {
+    it('opens the nested editor directly when no normalization is requested', async () => {
         const doc = NON_CANONICAL_DOC;
         const activeCell = headerCell();
         const view = createLifecycleView({
@@ -525,7 +531,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
@@ -541,7 +547,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('uses the latest open request when one dispatch contains multiple trigger effects', () => {
+    it('uses the latest open request when one dispatch contains multiple trigger effects', async () => {
         const activeCell = headerCell();
         const view = createLifecycleView({
             doc: CANONICAL_DOC,
@@ -562,7 +568,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -576,7 +582,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('fails the matching request when the cell element cannot be found', () => {
+    it('fails the matching request when the cell element cannot be found', async () => {
         findCellElementMock.mockReturnValueOnce(null);
         const doc = CANONICAL_DOC;
         const activeCell = headerCell();
@@ -593,7 +599,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -601,7 +607,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('fails the request and clears the active cell when it no longer resolves to a table', () => {
+    it('fails the request and clears the active cell when it no longer resolves to a table', async () => {
         // The anchor sits in the paragraph, so no table starts there.
         const activeCell = headerCell({ tableFrom: 1 });
         const view = createLifecycleView({
@@ -617,7 +623,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -626,7 +632,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('ignores a request-open signal when the pending request is missing', () => {
+    it('ignores a request-open signal when the pending request is missing', async () => {
         const view = createLifecycleView({
             doc: CANONICAL_DOC,
         });
@@ -634,7 +640,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             effects: triggerOpenCellRequestEffect.of({ requestId: 'missing-request' }),
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -642,7 +648,35 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('opens a requested cell without repairing the document itself', () => {
+    it('opens a requested cell before the next animation frame', async () => {
+        // Until the cell editor takes focus, the main editor still owns the keyboard with the
+        // caret parked in the table's replaced range, so characters typed in that window land
+        // outside the table. Waiting for a frame makes that window wide enough to hit by typing
+        // straight after Enter or Tab creates a row.
+        const activeCell = headerCell();
+        const view = createLifecycleView({
+            doc: CANONICAL_DOC,
+        });
+
+        view.dispatch({
+            effects: [
+                setActiveCellEffect.of(activeCell),
+                ...openRequestEffects({
+                    requestId: 'request-before-frame',
+                    activeCell,
+                }),
+            ],
+        });
+        await Promise.resolve();
+
+        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+            expect.objectContaining({ mainView: view })
+        );
+
+        view.destroy();
+    });
+
+    it('opens a requested cell without repairing the document itself', async () => {
         // Entry transactions carry whatever repair the table needs, so nothing here may
         // rewrite the document a frame later: the host cannot order a late rewrite against
         // the keystrokes around it and writes a stale note body back over the editor.
@@ -665,7 +699,7 @@ describe('nestedEditorLifecycle', () => {
                 }),
             ],
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
@@ -680,7 +714,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('opens using the remapped request state when the document shifts before the RAF callback', () => {
+    it('opens using the remapped request state when the document shifts before the cell opens', async () => {
         const activeCell = headerCell();
         const insertedPrefix = 'before\n\n';
 
@@ -702,7 +736,7 @@ describe('nestedEditorLifecycle', () => {
             changes: { from: 0, to: 0, insert: insertedPrefix },
         });
 
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -715,7 +749,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('preserves the raw-mode text selection when exiting source mode into a nested editor', () => {
+    it('preserves the raw-mode text selection when exiting source mode into a nested editor', async () => {
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const selectionFrom = doc.indexOf('H1');
         const selectionTo = selectionFrom + 'H1'.length;
@@ -740,7 +774,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(view.state.selection.main.anchor).toBe(selectionFrom);
         expect(view.state.selection.main.head).toBe(selectionTo);
@@ -748,7 +782,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('rejects a stale active-cell anchor when exiting source mode', () => {
+    it('rejects a stale active-cell anchor when exiting source mode', async () => {
         const doc = CANONICAL_DOC;
         let state = createLifecycleState({
             doc,
@@ -764,7 +798,7 @@ describe('nestedEditorLifecycle', () => {
                 effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
             })
         ).not.toThrow();
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(activateCellAtPositionMock).toHaveBeenCalledWith(
             view,
@@ -775,7 +809,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('closes and clears the active cell when main-editor selection leaves the active table', () => {
+    it('closes and clears the active cell when main-editor selection leaves the active table', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
@@ -797,7 +831,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             selection: { anchor: 0 },
         });
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenNthCalledWith(1, view, {
             contentFrom: resolved.contentFrom,
@@ -808,7 +842,7 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
-    it('closes with the shifted cell range when an edit before the table also moves selection out', () => {
+    it('closes with the shifted cell range when an edit before the table also moves selection out', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
 
         const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
@@ -836,13 +870,13 @@ describe('nestedEditorLifecycle', () => {
         expect(closeParams.contentFrom).toBe(tableFrom + insertedText.length + '| '.length);
         expect(view.state.doc.sliceString(closeParams.contentFrom, closeParams.contentTo)).toBe('H1');
 
-        flushAnimationFrames();
+        await flushAnimationFrames();
         expect(getActiveCell(view.state)).toBeNull();
 
         view.destroy();
     });
 
-    it('keeps the pending reopen when selection leaves the table after a structural close', () => {
+    it('keeps the pending reopen when selection leaves the table after a structural close', async () => {
         nestedEditorControllerMock.isNestedEditorOpen.mockReturnValueOnce(true).mockReturnValue(false);
 
         const originalTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -888,7 +922,7 @@ describe('nestedEditorLifecycle', () => {
             selection: { anchor: 0 },
         });
 
-        flushAnimationFrames();
+        await flushAnimationFrames();
 
         expect(getActiveCell(view.state)).toEqual(nextCell);
         expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
