@@ -10,7 +10,7 @@ import { nestedEditorPlugin, isNestedEditorOpen, openNestedEditor } from '../nes
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
 import { tableContextField } from '../tableState/tableContextField';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
@@ -328,9 +328,13 @@ export function registerHistoryShortcutTests(
         }
 
         selectBodyCells(view);
+        expect(getCellSelection(view.state)).not.toBeNull();
+
         const event = pressKey(document.body, init);
 
         expect(event.defaultPrevented).toBe(true);
+        // The rewritten document invalidates the cell coordinates the highlight was anchored to.
+        expect(getCellSelection(view.state)).toBeNull();
         if (action === 'undo') {
             expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}`);
             expect(historyCounter.events).toEqual(['undo']);
@@ -351,6 +355,7 @@ export function registerHistoryShortcutTests(
         expect(event.defaultPrevented).toBe(false);
         expect(view.state.doc.toString()).toBe(before);
         expect(historyCounter.events).toEqual([]);
+        expect(getCellSelection(view.state)).not.toBeNull();
     });
 
     it('keeps scoped history bindings out of the root editor keyboard scope', () => {
