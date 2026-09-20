@@ -56,10 +56,11 @@ coordinates so document commands and Joplin toolbar actions continue to work. Cr
 A rectangular cell selection is stored in main-editor state and rendered by the table widget. The main editor owns
 keyboard, clipboard, and history commands while this mode is active.
 
-- **Shift+Arrow** starts or extends the rectangle.
-- **Arrow** collapses the selection and exits the table; **Enter/Tab** activates the focus cell.
-- **Escape** clears the selection.
-- **Delete/Backspace** clears content or removes fully selected empty structures.
+- **Shift+Arrow** starts or extends the rectangle. Extra modifiers (Ctrl/Alt/Meta) leave the chord to the main editor.
+- **Arrow** collapses the selection and exits the table.
+- **Enter**, **Tab**, and **Escape** activate the focus cell as exact keys; additional modifiers fall through.
+- **Deletion** follows CodeMirror's default chords (character, group, line-boundary, line, and line-end). Each clears
+  the rectangle. **Shift+Delete** remains native cut.
 - **Copy/Cut/Paste** operates on the rectangle and may expand the table.
 - **Undo/Redo** uses main-editor history.
 
