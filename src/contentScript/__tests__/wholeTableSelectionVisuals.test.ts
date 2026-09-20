@@ -1,6 +1,6 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import type { TableSpan } from '../tableModel/tableContext';
+import type { TableContext } from '../tableModel/tableContext';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getTableContextsTouching, getTableContextsWithin } from '../tableState/tableContextField';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
@@ -27,7 +27,7 @@ function createState(selection?: EditorSelection) {
     return selection ? state.update({ selection }).state : state;
 }
 
-function toSpans(contexts: readonly TableSpan[]): { from: number; to: number }[] {
+function toSpans(contexts: readonly TableContext[]): { from: number; to: number }[] {
     return contexts.map(({ from, to }) => ({ from, to }));
 }
 

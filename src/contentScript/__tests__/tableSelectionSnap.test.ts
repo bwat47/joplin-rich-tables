@@ -4,6 +4,7 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { snapSelectionAroundTables, tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
+import type { TableSpan } from '../tableModel/tableContext';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
@@ -12,11 +13,6 @@ const DOC = `${ABOVE}\n\n${TABLE}\n\nbelow`;
 const TABLE_FROM = ABOVE.length + 2;
 const TABLE_TO = TABLE_FROM + TABLE.length;
 const INSIDE_TABLE = TABLE_FROM + 4;
-
-interface TableSpan {
-    from: number;
-    to: number;
-}
 
 function createState(): EditorState {
     return createMarkdownState(DOC, [tableDecorationField, sourceModeField, activeCellField, tableSelectionSnapFilter]);
