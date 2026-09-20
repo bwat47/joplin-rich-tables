@@ -15,12 +15,11 @@ import {
     type CellSelectionDirection,
 } from '../../tableState/cellSelectionState';
 import { getTableGridBounds, type TableContext } from '../../tableModel/tableContext';
-import { getCellDocRange } from '../../tableModel/markdownTableCellRanges';
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { clamp } from '../../shared/numberUtils';
 import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
@@ -95,17 +94,13 @@ function dispatchSelectionWithContext(
     selection: CellSelection,
     options: SelectionDispatchOptions
 ): boolean {
-    const focusRange = getCellDocRange({
-        tableFrom: ctx.from,
-        ranges: ctx.cellRanges,
-        coords: selection.focus,
-    });
-    if (!focusRange) {
+    const resolvedFocus = createResolvedActiveCell({ ctx, coords: selection.focus });
+    if (!resolvedFocus) {
         return false;
     }
 
     view.dispatch({
-        selection: EditorSelection.single(focusRange.editableFrom),
+        selection: EditorSelection.single(resolvedFocus.editableFrom),
         effects: [
             setCellSelectionEffect.of({
                 tableFrom: ctx.from,
