@@ -47,8 +47,9 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Boundary Spacing
 
 - A rendered table keeps `REQUIRED_TABLE_BOUNDARY_BLANK_LINES` blank lines between itself and its neighbouring text.
-  A document edge counts as separation on its own, so a run of blank lines reaching the start or end of the document
-  needs one newline fewer than the same run between two lines of text.
+  Deletion protection uses that same blank-line quota. A newline scan of the caret-adjacent run converts to blank
+  lines by subtracting one when the run sits between two text lines (that newline ends the neighbour) and subtracting
+  none when the run reaches a document edge.
 - The invariant is enforced at three points: table insertion and paste, cell entry normalization, and boundary
   maintenance for typed or pasted text. Repairs belong in the transaction that broke it, never in a later dispatch.
 - Deletion protects the separation instead of repairing it, since the caret has somewhere to go.
