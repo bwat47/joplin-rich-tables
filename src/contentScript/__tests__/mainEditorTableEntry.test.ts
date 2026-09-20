@@ -650,6 +650,92 @@ describe('mainEditorTableEntry deletion protection', () => {
         expectBoundaryCellOpen(view, 'end');
     });
 
+    it.each([
+        {
+            key: 'Backspace',
+            pos: 1,
+            protectedPos: 1,
+            expected: { kind: 'move', pos: 0 },
+        },
+        {
+            key: 'Delete',
+            pos: 0,
+            protectedPos: 0,
+            expected: { kind: 'entry', edge: 'start' },
+        },
+    ] as const)(
+        'deletes a surplus blank line at the document start with $key, then protects the separator',
+        ({ key, pos, protectedPos, expected }) => {
+            // Nothing precedes the table, so one blank line is all the separation it needs and
+            // the second is ordinary text.
+            const doc = `
+
+${TABLE}
+
+${AFTER}`;
+            const view = mountView(doc, pos);
+
+            pressKey(view, key);
+            expect(view.state.doc.toString()).toBe(`
+${TABLE}
+
+${AFTER}`);
+            expect(getActiveCell(view.state)).toBeNull();
+            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+            // Target the remaining newline from the side appropriate to each deletion direction.
+            view.dispatch({ selection: { anchor: protectedPos } });
+            pressKey(view, key);
+            expect(view.state.doc.toString()).toBe(`
+${TABLE}
+
+${AFTER}`);
+            if (expected.kind === 'entry') {
+                expectBoundaryCellOpen(view, expected.edge);
+            } else {
+                expect(view.state.selection.main.head).toBe(expected.pos);
+                expect(getActiveCell(view.state)).toBeNull();
+                expect(getPendingOpenCellRequest(view.state)).toBeNull();
+            }
+        }
+    );
+
+    it('deletes a surplus blank line at the document end', () => {
+        const doc = `${BEFORE}
+
+${TABLE}
+
+`;
+        const view = mountView(doc, doc.length);
+
+        pressKey(view, 'Backspace');
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+
+        pressKey(view, 'Backspace');
+        expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
+        expectBoundaryCellOpen(view, 'end');
+    });
+
+    it('allows linewise cut to remove a surplus blank line at the document start', () => {
+        const doc = `
+
+${TABLE}
+
+${AFTER}`;
+        const view = mountView(doc, 0);
+
+        cutLines(view);
+
+        expect(view.state.doc.toString()).toBe(`
+${TABLE}
+
+${AFTER}`);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
     it('deletes a surplus blank line above the table before protecting the boundary', () => {
         const doc = `${BEFORE}\n\n\n${TABLE}\n`;
         const view = mountView(doc, BEFORE.length);

@@ -197,7 +197,9 @@ function resolveProtectedSeparator(state: EditorState, target: AdjoiningTable): 
  * - it sits directly against a table edge, so removing it merges the neighbouring line into
  *   the table's own line and leaves the caret parked on the widget edge; or
  * - it belongs to a run no longer than `PROTECTED_BOUNDARY_NEWLINES`, so removing it drops
- *   the separation below the blank line the plugin would immediately restore.
+ *   the separation below the blank line the plugin would immediately restore. A run reaching
+ *   the start or end of the document needs one newline fewer, because the missing neighbour
+ *   spends none of them ending its own line.
  *
  * Deleting toward the table enters its edge cell; deleting away preserves the newline and
  * moves the caret. Surplus blank lines in the middle of a longer run are ordinary text and
@@ -232,7 +234,11 @@ function resolveBoundarySeparatorTable(
     const limit = PROTECTED_BOUNDARY_NEWLINES + 1;
     const backward = scanNewlinesBackward(state, head, limit);
     const forward = scanNewlinesForward(state, head, limit);
-    if (backward.count + forward.count > PROTECTED_BOUNDARY_NEWLINES) {
+    const protectedNewlines =
+        backward.reachesDocumentEdge || forward.reachesDocumentEdge
+            ? REQUIRED_TABLE_BOUNDARY_BLANK_LINES
+            : PROTECTED_BOUNDARY_NEWLINES;
+    if (backward.count + forward.count > protectedNewlines) {
         return null;
     }
 

@@ -21,6 +21,12 @@ export interface AdjacentTables {
 export interface NewlineScan {
     count: number;
     edge: number;
+    /**
+     * True when the blank space the scan crossed runs all the way to the document edge, so
+     * there is no neighbouring line on that side. Such a run holds one more blank line than
+     * the same run between two lines of text, because no newline is spent ending a neighbour.
+     */
+    reachesDocumentEdge: boolean;
 }
 
 /** Newlines before `pos`, crossing only blank-line whitespace and stopping at `limit`. */
@@ -40,7 +46,7 @@ export function scanNewlinesBackward(state: EditorState, pos: number, limit: num
             break;
         }
     }
-    return { count, edge };
+    return { count, edge, reachesDocumentEdge: cursor === 0 };
 }
 
 /** Newlines after `pos`, crossing only blank-line whitespace and stopping at `limit`. */
@@ -60,7 +66,7 @@ export function scanNewlinesForward(state: EditorState, pos: number, limit: numb
             break;
         }
     }
-    return { count, edge };
+    return { count, edge, reachesDocumentEdge: cursor === state.doc.length };
 }
 
 /**
