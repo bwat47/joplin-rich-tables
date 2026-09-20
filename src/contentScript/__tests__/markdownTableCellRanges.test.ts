@@ -3,15 +3,15 @@ import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { parseCellRangesFixture } from './testUtils';
 
 describe('computeMarkdownTableCellRangesFromSyntax', () => {
-    it('rebases semantic, editable, and empty-cell bounds past leading whitespace', () => {
+    it('keeps semantic, editable, and empty-cell bounds table-relative despite enclosing whitespace', () => {
         const prefix = '\n \n';
         const headerLine = '|  head  |  |';
-        const text = prefix + [headerLine, '| --- | --- |', '|  body  |  |'].join('\n');
-        const ranges = parseCellRangesFixture(text);
-        const headerFrom = text.indexOf('head');
-        const bodyFrom = text.indexOf('body');
-        const emptyHeaderFrom = prefix.length + headerLine.indexOf('|  |') + '| '.length;
-        const emptyBodyFrom = text.lastIndexOf('|  |') + '| '.length;
+        const tableText = [headerLine, '| --- | --- |', '|  body  |  |'].join('\n');
+        const ranges = parseCellRangesFixture(prefix + tableText);
+        const headerFrom = tableText.indexOf('head');
+        const bodyFrom = tableText.indexOf('body');
+        const emptyHeaderFrom = headerLine.indexOf('|  |') + '| '.length;
+        const emptyBodyFrom = tableText.lastIndexOf('|  |') + '| '.length;
 
         expect(ranges).toEqual({
             headers: [
