@@ -79,9 +79,14 @@ export function getTableContexts(state: EditorState): readonly TableContext[] {
     return state.field(tableContextField).tables;
 }
 
+/** True when `pos` sits inclusively inside the table's `[from, to]` span. */
+export function containsPos(ctx: Pick<TableContext, 'from' | 'to'>, pos: number): boolean {
+    return pos >= ctx.from && pos <= ctx.to;
+}
+
 /** Returns the root table inclusively containing `pos`. */
 export function getTableContextAtPos(state: EditorState, pos: number): TableContext | null {
-    return getTableContexts(state).find((table) => pos >= table.from && pos <= table.to) ?? null;
+    return getTableContexts(state).find((table) => containsPos(table, pos)) ?? null;
 }
 
 /** Returns the root table starting exactly at `pos`, the anchor that identifies a table in runtime state. */
