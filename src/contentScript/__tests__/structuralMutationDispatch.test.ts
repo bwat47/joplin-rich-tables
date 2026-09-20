@@ -1,5 +1,6 @@
 import type { EditorState, TransactionSpec } from '@codemirror/state';
-import { describe, expect, it, vi } from 'vitest';
+import { EditorView } from '@codemirror/view';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import {
     activeCellField,
@@ -15,6 +16,7 @@ import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellF
 import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
+import { createResizeObserverStub } from './tableEditorFixtures';
 import { parseTableFixture, parseCellRangesFixture } from './testUtils';
 
 describe('structural mutation dispatch', () => {
@@ -28,6 +30,7 @@ describe('structural mutation dispatch', () => {
                 doc: { length: tableText.length },
             },
             dispatch,
+            focus: vi.fn(),
         };
     }
 
@@ -80,6 +83,7 @@ describe('structural mutation dispatch', () => {
             dispatch: (spec: TransactionSpec) => {
                 state = state.update(spec).state;
             },
+            focus: vi.fn(),
         };
 
         const result = runStructuralMutationAndReopen({
@@ -107,19 +111,17 @@ describe('structural mutation dispatch', () => {
         }
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 1);
-        const afterDispatch = vi.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
             resolvedCell: createResolvedCell(cell),
             command: { type: 'insertRowAfter' },
             initialCursorPos: 'start',
-            afterDispatch,
         });
 
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
-        expect(afterDispatch).toHaveBeenCalledTimes(1);
+        expect(view.focus).toHaveBeenCalledTimes(1);
 
         const dispatched = view.dispatch.mock.calls[0][0] as {
             changes?: unknown;
@@ -152,22 +154,20 @@ describe('structural mutation dispatch', () => {
         expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
     });
 
-    it('does not run the post-dispatch callback when the structural command is a no-op', () => {
+    it('does not focus the main editor when the structural command is a no-op', () => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 0);
-        const afterDispatch = vi.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
             resolvedCell: createResolvedCell(cell),
             command: { type: 'moveColumnLeft' },
-            afterDispatch,
         });
 
         expect(result).toBe(false);
         expect(view.dispatch).not.toHaveBeenCalled();
-        expect(afterDispatch).not.toHaveBeenCalled();
+        expect(view.focus).not.toHaveBeenCalled();
     });
 
     it('dispatches reopen effects when markdown is unchanged but target cell moves', () => {
@@ -238,7 +238,6 @@ describe('structural mutation dispatch', () => {
         ['deleteColumn', '| H1 |\n| --- |\n| a |', { section: 'body', row: 0, col: 0 }],
     ] as const)('dispatches table deletion for %s without reopen effects', (commandType, tableText, activeCell) => {
         const view = createView(tableText);
-        const afterDispatch = vi.fn();
 
         const result = runStructuralMutationAndReopen({
             view: view as never,
@@ -247,12 +246,11 @@ describe('structural mutation dispatch', () => {
                 ...activeCell,
             }),
             command: { type: commandType },
-            afterDispatch,
         });
 
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
-        expect(afterDispatch).toHaveBeenCalledTimes(1);
+        expect(view.focus).toHaveBeenCalledTimes(1);
 
         const dispatched = view.dispatch.mock.calls[0][0] as {
             changes?: unknown;
@@ -269,5 +267,46 @@ describe('structural mutation dispatch', () => {
         expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(false);
         expect(dispatched.effects.some((effect) => effect.is?.(beginOpenCellRequestEffect))).toBe(false);
+    });
+
+    describe('main editor focus after structural dispatch', () => {
+        let view: EditorView | undefined;
+        const resizeObserver = createResizeObserverStub();
+
+        beforeEach(() => {
+            resizeObserver.install();
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            if (!view) {
+                return;
+            }
+            const parent = view.dom.parentElement;
+            view.destroy();
+            parent?.remove();
+            view = undefined;
+        });
+
+        it('hands focus back to the main editor after a structural dispatch', () => {
+            const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
+            const state = createMarkdownState(tableText, [activeCellField, tableDecorationField]).update({
+                effects: setActiveCellEffect.of(createCell(tableText, 0, 0)),
+            }).state;
+            const parent = document.createElement('div');
+            document.body.appendChild(parent);
+            view = new EditorView({ state, parent });
+            view.contentDOM.blur();
+            expect(document.activeElement).not.toBe(view.contentDOM);
+
+            const resolvedCell = getResolvedActiveCell(view.state);
+            if (!resolvedCell) {
+                throw new Error('Expected the active cell to resolve');
+            }
+
+            runStructuralMutationAndReopen({ view, resolvedCell, command: { type: 'clearRow' } });
+
+            expect(document.activeElement).toBe(view.contentDOM);
+        });
     });
 });
