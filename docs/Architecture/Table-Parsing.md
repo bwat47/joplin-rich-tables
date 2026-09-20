@@ -60,6 +60,13 @@ cell without parsing their own output back.
 change it scans the current Lezer tree's top-level nodes once, then publishes document-ordered `TableContext` values. Selectors
 read containment and range queries from that field; they fail fast when used with a state that did not register it.
 
+The scan also requires a table to begin at the start of its line. Markdown allows one to three leading spaces, and
+Lezer opens the `Table` node at the first pipe, so an indented table would start mid-line. Block decorations and
+boundary spacing are both line-based: a widget starting mid-line leaves the indent on a visible line above itself, and
+`resolveBoundaryPadding()` declines to pad a table whose edges are not line edges. Indented tables therefore stay
+unindexed and render as source. Indentation on later rows is harmless, because it sits inside the table span and
+outside every row node; serialization drops it at the next canonicalization boundary.
+
 The warm path uses `syntaxTree()` directly when `syntaxTreeAvailable()` confirms the complete document is parsed.
 Otherwise the field calls `ensureSyntaxTree()` with the centralized `SYNTAX_TREE_BUDGET_MS` value of 1000 ms. That
 budget is a worst-case ceiling for cold or replaced documents, not a per-keystroke target; warm incremental parsing
