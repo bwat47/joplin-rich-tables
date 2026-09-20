@@ -17,6 +17,7 @@ import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../open
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
 import {
+    countBlankLinesInRun,
     resolveAdjoiningTable,
     scanNewlinesBackward,
     scanNewlinesForward,
@@ -46,10 +47,10 @@ interface DeletedSpan {
 }
 
 /**
- * Newlines between a table and its neighbouring text that a deletion may not consume:
- * the required blank lines plus the line break that ends the adjoining line.
+ * Newlines a protected interior separator can occupy: the required blank lines plus the
+ * line break that ends the adjoining line. Used as a scan limit, not a deletion threshold.
  */
-const PROTECTED_BOUNDARY_NEWLINES = REQUIRED_TABLE_BOUNDARY_BLANK_LINES + 1;
+const PROTECTED_SEPARATOR_NEWLINES = REQUIRED_TABLE_BOUNDARY_BLANK_LINES + 1;
 
 /** Arrow entry reads one movement target off the main range, so it needs a lone caret. */
 function canEnterFromArrowMovement(state: EditorState): boolean {
@@ -184,8 +185,8 @@ function resolveOverlappingChange(transaction: Transaction, from: number, to: nu
 function resolveProtectedSeparator(state: EditorState, target: AdjoiningTable): { from: number; to: number } {
     const { ctx, side } = target;
     return side === 'after'
-        ? { from: scanNewlinesBackward(state, ctx.from, PROTECTED_BOUNDARY_NEWLINES).edge, to: ctx.from }
-        : { from: ctx.to, to: scanNewlinesForward(state, ctx.to, PROTECTED_BOUNDARY_NEWLINES).edge };
+        ? { from: scanNewlinesBackward(state, ctx.from, PROTECTED_SEPARATOR_NEWLINES).edge, to: ctx.from }
+        : { from: ctx.to, to: scanNewlinesForward(state, ctx.to, PROTECTED_SEPARATOR_NEWLINES).edge };
 }
 
 /**
@@ -196,10 +197,8 @@ function resolveProtectedSeparator(state: EditorState, target: AdjoiningTable): 
  *
  * - it sits directly against a table edge, so removing it merges the neighbouring line into
  *   the table's own line and leaves the caret parked on the widget edge; or
- * - it belongs to a run no longer than `PROTECTED_BOUNDARY_NEWLINES`, so removing it drops
- *   the separation below the blank line the plugin would immediately restore. A run reaching
- *   the start or end of the document needs one newline fewer, because the missing neighbour
- *   spends none of them ending its own line.
+ * - it belongs to a run of at most that many blank lines, so removing it drops the
+ *   separation below the blank line the plugin would immediately restore.
  *
  * Deleting toward the table enters its edge cell; deleting away preserves the newline and
  * moves the caret. Surplus blank lines in the middle of a longer run are ordinary text and
@@ -231,14 +230,10 @@ function resolveBoundarySeparatorTable(
         return edgeAdjacent;
     }
 
-    const limit = PROTECTED_BOUNDARY_NEWLINES + 1;
+    const limit = PROTECTED_SEPARATOR_NEWLINES + 1;
     const backward = scanNewlinesBackward(state, head, limit);
     const forward = scanNewlinesForward(state, head, limit);
-    const protectedNewlines =
-        backward.reachesDocumentEdge || forward.reachesDocumentEdge
-            ? REQUIRED_TABLE_BOUNDARY_BLANK_LINES
-            : PROTECTED_BOUNDARY_NEWLINES;
-    if (backward.count + forward.count > protectedNewlines) {
+    if (countBlankLinesInRun(backward, forward) > REQUIRED_TABLE_BOUNDARY_BLANK_LINES) {
         return null;
     }
 

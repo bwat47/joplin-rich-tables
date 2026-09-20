@@ -69,6 +69,22 @@ export function scanNewlinesForward(state: EditorState, pos: number, limit: numb
     return { count, edge, reachesDocumentEdge: cursor === state.doc.length };
 }
 
+/**
+ * Blank lines in the whitespace run the two scans cover.
+ *
+ * A run of N newlines holds N-1 blank lines between two text lines (one newline ends the
+ * neighbour) and N blank lines at a document edge (no neighbour spends a newline).
+ */
+export function countBlankLinesInRun(backward: NewlineScan, forward: NewlineScan): number {
+    const newlineCount = backward.count + forward.count;
+    if (newlineCount === 0) {
+        return 0;
+    }
+
+    const spansDocumentEdge = backward.reachesDocumentEdge || forward.reachesDocumentEdge;
+    return newlineCount - (spansDocumentEdge ? 0 : 1);
+}
+
 /** Both tables the span `[from, to)` separates. A span can sit between two of them. */
 export function resolveAdjacentTables(state: EditorState, from: number, to: number): AdjacentTables {
     return {
