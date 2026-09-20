@@ -1,4 +1,15 @@
-import { EditorView, keymap, runScopeHandlers, ViewPlugin, type Command } from '@codemirror/view';
+import {
+    defaultKeymap,
+    deleteCharBackward,
+    deleteCharForward,
+    deleteGroupBackward,
+    deleteGroupForward,
+    deleteLine,
+    deleteLineBoundaryBackward,
+    deleteLineBoundaryForward,
+    deleteToLineEnd,
+} from '@codemirror/commands';
+import { EditorView, keymap, runScopeHandlers, ViewPlugin, type Command, type KeyBinding } from '@codemirror/view';
 import { getCellSelection, getSelectedTable, type CellSelectionDirection } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
@@ -12,7 +23,56 @@ import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectio
 import { requestOpenCell } from '../openCellRequest';
 import { createHistoryKeyBindings } from '../historyKeymap';
 
-type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
+/** Dedicated keymap scope so these bindings never match the root editor's ordinary keyboard handling. */
+const CELL_SELECTION_SCOPE = 'table.cellSelection';
+
+const ARROW_BINDINGS: ReadonlyArray<{ key: string; direction: CellSelectionDirection }> = [
+    { key: 'ArrowLeft', direction: 'left' },
+    { key: 'ArrowRight', direction: 'right' },
+    { key: 'ArrowUp', direction: 'up' },
+    { key: 'ArrowDown', direction: 'down' },
+];
+
+const SELECTION_ACTIVATION_KEYS = ['Enter', 'Tab', 'Escape'] as const;
+
+/**
+ * Deletion commands currently represented in `defaultKeymap`. Word- and line-wise
+ * variants all clear the same rectangle; only the chords that invoke them differ.
+ */
+function isRectangleDeletionCommand(command: KeyBinding['run'] | KeyBinding['shift']): boolean {
+    return (
+        command === deleteCharBackward ||
+        command === deleteCharForward ||
+        command === deleteGroupBackward ||
+        command === deleteGroupForward ||
+        command === deleteLineBoundaryBackward ||
+        command === deleteLineBoundaryForward ||
+        command === deleteLine ||
+        command === deleteToLineEnd
+    );
+}
+
+function isRectangleDeletionBinding(binding: KeyBinding): boolean {
+    return isRectangleDeletionCommand(binding.run) || isRectangleDeletionCommand(binding.shift);
+}
+
+/**
+ * Rectangle deletion follows CodeMirror's default chords, including Shift-Mod-K and
+ * macOS Emacs-style Ctrl-D/H/K and Ctrl-Alt-H. Shift+Delete is not adapted: it is the
+ * platform cut gesture and belongs to the clipboard handler.
+ */
+function createRectangleDeletionBindings(): KeyBinding[] {
+    return defaultKeymap.filter(isRectangleDeletionBinding).map((binding) => ({
+        key: binding.key,
+        mac: binding.mac,
+        win: binding.win,
+        linux: binding.linux,
+        preventDefault: binding.preventDefault,
+        run: handleSelectionDelete,
+        ...(binding.shift ? { shift: handleSelectionDelete } : {}),
+        scope: CELL_SELECTION_SCOPE,
+    }));
+}
 
 function extendOrStartSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     if (getCellSelection(view.state)) {
@@ -41,9 +101,6 @@ function activateSelectionFocus(view: EditorView): boolean {
     return true;
 }
 
-/** Dedicated keymap scope so these bindings never match the root editor's ordinary keyboard handling. */
-const CELL_SELECTION_HISTORY_SCOPE = 'table.cellSelection.history';
-
 /**
  * Runs a history command against the main editor, moving focus there when it
  * applies. Undo/redo rewrites the document out from under the cell selection,
@@ -58,66 +115,34 @@ function runCellSelectionHistory(view: EditorView, command: Command): boolean {
     return handled;
 }
 
-/**
- * Every Backspace/Delete removes the selected cells: word- and line-wise deletion have no
- * meaning over a rectangle of cells, so the modifiers carry no extra behavior to preserve.
- * Shift+Delete is the exception - it is the platform's cut gesture, and belongs to the
- * clipboard handler.
- */
-function handleDeleteKey(view: EditorView, event: KeyboardEvent): boolean {
-    if (event.key === 'Delete' && event.shiftKey) {
-        return false;
-    }
-
-    return handleSelectionDelete(view);
-}
-
-/** Enter and Tab both open the focus cell; Shift+Enter/Tab are left to the editor. */
-function handleActivateKey(view: EditorView, event: KeyboardEvent): boolean {
-    return !event.shiftKey && activateSelectionFocus(view);
-}
-
-function hasNoModifiers(event: KeyboardEvent): boolean {
-    return !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
-}
-
-/**
- * Shift+Arrow extends the selection; a bare arrow collapses it and leaves the table.
- * Modified arrows (word/line movement) are left to the main editor, which moves the
- * caret out of the table's range and lets the selection guard drop the highlight.
- */
-function arrowKeyHandler(direction: CellSelectionDirection): SelectionKeyHandler {
-    return (view, event) => {
-        if (event.shiftKey) {
-            return extendOrStartSelection(view, direction);
-        }
-
-        return hasNoModifiers(event) && collapseCellSelectionOutOfTable(view, direction);
+function createArrowBinding(key: string, direction: CellSelectionDirection): KeyBinding {
+    return {
+        key,
+        run: (view) => collapseCellSelectionOutOfTable(view, direction),
+        shift: (view) => extendOrStartSelection(view, direction),
+        scope: CELL_SELECTION_SCOPE,
     };
 }
 
-const selectionKeyHandlers: ReadonlyMap<string, SelectionKeyHandler> = new Map([
-    ['Backspace', handleDeleteKey],
-    ['Delete', handleDeleteKey],
-    ['ArrowLeft', arrowKeyHandler('left')],
-    ['ArrowRight', arrowKeyHandler('right')],
-    ['ArrowUp', arrowKeyHandler('up')],
-    ['ArrowDown', arrowKeyHandler('down')],
-    ['Escape', (view) => activateSelectionFocus(view)],
-    ['Enter', handleActivateKey],
-    ['Tab', handleActivateKey],
-]);
+function createCellSelectionKeyBindings(): KeyBinding[] {
+    return [
+        ...createHistoryKeyBindings(runCellSelectionHistory, CELL_SELECTION_SCOPE),
+        ...createRectangleDeletionBindings(),
+        ...ARROW_BINDINGS.map(({ key, direction }) => createArrowBinding(key, direction)),
+        ...SELECTION_ACTIVATION_KEYS.map((key) => ({
+            key,
+            run: activateSelectionFocus,
+            scope: CELL_SELECTION_SCOPE,
+        })),
+    ];
+}
 
 function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
     if (!canHandleTableSelectionKeydown(view)) {
         return false;
     }
 
-    if (runScopeHandlers(view, event, CELL_SELECTION_HISTORY_SCOPE)) {
-        return true;
-    }
-
-    return selectionKeyHandlers.get(event.key)?.(view, event) ?? false;
+    return runScopeHandlers(view, event, CELL_SELECTION_SCOPE);
 }
 
 export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
@@ -153,6 +178,6 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
         }
     },
     {
-        provide: () => keymap.of(createHistoryKeyBindings(runCellSelectionHistory, CELL_SELECTION_HISTORY_SCOPE)),
+        provide: () => keymap.of(createCellSelectionKeyBindings()),
     }
 );
