@@ -1,11 +1,15 @@
 import { EditorSelection, StateCommand, Transaction, type Extension } from '@codemirror/state';
-import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
+import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
+import { openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 import { createHistoryKeyBindings } from '../tableRuntime/historyKeymap';
+
+/** Dedicated keymap scope so host-routing bindings never match nested-editor navigation. */
+const NESTED_EDITOR_ROUTING_SCOPE = 'table.nestedEditor.routing';
 
 /**
  * Mod-shortcuts that run as root editor commands (bold, italic, underline, code, link).
@@ -18,6 +22,61 @@ const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
  * They bubble untouched with no extra nested-editor bookkeeping.
  */
 const HOST_PASSTHROUGH_KEYS: readonly string[] = ['s', 'p', 'v'];
+
+function allowHostBubble(): boolean {
+    return true;
+}
+
+function isOpenSearchBinding(binding: KeyBinding): boolean {
+    return binding.run === openSearchPanel;
+}
+
+/**
+ * Adapts CodeMirror's `openSearchPanel` chord, inheriting only its platform key
+ * fields. Search replaces the nested editor, so the command closes it and clears
+ * active-cell state before the event bubbles. Returning true means "allow bubbling".
+ */
+function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => void): KeyBinding[] {
+    return searchKeymap.filter(isOpenSearchBinding).map((binding) => ({
+        key: binding.key,
+        mac: binding.mac,
+        win: binding.win,
+        linux: binding.linux,
+        run: () => {
+            closeEditor();
+            if (getActiveCell(mainView.state)) {
+                mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+            }
+            return true;
+        },
+        scope: NESTED_EDITOR_ROUTING_SCOPE,
+    }));
+}
+
+function createNestedEditorRoutingBindings(
+    mainView: EditorView,
+    options: {
+        closeEditor: () => void;
+        ensureRootSelectionForCommand: () => void;
+    }
+): KeyBinding[] {
+    return [
+        ...createSearchRoutingBinding(mainView, options.closeEditor),
+        ...ROOT_COMMAND_KEYS.map((key) => ({
+            key: `Mod-${key}`,
+            run: () => {
+                options.ensureRootSelectionForCommand();
+                return true;
+            },
+            scope: NESTED_EDITOR_ROUTING_SCOPE,
+        })),
+        ...HOST_PASSTHROUGH_KEYS.map((key) => ({
+            key: `Mod-${key}`,
+            run: allowHostBubble,
+            scope: NESTED_EDITOR_ROUTING_SCOPE,
+        })),
+    ];
+}
 
 /** Vertical tolerance (px) for treating two caret rects as the same visual line. */
 const SAME_VISUAL_LINE_TOLERANCE_PX = 2;
@@ -201,6 +260,7 @@ export function createNestedEditorDomHandlers(
     }
 ): Extension[] {
     return [
+        keymap.of(createNestedEditorRoutingBindings(mainView, options)),
         EditorView.domEventHandlers({
             // Last stop for a paste that reaches the nested editor directly: the document-level
             // clipboard capture runs first and marks the event handled, so this only fires when
@@ -236,22 +296,11 @@ export function createNestedEditorDomHandlers(
                 e.stopPropagation();
                 return false;
             },
-            // Never marks the event as handled; the branches only decide whether the
-            // keydown is allowed to bubble to the main editor and what to prepare first.
-            keydown: (e) => {
-                const isMod = e.ctrlKey || e.metaKey;
-                const key = e.key.toLowerCase();
-
-                if (isMod && key === 'f') {
-                    // Search replaces the nested editor, so tear it down before the event bubbles.
-                    options.closeEditor();
-                    if (getActiveCell(mainView.state)) {
-                        mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
-                    }
-                } else if (isMod && ROOT_COMMAND_KEYS.includes(key)) {
-                    options.ensureRootSelectionForCommand();
-                } else if (!(isMod && HOST_PASSTHROUGH_KEYS.includes(key))) {
-                    // Everything else stays inside the nested editor.
+            // Never marks the event as handled; local CodeMirror keymaps still run on
+            // this element. A routing hit returns true from the scoped command to mean
+            // "allow bubbling"; unmatched chords stay inside the nested editor.
+            keydown: (e, view) => {
+                if (!runScopeHandlers(view, e, NESTED_EDITOR_ROUTING_SCOPE)) {
                     e.stopPropagation();
                 }
 
