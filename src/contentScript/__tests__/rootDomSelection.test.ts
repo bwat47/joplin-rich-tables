@@ -2,20 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
+import { installRangeLayoutStubs } from './tableEditorFixtures';
 
-if (!Range.prototype.getClientRects) {
-    Object.defineProperty(Range.prototype, 'getClientRects', {
-        configurable: true,
-        value: () => [],
-    });
-}
-
-if (!Range.prototype.getBoundingClientRect) {
-    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
-        configurable: true,
-        value: () => new DOMRect(),
-    });
-}
+installRangeLayoutStubs();
 
 function createView(doc: string): EditorView {
     const parent = document.createElement('div');

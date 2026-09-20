@@ -10,22 +10,12 @@ import { TableWidget } from '../tableWidget/TableWidget';
 import { getWidgetSelector } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
-import { createResizeObserverStub } from './tableEditorFixtures';
+import { createResizeObserverStub, installRangeLayoutStubs } from './tableEditorFixtures';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 
-if (!Range.prototype.getBoundingClientRect) {
-    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
-        value: () => new DOMRect(),
-    });
-}
-
-if (!Range.prototype.getClientRects) {
-    Object.defineProperty(Range.prototype, 'getClientRects', {
-        value: () => [],
-    });
-}
+installRangeLayoutStubs();
 
 function stubHeight(element: HTMLElement, heightPx: number): void {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ height: heightPx } as DOMRect);
