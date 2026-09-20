@@ -1,92 +1,31 @@
-import { undo } from '@codemirror/commands';
-import { history } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
+import { history, undo } from '@codemirror/commands';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { GFM } from '@lezer/markdown';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { nestedEditorPlugin, isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { requireResolvedActiveCell } from './testUtils';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
-import { openCellRequestField, requestOpenCell } from '../tableRuntime/openCellRequest';
+import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { getResolvedActiveCell, resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement, getWidgetSelector } from '../tableWidget/domHelpers';
+import {
+    TEST_HOST_CONFIG,
+    createFrameQueue,
+    installRangeLayoutStubs,
+    nestedEditorTestExtensions,
+} from './tableEditorFixtures';
 
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-}
-
-if (!Range.prototype.getBoundingClientRect) {
-    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
-        value: () => ({
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-            toJSON: () => ({}),
-        }),
-    });
-}
-
-if (!Range.prototype.getClientRects) {
-    Object.defineProperty(Range.prototype, 'getClientRects', {
-        value: () => [],
-    });
-}
-
-const TEST_HOST_CONFIG = {
-    nestedEditor: {
-        autoMatchingBraces: true,
-        spellcheck: false,
-    },
-    tableAppearance: {
-        zebraStriping: false,
-    },
-    toolbar: {
-        showMoveButtons: true,
-        showClearButtons: true,
-        showAlignmentButtons: true,
-        showDeleteTableButton: true,
-        showSortButtons: true,
-    },
-};
+installRangeLayoutStubs();
 
 describe('nested editor undo regression', () => {
-    let animationFrameQueue: FrameRequestCallback[] = [];
-
-    /**
-     * Drains the frame queue, letting queued microtasks run between frames so work the
-     * lifecycle schedules as a microtask (opening a requested cell) settles too.
-     */
-    const flushAnimationFrames = async (): Promise<void> => {
-        await Promise.resolve();
-        while (animationFrameQueue.length > 0) {
-            const callback = animationFrameQueue.shift();
-            callback?.(0);
-            await Promise.resolve();
-        }
-    };
+    const frames = createFrameQueue();
 
     beforeEach(() => {
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
-        animationFrameQueue = [];
-        vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
-            animationFrameQueue.push(callback);
-            return animationFrameQueue.length;
-        }) as typeof requestAnimationFrame);
+        frames.install();
     });
 
     afterEach(() => {
@@ -109,18 +48,7 @@ describe('nested editor undo regression', () => {
             state: EditorState.create({
                 doc,
                 selection: EditorSelection.single(doc.indexOf('abc') + 'abc'.length),
-                extensions: [
-                    history(),
-                    markdown({ extensions: [GFM] }),
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                    nestedEditorPlugin,
-                    tableContextField,
-                    activeCellField,
-                    openCellRequestField,
-                    nestedEditorLifecyclePlugin,
-                    tableDecorationField,
-                ],
+                extensions: nestedEditorTestExtensions(history()),
             }),
         });
 
@@ -153,7 +81,7 @@ describe('nested editor undo regression', () => {
         });
 
         expect(undo(view)).toBe(true);
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(getActiveCell(view.state)).toEqual(activeCell);
         expect(isNestedEditorOpen(view)).toBe(true);
@@ -178,17 +106,7 @@ describe('nested editor undo regression', () => {
             state: EditorState.create({
                 doc,
                 selection: EditorSelection.single(doc.indexOf('active')),
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                    nestedEditorPlugin,
-                    tableContextField,
-                    activeCellField,
-                    openCellRequestField,
-                    nestedEditorLifecyclePlugin,
-                    tableDecorationField,
-                ],
+                extensions: nestedEditorTestExtensions(),
             }),
         });
 
@@ -234,24 +152,14 @@ describe('nested editor undo regression', () => {
         const view = new EditorView({
             parent,
             doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                nestedEditorPlugin,
-                tableContextField,
-                activeCellField,
-                openCellRequestField,
-                nestedEditorLifecyclePlugin,
-                tableDecorationField,
-            ],
+            extensions: nestedEditorTestExtensions(),
         });
         try {
             const openCell = async (cell: ActiveCell): Promise<void> => {
                 const resolvedCell = resolveActiveCell(view.state, cell);
                 if (!resolvedCell) throw new Error('Expected cell to resolve');
                 requestOpenCell(view, { resolvedCell, entryMode: 'enter' });
-                await flushAnimationFrames();
+                await frames.flush();
             };
             await openCell(firstCell);
             const firstElement = findCellElement(view, 0, firstCell);
@@ -294,17 +202,7 @@ describe('nested editor undo regression', () => {
         const view = new EditorView({
             parent,
             doc,
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                nestedEditorPlugin,
-                tableContextField,
-                activeCellField,
-                openCellRequestField,
-                nestedEditorLifecyclePlugin,
-                tableDecorationField,
-            ],
+            extensions: nestedEditorTestExtensions(),
         });
         try {
             view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
@@ -335,7 +233,7 @@ describe('nested editor undo regression', () => {
             expect(isNestedEditorOpen(view)).toBe(false);
             expect(view.contentDOM.querySelector(getWidgetSelector())).toBeNull();
             expect(view.state.doc.sliceString(0, doc.length)).toBe(doc);
-            await flushAnimationFrames();
+            await frames.flush();
 
             const completeParseTimeoutMs = 1_000;
             expect(ensureSyntaxTree(view.state, view.state.doc.length, completeParseTimeoutMs)).not.toBeNull();
@@ -366,18 +264,7 @@ describe('nested editor undo regression', () => {
             state: EditorState.create({
                 doc,
                 selection: EditorSelection.single(tableBCellFrom),
-                extensions: [
-                    history(),
-                    markdown({ extensions: [GFM] }),
-                    hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                    markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                    nestedEditorPlugin,
-                    tableContextField,
-                    activeCellField,
-                    openCellRequestField,
-                    nestedEditorLifecyclePlugin,
-                    tableDecorationField,
-                ],
+                extensions: nestedEditorTestExtensions(history()),
             }),
         });
 
@@ -409,7 +296,7 @@ describe('nested editor undo regression', () => {
         const tableBFrom = view.state.field(tableContextField).tables[1].from;
 
         expect(undo(view)).toBe(true);
-        await flushAnimationFrames();
+        await frames.flush();
 
         expect(view.state.doc.toString()).toContain('| old |');
         expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);

@@ -1,26 +1,23 @@
 import { history, isolateHistory, undo } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNestedEditorKeymap } from '../nestedEditor/domHandlers';
-import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
-import { nestedEditorPlugin, isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
-import { tableContextField } from '../tableState/tableContextField';
-import { hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { startCellDragEffect } from '../tableState/cellDragState';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { requireResolvedActiveCell } from './testUtils';
+import {
+    TEST_HOST_CONFIG,
+    cellSelectionTestExtensions,
+    createFrameQueue,
+    installRangeLayoutStubs,
+    nestedEditorTestExtensions,
+} from './tableEditorFixtures';
 import type { SimulatedPlatform } from './historyShortcutNavigator';
 
 type HistoryAction = 'undo' | 'redo';
@@ -86,50 +83,7 @@ const REJECTED_EVERYWHERE: RejectedShortcutCase[] = [
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const FIRST_EDIT = '\n#one';
 const SECOND_EDIT = '\n#two';
-const TEST_HOST_CONFIG = {
-    nestedEditor: {
-        autoMatchingBraces: true,
-        spellcheck: false,
-    },
-    tableAppearance: {
-        zebraStriping: false,
-    },
-    toolbar: {
-        showMoveButtons: true,
-        showClearButtons: true,
-        showAlignmentButtons: true,
-        showDeleteTableButton: true,
-        showSortButtons: true,
-    },
-};
-
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-}
-
-if (!Range.prototype.getBoundingClientRect) {
-    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
-        value: () => ({
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-            toJSON: () => ({}),
-        }),
-    });
-}
-
-if (!Range.prototype.getClientRects) {
-    Object.defineProperty(Range.prototype, 'getClientRects', {
-        value: () => [],
-    });
-}
+installRangeLayoutStubs();
 
 function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }): KeyboardEvent {
     const letter = init.key.toLowerCase();
@@ -263,17 +217,7 @@ export function registerHistoryShortcutTests(
             new EditorView({
                 parent,
                 doc: TABLE_DOC,
-                extensions: [
-                    markdown({ extensions: [GFM] }),
-                    history(),
-                    tableContextField,
-                    activeCellField,
-                    cellSelectionField,
-                    cellDragField,
-                    cellSelectionKeyCapturePlugin,
-                    cellSelectionFocusPlugin,
-                    historyCounter.extension,
-                ],
+                extensions: cellSelectionTestExtensions(history(), historyCounter.extension),
             })
         );
         return { view, historyCounter };
@@ -441,40 +385,11 @@ export function registerHistoryShortcutTests(
     });
 
     describe('nested editor history lifecycle via shortcuts', () => {
-        let animationFrameQueue: FrameRequestCallback[] = [];
-
-        const flushLifecycle = async (): Promise<void> => {
-            await Promise.resolve();
-            while (animationFrameQueue.length > 0) {
-                const callback = animationFrameQueue.shift();
-                callback?.(0);
-                await Promise.resolve();
-            }
-        };
+        const frames = createFrameQueue();
 
         beforeEach(() => {
-            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
-            animationFrameQueue = [];
-            vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
-                animationFrameQueue.push(callback);
-                return animationFrameQueue.length;
-            }) as typeof requestAnimationFrame);
+            frames.install();
         });
-
-        function lifecycleExtensions() {
-            return [
-                history(),
-                markdown({ extensions: [GFM] }),
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                nestedEditorPlugin,
-                tableContextField,
-                activeCellField,
-                openCellRequestField,
-                nestedEditorLifecyclePlugin,
-                tableDecorationField,
-            ];
-        }
 
         function mountLifecycleView(doc: string, selectionAnchor: number): EditorView {
             const parent = document.createElement('div');
@@ -485,7 +400,7 @@ export function registerHistoryShortcutTests(
                     state: EditorState.create({
                         doc,
                         selection: EditorSelection.single(selectionAnchor),
-                        extensions: lifecycleExtensions(),
+                        extensions: nestedEditorTestExtensions(history()),
                     }),
                 })
             );
@@ -535,7 +450,7 @@ export function registerHistoryShortcutTests(
 
             const event = pressKey(document.activeElement ?? view.contentDOM, undoShortcut.init);
             expect(event.defaultPrevented).toBe(true);
-            await flushLifecycle();
+            await frames.flush();
 
             expect(view.state.doc.toString()).toContain('| abc |');
             expect(isNestedEditorOpen(view)).toBe(true);
@@ -544,7 +459,7 @@ export function registerHistoryShortcutTests(
 
             const redoEvent = pressKey(document.activeElement ?? view.contentDOM, redoShortcut.init);
             expect(redoEvent.defaultPrevented).toBe(true);
-            await flushLifecycle();
+            await frames.flush();
 
             expect(view.state.doc.toString()).toContain('| typed |');
             expect(isNestedEditorOpen(view)).toBe(true);
@@ -569,7 +484,7 @@ export function registerHistoryShortcutTests(
 
             const event = pressKey(document.activeElement ?? view.contentDOM, undoShortcut.init);
             expect(event.defaultPrevented).toBe(true);
-            await flushLifecycle();
+            await frames.flush();
 
             expect(view.state.doc.toString()).toBe(intro);
             expect(isNestedEditorOpen(view)).toBe(false);

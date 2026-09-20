@@ -4,24 +4,16 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
 }));
 
 import { history } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
-import { GFM } from '@lezer/markdown';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
-import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
-import { tableContextField } from '../tableState/tableContextField';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { setCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
 import {
-    cellSelectionFocusPlugin,
     setCellDragSelection,
     startCellSelectionFromActiveCell,
 } from '../tableRuntime/selection/cellSelectionController';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-
-const markdownExtension = markdown({
-    extensions: [GFM],
-});
+import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 /** Table with three columns and two body rows, so selection can move in every direction. */
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
@@ -41,16 +33,7 @@ function mountSelectionView(doc: string): EditorView {
 
     const view = new EditorView({
         parent,
-        extensions: [
-            markdownExtension,
-            tableContextField,
-            history(),
-            activeCellField,
-            cellSelectionField,
-            cellDragField,
-            cellSelectionKeyCapturePlugin,
-            cellSelectionFocusPlugin,
-        ],
+        extensions: cellSelectionTestExtensions(history()),
         doc,
     });
     mountedViews.push(view);
