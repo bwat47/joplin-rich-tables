@@ -80,7 +80,7 @@ export function getTableContexts(state: EditorState): readonly TableContext[] {
 }
 
 /** True when `pos` sits inclusively inside the table's `[from, to]` span. */
-export function containsPos(ctx: TableContext, pos: number): boolean {
+export function containsPos(ctx: Pick<TableContext, 'from' | 'to'>, pos: number): boolean {
     return pos >= ctx.from && pos <= ctx.to;
 }
 
