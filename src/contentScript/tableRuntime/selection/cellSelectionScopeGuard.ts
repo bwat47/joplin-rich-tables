@@ -1,6 +1,6 @@
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { clearCellSelectionEffect, getSelectedTable } from '../../tableState/cellSelectionState';
-import { containsPos } from '../../tableState/tableContextField';
+import { containsSelection } from '../../tableState/tableContextField';
 import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFactPredicates';
 
 /**
@@ -15,10 +15,7 @@ function selectionLeftSelectedTable(view: EditorView): boolean {
         return false;
     }
 
-    const { ctx } = selected;
-    const { anchor, head } = view.state.selection.main;
-
-    return !containsPos(ctx, anchor) || !containsPos(ctx, head);
+    return !containsSelection(selected.ctx, view.state.selection.main);
 }
 
 /**
