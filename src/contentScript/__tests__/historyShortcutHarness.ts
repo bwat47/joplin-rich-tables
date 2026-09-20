@@ -1,7 +1,7 @@
 import { history, isolateHistory, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNestedEditorKeymap } from '../nestedEditor/domHandlers';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -79,6 +79,48 @@ const REJECTED_EVERYWHERE: RejectedShortcutCase[] = [
     { label: 'Ctrl-Shift-Y', init: { key: 'y', ctrlKey: true, shiftKey: true } },
     { label: 'Ctrl+Meta-Z', init: { key: 'z', ctrlKey: true, metaKey: true } },
 ];
+
+/** The keymap platform each simulated platform must resolve to. */
+const EXPECTED_KEYMAP_PLATFORM: Record<SimulatedPlatform, string> = {
+    macOS: 'mac',
+    Windows: 'win',
+    Linux: 'linux',
+};
+
+/** Each field name is the keymap platform that selects it, so the key that fires names it. */
+const PLATFORM_PROBE_BINDING = { key: 'F13', mac: 'F14', win: 'F15', linux: 'F16' } as const;
+
+/**
+ * The platform `@codemirror/view` snapshotted when it loaded, read back through the only thing
+ * that observes it: which field of a key binding the keymap resolves.
+ *
+ * Reading `navigator` instead would prove nothing. The stub's `defineProperty` succeeds whether
+ * it lands before or after CodeMirror read the platform, so `navigator.platform` reports the
+ * simulated value either way - including when the import order this file depends on has broken.
+ * Returns `'key'` when no stub reached CodeMirror, which is what bare jsdom resolves to.
+ */
+function detectKeymapPlatform(): string {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const view = new EditorView({
+        parent,
+        state: EditorState.create({
+            extensions: keymap.of([{ ...PLATFORM_PROBE_BINDING, run: () => true }]),
+        }),
+    });
+
+    try {
+        for (const [keymapPlatform, key] of Object.entries(PLATFORM_PROBE_BINDING)) {
+            if (runScopeHandlers(view, new KeyboardEvent('keydown', { key, bubbles: true }), 'editor')) {
+                return keymapPlatform;
+            }
+        }
+        return 'unresolved';
+    } finally {
+        view.destroy();
+        parent.remove();
+    }
+}
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const FIRST_EDIT = '\n#one';
@@ -161,6 +203,14 @@ export function registerHistoryShortcutTests(
     options: { includeSharedBehavior?: boolean } = {}
 ): void {
     const mountedViews: EditorView[] = [];
+
+    /**
+     * Fails the whole file when the platform stub did not reach CodeMirror, rather than letting
+     * every keybinding case below fail under a misleading name.
+     */
+    beforeAll(() => {
+        expect(detectKeymapPlatform()).toBe(EXPECTED_KEYMAP_PLATFORM[platform]);
+    });
 
     afterEach(() => {
         while (mountedViews.length > 0) {

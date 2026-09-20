@@ -254,6 +254,15 @@ export default [
         },
     },
 
+    // Per-platform history shortcut entry points. Each one only installs a navigator stub and
+    // calls the shared harness, which registers every case; the rule sees no literal `it`.
+    {
+        files: ['src/contentScript/__tests__/historyShortcuts.*.test.ts'],
+        rules: {
+            'sonarjs/no-empty-test-file': 'off',
+        },
+    },
+
     // Prettier compatibility
     prettier,
 ];
