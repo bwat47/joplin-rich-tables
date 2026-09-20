@@ -1,4 +1,5 @@
 import { MapMode, type ChangeDesc } from '@codemirror/state';
+import type { TableSpan } from '../tableModel/tableContext';
 
 /**
  * Rejects anchors outside the pre-change document, where `mapPos` would throw.
@@ -36,10 +37,7 @@ function mapTableEndThroughChanges(tableTo: number, changes: ChangeDesc): number
  *
  * Returns `null` when either edge is outside the pre-change document.
  */
-export function mapTableSpanThroughChanges(
-    span: { from: number; to: number },
-    changes: ChangeDesc
-): { from: number; to: number } | null {
+export function mapTableSpanThroughChanges(span: TableSpan, changes: ChangeDesc): TableSpan | null {
     const from = mapTableStartThroughChanges(span.from, changes);
     const to = mapTableEndThroughChanges(span.to, changes);
     return from === null || to === null ? null : { from, to };

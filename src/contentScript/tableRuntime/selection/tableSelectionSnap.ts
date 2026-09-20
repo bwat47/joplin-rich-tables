@@ -1,10 +1,10 @@
 import { EditorSelection, EditorState, type Extension, type SelectionRange } from '@codemirror/state';
-import type { TableContext } from '../../tableModel/tableContext';
+import type { TableSpan } from '../../tableModel/tableContext';
 import { getTableContextsTouching } from '../../tableState/tableContextField';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 
 /** Looks up every rendered table a document range reaches. */
-export type TablesTouching = (from: number, to: number) => readonly Pick<TableContext, 'from' | 'to'>[];
+export type TablesTouching = (from: number, to: number) => readonly TableSpan[];
 
 /** Grows one range until it contains every table it touches, keeping its direction. */
 function snapRange(range: SelectionRange, findTablesTouching: TablesTouching): SelectionRange {
