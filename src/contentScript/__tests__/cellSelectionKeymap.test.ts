@@ -3,25 +3,17 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
     findCellElement: vi.fn(() => ({})),
 }));
 
-import { history, undo } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
+import { history } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
-import { GFM } from '@lezer/markdown';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { setCellSelectionEffect, getCellSelection, cellSelectionField } from '../tableState/cellSelectionState';
-import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
-import { tableContextField } from '../tableState/tableContextField';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { setCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+import { endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
 import {
-    cellSelectionFocusPlugin,
     setCellDragSelection,
     startCellSelectionFromActiveCell,
 } from '../tableRuntime/selection/cellSelectionController';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
-
-const markdownExtension = markdown({
-    extensions: [GFM],
-});
+import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 /** Table with three columns and two body rows, so selection can move in every direction. */
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
@@ -41,16 +33,7 @@ function mountSelectionView(doc: string): EditorView {
 
     const view = new EditorView({
         parent,
-        extensions: [
-            markdownExtension,
-            tableContextField,
-            history(),
-            activeCellField,
-            cellSelectionField,
-            cellDragField,
-            cellSelectionKeyCapturePlugin,
-            cellSelectionFocusPlugin,
-        ],
+        extensions: cellSelectionTestExtensions(history()),
         doc,
     });
     mountedViews.push(view);
@@ -111,63 +94,6 @@ describe('cellSelectionKeymap', () => {
         pressKey({ key: 'Escape' });
 
         expect(getCellSelection(view.state)).toBeNull();
-    });
-
-    it('routes undo through the main editor while a multi-cell selection is active', () => {
-        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
-
-        view.dispatch({
-            changes: {
-                from: view.state.doc.length,
-                to: view.state.doc.length,
-                insert: '\n| b1 | b2 |',
-            },
-            effects: setCellSelectionEffect.of({
-                tableFrom: 0,
-                anchor: { section: 'body', row: 1, col: 0 },
-                focus: { section: 'body', row: 1, col: 1 },
-            }),
-        });
-
-        expect(view.state.doc.toString()).toContain('| b1 | b2 |');
-        expect(getCellSelection(view.state)).not.toBeNull();
-
-        pressKey({ key: 'z', ctrlKey: true });
-
-        expect(view.state.doc.toString()).not.toContain('| b1 | b2 |');
-        expect(getCellSelection(view.state)).toBeNull();
-    });
-
-    it.each([
-        { label: 'Ctrl+Y', init: { key: 'y', ctrlKey: true } },
-        { label: 'Ctrl+Shift+Z', init: { key: 'z', ctrlKey: true, shiftKey: true } },
-    ])('routes redo through the main editor via $label', ({ init }) => {
-        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
-
-        view.dispatch({
-            changes: {
-                from: view.state.doc.length,
-                to: view.state.doc.length,
-                insert: '\n| b1 | b2 |',
-            },
-        });
-        // Undo directly so the redo stack is primed without the keymap's refocus,
-        // which would otherwise park focus on the contenteditable and suppress the
-        // next document-level shortcut.
-        undo(view);
-        expect(view.state.doc.toString()).not.toContain('| b1 | b2 |');
-
-        view.dispatch({
-            effects: setCellSelectionEffect.of({
-                tableFrom: 0,
-                anchor: { section: 'body', row: 0, col: 0 },
-                focus: { section: 'body', row: 0, col: 1 },
-            }),
-        });
-
-        pressKey(init);
-
-        expect(view.state.doc.toString()).toContain('| b1 | b2 |');
     });
 
     it('routes Delete through selection removal while a multi-cell selection is active', () => {

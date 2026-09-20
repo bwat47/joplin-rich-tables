@@ -78,7 +78,9 @@ from the local editor.
 
 **Main editor owns history.** Nested editor uses `addToHistory: false`.
 
-- `Ctrl+Z/Y/Shift+Z` intercepted → forwarded to main editor.
+- Nested-editor and cell-selection shortcuts use CodeMirror's default undo/redo bindings against
+  the main editor: Cmd-Z / Cmd-Shift-Z on macOS, Ctrl-Z / Ctrl-Y on Windows, and Ctrl-Z / Ctrl-Y or
+  Ctrl-Shift-Z on Linux.
 - Undo to different cell → nested editor closes, new one opens.
 - Undo outside table → nested editor closes, main gains focus.
 - A non-history edit elsewhere in the document keeps the current nested editor open while all other table widgets

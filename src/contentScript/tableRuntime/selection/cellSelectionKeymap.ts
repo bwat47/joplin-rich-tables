@@ -1,5 +1,4 @@
-import { redo, undo } from '@codemirror/commands';
-import { EditorView, ViewPlugin, type Command } from '@codemirror/view';
+import { EditorView, keymap, runScopeHandlers, ViewPlugin, type Command } from '@codemirror/view';
 import { getCellSelection, getSelectedTable, type CellSelectionDirection } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
@@ -11,6 +10,7 @@ import {
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
+import { createHistoryKeyBindings } from '../historyKeymap';
 
 type SelectionKeyHandler = (view: EditorView, event: KeyboardEvent) => boolean;
 
@@ -41,25 +41,15 @@ function activateSelectionFocus(view: EditorView): boolean {
     return true;
 }
 
-function resolveHistoryCommand(event: KeyboardEvent): Command | null {
-    const key = event.key.toLowerCase();
-    if ((event.ctrlKey || event.metaKey) && key === 'z') {
-        return event.shiftKey ? redo : undo;
-    }
-
-    if (event.ctrlKey && !event.metaKey && key === 'y') {
-        return redo;
-    }
-
-    return null;
-}
+/** Dedicated keymap scope so these bindings never match the root editor's ordinary keyboard handling. */
+const CELL_SELECTION_HISTORY_SCOPE = 'table.cellSelection.history';
 
 /**
  * Runs a history command against the main editor, moving focus there when it
  * applies. Undo/redo rewrites the document out from under the cell selection,
  * so leaving focus on the (now stale) table widget would strand the caret.
  */
-function runHistoryCommand(view: EditorView, command: Command): boolean {
+function runCellSelectionHistory(view: EditorView, command: Command): boolean {
     const handled = command(view);
     if (handled) {
         view.focus();
@@ -123,9 +113,8 @@ function runSelectionKeydown(view: EditorView, event: KeyboardEvent): boolean {
         return false;
     }
 
-    const historyCommand = resolveHistoryCommand(event);
-    if (historyCommand) {
-        return runHistoryCommand(view, historyCommand);
+    if (runScopeHandlers(view, event, CELL_SELECTION_HISTORY_SCOPE)) {
+        return true;
     }
 
     return selectionKeyHandlers.get(event.key)?.(view, event) ?? false;
@@ -162,5 +151,8 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
         destroy(): void {
             this.view.dom.ownerDocument.removeEventListener('keydown', this.onKeyDown, true);
         }
+    },
+    {
+        provide: () => keymap.of(createHistoryKeyBindings(runCellSelectionHistory, CELL_SELECTION_HISTORY_SCOPE)),
     }
 );
