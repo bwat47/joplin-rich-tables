@@ -1,4 +1,5 @@
 import type { ChangeSet } from '@codemirror/state';
+import { rangeTouchesInclusive } from '../../shared/transactionUtils';
 import type { TableContext } from '../../tableModel/tableContext';
 
 /** The spans of an active cell and its table; a `ResolvedActiveCell` satisfies it. */
@@ -15,7 +16,7 @@ function isInsideEditableSpan(from: number, to: number, span: ActiveCellSpan): b
 }
 
 function isStrictlyOutsideTable(from: number, to: number, span: ActiveCellSpan): boolean {
-    return to < span.ctx.from || from > span.ctx.to;
+    return !rangeTouchesInclusive(from, to, span.ctx.from, span.ctx.to);
 }
 
 /** Classifies changes in start-document coordinates against an active cell's spans. */

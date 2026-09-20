@@ -118,9 +118,9 @@ launch) `startupCursorCorrection` does the cursor move instead.
 Blocks unintended main editor edits during cell editing (Android IME focus issues where focus can jump to main editor).
 
 - Uses the shared transition policy to allow, reject, or sanitize main-editor transactions.
-- Rejects changes touching active table but outside cell range.
+- Rejects changes that touch the active table's inclusive `[from, to]` span but land outside the cell.
 - Treats the editable span as the allowed in-cell edit range while the semantic span remains the render/parse source.
-- Allows external updates not overlapping table.
+- Allows external updates that stay strictly outside the table.
 - Whitelists `syncAnnotation` transactions.
 - Whitelists `tableClipboardRewriteAnnotation` transactions: table clipboard rewrites replace the whole table by design, so the active-cell range check does not apply to them.
 - Whitelists structural operations with `structuralTableEditEffect`.

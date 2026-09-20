@@ -15,6 +15,7 @@ import {
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -305,6 +306,62 @@ describe('tableRuntimePolicies', () => {
 
         expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
             type: 'rejectTransaction',
+        });
+    });
+
+    it.each([
+        ['an insertion at the table start', (ctx: { from: number; to: number }) => ({ from: ctx.from, insert: 'x' })],
+        ['an insertion at the table end', (ctx: { from: number; to: number }) => ({ from: ctx.to, insert: 'x' })],
+        [
+            'a deletion ending at the table start',
+            (ctx: { from: number; to: number }) => ({ from: ctx.from - 1, to: ctx.from }),
+        ],
+    ])('%s is a table edit to both the guard and the decoration field', (_name, change) => {
+        const prefix = 'before\n\n';
+        let state = createMarkdownState(`${prefix}${doc}`, [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+            tableDecorationField,
+        ]);
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: prefix.length,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+        const resolved = requireResolvedActiveCell(state);
+        const tr = state.update({ changes: change(resolved.ctx) });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'rejectTransaction',
+        });
+        expect(wasActiveHostInvalidated(tr.state)).toBe(true);
+    });
+
+    it('allows guard changes strictly outside the active table', () => {
+        const prefix = 'before\n\n';
+        let state = createMarkdownState(`${prefix}${doc}`, [
+            activeCellField,
+            cellSelectionField,
+            sourceModeField,
+            searchForceSourceModeField,
+        ]);
+        state = state.update({
+            effects: setActiveCellEffect.of({
+                tableFrom: prefix.length,
+                section: 'header',
+                row: 0,
+                col: 0,
+            }),
+        }).state;
+        const tr = state.update({ changes: { from: 0, insert: 'more ' } });
+
+        expect(decideMainEditorGuardTransaction(tr, { nestedEditorOpen: true })).toEqual({
+            type: 'allowTransaction',
         });
     });
 
