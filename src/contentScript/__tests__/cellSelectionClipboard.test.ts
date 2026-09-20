@@ -22,6 +22,7 @@ import {
     resolveTableClipboardTarget,
 } from '../tableRuntime/selection/cellSelectionClipboard';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { setActiveElement } from './tableEditorFixtures';
 
 const doc = [
     String.raw`| H\|1 | H2 | H3 |`,
@@ -53,13 +54,6 @@ interface MutableClipboardTestView {
     dom: HTMLElement;
     contentDOM: HTMLElement;
     scrollDOM: HTMLElement;
-}
-
-function setActiveElement(element: Element | null): void {
-    Object.defineProperty(document, 'activeElement', {
-        configurable: true,
-        get: () => element,
-    });
 }
 
 describe('cellSelectionClipboard', () => {

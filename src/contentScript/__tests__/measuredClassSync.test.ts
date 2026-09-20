@@ -2,20 +2,11 @@ import { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 import { measuredClassSyncPlugin } from '../tableWidget/measuredClassSync';
+import { flushViewMeasure } from './tableEditorFixtures';
 
 const CLASS_NAME = 'tracked';
 const refreshEffect = StateEffect.define<void>();
 const mountedViews: EditorView[] = [];
-
-/** Resolves after every measure already queued on the view has written its DOM changes. */
-function flushMeasure(view: EditorView): Promise<void> {
-    return new Promise((resolve) => {
-        view.requestMeasure({
-            read: () => undefined,
-            write: () => resolve(),
-        });
-    });
-}
 
 interface MutationTracker {
     disconnect: () => void;
@@ -60,7 +51,7 @@ describe('measuredClassSyncPlugin', () => {
             extensions: [measuredClassSyncPlugin(CLASS_NAME, () => collected)],
         });
         mountedViews.push(view);
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         expect(retained.classList.contains(CLASS_NAME)).toBe(true);
         expect(removed.classList.contains(CLASS_NAME)).toBe(true);
@@ -72,7 +63,7 @@ describe('measuredClassSyncPlugin', () => {
 
         collected = [retained, added];
         view.dispatch({ effects: refreshEffect.of(undefined) });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         expect(retainedObserver.takeCount()).toBe(0);
         expect(removedObserver.takeCount()).toBe(1);
@@ -82,7 +73,7 @@ describe('measuredClassSyncPlugin', () => {
         expect(added.classList.contains(CLASS_NAME)).toBe(true);
 
         view.dispatch({ effects: refreshEffect.of(undefined) });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         expect(retainedObserver.takeCount()).toBe(0);
         expect(removedObserver.takeCount()).toBe(0);
@@ -106,7 +97,7 @@ describe('measuredClassSyncPlugin', () => {
             extensions: [measuredClassSyncPlugin(CLASS_NAME, () => [marked])],
         });
         mountedViews.push(view);
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         expect(marked.classList.contains(CLASS_NAME)).toBe(true);
 

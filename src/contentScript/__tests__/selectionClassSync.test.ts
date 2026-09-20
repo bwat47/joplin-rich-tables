@@ -15,7 +15,7 @@ import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment } from './testUtils';
-import { createResizeObserverStub } from './tableEditorFixtures';
+import { createResizeObserverStub, flushViewMeasure } from './tableEditorFixtures';
 
 const resizeObserver = createResizeObserverStub();
 
@@ -58,16 +58,6 @@ function mountView(): EditorView {
     return view;
 }
 
-/** Resolves after every measure already queued on the view has written its DOM changes. */
-function flushMeasure(view: EditorView): Promise<void> {
-    return new Promise((resolve) => {
-        view.requestMeasure({
-            read: () => undefined,
-            write: () => resolve(),
-        });
-    });
-}
-
 function getWidget(view: EditorView): HTMLElement {
     const widget = view.contentDOM.querySelector<HTMLElement>(getWidgetSelector());
     if (!widget) {
@@ -94,20 +84,20 @@ describe('selection class synchronization', () => {
         const view = mountView();
 
         view.dispatch({ effects: setCellSelectionEffect.of(BODY_ROW_SELECTION) });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         const originalWidget = getWidget(view);
         expect(originalWidget.querySelectorAll(`.${CLASS_CELL_SELECTED}`)).toHaveLength(2);
 
         view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
         expect(originalWidget.querySelectorAll(`.${CLASS_CELL_SELECTED}`)).toHaveLength(0);
 
         view.dispatch({
             changes: { from: EDIT_FROM, to: EDIT_FROM + 2, insert: EDIT_INSERT },
             effects: setCellSelectionEffect.of(BODY_ROW_SELECTION),
         });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         const replacementWidget = getWidget(view);
         expect(replacementWidget).not.toBe(originalWidget);
@@ -118,18 +108,18 @@ describe('selection class synchronization', () => {
         const view = mountView();
 
         view.dispatch({ selection: EditorSelection.single(TABLE_FROM, TABLE_TO) });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         const originalWidget = getWidget(view);
         expect(originalWidget.classList.contains(CLASS_TABLE_WIDGET_SELECTED)).toBe(true);
 
         view.dispatch({ selection: EditorSelection.single(0) });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
         expect(originalWidget.classList.contains(CLASS_TABLE_WIDGET_SELECTED)).toBe(false);
 
         view.dispatch({ selection: EditorSelection.single(TABLE_FROM, TABLE_TO) });
         view.dispatch({ changes: { from: EDIT_FROM, to: EDIT_FROM + 2, insert: EDIT_INSERT } });
-        await flushMeasure(view);
+        await flushViewMeasure(view);
 
         const replacementWidget = getWidget(view);
         expect(replacementWidget).not.toBe(originalWidget);

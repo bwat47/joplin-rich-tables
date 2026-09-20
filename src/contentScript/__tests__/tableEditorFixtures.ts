@@ -2,6 +2,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { vi } from 'vitest';
 import type { Extension } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
@@ -133,6 +134,33 @@ export function createFrameQueue(): FrameQueue {
             }
         },
     };
+}
+
+/**
+ * Resolves after every measure already queued on the view has written its DOM changes.
+ *
+ * Distinct from waiting a bare animation frame: this settles the queue of one view rather
+ * than whatever the next frame happens to run.
+ */
+export function flushViewMeasure(view: EditorView): Promise<void> {
+    return new Promise((resolve) => {
+        view.requestMeasure({
+            read: () => undefined,
+            write: () => resolve(),
+        });
+    });
+}
+
+/**
+ * Points `document.activeElement` at an element, which jsdom otherwise only moves through real
+ * focus. Redefinable, so a test can move focus again; reset it to `document.body` in `afterEach`
+ * or the stub leaks into the next test.
+ */
+export function setActiveElement(element: Element | null): void {
+    Object.defineProperty(document, 'activeElement', {
+        configurable: true,
+        get: () => element,
+    });
 }
 
 /**
