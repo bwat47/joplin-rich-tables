@@ -9,7 +9,7 @@ import {
 import { Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
 import { fromUnifiedRow } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
 import { getResolvedActiveCell, toResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
@@ -130,7 +130,7 @@ function isDeletingIntoPendingOpenCell(transaction: Transaction): boolean {
     }
 
     const { head } = state.selection.main;
-    if (head < resolved.ctx.from || head > resolved.ctx.to) {
+    if (!containsPos(resolved.ctx, head)) {
         return false;
     }
 
