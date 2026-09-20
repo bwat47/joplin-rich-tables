@@ -1,8 +1,7 @@
 import type { EditorState, Text } from '@codemirror/state';
 import {
-    hasRequiredBlankLinesAfter,
-    hasRequiredBlankLinesBefore,
-    isBlankLineContent,
+    needsLeadingSeparator,
+    needsTrailingSeparator,
     REQUIRED_TABLE_BOUNDARY_BLANK_LINES,
 } from '../tableBoundarySpacing';
 
@@ -18,34 +17,24 @@ export interface RootTableInsertRewrite {
     tableFrom: number;
 }
 
-function hasNeighbouringText(doc: Text, from: number, to: number): boolean {
-    return from < to && !isBlankLineContent(doc.sliceString(from, to));
-}
-
 /**
  * Newlines to insert before the table: end the current line if needed, then one blank line.
- * Already-separated or empty prefixes add nothing.
+ * Already-separated line starts add nothing.
  */
 function computeLeadingNewlines(doc: Text, replaceFrom: number): number {
-    if (!hasNeighbouringText(doc, 0, replaceFrom)) {
+    if (!needsLeadingSeparator(doc, replaceFrom)) {
         return 0;
     }
     const atLineStart = doc.lineAt(replaceFrom).from === replaceFrom;
-    if (atLineStart && hasRequiredBlankLinesBefore(doc, replaceFrom)) {
-        return 0;
-    }
     return (atLineStart ? 0 : 1) + REQUIRED_TABLE_BOUNDARY_BLANK_LINES;
 }
 
 /** Newlines to insert after the table: start a new line if needed, then one blank line. */
 function computeTrailingNewlines(doc: Text, replaceTo: number): number {
-    if (!hasNeighbouringText(doc, replaceTo, doc.length)) {
+    if (!needsTrailingSeparator(doc, replaceTo)) {
         return 0;
     }
     const atLineEnd = doc.lineAt(replaceTo).to === replaceTo;
-    if (atLineEnd && hasRequiredBlankLinesAfter(doc, replaceTo)) {
-        return 0;
-    }
     return (atLineEnd ? 0 : 1) + REQUIRED_TABLE_BOUNDARY_BLANK_LINES;
 }
 
@@ -56,12 +45,8 @@ export function buildRootTableInsertRewrite(
     tableText: string
 ): RootTableInsertRewrite {
     const { doc } = state;
-    const insertsIntoEmptyDocument = doc.length === 0;
-    const insertsAtDocumentEnd = replaceTo === doc.length && doc.length > 0;
-
-    const prefix = insertsIntoEmptyDocument ? '\n' : '\n'.repeat(computeLeadingNewlines(doc, replaceFrom));
-    const suffix =
-        insertsIntoEmptyDocument || insertsAtDocumentEnd ? '\n' : '\n'.repeat(computeTrailingNewlines(doc, replaceTo));
+    const prefix = '\n'.repeat(computeLeadingNewlines(doc, replaceFrom));
+    const suffix = '\n'.repeat(computeTrailingNewlines(doc, replaceTo));
     const insert = prefix + tableText + suffix;
     const tableFrom = replaceFrom + prefix.length;
 

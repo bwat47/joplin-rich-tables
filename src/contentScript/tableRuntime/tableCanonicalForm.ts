@@ -4,7 +4,7 @@ import type { SerializedTable } from '../tableModel/MarkdownTable';
 import type { TableContext } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
 import { createActiveCellForTable, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
-import { hasRequiredBlankLinesAfter, hasRequiredBlankLinesBefore } from './tableBoundarySpacing';
+import { needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
 
 /**
  * Marks a transaction that rewrites a table into canonical form as part of entering it.
@@ -39,23 +39,13 @@ export interface CellEntryNormalization {
  * A single newline per side is enough: the replaced range is line-bounded, so the
  * neighbouring line breaks already outside it combine with the padding to form the blank line.
  *
- * Document edges count as unseparated, so a table at the very start or end of the note is
- * padded too. That is intended: a table flush against the document start is kept off the
- * first line so there is always a newline before it.
- *
- * `ctx.from` carries no line-start check because `tableContextField` indexes only tables that
- * begin at one. The end has no such guarantee, so it keeps its check: a table that does not end
- * on a line boundary still needs a newline even where a blank line already sits below that line,
- * because the suffix is what splits the merged neighbour off the table.
+ * `needsLeadingSeparator` / `needsTrailingSeparator` own the policy, including document edges.
  */
 function resolveBoundaryPadding(state: EditorState, ctx: Pick<TableContext, 'from' | 'to'>): TableBoundaryPadding {
     const { doc } = state;
-    const needsLeadingSeparator = !hasRequiredBlankLinesBefore(doc, ctx.from);
-    const needsTrailingSeparator = doc.lineAt(ctx.to).to !== ctx.to || !hasRequiredBlankLinesAfter(doc, ctx.to);
-
     return {
-        prefix: needsLeadingSeparator ? '\n' : '',
-        suffix: needsTrailingSeparator ? '\n' : '',
+        prefix: needsLeadingSeparator(doc, ctx.from) ? '\n' : '',
+        suffix: needsTrailingSeparator(doc, ctx.to) ? '\n' : '',
     };
 }
 

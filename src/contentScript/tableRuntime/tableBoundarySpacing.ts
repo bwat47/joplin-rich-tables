@@ -42,3 +42,23 @@ export function hasRequiredBlankLinesAfter(doc: Text, pos: number): boolean {
     }
     return true;
 }
+
+/**
+ * True when a table edge at `pos` still needs a blank-line separator above it.
+ *
+ * A missing line start counts, so a mid-line caret is unseparated from the text on that line.
+ * Document start counts as unseparated even when everything before `pos` is empty or blank.
+ */
+export function needsLeadingSeparator(doc: Text, pos: number): boolean {
+    return doc.lineAt(pos).from !== pos || !hasRequiredBlankLinesBefore(doc, pos);
+}
+
+/**
+ * True when a table edge at `pos` still needs a blank-line separator below it.
+ *
+ * A missing line end counts, so a suffix is needed to split a merged neighbour off the table.
+ * Document end counts as unseparated even when everything after `pos` is empty or blank.
+ */
+export function needsTrailingSeparator(doc: Text, pos: number): boolean {
+    return doc.lineAt(pos).to !== pos || !hasRequiredBlankLinesAfter(doc, pos);
+}

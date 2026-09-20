@@ -53,7 +53,8 @@ The table runtime behaves like a cross-file state machine. These invariants defi
   lines by subtracting one between two text lines (that newline ends the neighbour) and subtracting none at a
   document edge.
 - The invariant is enforced at three points: table insertion and paste, cell entry normalization, and boundary
-  maintenance for typed or pasted text. Repairs belong in the transaction that broke it, never in a later dispatch.
+  maintenance for typed or pasted text. All three decide through `needsLeadingSeparator` /
+  `needsTrailingSeparator`. Repairs belong in the transaction that broke it, never in a later dispatch.
 - Deletion protects the separation instead of repairing it, since the caret has somewhere to go.
 - Maintenance decides from the post-change document, so enforcement points cannot stack.
 
