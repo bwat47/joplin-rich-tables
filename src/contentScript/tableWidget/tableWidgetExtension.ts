@@ -48,7 +48,6 @@ import {
     closeOnOutsideMouseDown,
     outsideInteractionCapturePlugin,
 } from '../tableRuntime/interaction/outsideTableInteraction';
-import { createStartupCursorCorrection } from '../tableRuntime/startupCursorCorrection';
 import { tableDecorationField } from './tableDecorationField';
 import {
     rootEditorActiveCellAttribute,
@@ -119,7 +118,6 @@ async function registerTableWidgetExtension(
         linkOpenerFacet.of(services.linkOpener),
         noteIdentityFacet.compute([noteIdFacet], (state) => state.facet(noteIdFacet)),
 
-        createStartupCursorCorrection(() => cm6View),
         createUndoScrollPreservation(() => cm6View),
 
         searchPanelWatcherPlugin,

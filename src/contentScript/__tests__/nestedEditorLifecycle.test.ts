@@ -240,6 +240,57 @@ describe('nestedEditorLifecycle', () => {
         view.destroy();
     });
 
+    describe('editor init', () => {
+        it('moves a restored cursor out of the table it landed in', async () => {
+            const view = createLifecycleView({ doc: CANONICAL_DOC, selection: { anchor: 3 } });
+
+            await frames.flush();
+
+            expect(view.state.selection.main.head).toBe(CANONICAL_DOC.length);
+            expect(activateCellAtPositionMock).not.toHaveBeenCalled();
+
+            view.destroy();
+        });
+
+        it('leaves a restored cursor already outside every table alone', async () => {
+            const doc = `${CANONICAL_DOC}\n\noutro`;
+            const outside = doc.indexOf('outro');
+            const view = createLifecycleView({ doc, selection: { anchor: outside } });
+
+            await frames.flush();
+
+            expect(view.state.selection.main.head).toBe(outside);
+
+            view.destroy();
+        });
+
+        it('leaves a cell opened before the cleanup frame runs', async () => {
+            const view = createLifecycleView({ doc: CANONICAL_DOC, selection: { anchor: 3 } });
+            view.dispatch({ effects: setActiveCellEffect.of(headerCell()) });
+
+            await frames.flush();
+
+            expect(getActiveCell(view.state)).toMatchObject(headerCell());
+            expect(view.state.selection.main.head).toBe(3);
+
+            view.destroy();
+        });
+
+        it('leaves a selection covering the table alone', async () => {
+            const view = createLifecycleView({
+                doc: CANONICAL_DOC,
+                selection: { anchor: 0, head: CANONICAL_DOC.length },
+            });
+
+            await frames.flush();
+
+            expect(view.state.selection.main.anchor).toBe(0);
+            expect(view.state.selection.main.head).toBe(CANONICAL_DOC.length);
+
+            view.destroy();
+        });
+    });
+
     describe('note switch', () => {
         /** Mirrors Joplin's switch: one transaction replaces the document and changes the note ID. */
         function switchNote(view: EditorView, params: { anchor: number; hadActiveCell: boolean }): void {

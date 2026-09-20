@@ -1,5 +1,4 @@
 import type { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
 import { getTableContextAtPos } from '../../tableState/tableContextField';
 
 /**
@@ -13,14 +12,4 @@ export function getPositionOutsideTable(state: EditorState, offset = 1): number 
     }
 
     return Math.min(tableContainingCursor.to + offset, state.doc.length);
-}
-
-export function moveCursorOutOfTable(view: EditorView, offset = 1): boolean {
-    const newPos = getPositionOutsideTable(view.state, offset);
-    if (newPos === null) {
-        return false;
-    }
-
-    view.dispatch({ selection: { anchor: newPos } });
-    return true;
 }
