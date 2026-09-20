@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';
+import { planCellEntryNormalization } from '../tableRuntime/tableCanonicalForm';
 import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
 
 const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
@@ -46,6 +48,18 @@ function getActivateInsertedTableEffect(
     return null;
 }
 
+function expectCellEntryWouldNotRewrite(view: ReturnType<typeof createMockView>, tableFrom: number): void {
+    const ctx = getTableContextAtPos(view.state, tableFrom);
+    expect(ctx).not.toBeNull();
+    expect(
+        planCellEntryNormalization({
+            state: view.state,
+            ctx: ctx!,
+            coords: { section: 'header', row: 0, col: 0 },
+        })
+    ).toBeNull();
+}
+
 describe('insertTableAndActivate', () => {
     it('reuses isolated block insertion behavior on a whitespace-only line', () => {
         const doc = ['before', '', 'after'].join('\n');
@@ -63,6 +77,7 @@ describe('insertTableAndActivate', () => {
             tableFrom: 8,
             target: { section: 'header', row: 0, col: 0 },
         });
+        expectCellEntryWouldNotRewrite(view, 8);
     });
 
     it('produces canonical markdown with blank lines when inserting mid-line', () => {
@@ -80,20 +95,58 @@ describe('insertTableAndActivate', () => {
             tableFrom: 8,
             target: { section: 'header', row: 0, col: 0 },
         });
+        expectCellEntryWouldNotRewrite(view, 8);
     });
 
-    it('keeps empty-document insertion aligned with root paste behavior', () => {
-        const view = createMockView('', 0);
+    it.each([
+        {
+            label: 'an empty document',
+            doc: '',
+            cursorPos: 0,
+            expectedDoc: `\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n`,
+            tableFrom: 1,
+        },
+        {
+            label: 'a single newline',
+            doc: '\n',
+            cursorPos: 0,
+            expectedDoc: `\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n`,
+            tableFrom: 1,
+        },
+        {
+            label: 'two newlines',
+            doc: '\n\n',
+            cursorPos: 0,
+            expectedDoc: `\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n\n`,
+            tableFrom: 1,
+        },
+        {
+            label: 'the start of a paragraph',
+            doc: 'hello',
+            cursorPos: 0,
+            expectedDoc: `\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n\nhello`,
+            tableFrom: 1,
+        },
+        {
+            label: 'the end of a paragraph',
+            doc: 'hello',
+            cursorPos: 5,
+            expectedDoc: `hello\n\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n`,
+            tableFrom: 7,
+        },
+    ])('inserts a canonically padded table into $label', ({ doc, cursorPos, expectedDoc, tableFrom }) => {
+        const view = createMockView(doc, cursorPos);
 
         insertTableAndActivate(view);
 
-        expect(view.state.doc.toString()).toBe(`\n${DEFAULT_INSERTED_TABLE_MARKDOWN}\n`);
-        expect(view.state.selection.main.head).toBe(3);
+        expect(view.state.doc.toString()).toBe(expectedDoc);
+        expect(view.state.selection.main.head).toBe(tableFrom + 2);
 
         const activationEffect = getActivateInsertedTableEffect(view);
         expect(activationEffect).toEqual({
-            tableFrom: 1,
+            tableFrom,
             target: { section: 'header', row: 0, col: 0 },
         });
+        expectCellEntryWouldNotRewrite(view, tableFrom);
     });
 });

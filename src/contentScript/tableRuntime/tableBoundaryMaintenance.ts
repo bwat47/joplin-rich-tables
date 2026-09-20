@@ -13,7 +13,7 @@ import { changesOverlapRange } from '../shared/transactionUtils';
 import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';
 import { normalizeBeforeEditAnnotation } from './tableCanonicalForm';
 import { resolveAdjacentTables } from './tableBoundaryResolution';
-import { hasRequiredBlankLinesAfter, hasRequiredBlankLinesBefore, isBlankLineContent } from './tableBoundarySpacing';
+import { isBlankLineContent, needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
 import { hasPlainRenderedTableCaret } from './renderedTableCaret';
 
 /** A newline inserted into the post-change document to restore a table's separation. */
@@ -22,6 +22,7 @@ interface BoundaryPadding {
     insert: string;
 }
 
+/** One newline restores the quota while `REQUIRED_TABLE_BOUNDARY_BLANK_LINES === 1`. */
 const BOUNDARY_PADDING_NEWLINE = '\n';
 
 /**
@@ -118,16 +119,17 @@ function resolveBoundaryPadding(transaction: Transaction, ctx: TableContext): Bo
     const { from, to } = mappedTable;
     const doc = transaction.newDoc;
     // Text merged onto a table's first or last line needs more than a blank line to undo;
-    // cell entry normalization repairs that shape.
+    // cell entry normalization repairs that shape. Keep this guard: it subsumes the line-edge
+    // checks in needsLeading/TrailingSeparator, which would otherwise pad that merged edge.
     if (doc.lineAt(from).from !== from || doc.lineAt(to).to !== to) {
         return [];
     }
 
     const padding: BoundaryPadding[] = [];
-    if (!hasRequiredBlankLinesBefore(doc, from)) {
+    if (needsLeadingSeparator(doc, from)) {
         padding.push({ from, insert: BOUNDARY_PADDING_NEWLINE });
     }
-    if (!hasRequiredBlankLinesAfter(doc, to)) {
+    if (needsTrailingSeparator(doc, to)) {
         padding.push({ from: to, insert: BOUNDARY_PADDING_NEWLINE });
     }
     return padding;

@@ -22,6 +22,32 @@ describe('pasteTableNormalizer', () => {
             });
         });
 
+        it.each([
+            {
+                label: 'a single newline',
+                doc: '\n',
+                from: 0,
+                to: 0,
+                expectedDoc: `\n${CANONICAL_TABLE}\n`,
+                tableFrom: 1,
+            },
+            {
+                label: 'the start of a paragraph',
+                doc: 'hello',
+                from: 0,
+                to: 0,
+                expectedDoc: `\n${CANONICAL_TABLE}\n\nhello`,
+                tableFrom: 1,
+            },
+        ])('pads the document edge when pasting into $label', ({ doc, from, to, expectedDoc, tableFrom }) => {
+            const state = createMarkdownState(doc);
+            const rewrite = buildRootTablePasteRewrite(state, from, to, NON_CANONICAL_TABLE);
+
+            expect(rewrite).not.toBeNull();
+            expect(state.update({ changes: rewrite!.changes }).state.doc.toString()).toBe(expectedDoc);
+            expect(rewrite?.tableFrom).toBe(tableFrom);
+        });
+
         it('allows insert on a whitespace-only line between paragraphs', () => {
             const doc = ['before', '   ', 'after'].join('\n');
             const state = createMarkdownState(doc);
