@@ -9,6 +9,7 @@ import {
 } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
+import { setActiveElement } from './tableEditorFixtures';
 
 function createViewHarness(options: { activeCell?: boolean; selection?: boolean; dragging?: boolean } = {}) {
     const { activeCell = true, selection = true, dragging = false } = options;
@@ -59,13 +60,6 @@ function createViewHarness(options: { activeCell?: boolean; selection?: boolean;
     } as unknown as EditorView;
 
     return { view, root, scrollDOM, contentDOM, selectedWidget, selectedWidgetChild };
-}
-
-function setActiveElement(element: Element | null): void {
-    Object.defineProperty(document, 'activeElement', {
-        configurable: true,
-        get: () => element,
-    });
 }
 
 describe('cellSelectionShortcutScope', () => {

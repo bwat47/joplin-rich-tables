@@ -28,11 +28,9 @@ import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { installRangeLayoutStubs } from './tableEditorFixtures';
 
-// jsdom does not implement Range measurement, which CodeMirror's selection layer calls.
-if (!Range.prototype.getClientRects) {
-    Object.defineProperty(Range.prototype, 'getClientRects', { value: () => [] });
-}
+installRangeLayoutStubs();
 
 const FEATURE_SETTINGS = defaultHostEditorConfig().nestedEditor;
 

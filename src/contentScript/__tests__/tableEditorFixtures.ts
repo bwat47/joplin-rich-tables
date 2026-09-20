@@ -2,6 +2,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { vi } from 'vitest';
 import type { Extension } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
@@ -37,10 +38,40 @@ export const TEST_HOST_CONFIG = {
     },
 } satisfies HostEditorConfig;
 
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
+export interface ResizeObserverStub {
+    /** Stubs `ResizeObserver`, dropping the observers of a previous install. Call from `beforeEach`. */
+    install(): void;
+    /** Fires every observer created since `install`, as a real resize would. */
+    trigger(): void;
+}
+
+/**
+ * jsdom implements no `ResizeObserver`, and `TableWidget` observes its own DOM for height
+ * changes, so mounting one throws without this.
+ */
+export function createResizeObserverStub(): ResizeObserverStub {
+    let callbacks: Array<() => void> = [];
+
+    class ResizeObserverMock {
+        constructor(callback: () => void) {
+            callbacks.push(callback);
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    }
+
+    return {
+        install(): void {
+            callbacks = [];
+            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        },
+        trigger(): void {
+            for (const callback of callbacks) {
+                callback();
+            }
+        },
+    };
 }
 
 /**
@@ -83,11 +114,12 @@ export interface FrameQueue {
 
 export function createFrameQueue(): FrameQueue {
     let queue: FrameRequestCallback[] = [];
+    const resizeObserver = createResizeObserverStub();
 
     return {
         install(): void {
             queue = [];
-            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+            resizeObserver.install();
             vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
                 queue.push(callback);
                 return queue.length;
@@ -102,6 +134,33 @@ export function createFrameQueue(): FrameQueue {
             }
         },
     };
+}
+
+/**
+ * Resolves after every measure already queued on the view has written its DOM changes.
+ *
+ * Distinct from waiting a bare animation frame: this settles the queue of one view rather
+ * than whatever the next frame happens to run.
+ */
+export function flushViewMeasure(view: EditorView): Promise<void> {
+    return new Promise((resolve) => {
+        view.requestMeasure({
+            read: () => undefined,
+            write: () => resolve(),
+        });
+    });
+}
+
+/**
+ * Points `document.activeElement` at an element, which jsdom otherwise only moves through real
+ * focus. Redefinable, so a test can move focus again; reset it to `document.body` in `afterEach`
+ * or the stub leaks into the next test.
+ */
+export function setActiveElement(element: Element | null): void {
+    Object.defineProperty(document, 'activeElement', {
+        configurable: true,
+        get: () => element,
+    });
 }
 
 /**

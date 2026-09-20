@@ -12,11 +12,9 @@ import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
 
-class ResizeObserverMock {
-    observe = vi.fn();
-    disconnect = vi.fn();
-}
+const resizeObserver = createResizeObserverStub();
 
 /** Mounts a real EditorView wired with tableDecorationField, so widgets are built/updated exactly as in production. */
 function createRealView(doc: string): { parent: HTMLElement; view: EditorView } {
@@ -46,7 +44,7 @@ function createRealView(doc: string): { parent: HTMLElement; view: EditorView } 
 
 describe('TableWidget coordsAt', () => {
     beforeEach(() => {
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        resizeObserver.install();
     });
 
     afterEach(() => {

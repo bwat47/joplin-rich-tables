@@ -20,8 +20,8 @@ const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |',
 
 const mountedViews: EditorView[] = [];
 
-/** Waits for CodeMirror's measure cycle, which it schedules on an animation frame. */
-function flushMeasure(): Promise<void> {
+/** Waits one frame, which is when CodeMirror runs its measure cycle. */
+function nextAnimationFrame(): Promise<void> {
     return new Promise((resolve) => {
         requestAnimationFrame(() => resolve());
     });
@@ -524,7 +524,7 @@ describe('cellSelectionKeymap', () => {
         });
         expect(focusSpy).not.toHaveBeenCalled();
 
-        await flushMeasure();
+        await nextAnimationFrame();
         expect(focusSpy).toHaveBeenCalled();
     });
 

@@ -55,40 +55,23 @@ describe('createMarkdownRenderer', () => {
         expect(renderMarkup).toHaveBeenCalledTimes(1);
     });
 
-    it('evicts the least recently used entry, not the oldest', async () => {
-        const renderMarkup = vi.fn<RenderMarkupFn>(async (markdown, id) => ({
-            id,
-            html: `<p>${markdown}</p>`,
-        }));
-        const renderer = createMarkdownRenderer(renderMarkup);
-
+    it.each([
+        { label: 'the oldest entry when none was read again', readOldest: false, evicted: 0, retained: 1 },
+        { label: 'the next-oldest once the oldest was read again', readOldest: true, evicted: 1, retained: 0 },
+    ])('overflowing the cache evicts $label', async ({ readOldest, evicted, retained }) => {
+        const renderer = createMarkdownRenderer(async (markdown, id) => ({ id, html: `<p>${markdown}</p>` }));
         for (let index = 0; index < MAX_CACHE_SIZE; index++) {
             await renderer.render(`value-${index}`);
         }
 
-        // Read the oldest entry, then overflow the cache by one.
-        expect(fragmentHtml(renderer.getCached('value-0')!)).toContain('value-0');
+        if (readOldest) {
+            expect(fragmentHtml(renderer.getCached('value-0')!)).toContain('value-0');
+        }
         await renderer.render('overflow');
 
-        expect(fragmentHtml(renderer.getCached('value-0')!)).toContain('value-0');
-        expect(renderer.getCached('value-1')).toBeUndefined();
-    });
-
-    it('evicts the oldest cache entry after the cache limit', async () => {
-        const renderMarkup = vi.fn<RenderMarkupFn>(async (markdown, id) => ({
-            id,
-            html: `<p>${markdown}</p>`,
-        }));
-        const renderer = createMarkdownRenderer(renderMarkup);
-
-        const overflow = MAX_CACHE_SIZE + 1;
-        for (let index = 0; index < overflow; index++) {
-            await renderer.render(`value-${index}`);
-        }
-
-        expect(renderer.getCached('value-0')).toBeUndefined();
-        expect(fragmentHtml(renderer.getCached('value-1')!)).toContain('value-1');
-        expect(fragmentHtml(renderer.getCached(`value-${overflow - 1}`)!)).toContain(`value-${overflow - 1}`);
+        expect(renderer.getCached(`value-${evicted}`)).toBeUndefined();
+        expect(fragmentHtml(renderer.getCached(`value-${retained}`)!)).toContain(`value-${retained}`);
+        expect(fragmentHtml(renderer.getCached('overflow')!)).toContain('overflow');
     });
 
     it('returns unrendered text when rendering rejects or returns an error', async () => {

@@ -1,37 +1,15 @@
-import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { GFM } from '@lezer/markdown';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { isNestedEditorOpen, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { requireResolvedActiveCell } from './testUtils';
-import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { tableContextField } from '../tableState/tableContextField';
-import { openCellRequestField } from '../tableRuntime/openCellRequest';
+import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
-import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
 import type { CellCoords } from '../tableModel/types';
+import { TEST_HOST_CONFIG, createResizeObserverStub, nestedEditorTestExtensions } from './tableEditorFixtures';
 
-class ResizeObserverMock {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-}
-
-const TEST_HOST_CONFIG = {
-    nestedEditor: { autoMatchingBraces: true, spellcheck: false },
-    tableAppearance: { zebraStriping: false },
-    toolbar: {
-        showMoveButtons: true,
-        showClearButtons: true,
-        showAlignmentButtons: true,
-        showDeleteTableButton: true,
-        showSortButtons: true,
-    },
-};
+const resizeObserver = createResizeObserverStub();
 
 const TABLE_A = ['| A1 | A2 |', '| --- | --- |', '| **a** | b |'].join('\n');
 const TABLE_B = ['| B1 | B2 |', '| --- | --- |', '| c | d |'].join('\n');
@@ -47,16 +25,7 @@ function createView(): EditorView {
         state: EditorState.create({
             doc: DOC,
             selection: EditorSelection.single(0),
-            extensions: [
-                markdown({ extensions: [GFM] }),
-                hostEditorConfigFacet.of(TEST_HOST_CONFIG),
-                markdownRenderServiceFacet.of(createMarkdownRenderer(async (markup, id) => ({ id, html: markup }))),
-                nestedEditorPlugin,
-                tableContextField,
-                activeCellField,
-                openCellRequestField,
-                tableDecorationField,
-            ],
+            extensions: nestedEditorTestExtensions(),
         }),
     });
 }
@@ -71,7 +40,7 @@ function requireCell(view: EditorView, tableFrom: number, cell: CellCoords): HTM
 
 describe('resolveTableContextFromEventTarget', () => {
     beforeEach(() => {
-        vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+        resizeObserver.install();
     });
 
     afterEach(() => {

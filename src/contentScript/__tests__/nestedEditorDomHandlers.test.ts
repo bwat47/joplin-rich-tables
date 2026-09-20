@@ -3,6 +3,9 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView } from '@codemirror/view';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
+import { installRangeLayoutStubs } from './tableEditorFixtures';
+
+installRangeLayoutStubs();
 
 vi.mock('../tableRuntime/selection/cellSelectionClipboard', () => ({
     handleTableClipboardTextPaste: vi.fn(() => false),
@@ -16,20 +19,6 @@ function dispatchPaste(target: HTMLElement, text: string): void {
         value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
     });
     target.dispatchEvent(event);
-}
-
-if (!Range.prototype.getClientRects) {
-    Object.defineProperty(Range.prototype, 'getClientRects', {
-        configurable: true,
-        value: () => [],
-    });
-}
-
-if (!Range.prototype.getBoundingClientRect) {
-    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
-        configurable: true,
-        value: () => new DOMRect(),
-    });
 }
 
 function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mock }) {
