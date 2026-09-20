@@ -17,6 +17,13 @@ const SECOND_TABLE = ['| e | f |', '| --- | --- |', '| g | h |'].join('\n');
 const TWO_TABLES = `${TABLE}\n\n${SECOND_TABLE}`;
 const SECOND_TABLE_FROM = TABLE.length + 2;
 
+function indentLines(table: string, indent: number): string {
+    return table
+        .split('\n')
+        .map((line) => `${' '.repeat(indent)}${line}`)
+        .join('\n');
+}
+
 function spans(state: EditorState): { from: number; to: number }[] {
     return getTableContexts(state).map(({ from, to }) => ({ from, to }));
 }
@@ -103,6 +110,33 @@ describe('tableContextField selectors', () => {
         ['list item', ['- | a | b |', '  | --- | --- |', '  | c | d |'].join('\n')],
     ])('ignores a table nested in a %s', (_label, doc) => {
         expect(getTableContexts(createMarkdownState(doc))).toEqual([]);
+    });
+
+    it.each([[1], [2], [3]])('ignores a table indented by %i space(s)', (indent) => {
+        const doc = indentLines(TABLE, indent);
+
+        expect(getTableContexts(createMarkdownState(doc))).toEqual([]);
+    });
+
+    it('indexes a table whose later rows are indented', () => {
+        const doc = ['| a | b |', '| --- | --- |', '  | c | d |'].join('\n');
+
+        expect(spans(createMarkdownState(doc))).toEqual([{ from: 0, to: doc.length }]);
+    });
+
+    it('indexes a table again once its indent is removed', () => {
+        const indent = 2;
+        const indented = createMarkdownState(indentLines(TABLE, indent));
+        expect(getTableContexts(indented)).toEqual([]);
+
+        const dedented = indented.update({
+            changes: TABLE.split('\n').map((_line, index) => {
+                const { from } = indented.doc.line(index + 1);
+                return { from, to: from + indent };
+            }),
+        }).state;
+
+        expect(spans(dedented)).toEqual([{ from: 0, to: TABLE.length }]);
     });
 
     it('fails fast when the field is missing', () => {

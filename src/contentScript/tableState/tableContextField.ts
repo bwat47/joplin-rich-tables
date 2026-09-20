@@ -24,6 +24,20 @@ function buildReuseMap(previous: TableIndex | undefined): Map<string, ReusableDe
     );
 }
 
+/**
+ * True when the table's first character is also its line's first character.
+ *
+ * Markdown lets a table carry one to three leading spaces, and Lezer opens the `Table` node at
+ * the first pipe rather than the line start. Everything downstream is line-based: a block
+ * decoration starting mid-line strands the indent on a visible line of its own above the widget,
+ * and boundary spacing declines to pad a table whose edges are not line edges. Rather than teach
+ * both to carry an indent through every rewrite, an indented table stays out of the index and the
+ * editor shows its source.
+ */
+function startsAtLineStart(state: EditorState, from: number): boolean {
+    return state.doc.lineAt(from).from === from;
+}
+
 function buildTableIndex(state: EditorState, previous?: TableIndex): TableIndex {
     const tree = syntaxTreeAvailable(state, state.doc.length)
         ? syntaxTree(state)
@@ -41,7 +55,7 @@ function buildTableIndex(state: EditorState, previous?: TableIndex): TableIndex 
     // siblings reaches every candidate and nothing else. The scan shape is what keeps tables
     // nested in Markdown containers out of the index.
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-        if (node.name !== 'Table') {
+        if (node.name !== 'Table' || !startsAtLineStart(state, node.from)) {
             continue;
         }
 
