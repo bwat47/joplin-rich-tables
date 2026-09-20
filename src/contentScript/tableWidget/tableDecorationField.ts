@@ -9,6 +9,7 @@ import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellSt
 import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getTableContextStartingAt, tableContextField } from '../tableState/tableContextField';
+import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';
 import { TableWidget } from './TableWidget';
 
 interface TableDecorationState {
@@ -78,16 +79,19 @@ function getPreservedActiveTableDecoration(
         return null;
     }
 
-    const mappedTableFrom = transaction.changes.mapPos(previousCell.ctx.from, 1);
-    const mappedTableTo = transaction.changes.mapPos(previousCell.ctx.to, -1);
-    const activeCell = getActiveCell(transaction.state);
-    if (!activeCell || activeCell.tableFrom !== mappedTableFrom) {
+    const mappedTable = mapTableSpanThroughChanges(previousCell.ctx, transaction.changes);
+    if (!mappedTable) {
         return null;
     }
 
-    const context = getTableContextStartingAt(transaction.state, mappedTableFrom);
+    const activeCell = getActiveCell(transaction.state);
+    if (!activeCell || activeCell.tableFrom !== mappedTable.from) {
+        return null;
+    }
+
+    const context = getTableContextStartingAt(transaction.state, mappedTable.from);
     if (
-        context?.to !== mappedTableTo ||
+        context?.to !== mappedTable.to ||
         !hasSameTableShape(previousCell.ctx.cellRanges, context.cellRanges) ||
         !getCellRange(context.cellRanges, activeCell)
     ) {
@@ -95,7 +99,7 @@ function getPreservedActiveTableDecoration(
     }
 
     const mappedDecorations = value.decorations.map(transaction.changes);
-    const decoration = findExactDecoration(mappedDecorations, mappedTableFrom, mappedTableTo);
+    const decoration = findExactDecoration(mappedDecorations, mappedTable.from, mappedTable.to);
     return decoration ? { context, decoration } : null;
 }
 

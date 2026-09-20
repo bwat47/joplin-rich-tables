@@ -10,6 +10,7 @@ import {
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import type { TableContext } from '../tableModel/tableContext';
 import { changesOverlapRange } from '../shared/transactionUtils';
+import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';
 import { normalizeBeforeEditAnnotation } from './tableCanonicalForm';
 import { resolveAdjacentTables } from './tableBoundaryResolution';
 import { hasRequiredBlankLinesAfter, hasRequiredBlankLinesBefore, isBlankLineContent } from './tableBoundarySpacing';
@@ -109,9 +110,13 @@ function resolveBoundaryPadding(transaction: Transaction, ctx: TableContext): Bo
         return [];
     }
 
+    const mappedTable = mapTableSpanThroughChanges(ctx, transaction.changes);
+    if (!mappedTable) {
+        return [];
+    }
+
+    const { from, to } = mappedTable;
     const doc = transaction.newDoc;
-    const from = transaction.changes.mapPos(ctx.from, 1);
-    const to = transaction.changes.mapPos(ctx.to, -1);
     // Text merged onto a table's first or last line needs more than a blank line to undo;
     // cell entry normalization repairs that shape.
     if (doc.lineAt(from).from !== from || doc.lineAt(to).to !== to) {
