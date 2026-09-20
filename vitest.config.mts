@@ -7,13 +7,6 @@ export default defineConfig({
         globals: true,
         include: ['src/**/__tests__/**/*.test.ts', 'src/__tests__/**/*.test.ts'],
         passWithNoTests: true,
-        // History-shortcut tests stub `navigator` before `@codemirror/view` evaluates its
-        // platform snapshot. Inlining the family keeps one copy of those modules per test file.
-        server: {
-            deps: {
-                inline: [/^@codemirror\//],
-            },
-        },
     },
     resolve: {
         alias: {
