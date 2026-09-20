@@ -1,6 +1,5 @@
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { clearCellSelectionEffect, getSelectedTable } from '../../tableState/cellSelectionState';
-import { requestViewAnimationFrame } from '../../shared/domContext';
 import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFactPredicates';
 
 /**
@@ -48,8 +47,9 @@ export const cellSelectionScopeGuard = ViewPlugin.fromClass(
                 return;
             }
 
-            // Dispatching during an update is not allowed, so the clear lands on the next frame.
-            requestViewAnimationFrame(this.view, () => {
+            // Dispatching during an update is not allowed. A microtask runs after CodeMirror
+            // returns to idle without leaving stale selection state for a full frame.
+            queueMicrotask(() => {
                 if (!this.view.dom.isConnected || !selectionLeftSelectedTable(this.view)) {
                     return;
                 }

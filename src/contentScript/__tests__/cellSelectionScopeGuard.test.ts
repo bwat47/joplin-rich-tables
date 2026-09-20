@@ -38,9 +38,9 @@ function mountView(): EditorView {
     return view;
 }
 
-/** The guard defers its clear to an animation frame; jsdom runs those on a timer. */
-function flushFrames(): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, 32));
+/** Lets the guard's deferred clear run after CodeMirror returns to idle. */
+function flushMicrotasks(): Promise<void> {
+    return Promise.resolve();
 }
 
 function selectTable(view: EditorView): void {
@@ -70,7 +70,7 @@ describe('cellSelectionScopeGuard', () => {
 
         // Stands in for any unhandled movement command, e.g. Ctrl+Home.
         view.dispatch({ selection: { anchor: 0 } });
-        await flushFrames();
+        await flushMicrotasks();
 
         expect(getCellSelection(view.state)).toBeNull();
     });
@@ -80,7 +80,7 @@ describe('cellSelectionScopeGuard', () => {
         selectTable(view);
 
         view.dispatch({ selection: { anchor: TABLE_TO - 1 } });
-        await flushFrames();
+        await flushMicrotasks();
 
         expect(getCellSelection(view.state)).not.toBeNull();
     });
@@ -88,7 +88,7 @@ describe('cellSelectionScopeGuard', () => {
     it('keeps the selection through the transitions that establish it', async () => {
         const view = mountView();
         selectTable(view);
-        await flushFrames();
+        await flushMicrotasks();
 
         expect(getCellSelection(view.state)).not.toBeNull();
     });
@@ -98,9 +98,20 @@ describe('cellSelectionScopeGuard', () => {
         selectTable(view);
 
         view.dispatch({ selection: { anchor: TABLE_TO - 1, head: DOC.length } });
-        await flushFrames();
+        await flushMicrotasks();
 
         expect(getCellSelection(view.state)).toBeNull();
+    });
+
+    it('keeps the selection when the caret returns before deferred cleanup runs', async () => {
+        const view = mountView();
+        selectTable(view);
+
+        view.dispatch({ selection: { anchor: 0 } });
+        view.dispatch({ selection: { anchor: TABLE_FROM + 1 } });
+        await flushMicrotasks();
+
+        expect(getCellSelection(view.state)).not.toBeNull();
     });
 
     it('preserves a replacement selection through parser recovery', async () => {
@@ -131,7 +142,7 @@ describe('cellSelectionScopeGuard', () => {
             expect(getTableContextAtPos(view.state, TABLE_FROM)).toBeNull();
 
             view.dispatch({ selection: { anchor: 0 } });
-            await flushFrames();
+            await flushMicrotasks();
 
             expect(getCellSelection(view.state)).not.toBeNull();
         } finally {
@@ -146,7 +157,7 @@ describe('cellSelectionScopeGuard', () => {
         expect(getCellSelection(view.state)).not.toBeNull();
 
         view.dispatch({ selection: { anchor: 1 } });
-        await flushFrames();
+        await flushMicrotasks();
 
         expect(getCellSelection(view.state)).toBeNull();
     });
