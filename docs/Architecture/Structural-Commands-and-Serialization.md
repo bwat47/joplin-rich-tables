@@ -61,7 +61,7 @@ When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `
 has two `input.paste` upgrade paths:
 
 - With a nested editor open, if the pasted text is a valid markdown table fragment it is intercepted and routed through `buildMultiCellPasteRewrite` (using the active cell as the anchor) — the same path as Ctrl+V in selection mode. Without this interception the guard's normal sanitization path would treat the fragment as plain text and paste it into the single active cell.
-- With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and schedule activation of header cell `(0,0)`.
+- With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and attach an open-cell request for header cell `(0,0)` to the paste transaction.
 
 The explicit "insert table" command always uses `buildRootTableInsertRewrite` directly, regardless of cursor
 position — it handles blank-line padding for both block-boundary and mid-line cases. The paste normalizer

@@ -11,15 +11,13 @@ describe('pasteTableNormalizer', () => {
             const state = createMarkdownState('');
             const rewrite = buildRootTablePasteRewrite(state, 0, 0, NON_CANONICAL_TABLE);
 
-            expect(rewrite).toEqual({
-                changes: {
-                    from: 0,
-                    to: 0,
-                    insert: `\n${CANONICAL_TABLE}\n`,
-                },
-                selectionAnchor: 1,
-                tableFrom: 1,
+            expect(rewrite?.changes).toEqual({
+                from: 0,
+                to: 0,
+                insert: `\n${CANONICAL_TABLE}\n`,
             });
+            expect(rewrite?.tableFrom).toBe(1);
+            expect(rewrite?.serialized.text).toBe(CANONICAL_TABLE);
         });
 
         it.each([
@@ -91,15 +89,13 @@ describe('pasteTableNormalizer', () => {
             const insertionPos = doc.indexOf(' ');
             const rewrite = buildRootTablePasteRewrite(state, insertionPos, insertionPos, NON_CANONICAL_TABLE);
 
-            expect(rewrite).toEqual({
-                changes: {
-                    from: insertionPos,
-                    to: insertionPos,
-                    insert: `\n\n${CANONICAL_TABLE}\n\n`,
-                },
-                selectionAnchor: insertionPos + 2,
-                tableFrom: insertionPos + 2,
+            expect(rewrite?.changes).toEqual({
+                from: insertionPos,
+                to: insertionPos,
+                insert: `\n\n${CANONICAL_TABLE}\n\n`,
             });
+            expect(rewrite?.tableFrom).toBe(insertionPos + 2);
+            expect(rewrite?.serialized.text).toBe(CANONICAL_TABLE);
         });
 
         it('adds canonical spacing when replacing whitespace after line content', () => {

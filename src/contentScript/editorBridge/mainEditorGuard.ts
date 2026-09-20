@@ -1,8 +1,11 @@
 import { EditorState, Extension } from '@codemirror/state';
 import { clearActiveCellEffect } from '../tableState/activeCellState';
-import { activateInsertedTableEffect } from '../tableState/insertedTableActivation';
+import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { prepareOpenCellRequestAttachment } from '../tableRuntime/openCellRequest';
 import { createTableClipboardRewriteSpec } from '../tableRuntime/selection/cellSelectionClipboard';
 import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
+
+const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -42,19 +45,29 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
                 };
             case 'rewriteTableClipboard':
                 return createTableClipboardRewriteSpec(tr.startState, decision.rewrite);
-            case 'rewriteRootTablePaste':
+            case 'rewriteRootTablePaste': {
+                const nextActiveCell = createActiveCellForTable({
+                    tableFrom: decision.rewrite.tableFrom,
+                    serialized: decision.rewrite.serialized,
+                    target: INSERTED_TABLE_HEADER_CELL,
+                });
+                if (!nextActiveCell) {
+                    throw new Error('Pasted table must resolve header cell (0, 0)');
+                }
+
+                const openRequest = prepareOpenCellRequestAttachment({
+                    activeCell: nextActiveCell.activeCell,
+                    selectionAnchor: nextActiveCell.selectionAnchor,
+                    suppressKeys: true,
+                });
+
                 return {
                     changes: decision.rewrite.changes,
-                    selection: { anchor: decision.rewrite.selectionAnchor },
-                    effects: [
-                        ...tr.effects,
-                        activateInsertedTableEffect.of({
-                            tableFrom: decision.rewrite.tableFrom,
-                            target: { section: 'header', row: 0, col: 0 },
-                        }),
-                    ],
+                    ...openRequest,
+                    effects: [...tr.effects, ...openRequest.effects],
                     scrollIntoView: tr.scrollIntoView,
                 };
+            }
             case 'sanitizeTransactionChanges':
                 return {
                     changes: decision.changes,

@@ -1,14 +1,25 @@
 import { EditorView } from '@codemirror/view';
+import { MarkdownTable, type SerializedTable } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { createActiveCellForTable } from '../activeCell/activeCellFactory';
+import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
-import { activateInsertedTableEffect } from '../../tableState/insertedTableActivation';
 
 export type RowInsertOpenOptions = StructuralReopenOptions;
 
 const DEFAULT_INSERTED_TABLE_MARKDOWN = ['|  |  |', '| --- | --- |', '|  |  |'].join('\n');
-const DEFAULT_INSERTED_TABLE_SELECTION_OFFSET = 2;
+const DEFAULT_INSERTED_TABLE = serializeDefaultInsertedTable();
+const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
+
+function serializeDefaultInsertedTable(): SerializedTable {
+    const table = MarkdownTable.parse(DEFAULT_INSERTED_TABLE_MARKDOWN);
+    if (!table) {
+        throw new Error('Default inserted table markdown must parse as a table');
+    }
+    return table.serializeWithOffsets();
+}
 
 export function getDefaultStructuralReopenOptions(view: EditorView): StructuralReopenOptions {
     return {
@@ -57,17 +68,25 @@ export function insertRowAtBottom(
 
 export function insertTableAndActivate(view: EditorView): boolean {
     const cursorPos = view.state.selection.main.head;
-    const rewrite = buildRootTableInsertRewrite(view.state, cursorPos, cursorPos, DEFAULT_INSERTED_TABLE_MARKDOWN);
+    const rewrite = buildRootTableInsertRewrite(view.state, cursorPos, cursorPos, DEFAULT_INSERTED_TABLE.text);
+    const nextActiveCell = createActiveCellForTable({
+        tableFrom: rewrite.tableFrom,
+        serialized: DEFAULT_INSERTED_TABLE,
+        target: INSERTED_TABLE_HEADER_CELL,
+    });
+    if (!nextActiveCell) {
+        return false;
+    }
+
+    const openRequest = prepareOpenCellRequestAttachment({
+        activeCell: nextActiveCell.activeCell,
+        selectionAnchor: nextActiveCell.selectionAnchor,
+        suppressKeys: true,
+    });
 
     view.dispatch({
         changes: rewrite.changes,
-        selection: { anchor: rewrite.tableFrom + DEFAULT_INSERTED_TABLE_SELECTION_OFFSET },
-        effects: [
-            activateInsertedTableEffect.of({
-                tableFrom: rewrite.tableFrom,
-                target: { section: 'header', row: 0, col: 0 },
-            }),
-        ],
+        ...openRequest,
         scrollIntoView: false,
     });
 

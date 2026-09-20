@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { activateCellAtPosition, activateTableCell } from '../tableRuntime/activeCell/cellActivation';
+import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
@@ -73,14 +73,6 @@ describe('cell activation in raw mode', () => {
         expect(
             activateInRawMode(rawModeEffect, (view) =>
                 activateCellAtPosition(view, TABLE.indexOf('a2'), { clearIfOutside: true, entryMode: 'enter' })
-            )
-        ).toEqual(UNTOUCHED);
-    });
-
-    it.each(RAW_MODES)('does not activate a table cell by coordinates in %s', (_name, rawModeEffect) => {
-        expect(
-            activateInRawMode(rawModeEffect, (view) =>
-                activateTableCell(view, 0, { section: 'header', row: 0, col: 0 })
             )
         ).toEqual(UNTOUCHED);
     });

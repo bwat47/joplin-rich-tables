@@ -5,10 +5,6 @@ import {
     isSameActiveCell,
     mapActiveCellThroughChanges,
 } from '../../tableState/activeCellState';
-import {
-    clearInsertedTableActivationEffect,
-    getPendingInsertedTableActivation,
-} from '../../tableState/insertedTableActivation';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import {
@@ -18,7 +14,7 @@ import {
     openNestedEditor,
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { activateCellAtPosition, activateTableCell } from '../activeCell/cellActivation';
+import { activateCellAtPosition } from '../activeCell/cellActivation';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
@@ -67,26 +63,11 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             this.executeActions(actions, update);
         }
 
-        private scheduleInsertedTableActivation(): void {
-            requestViewAnimationFrame(this.view, () => {
-                if (!this.view.dom.isConnected) return;
-
-                const activationRequest = getPendingInsertedTableActivation(this.view.state);
-                if (!activationRequest) return;
-
-                activateTableCell(this.view, activationRequest.tableFrom, activationRequest.target);
-                this.view.dispatch({ effects: clearInsertedTableActivationEffect.of(undefined) });
-            });
-        }
-
         private executeActions(actions: readonly TableRuntimeAction[], update: ViewUpdate): void {
             for (const action of actions) {
                 switch (action.type) {
                     case 'scheduleActivateCellAtCursor':
                         this.scheduleActivateCellAtCursor(update, action.options);
-                        break;
-                    case 'scheduleInsertedTableActivation':
-                        this.scheduleInsertedTableActivation();
                         break;
                     case 'scheduleEnsureCursorVisible':
                         this.scheduleEnsureCursorVisible(action.mode);

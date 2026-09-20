@@ -3,11 +3,6 @@ import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import {
-    activateInsertedTableEffect,
-    getPendingInsertedTableActivation,
-    insertedTableActivationField,
-} from '../tableState/insertedTableActivation';
-import {
     activeCellField,
     clearActiveCellEffect,
     getActiveCell,
@@ -42,9 +37,8 @@ class ResizeObserverMock {
     disconnect(): void {}
 }
 
-const { activateCellAtPositionMock, activateTableCellMock, findCellElementMock } = vi.hoisted(() => ({
+const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
     activateCellAtPositionMock: vi.fn(),
-    activateTableCellMock: vi.fn(),
     findCellElementMock: vi.fn<(...args: unknown[]) => HTMLTableCellElement | null>(() => document.createElement('td')),
 }));
 const DEFAULT_FEATURE_SETTINGS = {
@@ -94,7 +88,6 @@ function headerCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
 function createLifecycleState(params: {
     doc: string;
     activeCell?: ActiveCell;
-    includeInsertedTableActivation?: boolean;
     selection?: { anchor: number; head?: number };
 }): EditorState {
     let state = EditorState.create({
@@ -105,7 +98,6 @@ function createLifecycleState(params: {
             tableContextField,
             activeCellField,
             openCellRequestField,
-            ...(params.includeInsertedTableActivation ? [insertedTableActivationField] : []),
             searchForceSourceModeField,
             sourceModeField,
             hostEditorConfigFacet.of(TEST_HOST_CONFIG),
@@ -154,7 +146,6 @@ function openRequestEffects(params: {
 
 vi.mock('../tableRuntime/activeCell/cellActivation', () => ({
     activateCellAtPosition: (...args: unknown[]) => activateCellAtPositionMock(...args),
-    activateTableCell: (...args: unknown[]) => activateTableCellMock(...args),
 }));
 
 vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
@@ -189,7 +180,6 @@ describe('nestedEditorLifecycle', () => {
 
     beforeEach(() => {
         activateCellAtPositionMock.mockReset();
-        activateTableCellMock.mockReset();
         findCellElementMock.mockClear();
         nestedEditorControllerMock.closeNestedEditor.mockReset();
         nestedEditorControllerMock.handleMainEditorUpdate.mockReset();
@@ -208,57 +198,6 @@ describe('nestedEditorLifecycle', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
         document.body.innerHTML = '';
-    });
-
-    it('schedules inserted-table activation from the effect payload', async () => {
-        const view = createLifecycleView({
-            doc: '',
-            includeInsertedTableActivation: true,
-        });
-
-        view.dispatch({
-            effects: activateInsertedTableEffect.of({
-                tableFrom: 42,
-                target: { section: 'header', row: 0, col: 0 },
-            }),
-        });
-        await flushAnimationFrames();
-
-        expect(activateTableCellMock).toHaveBeenCalledWith(view, 42, {
-            section: 'header',
-            row: 0,
-            col: 0,
-        });
-
-        view.destroy();
-    });
-
-    it('uses the mapped pending inserted-table activation when text shifts before the scheduled frame', async () => {
-        const doc = ['before', '', CANONICAL_DOC].join('\n');
-        const tableFrom = 'before\n\n'.length;
-        const insertedText = 'top\n';
-        const view = createLifecycleView({
-            doc,
-            includeInsertedTableActivation: true,
-        });
-
-        view.dispatch({
-            effects: activateInsertedTableEffect.of({
-                tableFrom,
-                target: { section: 'header', row: 0, col: 0 },
-            }),
-        });
-        view.dispatch({ changes: { from: 0, to: 0, insert: insertedText } });
-        await flushAnimationFrames();
-
-        expect(activateTableCellMock).toHaveBeenCalledWith(view, tableFrom + insertedText.length, {
-            section: 'header',
-            row: 0,
-            col: 0,
-        });
-        expect(getPendingInsertedTableActivation(view.state)).toBeNull();
-
-        view.destroy();
     });
 
     it('passes the mapped cell range when undo or redo closes the nested editor', async () => {

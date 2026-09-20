@@ -40,6 +40,7 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 
 - Cell opening is explicit whenever the initiating action knows the intended destination.
 - Mouse activation, keyboard navigation, inserted-table activation, and structural commands should emit a durable open request for the exact target cell.
+- Every entry point emits that request in the transaction that writes the table.
 - Structural commands that create or move cells must precompute the post-mutation target cell instead of relying on lifecycle inference.
 - Explicit open requests take priority over generic lifecycle reactions such as close, clear, reposition, or cursor restoration.
 - Lifecycle inference is only a fallback for cases without a command-level destination, such as source-mode exit or undo/redo repositioning.

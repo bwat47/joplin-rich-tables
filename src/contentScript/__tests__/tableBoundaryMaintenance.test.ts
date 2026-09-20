@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
-import { insertedTableActivationField } from '../tableState/insertedTableActivation';
 import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
@@ -17,7 +16,6 @@ const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const runtimeState: Extension[] = [
     activeCellField,
     cellSelectionField,
-    insertedTableActivationField,
     searchForceSourceModeField,
     sourceModeField,
     openCellRequestField,
