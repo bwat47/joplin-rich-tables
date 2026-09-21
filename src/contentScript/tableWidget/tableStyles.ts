@@ -153,6 +153,8 @@ const tableTheme = EditorView.baseTheme({
         fontSize: 'inherit',
         overflowX: 'hidden',
     },
+    // Carries the cell's inset, the same one the rendered wrapper declares, so the text stays put
+    // when a cell opens. `!important` because Joplin's own `.cm-content` padding carries it too.
     [`.${CLASS_CELL_EDITOR} .cm-content`]: {
         margin: '0 !important',
         padding: `${CELL_PADDING} !important`,
@@ -169,7 +171,8 @@ const tableTheme = EditorView.baseTheme({
         overflowWrap: 'normal',
     },
     [`.${CLASS_CELL_EDITOR} .cm-line`]: {
-        padding: '0',
+        // The inset belongs to `.cm-content`; CodeMirror's own `0 2px` would add to it.
+        padding: '0 !important',
         wordBreak: 'normal',
         overflowWrap: 'normal',
     },
