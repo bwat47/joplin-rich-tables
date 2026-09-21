@@ -1,3 +1,4 @@
+import { clamp } from '../shared/numberUtils';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 
 /**
@@ -94,7 +95,7 @@ export function flatOffsetFromDomPosition(index: RenderedTextIndex, node: Node, 
 
     if (node.nodeType === Node.TEXT_NODE) {
         const data = (node as Text).data;
-        return span.start + Math.min(Math.max(offset, 0), data.length);
+        return span.start + clamp(offset, 0, data.length);
     }
 
     const children = node.childNodes;

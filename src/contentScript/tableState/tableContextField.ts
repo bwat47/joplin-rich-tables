@@ -1,6 +1,7 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from '@codemirror/language';
 import { StateField, type EditorState, type SelectionRange } from '@codemirror/state';
 import { logger } from '../../logger';
+import { rangeTouchesInclusive } from '../shared/rangeUtils';
 import { buildTableContext, type TableContext, type TableSpan } from '../tableModel/tableContext';
 
 const SYNTAX_TREE_BUDGET_MS = 1000;
@@ -120,7 +121,7 @@ export function getTableContextEndingAt(state: EditorState, pos: number): TableC
 
 /** Returns root tables overlapping or abutting the inclusive range `[from, to]`. */
 export function getTableContextsTouching(state: EditorState, from: number, to: number): readonly TableContext[] {
-    return getTableContexts(state).filter((table) => table.from <= to && table.to >= from);
+    return getTableContexts(state).filter((table) => rangeTouchesInclusive(from, to, table.from, table.to));
 }
 
 /** Returns root tables entirely contained by the inclusive range `[from, to]`. */

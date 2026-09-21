@@ -28,11 +28,6 @@ export function isFullDocumentReplace(tr: Transaction): boolean {
     return isFullReplace && changeCount === 1;
 }
 
-/** True when `[fromA, toA]` overlaps or abuts inclusive `[from, to]`. Touching an endpoint counts. */
-export function rangeTouchesInclusive(fromA: number, toA: number, from: number, to: number): boolean {
-    return fromA <= to && toA >= from;
-}
-
 /** True when any change strictly overlaps `[from, to)`. Touching an endpoint does not count. */
 export function changesOverlapRange(tr: Transaction, from: number, to: number): boolean {
     let overlaps = false;

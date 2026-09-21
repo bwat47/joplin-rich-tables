@@ -1,3 +1,5 @@
+import { clamp } from '../shared/numberUtils';
+
 /** An opaque sRGB colour. */
 export interface Rgb {
     r: number;
@@ -63,7 +65,7 @@ function minimumAlpha(target: Rgb, ground: Rgb): number {
     return Math.ceil(Math.max(...demands) * ALPHA_PRECISION) / ALPHA_PRECISION;
 }
 
-const clampChannel = (value: number): number => Math.min(CHANNEL_MAX, Math.max(0, Math.round(value)));
+const clampChannel = (value: number): number => clamp(Math.round(value), 0, CHANNEL_MAX);
 
 /**
  * The translucent layer that turns `ground` into `target` when painted over it.
