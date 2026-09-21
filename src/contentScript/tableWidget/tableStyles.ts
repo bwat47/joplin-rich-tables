@@ -1,6 +1,7 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { CELL_BORDER_WIDTH, CELL_MIN_WIDTH, CELL_PADDING } from './cellGeometry';
 import {
     CLASS_CELL_ACTIVE,
     CLASS_CELL_CONTENT,
@@ -8,14 +9,6 @@ import {
     CLASS_CELL_EDITOR_HIDDEN,
 } from '../shared/tableDomClasses';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, SELECTOR_WIDGET } from './domHelpers';
-
-/**
- * Width of the gridline between cells.
- *
- * `border-collapse` makes each one shared, so this is the whole line, not a half of one --
- * `selectionTint.ts` redraws a gridline at exactly this width.
- */
-export const CELL_BORDER_WIDTH = '1px';
 
 /**
  * Elements inside a widget that keep the cursor the UA gives them.
@@ -85,8 +78,9 @@ const tableTheme = EditorView.baseTheme({
 
     [`.${CLASS_TABLE_WIDGET_TABLE} th, .${CLASS_TABLE_WIDGET_TABLE} td`]: {
         border: `${CELL_BORDER_WIDTH} solid var(--rt-border-color)`,
-        padding: '8px 12px',
-        minWidth: '75px',
+        // The inset lives on whichever box owns the cell's interior; see `cellGeometry.ts`.
+        padding: '0',
+        minWidth: CELL_MIN_WIDTH,
         // Joplin/CodeMirror editor styles can apply aggressive breaking (e.g. `overflow-wrap: anywhere`)
         // which makes even short words wrap. Reset breaking at the cell level so normal text wraps
         // only at whitespace/hyphenation, and opt-in to break-word only for elements that need it.
@@ -107,10 +101,13 @@ const tableTheme = EditorView.baseTheme({
         content: '"\u00a0"',
         display: 'inline-block',
     },
-    // Reset white-space to prevent newlines in serialized HTML from rendering as gaps
+    // Carries the cell's inset, so a press in it hit-tests against the rendered content rather
+    // than against the <td> around it. The nested editor's `.cm-content` declares the same one.
+    //
+    // Resets white-space to prevent newlines in serialized HTML from rendering as gaps
     // (Joplin's editor uses white-space: break-spaces which makes all whitespace visible)
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}`]: {
-        paddingLeft: '1px !important',
+        padding: `${CELL_PADDING} !important`,
         whiteSpace: 'normal',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
@@ -156,9 +153,11 @@ const tableTheme = EditorView.baseTheme({
         fontSize: 'inherit',
         overflowX: 'hidden',
     },
+    // Carries the cell's inset, the same one the rendered wrapper declares, so the text stays put
+    // when a cell opens. `!important` because Joplin's own `.cm-content` padding carries it too.
     [`.${CLASS_CELL_EDITOR} .cm-content`]: {
         margin: '0 !important',
-        padding: '0 !important',
+        padding: `${CELL_PADDING} !important`,
         maxWidth: 'none !important',
         minHeight: 'unset',
         lineHeight: 'inherit',
@@ -172,7 +171,8 @@ const tableTheme = EditorView.baseTheme({
         overflowWrap: 'normal',
     },
     [`.${CLASS_CELL_EDITOR} .cm-line`]: {
-        padding: '0',
+        // The inset belongs to `.cm-content`; CodeMirror's own `0 2px` would add to it.
+        padding: '0 !important',
         wordBreak: 'normal',
         overflowWrap: 'normal',
     },

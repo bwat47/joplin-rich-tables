@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { drawSelection, EditorView } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
@@ -22,6 +22,10 @@ function dispatchPaste(target: HTMLElement, text: string): void {
     target.dispatchEvent(event);
 }
 
+function dispatchMouseDown(target: HTMLElement, init: MouseEventInit): void {
+    target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, ...init }));
+}
+
 function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mock }) {
     return new EditorView({
         parent: params.parent,
@@ -29,7 +33,6 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mo
             doc: 'selected text',
             selection: EditorSelection.single(0, 'selected'.length),
             extensions: [
-                drawSelection(),
                 ...createNestedEditorDomHandlers({} as EditorView, {
                     syncSelectionToMain: params.syncSelectionToMain,
                     closeEditor: vi.fn(),
@@ -47,7 +50,7 @@ describe('nestedEditor dom handlers', () => {
         handleTableClipboardTextPasteMock.mockReturnValue(false);
     });
 
-    it('stops left-clicks inside selected text from bubbling to the parent editor', () => {
+    it('stops left-clicks on nested editor text from bubbling to the parent editor', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
 
@@ -56,15 +59,8 @@ describe('nestedEditor dom handlers', () => {
 
         const syncSelectionToMain = vi.fn();
         const nestedView = createNestedView({ parent, syncSelectionToMain });
-        const selectionTarget = nestedView.dom.querySelector('.cm-selectionBackground') as HTMLElement | null;
-
-        (selectionTarget ?? nestedView.contentDOM).dispatchEvent(
-            new MouseEvent('mousedown', {
-                bubbles: true,
-                cancelable: true,
-                button: 0,
-            })
-        );
+        // The nested editor hides `drawSelection`'s overlay, so a press lands on the text itself.
+        dispatchMouseDown(nestedView.contentDOM, { button: 0 });
 
         expect(parentMouseDown).not.toHaveBeenCalled();
         expect(syncSelectionToMain).not.toHaveBeenCalled();
@@ -81,17 +77,7 @@ describe('nestedEditor dom handlers', () => {
 
         const syncSelectionToMain = vi.fn();
         const nestedView = createNestedView({ parent, syncSelectionToMain });
-        const selectionTarget = nestedView.dom.querySelector('.cm-selectionBackground') as HTMLElement | null;
-
-        (selectionTarget ?? nestedView.contentDOM).dispatchEvent(
-            new MouseEvent('mousedown', {
-                bubbles: true,
-                cancelable: true,
-                button: 2,
-                clientX: 24,
-                clientY: 12,
-            })
-        );
+        dispatchMouseDown(nestedView.contentDOM, { button: 2, clientX: 24, clientY: 12 });
 
         expect(syncSelectionToMain).toHaveBeenCalledTimes(1);
         expect(parentMouseDown).not.toHaveBeenCalled();

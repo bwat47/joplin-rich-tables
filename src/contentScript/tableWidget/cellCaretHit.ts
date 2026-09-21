@@ -147,9 +147,12 @@ function caretFromPoint(doc: Document, clientX: number, clientY: number): CaretD
 }
 
 /**
- * Offset for a press that missed the content box, which is what clicking a cell's padding
- * produces. Past the content's end in reading order means the end of the text and before its
- * start means the beginning; anything else has no obvious answer and declines.
+ * Offset for a press that missed the content box, which is what clicking the slack in a cell
+ * taller or wider than its own content produces. The cell's inset belongs to the content box
+ * itself, so a press in it hit-tests normally and never reaches here.
+ *
+ * Past the content's end in reading order means the end of the text and before its start means
+ * the beginning; anything else has no obvious answer and declines.
  */
 function offsetOutsideContent(
     content: HTMLElement,

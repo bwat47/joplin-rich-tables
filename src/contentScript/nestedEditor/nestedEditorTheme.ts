@@ -19,27 +19,30 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             },
 
             // --- Selection rendering ---
-            // CM's drawSelection() paints .cm-selectionBackground; style its color here.  The
-            // focused selector mirrors Joplin's own (theme.ts) and outranks the blurred rule
-            // above it on specificity, so ordering here is presentational only.
-            // Native ::selection suppression is handled on the root editor in
-            // rootEditorSelectionTheme.ts, which has higher specificity than Joplin's
-            // cascading `&.cm-focused ::selection` rule.
+            // The browser paints the selection, so an open cell and the rendered cells around it
+            // are highlighted by the same engine; `rootEditorSelectionTheme.ts` colours it and
+            // explains why CodeMirror's rectangles do not suit a table cell.
+            //
+            // `drawSelection` stays for the caret because CodeMirror has no other source of
+            // `.cm-cursor`, and the host editor's own `drawSelection` blanks the native caret
+            // throughout its DOM, the nested editor included. Keep the selection layer itself
+            // because it also owns CodeMirror's draggable selection handles on iOS.
             '& .cm-selectionLayer .cm-selectionBackground': {
-                backgroundColor: 'var(--rt-selection-blurred-bg) !important',
-            },
-            '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
-                backgroundColor: 'var(--rt-selection-focused-bg) !important',
+                display: 'none',
             },
 
             // --- Joplin/CM environment resets ---
             // These override Joplin's and CodeMirror's aggressive defaults that would
             // otherwise break cell layout or mismatch the rendered cell appearance.
+            //
+            // The cell's inset is not among them: it is declared on `.cm-content` in
+            // `tableWidget/tableStyles.ts`, whose selectors carry the `!important` that
+            // Joplin's own `.cm-content` padding demands, and which zeroes `.cm-line` so
+            // CodeMirror's `0 2px` does not add to it.
             '.cm-scroller': {
                 overflow: 'hidden !important',
             },
             '.cm-content': {
-                padding: '0',
                 // CodeMirror injects font-size: 1.1875em on mobile to prevent iOS/Android auto-zoom.
                 // Override so the editor font matches the rendered cell (which uses inherit).
                 fontSize: 'inherit !important',
@@ -55,7 +58,6 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
                 overflowWrap: 'normal !important',
             },
             '.cm-line': {
-                paddingLeft: '1px !important',
                 wordBreak: 'normal !important',
                 overflowWrap: 'normal !important',
             },

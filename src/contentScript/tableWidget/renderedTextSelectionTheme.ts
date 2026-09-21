@@ -9,14 +9,13 @@ import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
  *
  * Dragging across an inactive cell selects its rendered text, and pointerup maps that
  * range into the Markdown the cell opens with (`tableRuntime/interaction/mouseCellDragSelection.ts`).
- * That is the one DOM selection inside a table widget that has to stay visible, so it is
- * excluded from the two rules that blank the rest:
+ * This theme paints that range, with two exclusions:
  *
  * - `:not(.${CLASS_TABLE_WIDGET_SELECTED})` leaves a table the main editor has selected whole to
  *   `wholeTableSelectionVisuals.ts`, which paints the block itself and needs the browser's own
  *   highlight out of the way underneath.
- * - `:not(.${CLASS_CELL_ACTIVE})` leaves the open cell to the nested editor, whose selection
- *   `drawSelection` draws and `nestedEditor/rootEditorSelectionTheme.ts` blanks natively.
+ * - `:not(.${CLASS_CELL_ACTIVE})` leaves the open cell's browser-painted selection to
+ *   `nestedEditor/rootEditorSelectionTheme.ts`, which supplies its focused and blurred colours.
  *
  * Being mutually exclusive with both, this rule contends on specificity only with Joplin's own
  * `&.cm-focused ::selection !important`, which it outweighs. The coordinate attributes anchor the
