@@ -117,9 +117,10 @@ around it highlight the same way — glyph-tight ranges rather than CodeMirror's
 far edge of the cell across a wrap.
 
 `renderedTextSelectionTheme.ts` colours a range dragged out of a rendered cell, carved out of the widget-wide
-`::selection` reset in `wholeTableSelectionVisuals.ts`. The nested editor's `drawSelection` selection layer is hidden
-(`nestedEditorTheme.ts`); `rootEditorSelectionTheme.ts` colours its native highlight from the root editor so the
-selectors beat both Joplin's and `drawSelection`'s `::selection` rules. `drawSelection` stays for the caret.
+`::selection` reset in `wholeTableSelectionVisuals.ts`. The nested editor hides `drawSelection`'s background
+rectangles but preserves its selection layer for iOS handles (`nestedEditorTheme.ts`); `drawSelection` also remains
+the source of the caret. `rootEditorSelectionTheme.ts` colours the native highlight from the root editor so its
+selectors beat both Joplin's and `drawSelection`'s `::selection` rules.
 
 ## Host Scroll Modes
 

@@ -48,11 +48,11 @@ function selectionFill(
 /**
  * Paints the open cell's text selection with the browser's own highlight.
  *
- * The nested editor's `drawSelection` selection layer is hidden (`nestedEditorTheme.ts`), so the
- * cell being edited and the rendered cells around it are highlighted by the same engine. Line-box
+ * The nested editor's `drawSelection` backgrounds are hidden (`nestedEditorTheme.ts`), so the cell
+ * being edited and the rendered cells around it are highlighted by the same engine. Line-box
  * rectangles are what an editor wants and what a table cell does not: a range spanning a line
  * break runs them to the far edge of the cell to show that the break is selected, whereas the
- * rendered cell selections stop at the last glyph.
+ * rendered cell selections stop at the last glyph. The layer remains for iOS selection handles.
  *
  * Registered on the root editor so `&` resolves to Joplin's .cm-editor, giving each selector one
  * attribute and three or five classes -- enough to beat both Joplin's cascading
