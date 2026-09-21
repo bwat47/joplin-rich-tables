@@ -131,7 +131,7 @@ describe('tableRuntimePolicies', () => {
                 activeHostInvalidated: true,
             },
             expected: [
-                { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
+                { type: 'closeNestedEditor', mappedRange: RESOLVED_HEADER_CELL_RANGE },
                 {
                     type: 'scheduleActivateCellAtCursor',
                     options: {
@@ -209,7 +209,7 @@ describe('tableRuntimePolicies', () => {
             },
             expected: [
                 { type: 'scheduleEnsureCursorVisible', mode: 'enteredRawMode' },
-                { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
+                { type: 'closeNestedEditor', mappedRange: RESOLVED_HEADER_CELL_RANGE },
                 {
                     type: 'scheduleActivateCellAtCursor',
                     options: {
@@ -233,7 +233,6 @@ describe('tableRuntimePolicies', () => {
             expected: [
                 {
                     type: 'closeNestedEditor',
-                    reason: 'selectionLeftActiveTable',
                     mappedRange: RESOLVED_HEADER_CELL_RANGE,
                 },
                 { type: 'clearActiveCell' },
@@ -261,7 +260,7 @@ describe('tableRuntimePolicies', () => {
                 activeHostInvalidated: true,
             },
             expected: [
-                { type: 'closeNestedEditor', reason: 'cellReposition' },
+                { type: 'closeNestedEditor' },
                 {
                     type: 'scheduleActivateCellAtCursor',
                     options: {
@@ -619,7 +618,7 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditor', reason: 'noteChanged' },
+            { type: 'closeNestedEditor' },
             { type: 'scheduleNoteSwitchCleanup' },
         ]);
     });
@@ -763,7 +762,7 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditor', reason: 'cellReposition', mappedRange: RESOLVED_HEADER_CELL_RANGE },
+            { type: 'closeNestedEditor', mappedRange: RESOLVED_HEADER_CELL_RANGE },
             {
                 type: 'scheduleActivateCellAtCursor',
                 options: {
@@ -802,7 +801,7 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditor', reason: 'selectionLeftActiveTable', mappedRange: RESOLVED_HEADER_CELL_RANGE },
+            { type: 'closeNestedEditor', mappedRange: RESOLVED_HEADER_CELL_RANGE },
             { type: 'clearActiveCell' },
         ]);
     });
@@ -814,7 +813,7 @@ describe('tableRuntimePolicies', () => {
             activeCellBefore: 'resolved',
         });
 
-        expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor', reason: 'activeCellRemoved' }]);
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor' }]);
     });
 
     it('suppresses selection-left-table cleanup during raw mode, cell selection, and sync updates', () => {

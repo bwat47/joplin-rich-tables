@@ -59,13 +59,10 @@ export interface ActivateCellAtCursorOptions {
     entryMode: Extract<CellEntryMode, 'enter' | 'adopt'>;
 }
 
-type NestedEditorCloseReason = 'cellReposition' | 'selectionLeftActiveTable' | 'activeCellRemoved' | 'noteChanged';
-
 export type TableRuntimeAction =
     | { type: 'openRequestedCell'; requestId: string }
     | {
           type: 'closeNestedEditor';
-          reason: NestedEditorCloseReason;
           // Set for closes whose widget stays mounted, so the re-rendered text lands in the cell's
           // range after the update.
           mappedRange?: MappedCellRange;
@@ -98,7 +95,7 @@ export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction
 function reduceNoteSwitch(facts: TableRuntimeFacts): TableRuntimeAction[] {
     const cleanup: TableRuntimeAction = { type: 'scheduleNoteSwitchCleanup' };
     if (facts.nestedEditorOpen) {
-        return [{ type: 'closeNestedEditor', reason: 'noteChanged' }, cleanup];
+        return [{ type: 'closeNestedEditor' }, cleanup];
     }
 
     return [cleanup];
@@ -137,7 +134,6 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         if (facts.nestedEditorOpen) {
             actions.push({
                 type: 'closeNestedEditor',
-                reason: 'cellReposition',
                 mappedRange: getMappedCellRange(facts.activeCell),
             });
         }
@@ -152,7 +148,6 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         if (facts.nestedEditorOpen) {
             actions.push({
                 type: 'closeNestedEditor',
-                reason: 'selectionLeftActiveTable',
                 mappedRange: getMappedCellRange(facts.activeCell),
             });
         }
@@ -161,7 +156,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     if (activeCellWasRemoved(facts)) {
-        actions.push({ type: 'closeNestedEditor', reason: 'activeCellRemoved' });
+        actions.push({ type: 'closeNestedEditor' });
     }
 
     if (shouldSyncMainToNested(facts)) {
