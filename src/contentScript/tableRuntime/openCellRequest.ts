@@ -20,13 +20,7 @@ export interface OpenCellRequest {
     suppressKeys: boolean;
 }
 
-export interface ClearOpenCellRequest {
-    requestId: string;
-}
-
-export interface OpenCellRequestSignal {
-    requestId: string;
-}
+type OpenCellRequestIdentity = Pick<OpenCellRequest, 'requestId'>;
 
 /** A transaction spec whose effects stay an array, so callers can extend them. */
 export interface PreparedOpenCellRequestTransaction extends TransactionSpec {
@@ -100,8 +94,8 @@ export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
     },
 });
 
-export const clearOpenCellRequestEffect = StateEffect.define<ClearOpenCellRequest>();
-export const triggerOpenCellRequestEffect = StateEffect.define<OpenCellRequestSignal>();
+export const clearOpenCellRequestEffect = StateEffect.define<OpenCellRequestIdentity>();
+export const triggerOpenCellRequestEffect = StateEffect.define<OpenCellRequestIdentity>();
 
 function buildOpenCellRequestEffects(
     params: OpenCellRequestOptions & { requestId: string; activeCell: ActiveCell }

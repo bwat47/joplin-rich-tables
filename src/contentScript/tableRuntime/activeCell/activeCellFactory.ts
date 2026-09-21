@@ -38,6 +38,18 @@ export function createActiveCellForTable(params: {
     return anchor ? toActiveCellSelectionTarget(params.tableFrom, anchor) : null;
 }
 
+/** Active cell for a newly written table, targeting its first header cell. */
+export function createFirstActiveCellForTable(params: {
+    tableFrom: number;
+    serialized: SerializedTable;
+}): ActiveCellSelectionTarget | null {
+    return createActiveCellForTable({
+        tableFrom: params.tableFrom,
+        serialized: params.serialized,
+        target: { section: 'header', row: 0, col: 0 },
+    });
+}
+
 /**
  * Resolves `target` against `ctx`, clamping coordinates the table does not have.
  *

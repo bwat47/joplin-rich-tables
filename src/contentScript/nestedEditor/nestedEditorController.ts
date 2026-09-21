@@ -35,20 +35,15 @@ import {
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
-interface NestedEditorLocalState {
-    text: string;
-    selection: LocalSelection;
-}
-
-interface NestedEditorRootState {
+interface NestedEditorTextState {
     text: string;
     selection: LocalSelection;
 }
 
 interface NestedEditorSession {
     resolvedCell: ResolvedActiveCell;
-    local: NestedEditorLocalState;
-    root: NestedEditorRootState;
+    local: NestedEditorTextState;
+    root: NestedEditorTextState;
     editor: EditorView | null;
     applyingRootToLocal: boolean;
 }

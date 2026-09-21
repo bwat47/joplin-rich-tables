@@ -1,5 +1,5 @@
 import type { ChangeSet } from '@codemirror/state';
-import { rangeTouchesInclusive } from '../../shared/transactionUtils';
+import { rangeTouchesInclusive } from '../../shared/rangeUtils';
 import type { TableSpan } from '../../tableModel/tableContext';
 
 /** The spans of an active cell and its table; a `ResolvedActiveCell` satisfies it. */

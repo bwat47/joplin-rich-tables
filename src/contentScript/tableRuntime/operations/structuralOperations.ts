@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { MarkdownTable, type SerializedTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { createActiveCellForTable } from '../activeCell/activeCellFactory';
+import { createFirstActiveCellForTable } from '../activeCell/activeCellFactory';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
@@ -12,7 +12,6 @@ const DEFAULT_INSERTED_TABLE_BODY_ROWS = 1;
 const DEFAULT_INSERTED_TABLE_ALIGNMENT: TableAlignment = null;
 const EMPTY_CELL = '';
 const DEFAULT_INSERTED_TABLE = buildDefaultInsertedTable();
-const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
 const ROW_INSERT_REOPEN_DEFAULTS: StructuralReopenOptions = { initialCursorPos: 'start' };
 
 /** Builds the empty table used by the insert command directly from known parts, without parsing. */
@@ -56,10 +55,9 @@ export function insertRowAtBottom(
 export function insertTableAndActivate(view: EditorView): boolean {
     const cursorPos = view.state.selection.main.head;
     const rewrite = buildRootTableInsertRewrite(view.state, cursorPos, cursorPos, DEFAULT_INSERTED_TABLE.text);
-    const nextActiveCell = createActiveCellForTable({
+    const nextActiveCell = createFirstActiveCellForTable({
         tableFrom: rewrite.tableFrom,
         serialized: DEFAULT_INSERTED_TABLE,
-        target: INSERTED_TABLE_HEADER_CELL,
     });
     if (!nextActiveCell) {
         return false;

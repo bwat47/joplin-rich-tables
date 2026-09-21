@@ -1,11 +1,9 @@
 import { EditorState, Extension } from '@codemirror/state';
 import { clearActiveCellEffect } from '../tableState/activeCellState';
-import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { createFirstActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { prepareOpenCellRequestAttachment } from '../tableRuntime/openCellRequest';
 import { createTableClipboardRewriteSpec } from '../tableRuntime/selection/cellSelectionClipboard';
 import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
-
-const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as const;
 
 /**
  * While a nested cell editor is open, Android can sometimes move focus/selection back
@@ -46,10 +44,9 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
             case 'rewriteTableClipboard':
                 return createTableClipboardRewriteSpec(tr.startState, decision.rewrite);
             case 'rewriteRootTablePaste': {
-                const nextActiveCell = createActiveCellForTable({
+                const nextActiveCell = createFirstActiveCellForTable({
                     tableFrom: decision.rewrite.tableFrom,
                     serialized: decision.rewrite.serialized,
-                    target: INSERTED_TABLE_HEADER_CELL,
                 });
                 if (!nextActiveCell) {
                     throw new Error('Pasted table must resolve header cell (0, 0)');
