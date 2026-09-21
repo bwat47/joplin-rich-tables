@@ -5,7 +5,6 @@ import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin }
 import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSelectionToMain } from './domHandlers';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
-import { selectAllInCell } from './markdownCommands';
 import { createNestedEditorTheme } from './nestedEditorTheme';
 import { LocalSelection, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
 import { sanitizeLocalText, unsanitizeRootText } from '../shared/cellTextNormalization';
@@ -135,9 +134,6 @@ class NestedEditorController {
                 createNestedEditorKeymap(params.mainView, {
                     closeEditor: () => this.close(),
                     syncPendingChangesToRoot: () => this.flushLocalStateToRoot(),
-                    extraBindings: {
-                        'Mod-a': selectAllInCell(),
-                    },
                 }),
                 createNestedEditorMarkdownExtension(),
                 inlineCodePlugin,

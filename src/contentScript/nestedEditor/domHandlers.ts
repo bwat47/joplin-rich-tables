@@ -1,4 +1,5 @@
-import { EditorSelection, StateCommand, Transaction, type Extension } from '@codemirror/state';
+import { selectAll } from '@codemirror/commands';
+import { EditorSelection, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers, type Command, type KeyBinding } from '@codemirror/view';
 import { openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
@@ -113,11 +114,14 @@ export function createNestedEditorKeymap(
     options: {
         closeEditor: () => void;
         syncPendingChangesToRoot: () => void;
-        extraBindings?: Record<string, StateCommand>;
     }
 ): Extension {
     const bindings: KeyBinding[] = [
         ...createHistoryKeyBindings((_view, command) => command(mainView)),
+        {
+            key: 'Mod-a',
+            run: selectAll,
+        },
         {
             key: 'Tab',
             run: () => {
@@ -238,12 +242,6 @@ export function createNestedEditorKeymap(
             },
         },
     ];
-
-    if (options.extraBindings) {
-        for (const [key, command] of Object.entries(options.extraBindings)) {
-            bindings.push({ key, run: command });
-        }
-    }
 
     return keymap.of(bindings);
 }

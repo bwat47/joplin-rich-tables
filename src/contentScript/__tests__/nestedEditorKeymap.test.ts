@@ -71,6 +71,17 @@ afterEach(() => {
     document.body.replaceChildren();
 });
 
+describe('nested editor selection', () => {
+    it('selects the entire cell on Mod-a', () => {
+        const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 0, col: 0 });
+        const nested = mountNestedView(mainView, 2);
+
+        pressKey(nested.view, 'a', { ctrlKey: true });
+
+        expect(nested.view.state.selection.main).toMatchObject({ from: 0, to: nested.view.state.doc.length });
+    });
+});
+
 describe('nested editor horizontal table exit', () => {
     it('exits above the table on ArrowLeft from the first cell start', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
