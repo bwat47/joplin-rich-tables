@@ -121,7 +121,13 @@ describe('navigateCell', () => {
         expect(navigateCell(view, 'down', { allowRowCreation: true })).toBe(true);
 
         expect(view.state.doc.toString()).toBe(DOC_WITH_APPENDED_ROW);
-        expect(getActiveCell(view.state)).toMatchObject({ section: SECTION_BODY, row: 2, col: 1 });
+        const activeCell = getActiveCell(view.state);
+        expect(activeCell).toMatchObject({ section: SECTION_BODY, row: 2, col: 1 });
+        expect(getPendingOpenCellRequest(view.state)).toMatchObject({
+            activeCell,
+            initialCursorPos: 'start',
+            suppressKeys: true,
+        });
     });
 
     it('leaves the table unchanged past the last cell when row creation is not allowed', () => {

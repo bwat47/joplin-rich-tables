@@ -150,6 +150,7 @@ describe('structural mutation dispatch', () => {
         );
         expect(beginRequest?.value).toMatchObject({
             activeCell: { section: 'body', row: 1, col: 1 },
+            suppressKeys: true,
         });
         expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
     });
@@ -230,6 +231,8 @@ describe('structural mutation dispatch', () => {
         expect(dispatched.changes?.insert).toBe(updatedTableText);
         expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
+        const beginRequest = dispatched.effects.find((effect) => effect.is?.(beginOpenCellRequestEffect));
+        expect(beginRequest?.value).toMatchObject({ suppressKeys: true });
     });
 
     it.each([
