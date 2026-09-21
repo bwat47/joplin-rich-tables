@@ -112,9 +112,14 @@ does not affect HTML tables rendered inside cell Markdown. Selected cells are ex
 selector outweighs the selection fill, and `selectionTint.ts` solves its tint against a known ground, so a stripe
 standing in for that ground would band a selected rectangle row by row.
 
-Text dragged out inside a rendered cell keeps the browser's own selection highlight until the cell opens.
-`renderedTextSelectionTheme.ts` paints it in Joplin's selection colour, carved out of the widget-wide `::selection`
-reset in `wholeTableSelectionVisuals.ts`.
+Text selections inside a table are painted by the browser's `::selection`, so an open cell and the rendered cells
+around it highlight the same way — glyph-tight ranges rather than CodeMirror's line-box rectangles, which run to the
+far edge of the cell across a wrap.
+
+`renderedTextSelectionTheme.ts` colours a range dragged out of a rendered cell, carved out of the widget-wide
+`::selection` reset in `wholeTableSelectionVisuals.ts`. The nested editor's `drawSelection` selection layer is hidden
+(`nestedEditorTheme.ts`); `rootEditorSelectionTheme.ts` colours its native highlight from the root editor so the
+selectors beat both Joplin's and `drawSelection`'s `::selection` rules. `drawSelection` stays for the caret.
 
 ## Host Scroll Modes
 

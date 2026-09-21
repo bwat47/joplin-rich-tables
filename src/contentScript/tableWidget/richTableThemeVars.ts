@@ -10,8 +10,9 @@ import { alphaEquivalentLayer, parseHexColor, toPercentageCss, toRgbCss } from '
  * place.  `--joplin-selected-color` is deliberately not used: it is the list-item selection
  * color (light `#e5e5e5`, dark `#616161`), not the text-selection color.
  *
- * Exported for `renderedTextSelectionTheme.ts`, which needs the colors themselves rather than the
- * variables below: a `::selection` rule cannot read them.
+ * Exported for the two themes that paint cell text with the browser's own highlight --
+ * `renderedTextSelectionTheme.ts` and `nestedEditor/rootEditorSelectionTheme.ts` -- which need the
+ * colors themselves rather than the variables below: a `::selection` rule cannot read them.
  */
 export const JOPLIN_SELECTION_COLORS = {
     light: { focused: '#d7d4f0', blurred: '#d9d9d9' },
@@ -74,8 +75,8 @@ function tintProperties(mode: keyof typeof JOPLIN_SELECTION_COLORS): Record<stri
  *                          keeps the fill and the tint from ever disagreeing about it, and spares
  *                          every rule that reads them a focused copy of itself.
  * --rt-selection-focused-bg  Joplin's selection background while the editor owning it has focus.
- *                          Painted by the nested editor's drawSelection layer, and as the fill
- *                          behind a rendered table the main editor's selection covers.
+ *                          Painted as the fill behind a rendered table the main editor's
+ *                          selection covers.
  * --rt-selection-blurred-bg  the same fill while that editor is unfocused
  * --rt-selection-ground-bg  opaque ground painted on a selected cell, beneath the tint
  * --rt-tint-focused        colour of the layer laid over a selected cell, which composites with

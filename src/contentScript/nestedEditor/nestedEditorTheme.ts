@@ -20,17 +20,15 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             },
 
             // --- Selection rendering ---
-            // CM's drawSelection() paints .cm-selectionBackground; style its color here.  The
-            // focused selector mirrors Joplin's own (theme.ts) and outranks the blurred rule
-            // above it on specificity, so ordering here is presentational only.
-            // Native ::selection suppression is handled on the root editor in
-            // rootEditorSelectionTheme.ts, which has higher specificity than Joplin's
-            // cascading `&.cm-focused ::selection` rule.
-            '& .cm-selectionLayer .cm-selectionBackground': {
-                backgroundColor: 'var(--rt-selection-blurred-bg) !important',
-            },
-            '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
-                backgroundColor: 'var(--rt-selection-focused-bg) !important',
+            // The browser paints the selection, so an open cell and the rendered cells around it
+            // are highlighted by the same engine; `rootEditorSelectionTheme.ts` colours it and
+            // explains why the rectangles this layer would draw do not suit a table cell.
+            //
+            // `drawSelection` stays for the caret alone: CodeMirror has no other source of
+            // `.cm-cursor`, and the host editor's own `drawSelection` blanks the native caret
+            // throughout its DOM, the nested editor included.
+            '& .cm-selectionLayer': {
+                display: 'none',
             },
 
             // --- Joplin/CM environment resets ---
