@@ -8,15 +8,11 @@ import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { isSameCellCoords } from '../../tableModel/types';
 
-export interface StructuralReopenOptions {
-    initialCursorPos?: InitialCursorPos;
-    suppressKeys?: boolean;
-}
-
-export interface RunStructuralMutationAndReopenParams extends StructuralReopenOptions {
+export interface RunStructuralMutationAndReopenParams {
     view: EditorView;
     resolvedCell: ResolvedActiveCell;
     command: StructuralTableCommand;
+    initialCursorPos?: InitialCursorPos;
 }
 
 interface PreparedTableMutation {
@@ -101,7 +97,9 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
         activeCell: prepared.nextActiveCell.activeCell,
         selectionAnchor: prepared.nextActiveCell.selectionAnchor,
         initialCursorPos: params.initialCursorPos,
-        suppressKeys: params.suppressKeys,
+        // The rewrite lands under a caret the main editor still owns until the cell editor
+        // mounts, so navigation keys stay suppressed until the reopen settles.
+        suppressKeys: true,
     });
 
     params.view.dispatch({

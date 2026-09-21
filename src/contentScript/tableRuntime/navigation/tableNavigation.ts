@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
-import { insertRowAtBottom } from '../operations/structuralOperations';
+import { runStructuralCommand } from '../operations/structuralOperations';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { isSameCellCoords } from '../../tableModel/types';
 import { getTableGridBounds } from '../../tableModel/tableContext';
@@ -53,7 +53,7 @@ export function navigateCell(
     }
 
     if (target.kind === 'newRow') {
-        insertRowAtBottom(view, resolvedActiveCell, target.targetCol, { suppressKeys: true });
+        runStructuralCommand(view, resolvedActiveCell, { type: 'insertRowAfter', targetCol: target.targetCol });
         return true;
     }
 

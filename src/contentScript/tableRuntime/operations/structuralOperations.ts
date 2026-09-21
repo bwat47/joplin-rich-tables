@@ -5,14 +5,15 @@ import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { createFirstActiveCellForTable } from '../activeCell/activeCellFactory';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
-import { runStructuralMutationAndReopen, type StructuralReopenOptions } from './runStructuralMutation';
+import { runStructuralMutationAndReopen } from './runStructuralMutation';
+import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 const DEFAULT_INSERTED_TABLE_COLUMNS = 2;
 const DEFAULT_INSERTED_TABLE_BODY_ROWS = 1;
 const DEFAULT_INSERTED_TABLE_ALIGNMENT: TableAlignment = null;
 const EMPTY_CELL = '';
 const DEFAULT_INSERTED_TABLE = buildDefaultInsertedTable();
-const ROW_INSERT_REOPEN_DEFAULTS: StructuralReopenOptions = { initialCursorPos: 'start' };
+const ROW_INSERT_CURSOR_POS: InitialCursorPos = 'start';
 
 /** Builds the empty table used by the insert command directly from known parts, without parsing. */
 function buildDefaultInsertedTable(): SerializedTable {
@@ -24,32 +25,22 @@ function buildDefaultInsertedTable(): SerializedTable {
     }).serializeWithOffsets();
 }
 
-function commandUsesRowInsertDefaults(command: StructuralTableCommand): boolean {
+function commandInsertsRow(command: StructuralTableCommand): boolean {
     return command.type === 'insertRowBefore' || command.type === 'insertRowAfter';
 }
 
 export function runStructuralCommand(
     view: EditorView,
     resolvedCell: ResolvedActiveCell,
-    command: StructuralTableCommand,
-    options?: StructuralReopenOptions
+    command: StructuralTableCommand
 ): boolean {
     return runStructuralMutationAndReopen({
         view,
         resolvedCell,
         command,
-        ...(commandUsesRowInsertDefaults(command) ? ROW_INSERT_REOPEN_DEFAULTS : {}),
-        ...options,
+        // A freshly inserted row is empty, so its cell opens with the caret at the start.
+        ...(commandInsertsRow(command) ? { initialCursorPos: ROW_INSERT_CURSOR_POS } : {}),
     });
-}
-
-export function insertRowAtBottom(
-    view: EditorView,
-    resolvedCell: ResolvedActiveCell,
-    targetCol: number,
-    options?: StructuralReopenOptions
-): boolean {
-    return runStructuralCommand(view, resolvedCell, { type: 'insertRowAfter', targetCol }, options);
 }
 
 export function insertTableAndActivate(view: EditorView): boolean {
