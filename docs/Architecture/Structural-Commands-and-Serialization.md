@@ -93,9 +93,9 @@ toolbar buttons do not maintain separate switchboards.
 
 `structuralOperations.ts` is the runtime adapter on top of the runner:
 
-- It applies command-specific reopen defaults for canonical `StructuralTableCommand` objects.
-- Row-insert helpers default to `initialCursorPos: 'start'`.
-- It passes command objects and reopen options to `runStructuralMutationAndReopen()`; focus handoff is owned by the runner.
+- It forwards canonical `StructuralTableCommand` objects to `runStructuralMutationAndReopen()`.
+- Row-insert commands reopen with `initialCursorPos: 'start'`; other commands omit it and mirror the main selection.
+- The runner owns focus handoff and suppresses navigation keys until every surviving-table reopen settles.
 
 All surviving-table structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
 delete, move, clear, and alignment updates. Whole-table deletion uses the same runner but clears active-cell state
