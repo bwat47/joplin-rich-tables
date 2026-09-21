@@ -62,10 +62,6 @@ export interface OpenNestedEditorParams {
     initialCursorPos?: InitialCursorPos;
 }
 
-function isEditorFocused(view: EditorView | null): boolean {
-    return Boolean(view?.hasFocus);
-}
-
 class NestedEditorController {
     private session: NestedEditorSession | null = null;
     private contentEl: HTMLElement | null = null;
@@ -417,7 +413,7 @@ class NestedEditorController {
             return;
         }
 
-        const shouldRefocus = isEditorFocused(editor);
+        const shouldRefocus = editor.hasFocus;
         this.session.applyingRootToLocal = true;
         editor.dispatch({
             changes:
