@@ -11,7 +11,6 @@ import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
-    fromUnifiedRow,
     getCellSelection,
     getSelectedTable,
     selectionFromRect,
@@ -25,7 +24,7 @@ import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
-import type { CellCoords, TableRect } from '../../tableModel/types';
+import { fromUnifiedRow, type CellCoords, type TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { clamp } from '../../shared/numberUtils';
 import { sanitizeLocalText } from '../../shared/cellTextNormalization';

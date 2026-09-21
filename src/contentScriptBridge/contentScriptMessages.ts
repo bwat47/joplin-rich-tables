@@ -23,3 +23,6 @@ export interface OpenLinkResult {
 }
 
 export type ContentScriptMessage = RenderMarkupMessage | OpenLinkMessage | GetHostEditorConfigMessage;
+
+/** Host-supplied transport used to post a `ContentScriptMessage` and await its reply. */
+export type PostMessageFn = (message: unknown) => Promise<unknown>;

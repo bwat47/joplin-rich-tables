@@ -56,3 +56,20 @@ export interface TableGridBounds {
 export function toUnifiedRowIndex(section: TableSection, row: number): number {
     return section === 'header' ? 0 : row + 1;
 }
+
+/**
+ * Converts `CellCoords` to its unified row index. Convenience wrapper over
+ * `toUnifiedRowIndex` for the common case of a whole coordinate.
+ */
+export function toUnifiedRow(coords: CellCoords): number {
+    return toUnifiedRowIndex(coords.section, coords.row);
+}
+
+/** Inverse of `toUnifiedRow`: splits a unified row index back into section-relative coords. */
+export function fromUnifiedRow(row: number, col: number): CellCoords {
+    if (row <= 0) {
+        return { section: 'header', row: 0, col };
+    }
+
+    return { section: 'body', row: row - 1, col };
+}

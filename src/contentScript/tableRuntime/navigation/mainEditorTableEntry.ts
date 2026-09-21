@@ -7,7 +7,6 @@ import {
     type TransactionSpec,
 } from '@codemirror/state';
 import { Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
-import { fromUnifiedRow } from '../../tableState/cellSelectionState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
@@ -25,6 +24,7 @@ import {
     type TableSide,
 } from '../tableBoundaryResolution';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import { fromUnifiedRow } from '../../tableModel/types';
 
 type DeletionDirection = 'backward' | 'forward';
 /** A native cut with no selection removes whole lines, so it is not a directed deletion. */

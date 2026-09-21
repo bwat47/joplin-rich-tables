@@ -2,7 +2,7 @@ import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/st
 import { setActiveCellEffect } from './activeCellState';
 import { getTableContextStartingAt } from './tableContextField';
 import type { TableContext } from '../tableModel/tableContext';
-import { toUnifiedRowIndex, type CellCoords, type TableRect } from '../tableModel/types';
+import { fromUnifiedRow, toUnifiedRow, type CellCoords, type TableRect } from '../tableModel/types';
 
 export interface CellSelectionEndpoints {
     anchor: CellCoords;
@@ -13,26 +13,13 @@ export interface CellSelection extends CellSelectionEndpoints {
     tableFrom: number;
 }
 
-export type SelectionRect = TableRect;
 export type CellSelectionDirection = 'left' | 'right' | 'up' | 'down';
 
 export const cellSelectionTransitionAnnotation = Annotation.define<boolean>();
 export const setCellSelectionEffect = StateEffect.define<CellSelection>();
 export const clearCellSelectionEffect = StateEffect.define<void>();
 
-export function toUnifiedRow(coords: CellCoords): number {
-    return toUnifiedRowIndex(coords.section, coords.row);
-}
-
-export function fromUnifiedRow(row: number, col: number): CellCoords {
-    if (row <= 0) {
-        return { section: 'header', row: 0, col };
-    }
-
-    return { section: 'body', row: row - 1, col };
-}
-
-export function toSelectionRect(selection: CellSelection): SelectionRect {
+export function toSelectionRect(selection: CellSelection): TableRect {
     const anchorRow = toUnifiedRow(selection.anchor);
     const focusRow = toUnifiedRow(selection.focus);
 
@@ -44,7 +31,7 @@ export function toSelectionRect(selection: CellSelection): SelectionRect {
     };
 }
 
-export function selectionFromRect(tableFrom: number, rect: SelectionRect): CellSelection {
+export function selectionFromRect(tableFrom: number, rect: TableRect): CellSelection {
     return {
         tableFrom,
         anchor: fromUnifiedRow(rect.minRow, rect.minCol),
@@ -52,7 +39,7 @@ export function selectionFromRect(tableFrom: number, rect: SelectionRect): CellS
     };
 }
 
-export function isCellInRect(rect: SelectionRect, coords: CellCoords): boolean {
+export function isCellInRect(rect: TableRect, coords: CellCoords): boolean {
     const unifiedRow = toUnifiedRow(coords);
 
     return (

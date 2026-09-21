@@ -1,11 +1,10 @@
 import type {
     OpenLinkMessage,
     OpenLinkResult,
+    PostMessageFn,
     RenderMarkupMessage,
     RenderMarkupResult,
 } from '../../contentScriptBridge/contentScriptMessages';
-
-type PostMessageFn = (message: unknown) => Promise<unknown>;
 
 /** Used when the host reports a link failure without describing it. */
 const UNKNOWN_OPEN_LINK_ERROR = 'Unknown error opening link';

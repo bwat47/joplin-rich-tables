@@ -5,8 +5,7 @@
  * Kept free of EditorView/EditorState so the branching that keyboard navigation keeps
  * accumulating stays directly unit-testable; `navigateCell` owns the editor-facing effects.
  */
-import { fromUnifiedRow, toUnifiedRow } from '../../tableState/cellSelectionState';
-import type { CellCoords, TableGridBounds } from '../../tableModel/types';
+import { fromUnifiedRow, toUnifiedRow, type CellCoords, type TableGridBounds } from '../../tableModel/types';
 
 export type NavigationDirection = 'next' | 'previous' | 'up' | 'down';
 

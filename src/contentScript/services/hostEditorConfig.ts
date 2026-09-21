@@ -6,8 +6,7 @@ import {
     type GetHostEditorConfigMessage,
     type HostEditorConfig,
 } from '../../contentScriptBridge/hostEditorConfigBridge';
-
-type PostMessageFn = (message: unknown) => Promise<unknown>;
+import type { PostMessageFn } from '../../contentScriptBridge/contentScriptMessages';
 
 export const hostEditorConfigFacet = Facet.define<HostEditorConfig, HostEditorConfig>({
     combine: (values) => values[0] ?? defaultHostEditorConfig(),

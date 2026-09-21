@@ -2,14 +2,13 @@ import { EditorState } from '@codemirror/state';
 import {
     cellSelectionField,
     clearCellSelectionEffect,
-    fromUnifiedRow,
     getCellSelection,
     isCellInRect,
     setCellSelectionEffect,
     toSelectionRect,
-    toUnifiedRow,
     type CellSelection,
 } from '../tableState/cellSelectionState';
+import { fromUnifiedRow, toUnifiedRow } from '../tableModel/types';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { createMarkdownState } from './testMarkdownState';
 
