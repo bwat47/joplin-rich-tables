@@ -12,7 +12,7 @@ function renderLayout(groups: ToolbarButtonDescriptor[][]) {
     renderToolbarButtonGroups(
         groups,
         (button) => {
-            labels.push(button.ariaLabel);
+            labels.push(button.label);
         },
         () => {
             separatorCount += 1;

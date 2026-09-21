@@ -133,12 +133,12 @@ class TableToolbarPlugin {
         const doc = getViewDocument(this.view);
         this.dom.replaceChildren();
 
-        const createIconBtn = (title: string, ariaLabel: string, svg: SVGSVGElement, onClick: () => boolean) => {
+        const createIconBtn = (label: string, svg: SVGSVGElement, onClick: () => boolean) => {
             const btn = doc.createElement('button');
-            btn.title = title;
+            btn.title = label;
             btn.className = 'cm-table-toolbar-btn';
             btn.type = 'button';
-            btn.setAttribute('aria-label', ariaLabel);
+            btn.setAttribute('aria-label', label);
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -160,12 +160,7 @@ class TableToolbarPlugin {
         renderToolbarButtonGroups(
             getToolbarButtonGroups(this.view.state.facet(hostEditorConfigFacet).toolbar),
             (button) => {
-                createIconBtn(
-                    button.title,
-                    button.ariaLabel,
-                    button.iconFactory(doc),
-                    this.getActionHandler(button.actionId)
-                );
+                createIconBtn(button.label, button.iconFactory(doc), this.getActionHandler(button.actionId));
             },
             createSeparator
         );

@@ -23,28 +23,24 @@ import type { StructuralActionId } from '../tableRuntime/operations/structuralAc
 
 export interface ToolbarButtonDescriptor {
     actionId: StructuralActionId;
-    title: string;
-    ariaLabel: string;
+    label: string;
     iconFactory: ToolbarIconFactory;
 }
 
 const baseRowButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'insertRowBefore',
-        title: 'Insert row before',
-        ariaLabel: 'Insert row before',
+        label: 'Insert row before',
         iconFactory: rowInsertTopIcon,
     },
     {
         actionId: 'insertRowAfter',
-        title: 'Insert row after',
-        ariaLabel: 'Insert row after',
+        label: 'Insert row after',
         iconFactory: rowInsertBottomIcon,
     },
     {
         actionId: 'deleteRow',
-        title: 'Delete row',
-        ariaLabel: 'Delete row',
+        label: 'Delete row',
         iconFactory: rowRemoveIcon,
     },
 ];
@@ -52,20 +48,17 @@ const baseRowButtons: ToolbarButtonDescriptor[] = [
 const baseColumnButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'insertColumnBefore',
-        title: 'Insert column before',
-        ariaLabel: 'Insert column before',
+        label: 'Insert column before',
         iconFactory: columnInsertLeftIcon,
     },
     {
         actionId: 'insertColumnAfter',
-        title: 'Insert column after',
-        ariaLabel: 'Insert column after',
+        label: 'Insert column after',
         iconFactory: columnInsertRightIcon,
     },
     {
         actionId: 'deleteColumn',
-        title: 'Delete column',
-        ariaLabel: 'Delete column',
+        label: 'Delete column',
         iconFactory: columnRemoveIcon,
     },
 ];
@@ -73,14 +66,12 @@ const baseColumnButtons: ToolbarButtonDescriptor[] = [
 const moveRowButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'moveRowUp',
-        title: 'Move row up',
-        ariaLabel: 'Move row up',
+        label: 'Move row up',
         iconFactory: moveRowUpIcon,
     },
     {
         actionId: 'moveRowDown',
-        title: 'Move row down',
-        ariaLabel: 'Move row down',
+        label: 'Move row down',
         iconFactory: moveRowDownIcon,
     },
 ];
@@ -88,78 +79,67 @@ const moveRowButtons: ToolbarButtonDescriptor[] = [
 const moveColumnButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'moveColumnLeft',
-        title: 'Move column left',
-        ariaLabel: 'Move column left',
+        label: 'Move column left',
         iconFactory: moveColumnLeftIcon,
     },
     {
         actionId: 'moveColumnRight',
-        title: 'Move column right',
-        ariaLabel: 'Move column right',
+        label: 'Move column right',
         iconFactory: moveColumnRightIcon,
     },
 ];
 
 const clearRowButton: ToolbarButtonDescriptor = {
     actionId: 'clearRow',
-    title: 'Clear row',
-    ariaLabel: 'Clear row',
+    label: 'Clear row',
     iconFactory: clearTableIcon,
 };
 
 const clearColumnButton: ToolbarButtonDescriptor = {
     actionId: 'clearColumn',
-    title: 'Clear column',
-    ariaLabel: 'Clear column',
+    label: 'Clear column',
     iconFactory: clearTableIcon,
 };
 
 const clearTableButton: ToolbarButtonDescriptor = {
     actionId: 'clearTable',
-    title: 'Clear table',
-    ariaLabel: 'Clear table',
+    label: 'Clear table',
     iconFactory: clearTableIcon,
 };
 
 const alignmentButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'alignLeft',
-        title: 'Align column left',
-        ariaLabel: 'Align column left',
+        label: 'Align column left',
         iconFactory: alignLeftIcon,
     },
     {
         actionId: 'alignCenter',
-        title: 'Align column center',
-        ariaLabel: 'Align column center',
+        label: 'Align column center',
         iconFactory: alignCenterIcon,
     },
     {
         actionId: 'alignRight',
-        title: 'Align column right',
-        ariaLabel: 'Align column right',
+        label: 'Align column right',
         iconFactory: alignRightIcon,
     },
 ];
 
 const deleteTableButton: ToolbarButtonDescriptor = {
     actionId: 'deleteTable',
-    title: 'Delete table',
-    ariaLabel: 'Delete table',
+    label: 'Delete table',
     iconFactory: deleteTableIcon,
 };
 
 const sortButtons: ToolbarButtonDescriptor[] = [
     {
         actionId: 'sortColumnAscending',
-        title: 'Sort rows by column (A to Z)',
-        ariaLabel: 'Sort rows by column (A to Z)',
+        label: 'Sort rows by column (A to Z)',
         iconFactory: sortAscendingIcon,
     },
     {
         actionId: 'sortColumnDescending',
-        title: 'Sort rows by column (Z to A)',
-        ariaLabel: 'Sort rows by column (Z to A)',
+        label: 'Sort rows by column (Z to A)',
         iconFactory: sortDescendingIcon,
     },
 ];
