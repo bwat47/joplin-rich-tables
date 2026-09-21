@@ -271,7 +271,6 @@ class MouseCellDragSelectionController {
 
         requestOpenCell(this.view, {
             resolvedCell: release.resolvedAnchor,
-            clearCellSelection: gesture.dragged || Boolean(getCellSelection(this.view.state)),
             // A drag that contracted back onto its anchor asked for a cell selection, not for
             // a caret at the point the press happened to start from.
             initialCursorPos: gesture.dragged ? undefined : release.cursorPos,

@@ -261,7 +261,6 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
         return false;
     }
 
-    const hasSelection = Boolean(getCellSelection(view.state));
     if (event.shiftKey && setOrExtendCellSelectionToCoords(view, resolvedCell.activeCell, resolvedCell.ctx.from)) {
         return true;
     }
@@ -272,7 +271,6 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
 
     requestOpenCell(view, {
         resolvedCell,
-        clearCellSelection: hasSelection,
         initialCursorPos: resolveClickCursorPos(view.state, resolvedCell, caretHit),
     });
 

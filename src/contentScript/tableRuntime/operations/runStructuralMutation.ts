@@ -10,7 +10,6 @@ import { isSameCellCoords } from '../../tableModel/types';
 
 export interface StructuralReopenOptions {
     initialCursorPos?: InitialCursorPos;
-    clearCellSelection?: boolean;
     suppressKeys?: boolean;
 }
 
@@ -102,7 +101,6 @@ export function runStructuralMutationAndReopen(params: RunStructuralMutationAndR
         activeCell: prepared.nextActiveCell.activeCell,
         selectionAnchor: prepared.nextActiveCell.selectionAnchor,
         initialCursorPos: params.initialCursorPos,
-        clearCellSelection: params.clearCellSelection,
         suppressKeys: params.suppressKeys,
     });
 

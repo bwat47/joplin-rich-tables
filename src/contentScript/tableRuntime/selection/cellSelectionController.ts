@@ -200,7 +200,6 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
     if (!isSameCellCoords(selection.focus, selection.anchor) && isSameCellCoords(clampedFocus, selection.anchor)) {
         requestOpenCell(view, {
             resolvedCell: resolveClampedCell({ ctx, target: selection.anchor }),
-            clearCellSelection: true,
         });
         return true;
     }

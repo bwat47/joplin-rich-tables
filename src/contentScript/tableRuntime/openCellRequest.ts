@@ -2,7 +2,6 @@ import { EditorState, StateEffect, StateField, type ChangeDesc, type Transaction
 import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { clearCellSelectionEffect } from '../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { mapTableStartUnlessDeleted } from '../tableState/tableStartMapping';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
@@ -39,7 +38,6 @@ export interface OpenCellRequestAttachment {
 }
 
 interface OpenCellRequestOptions {
-    clearCellSelection?: boolean;
     initialCursorPos?: InitialCursorPos;
     suppressKeys?: boolean;
 }
@@ -101,7 +99,6 @@ function buildOpenCellRequestEffects(
     params: OpenCellRequestOptions & { requestId: string; activeCell: ActiveCell }
 ): StateEffect<unknown>[] {
     return [
-        ...(params.clearCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
         setActiveCellEffect.of(params.activeCell),
         beginOpenCellRequestEffect.of({
             requestId: params.requestId,

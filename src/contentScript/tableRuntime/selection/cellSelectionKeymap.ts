@@ -109,7 +109,6 @@ function activateSelectionFocus(view: EditorView): boolean {
 
     requestOpenCell(view, {
         resolvedCell: resolveClampedCell({ ctx: selected.ctx, target: selected.selection.focus }),
-        clearCellSelection: true,
         scrollIntoView: false,
     });
 
