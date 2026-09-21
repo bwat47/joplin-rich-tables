@@ -249,7 +249,7 @@ export function createNestedEditorKeymap(
 export function createNestedEditorDomHandlers(
     mainView: EditorView,
     options: {
-        syncSelectionToMain: (view: EditorView, event?: MouseEvent) => void;
+        syncSelectionToMain: (view: EditorView, event: MouseEvent) => void;
         closeEditor: () => void;
         ensureRootSelectionForCommand: () => void;
     }

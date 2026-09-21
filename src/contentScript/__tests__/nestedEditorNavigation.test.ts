@@ -123,7 +123,7 @@ describe('nested editor navigation', () => {
                       resolvedCell: { editableFrom: number };
                       editor: EditorView;
                   } | null;
-                  syncSelectionToMain: (nestedView: EditorView, event?: MouseEvent) => void;
+                  syncSelectionToMain: (nestedView: EditorView, event: MouseEvent) => void;
               }
             | undefined;
 

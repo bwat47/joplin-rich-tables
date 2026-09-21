@@ -348,7 +348,7 @@ class NestedEditorController {
         this.forwardLocalStateToRoot(false);
     }
 
-    private syncSelectionToMain(nestedView: EditorView, event?: MouseEvent): void {
+    private syncSelectionToMain(nestedView: EditorView, event: MouseEvent): void {
         if (!this.session || !this.mainView) {
             return;
         }
@@ -364,7 +364,7 @@ class NestedEditorController {
         // WITHOUT moving the nested editor's own selection: collapsing it here would override
         // Chromium's native selection of a misspelled word on right-click and suppress the host's
         // spelling suggestions. The browser positions the nested caret natively on right-click.
-        if (event && nestedView.state.selection.main.empty) {
+        if (nestedView.state.selection.main.empty) {
             const clickedPos = nestedView.posAtCoords({ x: event.clientX, y: event.clientY });
             if (clickedPos != null) {
                 const clamped = clamp(clickedPos, 0, nestedView.state.doc.length);
