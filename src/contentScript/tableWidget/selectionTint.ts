@@ -1,4 +1,4 @@
-import { CELL_BORDER_WIDTH } from './tableStyles';
+import { CELL_BORDER_WIDTH } from './cellGeometry';
 
 /** Builds the selector for a set of selected cells, optionally suffixed with a pseudo-element. */
 export type SelectedCellSelector = (pseudo?: string) => string;

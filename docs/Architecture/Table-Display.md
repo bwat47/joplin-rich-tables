@@ -18,6 +18,7 @@ still take precedence.
 - `posAtDOM()` locates table widgets.
 - Wide tables scroll horizontally within container.
 - Each cell renders into a dedicated content wrapper (`CLASS_CELL_CONTENT`) so styling can be applied consistently between initial render and nested-editor activation.
+- A cell's inset (`tableWidget/cellGeometry.ts`) is declared on whichever box owns its interior — the content wrapper, or the nested editor's `.cm-content` — never on the `<td>`. Padding on the cell itself sits outside both, so a press in it hit-tests against neither and starts no text selection.
 
 ### Media and Embed Constraints
 

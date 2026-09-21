@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
+import { CELL_PADDING } from '../tableWidget/cellGeometry';
 import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
 
 /**
@@ -39,7 +40,10 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
                 overflow: 'hidden !important',
             },
             '.cm-content': {
-                padding: '0',
+                // Same inset as the rendered wrapper (`tableWidget/cellGeometry.ts`). Joplin's
+                // `.cm-content` padding carries `!important`; `tableStyles.ts` is what actually
+                // lands it on this editor.
+                padding: CELL_PADDING,
                 // CodeMirror injects font-size: 1.1875em on mobile to prevent iOS/Android auto-zoom.
                 // Override so the editor font matches the rendered cell (which uses inherit).
                 fontSize: 'inherit !important',
@@ -55,7 +59,8 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
                 overflowWrap: 'normal !important',
             },
             '.cm-line': {
-                paddingLeft: '1px !important',
+                // The inset belongs to `.cm-content`; CodeMirror's own `0 2px` would add to it.
+                padding: '0 !important',
                 wordBreak: 'normal !important',
                 overflowWrap: 'normal !important',
             },
