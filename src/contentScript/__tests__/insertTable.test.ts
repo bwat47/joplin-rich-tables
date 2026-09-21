@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach, beforeEach, vi } from 'vitest';
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { insertTableAndActivate } from '../tableRuntime/operations/structuralOperations';
+import { insertTableAndActivate } from '../tableRuntime/operations/insertTable';
 import { planCellEntryNormalization } from '../tableRuntime/tableCanonicalForm';
 import {
     beginOpenCellRequestEffect,

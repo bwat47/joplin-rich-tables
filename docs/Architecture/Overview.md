@@ -50,7 +50,7 @@ mutable state.
 | **Model**     | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, serialization, mutations.                |
 | **Context**   | `contentScript/tableState/tableContextField.ts`                 | Authoritative root-table index and selectors.                    |
 | **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
-| **Runtime**   | `contentScript/tableRuntime/operations/structuralOperations.ts` | Editor transaction orchestration for structural table commands.  |
+| **Runtime**   | `contentScript/tableRuntime/operations/runStructuralCommand.ts` | Editor transaction orchestration for structural table commands.  |
 | **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row, column, alignment, and sorting actions.     |
 
 ## Data Flow

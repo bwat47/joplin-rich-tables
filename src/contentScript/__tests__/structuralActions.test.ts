@@ -3,17 +3,17 @@ import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
+import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
-vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
-    runStructuralMutationAndReopen: vi.fn(),
+vi.mock('../tableRuntime/operations/runStructuralCommand', () => ({
+    runStructuralCommand: vi.fn(),
 }));
 
 describe('structuralActions', () => {
     let view: EditorView;
     let resolvedCell: ResolvedActiveCell;
-    let mockRunStructuralMutationAndReopen: Mock;
+    let mockRunStructuralCommand: Mock;
 
     const createResolvedCell = (): ResolvedActiveCell => {
         const activeCell: ActiveCell = {
@@ -47,9 +47,9 @@ describe('structuralActions', () => {
             },
         } as unknown as EditorView;
         resolvedCell = createResolvedCell();
-        mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as Mock;
-        mockRunStructuralMutationAndReopen.mockReset();
-        mockRunStructuralMutationAndReopen.mockReturnValue(true);
+        mockRunStructuralCommand = runStructuralCommand as Mock;
+        mockRunStructuralCommand.mockReset();
+        mockRunStructuralCommand.mockReturnValue(true);
     });
 
     /**
@@ -67,13 +67,10 @@ describe('structuralActions', () => {
         (actionId, alignment) => {
             expect(runStructuralAction(view, actionId, resolvedCell)).toBe(true);
 
-            expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    view,
-                    resolvedCell,
-                    command: { type: 'alignColumn', alignment },
-                })
-            );
+            expect(mockRunStructuralCommand).toHaveBeenCalledWith(view, resolvedCell, {
+                type: 'alignColumn',
+                alignment,
+            });
         }
     );
 });

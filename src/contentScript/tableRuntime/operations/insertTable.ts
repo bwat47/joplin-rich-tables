@@ -1,19 +1,14 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { MarkdownTable, type SerializedTable, type TableAlignment } from '../../tableModel/MarkdownTable';
-import type { StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { createFirstActiveCellForTable } from '../activeCell/activeCellFactory';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
-import { runStructuralMutationAndReopen } from './runStructuralMutation';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
 
 const DEFAULT_INSERTED_TABLE_COLUMNS = 2;
 const DEFAULT_INSERTED_TABLE_BODY_ROWS = 1;
 const DEFAULT_INSERTED_TABLE_ALIGNMENT: TableAlignment = null;
 const EMPTY_CELL = '';
 const DEFAULT_INSERTED_TABLE = buildDefaultInsertedTable();
-const ROW_INSERT_CURSOR_POS: InitialCursorPos = 'start';
 
 /** Builds the empty table used by the insert command directly from known parts, without parsing. */
 function buildDefaultInsertedTable(): SerializedTable {
@@ -23,24 +18,6 @@ function buildDefaultInsertedTable(): SerializedTable {
         alignments: new Array<TableAlignment>(DEFAULT_INSERTED_TABLE_COLUMNS).fill(DEFAULT_INSERTED_TABLE_ALIGNMENT),
         bodyRows: Array.from({ length: DEFAULT_INSERTED_TABLE_BODY_ROWS }, emptyRow),
     }).serializeWithOffsets();
-}
-
-function commandInsertsRow(command: StructuralTableCommand): boolean {
-    return command.type === 'insertRowBefore' || command.type === 'insertRowAfter';
-}
-
-export function runStructuralCommand(
-    view: EditorView,
-    resolvedCell: ResolvedActiveCell,
-    command: StructuralTableCommand
-): boolean {
-    return runStructuralMutationAndReopen({
-        view,
-        resolvedCell,
-        command,
-        // A freshly inserted row is empty, so its cell opens with the caret at the start.
-        ...(commandInsertsRow(command) ? { initialCursorPos: ROW_INSERT_CURSOR_POS } : {}),
-    });
 }
 
 export function insertTableAndActivate(view: EditorView): boolean {

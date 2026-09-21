@@ -9,7 +9,7 @@ import {
     type ActiveCell,
 } from '../tableState/activeCellState';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
+import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
@@ -19,7 +19,7 @@ import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';
 import { parseTableFixture, parseCellRangesFixture } from './testUtils';
 
-describe('structural mutation dispatch', () => {
+describe('runStructuralCommand', () => {
     let currentTableText = '';
 
     function createView(tableText: string) {
@@ -86,24 +86,30 @@ describe('structural mutation dispatch', () => {
             focus: vi.fn(),
         };
 
-        const result = runStructuralMutationAndReopen({
-            view: view as never,
-            resolvedCell,
-            command: { type: 'clearRow' },
-        });
+        const result = runStructuralCommand(view as never, resolvedCell, { type: 'clearRow' });
 
         expect(result).toBe(true);
         expect(state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
         expect(wasActiveHostInvalidated(state)).toBe(true);
     });
 
-    it('dispatches an explicit reopen transaction for row insertion', () => {
+    it.each([
+        {
+            command: { type: 'insertRowBefore' } as const,
+            insertedTableText: ['| H1 | H2 |', '| --- | --- |', '|  |  |', '| a | b |'].join('\n'),
+            nextTarget: { section: 'body' as const, row: 0, col: 1 },
+        },
+        {
+            command: { type: 'insertRowAfter' } as const,
+            insertedTableText: ['| H1 | H2 |', '| --- | --- |', '| a | b |', '|  |  |'].join('\n'),
+            nextTarget: { section: 'body' as const, row: 1, col: 1 },
+        },
+    ])('dispatches an explicit reopen transaction for $command.type', ({ command, insertedTableText, nextTarget }) => {
         const tableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
-        const insertedTableText = ['| H1 | H2 |', '| --- | --- |', '| a | b |', '|  |  |'].join('\n');
         const nextActiveCell = createActiveCellForTable({
             tableFrom: 0,
             serialized: parseTableFixture(insertedTableText).serializeWithOffsets(),
-            target: { section: 'body', row: 1, col: 1 },
+            target: nextTarget,
         });
         expect(nextActiveCell).not.toBeNull();
         if (!nextActiveCell) {
@@ -112,12 +118,7 @@ describe('structural mutation dispatch', () => {
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 1);
 
-        const result = runStructuralMutationAndReopen({
-            view: view as never,
-            resolvedCell: createResolvedCell(cell),
-            command: { type: 'insertRowAfter' },
-            initialCursorPos: 'start',
-        });
+        const result = runStructuralCommand(view as never, createResolvedCell(cell), command);
 
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
@@ -149,8 +150,9 @@ describe('structural mutation dispatch', () => {
             effect.is?.(beginOpenCellRequestEffect)
         );
         expect(beginRequest?.value).toMatchObject({
-            activeCell: { section: 'body', row: 1, col: 1 },
+            activeCell: nextTarget,
             suppressKeys: true,
+            initialCursorPos: 'start',
         });
         expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
     });
@@ -160,11 +162,7 @@ describe('structural mutation dispatch', () => {
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 0);
 
-        const result = runStructuralMutationAndReopen({
-            view: view as never,
-            resolvedCell: createResolvedCell(cell),
-            command: { type: 'moveColumnLeft' },
-        });
+        const result = runStructuralCommand(view as never, createResolvedCell(cell), { type: 'moveColumnLeft' });
 
         expect(result).toBe(false);
         expect(view.dispatch).not.toHaveBeenCalled();
@@ -176,11 +174,7 @@ describe('structural mutation dispatch', () => {
         const view = createView(tableText);
         const cell = createCell(tableText, 1, 0);
 
-        const result = runStructuralMutationAndReopen({
-            view: view as never,
-            resolvedCell: createResolvedCell(cell),
-            command: { type: 'moveRowUp' },
-        });
+        const result = runStructuralCommand(view as never, createResolvedCell(cell), { type: 'moveRowUp' });
 
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
@@ -215,10 +209,9 @@ describe('structural mutation dispatch', () => {
         const view = createView(tableText);
         const cell = createCell(tableText, 0, 0);
 
-        const result = runStructuralMutationAndReopen({
-            view: view as never,
-            resolvedCell: createResolvedCell(cell),
-            command: { type: 'alignColumn', alignment: 'center' },
+        const result = runStructuralCommand(view as never, createResolvedCell(cell), {
+            type: 'alignColumn',
+            alignment: 'center',
         });
 
         expect(result).toBe(true);
@@ -233,6 +226,7 @@ describe('structural mutation dispatch', () => {
         expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
         const beginRequest = dispatched.effects.find((effect) => effect.is?.(beginOpenCellRequestEffect));
         expect(beginRequest?.value).toMatchObject({ suppressKeys: true });
+        expect(beginRequest?.value).toHaveProperty('initialCursorPos', undefined);
     });
 
     it.each([
@@ -242,14 +236,14 @@ describe('structural mutation dispatch', () => {
     ] as const)('dispatches table deletion for %s without reopen effects', (commandType, tableText, activeCell) => {
         const view = createView(tableText);
 
-        const result = runStructuralMutationAndReopen({
-            view: view as never,
-            resolvedCell: createResolvedCell({
+        const result = runStructuralCommand(
+            view as never,
+            createResolvedCell({
                 tableFrom: 0,
                 ...activeCell,
             }),
-            command: { type: commandType },
-        });
+            { type: commandType }
+        );
 
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
@@ -307,7 +301,7 @@ describe('structural mutation dispatch', () => {
                 throw new Error('Expected the active cell to resolve');
             }
 
-            runStructuralMutationAndReopen({ view, resolvedCell, command: { type: 'clearRow' } });
+            runStructuralCommand(view, resolvedCell, { type: 'clearRow' });
 
             expect(document.activeElement).toBe(view.contentDOM);
         });

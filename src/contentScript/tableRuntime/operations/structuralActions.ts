@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommandById } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { runStructuralCommand } from './structuralOperations';
+import { runStructuralCommand } from './runStructuralCommand';
 
 type ModelBackedStructuralActionId = keyof StructuralTableCommandById;
 type CommandForId<Id extends ModelBackedStructuralActionId> = StructuralTableCommandById[Id];

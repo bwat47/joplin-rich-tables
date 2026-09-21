@@ -8,20 +8,29 @@ Multi-cell clipboard writes use the same parse -> mutate -> serialize pattern, b
 ## Command Flow
 
 ```
-User Action (keyboard/toolbar)
-         ↓
-    tableCommands.ts / tableToolbarPlugin.ts ← Resolve active cell once
-         ↓
-   operations/structuralActions.ts      ← Shared action-to-command adapter
-          ↓
-   operations/structuralOperations.ts   ← Run StructuralTableCommand + reopen defaults
-            ↓
-     operations/runStructuralMutation.ts ← Prepares and Dispatches surviving-table or table-deletion results
-           ↓
-      tableModel/structuralCommandSemantics.ts ← Apply command, return surviving table or table deletion
-           ↓
-      MarkdownTable.ts          ← Runtime model + structural operations
+Named command (keyboard/toolbar)             Navigation key (Tab/Enter at table edge)
+            ↓                                            ↓
+tableCommands.ts / tableToolbarPlugin.ts     navigation/tableNavigation.ts
+  Resolve active cell once                     Resolve active cell + target column
+            ↓                                            ↓
+operations/structuralActions.ts                          │
+  Action ID → constant command                           │
+            ↓                                            ↓
+            └─────────────────┬──────────────────────────┘
+                              ↓
+        operations/runStructuralCommand.ts
+          Prepare + dispatch surviving-table or table-deletion result
+                              ↓
+        tableModel/structuralCommandSemantics.ts
+          Apply command → surviving table or table deletion
+                              ↓
+        MarkdownTable.ts
+          Runtime model + structural operations
 ```
+
+Navigation bypasses `structuralActions.ts` because it needs a parameterized command
+(`{ type: 'insertRowAfter', targetCol }`): Tab starts the new row at column 0, while Enter/Down keeps the
+current column. Action IDs map to constant command objects, so they cannot carry that argument.
 
 ## Layers
 
@@ -63,24 +72,29 @@ has two `input.paste` upgrade paths:
 - With a nested editor open, if the pasted text is a valid markdown table fragment it is intercepted and routed through `buildMultiCellPasteRewrite` (using the active cell as the anchor) — the same path as Ctrl+V in selection mode. Without this interception the guard's normal sanitization path would treat the fragment as plain text and paste it into the single active cell.
 - With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and attach an open-cell request for header cell `(0,0)` to the paste transaction.
 
-The explicit "insert table" command always uses `buildRootTableInsertRewrite` directly, regardless of cursor
-position — it handles blank-line padding for both block-boundary and mid-line cases. The paste normalizer
+The explicit table-creation command (`insertTable.ts`) always uses `buildRootTableInsertRewrite` directly, regardless of
+cursor position — it handles blank-line padding for both block-boundary and mid-line cases. The paste normalizer
 tries `buildIsolatedRootTableInsertRewrite` first (returns null if the cursor is not at a block boundary) and
 falls back to `buildRootTableInsertRewrite`, so both paths share the same blank-line separation rules.
 
-### 2. Runtime Mutation Helpers (`tableRuntime/operations/runStructuralMutation.ts`)
+### 2. Runtime Command Runner (`tableRuntime/operations/runStructuralCommand.ts`)
 
-`runStructuralMutation.ts` has one shared preparation core that receives a `ResolvedActiveCell` plus a
-`StructuralTableCommand` and orchestrates:
+`runStructuralCommand.ts` is the runtime mutation orchestrator. It receives a `ResolvedActiveCell` plus a
+`StructuralTableCommand` and:
 
 1. **Use Resolved Context**: Reuse the resolved table span, `TableContext`, and logical active cell.
 2. **Apply Command Semantics**: Call `structuralCommandSemantics.ts` to obtain `{ table, targetCell }`.
 3. **Short-circuit**: Exit on no-op.
-4. **Serialize**: `table.serialize()` → Markdown.
+4. **Serialize**: `table.serializeWithOffsets()` → Markdown plus cell offsets.
 5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
-6. **Dispatch**: `runStructuralMutationAndReopen()` replaces the table range when needed, sets the
-   main-editor selection, registers an explicit open-cell request, dispatches its id-only open signal,
-   marks the transaction with `structuralTableEditEffect`, and restores main-editor focus after a successful dispatch.
+6. **Dispatch**: Replace the table range when needed, set the main-editor selection, register an explicit
+   open-cell request, dispatch its id-only open signal, mark the transaction with `structuralTableEditEffect`,
+   and restore main-editor focus after a successful dispatch.
+
+The runner derives row-insertion cursor placement from the command: `insertRowBefore` and `insertRowAfter` reopen with
+`initialCursorPos: 'start'`; other surviving-table commands pass `initialCursorPos: undefined` and mirror the main
+selection. Whole-table deletion uses the same runner but clears active-cell state instead of reopening a cell. The
+runner owns focus handoff and suppresses navigation keys until every surviving-table reopen settles.
 
 `structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
 toolbar buttons do not maintain separate switchboards.
@@ -91,17 +105,10 @@ toolbar buttons do not maintain separate switchboards.
   or a table-deletion result.
 - It does not import CodeMirror or runtime state.
 
-`structuralOperations.ts` is the runtime adapter on top of the runner:
-
-- It forwards canonical `StructuralTableCommand` objects to `runStructuralMutationAndReopen()`.
-- Row-insert commands reopen with `initialCursorPos: 'start'`; other commands omit it and mirror the main selection.
-- The runner owns focus handoff and suppresses navigation keys until every surviving-table reopen settles.
-
-All surviving-table structural mutations use `runStructuralMutationAndReopen()`: row/column insert,
-delete, move, clear, and alignment updates. Whole-table deletion uses the same runner but clears active-cell state
-instead of reopening a cell. That means command-driven structural edits don't rely on lifecycle
-inferring reopen intent from the structural-edit signal. Reopen intent is explicit: if a transition should reopen,
-it must dispatch an open-cell request alongside the signal.
+All surviving-table structural mutations use `runStructuralCommand()`: row/column insert, delete, move, clear, and
+alignment updates. That means command-driven structural edits don't rely on lifecycle inferring reopen intent from the
+structural-edit signal. Reopen intent is explicit: if a transition should reopen, it must dispatch an open-cell request
+alongside the signal.
 
 ### 3. Runtime Model (`MarkdownTable.ts`)
 

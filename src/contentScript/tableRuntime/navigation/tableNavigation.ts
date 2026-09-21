@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
-import { runStructuralCommand } from '../operations/structuralOperations';
+import { runStructuralCommand } from '../operations/runStructuralCommand';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
 import { isSameCellCoords } from '../../tableModel/types';
 import { getTableGridBounds } from '../../tableModel/tableContext';

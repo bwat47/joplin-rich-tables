@@ -2,29 +2,25 @@ import { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { runStructuralMutationAndReopen } from '../tableRuntime/operations/runStructuralMutation';
+import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import type { StructuralTableCommand } from '../tableModel/structuralCommandSemantics';
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import { runStructuralCommand } from '../tableRuntime/operations/structuralOperations';
 
 // Mock dependencies
-vi.mock('../tableRuntime/operations/runStructuralMutation', () => ({
-    runStructuralMutationAndReopen: vi.fn(),
+vi.mock('../tableRuntime/operations/runStructuralCommand', () => ({
+    runStructuralCommand: vi.fn(),
 }));
 vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     getResolvedActiveCell: vi.fn(),
 }));
 
 describe('tableCommands', () => {
-    let mockView: EditorView;
-    let mockRunStructuralMutationAndReopen: Mock;
+    let mockRunStructuralCommand: Mock;
     let mockGetResolvedActiveCell: Mock;
 
     beforeEach(() => {
-        mockView = {} as unknown as EditorView;
-        mockRunStructuralMutationAndReopen = runStructuralMutationAndReopen as Mock;
-        mockRunStructuralMutationAndReopen.mockClear();
+        mockRunStructuralCommand = runStructuralCommand as Mock;
+        mockRunStructuralCommand.mockClear();
         mockGetResolvedActiveCell = getResolvedActiveCell as Mock;
         mockGetResolvedActiveCell.mockReset();
     });
@@ -51,29 +47,6 @@ describe('tableCommands', () => {
                 cellRanges: { headers: [], rows: [] },
             },
         }) satisfies ResolvedActiveCell;
-
-    describe('runtime structural operations', () => {
-        it.each([
-            { command: { type: 'insertRowAfter' }, initialCursorPos: 'start' },
-            { command: { type: 'insertColumnAfter' }, initialCursorPos: undefined },
-        ] satisfies Array<{ command: StructuralTableCommand; initialCursorPos?: 'start' }>)(
-            'gives $command.type an initialCursorPos of $initialCursorPos',
-            ({ command, initialCursorPos }) => {
-                const resolvedCell = createResolvedCell(createCell('body', 1, 1));
-
-                runStructuralCommand(mockView, resolvedCell, command);
-
-                expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        view: mockView,
-                        resolvedCell,
-                        command,
-                    })
-                );
-                expect(mockRunStructuralMutationAndReopen.mock.calls[0][0].initialCursorPos).toBe(initialCursorPos);
-            }
-        );
-    });
 
     describe('registerTableCommands', () => {
         function createEditorControl() {
@@ -107,13 +80,9 @@ describe('tableCommands', () => {
 
             expect(result).toBeUndefined();
             expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(editorControl.cm6.state);
-            expect(mockRunStructuralMutationAndReopen).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    view: editorControl.cm6,
-                    resolvedCell,
-                    initialCursorPos: 'start',
-                })
-            );
+            expect(mockRunStructuralCommand).toHaveBeenCalledWith(editorControl.cm6, resolvedCell, {
+                type: 'insertRowAfter',
+            });
         });
 
         it('returns false and does not run an action when no active cell resolves', () => {
@@ -125,7 +94,7 @@ describe('tableCommands', () => {
 
             expect(result).toBe(false);
             expect(mockGetResolvedActiveCell).toHaveBeenCalledWith(editorControl.cm6.state);
-            expect(mockRunStructuralMutationAndReopen).not.toHaveBeenCalled();
+            expect(mockRunStructuralCommand).not.toHaveBeenCalled();
         });
     });
 });
