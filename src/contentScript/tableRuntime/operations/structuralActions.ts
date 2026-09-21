@@ -1,14 +1,12 @@
 import type { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
-import type { StructuralTableCommandById } from '../../tableModel/structuralCommandSemantics';
+import type { StructuralTableCommandById, StructuralTableCommandId } from '../../tableModel/structuralCommandSemantics';
 import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { runStructuralCommand } from './runStructuralCommand';
 
-type ModelBackedStructuralActionId = keyof StructuralTableCommandById;
-type CommandForId<Id extends ModelBackedStructuralActionId> = StructuralTableCommandById[Id];
 type AlignmentStructuralActionId = 'alignLeft' | 'alignCenter' | 'alignRight';
 
-export type StructuralActionId = ModelBackedStructuralActionId | AlignmentStructuralActionId;
+export type StructuralActionId = StructuralTableCommandId | AlignmentStructuralActionId;
 
 const modelBackedCommands = {
     insertRowBefore: { type: 'insertRowBefore' },
@@ -27,7 +25,7 @@ const modelBackedCommands = {
     deleteTable: { type: 'deleteTable' },
     sortColumnAscending: { type: 'sortColumnAscending' },
     sortColumnDescending: { type: 'sortColumnDescending' },
-} satisfies { [Id in ModelBackedStructuralActionId]: CommandForId<Id> };
+} satisfies StructuralTableCommandById;
 
 const alignmentCommands = {
     alignLeft: 'left',
@@ -35,7 +33,7 @@ const alignmentCommands = {
     alignRight: 'right',
 } satisfies Record<AlignmentStructuralActionId, TableAlignment>;
 
-function isModelBackedAction(actionId: StructuralActionId): actionId is ModelBackedStructuralActionId {
+function isModelBackedAction(actionId: StructuralActionId): actionId is StructuralTableCommandId {
     return Object.prototype.hasOwnProperty.call(modelBackedCommands, actionId);
 }
 

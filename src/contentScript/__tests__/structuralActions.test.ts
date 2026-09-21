@@ -54,9 +54,9 @@ describe('structuralActions', () => {
 
     /**
      * Only the alignment actions are worth asserting. `modelBackedCommands` is pinned per key by
-     * `satisfies { [Id in ModelBackedStructuralActionId]: CommandForId<Id> }`, so a transposed
-     * entry there is a compile error; `alignmentCommands` pins only the value type, so a
-     * transposed alignment still compiles and needs a test.
+     * `satisfies StructuralTableCommandById`, so a transposed entry there is a compile error;
+     * `alignmentCommands` pins only the value type, so a transposed alignment still compiles and
+     * needs a test.
      */
     it.each([
         ['alignLeft', 'left'],

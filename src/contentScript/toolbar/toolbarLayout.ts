@@ -21,10 +21,8 @@ import {
 } from './icons';
 import type { StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
-export type ToolbarActionId = StructuralActionId;
-
 export interface ToolbarButtonDescriptor {
-    actionId: ToolbarActionId;
+    actionId: StructuralActionId;
     title: string;
     ariaLabel: string;
     iconFactory: ToolbarIconFactory;

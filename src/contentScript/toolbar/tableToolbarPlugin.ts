@@ -12,11 +12,11 @@ import {
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
-import { getToolbarButtonGroups, renderToolbarButtonGroups, type ToolbarActionId } from './toolbarLayout';
+import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
+import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
@@ -171,7 +171,7 @@ class TableToolbarPlugin {
         );
     }
 
-    private getActionHandler(actionId: ToolbarActionId): () => boolean {
+    private getActionHandler(actionId: StructuralActionId): () => boolean {
         return () => {
             const resolvedCell = getResolvedActiveCell(this.view.state);
             if (!resolvedCell) {
