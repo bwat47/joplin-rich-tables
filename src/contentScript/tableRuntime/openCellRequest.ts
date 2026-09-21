@@ -47,7 +47,6 @@ export interface OpenCellRequestAttachment {
 interface OpenCellRequestOptions {
     clearCellSelection?: boolean;
     initialCursorPos?: InitialCursorPos;
-    requestId?: string;
     suppressKeys?: boolean;
 }
 
@@ -129,7 +128,7 @@ function buildOpenCellRequestEffects(
 export function prepareOpenCellRequestAttachment(
     params: OpenCellRequestOptions & { activeCell: ActiveCell; selectionAnchor: number }
 ): OpenCellRequestAttachment {
-    const requestId = params.requestId ?? createOpenCellRequestId();
+    const requestId = createOpenCellRequestId();
 
     return {
         selection: { anchor: params.selectionAnchor },
@@ -149,7 +148,7 @@ export function prepareOpenCellRequestAttachment(
 export function prepareOpenCellRequestTransaction(
     params: RequestOpenCellParams & { state: EditorState }
 ): PreparedOpenCellRequestTransaction {
-    const requestId = params.requestId ?? createOpenCellRequestId();
+    const requestId = createOpenCellRequestId();
     const entryMode = params.entryMode ?? DEFAULT_CELL_ENTRY_MODE;
     const normalization =
         entryMode === 'repair'
