@@ -8,8 +8,8 @@ import {
     getSelectedTable,
     moveCellCoords,
     setCellSelectionEffect,
-    type CellSelection,
     type CellSelectionDirection,
+    type CellSelectionEndpoints,
 } from '../../tableState/cellSelectionState';
 import type { TableContext } from '../../tableModel/tableContext';
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
@@ -78,7 +78,7 @@ interface SelectionDispatchOptions {
 function dispatchSelectionWithContext(
     view: EditorView,
     ctx: TableContext,
-    selection: CellSelection,
+    selection: CellSelectionEndpoints,
     options: SelectionDispatchOptions
 ): boolean {
     // User-intent coordinates can name a column a ragged row is missing. Identity
@@ -141,7 +141,6 @@ export function setCellDragSelection(
         view,
         ctx,
         {
-            tableFrom: ctx.from,
             anchor,
             focus,
         },
@@ -175,7 +174,6 @@ export function startCellSelectionFromActiveCell(view: EditorView, direction: Ce
         view,
         resolvedActiveCell.ctx,
         {
-            tableFrom: resolvedActiveCell.ctx.from,
             anchor: activeCell,
             focus: moveCellCoords(activeCell, direction),
         },
@@ -211,7 +209,6 @@ export function extendExistingCellSelection(view: EditorView, direction: CellSel
         view,
         ctx,
         {
-            tableFrom: ctx.from,
             anchor: selection.anchor,
             focus: clampedFocus,
         },
@@ -256,7 +253,6 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
             view,
             ctx,
             {
-                tableFrom: ctx.from,
                 anchor: selection.anchor,
                 focus,
             },
@@ -272,7 +268,6 @@ export function setOrExtendCellSelectionToCoords(view: EditorView, focus: CellCo
             view,
             resolvedActiveCell.ctx,
             {
-                tableFrom: resolvedActiveCell.ctx.from,
                 anchor: activeCell,
                 focus,
             },

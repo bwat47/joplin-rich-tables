@@ -4,10 +4,13 @@ import { getTableContextStartingAt } from './tableContextField';
 import type { TableContext } from '../tableModel/tableContext';
 import { toUnifiedRowIndex, type CellCoords, type TableRect } from '../tableModel/types';
 
-export interface CellSelection {
-    tableFrom: number;
+export interface CellSelectionEndpoints {
     anchor: CellCoords;
     focus: CellCoords;
+}
+
+export interface CellSelection extends CellSelectionEndpoints {
+    tableFrom: number;
 }
 
 export type SelectionRect = TableRect;
