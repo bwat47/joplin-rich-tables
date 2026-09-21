@@ -8,7 +8,7 @@ import {
     toSelectionRect,
     type CellSelection,
 } from '../tableState/cellSelectionState';
-import { fromUnifiedRow, toUnifiedRow } from '../tableModel/types';
+import { fromUnifiedRow, toUnifiedRow, type CellCoords } from '../tableModel/types';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -45,8 +45,10 @@ describe('cellSelectionState', () => {
     });
 
     it('round-trips unified row helpers', () => {
-        expect(toUnifiedRow({ section: 'header', row: 0, col: 2 })).toBe(0);
-        expect(toUnifiedRow({ section: 'body', row: 2, col: 2 })).toBe(3);
+        const bodyCell: CellCoords = { section: 'body', row: 2, col: 2 };
+        expect(toUnifiedRow({ section: 'header', row: 0 })).toBe(0);
+        expect(toUnifiedRow({ section: 'body', row: 2 })).toBe(3);
+        expect(toUnifiedRow(bodyCell)).toBe(3); // a full CellCoords still satisfies the address
         expect(fromUnifiedRow(0, 1)).toEqual({ section: 'header', row: 0, col: 1 });
         expect(fromUnifiedRow(3, 1)).toEqual({ section: 'body', row: 2, col: 1 });
     });

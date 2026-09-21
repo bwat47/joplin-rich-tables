@@ -5,7 +5,7 @@ import {
 } from './lezerTableSyntax';
 import { normalizeBrTags } from '../shared/cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
-import { toUnifiedRowIndex, type CellCoords, type TableRect, type TableSection } from './types';
+import { toUnifiedRow, type CellCoords, type TableRect, type TableSection } from './types';
 import { compareRawMarkdownCells, type TableSortDirection } from './rawMarkdownSort';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
@@ -205,7 +205,7 @@ function isRectangularFragment(cells: readonly (readonly string[])[], colCount: 
  * anchor is out of bounds or the fragment is empty/ragged.
  */
 function resolvePasteGeometry(anchor: CellCoords, fragment: ClipboardTableFragment): PasteGeometry | null {
-    const anchorRow = toUnifiedRowIndex(anchor.section, anchor.row);
+    const anchorRow = toUnifiedRow(anchor);
     if (anchorRow < 0 || anchor.col < 0) {
         return null;
     }
@@ -414,7 +414,7 @@ export class MarkdownTable {
             columnCount: this.columnCount,
             rowCount: this.rowCount,
             cellOffset(coords: CellCoords): number | null {
-                const rowIndex = toUnifiedRowIndex(coords.section, coords.row);
+                const rowIndex = toUnifiedRow(coords);
                 // Unified row 0 is the header on line 0; row N is a body row below the separator.
                 const lineIndex = rowIndex === 0 ? 0 : rowIndex + 1;
                 const cells = rows[lineIndex];
@@ -770,7 +770,7 @@ export class MarkdownTable {
             return this;
         }
 
-        const currentRowIndex = toUnifiedRowIndex(section, rowIndex);
+        const currentRowIndex = toUnifiedRow({ section, row: rowIndex });
 
         return this.swapRows(currentRowIndex, currentRowIndex + ROW_MOVE_OFFSETS[direction]);
     }

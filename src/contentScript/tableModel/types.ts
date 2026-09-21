@@ -53,16 +53,12 @@ export interface TableGridBounds {
     totalCols: number;
 }
 
-export function toUnifiedRowIndex(section: TableSection, row: number): number {
-    return section === 'header' ? 0 : row + 1;
-}
+/** A section-relative row address: the part of `CellCoords` that determines the unified row. */
+export type UnifiedRowAddress = Pick<CellCoords, 'section' | 'row'>;
 
-/**
- * Converts `CellCoords` to its unified row index. Convenience wrapper over
- * `toUnifiedRowIndex` for the common case of a whole coordinate.
- */
-export function toUnifiedRow(coords: CellCoords): number {
-    return toUnifiedRowIndex(coords.section, coords.row);
+/** Converts a section-relative row address to its unified row index: header = 0, body = 1+. */
+export function toUnifiedRow(coords: UnifiedRowAddress): number {
+    return coords.section === 'header' ? 0 : coords.row + 1;
 }
 
 /** Inverse of `toUnifiedRow`: splits a unified row index back into section-relative coords. */
