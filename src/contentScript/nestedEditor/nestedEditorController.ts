@@ -15,6 +15,7 @@ import { ensureCellWrapper } from './mounting';
 import {
     getResolvedActiveCell,
     resolveActiveCell,
+    type CellContentRange,
     type ResolvedActiveCell,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
@@ -191,7 +192,7 @@ class NestedEditorController {
         this.rebaseLocalEditorFromRoot();
     }
 
-    close(params?: { contentFrom?: number; contentTo?: number }): void {
+    close(params?: CellContentRange): void {
         const session = this.session;
         const mainView = this.mainView;
 
@@ -237,12 +238,12 @@ class NestedEditorController {
      * cell keeps the rendering it had before the session opened.
      */
     private resolveCellRangeForClose(
-        params: { contentFrom?: number; contentTo?: number } | undefined,
+        params: CellContentRange | undefined,
         session: NestedEditorSession | null,
         mainView: EditorView | null
-    ): { contentFrom: number; contentTo: number } | null {
-        if (params?.contentFrom != null && params?.contentTo != null) {
-            return { contentFrom: params.contentFrom, contentTo: params.contentTo };
+    ): CellContentRange | null {
+        if (params) {
+            return params;
         }
 
         if (session && mainView) {
@@ -463,7 +464,7 @@ export function openNestedEditor(params: OpenNestedEditorParams): boolean {
     return true;
 }
 
-export function closeNestedEditor(view: EditorView, params?: { contentFrom?: number; contentTo?: number }): void {
+export function closeNestedEditor(view: EditorView, params?: CellContentRange): void {
     getController(view)?.close(params);
 }
 

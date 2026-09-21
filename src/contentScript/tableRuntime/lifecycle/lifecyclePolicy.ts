@@ -1,5 +1,5 @@
 import type { CellEntryMode } from '../openCellRequest';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import type { CellContentRange, ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 
 export type ActiveCellFacts =
     | { status: 'absent' }
@@ -12,8 +12,6 @@ export type ActiveCellFacts =
       };
 
 type ResolvedActiveCellFacts = Extract<ActiveCellFacts, { status: 'resolved' }>;
-
-type MappedCellRange = Pick<ResolvedActiveCell, 'contentFrom' | 'contentTo'>;
 
 export interface TableRuntimeFacts {
     // Post-update editor state
@@ -65,7 +63,7 @@ export type TableRuntimeAction =
           type: 'closeNestedEditor';
           // Set for closes whose widget stays mounted, so the re-rendered text lands in the cell's
           // range after the update.
-          mappedRange?: MappedCellRange;
+          mappedRange?: CellContentRange;
       }
     | { type: 'syncMainToNested'; resolvedCell: ResolvedActiveCell }
     | { type: 'clearActiveCell' }
@@ -179,7 +177,7 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
  * the post-update state is the session's own cell mapped through the transaction, so its range is
  * correct even when the same transaction edited the document or shifted the table.
  */
-function getMappedCellRange(activeCell: ActiveCellFacts): MappedCellRange | undefined {
+function getMappedCellRange(activeCell: ActiveCellFacts): CellContentRange | undefined {
     if (activeCell.status !== 'resolved') {
         return undefined;
     }

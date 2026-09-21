@@ -14,6 +14,8 @@ export interface ResolvedActiveCell {
     editableTo: number;
 }
 
+export type CellContentRange = Pick<ResolvedActiveCell, 'contentFrom' | 'contentTo'>;
+
 /** Builds a resolved cell from coordinates already known to name `range` in `ctx`. */
 export function toResolvedActiveCell(params: {
     ctx: TableContext;
