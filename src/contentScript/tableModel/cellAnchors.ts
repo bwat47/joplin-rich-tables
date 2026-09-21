@@ -3,8 +3,7 @@ import type { SerializedTable } from './MarkdownTable';
 import type { CellCoords } from './types';
 import { clamp } from '../shared/numberUtils';
 
-export type TargetCell = CellCoords;
-export interface TableCellAnchor extends TargetCell {
+export interface TableCellAnchor extends CellCoords {
     anchorOffset: number;
 }
 
@@ -18,7 +17,7 @@ export interface ClampedCell {
  *
  * Every parsed row has at least one cell, so clamping always lands on a real one.
  */
-export function clampCellToRanges(ranges: TableCellRanges, target: TargetCell): ClampedCell {
+export function clampCellToRanges(ranges: TableCellRanges, target: CellCoords): ClampedCell {
     const safeCol = clamp(target.col, 0, ranges.headers.length - 1);
 
     // A table without body rows falls back to its header.
@@ -35,7 +34,7 @@ export function clampCellToRanges(ranges: TableCellRanges, target: TargetCell): 
 }
 
 /** A serialized table is rectangular, so clamping needs only its column and row counts. */
-function clampTargetToTable(serialized: SerializedTable, target: TargetCell): TargetCell | null {
+function clampTargetToTable(serialized: SerializedTable, target: CellCoords): CellCoords | null {
     const colCount = serialized.columnCount;
     if (colCount <= 0) {
         return null;
@@ -59,7 +58,7 @@ function clampTargetToTable(serialized: SerializedTable, target: TargetCell): Ta
  */
 export function computeCellAnchorForTable(params: {
     serialized: SerializedTable;
-    target: TargetCell;
+    target: CellCoords;
 }): TableCellAnchor | null {
     const clamped = clampTargetToTable(params.serialized, params.target);
     if (!clamped) {

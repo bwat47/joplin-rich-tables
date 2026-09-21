@@ -1,10 +1,6 @@
 import type { SerializedTable } from '../../tableModel/MarkdownTable';
-import {
-    clampCellToRanges,
-    computeCellAnchorForTable,
-    type TargetCell,
-    type TableCellAnchor,
-} from '../../tableModel/cellAnchors';
+import { clampCellToRanges, computeCellAnchorForTable, type TableCellAnchor } from '../../tableModel/cellAnchors';
+import type { CellCoords } from '../../tableModel/types';
 import type { ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
 import { toResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
@@ -29,7 +25,7 @@ function toActiveCellSelectionTarget(tableFrom: number, anchor: TableCellAnchor)
 export function createActiveCellForTable(params: {
     tableFrom: number;
     serialized: SerializedTable;
-    target: TargetCell;
+    target: CellCoords;
 }): ActiveCellSelectionTarget | null {
     const anchor = computeCellAnchorForTable({
         serialized: params.serialized,
@@ -59,7 +55,7 @@ export function createFirstActiveCellForTable(params: {
  * Cell identity read back from editor state must never be clamped: `createResolvedActiveCell`
  * returning null is how the lifecycle learns that an active cell no longer exists.
  */
-export function resolveClampedCell(params: { ctx: TableContext; target: TargetCell }): ResolvedActiveCell {
+export function resolveClampedCell(params: { ctx: TableContext; target: CellCoords }): ResolvedActiveCell {
     const { coords, range } = clampCellToRanges(params.ctx.cellRanges, params.target);
     return toResolvedActiveCell({ ctx: params.ctx, coords, range });
 }

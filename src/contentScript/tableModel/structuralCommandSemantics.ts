@@ -1,5 +1,4 @@
 import { MarkdownTable, type TableAlignment } from './MarkdownTable';
-import type { TargetCell } from './cellAnchors';
 import type { CellCoords } from './types';
 import type { TableSortDirection } from './rawMarkdownSort';
 
@@ -67,7 +66,7 @@ export type StructuralTableCommand =
 interface StructuralTableMutationResult {
     kind: 'table';
     table: MarkdownTable;
-    targetCell: TargetCell;
+    targetCell: CellCoords;
 }
 
 interface StructuralTableDeleteResult {
@@ -76,36 +75,32 @@ interface StructuralTableDeleteResult {
 
 export type StructuralTableCommandResult = StructuralTableMutationResult | StructuralTableDeleteResult;
 
-function sameCell(cell: CellCoords): TargetCell {
-    return cell;
-}
-
 function commandResult(
     originalTable: MarkdownTable,
     activeCell: CellCoords,
     table: MarkdownTable,
-    targetCell: TargetCell
+    targetCell: CellCoords
 ): StructuralTableMutationResult {
     return {
         kind: 'table',
         table,
-        targetCell: table === originalTable ? sameCell(activeCell) : targetCell,
+        targetCell: table === originalTable ? activeCell : targetCell,
     };
 }
 
-function targetInsertedRowBefore(cell: CellCoords): TargetCell {
+function targetInsertedRowBefore(cell: CellCoords): CellCoords {
     return cell.section === 'header'
         ? { section: 'header', row: 0, col: cell.col }
         : { section: 'body', row: cell.row, col: cell.col };
 }
 
-function targetInsertedRowAfter(cell: CellCoords, targetCol: number = cell.col): TargetCell {
+function targetInsertedRowAfter(cell: CellCoords, targetCol: number = cell.col): CellCoords {
     return cell.section === 'header'
         ? { section: 'body', row: 0, col: targetCol }
         : { section: 'body', row: cell.row + 1, col: targetCol };
 }
 
-function targetDeletedRow(cell: CellCoords, table: MarkdownTable): TargetCell {
+function targetDeletedRow(cell: CellCoords, table: MarkdownTable): CellCoords {
     if (cell.section === 'header') {
         return { section: 'header', row: 0, col: cell.col };
     }
@@ -121,7 +116,7 @@ function targetDeletedRow(cell: CellCoords, table: MarkdownTable): TargetCell {
     return { section: 'header', row: 0, col: cell.col };
 }
 
-function targetDeletedColumn(cell: CellCoords, table: MarkdownTable): TargetCell {
+function targetDeletedColumn(cell: CellCoords, table: MarkdownTable): CellCoords {
     return {
         section: cell.section,
         row: cell.row,
@@ -159,7 +154,7 @@ function deleteRowResult(table: MarkdownTable, activeCell: CellCoords): Structur
 
 function deleteColumnResult(table: MarkdownTable, activeCell: CellCoords): StructuralTableCommandResult {
     if (!isValidColumn(table, activeCell.col)) {
-        return commandResult(table, activeCell, table, sameCell(activeCell));
+        return commandResult(table, activeCell, table, activeCell);
     }
 
     if (table.columnCount === 1) {
@@ -169,13 +164,13 @@ function deleteColumnResult(table: MarkdownTable, activeCell: CellCoords): Struc
     return commandResult(table, activeCell, table.deleteColumn(activeCell.col), targetDeletedColumn(activeCell, table));
 }
 
-function targetMovedRowUp(cell: CellCoords): TargetCell {
+function targetMovedRowUp(cell: CellCoords): CellCoords {
     return cell.row === 0
         ? { section: 'header', row: 0, col: cell.col }
         : { section: 'body', row: cell.row - 1, col: cell.col };
 }
 
-function targetMovedRowDown(cell: CellCoords): TargetCell {
+function targetMovedRowDown(cell: CellCoords): CellCoords {
     return cell.section === 'header'
         ? { section: 'body', row: 0, col: cell.col }
         : { section: 'body', row: cell.row + 1, col: cell.col };
@@ -193,7 +188,7 @@ function sortColumnResult(
                   ...activeCell,
                   row: result.sortedIndexByOriginalIndex[activeCell.row] ?? activeCell.row,
               }
-            : sameCell(activeCell);
+            : activeCell;
 
     return commandResult(table, activeCell, result.table, targetCell);
 }
@@ -219,7 +214,7 @@ export function applyStructuralTableCommand(
                 targetInsertedRowAfter(activeCell, command.targetCol)
             );
         case 'insertColumnBefore':
-            return commandResult(table, activeCell, table.insertColumn(activeCell.col, 'before'), sameCell(activeCell));
+            return commandResult(table, activeCell, table.insertColumn(activeCell.col, 'before'), activeCell);
         case 'insertColumnAfter':
             return commandResult(table, activeCell, table.insertColumn(activeCell.col, 'after'), {
                 section: activeCell.section,
@@ -255,22 +250,17 @@ export function applyStructuralTableCommand(
                 col: activeCell.col + 1,
             });
         case 'clearTable':
-            return commandResult(table, activeCell, table.clearAllCells(), sameCell(activeCell));
+            return commandResult(table, activeCell, table.clearAllCells(), activeCell);
         case 'clearRow':
-            return commandResult(
-                table,
-                activeCell,
-                table.clearRow(activeCell.section, activeCell.row),
-                sameCell(activeCell)
-            );
+            return commandResult(table, activeCell, table.clearRow(activeCell.section, activeCell.row), activeCell);
         case 'clearColumn':
-            return commandResult(table, activeCell, table.clearColumn(activeCell.col), sameCell(activeCell));
+            return commandResult(table, activeCell, table.clearColumn(activeCell.col), activeCell);
         case 'alignColumn':
             return commandResult(
                 table,
                 activeCell,
                 table.updateColumnAlignment(activeCell.col, command.alignment),
-                sameCell(activeCell)
+                activeCell
             );
         case 'deleteTable':
             return { kind: 'deleteTable' };
