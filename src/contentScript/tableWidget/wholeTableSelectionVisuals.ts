@@ -5,7 +5,7 @@ import {
     CELL_TAGS,
     CLASS_TABLE_WIDGET_SELECTED,
     CLASS_TABLE_WIDGET_TABLE,
-    getWidgetSelector,
+    SELECTOR_WIDGET,
 } from './domHelpers';
 import { getTableContextsWithin } from '../tableState/tableContextField';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
@@ -46,7 +46,7 @@ function collectSelectedTableWidgets(view: EditorView): HTMLElement[] {
 
     const selectedWidgets: HTMLElement[] = [];
 
-    for (const widget of view.contentDOM.querySelectorAll<HTMLElement>(getWidgetSelector())) {
+    for (const widget of view.contentDOM.querySelectorAll<HTMLElement>(SELECTOR_WIDGET)) {
         if (selectedTableStarts.has(view.posAtDOM(widget))) {
             selectedWidgets.push(widget);
         }
@@ -55,7 +55,7 @@ function collectSelectedTableWidgets(view: EditorView): HTMLElement[] {
     return selectedWidgets;
 }
 
-const SELECTED_WIDGET = `${getWidgetSelector()}.${CLASS_TABLE_WIDGET_SELECTED}`;
+const SELECTED_WIDGET = `${SELECTOR_WIDGET}.${CLASS_TABLE_WIDGET_SELECTED}`;
 /**
  * Selector for the widget's own cells inside a selected table.
  *
@@ -102,10 +102,10 @@ const NATIVE_SELECTION_RESET = {
  * answers with cell rectangles.
  */
 const wholeTableSelectionTheme = EditorView.baseTheme({
-    [`${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
-    [`${getWidgetSelector()} ::selection`]: NATIVE_SELECTION_RESET,
-    [`&.cm-focused ${getWidgetSelector()}::selection`]: NATIVE_SELECTION_RESET,
-    [`&.cm-focused ${getWidgetSelector()} ::selection`]: NATIVE_SELECTION_RESET,
+    [`${SELECTOR_WIDGET}::selection`]: NATIVE_SELECTION_RESET,
+    [`${SELECTOR_WIDGET} ::selection`]: NATIVE_SELECTION_RESET,
+    [`&.cm-focused ${SELECTOR_WIDGET}::selection`]: NATIVE_SELECTION_RESET,
+    [`&.cm-focused ${SELECTOR_WIDGET} ::selection`]: NATIVE_SELECTION_RESET,
 
     [SELECTED_WIDGET]: {
         backgroundColor: 'var(--rt-selection-bg)',

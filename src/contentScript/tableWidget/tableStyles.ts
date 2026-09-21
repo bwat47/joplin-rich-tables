@@ -7,7 +7,7 @@ import {
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
 } from '../shared/tableDomClasses';
-import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, getWidgetSelector } from './domHelpers';
+import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, SELECTOR_WIDGET } from './domHelpers';
 
 /**
  * Width of the gridline between cells.
@@ -48,7 +48,7 @@ const tableTheme = EditorView.baseTheme({
     // 1. Widget container and table layout
     // -------------------------------------------------------------------------
 
-    [getWidgetSelector()]: {
+    [SELECTOR_WIDGET]: {
         padding: '8px 0',
         position: 'relative',
         display: 'block',
@@ -57,10 +57,10 @@ const tableTheme = EditorView.baseTheme({
         overflowX: 'auto',
         contain: 'inline-size',
     },
-    [CURSOR_EXEMPT_SELECTORS.map((selector) => `${getWidgetSelector()} ${selector}`).join(', ')]: {
+    [CURSOR_EXEMPT_SELECTORS.map((selector) => `${SELECTOR_WIDGET} ${selector}`).join(', ')]: {
         cursor: 'default',
     },
-    [`${getWidgetSelector()} a[href]`]: {
+    [`${SELECTOR_WIDGET} a[href]`]: {
         cursor: 'pointer',
     },
     [`.${CLASS_TABLE_WIDGET_TABLE}`]: {

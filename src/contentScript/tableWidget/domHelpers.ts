@@ -19,20 +19,7 @@ export const DATA_COL = 'col';
 export const SECTION_HEADER = 'header';
 export const SECTION_BODY = 'body';
 
-/**
- * Returns the CSS selector matching every table widget root.
- *
- * Deliberately position-agnostic: identity comes from `posAtDOM()` via
- * `findTableWidgetElement()`.
- *
- * @returns The CSS selector string.
- *
- * @example
- * getWidgetSelector(); // returns '.cm-table-widget'
- */
-export function getWidgetSelector(): string {
-    return `.${CLASS_TABLE_WIDGET}`;
-}
+export const SELECTOR_WIDGET = `.${CLASS_TABLE_WIDGET}`;
 
 /** Matches the coordinate attributes `TableWidget` writes on every cell it renders. */
 export const CELL_COORDS_ATTRIBUTES = `[data-${DATA_SECTION}][data-${DATA_ROW}][data-${DATA_COL}]`;
@@ -103,7 +90,7 @@ export function readCellCoords(cell: HTMLElement): CellCoords | null {
  */
 export function findTableWidgetElement(view: EditorView, tableFrom: number): HTMLElement | null {
     // Prefer contentDOM so we only scan editor content (not gutters/toolbars).
-    const allWidgets = view.contentDOM.querySelectorAll(getWidgetSelector());
+    const allWidgets = view.contentDOM.querySelectorAll(SELECTOR_WIDGET);
 
     for (const widget of allWidgets) {
         const widgetPos = view.posAtDOM(widget);

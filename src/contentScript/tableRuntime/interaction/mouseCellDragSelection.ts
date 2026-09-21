@@ -10,7 +10,7 @@ import { getViewWindow } from '../../shared/domContext';
 import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
-import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from '../../tableWidget/domHelpers';
+import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from '../../tableWidget/domHelpers';
 import {
     readRenderedCaretHit,
     setRenderedTextSelection,
@@ -297,9 +297,9 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        const widget = cell.closest(getWidgetSelector()) as HTMLElement | null;
+        const widget = cell.closest(SELECTOR_WIDGET) as HTMLElement | null;
         const table = cell.closest('table') as HTMLTableElement | null;
-        if (!widget || !table || table.closest(getWidgetSelector()) !== widget) {
+        if (!widget || !table || table.closest(SELECTOR_WIDGET) !== widget) {
             return false;
         }
 
@@ -395,7 +395,7 @@ class MouseCellDragSelectionController {
     private resolveCellAtClientPoint(clientX: number, clientY: number, gesture: MouseCellGesture): CellCoords | null {
         const element = this.view.dom.ownerDocument.elementFromPoint(clientX, clientY);
         const cell = element?.closest(SELECTOR_CELL) as HTMLElement | null;
-        if (!cell || cell.closest(getWidgetSelector()) !== gesture.widget) {
+        if (!cell || cell.closest(SELECTOR_WIDGET) !== gesture.widget) {
             return null;
         }
 

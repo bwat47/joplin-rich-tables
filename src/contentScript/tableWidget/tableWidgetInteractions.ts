@@ -8,7 +8,7 @@ import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cell
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { linkOpenerFacet } from '../services/linkOpener';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../shared/mouseEvents';
-import { SELECTOR_CELL, getWidgetSelector, readCellCoords } from './domHelpers';
+import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from './domHelpers';
 import { readRenderedCaretHit } from './cellCaretHit';
 import { resolveClickCursorPos } from '../tableRuntime/interaction/clickCursorPlacement';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
@@ -131,7 +131,7 @@ function escapeRegex(str: string): string {
 /** Opens a link clicked inside a rendered cell. */
 export function handleWidgetClick(view: EditorView, event: MouseEvent): boolean {
     const target = event.target as HTMLElement | null;
-    if (!isPrimaryMouseButton(event) || !target?.closest(getWidgetSelector())) {
+    if (!isPrimaryMouseButton(event) || !target?.closest(SELECTOR_WIDGET)) {
         return false;
     }
 
@@ -309,7 +309,7 @@ export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerE
     }
 
     const target = event.target as HTMLElement | null;
-    if (!target?.closest || !target.closest(getWidgetSelector())) {
+    if (!target?.closest || !target.closest(SELECTOR_WIDGET)) {
         return false;
     }
 

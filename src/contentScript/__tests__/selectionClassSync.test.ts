@@ -10,7 +10,7 @@ import {
     type CellSelection,
 } from '../tableState/cellSelectionState';
 import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
-import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_SELECTED, getWidgetSelector } from '../tableWidget/domHelpers';
+import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_SELECTED, SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
 import { createMarkdownState } from './testMarkdownState';
@@ -59,7 +59,7 @@ function mountView(): EditorView {
 }
 
 function getWidget(view: EditorView): HTMLElement {
-    const widget = view.contentDOM.querySelector<HTMLElement>(getWidgetSelector());
+    const widget = view.contentDOM.querySelector<HTMLElement>(SELECTOR_WIDGET);
     if (!widget) {
         throw new Error('Expected a rendered table widget');
     }

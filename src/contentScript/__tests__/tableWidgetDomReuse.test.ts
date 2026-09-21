@@ -7,7 +7,7 @@ import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
-import { getWidgetSelector } from '../tableWidget/domHelpers';
+import { SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
 import { createResizeObserverStub, installRangeLayoutStubs } from './tableEditorFixtures';
@@ -145,13 +145,13 @@ describe('TableWidget DOM reuse', () => {
             const { parent, view } = createRealView(`${TABLE_TEXT}\n\noutro`);
 
             try {
-                const originalTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
+                const originalTable = view.contentDOM.querySelector(`${SELECTOR_WIDGET} table`);
                 expect(originalTable).not.toBeNull();
 
                 // An edit away from the table re-renders its decoration without changing its text or position.
                 view.dispatch({ changes: { from: view.state.doc.length, insert: ' text' } });
 
-                expect(view.contentDOM.querySelector(`${getWidgetSelector()} table`)).toBe(originalTable);
+                expect(view.contentDOM.querySelector(`${SELECTOR_WIDGET} table`)).toBe(originalTable);
             } finally {
                 view.destroy();
                 parent.remove();
@@ -163,14 +163,14 @@ describe('TableWidget DOM reuse', () => {
             const prefix = 'intro\n\n';
 
             try {
-                const originalWidget = view.contentDOM.querySelector(getWidgetSelector());
+                const originalWidget = view.contentDOM.querySelector(SELECTOR_WIDGET);
                 const originalTable = originalWidget?.querySelector('table');
                 expect(originalWidget).not.toBeNull();
                 expect(originalTable).not.toBeNull();
 
                 view.dispatch({ changes: { from: 0, insert: prefix } });
 
-                const movedWidget = view.contentDOM.querySelector(getWidgetSelector());
+                const movedWidget = view.contentDOM.querySelector(SELECTOR_WIDGET);
                 expect(movedWidget?.querySelector('table')).toBe(originalTable);
                 if (!movedWidget) throw new Error('Expected the moved table widget');
                 expect(view.posAtDOM(movedWidget)).toBe(prefix.length);
@@ -184,7 +184,7 @@ describe('TableWidget DOM reuse', () => {
             const { parent, view } = createRealView(TABLE_TEXT);
 
             try {
-                const originalTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
+                const originalTable = view.contentDOM.querySelector(`${SELECTOR_WIDGET} table`);
                 expect(originalTable).not.toBeNull();
 
                 const editedCellFrom = TABLE_TEXT.lastIndexOf('b');
@@ -196,7 +196,7 @@ describe('TableWidget DOM reuse', () => {
                     },
                 });
 
-                const editedTable = view.contentDOM.querySelector(`${getWidgetSelector()} table`);
+                const editedTable = view.contentDOM.querySelector(`${SELECTOR_WIDGET} table`);
                 expect(editedTable).not.toBe(originalTable);
                 expect(editedTable?.textContent).toContain('CHANGED');
             } finally {

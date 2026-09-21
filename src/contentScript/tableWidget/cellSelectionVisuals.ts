@@ -7,8 +7,8 @@ import {
     CLASS_CELL_SELECTED,
     CLASS_TABLE_WIDGET_TABLE,
     SELECTOR_CELL,
+    SELECTOR_WIDGET,
     findTableWidgetElement,
-    getWidgetSelector,
     readCellCoords,
 } from './domHelpers';
 import { measuredClassSyncPlugin } from './measuredClassSync';
@@ -87,7 +87,7 @@ const cellDragFocusOverride: Extension = EditorView.baseTheme({
  * Every widget is covered: no other table has a text selection to make during that gesture.
  */
 const cellDragTextSelectionSuppression: Extension = EditorView.baseTheme({
-    [`&[${ATTR_CELL_DRAG}] ${getWidgetSelector()}`]: { userSelect: 'none' },
+    [`&[${ATTR_CELL_DRAG}] ${SELECTOR_WIDGET}`]: { userSelect: 'none' },
 });
 
 /** Multi-cell selection visuals: the class on each selected cell, and the fill it carries. */

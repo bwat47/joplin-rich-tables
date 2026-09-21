@@ -3,7 +3,7 @@ import { EditorView, ViewPlugin } from '@codemirror/view';
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
-import { CLASS_FLOATING_TOOLBAR, getWidgetSelector } from '../../tableWidget/domHelpers';
+import { CLASS_FLOATING_TOOLBAR, SELECTOR_WIDGET } from '../../tableWidget/domHelpers';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { logger } from '../../../logger';
 
@@ -18,7 +18,7 @@ function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null
 /** True when the event landed on the table widget, a cell editor, or the floating toolbar. */
 function isInsideTableUi(target: Element): boolean {
     return Boolean(
-        target.closest(getWidgetSelector()) ||
+        target.closest(SELECTOR_WIDGET) ||
         target.closest(`.${CLASS_CELL_EDITOR}`) ||
         target.closest(`.${CLASS_FLOATING_TOOLBAR}`)
     );

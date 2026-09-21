@@ -11,7 +11,7 @@ import { tableContextField } from '../tableState/tableContextField';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
 import { getResolvedActiveCell, resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { findCellElement, getWidgetSelector } from '../tableWidget/domHelpers';
+import { SELECTOR_WIDGET, findCellElement } from '../tableWidget/domHelpers';
 import {
     TEST_HOST_CONFIG,
     createFrameQueue,
@@ -122,7 +122,7 @@ describe('nested editor undo regression', () => {
             })
         ).toBe(true);
 
-        const activeWidget = cellElement.closest(getWidgetSelector());
+        const activeWidget = cellElement.closest(SELECTOR_WIDGET);
         const nestedEditorDom = cellElement.querySelector('.cm-editor');
         const resolved = getResolvedActiveCell(view.state);
         if (!resolved) throw new Error('Expected active cell to resolve');
@@ -135,7 +135,7 @@ describe('nested editor undo regression', () => {
         view.dispatch({ changes: { from: tableBCellFrom, to: tableBCellFrom + 'stale'.length, insert: 'fresh' } });
 
         expect(isNestedEditorOpen(view)).toBe(true);
-        expect(cellElement.closest(getWidgetSelector())).toBe(activeWidget);
+        expect(cellElement.closest(SELECTOR_WIDGET)).toBe(activeWidget);
         expect(cellElement.querySelector('.cm-editor')).toBe(nestedEditorDom);
         expect(cellElement.textContent).toContain('typed');
         expect(view.contentDOM.querySelectorAll('tbody')[1]?.textContent).toContain('fresh');
@@ -231,7 +231,7 @@ describe('nested editor undo regression', () => {
 
             expect(view.state.field(tableContextField).treeIncomplete).toBe(true);
             expect(isNestedEditorOpen(view)).toBe(false);
-            expect(view.contentDOM.querySelector(getWidgetSelector())).toBeNull();
+            expect(view.contentDOM.querySelector(SELECTOR_WIDGET)).toBeNull();
             expect(view.state.doc.sliceString(0, doc.length)).toBe(doc);
             await frames.flush();
 
@@ -239,7 +239,7 @@ describe('nested editor undo regression', () => {
             expect(ensureSyntaxTree(view.state, view.state.doc.length, completeParseTimeoutMs)).not.toBeNull();
             view.dispatch({});
             expect(view.state.field(tableDecorationField).decorations.size).toBe(appendedTableCount + 1);
-            expect(view.contentDOM.querySelector(getWidgetSelector())).not.toBeNull();
+            expect(view.contentDOM.querySelector(SELECTOR_WIDGET)).not.toBeNull();
             expect(isNestedEditorOpen(view)).toBe(false);
         } finally {
             view.destroy();
@@ -302,7 +302,7 @@ describe('nested editor undo regression', () => {
         expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
         expect(isNestedEditorOpen(view)).toBe(true);
         expect(cellElement.querySelector('.cm-editor')).toBeNull();
-        const focusedWidget = document.activeElement?.closest(getWidgetSelector());
+        const focusedWidget = document.activeElement?.closest(SELECTOR_WIDGET);
         expect(focusedWidget).not.toBeNull();
         if (!focusedWidget) throw new Error('Expected focus inside the restored table widget');
         expect(view.posAtDOM(focusedWidget)).toBe(tableBFrom);
