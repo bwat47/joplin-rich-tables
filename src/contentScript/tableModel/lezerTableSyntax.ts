@@ -31,16 +31,23 @@ export interface ParsedRootMarkdownTableSyntax {
     readonly syntax: MarkdownTableSyntax;
 }
 
-/** Source text plus the document offset of `text[0]`, so absolute node positions can be read. */
+/**
+ * The exact table source plus the document offset of `text[0]`. Absolute node positions
+ * index `text` and rebase to table-relative output through this one offset.
+ */
 interface TableTextSource {
     readonly text: string;
-    readonly base: number;
+    readonly tableFrom: number;
 }
 
 const markdownTableParser = parser.configure([GFM]);
 
-function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: number): MarkdownTableSourceRange {
-    return { from: node.from - tableFrom, to: node.to - tableFrom };
+function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, source: TableTextSource): MarkdownTableSourceRange {
+    return { from: node.from - source.tableFrom, to: node.to - source.tableFrom };
+}
+
+function charAt(source: TableTextSource, position: number): string {
+    return source.text[position - source.tableFrom];
 }
 
 /**
@@ -49,12 +56,12 @@ function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, tableFrom: numbe
  * surface the pad character inside the cell editor. Every other cell shape already arrives
  * trimmed, so this only rewrites the quirk. Returns null when nothing but padding is left.
  */
-function toContentRange(source: TableTextSource, node: SyntaxNode, tableFrom: number): MarkdownTableSourceRange | null {
+function toContentRange(source: TableTextSource, node: SyntaxNode): MarkdownTableSourceRange | null {
     let to = node.to;
-    while (to > node.from && isTablePadding(source.text[to - 1 - source.base])) {
+    while (to > node.from && isTablePadding(charAt(source, to - 1))) {
         to--;
     }
-    return to > node.from ? { from: node.from - tableFrom, to: to - tableFrom } : null;
+    return to > node.from ? toRelativeRange({ from: node.from, to }, source) : null;
 }
 
 /**
@@ -65,7 +72,7 @@ function toContentRange(source: TableTextSource, node: SyntaxNode, tableFrom: nu
 function trimRowEnd(source: TableTextSource, row: SyntaxNode, contentNodes: readonly SyntaxNode[]): number {
     let to = row.to;
     const finalContentTo = contentNodes[contentNodes.length - 1]?.to ?? row.from;
-    while (to > finalContentTo && isTablePadding(source.text[to - 1 - source.base])) {
+    while (to > finalContentTo && isTablePadding(charAt(source, to - 1))) {
         to--;
     }
     return to;
@@ -119,14 +126,15 @@ function matchOrderedContentNode(
 /**
  * Rejecting one node arrangement discards the whole table, so the widget silently
  * disappears for source the editor still shows as a table. Nothing recovers from that
- * at runtime; the log is what makes a field report reproducible.
+ * at runtime; the log is what makes a field report reproducible. Positions are logged
+ * absolute, unlike the returned syntax, so they can be read against the document.
  */
 function rejectUnsupportedShape(reason: string, details: Record<string, unknown>): null {
     logger.debug(`Unsupported Lezer table shape, leaving the table unrendered: ${reason}`, details);
     return null;
 }
 
-function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: number): MarkdownTableSyntaxRow | null {
+function extractRowSyntax(source: TableTextSource, row: SyntaxNode): MarkdownTableSyntaxRow | null {
     const delimiters = row.getChildren('TableDelimiter');
     const contentNodes = row.getChildren('TableCell');
     const rowTo = trimRowEnd(source, row, contentNodes);
@@ -150,8 +158,8 @@ function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: n
         }
 
         cells.push({
-            raw: { from: raw.from - tableFrom, to: raw.to - tableFrom },
-            content: contentNode ? toContentRange(source, contentNode, tableFrom) : null,
+            raw: toRelativeRange(raw, source),
+            content: contentNode ? toContentRange(source, contentNode) : null,
         });
     }
 
@@ -165,8 +173,7 @@ function extractRowSyntax(source: TableTextSource, row: SyntaxNode, tableFrom: n
     }
 
     return {
-        from: row.from - tableFrom,
-        to: rowTo - tableFrom,
+        ...toRelativeRange({ from: row.from, to: rowTo }, source),
         cells,
     };
 }
@@ -188,15 +195,14 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
         });
     }
 
-    const tableFrom = tableNode.from;
-    const header = extractRowSyntax(source, headers[0], tableFrom);
+    const header = extractRowSyntax(source, headers[0]);
     if (!header) {
         return null;
     }
 
     const bodyRows: MarkdownTableSyntaxRow[] = [];
     for (const rowNode of tableNode.getChildren('TableRow')) {
-        const row = extractRowSyntax(source, rowNode, tableFrom);
+        const row = extractRowSyntax(source, rowNode);
         if (!row) {
             return null;
         }
@@ -205,7 +211,7 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
 
     return {
         header,
-        separator: toRelativeRange(separators[0], tableFrom),
+        separator: toRelativeRange(separators[0], source),
         bodyRows,
     };
 }
@@ -215,7 +221,7 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
  * `tableNode` must be a direct child of the document node, and `tableText` the exact source it covers.
  */
 export function extractRootMarkdownTableSyntax(tableNode: SyntaxNode, tableText: string): MarkdownTableSyntax | null {
-    return extractValidatedRootTableSyntax({ text: tableText, base: tableNode.from }, tableNode);
+    return extractValidatedRootTableSyntax({ text: tableText, tableFrom: tableNode.from }, tableNode);
 }
 
 /**
@@ -235,6 +241,7 @@ export function parseRootMarkdownTableSyntax(text: string): ParsedRootMarkdownTa
         return null;
     }
 
-    const syntax = extractValidatedRootTableSyntax({ text, base: 0 }, table);
-    return syntax ? { tableText: text.slice(table.from, table.to), syntax } : null;
+    const tableText = text.slice(table.from, table.to);
+    const syntax = extractValidatedRootTableSyntax({ text: tableText, tableFrom: table.from }, table);
+    return syntax ? { tableText, syntax } : null;
 }
