@@ -15,6 +15,7 @@ import { ensureCellWrapper } from './mounting';
 import {
     getResolvedActiveCell,
     resolveActiveCell,
+    type CellContentRange,
     type ResolvedActiveCell,
 } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
@@ -59,10 +60,6 @@ export interface OpenNestedEditorParams {
     resolvedCell: ResolvedActiveCell;
     featureSettings: NestedEditorHostConfig;
     initialCursorPos?: InitialCursorPos;
-}
-
-function isEditorFocused(view: EditorView | null): boolean {
-    return Boolean(view?.hasFocus);
 }
 
 class NestedEditorController {
@@ -191,7 +188,7 @@ class NestedEditorController {
         this.rebaseLocalEditorFromRoot();
     }
 
-    close(params?: { contentFrom?: number; contentTo?: number }): void {
+    close(params?: CellContentRange): void {
         const session = this.session;
         const mainView = this.mainView;
 
@@ -237,12 +234,12 @@ class NestedEditorController {
      * cell keeps the rendering it had before the session opened.
      */
     private resolveCellRangeForClose(
-        params: { contentFrom?: number; contentTo?: number } | undefined,
+        params: CellContentRange | undefined,
         session: NestedEditorSession | null,
         mainView: EditorView | null
-    ): { contentFrom: number; contentTo: number } | null {
-        if (params?.contentFrom != null && params?.contentTo != null) {
-            return { contentFrom: params.contentFrom, contentTo: params.contentTo };
+    ): CellContentRange | null {
+        if (params) {
+            return params;
         }
 
         if (session && mainView) {
@@ -347,7 +344,7 @@ class NestedEditorController {
         this.forwardLocalStateToRoot(false);
     }
 
-    private syncSelectionToMain(nestedView: EditorView, event?: MouseEvent): void {
+    private syncSelectionToMain(nestedView: EditorView, event: MouseEvent): void {
         if (!this.session || !this.mainView) {
             return;
         }
@@ -363,7 +360,7 @@ class NestedEditorController {
         // WITHOUT moving the nested editor's own selection: collapsing it here would override
         // Chromium's native selection of a misspelled word on right-click and suppress the host's
         // spelling suggestions. The browser positions the nested caret natively on right-click.
-        if (event && nestedView.state.selection.main.empty) {
+        if (nestedView.state.selection.main.empty) {
             const clickedPos = nestedView.posAtCoords({ x: event.clientX, y: event.clientY });
             if (clickedPos != null) {
                 const clamped = clamp(clickedPos, 0, nestedView.state.doc.length);
@@ -416,7 +413,7 @@ class NestedEditorController {
             return;
         }
 
-        const shouldRefocus = isEditorFocused(editor);
+        const shouldRefocus = editor.hasFocus;
         this.session.applyingRootToLocal = true;
         editor.dispatch({
             changes:
@@ -463,7 +460,7 @@ export function openNestedEditor(params: OpenNestedEditorParams): boolean {
     return true;
 }
 
-export function closeNestedEditor(view: EditorView, params?: { contentFrom?: number; contentTo?: number }): void {
+export function closeNestedEditor(view: EditorView, params?: CellContentRange): void {
     getController(view)?.close(params);
 }
 

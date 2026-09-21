@@ -40,14 +40,13 @@ export interface PreparedOpenCellRequestTransaction extends TransactionSpec {
  * type must not be able to carry a `changes` key that would override the caller's.
  */
 export interface OpenCellRequestAttachment {
-    selection?: { anchor: number };
+    selection: { anchor: number };
     effects: StateEffect<unknown>[];
 }
 
 interface OpenCellRequestOptions {
     clearCellSelection?: boolean;
     initialCursorPos?: InitialCursorPos;
-    requestId?: string;
     suppressKeys?: boolean;
 }
 
@@ -127,12 +126,12 @@ function buildOpenCellRequestEffects(
  * the current document to resolve or repair them against: this path never normalizes.
  */
 export function prepareOpenCellRequestAttachment(
-    params: OpenCellRequestOptions & { activeCell: ActiveCell; selectionAnchor?: number }
+    params: OpenCellRequestOptions & { activeCell: ActiveCell; selectionAnchor: number }
 ): OpenCellRequestAttachment {
-    const requestId = params.requestId ?? createOpenCellRequestId();
+    const requestId = createOpenCellRequestId();
 
     return {
-        ...(params.selectionAnchor != null ? { selection: { anchor: params.selectionAnchor } } : {}),
+        selection: { anchor: params.selectionAnchor },
         effects: buildOpenCellRequestEffects({ ...params, requestId }),
     };
 }
@@ -149,7 +148,7 @@ export function prepareOpenCellRequestAttachment(
 export function prepareOpenCellRequestTransaction(
     params: RequestOpenCellParams & { state: EditorState }
 ): PreparedOpenCellRequestTransaction {
-    const requestId = params.requestId ?? createOpenCellRequestId();
+    const requestId = createOpenCellRequestId();
     const entryMode = params.entryMode ?? DEFAULT_CELL_ENTRY_MODE;
     const normalization =
         entryMode === 'repair'
