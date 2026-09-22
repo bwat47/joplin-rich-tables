@@ -45,7 +45,6 @@ interface NestedEditorSession {
     local: NestedEditorTextState;
     root: NestedEditorTextState;
     editor: EditorView | null;
-    applyingRootToLocal: boolean;
 }
 
 export interface OpenNestedEditorParams {
@@ -96,7 +95,6 @@ class NestedEditorController {
             local: { text: localText, selection: localSelection },
             root: { text: rootText, selection: rootSelection },
             editor: null,
-            applyingRootToLocal: false,
         };
 
         const isDarkTheme = params.mainView.state.facet(EditorView.darkTheme);
@@ -276,8 +274,7 @@ class NestedEditorController {
             return;
         }
 
-        const isSync = hasSyncAnnotation(update.transactions);
-        if (isSync || this.session.applyingRootToLocal) {
+        if (hasSyncAnnotation(update.transactions)) {
             return;
         }
 
@@ -409,7 +406,6 @@ class NestedEditorController {
         }
 
         const shouldRefocus = editor.hasFocus;
-        this.session.applyingRootToLocal = true;
         editor.dispatch({
             changes:
                 currentLocalText === nextLocalText
@@ -419,7 +415,6 @@ class NestedEditorController {
             annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
             scrollIntoView: false,
         });
-        this.session.applyingRootToLocal = false;
         this.session.local = { text: nextLocalText, selection: nextLocalSelection };
 
         const mainView = this.mainView;
