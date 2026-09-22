@@ -16,9 +16,9 @@ const ATTR_CARET_SUPPRESSED = 'data-rt-caret-suppressed';
  * state instead.
  *
  * A **cell being opened** moves the main selection to the cell's source offset, which is inside
- * the table's block widget, and the nested editor mounts an animation frame later. The main
+ * the table's block widget, and the nested editor mounts a microtask later. The main
  * editor keeps focus across that gap, so without this it paints a caret at the widget boundary
- * — a stripe on the cell divider, right where the click landed, a frame before the real caret
+ * — a stripe on the cell divider, right where the click landed, before the real caret
  * appears in the cell.
  *
  * `caret-color` covers the browser's native caret; `.cm-cursorLayer` covers the one
