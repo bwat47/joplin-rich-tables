@@ -15,7 +15,6 @@ import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellSt
  */
 export const exitSearchForceSourceModeEffect = StateEffect.define<null>();
 
-
 function extendSearchPanelTransition(transaction: Transaction): Pick<TransactionSpec, 'effects'> | null {
     // Panel visibility changes only through state effects, so a document-only transaction cannot
     // be an open or close. Leaving it untouched also avoids computing the resulting state here.

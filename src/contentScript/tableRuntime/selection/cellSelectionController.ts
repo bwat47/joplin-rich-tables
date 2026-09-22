@@ -155,10 +155,7 @@ export function setCellDragSelection(
 /** Settles the state a drag left behind, on release or cancellation. */
 export function endCellDragSelection(view: EditorView, options: { keepActiveCell: boolean }): void {
     view.dispatch({
-        effects: [
-            endCellDragEffect.of(null),
-            ...(options.keepActiveCell ? [] : [clearActiveCellEffect.of(null)]),
-        ],
+        effects: [endCellDragEffect.of(null), ...(options.keepActiveCell ? [] : [clearActiveCellEffect.of(null)])],
     });
 }
 

@@ -398,9 +398,7 @@ export function buildMultiCellPasteRewrite(
 
 export function createTableClipboardRewriteSpec(state: EditorState, rewrite: TableClipboardRewrite): TransactionSpec {
     const effects = [
-        ...(rewrite.selection
-            ? [setCellSelectionEffect.of(rewrite.selection)]
-            : [clearCellSelectionEffect.of(null)]),
+        ...(rewrite.selection ? [setCellSelectionEffect.of(rewrite.selection)] : [clearCellSelectionEffect.of(null)]),
         ...(rewrite.clearActiveCell ? [clearActiveCellEffect.of(null)] : []),
     ];
 
