@@ -38,6 +38,22 @@ const BELOW_TABLE_DOC = docBelowTable();
 const ABOVE_TABLE_DOC = docAboveTable();
 const AROUND_TABLE_DOC = `${BEFORE}\n\n${TABLE}\n\n${AFTER}`;
 
+/** The two ways every table stops rendering as a widget. */
+const RAW_MODE_CASES: ReadonlyArray<{ label: string; enterRawMode: (view: EditorView) => void }> = [
+    {
+        label: 'source mode',
+        enterRawMode: (view) => {
+            view.dispatch({ effects: toggleSourceModeEffect.of(true) });
+        },
+    },
+    {
+        label: 'search-forced raw mode',
+        enterRawMode: (view) => {
+            openSearchPanel(view);
+        },
+    },
+];
+
 /** The table's offset in the document as it stands, which entry may have normalized. */
 function currentTableFrom(view: EditorView, table: string = TABLE): number {
     return view.state.doc.toString().indexOf(table);
@@ -243,20 +259,7 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it.each([
-        {
-            label: 'source mode',
-            enterRawMode: (view: EditorView) => {
-                view.dispatch({ effects: toggleSourceModeEffect.of(true) });
-            },
-        },
-        {
-            label: 'search-forced raw mode',
-            enterRawMode: (view: EditorView) => {
-                openSearchPanel(view);
-            },
-        },
-    ])('leaves linewise cut unchanged in $label', ({ enterRawMode }) => {
+    it.each(RAW_MODE_CASES)('leaves linewise cut unchanged in $label', ({ enterRawMode }) => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, 0);
         enterRawMode(view);
@@ -816,20 +819,7 @@ ${AFTER}`);
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it.each([
-        {
-            label: 'source mode',
-            enterRawMode: (view: EditorView) => {
-                view.dispatch({ effects: toggleSourceModeEffect.of(true) });
-            },
-        },
-        {
-            label: 'search-forced raw mode',
-            enterRawMode: (view: EditorView) => {
-                openSearchPanel(view);
-            },
-        },
-    ])('leaves table Markdown editable in $label', ({ enterRawMode }) => {
+    it.each(RAW_MODE_CASES)('leaves table Markdown editable in $label', ({ enterRawMode }) => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);
         enterRawMode(view);
@@ -1102,20 +1092,7 @@ describe('mainEditorTableEntry vertical movement', () => {
         });
     });
 
-    it.each([
-        {
-            label: 'source mode',
-            enterRawMode: (view: EditorView) => {
-                view.dispatch({ effects: toggleSourceModeEffect.of(true) });
-            },
-        },
-        {
-            label: 'search-forced raw mode',
-            enterRawMode: (view: EditorView) => {
-                openSearchPanel(view);
-            },
-        },
-    ])('leaves vertical movement in the main editor during $label', ({ enterRawMode }) => {
+    it.each(RAW_MODE_CASES)('leaves vertical movement in the main editor during $label', ({ enterRawMode }) => {
         const prefix = 'above';
         const doc = `${prefix}\n${TABLE}`;
         const view = mountView(doc, prefix.length);
