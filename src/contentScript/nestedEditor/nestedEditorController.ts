@@ -42,10 +42,9 @@ interface NestedEditorTextState {
 
 interface NestedEditorSession {
     resolvedCell: ResolvedActiveCell;
+    /** Mirrors nested state, except for right-click selection mirroring; see `syncSelectionToMain`. */
     local: NestedEditorTextState;
-    root: NestedEditorTextState;
     editor: EditorView | null;
-    applyingRootToLocal: boolean;
 }
 
 export interface OpenNestedEditorParams {
@@ -94,9 +93,7 @@ class NestedEditorController {
         const session: NestedEditorSession = {
             resolvedCell: resolved,
             local: { text: localText, selection: localSelection },
-            root: { text: rootText, selection: rootSelection },
             editor: null,
-            applyingRootToLocal: false,
         };
 
         const isDarkTheme = params.mainView.state.facet(EditorView.darkTheme);
@@ -162,12 +159,6 @@ class NestedEditorController {
 
         this.session.resolvedCell = resolvedCell;
 
-        const rootText = update.state.doc.sliceString(resolvedCell.editableFrom, resolvedCell.editableTo);
-        const rootSelection = toRelativeSelection(
-            update.state.selection,
-            resolvedCell.editableFrom,
-            resolvedCell.editableTo
-        );
         const mainSelection = update.state.selection.main;
 
         forceRootDomSelection(this.mainView, {
@@ -175,12 +166,7 @@ class NestedEditorController {
             head: mainSelection.head,
         });
 
-        this.session.root = {
-            text: rootText,
-            selection: rootSelection,
-        };
-
-        this.rebaseLocalEditorFromRoot();
+        this.rebaseLocalEditorFromRoot(this.readRootState(update.state, resolvedCell));
     }
 
     close(params?: CellContentRange): void {
@@ -276,8 +262,7 @@ class NestedEditorController {
             return;
         }
 
-        const isSync = hasSyncAnnotation(update.transactions);
-        if (isSync || this.session.applyingRootToLocal) {
+        if (hasSyncAnnotation(update.transactions)) {
             return;
         }
 
@@ -304,8 +289,9 @@ class NestedEditorController {
         const rootSelection = toRootSelection(this.session.local.selection, this.session.local.text);
         const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.resolvedCell.editableFrom);
         const currentMainSelection = this.mainView.state.selection.main;
+        const previousRootText = this.readRootText(this.mainView.state, this.session.resolvedCell);
 
-        const textChanged = rootText !== this.session.root.text;
+        const textChanged = rootText !== previousRootText;
         const selectionChanged =
             currentMainSelection.anchor !== absoluteSelection.anchor ||
             currentMainSelection.head !== absoluteSelection.head;
@@ -330,9 +316,7 @@ class NestedEditorController {
             scrollIntoView: false,
         });
 
-        this.session.root = { text: rootText, selection: rootSelection };
-        this.refreshFromCurrentMainState();
-        this.rebaseLocalEditorFromRoot();
+        this.rebaseLocalEditorFromRoot(this.resyncResolvedCell({ text: rootText, selection: rootSelection }));
     }
 
     private flushSelectionToRoot(): void {
@@ -372,30 +356,43 @@ class NestedEditorController {
         });
     }
 
-    private refreshFromCurrentMainState(): void {
+    private readRootText(state: EditorState, resolved: ResolvedActiveCell): string {
+        return state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
+    }
+
+    private readRootState(state: EditorState, resolved: ResolvedActiveCell): NestedEditorTextState {
+        return {
+            text: this.readRootText(state, resolved),
+            selection: toRelativeSelection(state.selection, resolved.editableFrom, resolved.editableTo),
+        };
+    }
+
+    /**
+     * Re-resolves the active cell against the current main state. On success, stores that cell on
+     * the session and returns root text and selection sliced from it. On failure, mutates nothing
+     * and returns `fallback`: `session.resolvedCell` stays stale and the session stays open.
+     */
+    private resyncResolvedCell(fallback: NestedEditorTextState): NestedEditorTextState {
         if (!this.session || !this.mainView) {
-            return;
+            return fallback;
         }
 
         const resolved = getResolvedActiveCell(this.mainView.state);
         if (!resolved) {
-            return;
+            return fallback;
         }
 
         this.session.resolvedCell = resolved;
-        this.session.root = {
-            text: this.mainView.state.doc.sliceString(resolved.editableFrom, resolved.editableTo),
-            selection: toRelativeSelection(this.mainView.state.selection, resolved.editableFrom, resolved.editableTo),
-        };
+        return this.readRootState(this.mainView.state, resolved);
     }
 
-    private rebaseLocalEditorFromRoot(): void {
+    private rebaseLocalEditorFromRoot(root: NestedEditorTextState): void {
         if (!this.session || !this.session.editor) {
             return;
         }
 
-        const nextLocalText = unsanitizeRootText(this.session.root.text);
-        const nextLocalSelection = toLocalSelection(this.session.root.selection, this.session.root.text);
+        const nextLocalText = unsanitizeRootText(root.text);
+        const nextLocalSelection = toLocalSelection(root.selection, root.text);
         const editor = this.session.editor;
         const currentLocalText = editor.state.doc.toString();
         const currentSelection = {
@@ -409,7 +406,6 @@ class NestedEditorController {
         }
 
         const shouldRefocus = editor.hasFocus;
-        this.session.applyingRootToLocal = true;
         editor.dispatch({
             changes:
                 currentLocalText === nextLocalText
@@ -419,7 +415,6 @@ class NestedEditorController {
             annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
             scrollIntoView: false,
         });
-        this.session.applyingRootToLocal = false;
         this.session.local = { text: nextLocalText, selection: nextLocalSelection };
 
         const mainView = this.mainView;

@@ -55,9 +55,8 @@ lifecycle plugin owns nested-editor side effects.
 1. User types in the isolated editor.
 2. `NestedEditorSession` sanitizes local display text (`\n` -> `<br>`, `|` -> `\|`) via `shared/cellTextNormalization.ts` and maps the local selection into root cell coordinates via `editorBridge/cellTextCodec.ts`.
 3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
-4. After root dispatch, the controller resolves the current active-cell identity through the plain
-   `tableContextField`-backed selector and refreshes the session.
-5. External non-sync root changes use the same selector and rebase the isolated editor from authoritative root text.
+4. After root dispatch, the controller re-resolves the active cell and derives root text and selection from main state on demand, with no cached mirror.
+5. External non-sync root changes use the `tableContextField`-backed selector and rebase the isolated editor from authoritative root text.
    Closing is the exception: activation may already be cleared, so close-time rendering resolves the session's saved
    logical anchor against the current index.
 
@@ -68,7 +67,8 @@ Joplin toolbar reads main editor selection, so nested must mirror upward.
 1. `NestedEditorSession` watches local selection changes.
 2. It mirrors the mapped absolute selection to the main editor (`syncAnnotation` + `addToHistory: false`).
 3. Root-owned commands update the authoritative root selection/doc.
-4. The session rebases the isolated editor selection from the resulting root cell text.
+4. The controller rebases the isolated editor selection from the resulting root cell text, via the same on-demand
+   re-resolve as the edit sync cycle.
 
 Selection mirroring uses the cell's editable span, not the fully trimmed semantic content span. This keeps toolbar and
 formatting commands aligned with user-entered leading/trailing whitespace while still hiding canonical delimiter padding
