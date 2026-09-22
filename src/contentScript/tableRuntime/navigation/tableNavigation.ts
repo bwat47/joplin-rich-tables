@@ -19,7 +19,7 @@ export interface NavigateCellOptions {
 function exitTable(view: EditorView, resolvedActiveCell: ResolvedActiveCell, direction: NavigationDirection): void {
     const exitsBefore = direction === 'previous' || direction === 'up';
     exitTableToAdjacentLine(view, resolvedActiveCell.ctx, exitsBefore ? 'before' : 'after', [
-        clearActiveCellEffect.of(undefined),
+        clearActiveCellEffect.of(null),
     ]);
 }
 

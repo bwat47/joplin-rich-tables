@@ -49,10 +49,10 @@ describe('cell drag focus override', () => {
         });
         expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
 
-        view.dispatch({ effects: startCellDragEffect.of(undefined) });
+        view.dispatch({ effects: startCellDragEffect.of(null) });
         expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(true);
 
-        view.dispatch({ effects: endCellDragEffect.of(undefined) });
+        view.dispatch({ effects: endCellDragEffect.of(null) });
         expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);
     });
 
@@ -64,11 +64,11 @@ describe('cell drag focus override', () => {
             focus: { section: 'body' as const, row: 0, col: 1 },
         };
         view.dispatch({
-            effects: [setCellSelectionEffect.of(selection), startCellDragEffect.of(undefined)],
+            effects: [setCellSelectionEffect.of(selection), startCellDragEffect.of(null)],
         });
         expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(true);
 
-        view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+        view.dispatch({ effects: clearCellSelectionEffect.of(null) });
 
         expect(view.state.field(cellDragField)).toBe(false);
         expect(view.dom.hasAttribute('data-rt-cell-drag')).toBe(false);

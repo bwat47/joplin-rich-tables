@@ -38,7 +38,7 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
                 return {
                     changes: tr.changes,
                     selection: decision.selection,
-                    effects: [...tr.effects, clearActiveCellEffect.of(undefined)],
+                    effects: [...tr.effects, clearActiveCellEffect.of(null)],
                     scrollIntoView: tr.scrollIntoView,
                 };
             case 'rewriteTableClipboard':

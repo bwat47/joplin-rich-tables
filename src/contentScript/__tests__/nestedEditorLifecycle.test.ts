@@ -219,7 +219,7 @@ describe('nestedEditorLifecycle', () => {
         view.dispatch({
             changes: { from: 0, to: view.state.doc.length, insert: replacement },
             selection: { anchor: 0 },
-            effects: clearActiveCellEffect.of(undefined),
+            effects: clearActiveCellEffect.of(null),
         });
 
         expect(view.contentDOM.querySelectorAll('table')).toHaveLength(2);
@@ -298,7 +298,7 @@ describe('nestedEditorLifecycle', () => {
                 effects: [
                     noteConfiguration.reconfigure(noteIdentityFacet.of('note-b')),
                     // The main editor guard adds this clear when a cell was active.
-                    ...(params.hadActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+                    ...(params.hadActiveCell ? [clearActiveCellEffect.of(null)] : []),
                 ],
             });
         }
@@ -379,7 +379,7 @@ describe('nestedEditorLifecycle', () => {
                 to: doc.length,
                 insert: '',
             },
-            effects: clearActiveCellEffect.of(undefined),
+            effects: clearActiveCellEffect.of(null),
             annotations: Transaction.userEvent.of('undo'),
             selection: { anchor: doc.indexOf('| a2') },
         });
@@ -413,7 +413,7 @@ describe('nestedEditorLifecycle', () => {
 
         view.dispatch({
             changes: { from: 0, to: 0, insert: insertedPrefix },
-            effects: clearActiveCellEffect.of(undefined),
+            effects: clearActiveCellEffect.of(null),
             annotations: Transaction.userEvent.of('redo'),
             selection: { anchor: insertedPrefix.length + doc.indexOf('| a2') },
         });
@@ -453,7 +453,7 @@ describe('nestedEditorLifecycle', () => {
         };
 
         view.dispatch({
-            effects: [setActiveCellEffect.of(nextActiveCell), structuralTableEditEffect.of(undefined)],
+            effects: [setActiveCellEffect.of(nextActiveCell), structuralTableEditEffect.of(null)],
         });
 
         expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
@@ -720,7 +720,7 @@ describe('nestedEditorLifecycle', () => {
         });
 
         view.dispatch({
-            effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+            effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(null)],
         });
         await frames.flush();
 
@@ -743,7 +743,7 @@ describe('nestedEditorLifecycle', () => {
 
         expect(() =>
             view.dispatch({
-                effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+                effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(null)],
             })
         ).not.toThrow();
         await frames.flush();
@@ -858,7 +858,7 @@ describe('nestedEditorLifecycle', () => {
             changes: { from: tableFrom, to: tableTo, insert: updatedTable },
             effects: [
                 setActiveCellEffect.of(nextCell),
-                structuralTableEditEffect.of(undefined),
+                structuralTableEditEffect.of(null),
                 ...openRequestEffects({
                     requestId: 'request-structural-reopen',
                     activeCell: nextCell,

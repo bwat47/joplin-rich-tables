@@ -257,7 +257,7 @@ class MouseCellDragSelectionController {
             if (release.reactivateAnchor) {
                 // The anchor editor never left the DOM, so contracting back to it only needs
                 // to discard the provisional rectangle and restore keyboard focus.
-                this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+                this.view.dispatch({ effects: clearCellSelectionEffect.of(null) });
                 refocusNestedEditor(this.view);
             }
             return;

@@ -89,7 +89,7 @@ describe('selection class synchronization', () => {
         const originalWidget = getWidget(view);
         expect(originalWidget.querySelectorAll(`.${CLASS_CELL_SELECTED}`)).toHaveLength(2);
 
-        view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+        view.dispatch({ effects: clearCellSelectionEffect.of(null) });
         await flushViewMeasure(view);
         expect(originalWidget.querySelectorAll(`.${CLASS_CELL_SELECTED}`)).toHaveLength(0);
 

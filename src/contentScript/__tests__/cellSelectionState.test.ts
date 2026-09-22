@@ -58,7 +58,7 @@ describe('cellSelectionState', () => {
         state = state.update({ effects: setCellSelectionEffect.of(createSelection()) }).state;
         expect(getCellSelection(state)).toEqual(createSelection());
 
-        state = state.update({ effects: clearCellSelectionEffect.of(undefined) }).state;
+        state = state.update({ effects: clearCellSelectionEffect.of(null) }).state;
         expect(getCellSelection(state)).toBeNull();
     });
 

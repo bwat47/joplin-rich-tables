@@ -13,11 +13,8 @@ import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellSt
  * Effect dispatched when search-forced raw mode is exited.
  * View plugins use it to reactivate the cell at the cursor.
  */
-export const exitSearchForceSourceModeEffect = StateEffect.define<void>();
+export const exitSearchForceSourceModeEffect = StateEffect.define<null>();
 
-// Extenders map every added effect. Mapping treats an `undefined` value as "drop this
-// effect", so these void effects need a present payload to survive onto the transaction.
-const keptVoidEffect = true as unknown as void;
 
 function extendSearchPanelTransition(transaction: Transaction): Pick<TransactionSpec, 'effects'> | null {
     // Panel visibility changes only through state effects, so a document-only transaction cannot
@@ -33,10 +30,10 @@ function extendSearchPanelTransition(transaction: Transaction): Pick<Transaction
     }
 
     if (isOpen) {
-        return getActiveCell(transaction.state) ? { effects: clearActiveCellEffect.of(keptVoidEffect) } : null;
+        return getActiveCell(transaction.state) ? { effects: clearActiveCellEffect.of(null) } : null;
     }
 
-    return { effects: exitSearchForceSourceModeEffect.of(keptVoidEffect) };
+    return { effects: exitSearchForceSourceModeEffect.of(null) };
 }
 
 /** Attaches search open/close lifecycle effects to the transaction that changes the panel. */

@@ -95,7 +95,7 @@ function dispatchSelectionWithContext(
                 anchor: normalizeCellCoords(resolvedAnchor.activeCell),
                 focus,
             }),
-            ...(options.clearActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
+            ...(options.clearActiveCell ? [clearActiveCellEffect.of(null)] : []),
             ...(options.extraEffects ?? []),
         ],
         annotations: cellSelectionTransitionAnnotation.of(true),
@@ -147,7 +147,7 @@ export function setCellDragSelection(
         {
             clearActiveCell: false,
             scrollFocusIntoView: false,
-            extraEffects: [startCellDragEffect.of(undefined)],
+            extraEffects: [startCellDragEffect.of(null)],
         }
     );
 }
@@ -156,8 +156,8 @@ export function setCellDragSelection(
 export function endCellDragSelection(view: EditorView, options: { keepActiveCell: boolean }): void {
     view.dispatch({
         effects: [
-            endCellDragEffect.of(undefined),
-            ...(options.keepActiveCell ? [] : [clearActiveCellEffect.of(undefined)]),
+            endCellDragEffect.of(null),
+            ...(options.keepActiveCell ? [] : [clearActiveCellEffect.of(null)]),
         ],
     });
 }
@@ -235,7 +235,7 @@ export function collapseCellSelectionOutOfTable(view: EditorView, direction: Cel
         return false;
     }
 
-    const effects = [clearCellSelectionEffect.of(undefined)];
+    const effects = [clearCellSelectionEffect.of(null)];
     if (!exitTableToAdjacentLine(view, selected.ctx, exitSideForDirection(direction), effects)) {
         view.dispatch({ effects });
     }

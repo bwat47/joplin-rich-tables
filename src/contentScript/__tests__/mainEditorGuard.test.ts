@@ -152,7 +152,7 @@ describe('createMainEditorActiveCellGuard', () => {
 
         const tr = state.update({
             changes: { from: 0, to: firstLineEnd, insert: '| X | Y |' },
-            effects: structuralTableEditEffect.of(undefined),
+            effects: structuralTableEditEffect.of(null),
         });
 
         expect(tr.state.doc.toString()).toContain('| X | Y |');

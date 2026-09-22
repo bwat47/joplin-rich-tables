@@ -65,7 +65,7 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
         // Position is outside any table
         if (options?.clearIfOutside) {
             view.dispatch({
-                effects: clearActiveCellEffect.of(undefined),
+                effects: clearActiveCellEffect.of(null),
                 selection: { anchor: pos },
                 scrollIntoView: true,
             });

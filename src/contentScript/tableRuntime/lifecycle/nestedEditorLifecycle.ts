@@ -105,7 +105,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     case 'clearActiveCell':
                         requestViewAnimationFrame(this.view, () => {
                             if (!this.view.dom.isConnected) return;
-                            this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                            this.view.dispatch({ effects: clearActiveCellEffect.of(null) });
                         });
                         break;
                     case 'scheduleNoteSwitchCleanup':
@@ -141,7 +141,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
                 this.view.dispatch({
                     selection: positionOutsideTable === null ? undefined : { anchor: positionOutsideTable },
-                    effects: hasActiveCell ? clearActiveCellEffect.of(undefined) : [],
+                    effects: hasActiveCell ? clearActiveCellEffect.of(null) : [],
                 });
                 if (positionOutsideTable !== null) {
                     logger.debug('Moved cursor out of table', { reason });
@@ -232,14 +232,14 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
             const resolvedActiveCell = getResolvedActiveCell(this.view.state);
             if (!resolvedActiveCell) {
                 this.failOpenRequest(requestId);
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                this.view.dispatch({ effects: clearActiveCellEffect.of(null) });
                 return null;
             }
 
             const cellElement = findCellElement(this.view, targetActiveCell.tableFrom, targetActiveCell);
             if (!cellElement) {
                 this.failOpenRequest(requestId);
-                this.view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                this.view.dispatch({ effects: clearActiveCellEffect.of(null) });
                 return null;
             }
 

@@ -27,7 +27,7 @@ export function toggleSourceMode(view: EditorView): boolean {
     if (enteringSourceMode) {
         const effects: StateEffect<unknown>[] = [toggleSourceModeEffect.of(true)];
         if (getActiveCell(view.state)) {
-            effects.unshift(clearActiveCellEffect.of(undefined));
+            effects.unshift(clearActiveCellEffect.of(null));
         }
         view.dispatch({ effects });
         focusMainEditorForExplicitSourceModeEntry(view);
@@ -35,7 +35,7 @@ export function toggleSourceMode(view: EditorView): boolean {
     }
 
     view.dispatch({
-        effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+        effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(null)],
     });
     return true;
 }

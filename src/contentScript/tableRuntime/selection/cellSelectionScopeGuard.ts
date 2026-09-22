@@ -51,7 +51,7 @@ export const cellSelectionScopeGuard = ViewPlugin.fromClass(
                     return;
                 }
 
-                this.view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+                this.view.dispatch({ effects: clearCellSelectionEffect.of(null) });
             });
         }
     }

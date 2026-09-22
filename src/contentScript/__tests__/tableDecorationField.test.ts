@@ -165,7 +165,7 @@ describe('tableDecorationField', () => {
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
         expect(wasActiveHostInvalidated(state)).toBe(true);
 
-        state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
+        state = state.update({ effects: clearActiveCellEffect.of(null) }).state;
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
 
         expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
@@ -189,7 +189,7 @@ ${TABLE.replace('a', 'c')}`;
         // The main editor guard clears the stale active cell in the same transaction.
         const replaced = active.update({
             changes: { from: 0, to: active.doc.length, insert: replacement },
-            effects: clearActiveCellEffect.of(undefined),
+            effects: clearActiveCellEffect.of(null),
         }).state;
 
         expect(replaced.field(tableContextField).tables.map((table) => [table.from, table.to])).toEqual(
@@ -237,11 +237,11 @@ ${TABLE.replace('a', 'c')}`;
 
     it.each([
         ['an invalid cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 2 })]],
-        ['a clear', [clearActiveCellEffect.of(undefined)]],
+        ['a clear', [clearActiveCellEffect.of(null)]],
         [
             'a clear followed by the same activation',
             [
-                clearActiveCellEffect.of(undefined),
+                clearActiveCellEffect.of(null),
                 setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 0 }),
             ],
         ],
@@ -407,7 +407,7 @@ ${TABLE.replace('a', 'c')}`;
         state = state.update({ selection: { anchor: 1 } }).state;
         expect(getDecorationAt(state, 0, state.doc.length)).toBe(before);
 
-        state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
+        state = state.update({ effects: clearActiveCellEffect.of(null) }).state;
 
         expect(getDecorationAt(state, 0, state.doc.length)).not.toBe(before);
     });

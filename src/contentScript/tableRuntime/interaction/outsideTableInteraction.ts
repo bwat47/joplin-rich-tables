@@ -51,8 +51,8 @@ function resolveLiveTableState(view: EditorView): LiveTableState | null {
 /** Effects that tear down whichever table selection state is currently live. */
 function buildClearEffects(live: LiveTableState): StateEffect<unknown>[] {
     return [
-        ...(live.hasActiveCell ? [clearActiveCellEffect.of(undefined)] : []),
-        ...(live.hasCellSelection ? [clearCellSelectionEffect.of(undefined)] : []),
+        ...(live.hasActiveCell ? [clearActiveCellEffect.of(null)] : []),
+        ...(live.hasCellSelection ? [clearCellSelectionEffect.of(null)] : []),
     ];
 }
 

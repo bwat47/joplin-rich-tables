@@ -14,7 +14,7 @@ export function isSameActiveCell(a: ActiveCell | null, b: ActiveCell | null): bo
 }
 
 export const setActiveCellEffect = StateEffect.define<ActiveCell>();
-export const clearActiveCellEffect = StateEffect.define<void>();
+export const clearActiveCellEffect = StateEffect.define<null>();
 
 /**
  * Maps an active-cell anchor from the pre-change document into the changed document.

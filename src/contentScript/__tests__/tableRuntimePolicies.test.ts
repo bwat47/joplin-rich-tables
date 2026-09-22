@@ -630,7 +630,7 @@ describe('tableRuntimePolicies', () => {
             selection: { anchor: nextActiveCell.selectionAnchor },
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
-                structuralTableEditEffect.of(undefined),
+                structuralTableEditEffect.of(null),
                 triggerOpenCellRequestEffect.of({ requestId: 'normalize-request' }),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
