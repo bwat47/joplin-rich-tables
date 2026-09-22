@@ -15,7 +15,6 @@ import { activeCellField } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField } from '../tableState/cellDragState';
-import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { sourceModeField } from '../tableState/sourceMode';
 import { cellSelectionClipboardPlugin } from '../tableRuntime/selection/cellSelectionClipboardPlugin';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
@@ -35,7 +34,7 @@ import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import { searchPanelWatcherPlugin } from '../tableRuntime/searchPanelWatcher';
+import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
 import {
     openCellRequestField,
     openCellRequestKeymap,
@@ -117,8 +116,7 @@ async function registerTableWidgetExtension(
 
         createUndoScrollPreservation(() => cm6View),
 
-        searchPanelWatcherPlugin,
-        searchForceSourceModeField,
+        searchPanelTransitionExtension,
         sourceModeField,
         nestedEditorPlugin,
         tableContextField,

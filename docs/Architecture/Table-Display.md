@@ -31,10 +31,11 @@ Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embed
 
 ### 1. Decoration Update Strategy
 
-Every document change reconciles decorations against the current `tableContextField` index. Raw mode is the exception:
-widgets are replaced with `Decoration.none`, and exiting raw mode force-rebuilds them. That exit has no document change
-and keeps the same index object, so reconciliation would retain the empty set. All tables receive fresh
-decorations except the table hosting the active nested editor, whose existing decoration is carried through only when:
+Every document change reconciles decorations against the current `tableContextField` index. Raw mode — user source
+mode or an open search panel — is the exception: widgets are replaced with `Decoration.none` in that transaction,
+and exiting raw mode force-rebuilds them. That exit has no document change and keeps the same index object, so
+reconciliation would retain the empty set. All tables receive fresh decorations except the table hosting the active
+nested editor, whose existing decoration is carried through only when:
 
 1. the old active cell resolves;
 2. changes stay inside that cell or strictly outside its table;
@@ -102,7 +103,13 @@ See [ADR-004](../ADR/004-global-source-mode.md) for the rationale behind global 
 
 ### Search Override
 
-`Ctrl+F` forces raw Markdown mode so native search highlighting works on hidden table text.
+`Ctrl+F` opens CodeMirror's search panel. Panel visibility is the source of truth for search-forced raw mode:
+`isEffectiveRawMode()` reads `searchPanelOpen(state)`, so widgets drop in the transaction that opens the panel,
+including when the table extensions are registered while search is already open.
+
+`searchPanelTransitionExtension` appends lifecycle effects to that same transaction. Opening search clears an
+active cell; closing it carries `exitSearchForceSourceModeEffect` so the runtime can reactivate the cell at the
+cursor. Explicit source mode stays in effect when the panel closes.
 
 ## Appearance
 

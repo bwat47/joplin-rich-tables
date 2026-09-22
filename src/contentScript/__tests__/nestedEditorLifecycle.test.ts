@@ -9,7 +9,6 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import { searchForceSourceModeField } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { tableContextField } from '../tableState/tableContextField';
@@ -76,7 +75,6 @@ function createLifecycleState(params: {
             tableContextField,
             activeCellField,
             openCellRequestField,
-            searchForceSourceModeField,
             sourceModeField,
             hostEditorConfigFacet.of(TEST_HOST_CONFIG),
             noteConfiguration.of(noteIdentityFacet.of(INITIAL_NOTE_ID)),

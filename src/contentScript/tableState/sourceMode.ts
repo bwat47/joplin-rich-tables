@@ -1,5 +1,5 @@
+import { searchPanelOpen } from '@codemirror/search';
 import { StateField, StateEffect, type EditorState } from '@codemirror/state';
-import { isSearchForceSourceModeEnabled } from './searchForceSourceMode';
 
 /**
  * Effect to toggle source mode on/off.
@@ -37,8 +37,8 @@ export function isSourceModeEnabled(state: EditorState): boolean {
 
 /**
  * Check if tables are currently in "raw markdown" mode.
- * This is true when either user source mode or search-forced mode is enabled.
+ * This is true when user source mode is enabled or the search panel is open.
  */
 export function isEffectiveRawMode(state: EditorState): boolean {
-    return isSourceModeEnabled(state) || isSearchForceSourceModeEnabled(state);
+    return isSourceModeEnabled(state) || searchPanelOpen(state);
 }

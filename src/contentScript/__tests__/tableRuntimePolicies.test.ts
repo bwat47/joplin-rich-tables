@@ -5,7 +5,7 @@ import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSe
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { sourceModeField } from '../tableState/sourceMode';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { openSearchPanelInState } from './searchPanelTestUtils';
 import {
     reduceTableRuntime,
     type ActiveCellFacts,
@@ -25,12 +25,7 @@ import { parseTableFixture } from './testUtils';
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
 function createState(params?: { activeCell?: ActiveCell | null }) {
-    let state = createMarkdownState(doc, [
-        activeCellField,
-        cellSelectionField,
-        sourceModeField,
-        searchForceSourceModeField,
-    ]);
+    let state = createMarkdownState(doc, [activeCellField, cellSelectionField, sourceModeField]);
 
     if (params?.activeCell) {
         state = state.update({ effects: setActiveCellEffect.of(params.activeCell) }).state;
@@ -314,7 +309,6 @@ describe('tableRuntimePolicies', () => {
             activeCellField,
             cellSelectionField,
             sourceModeField,
-            searchForceSourceModeField,
             tableDecorationField,
         ]);
         state = state.update({
@@ -336,12 +330,7 @@ describe('tableRuntimePolicies', () => {
 
     it('allows guard changes strictly outside the active table', () => {
         const prefix = 'before\n\n';
-        let state = createMarkdownState(`${prefix}${doc}`, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            searchForceSourceModeField,
-        ]);
+        let state = createMarkdownState(`${prefix}${doc}`, [activeCellField, cellSelectionField, sourceModeField]);
         state = state.update({
             effects: setActiveCellEffect.of({
                 tableFrom: prefix.length,
@@ -399,12 +388,7 @@ describe('tableRuntimePolicies', () => {
 
     it('allows guard changes inside editable edge whitespace', () => {
         const paddedDoc = ['| H1  | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        let state = createMarkdownState(paddedDoc, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            searchForceSourceModeField,
-        ]);
+        let state = createMarkdownState(paddedDoc, [activeCellField, cellSelectionField, sourceModeField]);
         state = state.update({ effects: setActiveCellEffect.of(getHeaderCell()) }).state;
         const resolved = requireResolvedActiveCell(state);
 
@@ -449,7 +433,6 @@ describe('tableRuntimePolicies', () => {
             activeCellField,
             cellSelectionField,
             sourceModeField,
-            searchForceSourceModeField,
         ]);
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
         const pastePos = 'before\n'.length;
@@ -475,7 +458,6 @@ describe('tableRuntimePolicies', () => {
             activeCellField,
             cellSelectionField,
             sourceModeField,
-            searchForceSourceModeField,
         ]);
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
         const singleChangeTr = state.update({
@@ -503,7 +485,6 @@ describe('tableRuntimePolicies', () => {
             activeCellField,
             cellSelectionField,
             sourceModeField,
-            searchForceSourceModeField,
         ]);
         state = state.update({
             effects: setCellSelectionEffect.of({
@@ -529,9 +510,8 @@ describe('tableRuntimePolicies', () => {
             activeCellField,
             cellSelectionField,
             sourceModeField,
-            searchForceSourceModeField,
         ]);
-        state = state.update({ effects: setSearchForceSourceModeEffect.of(true) }).state;
+        state = openSearchPanelInState(state);
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
         const pastePos = 'before\n'.length;
 
@@ -625,11 +605,7 @@ describe('tableRuntimePolicies', () => {
 
     it('treats normalize-before-edit full table replacement as a controlled requested reopen', () => {
         const nonCanonicalDoc = ['|H1|H2|', '|---|---|', '|a1|a2|'].join('\n');
-        let startState = createMarkdownState(nonCanonicalDoc, [
-            activeCellField,
-            sourceModeField,
-            searchForceSourceModeField,
-        ]);
+        let startState = createMarkdownState(nonCanonicalDoc, [activeCellField, sourceModeField]);
         const startActiveCell: ActiveCell = {
             tableFrom: 0,
             section: 'header',
@@ -855,12 +831,7 @@ describe('tableRuntimePolicies', () => {
 
     it('does not require rebuild when undo change range stays within the editable span', () => {
         const paddedDoc = ['| H1  | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-        let state = createMarkdownState(paddedDoc, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            searchForceSourceModeField,
-        ]);
+        let state = createMarkdownState(paddedDoc, [activeCellField, cellSelectionField, sourceModeField]);
         state = state.update({ effects: setActiveCellEffect.of(getHeaderCell()) }).state;
         const resolved = requireResolvedActiveCell(state);
 

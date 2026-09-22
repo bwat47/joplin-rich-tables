@@ -1,9 +1,8 @@
+import { openSearchPanel } from '@codemirror/search';
 import { describe, expect, it } from 'vitest';
-import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 
@@ -14,7 +13,7 @@ function withView<T>(doc: string, run: (view: EditorView) => T): T {
     document.body.appendChild(parent);
     const view = new EditorView({
         parent,
-        state: createMarkdownState(doc, [activeCellField, sourceModeField, searchForceSourceModeField]),
+        state: createMarkdownState(doc, [activeCellField, sourceModeField]),
     });
 
     try {
@@ -48,15 +47,15 @@ describe('activateCellAtPosition table boundaries', () => {
 });
 
 describe('cell activation in raw mode', () => {
-    const RAW_MODES: ReadonlyArray<[string, StateEffect<boolean>]> = [
-        ['source mode', toggleSourceModeEffect.of(true)],
-        ['search-forced raw mode', setSearchForceSourceModeEffect.of(true)],
+    const RAW_MODES: ReadonlyArray<[string, (view: EditorView) => void]> = [
+        ['source mode', (view) => view.dispatch({ effects: toggleSourceModeEffect.of(true) })],
+        ['search-forced raw mode', (view) => openSearchPanel(view)],
     ];
 
     /** Enters raw mode, runs an activation, and reports whether it left any trace. */
-    function activateInRawMode(rawModeEffect: StateEffect<boolean>, activate: (view: EditorView) => boolean) {
+    function activateInRawMode(enterRawMode: (view: EditorView) => void, activate: (view: EditorView) => boolean) {
         return withView(TABLE, (view) => {
-            view.dispatch({ effects: rawModeEffect });
+            enterRawMode(view);
             const before = view.state;
             return {
                 activated: activate(view),
@@ -69,9 +68,9 @@ describe('cell activation in raw mode', () => {
 
     const UNTOUCHED = { activated: false, docUnchanged: true, selectionUnchanged: true, activeCell: null };
 
-    it.each(RAW_MODES)('does not activate the cell at a position in %s', (_name, rawModeEffect) => {
+    it.each(RAW_MODES)('does not activate the cell at a position in %s', (_name, enterRawMode) => {
         expect(
-            activateInRawMode(rawModeEffect, (view) =>
+            activateInRawMode(enterRawMode, (view) =>
                 activateCellAtPosition(view, TABLE.indexOf('a2'), { clearIfOutside: true, entryMode: 'enter' })
             )
         ).toEqual(UNTOUCHED);

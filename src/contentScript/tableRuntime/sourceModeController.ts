@@ -1,7 +1,7 @@
+import { searchPanelOpen } from '@codemirror/search';
 import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { isSearchForceSourceModeEnabled } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { requestViewAnimationFrame } from '../shared/domContext';
 
@@ -11,8 +11,8 @@ function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
             return;
         }
 
-        // Search-forced raw mode intentionally lets Joplin keep focus on the search UI.
-        if (!isSourceModeEnabled(view.state) || isSearchForceSourceModeEnabled(view.state)) {
+        // An open search panel keeps focus on the search UI.
+        if (!isSourceModeEnabled(view.state) || searchPanelOpen(view.state)) {
             return;
         }
 
