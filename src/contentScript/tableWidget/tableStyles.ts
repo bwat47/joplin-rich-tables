@@ -89,13 +89,6 @@ const tableTheme = EditorView.baseTheme({
         position: 'relative',
         scrollMargin: '8px',
     },
-    // Keep truly empty cells (no content wrapper yet) at a consistent height
-    // with cells that contain a line of text or the caret.
-    [`.${CLASS_TABLE_WIDGET_TABLE} td:empty::before, .${CLASS_TABLE_WIDGET_TABLE} th:empty::before`]: {
-        content: '"\u00a0"',
-        display: 'inline-block',
-        lineHeight: 'inherit',
-    },
     // Keep empty cells at a consistent height with cells that contain a line of text.
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}:empty::before`]: {
         content: '"\u00a0"',
@@ -162,19 +155,10 @@ const tableTheme = EditorView.baseTheme({
         minHeight: 'unset',
         lineHeight: 'inherit',
         color: 'inherit',
-        // Reset wrapping so the nested editor behaves like the rendered table: wrap at
-        // whitespace, don't aggressively split short words, and let a space at a wrap point
-        // hang instead of counting toward the cell's intrinsic width (CodeMirror's
-        // `lineWrapping` default of `break-spaces` would widen the column on activation).
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'normal',
-        overflowWrap: 'normal',
     },
     [`.${CLASS_CELL_EDITOR} .cm-line`]: {
         // The inset belongs to `.cm-content`; CodeMirror's own `0 2px` would add to it.
         padding: '0 !important',
-        wordBreak: 'normal',
-        overflowWrap: 'normal',
     },
     [`.${CLASS_CELL_EDITOR} .cm-cursor`]: {
         borderLeftColor: 'currentColor',
