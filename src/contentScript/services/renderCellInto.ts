@@ -46,8 +46,10 @@ export function renderCellMarkdownInto(target: HTMLElement, markdown: string, re
     // Show content with <br> rendered as line breaks while async render runs
     replaceContent(target, textFragmentPreservingBr(displayText, target.ownerDocument));
 
-    // Check if content likely contains markdown (optimization)
-    if (!containsMarkdown(cacheKey)) {
+    // Check if content likely contains markdown (optimization). Checks the text before block-marker
+    // escaping: that escape only suppresses block rendering, and its backslash would otherwise match
+    // as markdown and request a render that yields the same plain text.
+    if (!containsMarkdown(displayText)) {
         return;
     }
 

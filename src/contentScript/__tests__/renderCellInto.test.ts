@@ -39,11 +39,11 @@ describe('renderCellMarkdownInto', () => {
 
         // Escaped pipes are unescaped, and a leading list marker is escaped so the cell
         // renders as inline markdown rather than a list.
-        renderCellMarkdownInto(target, '- a \\| b', renderer);
+        renderCellMarkdownInto(target, '- **a** \\| b', renderer);
 
-        expect(renderer.getCached).toHaveBeenCalledWith('\\- a | b');
-        expect(renderer.render).toHaveBeenCalledWith('\\- a | b');
-        rendered.resolve(htmlFragment('<p>- a | b</p>'));
+        expect(renderer.getCached).toHaveBeenCalledWith('\\- **a** | b');
+        expect(renderer.render).toHaveBeenCalledWith('\\- **a** | b');
+        rendered.resolve(htmlFragment('<p>- <strong>a</strong> | b</p>'));
         target.remove();
     });
 
@@ -144,6 +144,20 @@ describe('renderCellMarkdownInto', () => {
         expect(renderer.render).not.toHaveBeenCalled();
         target.remove();
     });
+
+    it.each(['- item', '+ item', '# heading', '> quote', '1. item', '2) item'])(
+        'does not request a render for plain text with a leading block marker: %s',
+        (cellText) => {
+            const renderer = createRenderer();
+            const target = createTarget();
+
+            renderCellMarkdownInto(target, cellText, renderer);
+
+            expect(target.innerHTML).toBe(cellText.replace('>', '&gt;'));
+            expect(renderer.render).not.toHaveBeenCalled();
+            target.remove();
+        }
+    );
 
     it('requests a render for HTML entities and emoji shortcodes', () => {
         const renderer = createRenderer();
