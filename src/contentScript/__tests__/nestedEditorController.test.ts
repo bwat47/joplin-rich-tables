@@ -22,7 +22,12 @@ import {
     refocusNestedEditor,
 } from '../nestedEditor/nestedEditorController';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
-import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import {
+    activeCellField,
+    clearActiveCellEffect,
+    setActiveCellEffect,
+    type ActiveCell,
+} from '../tableState/activeCellState';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
@@ -261,6 +266,62 @@ describe('nestedEditorController local-to-root forwarding', () => {
         nested.dispatch({ selection: EditorSelection.single(3) });
 
         expect(view.state.selection.main.anchor).toBe(cellStart + 4);
+
+        view.destroy();
+    });
+});
+
+describe('nestedEditorController unresolved active cell', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    function openBodyCellThenClearActiveCell() {
+        const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
+        const harness = createHarness({ doc, activeCell: bodyCell() });
+        openInCell(harness.view, harness.cellElement);
+        harness.view.dispatch({ effects: clearActiveCellEffect.of(null) });
+        return harness;
+    }
+
+    it('survives a forward whose active cell no longer resolves', () => {
+        const { view, cellElement } = openBodyCellThenClearActiveCell();
+        const nested = requireNestedView(cellElement);
+        const typed = 'WXYZabc';
+
+        nested.dispatch({
+            changes: { from: 0, insert: 'WXYZ' },
+            selection: { anchor: 4 },
+        });
+
+        expect(getResolvedActiveCell(view.state)).toBeNull();
+        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(nested.state.doc.toString()).toBe(typed);
+        expect(nested.state.selection.main).toMatchObject({ anchor: 4, head: 4 });
+
+        view.destroy();
+    });
+
+    // Characterization of a degraded state, not a correctness guarantee. The active cell no
+    // longer resolves, the session stays open, and a second length-changing edit forwards
+    // through the stale cell range. If a later change moves these snapshots, stop and report
+    // the difference instead of updating the expectation to match.
+    it('records behavior of a second forward on a session whose cell stopped resolving', () => {
+        const { view, cellElement } = openBodyCellThenClearActiveCell();
+        const nested = requireNestedView(cellElement);
+
+        nested.dispatch({
+            changes: { from: 0, insert: 'WXYZ' },
+            selection: { anchor: 4 },
+        });
+        nested.dispatch({
+            changes: { from: 0, insert: 'QQ' },
+            selection: { anchor: 2 },
+        });
+
+        expect(view.state.doc.toString()).toBe(['| H1 |', '| --- |', '| QQWXYZabcZabc |'].join('\n'));
+        expect(nested.state.doc.toString()).toBe('QQWXYZabc');
+        expect(nested.state.selection.main).toMatchObject({ anchor: 2, head: 2 });
 
         view.destroy();
     });
