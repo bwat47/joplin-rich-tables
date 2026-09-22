@@ -289,9 +289,9 @@ class NestedEditorController {
         const rootSelection = toRootSelection(this.session.local.selection, this.session.local.text);
         const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.resolvedCell.editableFrom);
         const currentMainSelection = this.mainView.state.selection.main;
-        const previousRoot = this.readRootState(this.mainView.state, this.session.resolvedCell);
+        const previousRootText = this.readRootText(this.mainView.state, this.session.resolvedCell);
 
-        const textChanged = rootText !== previousRoot.text;
+        const textChanged = rootText !== previousRootText;
         const selectionChanged =
             currentMainSelection.anchor !== absoluteSelection.anchor ||
             currentMainSelection.head !== absoluteSelection.head;
@@ -356,9 +356,13 @@ class NestedEditorController {
         });
     }
 
+    private readRootText(state: EditorState, resolved: ResolvedActiveCell): string {
+        return state.doc.sliceString(resolved.editableFrom, resolved.editableTo);
+    }
+
     private readRootState(state: EditorState, resolved: ResolvedActiveCell): NestedEditorTextState {
         return {
-            text: state.doc.sliceString(resolved.editableFrom, resolved.editableTo),
+            text: this.readRootText(state, resolved),
             selection: toRelativeSelection(state.selection, resolved.editableFrom, resolved.editableTo),
         };
     }

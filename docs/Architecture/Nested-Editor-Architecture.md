@@ -67,7 +67,8 @@ Joplin toolbar reads main editor selection, so nested must mirror upward.
 1. `NestedEditorSession` watches local selection changes.
 2. It mirrors the mapped absolute selection to the main editor (`syncAnnotation` + `addToHistory: false`).
 3. Root-owned commands update the authoritative root selection/doc.
-4. The controller re-resolves the active cell and derives root text and selection from main state on demand, with no cached mirror.
+4. The controller rebases the isolated editor selection from the resulting root cell text, via the same on-demand
+   re-resolve as the edit sync cycle.
 
 Selection mirroring uses the cell's editable span, not the fully trimmed semantic content span. This keeps toolbar and
 formatting commands aligned with user-entered leading/trailing whitespace while still hiding canonical delimiter padding
