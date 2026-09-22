@@ -118,7 +118,7 @@ function scrollToPosition(view: EditorView, pos: number): void {
     view.dispatch({
         selection: { anchor: pos },
         scrollIntoView: true,
-        effects: hasActiveCell ? [clearActiveCellEffect.of(undefined)] : [],
+        effects: hasActiveCell ? [clearActiveCellEffect.of(null)] : [],
     });
     view.focus();
 }
@@ -169,7 +169,7 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
     // and see the context menu.
     if (isPrimaryMouseButton(event) && target.closest(SELECTOR_LINK)) {
         if (getCellSelection(view.state)) {
-            view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+            view.dispatch({ effects: clearCellSelectionEffect.of(null) });
         }
         // Take the event to prevent CodeMirror default selection, but don't activate cell.
         return true;

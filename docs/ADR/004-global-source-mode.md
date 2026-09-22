@@ -37,15 +37,22 @@ Implement **global source mode** as an explicit, document-wide toggle:
 
 1. **User-controlled source mode** (`sourceModeField`): A toggle command that switches all tables to raw markdown. Useful for debugging, manual edits, or when rendered formatting is problematic.
 
-2. **Search-forced source mode** (`searchForceSourceModeField`): Automatically activates when the search panel opens, forcing all tables to raw markdown so CodeMirror's native search highlighting works correctly. Deactivates when the search panel closes.
+2. **Search-forced raw mode**: CodeMirror's `searchPanelOpen(state)` is the source of truth. An open search panel forces every table to raw markdown so native search highlighting works. Closing the panel restores widgets unless user source mode is still enabled.
 
-3. **Effective raw mode** (`isEffectiveRawMode()`): Returns `true` if either source mode is active. The widget extension uses this to decide whether to render widgets or show raw markdown.
+3. **Effective raw mode** (`isEffectiveRawMode()`): Returns `true` when user source mode is enabled or the search panel is open. The widget extension uses this to decide whether to render widgets or show raw markdown.
+
+Search open and close do not go through a mirrored field or a deferred watcher. `searchPanelTransitionExtension` is a transaction extender: it compares panel visibility on the transaction's start and result, and when that changes it appends lifecycle effects to the same transaction.
+
+- Closed → open: `clearActiveCellEffect`, when an active cell remains in the resulting state.
+- Open → closed: `exitSearchForceSourceModeEffect`, so the runtime can reactivate the cell at the cursor.
+- Unchanged: no effects.
+
+Because raw mode is derived from the panel, the opening transaction is already raw, and registering the table extensions while search is already open is raw immediately.
 
 ### Implementation Files
 
-- `sourceMode.ts`: User-controlled toggle, StateField + effects
-- `searchForceSourceMode.ts`: Search-triggered StateField + effects
-- `searchPanelWatcher.ts`: ViewPlugin that detects search panel open/close and dispatches effects
+- `sourceMode.ts`: User-controlled toggle, StateField, and `isEffectiveRawMode()`
+- `searchPanelTransitions.ts`: Synchronous search open/close lifecycle effects
 
 ## Consequences
 

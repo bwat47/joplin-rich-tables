@@ -1,10 +1,10 @@
 import { defaultKeymap } from '@codemirror/commands';
+import { openSearchPanel } from '@codemirror/search';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { Direction, EditorView, keymap } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
@@ -38,6 +38,22 @@ const BELOW_TABLE_DOC = docBelowTable();
 const ABOVE_TABLE_DOC = docAboveTable();
 const AROUND_TABLE_DOC = `${BEFORE}\n\n${TABLE}\n\n${AFTER}`;
 
+/** The two ways every table stops rendering as a widget. */
+const RAW_MODE_CASES: ReadonlyArray<{ label: string; enterRawMode: (view: EditorView) => void }> = [
+    {
+        label: 'source mode',
+        enterRawMode: (view) => {
+            view.dispatch({ effects: toggleSourceModeEffect.of(true) });
+        },
+    },
+    {
+        label: 'search-forced raw mode',
+        enterRawMode: (view) => {
+            openSearchPanel(view);
+        },
+    },
+];
+
 /** The table's offset in the document as it stands, which entry may have normalized. */
 function currentTableFrom(view: EditorView, table: string = TABLE): number {
     return view.state.doc.toString().indexOf(table);
@@ -53,7 +69,6 @@ function mountView(doc: string, selection: number | { anchor: number; head: numb
         state: createMarkdownState(doc, [
             activeCellField,
             cellSelectionField,
-            searchForceSourceModeField,
             sourceModeField,
             openCellRequestField,
             // Tables must render as block replace decorations: vertical entry reads the
@@ -244,13 +259,10 @@ describe('mainEditorTableEntry deletion protection', () => {
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it.each([
-        { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
-        { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
-    ])('leaves linewise cut unchanged in $label', ({ effect }) => {
+    it.each(RAW_MODE_CASES)('leaves linewise cut unchanged in $label', ({ enterRawMode }) => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, 0);
-        view.dispatch({ effects: effect });
+        enterRawMode(view);
 
         cutLines(view);
 
@@ -807,13 +819,10 @@ ${AFTER}`);
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
-    it.each([
-        { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
-        { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
-    ])('leaves table Markdown editable in $label', ({ effect }) => {
+    it.each(RAW_MODE_CASES)('leaves table Markdown editable in $label', ({ enterRawMode }) => {
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, TABLE.length + 1);
-        view.dispatch({ effects: effect });
+        enterRawMode(view);
 
         pressKey(view, 'Backspace');
 
@@ -1083,14 +1092,11 @@ describe('mainEditorTableEntry vertical movement', () => {
         });
     });
 
-    it.each([
-        { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
-        { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
-    ])('leaves vertical movement in the main editor during $label', ({ effect }) => {
+    it.each(RAW_MODE_CASES)('leaves vertical movement in the main editor during $label', ({ enterRawMode }) => {
         const prefix = 'above';
         const doc = `${prefix}\n${TABLE}`;
         const view = mountView(doc, prefix.length);
-        view.dispatch({ effects: effect });
+        enterRawMode(view);
         mockVerticalTarget(view, prefix.length + 1);
 
         pressKey(view, 'ArrowDown');

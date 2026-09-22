@@ -52,7 +52,7 @@ function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => voi
         run: () => {
             closeEditor();
             if (getActiveCell(mainView.state)) {
-                mainView.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+                mainView.dispatch({ effects: clearActiveCellEffect.of(null) });
             }
             return BUBBLE_TO_HOST;
         },

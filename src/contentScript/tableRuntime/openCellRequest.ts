@@ -160,7 +160,7 @@ export function prepareOpenCellRequestTransaction(
         ...(entryMode === 'adopt' ? {} : { selection: { anchor: selectionAnchor } }),
         effects: [
             ...buildOpenCellRequestEffects({ ...params, requestId, activeCell }),
-            ...(normalization ? [structuralTableEditEffect.of(undefined)] : []),
+            ...(normalization ? [structuralTableEditEffect.of(null)] : []),
         ],
     };
 }

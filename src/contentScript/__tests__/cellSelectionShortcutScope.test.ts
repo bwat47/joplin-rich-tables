@@ -35,7 +35,7 @@ function createViewHarness(options: { activeCell?: boolean; selection?: boolean;
                       }),
                   ]
                 : []),
-            ...(dragging ? [startCellDragEffect.of(undefined)] : []),
+            ...(dragging ? [startCellDragEffect.of(null)] : []),
         ],
     }).state;
 
@@ -126,7 +126,7 @@ describe('cellSelectionShortcutScope', () => {
     });
 
     it.each([
-        { label: 'the selection is cleared', effect: () => clearCellSelectionEffect.of(undefined) },
+        { label: 'the selection is cleared', effect: () => clearCellSelectionEffect.of(null) },
         {
             label: 'a cell is activated',
             effect: () => setActiveCellEffect.of({ tableFrom: 0, section: 'header' as const, row: 0, col: 0 }),
@@ -139,7 +139,7 @@ describe('cellSelectionShortcutScope', () => {
             focus: { section: 'body' as const, row: 0, col: 0 },
         };
         state = state.update({
-            effects: [setCellSelectionEffect.of(selection), startCellDragEffect.of(undefined)],
+            effects: [setCellSelectionEffect.of(selection), startCellDragEffect.of(null)],
         }).state;
         expect(isCellDragInProgress(state)).toBe(true);
 

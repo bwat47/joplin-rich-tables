@@ -99,7 +99,7 @@ export function runStructuralCommand(
     if (prepared.kind === 'deleteTable') {
         view.dispatch({
             changes: { from: prepared.tableFrom, to: prepared.tableTo, insert: '' },
-            effects: [clearActiveCellEffect.of(undefined), structuralTableEditEffect.of(undefined)],
+            effects: [clearActiveCellEffect.of(null), structuralTableEditEffect.of(null)],
         });
         view.focus();
 
@@ -127,7 +127,7 @@ export function runStructuralCommand(
               }
             : {}),
         ...openRequest,
-        effects: [...openRequest.effects, structuralTableEditEffect.of(undefined)],
+        effects: [...openRequest.effects, structuralTableEditEffect.of(null)],
     });
     view.focus();
 

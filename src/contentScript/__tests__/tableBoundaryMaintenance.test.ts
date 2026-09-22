@@ -1,11 +1,11 @@
 import { history, redo, undo } from '@codemirror/commands';
-import { Annotation, EditorState, type Extension, type StateEffect, type Transaction } from '@codemirror/state';
+import { Annotation, EditorState, type Extension, type Transaction } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { openSearchPanelInState } from './searchPanelTestUtils';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
 import { getTableContextAtPos } from '../tableState/tableContextField';
@@ -13,16 +13,10 @@ import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
-const runtimeState: Extension[] = [
-    activeCellField,
-    cellSelectionField,
-    searchForceSourceModeField,
-    sourceModeField,
-    openCellRequestField,
-];
+const runtimeState: Extension[] = [activeCellField, cellSelectionField, sourceModeField, openCellRequestField];
 
-function createState(doc: string, options: { effects?: StateEffect<unknown>[] } = {}): EditorState {
-    const state = createMarkdownState(doc, [
+function createState(doc: string): EditorState {
+    return createMarkdownState(doc, [
         ...runtimeState,
         history(),
         tableBoundaryMaintenanceExtension,
@@ -30,8 +24,6 @@ function createState(doc: string, options: { effects?: StateEffect<unknown>[] } 
         // inspects the result.
         createMainEditorActiveCellGuard(() => false),
     ]);
-
-    return options.effects?.length ? state.update({ effects: options.effects }).state : state;
 }
 
 /**
@@ -151,16 +143,24 @@ describe('table boundary maintenance', () => {
     });
 
     it.each([
-        { label: 'source mode', effect: toggleSourceModeEffect.of(true) },
-        { label: 'search-forced raw mode', effect: setSearchForceSourceModeEffect.of(true) },
+        {
+            label: 'source mode',
+            prepare: (state: EditorState) => state.update({ effects: toggleSourceModeEffect.of(true) }).state,
+        },
+        {
+            label: 'search-forced raw mode',
+            prepare: openSearchPanelInState,
+        },
         {
             label: 'an active cell',
-            effect: setActiveCellEffect.of({ tableFrom: 7, section: 'header', row: 0, col: 0 }),
+            prepare: (state: EditorState) =>
+                state.update({
+                    effects: setActiveCellEffect.of({ tableFrom: 7, section: 'header', row: 0, col: 0 }),
+                }).state,
         },
-    ])('leaves the document unchanged in $label', ({ effect }) => {
+    ])('leaves the document unchanged in $label', ({ prepare }) => {
         const doc = `intro\n\n${TABLE}\n`;
-        const state = createState(doc, { effects: [effect as StateEffect<unknown>] });
-        const transaction = input(state, blankLinePos(doc, TABLE), 'x');
+        const transaction = input(prepare(createState(doc)), blankLinePos(doc, TABLE), 'x');
 
         expect(transaction.state.doc.toString()).toBe(`intro\nx\n${TABLE}\n`);
     });

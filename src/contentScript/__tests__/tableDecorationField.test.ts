@@ -1,17 +1,30 @@
-import { ensureSyntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
+import { ensureSyntaxTree } from '@codemirror/language';
+import { closeSearchPanel, openSearchPanel } from '@codemirror/search';
 import { EditorState, StateEffect, Transaction } from '@codemirror/state';
 import type { Decoration } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { describe, expect, it, vi } from 'vitest';
-import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
-import { tableContextField } from '../tableState/tableContextField';
-import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { createResizeObserverStub } from './tableEditorFixtures';
+import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { createMarkdownState } from './testMarkdownState';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
+import { isEffectiveRawMode, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { tableContextField } from '../tableState/tableContextField';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
+import { applySearchCommand } from './searchPanelTestUtils';
+import { createMarkdownState } from './testMarkdownState';
+
+const resizeObserver = createResizeObserverStub();
+
+beforeAll(() => {
+    resizeObserver.install();
+});
+
+afterAll(() => {
+    vi.unstubAllGlobals();
+});
 
 const TABLE_COUNT = 5;
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
@@ -152,7 +165,7 @@ describe('tableDecorationField', () => {
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
         expect(wasActiveHostInvalidated(state)).toBe(true);
 
-        state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
+        state = state.update({ effects: clearActiveCellEffect.of(null) }).state;
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
 
         expect(ensureSyntaxTree(state, state.doc.length, COMPLETE_PARSE_TIMEOUT_MS)).not.toBeNull();
@@ -176,7 +189,7 @@ ${TABLE.replace('a', 'c')}`;
         // The main editor guard clears the stale active cell in the same transaction.
         const replaced = active.update({
             changes: { from: 0, to: active.doc.length, insert: replacement },
-            effects: clearActiveCellEffect.of(undefined),
+            effects: clearActiveCellEffect.of(null),
         }).state;
 
         expect(replaced.field(tableContextField).tables.map((table) => [table.from, table.to])).toEqual(
@@ -224,11 +237,11 @@ ${TABLE.replace('a', 'c')}`;
 
     it.each([
         ['an invalid cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 2 })]],
-        ['a clear', [clearActiveCellEffect.of(undefined)]],
+        ['a clear', [clearActiveCellEffect.of(null)]],
         [
             'a clear followed by the same activation',
             [
-                clearActiveCellEffect.of(undefined),
+                clearActiveCellEffect.of(null),
                 setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 0 }),
             ],
         ],
@@ -329,21 +342,37 @@ ${TABLE.replace('a', 'c')}`;
         expect(state.field(tableDecorationField).decorations).toBe(before);
     });
 
-    it.each([
-        ['source mode', toggleSourceModeEffect],
-        ['search-forced raw mode', setSearchForceSourceModeEffect],
-    ])('drops decorations in %s and rebuilds them on exit', (_name, effect) => {
-        let state = createMarkdownState(TABLE, [tableDecorationField, sourceModeField, searchForceSourceModeField]);
+    it('drops decorations in source mode and rebuilds them on exit', () => {
+        let state = createMarkdownState(TABLE, [tableDecorationField, sourceModeField]);
         expect(state.field(tableDecorationField).decorations.size).toBe(1);
         const index = state.field(tableContextField);
 
-        state = state.update({ effects: effect.of(true) }).state;
+        state = state.update({ effects: toggleSourceModeEffect.of(true) }).state;
         expect(state.field(tableDecorationField).decorations.size).toBe(0);
 
-        const exit = state.update({ effects: effect.of(false) });
+        const exit = state.update({ effects: toggleSourceModeEffect.of(false) });
         expect(exit.docChanged).toBe(false);
         expect(exit.state.field(tableContextField)).toBe(index);
         expect(exit.state.field(tableDecorationField).decorations.size).toBe(1);
+    });
+
+    it('drops decorations when search opens and rebuilds them when search closes', () => {
+        const state = createMarkdownState(TABLE, [
+            tableDecorationField,
+            sourceModeField,
+            searchPanelTransitionExtension,
+        ]);
+        expect(state.field(tableDecorationField).decorations.size).toBe(1);
+        const index = state.field(tableContextField);
+
+        const opened = applySearchCommand(state, openSearchPanel);
+        expect(isEffectiveRawMode(opened.state)).toBe(true);
+        expect(opened.state.field(tableDecorationField).decorations.size).toBe(0);
+
+        const closed = applySearchCommand(opened.state, closeSearchPanel);
+        expect(closed.docChanged).toBe(false);
+        expect(closed.state.field(tableContextField)).toBe(index);
+        expect(closed.state.field(tableDecorationField).decorations.size).toBe(1);
     });
 
     it('clears host invalidation on the next selection-only transaction', () => {
@@ -378,7 +407,7 @@ ${TABLE.replace('a', 'c')}`;
         state = state.update({ selection: { anchor: 1 } }).state;
         expect(getDecorationAt(state, 0, state.doc.length)).toBe(before);
 
-        state = state.update({ effects: clearActiveCellEffect.of(undefined) }).state;
+        state = state.update({ effects: clearActiveCellEffect.of(null) }).state;
 
         expect(getDecorationAt(state, 0, state.doc.length)).not.toBe(before);
     });

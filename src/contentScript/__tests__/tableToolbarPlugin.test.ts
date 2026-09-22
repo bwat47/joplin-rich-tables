@@ -99,7 +99,7 @@ function activateCell(view: EditorView, cell: ActiveCell): void {
 }
 
 function clearActiveCell(view: EditorView): void {
-    view.dispatch({ effects: clearActiveCellEffect.of(undefined) });
+    view.dispatch({ effects: clearActiveCellEffect.of(null) });
 }
 
 describe('tableToolbarPlugin', () => {

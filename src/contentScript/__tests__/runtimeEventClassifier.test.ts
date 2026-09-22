@@ -1,3 +1,4 @@
+import { closeSearchPanel, openSearchPanel, search } from '@codemirror/search';
 import { Compartment, type Extension, StateEffect, Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -9,7 +10,7 @@ import {
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
+import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
@@ -57,7 +58,6 @@ function dispatchAndCaptureUpdate(params: {
     let state = createMarkdownState(params.doc ?? TABLE_DOC, [
         activeCellField,
         sourceModeField,
-        searchForceSourceModeField,
         tableDecorationField,
         EditorView.updateListener.of((update) => {
             if (update.transactions.length > 0) {
@@ -191,7 +191,6 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({
                     effects: [
                         toggleSourceModeEffect.of(true),
-                        setSearchForceSourceModeEffect.of(true),
                         triggerOpenCellRequestEffect.of({ requestId: 'first-request' }),
                         triggerOpenCellRequestEffect.of({ requestId: 'latest-request' }),
                     ],
@@ -208,6 +207,59 @@ describe('runtimeEventClassifier', () => {
             exitedRawMode: false,
             exitedSourceMode: false,
             exitedSearchForce: false,
+        });
+    });
+
+    it('classifies search open as raw-mode entry', () => {
+        const update = dispatchAndCaptureUpdate({
+            extensions: [search(), searchPanelTransitionExtension],
+            dispatch(view) {
+                openSearchPanel(view);
+            },
+        });
+
+        expect(classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS).rawModeTransition).toEqual({
+            enteredRawMode: true,
+            exitedRawMode: false,
+            exitedSourceMode: false,
+            exitedSearchForce: false,
+        });
+    });
+
+    it('classifies search close as a search-forced raw-mode exit', () => {
+        const update = dispatchAndCaptureUpdate({
+            extensions: [search(), searchPanelTransitionExtension],
+            dispatch(view) {
+                openSearchPanel(view);
+                closeSearchPanel(view);
+            },
+        });
+
+        expect(classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS).rawModeTransition).toEqual({
+            enteredRawMode: false,
+            exitedRawMode: true,
+            exitedSourceMode: false,
+            exitedSearchForce: true,
+        });
+    });
+
+    it('classifies search close during source mode as a search exit that stays raw', () => {
+        const update = dispatchAndCaptureUpdate({
+            extensions: [search(), searchPanelTransitionExtension],
+            dispatch(view) {
+                view.dispatch({ effects: toggleSourceModeEffect.of(true) });
+                openSearchPanel(view);
+                closeSearchPanel(view);
+            },
+        });
+        const facts = classifyTableRuntimeFacts(update, DEFAULT_EXTERNAL_FACTS);
+
+        expect(facts.effectiveRawMode).toBe(true);
+        expect(facts.rawModeTransition).toEqual({
+            enteredRawMode: false,
+            exitedRawMode: false,
+            exitedSourceMode: false,
+            exitedSearchForce: true,
         });
     });
 

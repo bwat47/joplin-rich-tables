@@ -75,7 +75,7 @@ describe('mainCaretSuppression', () => {
         selectCells(view);
         expect(view.dom.hasAttribute(ATTR)).toBe(true);
 
-        view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+        view.dispatch({ effects: clearCellSelectionEffect.of(null) });
         expect(view.dom.hasAttribute(ATTR)).toBe(false);
     });
 
@@ -98,7 +98,7 @@ describe('mainCaretSuppression', () => {
         selectCells(view);
         beginOpenRequest(view);
 
-        view.dispatch({ effects: clearCellSelectionEffect.of(undefined) });
+        view.dispatch({ effects: clearCellSelectionEffect.of(null) });
         expect(view.dom.hasAttribute(ATTR)).toBe(true);
 
         view.dispatch({ effects: clearOpenCellRequestEffect.of({ requestId: REQUEST_ID }) });

@@ -7,8 +7,8 @@ import {
     buildMultiCellPasteRewrite,
     createTableClipboardRewriteSpec,
 } from '../tableRuntime/selection/cellSelectionClipboard';
-import { searchForceSourceModeField, setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { openSearchPanelInState } from './searchPanelTestUtils';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import {
     beginOpenCellRequestEffect,
@@ -25,7 +25,6 @@ function createState(params: { doc: string; nestedOpen: boolean }) {
     return createMarkdownState(params.doc, [
         activeCellField,
         cellSelectionField,
-        searchForceSourceModeField,
         sourceModeField,
         openCellRequestField,
         createMainEditorActiveCellGuard(() => params.nestedOpen),
@@ -153,7 +152,7 @@ describe('createMainEditorActiveCellGuard', () => {
 
         const tr = state.update({
             changes: { from: 0, to: firstLineEnd, insert: '| X | Y |' },
-            effects: structuralTableEditEffect.of(undefined),
+            effects: structuralTableEditEffect.of(null),
         });
 
         expect(tr.state.doc.toString()).toContain('| X | Y |');
@@ -376,7 +375,7 @@ describe('createMainEditorActiveCellGuard', () => {
             doc: ['before', '', 'after'].join('\n'),
             nestedOpen: false,
         });
-        state = state.update({ effects: setSearchForceSourceModeEffect.of(true) }).state;
+        state = openSearchPanelInState(state);
         const pasteText = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
         const pastePos = 'before\n'.length;
 

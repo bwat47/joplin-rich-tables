@@ -11,4 +11,4 @@ import { StateEffect } from '@codemirror/state';
  * `mainEditorGuardPolicy` uses the signal to allow structural document changes without cell-range
  * sanitization.
  */
-export const structuralTableEditEffect = StateEffect.define<void>();
+export const structuralTableEditEffect = StateEffect.define<null>();

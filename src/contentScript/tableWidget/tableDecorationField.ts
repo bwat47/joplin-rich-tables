@@ -6,8 +6,7 @@ import type { TableContext } from '../tableModel/tableContext';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { setSearchForceSourceModeEffect } from '../tableState/searchForceSourceMode';
-import { isEffectiveRawMode, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { getTableContextStartingAt, tableContextField } from '../tableState/tableContextField';
 import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';
 import { TableWidget } from './TableWidget';
@@ -132,11 +131,14 @@ function invalidatesActiveHost(transaction: Transaction): boolean {
 /**
  * StateField that manages table widget decorations.
  * Block decorations MUST be provided via StateField, not ViewPlugin.
- * Tables are always rendered as widgets (unless source mode is toggled).
+ * Tables are always rendered as widgets unless raw mode is active.
  */
 export const tableDecorationField = StateField.define<TableDecorationState>({
     create(state) {
         logger.info('Table decoration field initialized');
+        if (isEffectiveRawMode(state)) {
+            return { decorations: Decoration.none, activeHostInvalidated: false };
+        }
         return buildTableDecorations(state);
     },
     update(value, transaction) {
@@ -147,11 +149,7 @@ export const tableDecorationField = StateField.define<TableDecorationState>({
             };
         }
 
-        if (
-            transaction.effects.some(
-                (effect) => effect.is(toggleSourceModeEffect) || effect.is(setSearchForceSourceModeEffect)
-            )
-        ) {
+        if (isEffectiveRawMode(transaction.startState)) {
             // Raw-mode exit has no document change and the index object is identical, so
             // reconciliation would keep the Decoration.none held during raw mode.
             return buildTableDecorations(transaction.state, invalidatesActiveHost(transaction));

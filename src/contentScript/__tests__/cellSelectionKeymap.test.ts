@@ -69,7 +69,7 @@ describe('cellSelectionKeymap', () => {
                     anchor,
                     focus: { section: 'body', row: 0, col: 1 },
                 }),
-                startCellDragEffect.of(undefined),
+                startCellDragEffect.of(null),
             ],
         });
 
@@ -88,10 +88,10 @@ describe('cellSelectionKeymap', () => {
                     anchor: { section: 'body', row: 0, col: 0 },
                     focus: { section: 'body', row: 0, col: 1 },
                 }),
-                startCellDragEffect.of(undefined),
+                startCellDragEffect.of(null),
             ],
         });
-        view.dispatch({ effects: endCellDragEffect.of(undefined) });
+        view.dispatch({ effects: endCellDragEffect.of(null) });
 
         pressKey({ key: 'Escape' });
 

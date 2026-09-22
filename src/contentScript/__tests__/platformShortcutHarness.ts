@@ -708,7 +708,7 @@ export function registerPlatformShortcutTests(
         const { view, historyCounter } = mountSelectionView();
         primeTwoEdits(view);
         selectBodyCells(view);
-        view.dispatch({ effects: startCellDragEffect.of(undefined) });
+        view.dispatch({ effects: startCellDragEffect.of(null) });
 
         const event = pressKey(document.body, SUPPORTED[platform][0].init);
 

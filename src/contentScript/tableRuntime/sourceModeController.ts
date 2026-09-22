@@ -1,7 +1,7 @@
+import { searchPanelOpen } from '@codemirror/search';
 import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { isSearchForceSourceModeEnabled } from '../tableState/searchForceSourceMode';
 import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { requestViewAnimationFrame } from '../shared/domContext';
 
@@ -11,8 +11,8 @@ function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
             return;
         }
 
-        // Search-forced raw mode intentionally lets Joplin keep focus on the search UI.
-        if (!isSourceModeEnabled(view.state) || isSearchForceSourceModeEnabled(view.state)) {
+        // An open search panel keeps focus on the search UI.
+        if (!isSourceModeEnabled(view.state) || searchPanelOpen(view.state)) {
             return;
         }
 
@@ -27,7 +27,7 @@ export function toggleSourceMode(view: EditorView): boolean {
     if (enteringSourceMode) {
         const effects: StateEffect<unknown>[] = [toggleSourceModeEffect.of(true)];
         if (getActiveCell(view.state)) {
-            effects.unshift(clearActiveCellEffect.of(undefined));
+            effects.unshift(clearActiveCellEffect.of(null));
         }
         view.dispatch({ effects });
         focusMainEditorForExplicitSourceModeEntry(view);
@@ -35,7 +35,7 @@ export function toggleSourceMode(view: EditorView): boolean {
     }
 
     view.dispatch({
-        effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(undefined)],
+        effects: [toggleSourceModeEffect.of(false), exitSourceModeEffect.of(null)],
     });
     return true;
 }

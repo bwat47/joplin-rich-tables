@@ -17,7 +17,7 @@ export type CellSelectionDirection = 'left' | 'right' | 'up' | 'down';
 
 export const cellSelectionTransitionAnnotation = Annotation.define<boolean>();
 export const setCellSelectionEffect = StateEffect.define<CellSelection>();
-export const clearCellSelectionEffect = StateEffect.define<void>();
+export const clearCellSelectionEffect = StateEffect.define<null>();
 
 export function toSelectionRect(selection: CellSelection): TableRect {
     const anchorRow = toUnifiedRow(selection.anchor);

@@ -2,11 +2,8 @@ import { type ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
 import { containsSelection, getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
-import {
-    exitSearchForceSourceModeEffect,
-    setSearchForceSourceModeEffect,
-} from '../../tableState/searchForceSourceMode';
-import { exitSourceModeEffect, isEffectiveRawMode, toggleSourceModeEffect } from '../../tableState/sourceMode';
+import { exitSearchForceSourceModeEffect } from '../searchPanelTransitions';
+import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { noteIdentityFacet } from '../../services/noteIdentity';
@@ -90,20 +87,14 @@ function getActiveCellFacts(
 function scanRawModeTransitionFacts(update: ViewUpdate, effectiveRawMode: boolean): RawModeTransitionFacts {
     let exitedSourceMode = false;
     let exitedSearchForce = false;
-    let hadRawModeToggle = false;
 
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
             if (effect.is(exitSourceModeEffect)) {
                 exitedSourceMode = true;
-                hadRawModeToggle = true;
             }
             if (effect.is(exitSearchForceSourceModeEffect)) {
                 exitedSearchForce = true;
-                hadRawModeToggle = true;
-            }
-            if (effect.is(toggleSourceModeEffect) || effect.is(setSearchForceSourceModeEffect)) {
-                hadRawModeToggle = true;
             }
         }
     }
@@ -111,8 +102,8 @@ function scanRawModeTransitionFacts(update: ViewUpdate, effectiveRawMode: boolea
     const previousEffectiveRawMode = isEffectiveRawMode(update.startState);
 
     return {
-        enteredRawMode: hadRawModeToggle && !previousEffectiveRawMode && effectiveRawMode,
-        exitedRawMode: hadRawModeToggle && previousEffectiveRawMode && !effectiveRawMode,
+        enteredRawMode: !previousEffectiveRawMode && effectiveRawMode,
+        exitedRawMode: previousEffectiveRawMode && !effectiveRawMode,
         exitedSourceMode,
         exitedSearchForce,
     };
