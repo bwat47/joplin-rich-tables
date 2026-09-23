@@ -81,10 +81,12 @@ from the local editor.
 - Nested-editor and cell-selection shortcuts use CodeMirror's default undo/redo bindings against
   the main editor: Cmd-Z / Cmd-Shift-Z on macOS, Ctrl-Z / Ctrl-Y on Windows, and Ctrl-Z / Ctrl-Y or
   Ctrl-Shift-Z on Linux.
-- Nested-editor Mod routing is platform-exact (Cmd on macOS, Ctrl on Windows/Linux): **Mod-F** closes
-  the nested editor and clears the active cell so host search can open; ``Mod-B/I/U/`/E/K``
-  synchronize the root selection before bubbling as formatting commands; **Mod-S/P/V** bubble
-  untouched as host save, print, and paste. Any other chord stays inside the nested editor.
+- Nested-editor keydowns always bubble so Joplin and document listeners see them, but
+  `TableWidget.ignoreEvent` hides them from the main editor, whose keymap would act on a root
+  selection outside the cell. Only chords routed to root (`nestedEditor/rootKeyRouting.ts`) reach it.
+  Routing is platform-exact (Cmd on macOS, Ctrl on Windows/Linux): **Mod-F** closes the nested editor
+  and clears the active cell so host search can open; ``Mod-B/I/U/`/E/K`` synchronize the root
+  selection first so they run as formatting commands.
 - Undo to different cell → nested editor closes, new one opens.
 - Undo outside table → nested editor closes, main gains focus.
 - A non-history edit elsewhere in the document keeps the current nested editor open while all other table widgets

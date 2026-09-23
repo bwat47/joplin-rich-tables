@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';
-import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
+import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { routeKeyEventToRootEditor } from '../nestedEditor/rootKeyRouting';
 import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { parseCellRangesFixture } from './testUtils';
 
@@ -89,6 +90,36 @@ describe('TableWidget.ignoreEvent', () => {
         select(cellText, 2, cellText, 2);
 
         expect(createWidget().ignoreEvent(copyEventFrom(cellText))).toBe(false);
+    });
+
+    it('disowns a keydown from a nested cell editor so the root keymap cannot act outside the cell', () => {
+        const editorHost = document.createElement('div');
+        editorHost.className = CLASS_CELL_EDITOR;
+        const nestedContent = editorHost.appendChild(document.createElement('div'));
+        document.body.appendChild(editorHost);
+
+        const event = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true });
+        nestedContent.dispatchEvent(event);
+
+        expect(createWidget().ignoreEvent(event)).toBe(true);
+    });
+
+    it('keeps a nested cell editor keydown that was routed to the root editor', () => {
+        const editorHost = document.createElement('div');
+        editorHost.className = CLASS_CELL_EDITOR;
+        document.body.appendChild(editorHost);
+
+        const event = new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true });
+        editorHost.dispatchEvent(event);
+        routeKeyEventToRootEditor(event);
+
+        expect(createWidget().ignoreEvent(event)).toBe(false);
+    });
+
+    it('keeps a keydown from outside a nested cell editor', () => {
+        const { cellText } = mountEditorContent();
+
+        expect(createWidget().ignoreEvent({ type: 'keydown', target: cellText } as unknown as Event)).toBe(false);
     });
 
     it('keeps every other event, including a cut a rendered cell cannot serve', () => {

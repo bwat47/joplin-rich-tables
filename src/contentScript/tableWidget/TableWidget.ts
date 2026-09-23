@@ -1,6 +1,7 @@
 import { WidgetType, EditorView } from '@codemirror/view';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
+import { isNestedEditorKeyEvent } from '../nestedEditor/rootKeyRouting';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
@@ -316,6 +317,12 @@ export class TableWidget extends WidgetType {
         // A native range inside rendered text belongs to the pending cell gesture, not
         // the outer document selection. Pointer/mouse events use the interaction handlers.
         if (event.type === 'selectionchange') {
+            return true;
+        }
+
+        // Nested cell editor keys bubble for the host, but the main keymap would act on a
+        // root selection outside the cell. Only chords routed to the root editor get through.
+        if (isNestedEditorKeyEvent(event)) {
             return true;
         }
 
