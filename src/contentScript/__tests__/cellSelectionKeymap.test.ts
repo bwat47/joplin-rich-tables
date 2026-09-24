@@ -178,7 +178,6 @@ describe('cellSelectionKeymap', () => {
     });
 
     it.each([
-        { label: 'Ctrl+X', init: { key: 'x', ctrlKey: true } },
         { label: 'Shift+Delete', init: { key: 'Delete', shiftKey: true } },
         { label: 'Ctrl+Insert', init: { key: 'Insert', ctrlKey: true } },
         { label: 'Shift+Insert', init: { key: 'Insert', shiftKey: true } },

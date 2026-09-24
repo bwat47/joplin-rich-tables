@@ -177,14 +177,17 @@ const CLIPBOARD_PASSTHROUGH: Record<SimulatedPlatform, KeyCase[]> = {
 const CLIPBOARD_REJECTED: Record<SimulatedPlatform, KeyCase[]> = {
     macOS: [
         { label: 'Ctrl-C', init: { key: 'c', ctrlKey: true } },
+        { label: 'Ctrl-X', init: { key: 'x', ctrlKey: true } },
         { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
     ],
     Windows: [
         { label: 'Cmd-C', init: { key: 'c', metaKey: true } },
+        { label: 'Cmd-X', init: { key: 'x', metaKey: true } },
         { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
     ],
     Linux: [
         { label: 'Cmd-C', init: { key: 'c', metaKey: true } },
+        { label: 'Cmd-X', init: { key: 'x', metaKey: true } },
         { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
     ],
 };
