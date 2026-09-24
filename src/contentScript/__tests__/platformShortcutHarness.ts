@@ -788,6 +788,7 @@ export function registerPlatformShortcutTests(
 
                 pressKey(document.activeElement ?? view.contentDOM, formatting.init);
                 expect(rootFormatting).toHaveBeenCalledTimes(1);
+                expect(hostKeyDown).toHaveBeenCalledTimes(2);
             } finally {
                 document.removeEventListener('keydown', hostKeyDown);
             }
