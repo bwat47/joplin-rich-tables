@@ -1,6 +1,6 @@
 import { selectAll } from '@codemirror/commands';
 import { EditorSelection, Transaction, type Extension } from '@codemirror/state';
-import { EditorView, keymap, runScopeHandlers, type Command, type KeyBinding } from '@codemirror/view';
+import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
 import { openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
@@ -8,31 +8,24 @@ import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cell
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 import { createHistoryKeyBindings } from '../tableRuntime/historyKeymap';
+import { routeKeyEventToRootEditor } from './nestedEditorEventRouting';
 
-/** Dedicated keymap scope so host-routing bindings never match nested-editor navigation. */
-const NESTED_EDITOR_ROUTING_SCOPE = 'table.nestedEditor.routing';
+/** Dedicated keymap scope so root-routing bindings never match nested-editor navigation. */
+const ROOT_ROUTING_SCOPE = 'table.nestedEditor.rootRouting';
 
 /**
- * Mod-shortcuts that run as root editor commands (bold, italic, underline, code, link).
- * They need a root selection mirroring the nested editor before they bubble out.
+ * Mod-shortcuts routed to the root editor's keymap (bold, italic, underline, code, link), for
+ * hosts whose formatting shortcuts exist only as editor key bindings, mainly Joplin mobile.
+ * Desktop menu shortcuts, including rebound and plugin ones, fire without this list because
+ * unrouted chords still bubble un-prevented to the host.
  */
 const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
 
 /**
- * Mod-shortcuts handled entirely by Joplin/the host (save, print, paste).
- * They bubble untouched with no extra nested-editor bookkeeping.
+ * Routing commands never handle the chord themselves. Returning true only claims it for the
+ * root editor; the keydown handler below then routes the event there as it bubbles.
  */
-const HOST_PASSTHROUGH_KEYS: readonly string[] = ['s', 'p', 'v'];
-
-/**
- * Routing commands invert CodeMirror's usual `Command` contract. The keydown handler below
- * stops propagation for every chord this scope does not claim, so a command returning true
- * means "this chord belongs to the host, let it bubble" rather than "handled, stop here".
- */
-const BUBBLE_TO_HOST = true;
-
-/** Claims a chord for the host without any nested-editor bookkeeping. */
-const bubbleToHost: Command = () => BUBBLE_TO_HOST;
+const ROUTE_TO_ROOT = true;
 
 function isOpenSearchBinding(binding: KeyBinding): boolean {
     return binding.run === openSearchPanel;
@@ -54,13 +47,13 @@ function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => voi
             if (getActiveCell(mainView.state)) {
                 mainView.dispatch({ effects: clearActiveCellEffect.of(null) });
             }
-            return BUBBLE_TO_HOST;
+            return ROUTE_TO_ROOT;
         },
-        scope: NESTED_EDITOR_ROUTING_SCOPE,
+        scope: ROOT_ROUTING_SCOPE,
     }));
 }
 
-function createNestedEditorRoutingBindings(
+function createRootRoutingBindings(
     mainView: EditorView,
     options: {
         closeEditor: () => void;
@@ -73,14 +66,9 @@ function createNestedEditorRoutingBindings(
             key: `Mod-${key}`,
             run: () => {
                 options.ensureRootSelectionForCommand();
-                return BUBBLE_TO_HOST;
+                return ROUTE_TO_ROOT;
             },
-            scope: NESTED_EDITOR_ROUTING_SCOPE,
-        })),
-        ...HOST_PASSTHROUGH_KEYS.map((key) => ({
-            key: `Mod-${key}`,
-            run: bubbleToHost,
-            scope: NESTED_EDITOR_ROUTING_SCOPE,
+            scope: ROOT_ROUTING_SCOPE,
         })),
     ];
 }
@@ -255,7 +243,7 @@ export function createNestedEditorDomHandlers(
     }
 ): Extension[] {
     return [
-        keymap.of(createNestedEditorRoutingBindings(mainView, options)),
+        keymap.of(createRootRoutingBindings(mainView, options)),
         EditorView.domEventHandlers({
             // Last stop for a paste that reaches the nested editor directly: the document-level
             // clipboard capture runs first and marks the event handled, so this only fires when
@@ -271,32 +259,13 @@ export function createNestedEditorDomHandlers(
                     nestedEditorOpen: true,
                 });
             },
-            beforeinput: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            input: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            compositionstart: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            compositionupdate: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            compositionend: (e) => {
-                e.stopPropagation();
-                return false;
-            },
             // Never marks the event as handled; local CodeMirror keymaps still run on
-            // this element. A routing hit means the chord belongs to the host (see
-            // `BUBBLE_TO_HOST`); unmatched chords stay inside the nested editor.
+            // this element. Keydowns, like input and composition events, bubble so the
+            // host sees them, while `TableWidget.ignoreEvent` hides them from the root
+            // editor unless a routing binding claimed the keydown for root.
             keydown: (e, view) => {
-                if (!runScopeHandlers(view, e, NESTED_EDITOR_ROUTING_SCOPE)) {
-                    e.stopPropagation();
+                if (runScopeHandlers(view, e, ROOT_ROUTING_SCOPE)) {
+                    routeKeyEventToRootEditor(e);
                 }
 
                 return false;

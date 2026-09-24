@@ -1,5 +1,5 @@
 import { history, isolateHistory, undo } from '@codemirror/commands';
-import { EditorSelection, EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from '../nestedEditor/domHandlers';
@@ -10,6 +10,8 @@ import { startCellDragEffect } from '../tableState/cellDragState';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { findCellElement } from '../tableWidget/domHelpers';
+import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { requireResolvedActiveCell } from './testUtils';
 import {
     TEST_HOST_CONFIG,
@@ -139,15 +141,13 @@ const WINDOWS_LINUX_FORMATTING: KeyCase[] = [
     { label: 'Ctrl-E', init: { key: 'e', ctrlKey: true } },
     { label: 'Ctrl-K', init: { key: 'k', ctrlKey: true } },
 ];
-const WINDOWS_LINUX_HOST_PASSTHROUGH: KeyCase[] = [
-    { label: 'Ctrl-S', init: { key: 's', ctrlKey: true } },
-    { label: 'Ctrl-P', init: { key: 'p', ctrlKey: true } },
-    { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
-];
-const WINDOWS_LINUX_ROUTING_REJECTED: KeyCase[] = [
+const WINDOWS_LINUX_UNROUTED: KeyCase[] = [
     { label: 'Cmd-F', init: { key: 'f', metaKey: true } },
     { label: 'Cmd-B', init: { key: 'b', metaKey: true } },
     { label: 'Ctrl-N', init: { key: 'n', ctrlKey: true } },
+    { label: 'Ctrl-S', init: { key: 's', ctrlKey: true } },
+    { label: 'Ctrl-P', init: { key: 'p', ctrlKey: true } },
+    { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
 ];
 
 const SEARCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
@@ -169,27 +169,21 @@ const FORMATTING_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     Linux: WINDOWS_LINUX_FORMATTING,
 };
 
-const HOST_PASSTHROUGH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
-    macOS: [
-        { label: 'Cmd-S', init: { key: 's', metaKey: true } },
-        { label: 'Cmd-P', init: { key: 'p', metaKey: true } },
-        { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
-    ],
-    Windows: WINDOWS_LINUX_HOST_PASSTHROUGH,
-    Linux: WINDOWS_LINUX_HOST_PASSTHROUGH,
-};
-
-const ROUTING_REJECTED: Record<SimulatedPlatform, KeyCase[]> = {
+/** Chords the nested editor leaves to the host: they bubble, but the root editor must ignore them. */
+const UNROUTED: Record<SimulatedPlatform, KeyCase[]> = {
     macOS: [
         { label: 'Ctrl-F', init: { key: 'f', ctrlKey: true } },
         { label: 'Ctrl-B', init: { key: 'b', ctrlKey: true } },
         { label: 'Cmd-N', init: { key: 'n', metaKey: true } },
+        { label: 'Cmd-S', init: { key: 's', metaKey: true } },
+        { label: 'Cmd-P', init: { key: 'p', metaKey: true } },
+        { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
     ],
-    Windows: WINDOWS_LINUX_ROUTING_REJECTED,
-    Linux: WINDOWS_LINUX_ROUTING_REJECTED,
+    Windows: WINDOWS_LINUX_UNROUTED,
+    Linux: WINDOWS_LINUX_UNROUTED,
 };
 
-const ROUTING_REJECTED_EVERYWHERE: KeyCase[] = [
+const UNROUTED_EVERYWHERE: KeyCase[] = [
     { label: 'Alt-Ctrl-B', init: { key: 'b', ctrlKey: true, altKey: true } },
     { label: 'Ctrl-Shift-S', init: { key: 's', ctrlKey: true, shiftKey: true } },
     { label: 'Ctrl+Meta-F', init: { key: 'f', ctrlKey: true, metaKey: true } },
@@ -404,7 +398,9 @@ export function registerPlatformShortcutTests(
         closeEditor: ReturnType<typeof vi.fn>;
         ensureRootSelectionForCommand: ReturnType<typeof vi.fn>;
     } {
+        // Mounted in a cell-editor host, as in a rendered table.
         const parent = document.createElement('div');
+        parent.className = CLASS_CELL_EDITOR;
         document.body.appendChild(parent);
         const parentKeyDown = vi.fn();
         parent.addEventListener('keydown', parentKeyDown);
@@ -597,6 +593,15 @@ export function registerPlatformShortcutTests(
         expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(options.ensureRootSelection ? 1 : 0);
         expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
         expect(event.defaultPrevented).toBe(false);
+        expect(isNestedEditorOwnedEvent(event)).toBe(false);
+    }
+
+    function expectUnroutedBubble(nested: ReturnType<typeof mountNestedRoutingView>, event: KeyboardEvent): void {
+        expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
+        expect(nested.closeEditor).not.toHaveBeenCalled();
+        expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+        expect(isNestedEditorOwnedEvent(event)).toBe(true);
     }
 
     it.each(SEARCH_SUPPORTED[platform])(
@@ -622,25 +627,11 @@ export function registerPlatformShortcutTests(
         expect(getActiveCell(mainView.state)).not.toBeNull();
     });
 
-    it.each(HOST_PASSTHROUGH_SUPPORTED[platform])('nested $label bubbles without nested bookkeeping', ({ init }) => {
+    it.each(UNROUTED[platform])('nested $label bubbles to the host but not the root editor', ({ init }) => {
         const mainView = mountMainActiveCellView();
         const nested = mountNestedRoutingView(mainView);
 
-        const event = pressKey(nested.view.contentDOM, init);
-
-        expectRoutedBubble(nested, event, {});
-    });
-
-    it.each(ROUTING_REJECTED[platform])('nested $label stays inside the nested editor', ({ init }) => {
-        const mainView = mountMainActiveCellView();
-        const nested = mountNestedRoutingView(mainView);
-
-        const event = pressKey(nested.view.contentDOM, init);
-
-        expect(nested.parentKeyDown).not.toHaveBeenCalled();
-        expect(nested.closeEditor).not.toHaveBeenCalled();
-        expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
-        expect(event.defaultPrevented).toBe(false);
+        expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
     });
 
     // Nothing below depends on the simulated platform, so one platform file runs it.
@@ -664,16 +655,11 @@ export function registerPlatformShortcutTests(
         expectSelectionDeleteIgnored({ key: 'Delete', shiftKey: true });
     });
 
-    it.each(ROUTING_REJECTED_EVERYWHERE)('nested $label stays inside the nested editor', ({ init }) => {
+    it.each(UNROUTED_EVERYWHERE)('nested $label bubbles to the host but not the root editor', ({ init }) => {
         const mainView = mountMainActiveCellView();
         const nested = mountNestedRoutingView(mainView);
 
-        const event = pressKey(nested.view.contentDOM, init);
-
-        expect(nested.parentKeyDown).not.toHaveBeenCalled();
-        expect(nested.closeEditor).not.toHaveBeenCalled();
-        expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
-        expect(event.defaultPrevented).toBe(false);
+        expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
     });
 
     it('keeps scoped history bindings out of the root editor keyboard scope', () => {
@@ -740,7 +726,7 @@ export function registerPlatformShortcutTests(
             frames.install();
         });
 
-        function mountLifecycleView(doc: string, selectionAnchor: number): EditorView {
+        function mountLifecycleView(doc: string, selectionAnchor: number, ...extra: Extension[]): EditorView {
             const parent = document.createElement('div');
             document.body.appendChild(parent);
             return trackView(
@@ -749,7 +735,7 @@ export function registerPlatformShortcutTests(
                     state: EditorState.create({
                         doc,
                         selection: EditorSelection.single(selectionAnchor),
-                        extensions: nestedEditorTestExtensions(history()),
+                        extensions: nestedEditorTestExtensions(history(), ...extra),
                     }),
                 })
             );
@@ -774,6 +760,39 @@ export function registerPlatformShortcutTests(
             expect(isNestedEditorOpen(view)).toBe(true);
             return cellElement;
         }
+
+        it('lets the root keymap see only chords routed to it, while the host sees every chord', async () => {
+            const formatting = FORMATTING_SUPPORTED[platform][0];
+            const unrouted = UNROUTED[platform][0];
+            const rootFormatting = vi.fn(() => true);
+            const rootUnrouted = vi.fn(() => true);
+            const toBinding = ({ init }: KeyCase) =>
+                [init.metaKey && 'Meta', init.ctrlKey && 'Ctrl', init.key].filter(Boolean).join('-');
+            const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
+            const view = mountLifecycleView(
+                doc,
+                doc.indexOf('abc'),
+                keymap.of([
+                    { key: toBinding(formatting), run: rootFormatting },
+                    { key: toBinding(unrouted), run: rootUnrouted },
+                ])
+            );
+            await openBodyCell(view, 0);
+            const hostKeyDown = vi.fn();
+            document.addEventListener('keydown', hostKeyDown);
+
+            try {
+                pressKey(document.activeElement ?? view.contentDOM, unrouted.init);
+                expect(rootUnrouted).not.toHaveBeenCalled();
+                expect(hostKeyDown).toHaveBeenCalledTimes(1);
+
+                pressKey(document.activeElement ?? view.contentDOM, formatting.init);
+                expect(rootFormatting).toHaveBeenCalledTimes(1);
+                expect(hostKeyDown).toHaveBeenCalledTimes(2);
+            } finally {
+                document.removeEventListener('keydown', hostKeyDown);
+            }
+        });
 
         it('keeps editable focus after undo and redo inside a surviving cell', async () => {
             const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
