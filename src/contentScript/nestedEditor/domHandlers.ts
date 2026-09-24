@@ -14,8 +14,10 @@ import { routeKeyEventToRootEditor } from './rootKeyRouting';
 const ROOT_ROUTING_SCOPE = 'table.nestedEditor.rootRouting';
 
 /**
- * Mod-shortcuts that run as root editor commands (bold, italic, underline, code, link).
- * They need a root selection mirroring the nested editor before they bubble out.
+ * Mod-shortcuts routed to the root editor's keymap (bold, italic, underline, code, link), for
+ * hosts whose formatting shortcuts exist only as editor key bindings, mainly Joplin mobile.
+ * Desktop menu shortcuts, including rebound and plugin ones, fire without this list because
+ * unrouted chords still bubble un-prevented to the host.
  */
 const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
 

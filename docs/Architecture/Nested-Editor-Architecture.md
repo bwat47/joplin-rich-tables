@@ -86,7 +86,9 @@ from the local editor.
   selection outside the cell. Only chords routed to root (`nestedEditor/rootKeyRouting.ts`) reach it.
   Routing is platform-exact (Cmd on macOS, Ctrl on Windows/Linux): **Mod-F** closes the nested editor
   and clears the active cell so host search can open; ``Mod-B/I/U/`/E/K`` synchronize the root
-  selection first so they run as formatting commands.
+  selection first so they run as formatting commands. The formatting list serves hosts whose
+  shortcuts exist only as main-editor key bindings (mainly Joplin mobile). On desktop, unrouted
+  chords bubble un-prevented to Joplin's menu shortcuts, so rebound and plugin shortcuts work without it.
 - Undo to different cell → nested editor closes, new one opens.
 - Undo outside table → nested editor closes, main gains focus.
 - A non-history edit elsewhere in the document keeps the current nested editor open while all other table widgets
