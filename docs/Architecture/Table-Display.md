@@ -1,152 +1,21 @@
 # Table Display
 
-## Rendering
+The main editor document remains the source of truth. Display turns indexed root tables into interactive widgets while keeping raw Markdown available when rendering is disabled or parsing is incomplete.
 
-### Detection
+## Rendering Pipeline
 
-Direct `Document` table nodes from the Lezer syntax tree are replaced with
-`Decoration.replace({ widget, block: true })` via a `StateField`. `tableDecorationField` builds every decoration from
-the current `tableContextField` index rather than scanning syntax or deriving table models itself.
+`tableDecorationField` reads `tableContextField` and replaces each indexed table source span with a block `TableWidget`. It owns decoration updates; the widget renders the table and maps interactions back to cells. Inactive cell Markdown is rendered through the service described in [Markdown-Rendering.md](./Markdown-Rendering.md).
 
-If parsing times out, decorations are cleared along with the index, exposing raw Markdown and destroying any hosted
-nested editor. Decorations rebuild when a later transaction exposes a complete index. Background parsing may stop
-before completing a large document, so recovery is not guaranteed to be immediate. Raw mode and explicit invalidation
-still take precedence.
+Document changes rebuild decorations from the current index. The active table's widget can stay mounted when the change is confined to the active cell, or sits entirely outside that table and is not an undo or redo. A cell switch inside the same table can keep it too, but only when the current index still has the same span, the same shape, and a resolvable active cell. An edit that touches the rest of the table rebuilds the widget. Other widgets can reuse their DOM when their source text is unchanged. These are display optimizations: active-cell identity and current cell offsets still come from editor state and `TableContext`, never from widget DOM. See [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md) for the lifecycle rules.
 
-### Widget Structure
+When the table index is incomplete, its decorations disappear and source Markdown is shown. Rendering returns on a later update once a complete syntax tree is available; background parsing is not guaranteed to finish immediately. The widget estimates table height before rendering and records measured height afterward to reduce scroll jumps. It also maps positions inside replaced source to rendered cell coordinates for editor features such as tooltips.
 
-- `posAtDOM()` locates table widgets.
-- Wide tables scroll horizontally within container.
-- Each cell renders into a dedicated content wrapper (`CLASS_CELL_CONTENT`) so styling can be applied consistently between initial render and nested-editor activation.
-- A cell's inset (`tableWidget/cellGeometry.ts`) is declared on whichever box owns its interior — the content wrapper, or the nested editor's `.cm-content` — never on the `<td>`. Padding on the cell itself sits outside both, so a press in it hit-tests against neither and starts no text selection.
+## Raw Display Modes
 
-### Media and Embed Constraints
+Explicit source mode reveals Markdown for the whole document. Opening CodeMirror search temporarily uses the same raw display so matches inside tables are visible. Both modes remove table widgets and close an active nested editor; leaving search restores rendered tables unless explicit source mode is still enabled. See [ADR-004](../ADR/004-global-source-mode.md) for the source-mode decision.
 
-Rendered cell HTML can include images, videos, and Joplin-rendered YouTube embeds.
+## Layout and Appearance
 
-- Media elements are constrained in `tableStyles.ts` to prevent them from expanding the table beyond the available width.
-- Joplin resource icons / missing-resource placeholders have their size constrained via CSS.
+Wide tables scroll within their widget. Table styles constrain cell media and embeds, and optional zebra striping applies only to widget-owned rows. Text selection remains visible across rendered cells and the active nested editor.
 
-## Optimizations
-
-### 1. Decoration Update Strategy
-
-Every document change reconciles decorations against the current `tableContextField` index. Raw mode — user source
-mode or an open search panel — is the exception: widgets are replaced with `Decoration.none` in that transaction,
-and exiting raw mode force-rebuilds them. That exit has no document change and keeps the same index object, so
-reconciliation would retain the empty set. All tables receive fresh decorations except the table hosting the active
-nested editor, whose existing decoration is carried through only when:
-
-1. the old active cell resolves;
-2. changes stay inside that cell or strictly outside its table;
-3. activation stays within the same table and no clear effect intervenes;
-4. the new index confirms the mapped table span, syntax-derived shape, and active coordinates; and
-5. the mapped old decoration exists at that span.
-
-Undo and redo preserve the host only for changes confined to the active cell, so history follows its restored cursor.
-Cell switches and open requests within the same table preserve its DOM; the controller refreshes the departing cell.
-Clearing activation, switching tables, and source-changing structural edits (which replace the whole table range) end
-carry-over. Same-text structural mutations may preserve the existing host. `syncAnnotation` prevents cross-editor
-loops but has no decoration policy role. Other tables always refresh from current contexts, including during an
-external edit while a cell editor is open.
-
-### 2. DOM Reuse (Exact Source Text)
-
-Each rendered widget root is associated with the exact table source it was built from.
-
-`eq()` compares source text and document position, so a table that neither changed nor moved is
-skipped entirely during reconciliation. Position is part of the comparison because active-host preservation maps
-that decoration without replacing its widget snapshot, leaving the widget's recorded position stale after shifts.
-
-When `eq()` reports a difference, `updateDOM()` decides between reuse and rebuild:
-
-- Source text matches → DOM reused (return `true`); position-only changes update the recorded `tableFrom` that keys height-cache measurements.
-- Source text differs, or the element is unrecognised → CodeMirror destroys/recreates.
-
-Comparison is against the text itself, not a hash: a hash match only makes identical content
-probable, and a collision would silently reuse DOM showing stale rows.
-
-Prevents flicker when rebuilding decorations for position sync, and keeps stateful embedded
-content (videos, iframes) alive across rebuilds.
-
-### 3. Height Estimation
-
-Prevents scroll jumping via multi-layered approach:
-
-**Heuristic** (`estimateTableHeight`): Estimates based on row count, text length, image presence.
-
-**ResizeObserver**: After async render:
-
-1. `view.requestMeasure()` notifies CodeMirror.
-2. Updates **LRU height cache** (200 tables per index).
-
-**Height Cache**: Two LRU indexes over the same measurements, one keyed by source text and one by
-document position, so a height survives both in-table edits (position unchanged) and edits above the
-table (text unchanged). Text is consulted first: a text hit is the table's own measurement, whereas a
-position hit only reports whatever was last measured at that offset and goes stale when a table above
-is deleted.
-
-**`coordsAt()`**: Maps positions in replaced table source to rendered cell rectangles for
-CodeMirror coordinate consumers, notably cursor-positioned tooltips. Keyboard cell navigation
-scrolls through nested-editor focus and does not depend on it. Coordinate lookup gets the widget's
-live document start through `posAtDOM()` and resolves current cell ranges from `tableContextField`.
-The widget's `TableContext` remains a rendering and height-estimation snapshot; it is never a
-fallback for live coordinates.
-
-## Display Modes
-
-### Source Mode
-
-`Ctrl+Shift+/` or toolbar toggle. Disables decoration field, reveals raw Markdown. Auto-closes active nested editor.
-
-See [ADR-004](../ADR/004-global-source-mode.md) for the rationale behind global source mode.
-
-### Search Override
-
-`Ctrl+F` opens CodeMirror's search panel. Panel visibility is the source of truth for search-forced raw mode:
-`isEffectiveRawMode()` reads `searchPanelOpen(state)`, so widgets drop in the transaction that opens the panel,
-including when the table extensions are registered while search is already open.
-
-`searchPanelTransitionExtension` appends lifecycle effects to that same transaction. Opening search clears an
-active cell; closing it carries `exitSearchForceSourceModeEffect` so the runtime can reactivate the cell at the
-cursor. Explicit source mode stays in effect when the panel closes.
-
-## Appearance
-
-Zebra striping is an opt-in startup setting. When enabled, `tableStyles.ts` marks the editor root and shades even
-`tbody` rows with Joplin's table background colour. The direct-child selector applies only to widget-owned rows and
-does not affect HTML tables rendered inside cell Markdown. Selected cells are excluded from the stripe: the stripe
-selector outweighs the selection fill, and `selectionTint.ts` solves its tint against a known ground, so a stripe
-standing in for that ground would band a selected rectangle row by row.
-
-Text selections inside a table are painted by the browser's `::selection`, so an open cell and the rendered cells
-around it highlight the same way — glyph-tight ranges rather than CodeMirror's line-box rectangles, which run to the
-far edge of the cell across a wrap.
-
-`renderedTextSelectionTheme.ts` colours a range dragged out of a rendered cell, carved out of the widget-wide
-`::selection` reset in `wholeTableSelectionVisuals.ts`. The nested editor hides `drawSelection`'s background
-rectangles but preserves its selection layer for iOS handles (`nestedEditorTheme.ts`); `drawSelection` also remains
-the source of the caret. `rootEditorSelectionTheme.ts` colours the native highlight from the root editor so its
-selectors beat both Joplin's and `drawSelection`'s `::selection` rules.
-
-## Host Scroll Modes
-
-Joplin hosts the editor two ways, and internal and external scrolling are mutually exclusive:
-
-- **Desktop** pins CodeMirror to a fixed-height container, so `scrollDOM` scrolls internally.
-- **Mobile and web** leave the editor's height unconstrained, so `scrollDOM` grows to the whole document and the
-  document root scrolls instead.
-
-`shared/editorViewport.ts` resolves both cases without a mode flag. `resolveViewportBounds` intersects the scroller
-rect with the window: a scroller that already sits inside the window survives unchanged, and one that spans the
-document is clipped back to the window. The floating toolbar uses those bounds to decide visibility and placement;
-cell-drag auto-scroll uses them for its edge zones and for clamping its hit test.
-
-Auto-scroll picks its scroll target from the same distinction, testing whether `scrollDOM` has any overflow to move
-and falling back to `document.scrollingElement` when it does not.
-
-## Floating Toolbar
-
-The toolbar uses a Floating UI virtual anchor. Horizontally, it uses the table rect clipped to the widget root so it
-centres on the visible table slice; vertically, it uses the widget root so bottom placement clears the horizontal
-scrollbar.
+Viewport handling supports Joplin's internally scrolling desktop editor and document-scrolling mobile or web editor. The floating toolbar and cell-drag scrolling use the visible viewport bounds so they remain positioned around the table in either host layout.

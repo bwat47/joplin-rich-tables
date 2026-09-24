@@ -1,157 +1,23 @@
 # Structural Commands and Serialization
 
-Command flow from user action to Markdown serialization, including non-structural clear, format, and sort commands that still re-serialize table text.
-
-Multi-cell clipboard writes use the same parse -> mutate -> serialize pattern, but enter through
-`tableRuntime/selection/cellSelectionClipboard.ts` rather than `tableCommands.ts`.
+Table changes operate on a normalized `MarkdownTable`, then write canonical Markdown back to the main editor. This applies to row and column commands, alignment, sorting, clearing, and multi-cell clipboard edits.
 
 ## Command Flow
 
-```
-Named command (keyboard/toolbar)             Navigation key (Tab/Enter at table edge)
-            ↓                                            ↓
-tableCommands.ts / tableToolbarPlugin.ts     navigation/tableNavigation.ts
-  Resolve active cell once                     Resolve active cell + target column
-            ↓                                            ↓
-operations/structuralActions.ts                          │
-  Action ID → constant command                           │
-            ↓                                            ↓
-            └─────────────────┬──────────────────────────┘
-                              ↓
-        operations/runStructuralCommand.ts
-          Prepare + dispatch surviving-table or table-deletion result
-                              ↓
-        tableModel/structuralCommandSemantics.ts
-          Apply command → surviving table or table deletion
-                              ↓
-        MarkdownTable.ts
-          Runtime model + structural operations
-```
+Named commands and toolbar actions resolve the current active cell through `tableContextField`, then pass a `StructuralTableCommand` to `runStructuralCommand.ts`. Navigation can enter the same runner with a command that includes its destination column. The shared command catalog defines names and labels used across the Joplin host and content script; command names also appear in saved Joplin keymaps.
 
-Navigation bypasses `structuralActions.ts` because it needs a parameterized command
-(`{ type: 'insertRowAfter', targetCol }`): Tab starts the new row at column 0, while Enter/Down keeps the
-current column. Action IDs map to constant command objects, so they cannot carry that argument.
+`structuralCommandSemantics.ts` applies the command to the table model without depending on CodeMirror. It returns either a resulting table with the intended target cell or a whole-table deletion. `MarkdownTable` owns the underlying row, column, sort, clear, and alignment operations.
 
-## Layers
+The runtime runner serializes a surviving table, replaces its source range when the text changed, and dispatches explicit intent to open the target cell. Whole-table deletion instead removes the source and clears the active cell. The structural edit signal describes the transaction; it does not choose which cell to reopen. Source-changing commands replace the table as a whole, so the widget is rebuilt from the new document state. See [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md) for active-cell and widget lifecycle rules.
 
-### 1. Entry Point (`tableCommands.ts`)
+## Clipboard and Table Creation
 
-- **Joplin Registration**: derived from `contentScriptBridge/structuralCommandCatalog.ts`, the shared source of
-  truth for structural command names, labels, and menu accelerators. The host (`src/index.ts`) builds its command
-  and menu registrations from the same catalog, so the two sides cannot drift across the bundle boundary.
-  Catalog keys are `StructuralActionId`s, so a new action fails to compile until it has a command. Command names
-  are persisted in the user's Joplin keymap - renaming one orphans their custom shortcut.
-- **Active Cell Resolution**: Resolves the current active cell once with `getResolvedActiveCell()`.
-- **Delegation Only**: Dispatches through the shared structural action registry.
+Multi-cell paste and selection removal enter through `cellSelectionClipboard.ts`. They resolve current table state, apply changes through the model, and serialize the resulting table. A pasted table fragment can expand the target table; clearing or cutting a selection can clear cell contents or remove rows, columns, or an empty whole table. Root-editor paste handling also routes table fragments into this flow when a nested cell editor is active.
 
-The floating toolbar follows the same action path. It keeps plain `ActiveCell` state for visibility and positioning,
-but resolves fresh from the current editor state when a toolbar button is clicked so async toolbar layout work does
-not preserve stale table context.
+Inserting a new table and pasting a standalone table use shared rewrite logic to place canonical table Markdown with the required blank-line separation. These paths attach an explicit request to open the intended cell after insertion.
 
-### 1b. Selection Clipboard Entry (`tableRuntime/selection/cellSelectionClipboard.ts`)
+## Canonical Markdown
 
-- Document-level `copy`/`cut`/`paste` capture handles selection-mode clipboard operations and any nested-editor paste flows that surface as real DOM paste events.
-- A `paste` handler on the nested editor itself is the fallback for a paste the document-level capture declined; it fires only when that capture left the event unhandled, and non-table text falls through to CodeMirror's own paste handling.
-- Rewrites carry `tableClipboardRewriteAnnotation` so the main-editor guard lets them through instead of rejecting them for reaching outside the active cell.
-- `Ctrl+X` is selection-only: copy markdown fragment, then run the shared selection-removal rewrite and keep the resulting selection state.
-- `Ctrl+V` is anchor-based: selection top-left wins; otherwise an active nested editor can supply the anchor cell.
-- Valid pasted markdown table fragments may expand the target table with new body rows and columns.
-- `Delete`/`Backspace` reuse the same selection-removal rewrite path without touching the clipboard.
+`MarkdownTable` normalizes ragged input to a rectangular grid and serializes each row with pipe delimiters and one space around cell content. It writes alignment markers but does not pad columns for visual alignment. Serialization also reports cell offsets, letting commands place the selection and reopen the correct cell without reparsing their output.
 
-Selection removal is resolved in this order:
-
-- If the selected rectangle is not fully empty, clear the selected cells.
-- If the selected rectangle is fully empty and spans all columns, delete those rows when doing so still leaves at least one row in the table. Header-only tables are valid.
-- If the selected rectangle is fully empty and spans all unified rows (header + body), delete those columns when doing so still leaves a valid table.
-- If the selected rectangle is the entire table and every cell is empty, delete the whole table.
-- When a structural row/column delete is blocked by table invariants, fall back to normal clear semantics.
-
-When Joplin routes Cmd/Ctrl+V to the root editor instead of the nested editor, `editorBridge/mainEditorGuard.ts`
-has two `input.paste` upgrade paths:
-
-- With a nested editor open, if the pasted text is a valid markdown table fragment it is intercepted and routed through `buildMultiCellPasteRewrite` (using the active cell as the anchor) — the same path as Ctrl+V in selection mode. Without this interception the guard's normal sanitization path would treat the fragment as plain text and paste it into the single active cell.
-- With no nested editor or cell selection active, it can normalize a pasted standalone markdown table at a block boundary into canonical table markdown, preserve required blank-line separation, and attach an open-cell request for header cell `(0,0)` to the paste transaction.
-
-The explicit table-creation command (`insertTable.ts`) always uses `buildRootTableInsertRewrite` directly, regardless of
-cursor position — it handles blank-line padding for both block-boundary and mid-line cases. The paste normalizer
-tries `buildIsolatedRootTableInsertRewrite` first (returns null if the cursor is not at a block boundary) and
-falls back to `buildRootTableInsertRewrite`, so both paths share the same blank-line separation rules.
-
-### 2. Runtime Command Runner (`tableRuntime/operations/runStructuralCommand.ts`)
-
-`runStructuralCommand.ts` is the runtime mutation orchestrator. It receives a `ResolvedActiveCell` plus a
-`StructuralTableCommand` and:
-
-1. **Use Resolved Context**: Reuse the resolved table span, `TableContext`, and logical active cell.
-2. **Apply Command Semantics**: Call `structuralCommandSemantics.ts` to obtain `{ table, targetCell }`.
-3. **Short-circuit**: Exit on no-op.
-4. **Serialize**: `table.serializeWithOffsets()` → Markdown plus cell offsets.
-5. **Compute Active Cell**: `tableRuntime/activeCell/activeCellFactory.ts`.
-6. **Dispatch**: Replace the table range when needed, set the main-editor selection, register an explicit
-   open-cell request, dispatch its id-only open signal, mark the transaction with `structuralTableEditEffect`,
-   and restore main-editor focus after a successful dispatch.
-
-The runner derives row-insertion cursor placement from the command: `insertRowBefore` and `insertRowAfter` reopen with
-`initialCursorPos: 'start'`; other surviving-table commands pass `initialCursorPos: undefined` and mirror the main
-selection. Whole-table deletion uses the same runner but clears active-cell state instead of reopening a cell. The
-runner owns focus handoff and suppresses navigation keys until every surviving-table reopen settles.
-
-`structuralActions.ts` maps shared action IDs to canonical `StructuralTableCommand` objects so keyboard commands and
-toolbar buttons do not maintain separate switchboards.
-
-`structuralCommandSemantics.ts` owns editor-independent command semantics:
-
-- It maps table-local command IDs plus active cell coordinates to either a new `MarkdownTable` plus target-cell intent,
-  or a table-deletion result.
-- It does not import CodeMirror or runtime state.
-
-All surviving-table structural mutations use `runStructuralCommand()`: row/column insert, delete, move, clear, and
-alignment updates. That means command-driven structural edits don't rely on lifecycle inferring reopen intent from the
-structural-edit signal. Reopen intent is explicit: if a transition should reopen, it must dispatch an open-cell request
-alongside the signal.
-
-### 3. Runtime Model (`MarkdownTable.ts`)
-
-`MarkdownTable` owns:
-
-- Parse + normalization of ragged inputs.
-- Serialization to canonical plugin Markdown.
-- Row operations with current header/body command semantics.
-- Column insert/delete/swap/alignment updates.
-- Stable body-row sorting by a selected column's raw Markdown.
-- Clear row/column/table operations.
-- Rectangle clear plus anchor-based fragment paste with optional row/column expansion.
-- Selection-removal helpers for empty-rect detection and contiguous row/column deletion.
-
-## Serialization
-
-`MarkdownTable.serialize()` output:
-
-- **Padding**: `| cell |` (one space each side).
-- **No pretty-printing**: No column width alignment.
-- **Alignment**: `:---` (left), `---:` (right), `:---:` (center), `---` (default).
-- **Normalization**: Ragged tables padded to consistent column counts.
-
-The same canonical serialization is also used at the interactive edit boundary: explicit user entry into a
-non-canonical table rewrites that table first, then reopens the target cell against the rebuilt widget. Lifecycle
-reopens used to restore editor state skip that rewrite so undo/redo does not get trapped re-normalizing the same table.
-
-Clipboard table paste also serializes the whole table after mutation. Existing column alignments are preserved;
-clipboard alignments are only applied to newly created columns.
-
-## Column Sorting
-
-Ascending and descending sorts keep the header fixed and reorder complete body rows. Comparison uses the raw,
-trimmed cell content stored by `MarkdownTable`, without rendering or stripping Markdown. An `Intl.Collator` with
-numeric comparison and base sensitivity provides natural digit ordering and case-insensitive equality. Blank cells
-remain last in both directions, equal values keep their original order, and the active body row follows its original
-row to the sorted position.
-
-## Structural Edit Signal
-
-Command-driven structural mutations dispatch both `structuralTableEditEffect` and an explicit open request, so
-lifecycle follows the open-request path. A structural-edit signal alone does not implicitly reopen a nested editor.
-
-Source-changing structural edits replace the whole table range, so decoration reconciliation renders a fresh widget;
-there is no row/column DOM diffing. See `tableState/structuralTableEditEffect.ts` for what the signal does and does not
-guarantee, and which modules read it.
+Canonicalization happens at editing, paste, and command boundaries, not while building the read-only table index. Interactive entry into a noncanonical table can normalize it before opening a cell; lifecycle restoration does not rewrite it. See [Table-Parsing.md](./Table-Parsing.md) for syntax projection and table indexing.

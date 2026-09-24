@@ -1,158 +1,23 @@
 # Nested Editor Architecture
 
-In-cell editing uses a transient CodeMirror instance inside the active `<td>`.
-
-The decision to use a nested CodeMirror editor instead of `contenteditable` is covered in [ADR-002](../ADR/002-nested-codemirror-subview.md). The decision to keep the editor cell-local and live-patch the main document is covered in [ADR-003](../ADR/003-cell-local-nested-editor.md) and [ADR-005](../ADR/005-live-patch-nested-editing.md).
-
-## Model
-
-- **Scope**: Contains only the active cell text in isolated local coordinates.
-- **Effect**: User edits a true cell-local editor while the root document remains authoritative.
+Editing a cell mounts a temporary CodeMirror editor inside that cell's widget. It contains only the active cell's text; the main editor document remains authoritative for table content, selection, and undo history. See [ADR-002](../ADR/002-nested-codemirror-subview.md), [ADR-003](../ADR/003-cell-local-nested-editor.md), and [ADR-005](../ADR/005-live-patch-nested-editing.md) for the design decisions.
 
 ## Lifecycle
 
-Managed by `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts`.
+Cell activation records a logical table and cell identity plus an explicit request to open it. `nestedEditorLifecycle.ts` resolves that identity against the current `tableContextField` index before mounting or updating the nested editor. `nestedEditorController.ts` owns the CodeMirror instance, focus handoff, synchronization, and cleanup. When editing ends, the cell returns to rendered Markdown.
 
-**Activation**: Cell click/keyboard activation resolves the target cell from widget DOM + `TableContext`/cell ranges into
-`ResolvedActiveCell` → `setActiveCellEffect` plus an open-intent effect dispatched → lifecycle plugin mounts the nested editor.
+The lifecycle separates facts, decisions, and effects: `runtimeEventClassifier.ts` describes editor updates, `lifecyclePolicy.ts` decides whether to open, update, or close, and the lifecycle plugin executes that decision. A note switch takes priority over every other path. Otherwise an explicit open request takes priority over close, sync, and reposition decisions. Document changes can invalidate a widget or cell position, so delayed work rechecks current state rather than trusting saved DOM or offsets. Entry-time table normalization is included in the activating transaction.
 
-`setActiveCellEffect` stores stable logical cell identity: `tableFrom` plus `section/row/col`. Any cursor placement for
-opening is passed separately as transient selection-anchor data. The lifecycle plugin resolves raw table/cell offsets from
-current editor state immediately before opening the isolated editor. Ongoing mount/sync/close behavior is handled by
-`nestedEditor/nestedEditorController.ts`.
+Leaving a table, entering raw source mode, or switching notes closes the nested editor. A note switch does not reopen a cell in the new note. Undo, redo, and other root-editor changes use the current table index to update or close the session as needed. The [runtime invariants](./Table-Runtime-Invariants.md) describe those cross-module rules.
 
-Entry transactions carry any canonical-form repair the table needs (`tableRuntime/tableCanonicalForm.ts`), so the whole
-entry is one document change belonging to the event that asked for it. Repairing a frame later instead reaches the host
-as an update it cannot order against the surrounding keystrokes, and Joplin writes a stale note body back over the
-editor — which tears down the nested editor.
+## Live Synchronization
 
-Mounting: ensureSyntaxTree (with timeout) prevents FOUC → editor mounted into `<td>` → focus transferred.
+Local edits are converted to valid single-cell Markdown and written immediately into the main document. `cellTextNormalization.ts` converts visible line breaks and pipes to their stored form; `cellTextCodec.ts` maps selections between local coordinates and the cell's editable range in the root document. Selection changes are mirrored upward so root-owned commands and Joplin's toolbar see the current caret.
 
-**Deactivation**: Click outside, note switch, or Source Mode toggle → `clearActiveCellEffect` dispatched → lifecycle plugin destroys the instance. A note switch is detected by the lifecycle itself (see [Note Switch](#note-switch)).
+Changes from the main editor rebase the nested editor from authoritative document text and selection. Both directions mark forwarded transactions with `syncAnnotation` to prevent feedback loops. The nested editor does not keep independent undo history; undo and redo act on the main document.
 
-Policy is split by concern:
+`mainEditorGuard` protects the active table while the nested editor owns cell input. It allows coordinated sync, structural, and clipboard rewrites, permits unrelated changes outside the table, and rejects or sanitizes root-editor edits that would corrupt the active cell or its boundaries.
 
-- `tableRuntime/lifecycle/runtimeEventClassifier.ts` adapts CodeMirror updates into compact runtime facts by scanning
-  transactions, resolving active-cell geometry, checking table ranges, and classifying raw-mode/open-request/sync
-  conditions.
-- `tableRuntime/lifecycle/lifecyclePolicy.ts` reduces those facts into ordered lifecycle actions. It owns action
-  precedence, including note-switch and explicit open-request priority, and does not consume `ViewUpdate`, transactions, resolved
-  geometry, or table scans.
-- `tableRuntime/lifecycle/nestedEditorLifecycle.ts` stores plugin-local previous-state flags, calls the classifier and
-  reducer, maps fallback hints, and executes the planned CodeMirror/nested-editor side effects. Execution-time guards
-  revalidate delayed open requests before touching DOM or mounting the nested editor.
-- `editorBridge/mainEditorGuardPolicy.ts` decides whether main-editor transactions are allowed, rewritten, or sanitized.
-- `tableWidget/tableDecorationField.ts` drops widgets in raw mode, force-rebuilds on raw-mode exit, and otherwise
-  reconciles against the table index.
+## Cell Editing Features
 
-The lifecycle classifier owns CodeMirror adaptation, the lifecycle policy owns action ordering and precedence, and the
-lifecycle plugin owns nested-editor side effects.
-
-## Synchronization
-
-### Edit Sync Cycle
-
-1. User types in the isolated editor.
-2. `NestedEditorSession` sanitizes local display text (`\n` -> `<br>`, `|` -> `\|`) via `shared/cellTextNormalization.ts` and maps the local selection into root cell coordinates via `editorBridge/cellTextCodec.ts`.
-3. The main editor applies the cell-only replacement transaction tagged with `editorBridge/syncAnnotation.ts`.
-4. After root dispatch, the controller re-resolves the active cell and derives root text and selection from main state on demand, with no cached mirror.
-5. External non-sync root changes use the `tableContextField`-backed selector and rebase the isolated editor from authoritative root text.
-   Closing is the exception: activation may already be cleared, so close-time rendering resolves the session's saved
-   logical anchor against the current index.
-
-### Selection Sync
-
-Joplin toolbar reads main editor selection, so nested must mirror upward.
-
-1. `NestedEditorSession` watches local selection changes.
-2. It mirrors the mapped absolute selection to the main editor (`syncAnnotation` + `addToHistory: false`).
-3. Root-owned commands update the authoritative root selection/doc.
-4. The controller rebases the isolated editor selection from the resulting root cell text, via the same on-demand
-   re-resolve as the edit sync cycle.
-
-Selection mirroring uses the cell's editable span, not the fully trimmed semantic content span. This keeps toolbar and
-formatting commands aligned with user-entered leading/trailing whitespace while still hiding canonical delimiter padding
-from the local editor.
-
-### Undo/Redo
-
-**Main editor owns history.** Nested editor uses `addToHistory: false`.
-
-- Nested-editor and cell-selection shortcuts use CodeMirror's default undo/redo bindings against
-  the main editor: Cmd-Z / Cmd-Shift-Z on macOS, Ctrl-Z / Ctrl-Y on Windows, and Ctrl-Z / Ctrl-Y or
-  Ctrl-Shift-Z on Linux.
-- Nested-editor keydown, input and composition events always bubble so Joplin and document
-  listeners see them, but `TableWidget.ignoreEvent` hides them from the main editor, whose keymap
-  and input tracking would act on a root selection outside the cell. Only chords routed to root (`nestedEditor/nestedEditorEventRouting.ts`) reach it.
-  Routing is platform-exact (Cmd on macOS, Ctrl on Windows/Linux): **Mod-F** closes the nested editor
-  and clears the active cell so host search can open; ``Mod-B/I/U/`/E/K`` synchronize the root
-  selection first so they run as formatting commands. The formatting list serves hosts whose
-  shortcuts exist only as main-editor key bindings (mainly Joplin mobile). On desktop, unrouted
-  chords bubble un-prevented to Joplin's menu shortcuts, so rebound and plugin shortcuts work without it.
-- Undo to different cell → nested editor closes, new one opens.
-- Undo outside table → nested editor closes, main gains focus.
-- A non-history edit elsewhere in the document keeps the current nested editor open while all other table widgets
-  refresh from the document index.
-
-### Full Document Replacement (Sync)
-
-Joplin sync replaces entire document. Detected by `isFullDocumentReplace()` (single change spanning `[0, doc.length]`).
-
-Response (to prevent stale document state):
-
-1. `mainEditorGuard` adds `clearActiveCellEffect` to the replacing transaction.
-2. `tableDecorationField` rebuilds every table from the new index in the same transaction and records
-   `activeHostInvalidated`.
-3. The lifecycle closes the nested editor and activates the cell under the cursor, as for any invalidated host.
-
-### Note Switch
-
-Joplin switches notes with one full-document replacement that also changes its note ID facet, mirrored into
-`services/noteIdentity.ts`. The classifier reports `noteChanged` only when both states carry an ID, so extension
-registration is not a switch. `noteChanged` takes precedence over every other lifecycle path: the lifecycle closes the
-nested editor and schedules the lifecycle's table-exit cleanup. It never reactivates a cell, because the cursor
-belongs to the new note.
-
-That cleanup moves the cursor out of any table and clears a leftover active cell, reading the settled state a frame
-later so a selection the host restored afterwards is respected. The lifecycle plugin also runs it from its
-constructor, for the fresh editor (mobile note load, desktop cold launch) whose restored cursor can already sit
-inside a table. Registration cannot reach it through `noteChanged`: that facet transition happens in the very
-transaction that installs the plugin, and CodeMirror does not call `update()` on a plugin for its own installing
-transaction.
-
-## Boundary Enforcement
-
-### Editor Bridge (`cellTextNormalization`, `cellTextCodec`, `syncAnnotation`)
-
-- **Local → Root Sanitization** (`shared/cellTextNormalization`): `\n`/`\r` → `<br>`, `|` → `\|`.
-- **Root → Local Unsanitization** (`shared/cellTextNormalization`): `<br>` → visible line breaks, `\|` → `|`.
-- **Offset Maps** (`shared/cellTextNormalization`): `localToRootOffsets` and `rootToLocalOffsets` give the mapped offset for every offset in the text, from the same scan that produces the converted text, so text and offsets cannot disagree. An offset inside a spelling that converts to something shorter or longer gives the start of it.
-- **Selection Mapping** (`editorBridge/cellTextCodec`): Local/root selections read both endpoints out of the matching offset map, not by naive offset arithmetic and not by rewriting the text being measured.
-
-### Main Editor (`editorBridge/mainEditorGuard`)
-
-Blocks unintended main editor edits during cell editing (Android IME focus issues where focus can jump to main editor).
-
-- Uses the shared transition policy to allow, reject, or sanitize main-editor transactions.
-- Rejects changes that touch the active table's inclusive `[from, to]` span but land outside the cell.
-- Treats the editable span as the allowed in-cell edit range while the semantic span remains the render/parse source.
-- Allows external updates that stay strictly outside the table.
-- Whitelists `syncAnnotation` transactions.
-- Whitelists `tableClipboardRewriteAnnotation` transactions: table clipboard rewrites replace the whole table by design, so the active-cell range check does not apply to them.
-- Whitelists structural operations with `structuralTableEditEffect`.
-- Sanitizes context-menu paste (newlines → `<br>`, pipes escaped).
-- Upgrades root-editor `input.paste` transactions into multi-cell table paste when Joplin routes Cmd/Ctrl+V to the main editor while a nested editor is open.
-- Also upgrades plain root-editor `input.paste` of a standalone markdown table at a block boundary into canonical table markdown plus deferred cell activation when no nested editor or cell selection is active.
-- Clears stale active-cell state if logical resolution can no longer find the anchored table/cell from the persisted active-cell identity.
-
-## Styling
-
-Nested editor requires its own extensions for parity with main editor:
-
-- **Markdown parsing**: GFM-derived inline parsing enabled, but block-level parsers (headings, lists, blockquotes, fenced code, tables, task lists, etc.) are removed so cell editing matches inline-only cell rendering.
-- **Inline Code**: Styled border around backticked code.
-- **Mark**: `==text==` highlighting.
-- **Insert**: `++text++` underline.
-- **Editor Features**: Close-bracket behavior and native spellcheck are sourced from a one-time
-  content-script-startup snapshot of the Joplin `editor.autoMatchingBraces` and `spellChecker.enabled` settings
-  fetched through the plugin process. Spellcheck adds a `spellcheck="true"` content attribute to the nested editor.
+The nested editor parses inline Markdown without enabling block constructs that would conflict with table cells. Its styling and editing extensions support inline formatting, wrapping, bracket completion, and host spellcheck settings while keeping the cell's rendered and editable views consistent.
