@@ -8,7 +8,7 @@ import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cell
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 import { createHistoryKeyBindings } from '../tableRuntime/historyKeymap';
-import { routeKeyEventToRootEditor } from './rootKeyRouting';
+import { routeKeyEventToRootEditor } from './nestedEditorEventRouting';
 
 /** Dedicated keymap scope so root-routing bindings never match nested-editor navigation. */
 const ROOT_ROUTING_SCOPE = 'table.nestedEditor.rootRouting';
@@ -259,30 +259,10 @@ export function createNestedEditorDomHandlers(
                     nestedEditorOpen: true,
                 });
             },
-            beforeinput: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            input: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            compositionstart: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            compositionupdate: (e) => {
-                e.stopPropagation();
-                return false;
-            },
-            compositionend: (e) => {
-                e.stopPropagation();
-                return false;
-            },
             // Never marks the event as handled; local CodeMirror keymaps still run on
-            // this element. Every keydown bubbles so the host sees it, while
-            // `TableWidget.ignoreEvent` hides it from the root editor unless a routing
-            // binding claimed it for root.
+            // this element. Keydowns, like input and composition events, bubble so the
+            // host sees them, while `TableWidget.ignoreEvent` hides them from the root
+            // editor unless a routing binding claimed the keydown for root.
             keydown: (e, view) => {
                 if (runScopeHandlers(view, e, ROOT_ROUTING_SCOPE)) {
                     routeKeyEventToRootEditor(e);

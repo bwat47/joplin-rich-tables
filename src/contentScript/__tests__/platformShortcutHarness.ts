@@ -10,7 +10,7 @@ import { startCellDragEffect } from '../tableState/cellDragState';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { findCellElement } from '../tableWidget/domHelpers';
-import { isNestedEditorKeyEvent } from '../nestedEditor/rootKeyRouting';
+import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { requireResolvedActiveCell } from './testUtils';
 import {
@@ -593,7 +593,7 @@ export function registerPlatformShortcutTests(
         expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(options.ensureRootSelection ? 1 : 0);
         expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
         expect(event.defaultPrevented).toBe(false);
-        expect(isNestedEditorKeyEvent(event)).toBe(false);
+        expect(isNestedEditorOwnedEvent(event)).toBe(false);
     }
 
     function expectUnroutedBubble(nested: ReturnType<typeof mountNestedRoutingView>, event: KeyboardEvent): void {
@@ -601,7 +601,7 @@ export function registerPlatformShortcutTests(
         expect(nested.closeEditor).not.toHaveBeenCalled();
         expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
         expect(event.defaultPrevented).toBe(false);
-        expect(isNestedEditorKeyEvent(event)).toBe(true);
+        expect(isNestedEditorOwnedEvent(event)).toBe(true);
     }
 
     it.each(SEARCH_SUPPORTED[platform])(

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { routeKeyEventToRootEditor } from '../nestedEditor/rootKeyRouting';
+import { routeKeyEventToRootEditor } from '../nestedEditor/nestedEditorEventRouting';
 import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { parseCellRangesFixture } from './testUtils';
 
@@ -103,6 +103,20 @@ describe('TableWidget.ignoreEvent', () => {
 
         expect(createWidget().ignoreEvent(event)).toBe(true);
     });
+
+    it.each(['beforeinput', 'input', 'compositionstart', 'compositionupdate', 'compositionend'])(
+        'disowns a nested cell editor %s so the root editor does not track nested typing',
+        (type) => {
+            const editorHost = document.createElement('div');
+            editorHost.className = CLASS_CELL_EDITOR;
+            document.body.appendChild(editorHost);
+
+            const event = new Event(type, { bubbles: true });
+            editorHost.dispatchEvent(event);
+
+            expect(createWidget().ignoreEvent(event)).toBe(true);
+        }
+    );
 
     it('keeps a nested cell editor keydown that was routed to the root editor', () => {
         const editorHost = document.createElement('div');
