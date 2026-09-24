@@ -19,12 +19,27 @@ import {
     startCellSelectionFromActiveCell,
 } from './cellSelectionController';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
-import { handleSelectionDelete, isNativeClipboardShortcut } from './cellSelectionClipboard';
+import { handleSelectionDelete } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
 import { createHistoryKeyBindings } from '../historyKeymap';
 
 /** Dedicated keymap scope so these bindings never match the root editor's ordinary keyboard handling. */
 const CELL_SELECTION_SCOPE = 'table.cellSelection';
+
+/**
+ * Separate scope for clipboard chords: a match must stop propagation but keep the native
+ * default, which the ordinary selection scope's preventDefault handling cannot express.
+ */
+const CLIPBOARD_PASSTHROUGH_SCOPE = 'table.cellSelection.clipboard';
+
+/**
+ * The chords that make the browser emit a clipboard event, which is where a table
+ * selection is serialized and rewritten. Shift-Mod-C and friends are left out: they
+ * belong to other handlers. A chord missing here still pastes correctly, since the
+ * clipboard event has its own listener; it just no longer hides the keydown from the
+ * root editor.
+ */
+const CLIPBOARD_PASSTHROUGH_KEYS = ['Mod-c', 'Mod-x', 'Mod-v', 'Ctrl-Insert', 'Shift-Insert', 'Shift-Delete'] as const;
 
 const ARROW_BINDINGS: ReadonlyArray<{ key: string; direction: CellSelectionDirection }> = [
     { key: 'ArrowLeft', direction: 'left' },
@@ -89,6 +104,20 @@ function createRectangleDeletionBindings(): KeyBinding[] {
     }));
 }
 
+/**
+ * Reports the chord as matched without acting on it. The capture plugin only stops
+ * propagation for this scope, so the browser still runs its clipboard default.
+ */
+const claimClipboardChord: Command = () => true;
+
+function createClipboardPassthroughBindings(): KeyBinding[] {
+    return CLIPBOARD_PASSTHROUGH_KEYS.map((key) => ({
+        key,
+        run: claimClipboardChord,
+        scope: CLIPBOARD_PASSTHROUGH_SCOPE,
+    }));
+}
+
 function extendOrStartSelection(view: EditorView, direction: CellSelectionDirection): boolean {
     if (getCellSelection(view.state)) {
         return extendExistingCellSelection(view, direction);
@@ -142,6 +171,7 @@ function createCellSelectionKeyBindings(): KeyBinding[] {
     return [
         ...createHistoryKeyBindings(runCellSelectionHistory, CELL_SELECTION_SCOPE),
         ...createRectangleDeletionBindings(),
+        ...createClipboardPassthroughBindings(),
         ...ARROW_BINDINGS.map(({ key, direction }) => createArrowBinding(key, direction)),
         ...SELECTION_ACTIVATION_KEYS.map((key) => ({
             key,
@@ -169,7 +199,10 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
                     return;
                 }
 
-                if (isNativeClipboardShortcut(event) && canHandleTableSelectionKeydown(this.view)) {
+                if (
+                    canHandleTableSelectionKeydown(this.view) &&
+                    runScopeHandlers(this.view, event, CLIPBOARD_PASSTHROUGH_SCOPE)
+                ) {
                     // Preserve the native default so copy/cut/paste still fires. Stopping
                     // propagation prevents the root editor from acting on its parked caret first.
                     event.stopPropagation();

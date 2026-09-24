@@ -150,6 +150,45 @@ const WINDOWS_LINUX_UNROUTED: KeyCase[] = [
     { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
 ];
 
+/** Chords that must reach the browser's clipboard default while hidden from the root editor. */
+const CLIPBOARD_PASSTHROUGH: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Cmd-C', init: { key: 'c', metaKey: true } },
+        { label: 'Cmd-X', init: { key: 'x', metaKey: true } },
+        { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
+        // Cyrillic layout: the C key reports its typed character, so only keyCode names it.
+        { label: 'Cmd-С (Cyrillic)', init: { key: 'с', keyCode: 67, metaKey: true } },
+    ],
+    Windows: [
+        { label: 'Ctrl-C', init: { key: 'c', ctrlKey: true } },
+        { label: 'Ctrl-X', init: { key: 'x', ctrlKey: true } },
+        { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
+        { label: 'Ctrl-С (Cyrillic)', init: { key: 'с', keyCode: 67, ctrlKey: true } },
+    ],
+    Linux: [
+        { label: 'Ctrl-C', init: { key: 'c', ctrlKey: true } },
+        { label: 'Ctrl-X', init: { key: 'x', ctrlKey: true } },
+        { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
+        { label: 'Ctrl-С (Cyrillic)', init: { key: 'с', keyCode: 67, ctrlKey: true } },
+    ],
+};
+
+/** Clipboard letters under the other platform's modifier, which this platform does not treat as copy/paste. */
+const CLIPBOARD_REJECTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'Ctrl-C', init: { key: 'c', ctrlKey: true } },
+        { label: 'Ctrl-V', init: { key: 'v', ctrlKey: true } },
+    ],
+    Windows: [
+        { label: 'Cmd-C', init: { key: 'c', metaKey: true } },
+        { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
+    ],
+    Linux: [
+        { label: 'Cmd-C', init: { key: 'c', metaKey: true } },
+        { label: 'Cmd-V', init: { key: 'v', metaKey: true } },
+    ],
+};
+
 const SEARCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     macOS: [{ label: 'Cmd-F', init: { key: 'f', metaKey: true } }],
     Windows: WINDOWS_LINUX_SEARCH,
@@ -247,8 +286,10 @@ function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }
         ...init,
         key,
     });
-    if (isLetter) {
-        const keyCode = init.key.toUpperCase().charCodeAt(0);
+    // jsdom ignores `keyCode` in the init dictionary, and CodeMirror needs it to resolve
+    // non-Latin layouts, so an explicit value wins over the one derived from a Latin letter.
+    const keyCode = init.keyCode ?? (isLetter ? init.key.toUpperCase().charCodeAt(0) : undefined);
+    if (keyCode !== undefined) {
         Object.defineProperty(event, 'keyCode', { get: () => keyCode });
     }
     target.dispatchEvent(event);
@@ -583,6 +624,40 @@ export function registerPlatformShortcutTests(
             expectSelectionDeleteSwallowed(init);
         }
     );
+
+    /** Presses `init` on the root editor and reports whether the root's own keydown listener saw it. */
+    function pressClipboardChord(init: KeyboardEventInit & { key: string }): {
+        view: EditorView;
+        event: KeyboardEvent;
+        rootKeyDown: ReturnType<typeof vi.fn>;
+    } {
+        const { view } = mountSelectionView();
+        selectBodyCells(view);
+        view.focus();
+        const rootKeyDown = vi.fn();
+        view.contentDOM.addEventListener('keydown', rootKeyDown);
+
+        return { view, event: pressKey(view.contentDOM, init), rootKeyDown };
+    }
+
+    it.each(CLIPBOARD_PASSTHROUGH[platform])(
+        'cell selection hides $label from the root editor without suppressing its clipboard event',
+        ({ init }) => {
+            const { view, event, rootKeyDown } = pressClipboardChord(init);
+
+            expect(rootKeyDown).not.toHaveBeenCalled();
+            expect(event.defaultPrevented).toBe(false);
+            expect(view.state.doc.toString()).toBe(TABLE_DOC);
+            expect(getCellSelection(view.state)).not.toBeNull();
+        }
+    );
+
+    it.each(CLIPBOARD_REJECTED[platform])('cell selection leaves $label to the root editor', ({ init }) => {
+        const { event, rootKeyDown } = pressClipboardChord(init);
+
+        expect(rootKeyDown).toHaveBeenCalledTimes(1);
+        expect(event.defaultPrevented).toBe(false);
+    });
 
     function expectRoutedBubble(
         nested: ReturnType<typeof mountNestedRoutingView>,

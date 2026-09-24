@@ -179,7 +179,6 @@ describe('cellSelectionKeymap', () => {
 
     it.each([
         { label: 'Ctrl+X', init: { key: 'x', ctrlKey: true } },
-        { label: 'Command+X', init: { key: 'x', metaKey: true } },
         { label: 'Shift+Delete', init: { key: 'Delete', shiftKey: true } },
         { label: 'Ctrl+Insert', init: { key: 'Insert', ctrlKey: true } },
         { label: 'Shift+Insert', init: { key: 'Insert', shiftKey: true } },
@@ -209,8 +208,9 @@ describe('cellSelectionKeymap', () => {
     });
 
     it.each([
-        { label: 'Ctrl+Shift+C', init: { key: 'c', ctrlKey: true, shiftKey: true } },
-        { label: 'Ctrl+Shift+V', init: { key: 'v', ctrlKey: true, shiftKey: true } },
+        // Shift uppercases the reported key, as a real keyboard does.
+        { label: 'Ctrl+Shift+C', init: { key: 'C', ctrlKey: true, shiftKey: true } },
+        { label: 'Ctrl+Shift+V', init: { key: 'V', ctrlKey: true, shiftKey: true } },
     ])('leaves $label to the root editor, since it is not a plain clipboard chord', ({ init }) => {
         const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
         view.dispatch({
