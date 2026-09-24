@@ -4,7 +4,7 @@ import { cellSelectionField, getCellSelection } from '../tableState/cellSelectio
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
 
 /** Marks the editor root while the main editor's caret should not be painted. */
-const ATTR_CARET_SUPPRESSED = 'data-rt-caret-suppressed';
+export const ATTR_CARET_SUPPRESSED = 'data-rt-caret-suppressed';
 
 /**
  * Hides the main editor's caret while the table owns interaction, for either of two reasons.

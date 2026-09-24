@@ -59,7 +59,7 @@ describe('nestedEditor dom handlers', () => {
 
         const syncSelectionToMain = vi.fn();
         const nestedView = createNestedView({ parent, syncSelectionToMain });
-        // The nested editor hides `drawSelection`'s overlay, so a press lands on the text itself.
+        // The nested editor draws no selection overlay, so a press lands on the text itself.
         dispatchMouseDown(nestedView.contentDOM, { button: 0 });
 
         expect(parentMouseDown).not.toHaveBeenCalled();

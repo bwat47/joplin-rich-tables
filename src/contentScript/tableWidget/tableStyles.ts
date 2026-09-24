@@ -160,9 +160,6 @@ const tableTheme = EditorView.baseTheme({
         // The inset belongs to `.cm-content`; CodeMirror's own `0 2px` would add to it.
         padding: '0 !important',
     },
-    [`.${CLASS_CELL_EDITOR} .cm-cursor`]: {
-        borderLeftColor: 'currentColor',
-    },
     // Hide the default outline of the nested editor so we can style the cell instead
     [`.${CLASS_CELL_EDITOR} .cm-editor.cm-focused`]: {
         outline: 'none',

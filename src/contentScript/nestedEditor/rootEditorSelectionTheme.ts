@@ -2,6 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { JOPLIN_SELECTION_COLORS } from '../tableWidget/richTableThemeVars';
+import { ATTR_CARET_SUPPRESSED } from '../tableWidget/mainCaretSuppression';
 
 // Set data-rt-nested-active on Joplin's root .cm-editor when a cell is being edited.
 // This attribute lets the painting theme below scope its selectors from the root.
@@ -46,22 +47,31 @@ function selectionFill(
 }
 
 /**
- * Paints the open cell's text selection with the browser's own highlight.
+ * The open cell's lines, unless the main editor is suppressing its caret. Suppression can outlast
+ * the open cell's focus, and its `.cm-content` rule would otherwise lose to the caret colour here.
+ */
+const OPEN_CELL_LINES = `&:not([${ATTR_CARET_SUPPRESSED}])${OPEN_CELL_EDITOR} .cm-content .cm-line`;
+
+/**
+ * Paints the open cell's caret and text selection natively.
  *
- * The nested editor's `drawSelection` backgrounds are hidden (`nestedEditorTheme.ts`), so the cell
- * being edited and the rendered cells around it are highlighted by the same engine. Line-box
+ * The nested editor does not use `drawSelection`, so the cell being edited and the rendered cells
+ * around it are highlighted by the same engine, and iOS shows its own selection handles. Line-box
  * rectangles are what an editor wants and what a table cell does not: a range spanning a line
  * break runs them to the far edge of the cell to show that the break is selected, whereas the
- * rendered cell selections stop at the last glyph. The layer remains for iOS selection handles.
+ * rendered cell selections stop at the last glyph.
  *
- * Registered on the root editor so `&` resolves to Joplin's .cm-editor, giving each selector one
- * attribute and three or five classes -- enough to beat both Joplin's cascading
- * `&.cm-focused ::selection` rule and the `::selection` blanking that `drawSelection` installs at
- * `Prec.highest`, either of which carries `!important`.
+ * Registered on the root editor so `&` resolves to Joplin's .cm-editor, giving each selector
+ * enough attributes and classes to beat both Joplin's cascading `&.cm-focused ::selection` rule
+ * and the host `drawSelection`'s `Prec.highest` blanking of `.cm-line` caret colour and
+ * `::selection`, which reaches the nested editor's lines and carries `!important`.
  */
 export const rootEditorSelectionPainting = EditorView.baseTheme({
     [openCellText('&light', false)]: selectionFill('light', 'blurred'),
     [openCellText('&light', true)]: selectionFill('light', 'focused'),
     [openCellText('&dark', false)]: selectionFill('dark', 'blurred'),
     [openCellText('&dark', true)]: selectionFill('dark', 'focused'),
+    [OPEN_CELL_LINES]: {
+        caretColor: 'currentColor !important',
+    },
 });

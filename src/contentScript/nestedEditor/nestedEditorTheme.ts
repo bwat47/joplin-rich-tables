@@ -19,17 +19,10 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             },
 
             // --- Selection rendering ---
-            // The browser paints the selection, so an open cell and the rendered cells around it
-            // are highlighted by the same engine; `rootEditorSelectionTheme.ts` colours it and
-            // explains why CodeMirror's rectangles do not suit a table cell.
-            //
-            // `drawSelection` stays for the caret because CodeMirror has no other source of
-            // `.cm-cursor`, and the host editor's own `drawSelection` blanks the native caret
-            // throughout its DOM, the nested editor included. Keep the selection layer itself
-            // because it also owns CodeMirror's draggable selection handles on iOS.
-            '& .cm-selectionLayer .cm-selectionBackground': {
-                display: 'none',
-            },
+            // No `drawSelection`: the browser paints the caret and selection, so an open cell and
+            // the rendered cells around it are highlighted by the same engine, and iOS keeps its
+            // native selection handles. `rootEditorSelectionTheme.ts` colours both, overriding the
+            // blanking the host editor's own `drawSelection` applies throughout its DOM.
 
             // --- Joplin/CM environment resets ---
             // These override Joplin's and CodeMirror's aggressive defaults that would

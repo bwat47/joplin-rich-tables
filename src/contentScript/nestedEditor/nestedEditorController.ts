@@ -1,6 +1,6 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
-import { drawSelection, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
+import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin } from './decorationPlugins';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSelectionToMain } from './domHandlers';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
@@ -102,7 +102,6 @@ class NestedEditorController {
             doc: localText,
             selection: EditorSelection.single(localSelection.anchor, localSelection.head),
             extensions: [
-                drawSelection(),
                 EditorView.lineWrapping,
                 EditorView.contentAttributes.of({
                     autocapitalize: 'sentences',
