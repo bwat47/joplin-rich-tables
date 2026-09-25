@@ -64,6 +64,9 @@ export type TableRuntimeAction =
           // Set for closes whose widget stays mounted, so the re-rendered text lands in the cell's
           // range after the update.
           mappedRange?: CellContentRange;
+          // Set when nothing else takes focus after the close, so a focused nested editor hands
+          // it back to the main editor instead of dropping it to the document body.
+          restoreMainFocus?: boolean;
       }
     | { type: 'syncMainToNested'; resolvedCell: ResolvedActiveCell }
     | { type: 'clearActiveCell' }
@@ -143,12 +146,13 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
     }
 
     if (shouldClearActiveCellWhenSelectionLeavesTable(facts)) {
-        if (facts.nestedEditorOpen) {
-            actions.push({
-                type: 'closeNestedEditor',
-                mappedRange: getMappedCellRange(facts.activeCell),
-            });
-        }
+        // A programmatic selection move (find next, a host jump) leaves the table with no focus
+        // owner of its own, unlike a click or arrow exit.
+        actions.push({
+            type: 'closeNestedEditor',
+            mappedRange: getMappedCellRange(facts.activeCell),
+            restoreMainFocus: true,
+        });
         actions.push({ type: 'clearActiveCell' });
         return actions;
     }

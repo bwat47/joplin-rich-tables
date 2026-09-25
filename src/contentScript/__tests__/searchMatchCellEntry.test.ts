@@ -202,11 +202,11 @@ describe('find-match shortcuts with rendered tables', () => {
         expect(nestedSelectionIn(view, FIRST_BODY_CELL)).toEqual({ anchor: 0, head: MATCH_LENGTH });
     });
 
-    function openFirstBodyCellAtEnd(view: EditorView): void {
-        view.dispatch({ effects: setActiveCellEffect.of(FIRST_BODY_CELL) });
-        const cellElement = findCellElement(view, TABLE_FROM, FIRST_BODY_CELL);
+    function openBodyCellAtEnd(view: EditorView, cell: typeof FIRST_BODY_CELL): void {
+        view.dispatch({ effects: setActiveCellEffect.of(cell) });
+        const cellElement = findCellElement(view, TABLE_FROM, cell);
         if (!cellElement) {
-            throw new Error('Expected the first body cell element');
+            throw new Error('Expected the body cell element');
         }
         openNestedEditor({
             mainView: view,
@@ -219,7 +219,7 @@ describe('find-match shortcuts with rendered tables', () => {
 
     it('opens the search panel when F3 runs in a cell editor without a query', async () => {
         const view = mount(FIRST_MATCH, null);
-        openFirstBodyCellAtEnd(view);
+        openBodyCellAtEnd(view, FIRST_BODY_CELL);
 
         pressF3(document.activeElement ?? view.contentDOM);
         await frames.flush();
@@ -229,9 +229,27 @@ describe('find-match shortcuts with rendered tables', () => {
         expect(isNestedEditorOpen(view)).toBe(false);
     });
 
+    it('returns focus to the main editor when F3 jumps from a cell to a match outside tables', async () => {
+        const view = mount(SECOND_MATCH);
+        openBodyCellAtEnd(view, SECOND_BODY_CELL);
+
+        pressF3(document.activeElement ?? view.contentDOM);
+        await frames.flush();
+
+        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(view.state.selection.main).toMatchObject({ from: OUTSIDE_MATCH, to: OUTSIDE_MATCH + MATCH_LENGTH });
+        expect(view.hasFocus).toBe(true);
+
+        pressF3(document.activeElement ?? view.contentDOM);
+        await frames.flush();
+
+        expect(getActiveCell(view.state)).toEqual(FIRST_BODY_CELL);
+    });
+
     it('routes F3 from a cell editor to the root search and opens the next matched cell', async () => {
         const view = mount(FIRST_MATCH);
-        openFirstBodyCellAtEnd(view);
+        openBodyCellAtEnd(view, FIRST_BODY_CELL);
 
         pressF3(document.activeElement ?? view.contentDOM);
         await frames.flush();

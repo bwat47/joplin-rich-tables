@@ -11,6 +11,7 @@ import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/re
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
+    isNestedEditorFocused,
     isNestedEditorOpen,
     openNestedEditor,
 } from '../../nestedEditor/nestedEditorController';
@@ -40,6 +41,12 @@ function ensureCursorVisible(view: EditorView): void {
     if (!cursorAbove && !cursorBelow) return;
 
     view.dispatch({ effects: EditorView.scrollIntoView(cursorPos, { y: 'nearest' }) });
+}
+
+/** True when focus sits on no element, as it does after the focused element is removed. */
+function hasUnownedFocus(view: EditorView): boolean {
+    const activeElement = view.dom.ownerDocument.activeElement;
+    return activeElement === null || activeElement === view.dom.ownerDocument.body;
 }
 
 /** Why a document appeared under the runtime with a cursor that may sit inside a table. */
@@ -94,7 +101,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.scheduleEnsureCursorVisible(action.mode);
                         break;
                     case 'closeNestedEditor':
-                        closeNestedEditor(this.view, action.mappedRange);
+                        this.closeNestedEditor(action);
                         break;
                     case 'openRequestedCell':
                         this.scheduleOpenRequestedCell(action.requestId);
@@ -113,6 +120,19 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         break;
                 }
             }
+        }
+
+        private closeNestedEditor(action: Extract<TableRuntimeAction, { type: 'closeNestedEditor' }>): void {
+            const restoreFocus = action.restoreMainFocus === true && isNestedEditorFocused(this.view);
+            closeNestedEditor(this.view, action.mappedRange);
+            if (!restoreFocus) return;
+
+            // Destroying the focused nested editor drops focus to the document body. Focus is
+            // restored after the update, and only if nothing else has claimed it meanwhile.
+            requestViewAnimationFrame(this.view, () => {
+                if (!this.view.dom.isConnected || !hasUnownedFocus(this.view)) return;
+                this.view.focus();
+            });
         }
 
         /**

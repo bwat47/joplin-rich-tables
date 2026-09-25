@@ -236,6 +236,10 @@ class NestedEditorController {
         return Boolean(this.session?.editor);
     }
 
+    hasFocus(): boolean {
+        return this.session?.editor?.hasFocus ?? false;
+    }
+
     flushLocalStateToRoot(): void {
         this.forwardLocalStateToRoot(true);
     }
@@ -455,6 +459,10 @@ export function closeNestedEditor(view: EditorView, params?: CellContentRange): 
 
 export function isNestedEditorOpen(view: EditorView): boolean {
     return getController(view)?.isOpen() ?? false;
+}
+
+export function isNestedEditorFocused(view: EditorView): boolean {
+    return getController(view)?.hasFocus() ?? false;
 }
 
 export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate, resolvedCell: ResolvedActiveCell): void {
