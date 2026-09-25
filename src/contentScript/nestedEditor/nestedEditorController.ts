@@ -116,7 +116,6 @@ class NestedEditorController {
                 EditorView.updateListener.of((update) => this.handleLocalUpdate(update)),
                 createNestedEditorDomHandlers(params.mainView, {
                     syncSelectionToMain: (view, event) => this.syncSelectionToMain(view, event),
-                    closeEditor: () => this.close(),
                     ensureRootSelectionForCommand: () => this.flushSelectionToRoot(),
                 }),
                 createNestedEditorKeymap(params.mainView, {

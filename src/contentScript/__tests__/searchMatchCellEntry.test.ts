@@ -4,6 +4,7 @@ import {
     openSearchPanel,
     search,
     searchKeymap,
+    getSearchQuery,
     searchPanelOpen,
     SearchQuery,
     setSearchQuery,
@@ -136,7 +137,7 @@ describe('searchMatchCellEntryExtension', () => {
     });
 });
 
-describe('find-match shortcuts with rendered tables', () => {
+describe('search shortcuts with rendered tables', () => {
     const frames = createFrameQueue();
     const mountedViews: EditorView[] = [];
 
@@ -216,6 +217,26 @@ describe('find-match shortcuts with rendered tables', () => {
             initialCursorPos: 'end',
         });
     }
+
+    it('opens the search panel seeded with the cell selection when Mod-f runs in a cell editor', async () => {
+        const view = mount(FIRST_MATCH, null);
+        openBodyCellAtEnd(view, FIRST_BODY_CELL);
+        const nested = EditorView.findFromDOM(document.activeElement as HTMLElement);
+        if (!nested || nested === view) {
+            throw new Error('Expected the cell editor to own focus');
+        }
+        nested.dispatch({ selection: { anchor: 0, head: MATCH_LENGTH } });
+
+        (document.activeElement ?? view.contentDOM).dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true, cancelable: true })
+        );
+        await frames.flush();
+
+        expect(searchPanelOpen(view.state)).toBe(true);
+        expect(getSearchQuery(view.state).search).toBe('abc');
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(isNestedEditorOpen(view)).toBe(false);
+    });
 
     it('opens the search panel when F3 runs in a cell editor without a query', async () => {
         const view = mount(FIRST_MATCH, null);

@@ -12,7 +12,7 @@ When the table index is incomplete, its decorations disappear and source Markdow
 
 ## Raw Display Modes
 
-Explicit source mode reveals Markdown for the whole document. Opening CodeMirror search temporarily uses the same raw display so matches inside tables are visible. Both modes remove table widgets and close an active nested editor; leaving search restores rendered tables unless explicit source mode is still enabled. Find next/previous (F3, Mod-g) can also run with the panel closed; a match wholly inside one rendered cell opens that cell with the match selected (`searchMatchCellEntry.ts`), and a cell editor routes those chords to the root editor. See [ADR-004](../ADR/004-global-source-mode.md) for the source-mode decision.
+Explicit source mode reveals Markdown for the whole document. Opening CodeMirror search temporarily uses the same raw display so matches inside tables are visible. Both modes remove table widgets and close an active nested editor; leaving search restores rendered tables unless explicit source mode is still enabled. Find next/previous (F3, Mod-g) can also run with the panel closed; a match wholly inside one rendered cell opens that cell with the match selected (`searchMatchCellEntry.ts`), and a cell editor routes these and the open-search chord to the root editor, whose panel opening closes the cell editor. See [ADR-004](../ADR/004-global-source-mode.md) for the source-mode decision.
 
 ## Layout and Appearance
 

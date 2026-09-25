@@ -1,5 +1,4 @@
 import { history, isolateHistory, undo } from '@codemirror/commands';
-import { search, SearchQuery, setSearchQuery } from '@codemirror/search';
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -421,7 +420,6 @@ export function registerPlatformShortcutTests(
                 extensions: [
                     createNestedEditorDomHandlers(mainView, {
                         syncSelectionToMain: vi.fn(),
-                        closeEditor: vi.fn(),
                         ensureRootSelectionForCommand: vi.fn(),
                     }),
                     createNestedEditorKeymap(mainView, {
@@ -435,14 +433,14 @@ export function registerPlatformShortcutTests(
         return view;
     }
 
-    function mountMainActiveCellView(...extra: Extension[]): EditorView {
+    function mountMainActiveCellView(): EditorView {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
         const view = trackView(
             new EditorView({
                 parent,
                 doc: TABLE_DOC,
-                extensions: [activeCellField, ...extra],
+                extensions: [activeCellField],
             })
         );
         view.dispatch({
@@ -459,7 +457,6 @@ export function registerPlatformShortcutTests(
     function mountNestedRoutingView(mainView: EditorView): {
         view: EditorView;
         parentKeyDown: ReturnType<typeof vi.fn>;
-        closeEditor: ReturnType<typeof vi.fn>;
         ensureRootSelectionForCommand: ReturnType<typeof vi.fn>;
     } {
         // Mounted in a cell-editor host, as in a rendered table.
@@ -468,7 +465,6 @@ export function registerPlatformShortcutTests(
         document.body.appendChild(parent);
         const parentKeyDown = vi.fn();
         parent.addEventListener('keydown', parentKeyDown);
-        const closeEditor = vi.fn();
         const ensureRootSelectionForCommand = vi.fn();
         const view = trackView(
             new EditorView({
@@ -476,13 +472,12 @@ export function registerPlatformShortcutTests(
                 doc: 'cell',
                 extensions: createNestedEditorDomHandlers(mainView, {
                     syncSelectionToMain: vi.fn(),
-                    closeEditor,
                     ensureRootSelectionForCommand,
                 }),
             })
         );
         view.contentDOM.focus();
-        return { view, parentKeyDown, closeEditor, ensureRootSelectionForCommand };
+        return { view, parentKeyDown, ensureRootSelectionForCommand };
     }
 
     function mountSelectionView(): { view: EditorView; historyCounter: ReturnType<typeof createHistoryCounter> } {
@@ -682,13 +677,8 @@ export function registerPlatformShortcutTests(
         expect(event.defaultPrevented).toBe(false);
     });
 
-    function expectRoutedBubble(
-        nested: ReturnType<typeof mountNestedRoutingView>,
-        event: KeyboardEvent,
-        options: { closeEditor?: boolean; ensureRootSelection?: boolean }
-    ): void {
-        expect(nested.closeEditor).toHaveBeenCalledTimes(options.closeEditor ? 1 : 0);
-        expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(options.ensureRootSelection ? 1 : 0);
+    function expectRoutedBubble(nested: ReturnType<typeof mountNestedRoutingView>, event: KeyboardEvent): void {
+        expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(1);
         expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
         expect(event.defaultPrevented).toBe(false);
         expect(isNestedEditorOwnedEvent(event)).toBe(false);
@@ -696,63 +686,25 @@ export function registerPlatformShortcutTests(
 
     function expectUnroutedBubble(nested: ReturnType<typeof mountNestedRoutingView>, event: KeyboardEvent): void {
         expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
-        expect(nested.closeEditor).not.toHaveBeenCalled();
         expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
         expect(event.defaultPrevented).toBe(false);
         expect(isNestedEditorOwnedEvent(event)).toBe(true);
     }
 
-    it.each(SEARCH_SUPPORTED[platform])(
-        'nested $label closes the nested editor, clears the active cell, and bubbles',
+    // Routed chords leave the nested editor mounted: closing it would detach the event target
+    // before the root editor sees the keydown. Search closes it through the panel's open transition.
+    it.each([...SEARCH_SUPPORTED[platform], ...FIND_MATCH_SUPPORTED[platform], ...FORMATTING_SUPPORTED[platform]])(
+        'nested $label synchronizes the root selection and bubbles to the root editor',
         ({ init }) => {
             const mainView = mountMainActiveCellView();
             const nested = mountNestedRoutingView(mainView);
 
             const event = pressKey(nested.view.contentDOM, init);
 
-            expectRoutedBubble(nested, event, { closeEditor: true });
-            expect(getActiveCell(mainView.state)).toBeNull();
-        }
-    );
-
-    it.each(FIND_MATCH_SUPPORTED[platform])(
-        'nested $label synchronizes the root selection and bubbles when a query exists',
-        ({ init }) => {
-            const mainView = mountMainActiveCellView(search());
-            mainView.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: 'a1' })) });
-            const nested = mountNestedRoutingView(mainView);
-
-            const event = pressKey(nested.view.contentDOM, init);
-
-            expectRoutedBubble(nested, event, { ensureRootSelection: true });
+            expectRoutedBubble(nested, event);
             expect(getActiveCell(mainView.state)).not.toBeNull();
         }
     );
-
-    // The root command opens the search panel without a query, which closes the nested editor
-    // itself; closing it here would detach the event target before the root editor sees it.
-    it.each(FIND_MATCH_SUPPORTED[platform])(
-        'nested $label without a query bubbles to the root editor with the nested editor still open',
-        ({ init }) => {
-            const mainView = mountMainActiveCellView(search());
-            const nested = mountNestedRoutingView(mainView);
-
-            const event = pressKey(nested.view.contentDOM, init);
-
-            expectRoutedBubble(nested, event, { ensureRootSelection: true });
-            expect(getActiveCell(mainView.state)).not.toBeNull();
-        }
-    );
-
-    it.each(FORMATTING_SUPPORTED[platform])('nested $label synchronizes the root selection and bubbles', ({ init }) => {
-        const mainView = mountMainActiveCellView();
-        const nested = mountNestedRoutingView(mainView);
-
-        const event = pressKey(nested.view.contentDOM, init);
-
-        expectRoutedBubble(nested, event, { ensureRootSelection: true });
-        expect(getActiveCell(mainView.state)).not.toBeNull();
-    });
 
     it.each(UNROUTED[platform])('nested $label bubbles to the host but not the root editor', ({ init }) => {
         const mainView = mountMainActiveCellView();
