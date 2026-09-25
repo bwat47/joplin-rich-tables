@@ -34,8 +34,11 @@ export function resolveSearchMatchCell(tr: Transaction): ResolvedActiveCell | nu
 
     const match = tr.selection.main;
     const ctx = getTableContextAtPos(tr.startState, match.from);
-    const coords = ctx ? findCellForPos(ctx.cellRanges, match.from - ctx.from) : null;
-    if (!ctx || !coords) {
+    if (!ctx) {
+        return null;
+    }
+    const coords = findCellForPos(ctx.cellRanges, match.from - ctx.from);
+    if (!coords) {
         return null;
     }
 
