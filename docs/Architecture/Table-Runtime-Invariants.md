@@ -87,6 +87,7 @@ The table runtime behaves like a cross-file state machine. These invariants defi
   deletion that only touches a table edge is a table edit, not an outside-table edit. Exclusive
   overlap remains for boundary maintenance, where an endpoint insertion is a spacing repair.
 - Focus changes alone are not reliable lifecycle signals. Use explicit requests, transaction annotations, and resolved active-cell state.
+- Closing a focused nested editor drops focus unless its closer places it. When a programmatic selection move (find next, a host jump) leaves the table, the lifecycle refocuses the main editor after the close, unless something else has claimed focus meanwhile.
 - Mobile IME stability depends on avoiding unnecessary close/reopen gaps. Explicit open requests should be executed as one open path when switching or creating cells.
 
 ## Raw Source Mode

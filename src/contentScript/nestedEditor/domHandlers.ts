@@ -1,9 +1,8 @@
 import { selectAll } from '@codemirror/commands';
 import { EditorSelection, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
-import { openSearchPanel, searchKeymap } from '@codemirror/search';
+import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
@@ -27,41 +26,44 @@ const ROOT_COMMAND_KEYS: readonly string[] = ['b', 'i', 'u', '`', 'e', 'k'];
  */
 const ROUTE_TO_ROOT = true;
 
-function isOpenSearchBinding(binding: KeyBinding): boolean {
-    return binding.run === openSearchPanel;
+/**
+ * Search chords the root editor runs: open search (Mod-f) and find next/previous (F3, Mod-g),
+ * each of which carries find-previous as its shift variant.
+ */
+function isRootSearchBinding(binding: KeyBinding): boolean {
+    return binding.run === openSearchPanel || binding.run === findNext;
 }
 
 /**
- * Adapts CodeMirror's `openSearchPanel` chord, inheriting only its platform key
- * fields. Search replaces the nested editor, so the command closes it and clears
- * active-cell state before the event bubbles.
+ * Adapts CodeMirror's search chords, inheriting only their platform key fields so each chord
+ * matches the root editor's. The root selection is synchronized first, so the panel seeds its
+ * query from the nested selection and find next/previous starts at the nested caret; a match
+ * in another cell then opens that cell (see `searchMatchCellEntry`).
+ *
+ * Opening the search panel clears the active cell, which closes this editor. It must stay
+ * mounted until then: the root editor ignores a keydown whose target is no longer inside its
+ * content.
  */
-function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => void): KeyBinding[] {
-    return searchKeymap.filter(isOpenSearchBinding).map((binding) => ({
+function createSearchRoutingBindings(ensureRootSelectionForCommand: () => void): KeyBinding[] {
+    const route = (): boolean => {
+        ensureRootSelectionForCommand();
+        return ROUTE_TO_ROOT;
+    };
+
+    return searchKeymap.filter(isRootSearchBinding).map((binding) => ({
         key: binding.key,
         mac: binding.mac,
         win: binding.win,
         linux: binding.linux,
-        run: () => {
-            closeEditor();
-            if (getActiveCell(mainView.state)) {
-                mainView.dispatch({ effects: clearActiveCellEffect.of(null) });
-            }
-            return ROUTE_TO_ROOT;
-        },
+        run: route,
+        shift: binding.shift ? route : undefined,
         scope: ROOT_ROUTING_SCOPE,
     }));
 }
 
-function createRootRoutingBindings(
-    mainView: EditorView,
-    options: {
-        closeEditor: () => void;
-        ensureRootSelectionForCommand: () => void;
-    }
-): KeyBinding[] {
+function createRootRoutingBindings(options: { ensureRootSelectionForCommand: () => void }): KeyBinding[] {
     return [
-        ...createSearchRoutingBinding(mainView, options.closeEditor),
+        ...createSearchRoutingBindings(options.ensureRootSelectionForCommand),
         ...ROOT_COMMAND_KEYS.map((key) => ({
             key: `Mod-${key}`,
             run: () => {
@@ -238,12 +240,11 @@ export function createNestedEditorDomHandlers(
     mainView: EditorView,
     options: {
         syncSelectionToMain: (view: EditorView, event: MouseEvent) => void;
-        closeEditor: () => void;
         ensureRootSelectionForCommand: () => void;
     }
 ): Extension[] {
     return [
-        keymap.of(createRootRoutingBindings(mainView, options)),
+        keymap.of(createRootRoutingBindings(options)),
         EditorView.domEventHandlers({
             // Last stop for a paste that reaches the nested editor directly: the document-level
             // clipboard capture runs first and marks the event handled, so this only fires when

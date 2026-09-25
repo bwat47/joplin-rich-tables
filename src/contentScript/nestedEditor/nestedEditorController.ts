@@ -116,7 +116,6 @@ class NestedEditorController {
                 EditorView.updateListener.of((update) => this.handleLocalUpdate(update)),
                 createNestedEditorDomHandlers(params.mainView, {
                     syncSelectionToMain: (view, event) => this.syncSelectionToMain(view, event),
-                    closeEditor: () => this.close(),
                     ensureRootSelectionForCommand: () => this.flushSelectionToRoot(),
                 }),
                 createNestedEditorKeymap(params.mainView, {
@@ -234,6 +233,10 @@ class NestedEditorController {
 
     isOpen(): boolean {
         return Boolean(this.session?.editor);
+    }
+
+    hasFocus(): boolean {
+        return this.session?.editor?.hasFocus ?? false;
     }
 
     flushLocalStateToRoot(): void {
@@ -455,6 +458,10 @@ export function closeNestedEditor(view: EditorView, params?: CellContentRange): 
 
 export function isNestedEditorOpen(view: EditorView): boolean {
     return getController(view)?.isOpen() ?? false;
+}
+
+export function isNestedEditorFocused(view: EditorView): boolean {
+    return getController(view)?.hasFocus() ?? false;
 }
 
 export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate, resolvedCell: ResolvedActiveCell): void {

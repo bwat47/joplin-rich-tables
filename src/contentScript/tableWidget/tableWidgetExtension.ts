@@ -35,6 +35,7 @@ import { richTableThemeVars } from './richTableThemeVars';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
+import { searchMatchCellEntryExtension } from '../tableRuntime/searchMatchCellEntry';
 import {
     openCellRequestField,
     openCellRequestKeymap,
@@ -117,6 +118,7 @@ async function registerTableWidgetExtension(
         createUndoScrollPreservation(() => cm6View),
 
         searchPanelTransitionExtension,
+        searchMatchCellEntryExtension,
         sourceModeField,
         nestedEditorPlugin,
         tableContextField,

@@ -35,7 +35,6 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mo
             extensions: [
                 ...createNestedEditorDomHandlers({} as EditorView, {
                     syncSelectionToMain: params.syncSelectionToMain,
-                    closeEditor: vi.fn(),
                     ensureRootSelectionForCommand: vi.fn(),
                 }),
             ],

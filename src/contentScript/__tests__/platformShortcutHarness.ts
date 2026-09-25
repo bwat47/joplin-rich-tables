@@ -198,6 +198,27 @@ const SEARCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     Linux: WINDOWS_LINUX_SEARCH,
 };
 
+const FUNCTION_KEY_FIND_MATCH: KeyCase[] = [
+    { label: 'F3', init: { key: 'F3' } },
+    { label: 'Shift-F3', init: { key: 'F3', shiftKey: true } },
+];
+const WINDOWS_LINUX_FIND_MATCH: KeyCase[] = [
+    ...FUNCTION_KEY_FIND_MATCH,
+    { label: 'Ctrl-G', init: { key: 'g', ctrlKey: true } },
+    { label: 'Ctrl-Shift-G', init: { key: 'g', ctrlKey: true, shiftKey: true } },
+];
+
+/** Find next/previous chords, which search from the root selection without opening the panel. */
+const FIND_MATCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        ...FUNCTION_KEY_FIND_MATCH,
+        { label: 'Cmd-G', init: { key: 'g', metaKey: true } },
+        { label: 'Cmd-Shift-G', init: { key: 'g', metaKey: true, shiftKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_FIND_MATCH,
+    Linux: WINDOWS_LINUX_FIND_MATCH,
+};
+
 const FORMATTING_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     macOS: [
         { label: 'Cmd-B', init: { key: 'b', metaKey: true } },
@@ -401,7 +422,6 @@ export function registerPlatformShortcutTests(
                 extensions: [
                     createNestedEditorDomHandlers(mainView, {
                         syncSelectionToMain: vi.fn(),
-                        closeEditor: vi.fn(),
                         ensureRootSelectionForCommand: vi.fn(),
                     }),
                     createNestedEditorKeymap(mainView, {
@@ -439,7 +459,6 @@ export function registerPlatformShortcutTests(
     function mountNestedRoutingView(mainView: EditorView): {
         view: EditorView;
         parentKeyDown: ReturnType<typeof vi.fn>;
-        closeEditor: ReturnType<typeof vi.fn>;
         ensureRootSelectionForCommand: ReturnType<typeof vi.fn>;
     } {
         // Mounted in a cell-editor host, as in a rendered table.
@@ -448,7 +467,6 @@ export function registerPlatformShortcutTests(
         document.body.appendChild(parent);
         const parentKeyDown = vi.fn();
         parent.addEventListener('keydown', parentKeyDown);
-        const closeEditor = vi.fn();
         const ensureRootSelectionForCommand = vi.fn();
         const view = trackView(
             new EditorView({
@@ -456,13 +474,12 @@ export function registerPlatformShortcutTests(
                 doc: 'cell',
                 extensions: createNestedEditorDomHandlers(mainView, {
                     syncSelectionToMain: vi.fn(),
-                    closeEditor,
                     ensureRootSelectionForCommand,
                 }),
             })
         );
         view.contentDOM.focus();
-        return { view, parentKeyDown, closeEditor, ensureRootSelectionForCommand };
+        return { view, parentKeyDown, ensureRootSelectionForCommand };
     }
 
     function mountSelectionView(): { view: EditorView; historyCounter: ReturnType<typeof createHistoryCounter> } {
@@ -662,13 +679,8 @@ export function registerPlatformShortcutTests(
         expect(event.defaultPrevented).toBe(false);
     });
 
-    function expectRoutedBubble(
-        nested: ReturnType<typeof mountNestedRoutingView>,
-        event: KeyboardEvent,
-        options: { closeEditor?: boolean; ensureRootSelection?: boolean }
-    ): void {
-        expect(nested.closeEditor).toHaveBeenCalledTimes(options.closeEditor ? 1 : 0);
-        expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(options.ensureRootSelection ? 1 : 0);
+    function expectRoutedBubble(nested: ReturnType<typeof mountNestedRoutingView>, event: KeyboardEvent): void {
+        expect(nested.ensureRootSelectionForCommand).toHaveBeenCalledTimes(1);
         expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
         expect(event.defaultPrevented).toBe(false);
         expect(isNestedEditorOwnedEvent(event)).toBe(false);
@@ -676,34 +688,25 @@ export function registerPlatformShortcutTests(
 
     function expectUnroutedBubble(nested: ReturnType<typeof mountNestedRoutingView>, event: KeyboardEvent): void {
         expect(nested.parentKeyDown).toHaveBeenCalledTimes(1);
-        expect(nested.closeEditor).not.toHaveBeenCalled();
         expect(nested.ensureRootSelectionForCommand).not.toHaveBeenCalled();
         expect(event.defaultPrevented).toBe(false);
         expect(isNestedEditorOwnedEvent(event)).toBe(true);
     }
 
-    it.each(SEARCH_SUPPORTED[platform])(
-        'nested $label closes the nested editor, clears the active cell, and bubbles',
+    // Routed chords leave the nested editor mounted: closing it would detach the event target
+    // before the root editor sees the keydown. Search closes it through the panel's open transition.
+    it.each([...SEARCH_SUPPORTED[platform], ...FIND_MATCH_SUPPORTED[platform], ...FORMATTING_SUPPORTED[platform]])(
+        'nested $label synchronizes the root selection and bubbles to the root editor',
         ({ init }) => {
             const mainView = mountMainActiveCellView();
             const nested = mountNestedRoutingView(mainView);
 
             const event = pressKey(nested.view.contentDOM, init);
 
-            expectRoutedBubble(nested, event, { closeEditor: true });
-            expect(getActiveCell(mainView.state)).toBeNull();
+            expectRoutedBubble(nested, event);
+            expect(getActiveCell(mainView.state)).not.toBeNull();
         }
     );
-
-    it.each(FORMATTING_SUPPORTED[platform])('nested $label synchronizes the root selection and bubbles', ({ init }) => {
-        const mainView = mountMainActiveCellView();
-        const nested = mountNestedRoutingView(mainView);
-
-        const event = pressKey(nested.view.contentDOM, init);
-
-        expectRoutedBubble(nested, event, { ensureRootSelection: true });
-        expect(getActiveCell(mainView.state)).not.toBeNull();
-    });
 
     it.each(UNROUTED[platform])('nested $label bubbles to the host but not the root editor', ({ init }) => {
         const mainView = mountMainActiveCellView();

@@ -229,6 +229,7 @@ describe('tableRuntimePolicies', () => {
                 {
                     type: 'closeNestedEditor',
                     mappedRange: RESOLVED_HEADER_CELL_RANGE,
+                    restoreMainFocus: true,
                 },
                 { type: 'clearActiveCell' },
             ],
@@ -777,7 +778,7 @@ describe('tableRuntimePolicies', () => {
         });
 
         expect(reduceTableRuntime(facts)).toEqual([
-            { type: 'closeNestedEditor', mappedRange: RESOLVED_HEADER_CELL_RANGE },
+            { type: 'closeNestedEditor', mappedRange: RESOLVED_HEADER_CELL_RANGE, restoreMainFocus: true },
             { type: 'clearActiveCell' },
         ]);
     });

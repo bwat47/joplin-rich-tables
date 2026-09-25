@@ -71,6 +71,8 @@ Fully supports undo/redo while editing tables (using the main editor's native Un
 
 Table markdown is revealed while joplin search panel is active. When closing the search panel (and if current search result selection is inside a table), closing search will activate that table cell with the current search result selected.
 
+Find next/previous (F3/Shift+F3, Ctrl/Cmd+G/Ctrl/Cmd+Shift+G) also works while the search panel is closed. If the next search result is inside a table cell, that cell is activated with the search result selected. Search shortcuts (including Ctrl/Cmd+F) also work from inside a table cell.
+
 ### Interaction
 
 The table editor provides a Context-aware toolbar with table manipulation controls. The toolbar will appear above/below the table being edited (automatically repositioning as needed). If the top/bottom of the table isn't visible, the toolbar will be pinned to the top/bottom of the visible viewport.
