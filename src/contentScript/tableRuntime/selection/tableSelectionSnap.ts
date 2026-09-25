@@ -2,6 +2,7 @@ import { EditorSelection, EditorState, type Extension, type SelectionRange } fro
 import type { TableSpan } from '../../tableModel/tableContext';
 import { getTableContextsTouching } from '../../tableState/tableContextField';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
+import { resolveSearchMatchCell } from '../searchMatchCellEntry';
 
 /** Looks up every rendered table a document range reaches. */
 export type TablesTouching = (from: number, to: number) => readonly TableSpan[];
@@ -66,12 +67,13 @@ export function snapSelectionAroundTables(
  *
  * Document changes are left alone too. This exists for selection gestures, which never carry
  * one, and an edit that rewrites a table has its own policies deciding where the caret lands.
+ * A find match inside one cell is also left alone: the same transaction enters that cell.
  *
  * The original transaction stays first in the returned specs so every annotation and effect it
  * carries survives. The second, sequential spec only replaces its selection with the snapped one.
  */
 export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter.of((tr) => {
-    if (tr.docChanged || !tr.selection || !hasPlainRenderedTableCaret(tr.startState)) {
+    if (tr.docChanged || !tr.selection || !hasPlainRenderedTableCaret(tr.startState) || resolveSearchMatchCell(tr)) {
         return tr;
     }
 

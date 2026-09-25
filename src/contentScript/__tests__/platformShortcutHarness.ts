@@ -1,4 +1,5 @@
 import { history, isolateHistory, undo } from '@codemirror/commands';
+import { search, SearchQuery, setSearchQuery } from '@codemirror/search';
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -196,6 +197,25 @@ const SEARCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     macOS: [{ label: 'Cmd-F', init: { key: 'f', metaKey: true } }],
     Windows: WINDOWS_LINUX_SEARCH,
     Linux: WINDOWS_LINUX_SEARCH,
+};
+
+const WINDOWS_LINUX_FIND_MATCH: KeyCase[] = [
+    { label: 'F3', init: { key: 'F3' } },
+    { label: 'Shift-F3', init: { key: 'F3', shiftKey: true } },
+    { label: 'Ctrl-G', init: { key: 'g', ctrlKey: true } },
+    { label: 'Ctrl-Shift-G', init: { key: 'g', ctrlKey: true, shiftKey: true } },
+];
+
+/** Find next/previous chords, which search from the root selection without opening the panel. */
+const FIND_MATCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+    macOS: [
+        { label: 'F3', init: { key: 'F3' } },
+        { label: 'Shift-F3', init: { key: 'F3', shiftKey: true } },
+        { label: 'Cmd-G', init: { key: 'g', metaKey: true } },
+        { label: 'Cmd-Shift-G', init: { key: 'g', metaKey: true, shiftKey: true } },
+    ],
+    Windows: WINDOWS_LINUX_FIND_MATCH,
+    Linux: WINDOWS_LINUX_FIND_MATCH,
 };
 
 const FORMATTING_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
@@ -415,14 +435,14 @@ export function registerPlatformShortcutTests(
         return view;
     }
 
-    function mountMainActiveCellView(): EditorView {
+    function mountMainActiveCellView(...extra: Extension[]): EditorView {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
         const view = trackView(
             new EditorView({
                 parent,
                 doc: TABLE_DOC,
-                extensions: [activeCellField],
+                extensions: [activeCellField, ...extra],
             })
         );
         view.dispatch({
@@ -692,6 +712,35 @@ export function registerPlatformShortcutTests(
 
             expectRoutedBubble(nested, event, { closeEditor: true });
             expect(getActiveCell(mainView.state)).toBeNull();
+        }
+    );
+
+    it.each(FIND_MATCH_SUPPORTED[platform])(
+        'nested $label synchronizes the root selection and bubbles when a query exists',
+        ({ init }) => {
+            const mainView = mountMainActiveCellView(search());
+            mainView.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: 'a1' })) });
+            const nested = mountNestedRoutingView(mainView);
+
+            const event = pressKey(nested.view.contentDOM, init);
+
+            expectRoutedBubble(nested, event, { ensureRootSelection: true });
+            expect(getActiveCell(mainView.state)).not.toBeNull();
+        }
+    );
+
+    // The root command opens the search panel without a query, which closes the nested editor
+    // itself; closing it here would detach the event target before the root editor sees it.
+    it.each(FIND_MATCH_SUPPORTED[platform])(
+        'nested $label without a query bubbles to the root editor with the nested editor still open',
+        ({ init }) => {
+            const mainView = mountMainActiveCellView(search());
+            const nested = mountNestedRoutingView(mainView);
+
+            const event = pressKey(nested.view.contentDOM, init);
+
+            expectRoutedBubble(nested, event, { ensureRootSelection: true });
+            expect(getActiveCell(mainView.state)).not.toBeNull();
         }
     );
 

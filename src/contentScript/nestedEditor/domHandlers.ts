@@ -1,7 +1,7 @@
 import { selectAll } from '@codemirror/commands';
 import { EditorSelection, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
-import { openSearchPanel, searchKeymap } from '@codemirror/search';
+import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
@@ -31,17 +31,23 @@ function isOpenSearchBinding(binding: KeyBinding): boolean {
     return binding.run === openSearchPanel;
 }
 
+/** Find next/previous chords (F3, Mod-g); each carries find-previous as its shift variant. */
+function isFindMatchBinding(binding: KeyBinding): boolean {
+    return binding.run === findNext;
+}
+
+/** Inherits only a search binding's platform key fields, so the chord matches the root editor's. */
+function inheritSearchKeys(binding: KeyBinding): Pick<KeyBinding, 'key' | 'mac' | 'win' | 'linux'> {
+    return { key: binding.key, mac: binding.mac, win: binding.win, linux: binding.linux };
+}
+
 /**
- * Adapts CodeMirror's `openSearchPanel` chord, inheriting only its platform key
- * fields. Search replaces the nested editor, so the command closes it and clears
- * active-cell state before the event bubbles.
+ * Adapts CodeMirror's `openSearchPanel` chord. Search replaces the nested editor, so the
+ * command closes it and clears active-cell state before the event bubbles.
  */
 function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => void): KeyBinding[] {
     return searchKeymap.filter(isOpenSearchBinding).map((binding) => ({
-        key: binding.key,
-        mac: binding.mac,
-        win: binding.win,
-        linux: binding.linux,
+        ...inheritSearchKeys(binding),
         run: () => {
             closeEditor();
             if (getActiveCell(mainView.state)) {
@@ -49,6 +55,29 @@ function createSearchRoutingBinding(mainView: EditorView, closeEditor: () => voi
             }
             return ROUTE_TO_ROOT;
         },
+        scope: ROOT_ROUTING_SCOPE,
+    }));
+}
+
+/**
+ * Adapts CodeMirror's find next/previous chords, which search from the root selection with the
+ * panel closed. The root selection is synchronized first so the search starts at the nested
+ * caret; a match in another cell then opens that cell (see `searchMatchCellEntry`).
+ *
+ * Without a valid query the root command opens the search panel instead, and the panel's open
+ * transition clears the active cell, which closes this editor. It must stay mounted until then:
+ * the root editor ignores a keydown whose target is no longer inside its content.
+ */
+function createFindMatchRoutingBindings(ensureRootSelectionForCommand: () => void): KeyBinding[] {
+    const route = (): boolean => {
+        ensureRootSelectionForCommand();
+        return ROUTE_TO_ROOT;
+    };
+
+    return searchKeymap.filter(isFindMatchBinding).map((binding) => ({
+        ...inheritSearchKeys(binding),
+        run: route,
+        shift: route,
         scope: ROOT_ROUTING_SCOPE,
     }));
 }
@@ -62,6 +91,7 @@ function createRootRoutingBindings(
 ): KeyBinding[] {
     return [
         ...createSearchRoutingBinding(mainView, options.closeEditor),
+        ...createFindMatchRoutingBindings(options.ensureRootSelectionForCommand),
         ...ROOT_COMMAND_KEYS.map((key) => ({
             key: `Mod-${key}`,
             run: () => {
