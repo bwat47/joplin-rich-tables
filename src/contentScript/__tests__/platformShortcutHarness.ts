@@ -198,9 +198,12 @@ const SEARCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     Linux: WINDOWS_LINUX_SEARCH,
 };
 
-const WINDOWS_LINUX_FIND_MATCH: KeyCase[] = [
+const FUNCTION_KEY_FIND_MATCH: KeyCase[] = [
     { label: 'F3', init: { key: 'F3' } },
     { label: 'Shift-F3', init: { key: 'F3', shiftKey: true } },
+];
+const WINDOWS_LINUX_FIND_MATCH: KeyCase[] = [
+    ...FUNCTION_KEY_FIND_MATCH,
     { label: 'Ctrl-G', init: { key: 'g', ctrlKey: true } },
     { label: 'Ctrl-Shift-G', init: { key: 'g', ctrlKey: true, shiftKey: true } },
 ];
@@ -208,8 +211,7 @@ const WINDOWS_LINUX_FIND_MATCH: KeyCase[] = [
 /** Find next/previous chords, which search from the root selection without opening the panel. */
 const FIND_MATCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     macOS: [
-        { label: 'F3', init: { key: 'F3' } },
-        { label: 'Shift-F3', init: { key: 'F3', shiftKey: true } },
+        ...FUNCTION_KEY_FIND_MATCH,
         { label: 'Cmd-G', init: { key: 'g', metaKey: true } },
         { label: 'Cmd-Shift-G', init: { key: 'g', metaKey: true, shiftKey: true } },
     ],
