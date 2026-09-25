@@ -21,7 +21,7 @@ import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellR
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
-import { requestViewAnimationFrame } from '../../shared/domContext';
+import { getViewDocument, requestViewAnimationFrame } from '../../shared/domContext';
 import { getPositionOutsideTable } from '../navigation/cursorUtils';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { logger } from '../../../logger';
@@ -45,8 +45,8 @@ function ensureCursorVisible(view: EditorView): void {
 
 /** True when focus sits on no element, as it does after the focused element is removed. */
 function hasUnownedFocus(view: EditorView): boolean {
-    const activeElement = view.dom.ownerDocument.activeElement;
-    return activeElement === null || activeElement === view.dom.ownerDocument.body;
+    const doc = getViewDocument(view);
+    return doc.activeElement === null || doc.activeElement === doc.body;
 }
 
 /** Why a document appeared under the runtime with a cursor that may sit inside a table. */
