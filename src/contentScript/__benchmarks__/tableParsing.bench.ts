@@ -9,6 +9,11 @@ import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 import { createMarkdownState } from '../__tests__/testMarkdownState';
 
+// Capture imported functions once so timed calls bypass Vite's module export getters.
+const readTableContexts = getTableContexts;
+const findTableContextAtPos = getTableContextAtPos;
+const computeCellAnchor = computeCellAnchorForTable;
+
 interface TableFixtureSpec {
     readonly label: string;
     readonly bodyRows: number;
@@ -92,19 +97,19 @@ for (const fixture of fixtures) {
         test('structural-edit serialize + cached anchor', async ({ bench }) => {
             await bench('structural-edit serialize + cached anchor', () => {
                 const serialized = fixture.table.serializeWithOffsets();
-                computeCellAnchorForTable({ serialized, target: fixture.anchorTarget });
+                computeCellAnchor({ serialized, target: fixture.anchorTarget });
             }).run(BENCHMARK_OPTIONS);
         });
 
         test('read complete table index', async ({ bench }) => {
             await bench('read complete table index', () => {
-                getTableContexts(fixture.state);
+                readTableContexts(fixture.state);
             }).run(BENCHMARK_OPTIONS);
         });
 
         test('indexed getTableContextAtPos', async ({ bench }) => {
             await bench('indexed getTableContextAtPos', () => {
-                getTableContextAtPos(fixture.state, fixture.tableFrom);
+                findTableContextAtPos(fixture.state, fixture.tableFrom);
             }).run(BENCHMARK_OPTIONS);
         });
     });
@@ -133,7 +138,7 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
     describe(spec.label, () => {
         test('reuse-key slicing only', async ({ bench }) => {
             await bench('reuse-key slicing only', () => {
-                for (const context of getTableContexts(noActiveState)) {
+                for (const context of readTableContexts(noActiveState)) {
                     noActiveState.doc.sliceString(context.from, context.to);
                 }
             }).run(BENCHMARK_OPTIONS);
