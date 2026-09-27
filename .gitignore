@@ -17,3 +17,4 @@ prompts/
 .claude/
 *.mcp.json
 .fallowrc.json
+coverage

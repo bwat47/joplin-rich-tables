@@ -254,6 +254,14 @@ export default [
         },
     },
 
+    // Vitest 5 benchmarks use test() to measure workloads without correctness assertions.
+    {
+        files: ['**/*.bench.ts'],
+        rules: {
+            'sonarjs/assertions-in-tests': 'off',
+        },
+    },
+
     // Per-platform shortcut entry points. Each one only installs a navigator stub and
     // calls the shared harness, which registers every case; the rule sees no literal `it`.
     {

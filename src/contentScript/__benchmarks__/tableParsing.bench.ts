@@ -1,4 +1,4 @@
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
 import { EditorSelection } from '@codemirror/state';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { computeCellAnchorForTable } from '../tableModel/cellAnchors';
@@ -81,40 +81,32 @@ const fixtures = FIXTURE_SPECS.map((spec) => {
 for (const fixture of fixtures) {
     describe(fixture.label, () => {
         // Clipboard paste is the only path that parses text the editor has not already parsed.
-        bench(
-            'clipboard MarkdownTable.parse',
-            () => {
+        test('clipboard MarkdownTable.parse', async ({ bench }) => {
+            await bench('clipboard MarkdownTable.parse', () => {
                 MarkdownTable.parse(fixture.text);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
         // Structural edits serialize first, then anchor using the captured line lengths.
         // Include both operations in the timing to match that runtime path.
-        bench(
-            'structural-edit serialize + cached anchor',
-            () => {
+        test('structural-edit serialize + cached anchor', async ({ bench }) => {
+            await bench('structural-edit serialize + cached anchor', () => {
                 const serialized = fixture.table.serializeWithOffsets();
                 computeCellAnchorForTable({ serialized, target: fixture.anchorTarget });
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
-        bench(
-            'read complete table index',
-            () => {
+        test('read complete table index', async ({ bench }) => {
+            await bench('read complete table index', () => {
                 getTableContexts(fixture.state);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
-        bench(
-            'indexed getTableContextAtPos',
-            () => {
+        test('indexed getTableContextAtPos', async ({ bench }) => {
+            await bench('indexed getTableContextAtPos', () => {
                 getTableContextAtPos(fixture.state, fixture.tableFrom);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
     });
 }
 
@@ -139,71 +131,59 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
     const outsideTableCaret = paragraphInsert + 1;
 
     describe(spec.label, () => {
-        bench(
-            'reuse-key slicing only',
-            () => {
+        test('reuse-key slicing only', async ({ bench }) => {
+            await bench('reuse-key slicing only', () => {
                 for (const context of getTableContexts(noActiveState)) {
                     noActiveState.doc.sliceString(context.from, context.to);
                 }
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
-        bench(
-            'no active cell: warmed paragraph edit',
-            () => {
+        test('no active cell: warmed paragraph edit', async ({ bench }) => {
+            await bench('no active cell: warmed paragraph edit', () => {
                 noActiveState
                     .update({ changes: { from: paragraphInsert, insert: 'x' } })
                     .state.field(tableDecorationField);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
-        bench(
-            'active table near start: warmed nested-cell edit',
-            () => {
+        test('active table near start: warmed nested-cell edit', async ({ bench }) => {
+            await bench('active table near start: warmed nested-cell edit', () => {
                 activeState
                     .update({
                         changes: { from: activeInsert, insert: 'x' },
                         annotations: syncAnnotation.of(true),
                     })
                     .state.field(tableDecorationField);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
-        bench(
-            'raw mode: warmed paragraph edit',
-            () => {
+        test('raw mode: warmed paragraph edit', async ({ bench }) => {
+            await bench('raw mode: warmed paragraph edit', () => {
                 rawModeState
                     .update({ changes: { from: paragraphInsert, insert: 'x' } })
                     .state.field(tableDecorationField);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
         // Selection-only transactions with unchanged index and active-cell identities keep the
         // existing decoration set. Track the no-active and active-cell variants of that fast path.
-        bench(
-            'no active cell: selection-only caret move',
-            () => {
+        test('no active cell: selection-only caret move', async ({ bench }) => {
+            await bench('no active cell: selection-only caret move', () => {
                 noActiveState
                     .update({ selection: EditorSelection.cursor(outsideTableCaret) })
                     .state.field(tableDecorationField);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
 
         // An unchanged active cell takes the fast path without resolving it or checking
         // active-host preservation.
-        bench(
-            'active table near start: selection-only caret move',
-            () => {
+        test('active table near start: selection-only caret move', async ({ bench }) => {
+            await bench('active table near start: selection-only caret move', () => {
                 activeState
                     .update({ selection: EditorSelection.cursor(outsideTableCaret) })
                     .state.field(tableDecorationField);
-            },
-            BENCHMARK_OPTIONS
-        );
+            }).run(BENCHMARK_OPTIONS);
+        });
     });
 }
