@@ -142,4 +142,5 @@ The below table editing commands can be assigned keyboard shortcuts, the default
 
 - The plugin only works with the Markdown Editor (codemirror 6). Legacy Editor/Rich Text Editor are not supported.
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
+- Only supports top level tables (indented tables, tables in lists, tables in blockquotes aren't rendered).
 - Does not support pretty formatting (full padding) for markdown tables. The plugin enforces a minimal format (one space padding around table cell content, similar to the output of the rich text editor). This is an architectural limitation to support the realtime sync between the cell editor and the main editor (allowing joplin's formatting commands to work smoothly).
