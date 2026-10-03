@@ -74,14 +74,14 @@ export function snapSelectionAroundTables(
  */
 export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter.of((tr) => {
     if (tr.docChanged || !tr.selection || !hasPlainRenderedTableCaret(tr.startState) || resolveSearchMatchCell(tr)) {
-        return tr;
+        return [tr];
     }
 
     const snapped = snapSelectionAroundTables(tr.selection, (from, to) =>
         getTableContextsTouching(tr.startState, from, to)
     );
     if (!snapped) {
-        return tr;
+        return [tr];
     }
 
     return [tr, { selection: snapped, sequential: true }];
