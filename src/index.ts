@@ -24,7 +24,8 @@ const INSERT_TABLE_COMMAND = 'richTables.insertTable';
 
 async function warnIfJoplinTableEditorEnabled(): Promise<void> {
     try {
-        const [tableEditingEnabled] = await joplin.settings.globalValues([JOPLIN_TABLE_EDITING_SETTING_KEY]);
+        const values: unknown[] = await joplin.settings.globalValues([JOPLIN_TABLE_EDITING_SETTING_KEY]);
+        const [tableEditingEnabled] = values;
 
         if (tableEditingEnabled !== true) {
             return;

@@ -24,7 +24,7 @@ function rect(partial: Partial<ToolbarRect>): ToolbarRect {
  */
 function domRectLike(partial: Partial<ToolbarRect>): ToolbarRect {
     const prototype = {};
-    for (const [key, value] of Object.entries(rect(partial))) {
+    for (const [key, value] of Object.entries({ ...rect(partial) })) {
         Object.defineProperty(prototype, key, { get: () => value, enumerable: false });
     }
 
