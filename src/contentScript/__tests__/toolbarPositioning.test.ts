@@ -24,6 +24,8 @@ function rect(partial: Partial<ToolbarRect>): ToolbarRect {
  */
 function domRectLike(partial: Partial<ToolbarRect>): ToolbarRect {
     const prototype = {};
+    // Spread into a literal: interfaces lack an implicit index signature, so `Object.entries`
+    // on a `ToolbarRect` would type each value as `any`.
     for (const [key, value] of Object.entries({ ...rect(partial) })) {
         Object.defineProperty(prototype, key, { get: () => value, enumerable: false });
     }
