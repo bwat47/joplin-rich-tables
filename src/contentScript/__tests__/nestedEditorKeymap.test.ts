@@ -55,7 +55,7 @@ function mountNestedView(
 function stubLineTops(view: EditorView, tops: Record<number, number>): void {
     vi.spyOn(view, 'coordsAtPos').mockImplementation((pos: number) => {
         const top = tops[pos];
-        return top === undefined ? null : { top, bottom: top + 10, left: 0, right: 5 };
+        return pos in tops ? { top, bottom: top + 10, left: 0, right: 5 } : null;
     });
 }
 
