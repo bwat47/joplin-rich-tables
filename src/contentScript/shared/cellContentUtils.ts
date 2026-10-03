@@ -33,7 +33,7 @@ const LEADING_BLOCK_MARKERS = [
 export function escapeLeadingBlockMarkers(text: string): string {
     if (!text) return text;
 
-    const match = text.match(/^(\s{0,3})(.*)$/);
+    const match = /^(\s{0,3})(.*)$/.exec(text);
     if (!match) return text;
 
     const leading = match[1];
@@ -50,7 +50,7 @@ export function escapeLeadingBlockMarkers(text: string): string {
     }
 
     // Ordered list: "1. " / "1) "
-    const orderedMatch = rest.match(/^(\d+)([.)])(\s|$)/);
+    const orderedMatch = /^(\d+)([.)])(\s|$)/.exec(rest);
     if (orderedMatch) {
         const [, number, marker] = orderedMatch;
         return `${leading}${number}\\${marker}${rest.slice(number.length + 1)}`;

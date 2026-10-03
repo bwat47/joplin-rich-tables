@@ -31,18 +31,20 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
 
         switch (decision.type) {
             case 'allowTransaction':
-                return tr;
+                return [tr];
             case 'rejectTransaction':
                 return [];
             case 'clearActiveCell':
-                return {
-                    changes: tr.changes,
-                    selection: decision.selection,
-                    effects: [...tr.effects, clearActiveCellEffect.of(null)],
-                    scrollIntoView: tr.scrollIntoView,
-                };
+                return [
+                    {
+                        changes: tr.changes,
+                        selection: decision.selection,
+                        effects: [...tr.effects, clearActiveCellEffect.of(null)],
+                        scrollIntoView: tr.scrollIntoView,
+                    },
+                ];
             case 'rewriteTableClipboard':
-                return createTableClipboardRewriteSpec(tr.startState, decision.rewrite);
+                return [createTableClipboardRewriteSpec(tr.startState, decision.rewrite)];
             case 'rewriteRootTablePaste': {
                 const nextActiveCell = createFirstActiveCellForTable({
                     tableFrom: decision.rewrite.tableFrom,
@@ -58,20 +60,24 @@ export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolea
                     suppressKeys: true,
                 });
 
-                return {
-                    changes: decision.rewrite.changes,
-                    ...openRequest,
-                    effects: [...tr.effects, ...openRequest.effects],
-                    scrollIntoView: tr.scrollIntoView,
-                };
+                return [
+                    {
+                        changes: decision.rewrite.changes,
+                        ...openRequest,
+                        effects: [...tr.effects, ...openRequest.effects],
+                        scrollIntoView: tr.scrollIntoView,
+                    },
+                ];
             }
             case 'sanitizeTransactionChanges':
-                return {
-                    changes: decision.changes,
-                    selection: decision.selection,
-                    effects: tr.effects,
-                    scrollIntoView: tr.scrollIntoView,
-                };
+                return [
+                    {
+                        changes: decision.changes,
+                        selection: decision.selection,
+                        effects: tr.effects,
+                        scrollIntoView: tr.scrollIntoView,
+                    },
+                ];
         }
     });
 

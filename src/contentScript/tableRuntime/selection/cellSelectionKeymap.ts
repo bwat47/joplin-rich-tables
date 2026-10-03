@@ -54,7 +54,7 @@ const SELECTION_ACTIVATION_KEYS = ['Enter', 'Tab', 'Escape'] as const;
  * Deletion commands currently represented in `defaultKeymap`. Word- and line-wise
  * variants all clear the same rectangle; only the chords that invoke them differ.
  */
-function isRectangleDeletionCommand(command: KeyBinding['run'] | KeyBinding['shift']): boolean {
+function isRectangleDeletionCommand(command: KeyBinding['run']): boolean {
     return (
         command === deleteCharBackward ||
         command === deleteCharForward ||

@@ -32,7 +32,8 @@ import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
 
 const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
-    activateCellAtPositionMock: vi.fn(),
+    activateCellAtPositionMock:
+        vi.fn<typeof import('../tableRuntime/activeCell/cellActivation').activateCellAtPosition>(),
     findCellElementMock: vi.fn<(...args: unknown[]) => HTMLTableCellElement | null>(() => document.createElement('td')),
 }));
 const nestedEditorControllerMock = nestedEditorController as unknown as {
@@ -121,7 +122,7 @@ function openRequestEffects(params: {
 }
 
 vi.mock('../tableRuntime/activeCell/cellActivation', () => ({
-    activateCellAtPosition: (...args: unknown[]) => activateCellAtPositionMock(...args),
+    activateCellAtPosition: activateCellAtPositionMock,
 }));
 
 vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({

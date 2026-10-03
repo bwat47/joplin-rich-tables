@@ -1,11 +1,6 @@
 import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import {
-    ClipboardTableFragment,
-    MarkdownTable,
-    type SerializedTable,
-    type TableAlignment,
-} from '../../tableModel/MarkdownTable';
+import { ClipboardTableFragment, MarkdownTable, type SerializedTable } from '../../tableModel/MarkdownTable';
 import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -118,7 +113,7 @@ export function parseMarkdownTableClipboard(text: string): ClipboardTableFragmen
 
     return {
         cells: [table.headerCells.slice(), ...table.bodyRows.map((row) => [...row])],
-        alignments: table.alignments.slice() as TableAlignment[],
+        alignments: table.alignments.slice(),
     };
 }
 

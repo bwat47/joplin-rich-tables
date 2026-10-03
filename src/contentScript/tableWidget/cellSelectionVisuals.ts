@@ -77,7 +77,7 @@ const cellDragFocusOverride: Extension = EditorView.baseTheme({
     [`&[${ATTR_CELL_DRAG}]`]: {
         '--rt-tint': 'var(--rt-tint-focused)',
         '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
-    } as Record<string, string>,
+    },
 });
 
 /**

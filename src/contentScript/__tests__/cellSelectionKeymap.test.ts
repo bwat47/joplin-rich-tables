@@ -4,6 +4,7 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
 }));
 
 import { history } from '@codemirror/commands';
+import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
@@ -323,7 +324,9 @@ describe('cellSelectionKeymap', () => {
                 col: 1,
             });
             const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
-            const effects = Array.isArray(lastSpec?.effects) ? lastSpec.effects : [lastSpec?.effects];
+            const effects: readonly StateEffect<unknown>[] = Array.isArray(lastSpec?.effects)
+                ? lastSpec.effects
+                : [lastSpec?.effects];
             expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
         }
     );

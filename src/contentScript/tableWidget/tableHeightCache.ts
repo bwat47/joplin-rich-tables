@@ -33,7 +33,7 @@ class LruMap<K, V> {
     public set(key: K, value: V): void {
         // A key already present is being refreshed, not added, so it needs no eviction.
         if (!this.entries.delete(key) && this.entries.size >= this.maxEntries) {
-            const oldest = this.entries.keys().next().value as K | undefined;
+            const oldest = this.entries.keys().next().value;
             if (oldest !== undefined) {
                 this.entries.delete(oldest);
             }

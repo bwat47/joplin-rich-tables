@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type TransactionSpec } from '@codemirror/state';
+import { type StateEffect, type TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
@@ -20,13 +20,21 @@ import {
 const NORMALIZED_DOC = `\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`;
 
 function findOpenRequest(spec: TransactionSpec) {
-    const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
-    return effects.find((effect) => effect?.is?.(triggerOpenCellRequestEffect)) ?? null;
+    const effects: readonly StateEffect<unknown>[] = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
+    return (
+        effects.find((effect): effect is ReturnType<typeof triggerOpenCellRequestEffect.of> =>
+            effect?.is(triggerOpenCellRequestEffect)
+        ) ?? null
+    );
 }
 
 function findBeginOpenRequest(spec: TransactionSpec) {
-    const effects = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
-    return effects.find((effect) => effect?.is?.(beginOpenCellRequestEffect)) ?? null;
+    const effects: readonly StateEffect<unknown>[] = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
+    return (
+        effects.find((effect): effect is ReturnType<typeof beginOpenCellRequestEffect.of> =>
+            effect?.is(beginOpenCellRequestEffect)
+        ) ?? null
+    );
 }
 
 describe('interactive open-cell requests', () => {

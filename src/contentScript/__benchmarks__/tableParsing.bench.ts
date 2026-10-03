@@ -74,10 +74,11 @@ const fixtures = FIXTURE_SPECS.map((spec) => {
     // Bottom-right is the worst case: the offset walk passes every preceding row and cell.
     const anchorTarget = { section: 'body', row: spec.bodyRows - 1, col: spec.columns - 1 } as const;
     const state = createMarkdownState(text);
-    const tableFrom = getTableContexts(state)[0]?.from;
-    if (tableFrom === undefined) {
+    const contexts = getTableContexts(state);
+    if (contexts.length === 0) {
         throw new Error('tableContextField found no benchmark table');
     }
+    const tableFrom = contexts[0].from;
 
     requireParsed(getTableContextAtPos(state, tableFrom), 'getTableContextAtPos');
     return { ...spec, text, table, anchorTarget, state, tableFrom };

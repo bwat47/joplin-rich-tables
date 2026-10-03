@@ -42,7 +42,7 @@ function isAlignmentAction(actionId: StructuralActionId): actionId is AlignmentS
 }
 
 function assertNeverAction(actionId: never): never {
-    throw new Error(`Unhandled structural action: ${actionId}`);
+    throw new Error(`Unhandled structural action: ${String(actionId)}`);
 }
 
 export function runStructuralAction(

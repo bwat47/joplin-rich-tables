@@ -137,6 +137,7 @@ interface CaretHitTestDocument {
 function caretFromPoint(doc: Document, clientX: number, clientY: number): CaretDomPosition | null {
     const hitTest = doc as Document & CaretHitTestDocument;
 
+    // eslint-disable-next-line sonarjs/deprecation -- Retain hit-testing support for Joplin webviews without caretPositionFromPoint.
     const range = hitTest.caretRangeFromPoint?.(clientX, clientY);
     if (range) {
         return { node: range.startContainer, offset: range.startOffset };
@@ -179,7 +180,7 @@ function offsetOutsideContent(
  * resolved against it, which callers treat as "no placement to offer".
  */
 export function readRenderedCaretHit(cell: HTMLElement, clientX: number, clientY: number): RenderedCaretDomHit | null {
-    const content = cell.querySelector(`:scope > .${CLASS_CELL_CONTENT}`) as HTMLElement | null;
+    const content = cell.querySelector<HTMLElement>(`:scope > .${CLASS_CELL_CONTENT}`);
     if (!content) {
         return null;
     }

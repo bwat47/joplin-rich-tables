@@ -31,6 +31,10 @@ export default [
             parser: tsParser,
             ecmaVersion: 2020,
             sourceType: 'module',
+            parserOptions: {
+                projectService: true,
+                tsconfigRootDir: import.meta.dirname,
+            },
             globals: {
                 ...globals.node,
             },
@@ -42,7 +46,7 @@ export default [
         rules: {
             // Turn off rules TypeScript handles (prevents NodeJS / type-only false positives)
             'no-undef': 'off',
-            ...tsPlugin.configs.recommended.rules,
+            ...tsPlugin.configs['recommended-type-checked'].rules,
             // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
@@ -250,7 +254,11 @@ export default [
             },
         },
         rules: {
-            // You can add test-specific overrides here later
+            // Mock assertions inspect methods without calling them, and async stubs may resolve immediately.
+            '@typescript-eslint/unbound-method': 'off',
+            '@typescript-eslint/require-await': 'off',
+            // Vitest asymmetric matchers are typed as any.
+            '@typescript-eslint/no-unsafe-assignment': 'off',
         },
     },
 

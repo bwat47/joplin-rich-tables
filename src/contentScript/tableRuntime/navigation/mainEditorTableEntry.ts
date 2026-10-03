@@ -344,7 +344,7 @@ function hasUncuttableLine(transaction: Transaction): boolean {
 const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transaction) => {
     const kind = resolveDeletionKind(transaction);
     if (!kind || !transaction.docChanged) {
-        return transaction;
+        return [transaction];
     }
 
     // Drop the deletion outright: the caret is already on its way into a cell.
@@ -353,14 +353,14 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
     }
 
     if (!hasPlainRenderedTableCaret(transaction.startState)) {
-        return transaction;
+        return [transaction];
     }
 
     // A cut is one gesture over whole lines, so it is answered as a whole: dropping it in
     // part would leave a table half cut. Cancelling keeps every caret where it was, and the
     // clipboard still holds the lines.
     if (kind === 'linewiseCut') {
-        return hasUncuttableLine(transaction) ? [] : transaction;
+        return hasUncuttableLine(transaction) ? [] : [transaction];
     }
 
     // Several carets can reach tables in one gesture. A deletion toward a table enters the
@@ -369,11 +369,11 @@ const tableBoundaryDeletionFilter = EditorState.transactionFilter.of((transactio
     for (const range of transaction.startState.selection.ranges) {
         const spec = prepareTableBoundaryDeletion(transaction, range, kind);
         if (spec) {
-            return spec;
+            return [spec];
         }
     }
 
-    return transaction;
+    return [transaction];
 });
 
 function isPositionMovingInDirection(

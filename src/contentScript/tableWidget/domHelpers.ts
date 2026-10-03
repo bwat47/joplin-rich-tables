@@ -129,5 +129,5 @@ export function findCellElement(view: EditorView, tableFrom: number, coords: Cel
 
     // Find the cell within that widget
     const cellSelector = getCellSelector(coords);
-    return widgetDOM.querySelector(cellSelector) as HTMLElement | null;
+    return widgetDOM.querySelector<HTMLElement>(cellSelector);
 }

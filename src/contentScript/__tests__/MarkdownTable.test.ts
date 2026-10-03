@@ -717,9 +717,9 @@ describe('serializeWithOffsets agrees with parsing the serialization', () => {
         const ranges = parseCellRangesFixture(serialized.text);
 
         const coords: CellCoords[] = [
-            ...ranges.headers.map((_range, col) => ({ section: 'header', row: 0, col }) as CellCoords),
+            ...ranges.headers.map<CellCoords>((_range, col) => ({ section: 'header', row: 0, col })),
             ...ranges.rows.flatMap((row, rowIndex) =>
-                row.map((_range, col) => ({ section: 'body', row: rowIndex, col }) as CellCoords)
+                row.map<CellCoords>((_range, col) => ({ section: 'body', row: rowIndex, col }))
             ),
         ];
         expect(coords.length).toBeGreaterThan(0);

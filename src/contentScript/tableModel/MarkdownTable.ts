@@ -127,7 +127,7 @@ function padArrayToLength<T>(arr: readonly T[], length: number, filler: T): T[] 
         return [...arr];
     }
 
-    return [...arr, ...new Array(length - arr.length).fill(filler)];
+    return [...arr, ...new Array<T>(length - arr.length).fill(filler)];
 }
 
 function getColumnCount(
@@ -157,7 +157,7 @@ function normalizeState(input: {
 }
 
 function createEmptyRow(columnCount: number): string[] {
-    return new Array(columnCount).fill('');
+    return new Array<string>(columnCount).fill('');
 }
 
 function cloneUnifiedRows(headers: readonly string[], rows: readonly (readonly string[])[]): string[][] {
@@ -643,7 +643,7 @@ export class MarkdownTable {
             return this;
         }
 
-        const keepColumn = (_value: string | TableAlignment, index: number) => index < minCol || index > maxCol;
+        const keepColumn = (_value: string | null, index: number) => index < minCol || index > maxCol;
 
         return MarkdownTable.create({
             headerCells: this.headersData.filter(keepColumn),

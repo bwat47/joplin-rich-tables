@@ -87,7 +87,7 @@ describe('TableWidget coordsAt', () => {
             cellRanges,
         });
         const dom = widget.toDOM(view);
-        const targetCell = dom.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
+        const targetCell = dom.querySelector<HTMLElement>('tbody td:nth-child(2)');
         if (!targetCell) {
             throw new Error('Expected second body cell to render');
         }
@@ -132,7 +132,7 @@ describe('TableWidget coordsAt', () => {
                 // cellRanges recorded cell A as ending.
                 const posInGrownCellA = liveRanges.rows[0][0].editableTo;
 
-                const cellA = view.contentDOM.querySelector('tbody td:nth-child(1)') as HTMLElement | null;
+                const cellA = view.contentDOM.querySelector<HTMLElement>('tbody td:nth-child(1)');
                 if (!cellA) {
                     throw new Error('Expected first body cell to render');
                 }
@@ -160,8 +160,8 @@ describe('TableWidget coordsAt', () => {
                 const liveRanges = parseCellRangesFixture(view.state.doc.toString());
                 const posInCellB = liveRanges.rows[0][1].editableFrom;
 
-                const cellA = view.contentDOM.querySelector('tbody td:nth-child(1)') as HTMLElement | null;
-                const cellB = view.contentDOM.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
+                const cellA = view.contentDOM.querySelector<HTMLElement>('tbody td:nth-child(1)');
+                const cellB = view.contentDOM.querySelector<HTMLElement>('tbody td:nth-child(2)');
                 if (!cellA || !cellB) {
                     throw new Error('Expected both body cells to render');
                 }
@@ -256,8 +256,8 @@ describe('TableWidget coordsAt', () => {
             const posInGrownCellA = liveARanges.rows[0][0].editableTo;
 
             const tableABody = view.contentDOM.querySelectorAll('tbody')[0];
-            const cellA = tableABody?.querySelector('td:nth-child(1)') as HTMLElement | null;
-            const cellB = tableABody?.querySelector('td:nth-child(2)') as HTMLElement | null;
+            const cellA = tableABody?.querySelector<HTMLElement>('td:nth-child(1)');
+            const cellB = tableABody?.querySelector<HTMLElement>('td:nth-child(2)');
             if (!cellA || !cellB) throw new Error('Expected table A cells to render');
             const rect = { top: 1, bottom: 2, left: 3, right: 4 } as DOMRect;
             const wrongRect = { top: 999, bottom: 999, left: 999, right: 999 } as DOMRect;
@@ -309,7 +309,7 @@ describe('TableWidget coordsAt', () => {
         // to exercise the unavailable-DOM-state path.
         const dom = widget.toDOM(view).cloneNode(true) as HTMLElement;
 
-        const targetCell = dom.querySelector('tbody td:nth-child(2)') as HTMLElement | null;
+        const targetCell = dom.querySelector<HTMLElement>('tbody td:nth-child(2)');
         if (!targetCell) {
             throw new Error('Expected second body cell to render');
         }
