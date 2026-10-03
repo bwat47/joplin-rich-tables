@@ -643,7 +643,7 @@ export class MarkdownTable {
             return this;
         }
 
-        const keepColumn = (_value: string | TableAlignment, index: number) => index < minCol || index > maxCol;
+        const keepColumn = (_value: string | null, index: number) => index < minCol || index > maxCol;
 
         return MarkdownTable.create({
             headerCells: this.headersData.filter(keepColumn),

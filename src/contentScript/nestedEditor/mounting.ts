@@ -3,7 +3,7 @@ import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses
 /** Ensures the cell element has the required structure (content div and editor host div). */
 export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; editorHost: HTMLElement } {
     const doc = cell.ownerDocument;
-    let content = cell.querySelector(`:scope > .${CLASS_CELL_CONTENT}`) as HTMLElement | null;
+    let content = cell.querySelector<HTMLElement>(`:scope > .${CLASS_CELL_CONTENT}`);
     if (!content) {
         content = doc.createElement('div');
         content.className = CLASS_CELL_CONTENT;
@@ -14,7 +14,7 @@ export function ensureCellWrapper(cell: HTMLElement): { content: HTMLElement; ed
         cell.appendChild(content);
     }
 
-    let editorHost = cell.querySelector(`:scope > .${CLASS_CELL_EDITOR}`) as HTMLElement | null;
+    let editorHost = cell.querySelector<HTMLElement>(`:scope > .${CLASS_CELL_EDITOR}`);
     if (!editorHost) {
         editorHost = doc.createElement('div');
         editorHost.className = CLASS_CELL_EDITOR;

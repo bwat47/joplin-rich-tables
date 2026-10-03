@@ -297,8 +297,8 @@ class MouseCellDragSelectionController {
             return false;
         }
 
-        const widget = cell.closest(SELECTOR_WIDGET) as HTMLElement | null;
-        const table = cell.closest('table') as HTMLTableElement | null;
+        const widget = cell.closest<HTMLElement>(SELECTOR_WIDGET);
+        const table = cell.closest<HTMLTableElement>('table');
         if (!widget || !table || table.closest(SELECTOR_WIDGET) !== widget) {
             return false;
         }

@@ -175,7 +175,7 @@ function handleWidgetMouseDown(view: EditorView, event: MouseEvent, target: HTML
         return true;
     }
 
-    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    const cell = target.closest<HTMLElement>(SELECTOR_CELL);
     if (!cell) {
         // Take the event to prevent CodeMirror's internal mousedown handler from
         // repositioning the cursor. Without this, clicking the widget's horizontal
@@ -207,7 +207,7 @@ function resolveCell(view: EditorView, cell: HTMLElement): ResolvedActiveCell | 
 
 /** As {@link resolveCell}, starting from the element an event landed on. */
 function resolveCellTarget(view: EditorView, target: HTMLElement): ResolvedCellTarget | null {
-    const cell = target.closest(SELECTOR_CELL) as HTMLElement | null;
+    const cell = target.closest<HTMLElement>(SELECTOR_CELL);
     const resolvedCell = cell ? resolveCell(view, cell) : null;
 
     return cell && resolvedCell ? { cell, resolvedCell } : null;

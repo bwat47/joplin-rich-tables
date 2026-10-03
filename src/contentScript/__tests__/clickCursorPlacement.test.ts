@@ -154,7 +154,7 @@ function placeContent(cell: HTMLElement, rect: { left: number; top: number; righ
         x: rect.left,
         y: rect.top,
         toJSON: () => ({}),
-    } as DOMRect);
+    });
 }
 
 /** The caret the browser reports for any point, as Chromium and the Joplin webviews spell it. */

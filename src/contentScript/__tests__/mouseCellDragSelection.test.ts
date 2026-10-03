@@ -192,7 +192,7 @@ function mockAnimationFrames(): {
         cancelSpy,
         pendingCount: () => callbacks.size,
         runNext: (timestamp) => {
-            const next = callbacks.entries().next().value as [number, FrameRequestCallback] | undefined;
+            const next = callbacks.entries().next().value;
             if (!next) {
                 throw new Error('Expected a pending animation frame');
             }

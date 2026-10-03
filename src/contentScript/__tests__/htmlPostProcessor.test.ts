@@ -60,7 +60,7 @@ describe('postProcessFragment', () => {
         const result = postProcessHtml(html);
         const doc = parseHtml(result);
 
-        const ref = doc.querySelector('sup.footnote-ref a') as HTMLAnchorElement | null;
+        const ref = doc.querySelector<HTMLAnchorElement>('sup.footnote-ref a');
         expect(ref).not.toBeNull();
         expect(ref?.getAttribute('href')).toBe('#fn-abc');
         expect(ref?.textContent).toBe('abc');

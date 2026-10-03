@@ -148,7 +148,7 @@ describe('shouldPinAbove', () => {
 describe('computePinnedAbsolutePlacement', () => {
     const base = {
         toolbarRect: rect({ width: 200, height: TOOLBAR_HEIGHT }),
-        viewport: { top: 100, bottom: 500, height: 400 } as ViewportBounds,
+        viewport: { top: 100, bottom: 500, height: 400 },
         viewRect: rect({ top: 100, left: 50, width: 600, height: 400 }),
         offsetParentTop: 80,
     };
@@ -221,7 +221,7 @@ describe('computePinnedAbsolutePlacement', () => {
 describe('computePinnedFixedPlacement', () => {
     const base = {
         toolbarRect: rect({ width: 200, height: TOOLBAR_HEIGHT }),
-        viewport: { top: 0, bottom: 800, height: 800 } as ViewportBounds,
+        viewport: { top: 0, bottom: 800, height: 800 },
         viewportWidth: 400,
     };
 

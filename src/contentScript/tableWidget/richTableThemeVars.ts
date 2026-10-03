@@ -124,7 +124,7 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-selection-bg': 'var(--rt-selection-blurred-bg)',
         '--rt-tint': 'var(--rt-tint-blurred)',
         '--rt-tint-alpha': 'var(--rt-tint-blurred-alpha)',
-    } as Record<string, string>,
+    },
     // `:focus-within` rather than `.cm-focused`, which tracks only this editor's own content:
     // a nested cell editor holds focus on the plugin's behalf, most visibly through a cell drag,
     // which keeps its anchor cell open for the length of the gesture.  Two components to the
@@ -133,17 +133,17 @@ export const richTableThemeVars = EditorView.baseTheme({
         '--rt-selection-bg': 'var(--rt-selection-focused-bg)',
         '--rt-tint': 'var(--rt-tint-focused)',
         '--rt-tint-alpha': 'var(--rt-tint-focused-alpha)',
-    } as Record<string, string>,
+    },
     '&light': {
         '--rt-selection-focused-bg': JOPLIN_SELECTION_COLORS.light.focused,
         '--rt-selection-blurred-bg': JOPLIN_SELECTION_COLORS.light.blurred,
         '--rt-selection-ground-bg': SELECTION_GROUNDS.light,
         ...tintProperties('light'),
-    } as Record<string, string>,
+    },
     '&dark': {
         '--rt-selection-focused-bg': JOPLIN_SELECTION_COLORS.dark.focused,
         '--rt-selection-blurred-bg': JOPLIN_SELECTION_COLORS.dark.blurred,
         '--rt-selection-ground-bg': SELECTION_GROUNDS.dark,
         ...tintProperties('dark'),
-    } as Record<string, string>,
+    },
 });

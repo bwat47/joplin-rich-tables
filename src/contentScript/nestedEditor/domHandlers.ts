@@ -272,7 +272,7 @@ export function createNestedEditorDomHandlers(
                 return false;
             },
             mousedown: (e, view) => {
-                const mouseEvent = e as MouseEvent;
+                const mouseEvent = e;
                 // Mirror the right-click position to the main editor so context-menu plugins that
                 // read the main cursor (e.g. link actions) target the clicked location. This only
                 // moves the main editor's selection, never the nested editor's, so Chromium's

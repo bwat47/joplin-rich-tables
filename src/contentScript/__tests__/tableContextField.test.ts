@@ -49,7 +49,7 @@ describe('tableContextField selectors', () => {
 
     it('uses inclusive containment at both table boundaries', () => {
         const state = createMarkdownState(TWO_TABLES);
-        const first = getTableContexts(state)[0]!;
+        const first = getTableContexts(state)[0];
         const span = { from: first.from, to: first.to };
 
         expect(containsPos(first, 0)).toBe(true);

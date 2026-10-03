@@ -64,7 +64,7 @@ export function createResizeObserverStub(): ResizeObserverStub {
     return {
         install(): void {
             callbacks = [];
-            vi.stubGlobal('ResizeObserver', ResizeObserverMock as unknown as typeof ResizeObserver);
+            vi.stubGlobal('ResizeObserver', ResizeObserverMock);
         },
         trigger(): void {
             for (const callback of callbacks) {
@@ -120,10 +120,10 @@ export function createFrameQueue(): FrameQueue {
         install(): void {
             queue = [];
             resizeObserver.install();
-            vi.stubGlobal('requestAnimationFrame', ((callback: FrameRequestCallback) => {
+            vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
                 queue.push(callback);
                 return queue.length;
-            }) as typeof requestAnimationFrame);
+            });
         },
         async flush(): Promise<void> {
             await Promise.resolve();
