@@ -312,6 +312,7 @@ function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }
     });
     // jsdom ignores `keyCode` in the init dictionary, and CodeMirror needs it to resolve
     // non-Latin layouts, so an explicit value wins over the one derived from a Latin letter.
+    // eslint-disable-next-line sonarjs/deprecation -- CodeMirror uses keyCode to resolve non-Latin shortcuts.
     const keyCode = init.keyCode ?? (isLetter ? init.key.toUpperCase().charCodeAt(0) : undefined);
     if (keyCode !== undefined) {
         Object.defineProperty(event, 'keyCode', { get: () => keyCode });
