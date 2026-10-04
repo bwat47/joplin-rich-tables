@@ -27,7 +27,7 @@ describe('postProcessFragment', () => {
             '</div>' +
             '<div class="cm-table-cell-content">' +
             '<span class="not-loaded-resource not-loaded-image-resource">' +
-            '<img src="data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>" />' +
+            '<img src="data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"></svg>" />' +
             '</span>' +
             '</div>';
 
