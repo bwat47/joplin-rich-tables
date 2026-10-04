@@ -4,6 +4,7 @@ import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import importPlugin from 'eslint-plugin-import-x';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import prettier from 'eslint-config-prettier';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
@@ -44,6 +45,14 @@ export default [
         plugins: {
             '@typescript-eslint': tsPlugin,
             import: importPlugin,
+        },
+        settings: {
+            // Without these, import-x silently skips TS imports and rules like no-cycle never fire.
+            // Resolve imports the way tsc does (.ts extensions, tsconfig paths)...
+            'import-x/resolver-next': [createTypeScriptImportResolver({ project: './tsconfig.json' })],
+            // ...and parse resolved .ts files when following the import graph.
+            'import-x/extensions': ['.ts', '.tsx', '.js'],
+            'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx'] },
         },
         rules: {
             // Turn off rules TypeScript handles (prevents NodeJS / type-only false positives)
