@@ -1,7 +1,6 @@
 // Flat config (ESM). Adds ignores, Node + Vitest globals, and TS-friendly rule tweaks.
 
 import js from '@eslint/js';
-import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import importPlugin from 'eslint-plugin-import-x';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
@@ -96,14 +95,13 @@ export default [
 
     js.configs.recommended,
     sonarjs.configs.recommended,
+    // Registers the TS parser/plugin, disables core rules TypeScript already checks, enables recommended rules.
+    ...tsPlugin.configs['flat/recommended-type-checked'],
 
     // Project TS/JS sources
     {
         files: ['**/*.{ts,tsx,js}'],
         languageOptions: {
-            parser: tsParser,
-            ecmaVersion: 2020,
-            sourceType: 'module',
             parserOptions: {
                 projectService: true,
                 tsconfigRootDir: import.meta.dirname,
@@ -113,7 +111,6 @@ export default [
             },
         },
         plugins: {
-            '@typescript-eslint': tsPlugin,
             import: importPlugin,
         },
         settings: {
@@ -125,9 +122,6 @@ export default [
             'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx'] },
         },
         rules: {
-            // Turn off rules TypeScript handles (prevents NodeJS / type-only false positives)
-            'no-undef': 'off',
-            ...tsPlugin.configs['recommended-type-checked'].rules,
             // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
@@ -212,9 +206,9 @@ export default [
         },
     },
 
-    // Root JS config files (e.g. .prettierrc.js) aren't part of the typed source; lint them untyped.
+    // Root JS config files (e.g. .prettierrc.js, eslint.config.mjs) aren't part of the typed source; lint them untyped.
     {
-        files: ['**/*.js'],
+        files: ['**/*.{js,mjs,cjs}'],
         ...tsPlugin.configs['flat/disable-type-checked'],
     },
 

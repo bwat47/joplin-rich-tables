@@ -39,8 +39,7 @@ function createHarness(activeCell: ActiveCell): UndoHarness {
             return value + 1;
         },
     });
-    let view: EditorView;
-    view = new EditorView({
+    const view: EditorView = new EditorView({
         parent,
         extensions: [
             markdownExtension,
