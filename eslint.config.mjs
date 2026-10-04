@@ -19,7 +19,8 @@ function anyDepthFolderGroups(folderNames) {
 
 export default [
     {
-        ignores: ['api/**', 'dist/**'],
+        // webpack.config.js is generator-managed scaffold (overwritten on generator updates).
+        ignores: ['api/**', 'dist/**', 'coverage/**', 'webpack.config.js'],
     },
 
     js.configs.recommended,
@@ -286,6 +287,12 @@ export default [
         rules: {
             'sonarjs/no-empty-test-file': 'off',
         },
+    },
+
+    // Root JS config files (e.g. .prettierrc.js) aren't part of the typed source; lint them untyped.
+    {
+        files: ['**/*.js'],
+        ...tsPlugin.configs['flat/disable-type-checked'],
     },
 
     // Prettier compatibility
