@@ -333,6 +333,29 @@ function primeTwoEdits(view: EditorView): void {
     appendHistoryEntry(view, SECOND_EDIT);
 }
 
+/** Primed edits left in the document after the shortcut runs; redo restores the edit undone during setup. */
+const EDITS_AFTER_ACTION: Record<HistoryAction, string> = {
+    undo: FIRST_EDIT,
+    redo: `${FIRST_EDIT}${SECOND_EDIT}`,
+};
+
+/**
+ * Leaves an undone edit for redo to restore, then clears the setup event. Returns whether the
+ * history is ready for `action`.
+ */
+function prepareHistoryAction(
+    view: EditorView,
+    historyCounter: { events: HistoryAction[] },
+    action: HistoryAction
+): boolean {
+    if (action !== 'redo') {
+        return true;
+    }
+    const undone = undo(view);
+    historyCounter.events.length = 0;
+    return undone;
+}
+
 function createHistoryCounter(): {
     extension: ReturnType<typeof EditorView.updateListener.of>;
     events: HistoryAction[];
@@ -510,22 +533,13 @@ export function registerPlatformShortcutTests(
     it.each(SUPPORTED[platform])('nested $label changes root history exactly once', ({ init, action }) => {
         const { view: mainView, historyCounter } = mountMainHistoryView();
         const nestedView = mountNestedKeymap(mainView);
-
-        if (action === 'redo') {
-            expect(undo(mainView)).toBe(true);
-            historyCounter.events.length = 0;
-        }
+        expect(prepareHistoryAction(mainView, historyCounter, action)).toBe(true);
 
         const event = pressKey(nestedView.contentDOM, init);
 
         expect(event.defaultPrevented).toBe(true);
-        if (action === 'undo') {
-            expect(mainView.state.doc.toString()).toBe(`base${FIRST_EDIT}`);
-            expect(historyCounter.events).toEqual(['undo']);
-        } else {
-            expect(mainView.state.doc.toString()).toBe(`base${FIRST_EDIT}${SECOND_EDIT}`);
-            expect(historyCounter.events).toEqual(['redo']);
-        }
+        expect(mainView.state.doc.toString()).toBe(`base${EDITS_AFTER_ACTION[action]}`);
+        expect(historyCounter.events).toEqual([action]);
     });
 
     function expectNestedShortcutIgnored(init: KeyboardEventInit & { key: string }): void {
@@ -561,11 +575,7 @@ export function registerPlatformShortcutTests(
     it.each(SUPPORTED[platform])('cell selection $label changes root history exactly once', ({ init, action }) => {
         const { view, historyCounter } = mountSelectionView();
         primeTwoEdits(view);
-
-        if (action === 'redo') {
-            expect(undo(view)).toBe(true);
-            historyCounter.events.length = 0;
-        }
+        expect(prepareHistoryAction(view, historyCounter, action)).toBe(true);
 
         selectBodyCells(view);
         expect(getCellSelection(view.state)).not.toBeNull();
@@ -575,13 +585,8 @@ export function registerPlatformShortcutTests(
         expect(event.defaultPrevented).toBe(true);
         // The rewritten document invalidates the cell coordinates the highlight was anchored to.
         expect(getCellSelection(view.state)).toBeNull();
-        if (action === 'undo') {
-            expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}`);
-            expect(historyCounter.events).toEqual(['undo']);
-        } else {
-            expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${FIRST_EDIT}${SECOND_EDIT}`);
-            expect(historyCounter.events).toEqual(['redo']);
-        }
+        expect(view.state.doc.toString()).toBe(`${TABLE_DOC}${EDITS_AFTER_ACTION[action]}`);
+        expect(historyCounter.events).toEqual([action]);
     });
 
     it.each(REJECTED[platform])('cell selection $label does not change root history', ({ init }) => {

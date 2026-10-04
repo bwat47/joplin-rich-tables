@@ -1,6 +1,6 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { vi, type Mock } from 'vitest';
+import { vi } from 'vitest';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
     beginOpenCellRequestEffect,
@@ -18,7 +18,7 @@ vi.mock('../../logger', () => ({
 }));
 
 import { logger } from '../../logger';
-const mockLoggerWarn = logger.warn as Mock;
+const mockLoggerWarn = vi.mocked(logger.warn);
 
 describe('openCellRequestField', () => {
     const activeCell: ActiveCell = {

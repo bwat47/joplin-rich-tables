@@ -7,6 +7,7 @@ import importPlugin from 'eslint-plugin-import-x';
 import prettier from 'eslint-config-prettier';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
+import vitest from '@vitest/eslint-plugin';
 
 function siblingGroups(folderNames) {
     return folderNames.flatMap((name) => [`../${name}`, `../${name}/*`, `../${name}/**`]);
@@ -253,9 +254,17 @@ export default [
                 ...globals.vitest,
             },
         },
+        plugins: {
+            vitest,
+        },
         rules: {
-            // Mock assertions inspect methods without calling them, and async stubs may resolve immediately.
+            ...vitest.configs.recommended.rules,
+            // The Vitest-aware variant allows method references passed to expect() and vi.mocked().
             '@typescript-eslint/unbound-method': 'off',
+            'vitest/unbound-method': 'error',
+            // Assertions often live in expect*() helpers.
+            'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*'] }],
+            // Async stubs may resolve immediately.
             '@typescript-eslint/require-await': 'off',
             // Vitest asymmetric matchers are typed as any.
             '@typescript-eslint/no-unsafe-assignment': 'off',
