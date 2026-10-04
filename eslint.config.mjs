@@ -13,7 +13,7 @@ const CONTENT_SCRIPT_DIR = 'src/contentScript';
 
 /**
  * Content-script layer boundaries: files anywhere under `layer` must not import from the
- * `forbidden` sibling folders. Enforced by import/no-restricted-paths on resolved file paths,
+ * `forbidden` sibling folders. Enforced by import-x/no-restricted-paths on resolved file paths,
  * so it applies at any nesting depth and regardless of how the import specifier is written.
  */
 const LAYER_BOUNDARIES = [
@@ -111,7 +111,7 @@ export default [
             },
         },
         plugins: {
-            import: importPlugin,
+            'import-x': importPlugin,
         },
         settings: {
             // Without these, import-x silently skips TS imports and rules like no-cycle never fire.
@@ -125,8 +125,8 @@ export default [
             // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
-            'import/no-cycle': ['error', { maxDepth: Infinity }],
-            'import/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: LAYER_ZONES }],
+            'import-x/no-cycle': ['error', { maxDepth: Infinity }],
+            'import-x/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: LAYER_ZONES }],
             '@typescript-eslint/no-inferrable-types': 'error',
             '@typescript-eslint/explicit-module-boundary-types': 'error',
         },
@@ -152,7 +152,7 @@ export default [
     {
         files: [`${CONTENT_SCRIPT_DIR}/tableWidget/tableWidgetExtension.ts`],
         rules: {
-            'import/no-restricted-paths': 'off',
+            'import-x/no-restricted-paths': 'off',
         },
     },
 
