@@ -10,13 +10,83 @@ import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import vitest from '@vitest/eslint-plugin';
 
-function siblingGroups(folderNames) {
-    return folderNames.flatMap((name) => [`../${name}`, `../${name}/*`, `../${name}/**`]);
-}
+const CONTENT_SCRIPT_DIR = 'src/contentScript';
 
-function anyDepthFolderGroups(folderNames) {
-    return folderNames.flatMap((name) => [`**/${name}`, `**/${name}/*`, `**/${name}/**`]);
-}
+/**
+ * Content-script layer boundaries: files anywhere under `layer` must not import from the
+ * `forbidden` sibling folders. Enforced by import/no-restricted-paths on resolved file paths,
+ * so it applies at any nesting depth and regardless of how the import specifier is written.
+ */
+const LAYER_BOUNDARIES = [
+    {
+        layer: 'shared',
+        forbidden: [
+            'tableModel',
+            'tableState',
+            'tableRuntime',
+            'tableWidget',
+            'tableCommands',
+            'nestedEditor',
+            'services',
+            'toolbar',
+        ],
+        message: 'shared must stay feature-agnostic.',
+    },
+    {
+        layer: 'services',
+        forbidden: [
+            'tableModel',
+            'tableState',
+            'tableRuntime',
+            'tableWidget',
+            'tableCommands',
+            'nestedEditor',
+            'toolbar',
+        ],
+        message: 'services may depend only on shared utilities and external integration code.',
+    },
+    {
+        layer: 'tableModel',
+        forbidden: [
+            'tableState',
+            'tableRuntime',
+            'tableWidget',
+            'tableCommands',
+            'nestedEditor',
+            'services',
+            'toolbar',
+        ],
+        message: 'tableModel must not depend on higher-level editor layers.',
+    },
+    {
+        layer: 'tableState',
+        forbidden: ['tableRuntime', 'tableWidget', 'tableCommands', 'nestedEditor', 'services', 'toolbar'],
+        message: 'tableState is limited to model types, shared helpers, and sibling state modules.',
+    },
+    {
+        layer: 'tableRuntime',
+        forbidden: ['tableCommands'],
+        message: 'tableRuntime must stay below tableCommands in the dependency graph.',
+    },
+    {
+        layer: 'tableCommands',
+        forbidden: ['tableWidget', 'nestedEditor', 'services'],
+        message: 'tableCommands should go through state/runtime APIs instead of widget or nested-editor internals.',
+    },
+    {
+        layer: 'tableWidget',
+        forbidden: ['tableCommands'],
+        message: 'tableWidget modules must not depend on command registration or command entry points.',
+    },
+];
+
+const LAYER_ZONES = LAYER_BOUNDARIES.map(({ layer, forbidden, message }) => ({
+    target: `${CONTENT_SCRIPT_DIR}/${layer}`,
+    from: forbidden.map((folder) => `${CONTENT_SCRIPT_DIR}/${folder}`),
+    message,
+}));
+
+const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@codemirror/language'];
 
 export default [
     {
@@ -62,6 +132,7 @@ export default [
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
+            'import/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: LAYER_ZONES }],
             'no-useless-escape': 'off',
             'sonarjs/dompurify-unsafe-config': 'off',
             '@typescript-eslint/no-inferrable-types': 'error',
@@ -69,184 +140,27 @@ export default [
         },
     },
 
+    // tableModel is pure data logic: no editor/runtime packages either.
     {
-        files: ['src/contentScript/shared/**/*.ts'],
+        files: [`${CONTENT_SCRIPT_DIR}/tableModel/**/*.ts`],
         rules: {
             'no-restricted-imports': [
                 'error',
                 {
-                    patterns: [
-                        {
-                            group: siblingGroups([
-                                'tableModel',
-                                'tableState',
-                                'tableRuntime',
-                                'tableWidget',
-                                'tableCommands',
-                                'nestedEditor',
-                                'services',
-                                'toolbar',
-                            ]),
-                            message: 'shared must stay feature-agnostic.',
-                        },
-                    ],
+                    paths: EDITOR_RUNTIME_PACKAGES.map((name) => ({
+                        name,
+                        message: 'tableModel must not depend on editor/runtime packages.',
+                    })),
                 },
             ],
         },
     },
 
+    // Composition root: wires every layer together, so it is exempt from layer boundaries.
     {
-        files: ['src/contentScript/services/**/*.ts'],
+        files: [`${CONTENT_SCRIPT_DIR}/tableWidget/tableWidgetExtension.ts`],
         rules: {
-            'no-restricted-imports': [
-                'error',
-                {
-                    patterns: [
-                        {
-                            group: siblingGroups([
-                                'tableModel',
-                                'tableState',
-                                'tableRuntime',
-                                'tableWidget',
-                                'tableCommands',
-                                'nestedEditor',
-                                'toolbar',
-                            ]),
-                            message: 'services may depend only on shared utilities and external integration code.',
-                        },
-                    ],
-                },
-            ],
-        },
-    },
-
-    {
-        files: ['src/contentScript/tableModel/**/*.ts'],
-        rules: {
-            'no-restricted-imports': [
-                'error',
-                {
-                    patterns: [
-                        {
-                            group: siblingGroups([
-                                'tableState',
-                                'tableRuntime',
-                                'tableWidget',
-                                'tableCommands',
-                                'nestedEditor',
-                                'services',
-                                'toolbar',
-                            ]),
-                            message: 'tableModel must not depend on higher-level editor layers.',
-                        },
-                        {
-                            group: anyDepthFolderGroups([
-                                'tableState',
-                                'tableRuntime',
-                                'tableWidget',
-                                'tableCommands',
-                                'nestedEditor',
-                                'services',
-                                'toolbar',
-                            ]),
-                            message:
-                                'tableModel must not depend on higher-level editor layers, even via deep relative paths.',
-                        },
-                    ],
-                    paths: [
-                        {
-                            name: '@codemirror/view',
-                            message: 'tableModel must not depend on editor/runtime packages.',
-                        },
-                        {
-                            name: '@codemirror/state',
-                            message: 'tableModel must not depend on editor/runtime packages.',
-                        },
-                        {
-                            name: '@codemirror/language',
-                            message: 'tableModel must not depend on editor/runtime packages.',
-                        },
-                    ],
-                },
-            ],
-        },
-    },
-
-    {
-        files: ['src/contentScript/tableState/**/*.ts'],
-        rules: {
-            'no-restricted-imports': [
-                'error',
-                {
-                    patterns: [
-                        {
-                            group: siblingGroups([
-                                'tableRuntime',
-                                'tableWidget',
-                                'tableCommands',
-                                'nestedEditor',
-                                'services',
-                                'toolbar',
-                            ]),
-                            message: 'tableState is limited to model types, shared helpers, and sibling state modules.',
-                        },
-                    ],
-                },
-            ],
-        },
-    },
-
-    {
-        files: ['src/contentScript/tableRuntime/**/*.ts'],
-        rules: {
-            'no-restricted-imports': [
-                'error',
-                {
-                    patterns: [
-                        {
-                            group: siblingGroups(['tableCommands']),
-                            message: 'tableRuntime must stay below tableCommands in the dependency graph.',
-                        },
-                    ],
-                },
-            ],
-        },
-    },
-
-    {
-        files: ['src/contentScript/tableCommands/**/*.ts'],
-        rules: {
-            'no-restricted-imports': [
-                'error',
-                {
-                    patterns: [
-                        {
-                            group: siblingGroups(['tableWidget', 'nestedEditor', 'services']),
-                            message:
-                                'tableCommands should go through state/runtime APIs instead of widget or nested-editor internals.',
-                        },
-                    ],
-                },
-            ],
-        },
-    },
-
-    {
-        files: ['src/contentScript/tableWidget/**/*.ts'],
-        ignores: ['src/contentScript/tableWidget/tableWidgetExtension.ts'],
-        rules: {
-            'no-restricted-imports': [
-                'error',
-                {
-                    patterns: [
-                        {
-                            group: siblingGroups(['tableCommands']),
-                            message:
-                                'tableWidget modules must not depend on command registration or command entry points.',
-                        },
-                    ],
-                },
-            ],
+            'import/no-restricted-paths': 'off',
         },
     },
 
