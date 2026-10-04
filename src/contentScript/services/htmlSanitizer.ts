@@ -62,6 +62,7 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * nodes belong to DOMPurify's own document until something appends them, which adopts them.
  */
 export function sanitizeToFragment(html: string): DocumentFragment {
+    // eslint-disable-next-line sonarjs/dompurify-unsafe-config -- ALLOW_UNKNOWN_PROTOCOLS is needed to load joplin-content:// images from renderMarkup.
     return DOMPurify.sanitize(html, {
         RETURN_DOM_FRAGMENT: true,
         ALLOW_UNKNOWN_PROTOCOLS: true,
