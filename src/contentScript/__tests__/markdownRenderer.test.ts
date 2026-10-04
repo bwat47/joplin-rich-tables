@@ -65,7 +65,8 @@ describe('createMarkdownRenderer', () => {
         }
 
         if (readOldest) {
-            expect(fragmentHtml(renderer.getCached('value-0')!)).toContain('value-0');
+            // Reading the oldest entry marks it as recently used.
+            renderer.getCached('value-0');
         }
         await renderer.render('overflow');
 

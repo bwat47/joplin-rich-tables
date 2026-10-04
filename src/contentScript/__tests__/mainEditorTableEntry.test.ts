@@ -286,67 +286,43 @@ describe('mainEditorTableEntry deletion protection', () => {
     });
 
     it.each([
-        {
-            caret: 'blank line above the table',
-            key: 'Backspace',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1,
-            expected: { kind: 'move', offset: -1 },
-        },
-        {
-            caret: 'blank line above the table',
-            key: 'Delete',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1,
-            expected: { kind: 'entry', edge: 'start' },
-        },
-        {
-            caret: 'table start',
-            key: 'Backspace',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE),
-            expected: { kind: 'move', offset: -1 },
-        },
-        {
-            caret: 'table start',
-            key: 'Delete',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE),
-            expected: { kind: 'entry', edge: 'start' },
-        },
+        { caret: 'blank line above the table', key: 'Delete', pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1, edge: 'start' },
+        { caret: 'table start', key: 'Delete', pos: AROUND_TABLE_DOC.indexOf(TABLE), edge: 'start' },
         {
             caret: 'blank line below the table',
             key: 'Backspace',
             pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
-            expected: { kind: 'entry', edge: 'end' },
+            edge: 'end',
         },
-        {
-            caret: 'blank line below the table',
-            key: 'Delete',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
-            expected: { kind: 'move', offset: 1 },
-        },
-        {
-            caret: 'table end',
-            key: 'Backspace',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length,
-            expected: { kind: 'entry', edge: 'end' },
-        },
-        {
-            caret: 'table end',
-            key: 'Delete',
-            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length,
-            expected: { kind: 'move', offset: 1 },
-        },
-    ] as const)('$key at $caret preserves the boundary', ({ key, pos, expected }) => {
+        { caret: 'table end', key: 'Backspace', pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length, edge: 'end' },
+    ] as const)('$key at $caret preserves the boundary by entering the table', ({ key, pos, edge }) => {
         const view = mountView(AROUND_TABLE_DOC, pos);
 
         pressKey(view, key);
 
         expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
-        if (expected.kind === 'entry') {
-            expectBoundaryCellOpen(view, expected.edge);
-        } else {
-            expect(view.state.selection.main.head).toBe(pos + expected.offset);
-            expect(getActiveCell(view.state)).toBeNull();
-            expect(getPendingOpenCellRequest(view.state)).toBeNull();
-        }
+        expectBoundaryCellOpen(view, edge);
+    });
+
+    it.each([
+        { caret: 'blank line above the table', key: 'Backspace', pos: AROUND_TABLE_DOC.indexOf(TABLE) - 1, offset: -1 },
+        { caret: 'table start', key: 'Backspace', pos: AROUND_TABLE_DOC.indexOf(TABLE), offset: -1 },
+        {
+            caret: 'blank line below the table',
+            key: 'Delete',
+            pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length + 1,
+            offset: 1,
+        },
+        { caret: 'table end', key: 'Delete', pos: AROUND_TABLE_DOC.indexOf(TABLE) + TABLE.length, offset: 1 },
+    ] as const)('$key at $caret preserves the boundary by moving the caret', ({ key, pos, offset }) => {
+        const view = mountView(AROUND_TABLE_DOC, pos);
+
+        pressKey(view, key);
+
+        expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
+        expect(view.state.selection.main.head).toBe(pos + offset);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
     });
 
     it.each([
@@ -659,55 +635,52 @@ describe('mainEditorTableEntry deletion protection', () => {
         expectBoundaryCellOpen(view, 'end');
     });
 
-    it.each([
-        {
-            key: 'Backspace',
-            pos: 1,
-            protectedPos: 1,
-            expected: { kind: 'move', pos: 0 },
-        },
-        {
-            key: 'Delete',
-            pos: 0,
-            protectedPos: 0,
-            expected: { kind: 'entry', edge: 'start' },
-        },
-    ] as const)(
-        'deletes a surplus blank line at the document start with $key, then protects the separator',
-        ({ key, pos, protectedPos, expected }) => {
-            // Nothing precedes the table, so one blank line is all the separation it needs and
-            // the second is ordinary text.
-            const doc = `
+    /**
+     * Deletes the surplus blank line at the document start, then presses `key` again on the
+     * remaining separator. Nothing precedes the table, so one blank line is all the separation it
+     * needs and the second is ordinary text.
+     */
+    function deleteSurplusBlankLineAtDocStart(
+        key: 'Backspace' | 'Delete',
+        pos: number,
+        protectedPos: number
+    ): EditorView {
+        const doc = `
 
 ${TABLE}
 
 ${AFTER}`;
-            const view = mountView(doc, pos);
-
-            pressKey(view, key);
-            expect(view.state.doc.toString()).toBe(`
+        const expectedDoc = `
 ${TABLE}
 
-${AFTER}`);
-            expect(getActiveCell(view.state)).toBeNull();
-            expect(getPendingOpenCellRequest(view.state)).toBeNull();
+${AFTER}`;
+        const view = mountView(doc, pos);
 
-            // Target the remaining newline from the side appropriate to each deletion direction.
-            view.dispatch({ selection: { anchor: protectedPos } });
-            pressKey(view, key);
-            expect(view.state.doc.toString()).toBe(`
-${TABLE}
+        pressKey(view, key);
+        expect(view.state.doc.toString()).toBe(expectedDoc);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
-${AFTER}`);
-            if (expected.kind === 'entry') {
-                expectBoundaryCellOpen(view, expected.edge);
-            } else {
-                expect(view.state.selection.main.head).toBe(expected.pos);
-                expect(getActiveCell(view.state)).toBeNull();
-                expect(getPendingOpenCellRequest(view.state)).toBeNull();
-            }
-        }
-    );
+        // Target the remaining newline from the side appropriate to each deletion direction.
+        view.dispatch({ selection: { anchor: protectedPos } });
+        pressKey(view, key);
+        expect(view.state.doc.toString()).toBe(expectedDoc);
+        return view;
+    }
+
+    it('deletes a surplus blank line at the document start with Backspace, then protects the separator', () => {
+        const view = deleteSurplusBlankLineAtDocStart('Backspace', 1, 1);
+
+        expect(view.state.selection.main.head).toBe(0);
+        expect(getActiveCell(view.state)).toBeNull();
+        expect(getPendingOpenCellRequest(view.state)).toBeNull();
+    });
+
+    it('deletes a surplus blank line at the document start with Delete, then protects the separator', () => {
+        const view = deleteSurplusBlankLineAtDocStart('Delete', 0, 0);
+
+        expectBoundaryCellOpen(view, 'start');
+    });
 
     it('deletes a surplus blank line at the document end', () => {
         const doc = `${BEFORE}
