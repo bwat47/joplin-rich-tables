@@ -1,8 +1,8 @@
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { history, isolateHistory, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';

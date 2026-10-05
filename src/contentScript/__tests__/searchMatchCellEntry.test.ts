@@ -1,4 +1,3 @@
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import {
     findNext,
     findPrevious,
@@ -13,6 +12,7 @@ import {
 import { EditorSelection, EditorState, type Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { sourceModeField } from '../tableState/sourceMode';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';

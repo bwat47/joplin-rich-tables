@@ -1,7 +1,7 @@
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { requireResolvedActiveCell } from './testUtils';

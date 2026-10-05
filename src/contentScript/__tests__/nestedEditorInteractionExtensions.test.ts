@@ -1,9 +1,9 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 import type * as CellSelectionClipboard from '../tableRuntime/selection/cellSelectionClipboard';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
-import { EditorView } from '@codemirror/view';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';

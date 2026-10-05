@@ -1,4 +1,3 @@
-import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
 import type { EditorState } from '@codemirror/state';
 import { ViewPlugin, EditorView, type ViewUpdate } from '@codemirror/view';
 import {
@@ -18,6 +17,7 @@ import {
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition } from '../activeCell/cellActivation';
+import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
