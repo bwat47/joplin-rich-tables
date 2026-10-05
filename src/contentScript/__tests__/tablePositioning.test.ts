@@ -1,3 +1,4 @@
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -69,6 +70,7 @@ describe('resolveTableContextFromEventTarget', () => {
         expect(
             openNestedEditor({
                 mainView: view,
+                createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
                 resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement: requireCell(view, TABLE_A_FROM, activeCell),
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,
@@ -93,6 +95,7 @@ describe('resolveTableContextFromEventTarget', () => {
         view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
         openNestedEditor({
             mainView: view,
+            createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
             resolvedCell: requireResolvedActiveCell(view.state),
             cellElement: requireCell(view, TABLE_A_FROM, activeCell),
             featureSettings: TEST_HOST_CONFIG.nestedEditor,

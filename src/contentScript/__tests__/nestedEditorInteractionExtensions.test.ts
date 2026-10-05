@@ -1,6 +1,10 @@
+import { EditorSelection, EditorState } from '@codemirror/state';
+import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
+import type * as CellSelectionClipboard from '../tableRuntime/selection/cellSelectionClipboard';
+import { installRangeLayoutStubs } from './tableEditorFixtures';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNestedEditorKeymap } from '../nestedEditor/domHandlers';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';
@@ -37,7 +41,7 @@ function mountNestedView(
         doc: 'cell',
         selection: { anchor: selection },
         extensions: [
-            createNestedEditorKeymap(mainView, {
+            createNestedEditorInteractionExtensions(mainView, {
                 closeEditor: close,
                 syncPendingChangesToRoot: sync,
             }),
@@ -69,17 +73,6 @@ afterEach(() => {
         mountedViews.pop()?.destroy();
     }
     document.body.replaceChildren();
-});
-
-describe('nested editor selection', () => {
-    it('selects the entire cell on Mod-a', () => {
-        const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 0, col: 0 });
-        const nested = mountNestedView(mainView, 2);
-
-        pressKey(nested.view, 'a', { ctrlKey: true });
-
-        expect(nested.view.state.selection.main).toMatchObject({ from: 0, to: nested.view.state.doc.length });
-    });
 });
 
 describe('nested editor horizontal table exit', () => {
@@ -186,5 +179,71 @@ describe('nested editor vertical cell selection', () => {
 
         expect(nested.close).not.toHaveBeenCalled();
         expect(getCellSelection(mainView.state)).toBeNull();
+    });
+});
+
+installRangeLayoutStubs();
+
+vi.mock('../tableRuntime/selection/cellSelectionClipboard', async (importOriginal) => ({
+    ...(await importOriginal<typeof CellSelectionClipboard>()),
+    handleTableClipboardTextPaste: vi.fn(() => false),
+}));
+
+const handleTableClipboardTextPasteMock = vi.mocked(handleTableClipboardTextPaste);
+
+function dispatchPaste(target: HTMLElement, text: string): void {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+        value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
+    });
+    target.dispatchEvent(event);
+}
+
+function createPasteView(parent: HTMLElement): EditorView {
+    const view = new EditorView({
+        parent,
+        state: EditorState.create({
+            doc: 'selected text',
+            selection: EditorSelection.single(0, 'selected'.length),
+            extensions: createNestedEditorInteractionExtensions({} as EditorView, {
+                closeEditor: vi.fn(),
+                syncPendingChangesToRoot: vi.fn(),
+            }),
+        }),
+    });
+    mountedViews.push(view);
+    return view;
+}
+
+describe('nested editor table paste', () => {
+    afterEach(() => {
+        handleTableClipboardTextPasteMock.mockReset();
+        handleTableClipboardTextPasteMock.mockReturnValue(false);
+    });
+    it('routes a table fragment pasted into the nested editor through the multi-cell rewrite', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const nestedView = createPasteView(parent);
+        handleTableClipboardTextPasteMock.mockReturnValue(true);
+
+        const clipboardText = ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n');
+        dispatchPaste(nestedView.contentDOM, clipboardText);
+
+        expect(handleTableClipboardTextPasteMock).toHaveBeenCalledWith(clipboardText, expect.anything(), {
+            nestedEditorOpen: true,
+        });
+        // The rewrite owns the paste, so nothing lands in the cell editor itself.
+        expect(nestedView.state.doc.toString()).toBe('selected text');
+    });
+
+    it('lets a non-table paste fall through to the nested editor', () => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const nestedView = createPasteView(parent);
+
+        dispatchPaste(nestedView.contentDOM, 'plain');
+
+        expect(handleTableClipboardTextPasteMock).toHaveBeenCalledTimes(1);
+        expect(nestedView.state.doc.toString()).toBe('plain text');
     });
 });

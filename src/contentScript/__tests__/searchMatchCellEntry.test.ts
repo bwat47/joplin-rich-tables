@@ -1,3 +1,4 @@
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
 import {
     findNext,
     findPrevious,
@@ -211,6 +212,7 @@ describe('search shortcuts with rendered tables', () => {
         }
         openNestedEditor({
             mainView: view,
+            createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
             cellElement,
             resolvedCell: requireResolvedActiveCell(view.state),
             featureSettings: TEST_HOST_CONFIG.nestedEditor,

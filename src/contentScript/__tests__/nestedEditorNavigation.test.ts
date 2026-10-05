@@ -1,3 +1,4 @@
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
@@ -44,6 +45,7 @@ describe('nested editor navigation', () => {
 
         openNestedEditor({
             mainView,
+            createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(mainView, controls),
             cellElement,
             resolvedCell: requireResolvedActiveCell(mainView.state),
             featureSettings: defaultHostEditorConfig().nestedEditor,
@@ -112,6 +114,7 @@ describe('nested editor navigation', () => {
 
         openNestedEditor({
             mainView,
+            createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(mainView, controls),
             cellElement,
             resolvedCell: requireResolvedActiveCell(mainView.state),
             featureSettings: defaultHostEditorConfig().nestedEditor,

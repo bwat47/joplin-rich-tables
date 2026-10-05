@@ -8,7 +8,7 @@
 import { deleteCharForward } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorView, keymap } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
@@ -99,6 +99,7 @@ function createHarness(params: {
 function openInCell(view: EditorView, cellElement: HTMLElement, initialCursorPos?: InitialCursorPos): boolean {
     return openNestedEditor({
         mainView: view,
+        createInteractionExtensions: () => [],
         cellElement,
         resolvedCell: requireResolvedActiveCell(view.state),
         featureSettings: FEATURE_SETTINGS,
@@ -123,6 +124,42 @@ function requireNestedView(cellElement: HTMLElement): EditorView {
 describe('nestedEditorController open', () => {
     afterEach(() => {
         document.body.innerHTML = '';
+    });
+
+    it('installs caller-supplied interaction extensions with session controls', () => {
+        const doc = ['| H1 |', '| --- |', '| cell |'].join('\n');
+        const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
+
+        openNestedEditor({
+            mainView: view,
+            cellElement,
+            resolvedCell: requireResolvedActiveCell(view.state),
+            featureSettings: FEATURE_SETTINGS,
+            createInteractionExtensions: (controls) =>
+                keymap.of([
+                    {
+                        key: 'F2',
+                        run: () => {
+                            controls.syncPendingChangesToRoot();
+                            controls.closeEditor();
+                            return true;
+                        },
+                    },
+                ]),
+        });
+        const nested = requireNestedView(cellElement);
+        nested.contentDOM.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'F2',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+
+        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(cellElement.querySelector('.cm-editor')).toBeNull();
+        expect(view.state.doc.toString()).toBe(doc);
+        view.destroy();
     });
 
     it('mounts a nested editor holding the unsanitized cell text', () => {

@@ -1,3 +1,4 @@
+import { createNestedEditorInteractionExtensions } from '../nestedEditorInteractionExtensions';
 import type { EditorState } from '@codemirror/state';
 import { ViewPlugin, EditorView, type ViewUpdate } from '@codemirror/view';
 import {
@@ -219,6 +220,8 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     resolvedCell: guardResult.resolvedCell,
                     featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
                     initialCursorPos: guardResult.request.initialCursorPos,
+                    createInteractionExtensions: (controls) =>
+                        createNestedEditorInteractionExtensions(this.view, controls),
                 });
                 if (!opened) {
                     this.failOpenRequest(requestId);

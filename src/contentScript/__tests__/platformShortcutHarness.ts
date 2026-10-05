@@ -1,8 +1,9 @@
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
 import { history, isolateHistory, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNestedEditorDomHandlers, createNestedEditorKeymap } from '../nestedEditor/domHandlers';
+import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
@@ -444,11 +445,11 @@ export function registerPlatformShortcutTests(
                 parent,
                 doc: 'cell',
                 extensions: [
-                    createNestedEditorDomHandlers(mainView, {
+                    createNestedEditorDomHandlers({
                         syncSelectionToMain: vi.fn(),
                         ensureRootSelectionForCommand: vi.fn(),
                     }),
-                    createNestedEditorKeymap(mainView, {
+                    createNestedEditorInteractionExtensions(mainView, {
                         closeEditor: vi.fn(),
                         syncPendingChangesToRoot: vi.fn(),
                     }),
@@ -480,7 +481,7 @@ export function registerPlatformShortcutTests(
         return view;
     }
 
-    function mountNestedRoutingView(mainView: EditorView): {
+    function mountNestedRoutingView(): {
         view: EditorView;
         parentKeyDown: ReturnType<typeof vi.fn>;
         ensureRootSelectionForCommand: ReturnType<typeof vi.fn>;
@@ -496,7 +497,7 @@ export function registerPlatformShortcutTests(
             new EditorView({
                 parent,
                 doc: 'cell',
-                extensions: createNestedEditorDomHandlers(mainView, {
+                extensions: createNestedEditorDomHandlers({
                     syncSelectionToMain: vi.fn(),
                     ensureRootSelectionForCommand,
                 }),
@@ -705,7 +706,7 @@ export function registerPlatformShortcutTests(
         'nested $label synchronizes the root selection and bubbles to the root editor',
         ({ init }) => {
             const mainView = mountMainActiveCellView();
-            const nested = mountNestedRoutingView(mainView);
+            const nested = mountNestedRoutingView();
 
             const event = pressKey(nested.view.contentDOM, init);
 
@@ -715,8 +716,8 @@ export function registerPlatformShortcutTests(
     );
 
     it.each(UNROUTED[platform])('nested $label bubbles to the host but not the root editor', ({ init }) => {
-        const mainView = mountMainActiveCellView();
-        const nested = mountNestedRoutingView(mainView);
+        mountMainActiveCellView();
+        const nested = mountNestedRoutingView();
 
         expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
     });
@@ -743,8 +744,8 @@ export function registerPlatformShortcutTests(
     });
 
     it.each(UNROUTED_EVERYWHERE)('nested $label bubbles to the host but not the root editor', ({ init }) => {
-        const mainView = mountMainActiveCellView();
-        const nested = mountNestedRoutingView(mainView);
+        mountMainActiveCellView();
+        const nested = mountNestedRoutingView();
 
         expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
     });
@@ -839,6 +840,7 @@ export function registerPlatformShortcutTests(
             expect(
                 openNestedEditor({
                     mainView: view,
+                    createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
                     resolvedCell: requireResolvedActiveCell(view.state),
                     cellElement,
                     featureSettings: TEST_HOST_CONFIG.nestedEditor,
