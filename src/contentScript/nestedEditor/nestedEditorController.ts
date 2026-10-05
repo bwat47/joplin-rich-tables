@@ -443,14 +443,14 @@ export const nestedEditorPlugin = ViewPlugin.fromClass(
     }
 );
 
-function getController(view: EditorView): NestedEditorController | null {
+function getNestedEditorController(view: EditorView): NestedEditorController | null {
     const plugin = view.plugin(nestedEditorPlugin);
     return plugin ? plugin.controller : null;
 }
 
 /** Mounts a nested editor for `params.resolvedCell`; false when the view has no controller. */
 export function openNestedEditor(params: OpenNestedEditorParams): boolean {
-    const controller = getController(params.mainView);
+    const controller = getNestedEditorController(params.mainView);
     if (!controller) {
         return false;
     }
@@ -460,30 +460,31 @@ export function openNestedEditor(params: OpenNestedEditorParams): boolean {
 }
 
 export function closeNestedEditor(view: EditorView, params?: CellContentRange): void {
-    getController(view)?.close(params);
-}
-
-export function isNestedEditorOpen(view: EditorView): boolean {
-    return getController(view)?.isOpen() ?? false;
+    getNestedEditorController(view)?.close(params);
 }
 
 export function isNestedEditorFocused(view: EditorView): boolean {
-    return getController(view)?.hasFocus() ?? false;
+    return getNestedEditorController(view)?.hasFocus() ?? false;
 }
 
 export function handleMainEditorUpdate(view: EditorView, update: ViewUpdate, resolvedCell: ResolvedActiveCell): void {
-    getController(view)?.handleMainEditorUpdate(update, resolvedCell);
-}
-
-export function refocusNestedEditor(view: EditorView): void {
-    getController(view)?.refocus();
+    getNestedEditorController(view)?.handleMainEditorUpdate(update, resolvedCell);
 }
 
 /** Flushes the nested editor's current text and selection before an external interaction takes ownership. */
 export function flushNestedEditorState(view: EditorView): void {
-    getController(view)?.flushLocalStateToRoot();
+    getNestedEditorController(view)?.flushLocalStateToRoot();
 }
 
+export function isNestedEditorOpen(view: EditorView): boolean {
+    return getNestedEditorController(view)?.isOpen() ?? false;
+}
+
+export function refocusNestedEditor(view: EditorView): void {
+    getNestedEditorController(view)?.refocus();
+}
+
+/** Closes the nested editor if it is mounted inside `container`, e.g. when a widget's DOM is destroyed. */
 export function cleanupHostedNestedEditors(view: EditorView, container: HTMLElement): void {
-    getController(view)?.checkAndCloseIfHostedIn(container);
+    getNestedEditorController(view)?.checkAndCloseIfHostedIn(container);
 }

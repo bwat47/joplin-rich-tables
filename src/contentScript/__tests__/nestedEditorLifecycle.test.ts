@@ -139,6 +139,7 @@ vi.mock('../nestedEditor/nestedEditorController', () => ({
     isNestedEditorFocused: vi.fn(() => false),
     isNestedEditorOpen: vi.fn(() => false),
     openNestedEditor: vi.fn(),
+    refocusNestedEditor: vi.fn(),
 }));
 
 describe('nestedEditorLifecycle', () => {

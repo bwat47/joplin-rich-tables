@@ -30,7 +30,7 @@ vi.mock('../tableRuntime/operations/structuralActions', () => ({
     runStructuralAction: mockRunStructuralAction,
 }));
 
-vi.mock('../nestedEditor/nestedEditorController', () => ({
+vi.mock('../nestedEditor/nestedEditorUiControls', () => ({
     isNestedEditorOpen: mockIsNestedEditorOpen,
     refocusNestedEditor: mockRefocusNestedEditor,
 }));

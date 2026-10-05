@@ -13,7 +13,7 @@ import { syncAnnotation } from '../shared/syncAnnotation';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
-import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
+import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorUiControls';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';

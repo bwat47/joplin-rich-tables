@@ -19,7 +19,8 @@ import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/o
 import { searchMatchCellEntryExtension } from '../tableRuntime/searchMatchCellEntry';
 import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
-import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { isNestedEditorOpen } from '../nestedEditor/nestedEditorUiControls';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';

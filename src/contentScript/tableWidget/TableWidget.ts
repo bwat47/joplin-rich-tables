@@ -1,6 +1,6 @@
 import { WidgetType, type EditorView } from '@codemirror/view';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
-import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
+import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorUiControls';
 import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
