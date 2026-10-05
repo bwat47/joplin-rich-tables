@@ -6,7 +6,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 - `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, and table math.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, and state-derived active-cell resolution.
-- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (pointer gestures and outside-interaction handling), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
+- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.
@@ -97,7 +97,7 @@ Common ownership boundaries:
 
 - `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, and table math.
 - `tableState/resolvedActiveCell.ts` resolves logical active-cell identity into current table context and document ranges, using only state and model dependencies.
-- `tableRuntime/` owns editor-bound orchestration, active-cell lifecycle, and the main-editor guard policy.
+- `tableRuntime/` owns editor-bound orchestration, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
 - `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
 - `shared/` holds feature-agnostic primitives, including `syncAnnotation` and cell text/selection conversion (`cellTextCodec`).
 - `tableWidget/` owns widget DOM, visual styling, display-mode behavior, and decoration policy.

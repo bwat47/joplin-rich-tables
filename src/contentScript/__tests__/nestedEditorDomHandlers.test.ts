@@ -2,26 +2,9 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
-import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
-import type * as CellSelectionClipboard from '../tableRuntime/selection/cellSelectionClipboard';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
 
 installRangeLayoutStubs();
-
-vi.mock('../tableRuntime/selection/cellSelectionClipboard', async (importOriginal) => ({
-    ...(await importOriginal<typeof CellSelectionClipboard>()),
-    handleTableClipboardTextPaste: vi.fn(() => false),
-}));
-
-const handleTableClipboardTextPasteMock = vi.mocked(handleTableClipboardTextPaste);
-
-function dispatchPaste(target: HTMLElement, text: string): void {
-    const event = new Event('paste', { bubbles: true, cancelable: true });
-    Object.defineProperty(event, 'clipboardData', {
-        value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
-    });
-    target.dispatchEvent(event);
-}
 
 function dispatchMouseDown(target: HTMLElement, init: MouseEventInit): void {
     target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, ...init }));
@@ -34,7 +17,7 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mo
             doc: 'selected text',
             selection: EditorSelection.single(0, 'selected'.length),
             extensions: [
-                ...createNestedEditorDomHandlers({} as EditorView, {
+                ...createNestedEditorDomHandlers({
                     syncSelectionToMain: params.syncSelectionToMain,
                     ensureRootSelectionForCommand: vi.fn(),
                 }),
@@ -46,8 +29,6 @@ function createNestedView(params: { parent: HTMLElement; syncSelectionToMain: Mo
 describe('nestedEditor dom handlers', () => {
     afterEach(() => {
         document.body.innerHTML = '';
-        handleTableClipboardTextPasteMock.mockReset();
-        handleTableClipboardTextPasteMock.mockReturnValue(false);
     });
 
     it('stops left-clicks on nested editor text from bubbling to the parent editor', () => {
@@ -85,34 +66,16 @@ describe('nestedEditor dom handlers', () => {
         nestedView.destroy();
     });
 
-    it('routes a table fragment pasted into the nested editor through the multi-cell rewrite', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const nestedView = createNestedView({ parent, syncSelectionToMain: vi.fn() });
-        handleTableClipboardTextPasteMock.mockReturnValue(true);
-
-        const clipboardText = ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n');
-        dispatchPaste(nestedView.contentDOM, clipboardText);
-
-        expect(handleTableClipboardTextPasteMock).toHaveBeenCalledWith(clipboardText, expect.anything(), {
-            nestedEditorOpen: true,
-        });
-        // The rewrite owns the paste, so nothing lands in the cell editor itself.
-        expect(nestedView.state.doc.toString()).toBe('selected text');
-
-        nestedView.destroy();
-    });
-
-    it('lets a non-table paste fall through to the nested editor', () => {
+    it('selects the entire cell on Mod-a', () => {
         const parent = document.createElement('div');
         document.body.appendChild(parent);
         const nestedView = createNestedView({ parent, syncSelectionToMain: vi.fn() });
 
-        dispatchPaste(nestedView.contentDOM, 'plain');
+        nestedView.contentDOM.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true, cancelable: true })
+        );
 
-        expect(handleTableClipboardTextPasteMock).toHaveBeenCalledTimes(1);
-        expect(nestedView.state.doc.toString()).toBe('plain text');
-
+        expect(nestedView.state.selection.main).toMatchObject({ from: 0, to: nestedView.state.doc.length });
         nestedView.destroy();
     });
 });

@@ -3,6 +3,7 @@ import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { syncAnnotation } from '../shared/syncAnnotation';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { requireResolvedActiveCell } from './testUtils';
@@ -61,6 +62,7 @@ describe('nested editor undo regression', () => {
 
         const opened = openNestedEditor({
             mainView: view,
+            createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
             resolvedCell: requireResolvedActiveCell(view.state),
             cellElement,
             featureSettings: TEST_HOST_CONFIG.nestedEditor,
@@ -116,6 +118,7 @@ describe('nested editor undo regression', () => {
         expect(
             openNestedEditor({
                 mainView: view,
+                createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
                 resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement,
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,
@@ -211,6 +214,7 @@ describe('nested editor undo regression', () => {
             expect(
                 openNestedEditor({
                     mainView: view,
+                    createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
                     resolvedCell: requireResolvedActiveCell(view.state),
                     cellElement,
                     featureSettings: TEST_HOST_CONFIG.nestedEditor,
@@ -282,6 +286,7 @@ describe('nested editor undo regression', () => {
         expect(
             openNestedEditor({
                 mainView: view,
+                createInteractionExtensions: (controls) => createNestedEditorInteractionExtensions(view, controls),
                 resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement,
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,

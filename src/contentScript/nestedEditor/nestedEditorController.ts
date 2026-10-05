@@ -2,7 +2,7 @@ import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin } from './decorationPlugins';
-import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSelectionToMain } from './domHandlers';
+import { createNestedEditorDomHandlers, mirrorLocalSelectionToMain } from './domHandlers';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import { createNestedEditorTheme } from './nestedEditorTheme';
@@ -47,6 +47,11 @@ interface NestedEditorSession {
     editor: EditorView | null;
 }
 
+export interface NestedEditorInteractionControls {
+    closeEditor: () => void;
+    syncPendingChangesToRoot: () => void;
+}
+
 export interface OpenNestedEditorParams {
     mainView: EditorView;
     cellElement: HTMLElement;
@@ -54,6 +59,8 @@ export interface OpenNestedEditorParams {
     resolvedCell: ResolvedActiveCell;
     featureSettings: NestedEditorHostConfig;
     initialCursorPos?: InitialCursorPos;
+    /** Supplies table interaction policy with controls for this editor session. */
+    createInteractionExtensions: (controls: NestedEditorInteractionControls) => Extension;
 }
 
 class NestedEditorController {
@@ -114,11 +121,11 @@ class NestedEditorController {
                     return { annotations: Transaction.addToHistory.of(false) };
                 }),
                 EditorView.updateListener.of((update) => this.handleLocalUpdate(update)),
-                createNestedEditorDomHandlers(params.mainView, {
+                createNestedEditorDomHandlers({
                     syncSelectionToMain: (view, event) => this.syncSelectionToMain(view, event),
                     ensureRootSelectionForCommand: () => this.flushSelectionToRoot(),
                 }),
-                createNestedEditorKeymap(params.mainView, {
+                params.createInteractionExtensions({
                     closeEditor: () => this.close(),
                     syncPendingChangesToRoot: () => this.flushLocalStateToRoot(),
                 }),

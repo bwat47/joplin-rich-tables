@@ -17,6 +17,7 @@ import {
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition } from '../activeCell/cellActivation';
+import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
@@ -219,6 +220,8 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     resolvedCell: guardResult.resolvedCell,
                     featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
                     initialCursorPos: guardResult.request.initialCursorPos,
+                    createInteractionExtensions: (controls) =>
+                        createNestedEditorInteractionExtensions(this.view, controls),
                 });
                 if (!opened) {
                     this.failOpenRequest(requestId);

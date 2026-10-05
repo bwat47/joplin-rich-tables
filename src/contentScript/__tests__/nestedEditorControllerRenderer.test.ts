@@ -42,6 +42,7 @@ describe('nestedEditorController markdown rendering', () => {
         expect(
             openNestedEditor({
                 mainView: view,
+                createInteractionExtensions: () => [],
                 cellElement,
                 resolvedCell: requireResolvedActiveCell(view.state),
                 featureSettings: { autoMatchingBraces: true, spellcheck: false },
@@ -98,6 +99,7 @@ describe('nestedEditorController markdown rendering', () => {
         expect(
             openNestedEditor({
                 mainView: view,
+                createInteractionExtensions: () => [],
                 cellElement,
                 resolvedCell: requireResolvedActiveCell(view.state),
                 featureSettings: { autoMatchingBraces: true, spellcheck: false },

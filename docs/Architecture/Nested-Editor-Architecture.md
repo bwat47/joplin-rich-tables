@@ -21,3 +21,7 @@ Changes from the main editor rebase the nested editor from authoritative documen
 ## Cell Editing Features
 
 The nested editor parses inline Markdown without enabling block constructs that would conflict with table cells. Its styling and editing extensions support inline formatting, wrapping, bracket completion, and host spellcheck settings while keeping the cell's rendered and editable views consistent.
+
+## Interaction Ownership
+
+`tableRuntime/interaction/nestedEditorInteractionExtensions.ts` owns cell-boundary navigation, Shift-arrow cell selection, table-fragment paste, and root-history bindings. The lifecycle passes an extension factory to `openNestedEditor`; the controller invokes it with session close and flush callbacks. `nestedEditor/` keeps local select-all, root-command event routing, selection mirroring, and mouse-event isolation, with no runtime imports. Visual-line measurement lives in `shared/caretVisualLine.ts`.

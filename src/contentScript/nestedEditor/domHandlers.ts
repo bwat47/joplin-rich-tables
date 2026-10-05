@@ -3,10 +3,6 @@ import { EditorSelection, Transaction, type Extension } from '@codemirror/state'
 import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
 import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
-import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
-import { createHistoryKeyBindings } from '../tableRuntime/historyKeymap';
 import { routeKeyEventToRootEditor } from './nestedEditorEventRouting';
 
 /** Dedicated keymap scope so root-routing bindings never match nested-editor navigation. */
@@ -75,191 +71,14 @@ function createRootRoutingBindings(options: { ensureRootSelectionForCommand: () 
     ];
 }
 
-/** Vertical tolerance (px) for treating two caret rects as the same visual line. */
-const SAME_VISUAL_LINE_TOLERANCE_PX = 2;
-
-/**
- * True when the nested caret sits on the same visual (wrapped) line as `pos`.
- *
- * `coordsAtPos` returns null when the view is not laid out (notably under jsdom),
- * so the exact-position check is both the fast path and the measurement fallback.
- */
-function isCaretOnSameVisualLine(view: EditorView, pos: number): boolean {
-    const { head } = view.state.selection.main;
-    if (head === pos) {
-        return true;
-    }
-
-    const headRect = view.coordsAtPos(head);
-    const posRect = view.coordsAtPos(pos);
-    if (!headRect || !posRect) {
-        return false;
-    }
-
-    return Math.abs(headRect.top - posRect.top) < SAME_VISUAL_LINE_TOLERANCE_PX;
-}
-
-export function createNestedEditorKeymap(
-    mainView: EditorView,
-    options: {
-        closeEditor: () => void;
-        syncPendingChangesToRoot: () => void;
-    }
-): Extension {
-    const bindings: KeyBinding[] = [
-        ...createHistoryKeyBindings((_view, command) => command(mainView)),
-        {
-            key: 'Mod-a',
-            run: selectAll,
-        },
-        {
-            key: 'Tab',
-            run: () => {
-                options.syncPendingChangesToRoot();
-                return navigateCell(mainView, 'next', { allowRowCreation: true });
-            },
-        },
-        {
-            key: 'Shift-Tab',
-            run: () => {
-                options.syncPendingChangesToRoot();
-                return navigateCell(mainView, 'previous');
-            },
-        },
-        {
-            key: 'Enter',
-            run: () => {
-                options.syncPendingChangesToRoot();
-                return navigateCell(mainView, 'down', { allowRowCreation: true });
-            },
-        },
-        {
-            key: 'ArrowLeft',
-            run: (nestedView) => {
-                if (nestedView.state.selection.main.head === 0) {
-                    options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'previous', {
-                        initialCursorPos: 'end',
-                        exitTableAtBoundary: true,
-                    });
-                }
-                return false;
-            },
-        },
-        {
-            key: 'ArrowRight',
-            run: (nestedView) => {
-                if (nestedView.state.selection.main.head === nestedView.state.doc.length) {
-                    options.syncPendingChangesToRoot();
-                    return navigateCell(mainView, 'next', {
-                        initialCursorPos: 'start',
-                        exitTableAtBoundary: true,
-                    });
-                }
-                return false;
-            },
-        },
-        {
-            key: 'ArrowUp',
-            run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, 0)) {
-                    return false;
-                }
-
-                options.syncPendingChangesToRoot();
-                return navigateCell(mainView, 'up', {
-                    initialCursorPos: 'lastLineStart',
-                    exitTableAtBoundary: true,
-                });
-            },
-        },
-        {
-            key: 'ArrowDown',
-            run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, nestedView.state.doc.length)) {
-                    return false;
-                }
-
-                options.syncPendingChangesToRoot();
-                return navigateCell(mainView, 'down', {
-                    initialCursorPos: 'start',
-                    exitTableAtBoundary: true,
-                });
-            },
-        },
-        {
-            key: 'Shift-ArrowLeft',
-            run: (nestedView) => {
-                if (nestedView.state.selection.main.head !== 0) {
-                    return false;
-                }
-
-                options.closeEditor();
-                return startCellSelectionFromActiveCell(mainView, 'left');
-            },
-        },
-        {
-            key: 'Shift-ArrowRight',
-            run: (nestedView) => {
-                if (nestedView.state.selection.main.head !== nestedView.state.doc.length) {
-                    return false;
-                }
-
-                options.closeEditor();
-                return startCellSelectionFromActiveCell(mainView, 'right');
-            },
-        },
-        {
-            key: 'Shift-ArrowUp',
-            run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, 0)) {
-                    return false;
-                }
-
-                options.closeEditor();
-                return startCellSelectionFromActiveCell(mainView, 'up');
-            },
-        },
-        {
-            key: 'Shift-ArrowDown',
-            run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, nestedView.state.doc.length)) {
-                    return false;
-                }
-
-                options.closeEditor();
-                return startCellSelectionFromActiveCell(mainView, 'down');
-            },
-        },
-    ];
-
-    return keymap.of(bindings);
-}
-
-export function createNestedEditorDomHandlers(
-    mainView: EditorView,
-    options: {
-        syncSelectionToMain: (view: EditorView, event: MouseEvent) => void;
-        ensureRootSelectionForCommand: () => void;
-    }
-): Extension[] {
+export function createNestedEditorDomHandlers(options: {
+    syncSelectionToMain: (view: EditorView, event: MouseEvent) => void;
+    ensureRootSelectionForCommand: () => void;
+}): Extension[] {
     return [
         keymap.of(createRootRoutingBindings(options)),
+        keymap.of([{ key: 'Mod-a', run: selectAll }]),
         EditorView.domEventHandlers({
-            // Last stop for a paste that reaches the nested editor directly: the document-level
-            // clipboard capture runs first and marks the event handled, so this only fires when
-            // that capture declined it. A markdown-table fragment still belongs to the multi-cell
-            // rewrite; anything else falls through to CodeMirror's own paste handling.
-            paste: (e) => {
-                const clipboardText = e.clipboardData?.getData('text/plain');
-                if (!clipboardText) {
-                    return false;
-                }
-
-                return handleTableClipboardTextPaste(clipboardText, mainView, {
-                    nestedEditorOpen: true,
-                });
-            },
             // Never marks the event as handled; local CodeMirror keymaps still run on
             // this element. Keydowns, like input and composition events, bubble so the
             // host sees them, while `TableWidget.ignoreEvent` hides them from the root

@@ -5,9 +5,7 @@ import { handleSelectionCopy, handleSelectionCut, handleTableClipboardPaste } fr
 /**
  * Document-level clipboard wiring for table cell selections.
  *
- * Kept separate from `cellSelectionClipboard` so that module stays free of nested-editor
- * imports: `nestedEditorController` pulls in the nested editor's DOM handlers, which in turn
- * use the clipboard module's paste logic.
+ * Clipboard logic stays separate from document event wiring and nested-editor lifecycle queries.
  */
 export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
     class {

@@ -79,8 +79,9 @@ const LAYER_BOUNDARIES = [
     },
     {
         layer: 'nestedEditor',
-        forbidden: ['tableWidget', 'tableCommands', 'toolbar'],
-        message: 'nestedEditor must not depend on widget rendering, command entry points, or toolbar UI.',
+        forbidden: ['tableRuntime', 'tableWidget', 'tableCommands', 'toolbar'],
+        message:
+            'nestedEditor must not depend on runtime orchestration, widget rendering, command entry points, or toolbar UI; tableRuntime injects table interaction policy.',
     },
     {
         layer: 'toolbar',
