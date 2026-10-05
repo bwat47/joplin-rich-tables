@@ -100,7 +100,7 @@ export default [
 
     // Project TS/JS sources
     {
-        files: ['**/*.{ts,tsx,js}'],
+        files: ['**/*.{ts,tsx,js,mts}'],
         languageOptions: {
             parserOptions: {
                 projectService: true,
