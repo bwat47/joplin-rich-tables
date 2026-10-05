@@ -5,7 +5,7 @@ import { applyStructuralTableCommand, type StructuralTableCommand } from '../../
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { isSameCellCoords } from '../../tableModel/types';
 
 const ROW_INSERT_CURSOR_POS: InitialCursorPos = 'start';

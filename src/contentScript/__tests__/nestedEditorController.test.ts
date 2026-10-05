@@ -32,7 +32,7 @@ import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { htmlFragment, requireResolvedActiveCell } from './testUtils';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
 
 installRangeLayoutStubs();

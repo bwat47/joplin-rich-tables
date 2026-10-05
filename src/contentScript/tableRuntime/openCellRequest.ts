@@ -6,7 +6,7 @@ import { structuralTableEditEffect } from '../tableState/structuralTableEditEffe
 import { mapTableStartUnlessDeleted } from '../tableState/tableStartMapping';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
-import type { ResolvedActiveCell } from './activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 // Explicit open requests are single-flight, may survive normalization/structural edits,
 // and temporarily suppress navigation until settled.

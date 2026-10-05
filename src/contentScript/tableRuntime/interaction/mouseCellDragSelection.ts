@@ -1,6 +1,6 @@
 import { type EditorView, ViewPlugin } from '@codemirror/view';
 import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
 import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tablePositioning';

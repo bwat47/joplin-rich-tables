@@ -8,7 +8,7 @@ import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
 import { resolveClampedCell } from './activeCellFactory';
-import type { ResolvedActiveCell } from './resolvedActiveCell';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import {
     prepareOpenCellRequestTransaction,
     requestOpenCell,

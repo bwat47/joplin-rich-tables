@@ -1,7 +1,7 @@
 import type { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommandById, StructuralTableCommandId } from '../../tableModel/structuralCommandSemantics';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { runStructuralCommand } from './runStructuralCommand';
 
 type AlignmentStructuralActionId = 'alignLeft' | 'alignCenter' | 'alignRight';

@@ -17,7 +17,7 @@ import {
     resolveActiveCell,
     type CellContentRange,
     type ResolvedActiveCell,
-} from '../tableRuntime/activeCell/resolvedActiveCell';
+} from '../tableState/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { renderCellMarkdownInto } from '../services/renderCellInto';

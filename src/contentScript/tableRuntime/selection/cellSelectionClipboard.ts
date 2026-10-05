@@ -15,7 +15,7 @@ import {
     type SelectedTable,
 } from '../../tableState/cellSelectionState';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';

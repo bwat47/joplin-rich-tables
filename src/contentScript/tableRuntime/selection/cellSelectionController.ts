@@ -15,7 +15,7 @@ import type { TableContext } from '../../tableModel/tableContext';
 import { getTableContextStartingAt } from '../../tableState/tableContextField';
 import { isSameCellCoords, normalizeCellCoords, type CellCoords } from '../../tableModel/types';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { getResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';

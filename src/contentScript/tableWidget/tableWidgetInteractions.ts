@@ -12,7 +12,7 @@ import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from './domHelpers';
 import { readRenderedCaretHit } from './cellCaretHit';
 import { resolveClickCursorPos } from '../tableRuntime/interaction/clickCursorPlacement';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import {
     beginMouseCellGesture,
     mouseCellGestureConsumesMouseDown,

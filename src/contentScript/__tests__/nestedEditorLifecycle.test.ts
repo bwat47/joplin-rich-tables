@@ -14,7 +14,7 @@ import { structuralTableEditEffect } from '../tableState/structuralTableEditEffe
 import { tableContextField } from '../tableState/tableContextField';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { resolveActiveCell } from '../tableState/resolvedActiveCell';
 import {
     triggerOpenCellRequestEffect,
     beginOpenCellRequestEffect,

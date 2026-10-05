@@ -1,5 +1,5 @@
 import type { EditorView } from '@codemirror/view';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { runStructuralCommand } from '../operations/runStructuralCommand';
 import type { InitialCursorPos } from '../../shared/cursorPlacement';

@@ -9,7 +9,7 @@ import { requireResolvedActiveCell } from './testUtils';
 import { getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
-import { getResolvedActiveCell, resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, resolveActiveCell } from '../tableState/resolvedActiveCell';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { SELECTOR_WIDGET, findCellElement } from '../tableWidget/domHelpers';
 import {

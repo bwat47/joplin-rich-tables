@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { createResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import {
     beginOpenCellRequestEffect,
     openCellRequestField,

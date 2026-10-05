@@ -11,7 +11,11 @@ import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
 import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
-import { getResolvedActiveCell, toResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import {
+    getResolvedActiveCell,
+    toResolvedActiveCell,
+    type ResolvedActiveCell,
+} from '../../tableState/resolvedActiveCell';
 import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../openCellRequest';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';

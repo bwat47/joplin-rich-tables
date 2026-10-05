@@ -4,7 +4,7 @@ import { containsSelection, getTableContextAtPos } from '../../tableState/tableC
 import { isCellDragInProgress } from '../../tableState/cellDragState';
 import { exitSearchForceSourceModeEffect } from '../searchPanelTransitions';
 import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { noteIdentityFacet } from '../../services/noteIdentity';
 import { triggerOpenCellRequestEffect } from '../openCellRequest';

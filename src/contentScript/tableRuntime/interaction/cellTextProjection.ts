@@ -2,7 +2,7 @@ import type { EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNodeRef } from '@lezer/common';
 import { rootToLocalOffsets } from '../../shared/cellTextNormalization';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { clamp } from '../../shared/numberUtils';
 import type { SourceSpan } from '../../shared/textAlignment';
 
