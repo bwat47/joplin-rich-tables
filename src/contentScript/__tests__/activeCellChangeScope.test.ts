@@ -1,6 +1,6 @@
 import { ChangeSet } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { classifyActiveCellChanges, type ActiveCellSpan } from '../tableRuntime/activeCell/activeCellChangeScope';
+import { classifyActiveCellChanges, type ActiveCellSpan } from '../tableState/activeCellChangeScope';
 
 const DOC_LENGTH = 100;
 const SPAN: ActiveCellSpan = {

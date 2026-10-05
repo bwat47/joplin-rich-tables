@@ -3,7 +3,7 @@ import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
 import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
-import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
+import { classifyActiveCellChanges } from '../tableState/activeCellChangeScope';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
