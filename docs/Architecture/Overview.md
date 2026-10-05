@@ -38,17 +38,6 @@ Enforced by `eslint.config.mjs` (`import-x/no-restricted-paths` on resolved path
 | `tableCommands`  | `shared`, `tableModel`, `tableState`, `tableRuntime`                                            |
 | Composition root | All layers                                                                                      |
 
-`nestedEditorController` is further restricted by name (`no-restricted-imports`):
-
-- `tableWidget` may import only `cleanupHostedNestedEditors`: widgets host nested editors and own their cleanup and
-  event ownership. Event-routing helpers in `nestedEditorEventRouting` remain available to widgets.
-- `toolbar` may import only `isNestedEditorOpen` and `refocusNestedEditor`: focus restoration, a no-op when no nested
-  editor is open.
-
-This rule matches import specifiers (`**/nestedEditor/nestedEditorController`), not resolved paths, so a re-export
-would bypass it. In flat config a later block's `no-restricted-imports` replaces an earlier one, so the widget,
-toolbar, and `tableModel` blocks must not target overlapping files.
-
 ## Documentation Index
 
 - [Table-Display.md](./Table-Display.md) - Rendering, optimizations, display modes.

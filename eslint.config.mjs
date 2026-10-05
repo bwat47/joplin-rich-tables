@@ -72,25 +72,6 @@ const LAYER_ZONES = Object.entries(LAYER_DEPENDENCIES).map(([layer, { allowed, m
     message,
 }));
 
-/**
- * Narrows which nested-editor controller exports the widget and toolbar layers may import, although
- * both layers may otherwise depend on nestedEditor.
- *
- * Matched by `no-restricted-imports` against import specifiers, not resolved paths, so importing
- * through a re-export would bypass it; keep controller imports direct. Event-routing helpers live
- * in `nestedEditorEventRouting` and stay available to widgets.
- */
-const NESTED_EDITOR_CONTROLLER_SPECIFIER = '**/nestedEditor/nestedEditorController';
-
-function nestedEditorControllerRestriction(allowImportNames, message) {
-    return [
-        'error',
-        {
-            patterns: [{ group: [NESTED_EDITOR_CONTROLLER_SPECIFIER], allowImportNames, message }],
-        },
-    ];
-}
-
 const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@codemirror/language'];
 
 export default [
@@ -157,30 +138,6 @@ export default [
                     })),
                 },
             ],
-        },
-    },
-
-    // Nested-editor controller exceptions. In flat config a later block's `no-restricted-imports`
-    // replaces an earlier one rather than merging, so these blocks and the tableModel block above
-    // must never target overlapping files.
-    {
-        // Widgets host nested editors, so they clean up the editors mounted in their DOM.
-        files: [`${CONTENT_SCRIPT_DIR}/tableWidget/**/*.ts`],
-        rules: {
-            'no-restricted-imports': nestedEditorControllerRestriction(
-                ['cleanupHostedNestedEditors'],
-                'tableWidget may only clean up hosted nested editors; opening and syncing them belongs to tableRuntime.'
-            ),
-        },
-    },
-    {
-        // Toolbar actions restore focus to an open nested editor, which is a no-op when none is open.
-        files: [`${CONTENT_SCRIPT_DIR}/toolbar/**/*.ts`],
-        rules: {
-            'no-restricted-imports': nestedEditorControllerRestriction(
-                ['isNestedEditorOpen', 'refocusNestedEditor'],
-                'toolbar may only check for and refocus an open nested editor; other nested-editor control belongs to tableRuntime.'
-            ),
         },
     },
 
