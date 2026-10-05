@@ -5,8 +5,8 @@ import {
     localToRootOffsets,
     normalizeBrTags,
     rootToLocalOffsets,
-} from '../shared/cellTextNormalization';
-import { clamp } from '../shared/numberUtils';
+} from './cellTextNormalization';
+import { clamp } from './numberUtils';
 
 export interface LocalSelection {
     anchor: number;

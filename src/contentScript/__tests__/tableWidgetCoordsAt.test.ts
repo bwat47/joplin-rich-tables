@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';

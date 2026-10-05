@@ -1,4 +1,4 @@
-import type { LocalSelection } from '../editorBridge/cellTextCodec';
+import type { LocalSelection } from './cellTextCodec';
 
 /**
  * Where the caret should land when a cell is opened programmatically.

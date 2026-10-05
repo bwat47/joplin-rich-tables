@@ -2,7 +2,7 @@ import { closeSearchPanel, openSearchPanel, search } from '@codemirror/search';
 import { Compartment, type Extension, StateEffect, Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
     classifyTableRuntimeFacts,

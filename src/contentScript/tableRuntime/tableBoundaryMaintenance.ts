@@ -7,7 +7,7 @@ import {
     type Text,
     type TransactionSpec,
 } from '@codemirror/state';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import type { TableContext } from '../tableModel/tableContext';
 import { changesOverlapRange } from '../shared/transactionUtils';
 import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';

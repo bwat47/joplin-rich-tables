@@ -13,7 +13,7 @@ import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
-import type { LocalSelection } from '../editorBridge/cellTextCodec';
+import type { LocalSelection } from '../shared/cellTextCodec';
 import type { CellCoords } from '../tableModel/types';
 import { unsanitizeRootText } from '../shared/cellTextNormalization';
 import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';

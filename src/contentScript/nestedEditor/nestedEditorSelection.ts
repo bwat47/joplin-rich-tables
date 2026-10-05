@@ -1,5 +1,5 @@
 import type { EditorSelection } from '@codemirror/state';
-import type { LocalSelection } from '../editorBridge/cellTextCodec';
+import type { LocalSelection } from '../shared/cellTextCodec';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { clamp } from '../shared/numberUtils';
 

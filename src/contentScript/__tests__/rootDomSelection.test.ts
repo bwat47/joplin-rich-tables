@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
+import { forceRootDomSelection } from '../nestedEditor/rootDomSelection';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
 
 installRangeLayoutStubs();

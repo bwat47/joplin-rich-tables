@@ -27,7 +27,7 @@ import { renderedTextSelectionTheme } from './renderedTextSelectionTheme';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
-import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
+import { createMainEditorActiveCellGuard } from '../tableRuntime/mainEditorGuard';
 import { handleWidgetClick, handleWidgetPress } from './tableWidgetInteractions';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { tableStyles } from './tableStyles';

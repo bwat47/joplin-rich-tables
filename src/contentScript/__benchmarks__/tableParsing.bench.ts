@@ -6,7 +6,7 @@ import { getTableContextAtPos, getTableContexts } from '../tableState/tableConte
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { createMarkdownState } from '../__tests__/testMarkdownState';
 
 // Capture imported functions once so timed calls bypass Vite's module export getters.
