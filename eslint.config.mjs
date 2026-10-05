@@ -86,8 +86,9 @@ const LAYER_BOUNDARIES = [
     },
     {
         layer: 'toolbar',
-        forbidden: ['tableCommands'],
-        message: 'toolbar actions should go through state/runtime APIs instead of command entry points.',
+        forbidden: ['tableCommands', 'nestedEditor'],
+        message:
+            'toolbar actions should go through state/runtime APIs; reach the nested editor through nestedEditorPortFacet.',
     },
 ];
 

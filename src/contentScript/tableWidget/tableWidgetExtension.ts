@@ -25,7 +25,8 @@ import { mainCaretSuppression } from './mainCaretSuppression';
 import { wholeTableSelectionVisuals } from './wholeTableSelectionVisuals';
 import { renderedTextSelectionTheme } from './renderedTextSelectionTheme';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
-import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../tableRuntime/mainEditorGuard';
 import { handleWidgetClick, handleWidgetPress } from './tableWidgetInteractions';
@@ -131,7 +132,7 @@ async function registerTableWidgetExtension(
         // Registered ahead of the guard so its paste rewrites are already spaced when
         // boundary maintenance inspects the result.
         tableBoundaryMaintenanceExtension,
-        createMainEditorActiveCellGuard(() => isNestedEditorOpen(cm6View)),
+        createMainEditorActiveCellGuard(() => getNestedEditorPort(cm6View).isOpen(cm6View)),
         openCellRequestKeymap,
         openCellRequestTimeoutPlugin,
 

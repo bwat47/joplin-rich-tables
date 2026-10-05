@@ -14,13 +14,15 @@ import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 
-const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOpen, mockRefocusNestedEditor } =
-    vi.hoisted(() => ({
-        mockGetResolvedActiveCell: vi.fn(),
-        mockRunStructuralAction: vi.fn(),
-        mockIsNestedEditorOpen: vi.fn(),
-        mockRefocusNestedEditor: vi.fn(),
-    }));
+import { nestedEditorPortFacet, type NestedEditorPort } from '../tableRuntime/nestedEditorPort';
+import { createNestedEditorPortStub } from './tableEditorFixtures';
+
+const { mockGetResolvedActiveCell, mockRunStructuralAction } = vi.hoisted(() => ({
+    mockGetResolvedActiveCell: vi.fn(),
+    mockRunStructuralAction: vi.fn(),
+}));
+const mockIsNestedEditorOpen = vi.fn<NestedEditorPort['isOpen']>();
+const mockRefocusNestedEditor = vi.fn<NestedEditorPort['refocus']>();
 
 vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
     getResolvedActiveCell: mockGetResolvedActiveCell,
@@ -28,11 +30,6 @@ vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
 
 vi.mock('../tableRuntime/operations/structuralActions', () => ({
     runStructuralAction: mockRunStructuralAction,
-}));
-
-vi.mock('../nestedEditor/nestedEditorController', () => ({
-    isNestedEditorOpen: mockIsNestedEditorOpen,
-    refocusNestedEditor: mockRefocusNestedEditor,
 }));
 
 import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
@@ -52,7 +49,14 @@ function createView(): EditorView {
     const view = new EditorView({
         parent: document.body,
         state: EditorState.create({
-            extensions: [activeCellField, hostEditorConfigFacet.of(defaultHostEditorConfig()), tableToolbarPlugin],
+            extensions: [
+                activeCellField,
+                hostEditorConfigFacet.of(defaultHostEditorConfig()),
+                nestedEditorPortFacet.of(
+                    createNestedEditorPortStub({ isOpen: mockIsNestedEditorOpen, refocus: mockRefocusNestedEditor })
+                ),
+                tableToolbarPlugin,
+            ],
         }),
     });
     createdViews.push(view);
