@@ -4,7 +4,7 @@ import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { CLASS_FLOATING_TOOLBAR, SELECTOR_WIDGET } from '../../tableWidget/domHelpers';
-import { getNestedEditorPort } from '../nestedEditorPort';
+import { getNestedEditor } from '../nestedEditorPort';
 import { logger } from '../../../logger';
 
 function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null {
@@ -39,7 +39,7 @@ interface LiveTableState {
 function resolveLiveTableState(view: EditorView): LiveTableState | null {
     const live: LiveTableState = {
         hasActiveCell: Boolean(getActiveCell(view.state)),
-        hasNestedEditor: getNestedEditorPort(view).isOpen(view),
+        hasNestedEditor: getNestedEditor(view).isOpen(),
         hasCellSelection: Boolean(getCellSelection(view.state)),
     };
     if (!live.hasActiveCell && !live.hasNestedEditor && !live.hasCellSelection) {

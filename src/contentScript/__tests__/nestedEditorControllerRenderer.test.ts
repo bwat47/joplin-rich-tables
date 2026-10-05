@@ -3,7 +3,7 @@ import { describe, expect, it, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
-import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
+import { getNestedEditor } from '../tableRuntime/nestedEditorPort';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 
@@ -41,15 +41,14 @@ describe('nestedEditorController markdown rendering', () => {
         parent.appendChild(cellElement);
 
         expect(
-            getNestedEditorPort(view).open({
-                mainView: view,
+            getNestedEditor(view).open({
                 cellElement,
                 resolvedCell: requireResolvedActiveCell(view.state),
                 featureSettings: { autoMatchingBraces: true, spellcheck: false },
             })
         ).toBe(true);
 
-        getNestedEditorPort(view).close(view);
+        getNestedEditor(view).close();
 
         expect(renderer.getCached).toHaveBeenCalledWith('**body**');
         expect(cellElement.querySelector('div')?.innerHTML).toBe('<p><strong>cached</strong></p>');
@@ -97,8 +96,7 @@ describe('nestedEditorController markdown rendering', () => {
         parent.appendChild(cellElement);
 
         expect(
-            getNestedEditorPort(view).open({
-                mainView: view,
+            getNestedEditor(view).open({
                 cellElement,
                 resolvedCell: requireResolvedActiveCell(view.state),
                 featureSettings: { autoMatchingBraces: true, spellcheck: false },
@@ -112,7 +110,7 @@ describe('nestedEditorController markdown rendering', () => {
                 insert: '',
             },
         });
-        getNestedEditorPort(view).close(view);
+        getNestedEditor(view).close();
 
         expect(renderer.getCached).not.toHaveBeenCalledWith(expect.stringContaining('rootTableInsertRewrite'));
         expect(cellElement.querySelector('div')?.innerHTML).toBe('my new');

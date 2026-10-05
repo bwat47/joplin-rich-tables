@@ -13,7 +13,7 @@ import { syncAnnotation } from '../shared/syncAnnotation';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
-import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
+import { getNestedEditor } from '../tableRuntime/nestedEditorPort';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
@@ -177,12 +177,12 @@ class TableToolbarPlugin {
     }
 
     private restoreNestedEditorFocusAfterNoop() {
-        const nestedEditor = getNestedEditorPort(this.view);
-        if (!this.currentActiveCell || !nestedEditor.isOpen(this.view)) {
+        const nestedEditor = getNestedEditor(this.view);
+        if (!this.currentActiveCell || !nestedEditor.isOpen()) {
             return;
         }
 
-        nestedEditor.refocus(this.view);
+        nestedEditor.refocus();
     }
 
     private showToolbar() {

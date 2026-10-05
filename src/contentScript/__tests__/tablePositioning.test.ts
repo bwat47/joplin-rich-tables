@@ -1,7 +1,7 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
+import { getNestedEditor } from '../tableRuntime/nestedEditorPort';
 import { requireResolvedActiveCell } from './testUtils';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
@@ -67,14 +67,13 @@ describe('resolveTableContextFromEventTarget', () => {
         const activeCell: ActiveCell = { tableFrom: TABLE_A_FROM, section: 'body', row: 0, col: 1 };
         view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
         expect(
-            getNestedEditorPort(view).open({
-                mainView: view,
+            getNestedEditor(view).open({
                 resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement: requireCell(view, TABLE_A_FROM, activeCell),
                 featureSettings: TEST_HOST_CONFIG.nestedEditor,
             })
         ).toBe(true);
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
+        expect(getNestedEditor(view).isOpen()).toBe(true);
 
         const otherTableCell = requireCell(view, TABLE_B_FROM, { section: 'header', row: 0, col: 1 });
         expect(resolveTableContextFromEventTarget(view, otherTableCell)?.from).toBe(TABLE_B_FROM);
@@ -91,8 +90,7 @@ describe('resolveTableContextFromEventTarget', () => {
         const view = createView();
         const activeCell: ActiveCell = { tableFrom: TABLE_A_FROM, section: 'body', row: 0, col: 1 };
         view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
-        getNestedEditorPort(view).open({
-            mainView: view,
+        getNestedEditor(view).open({
             resolvedCell: requireResolvedActiveCell(view.state),
             cellElement: requireCell(view, TABLE_A_FROM, activeCell),
             featureSettings: TEST_HOST_CONFIG.nestedEditor,

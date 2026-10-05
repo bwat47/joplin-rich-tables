@@ -1,7 +1,7 @@
 import { EditorState, type Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
-import { getNestedEditorPort } from './nestedEditorPort';
+import { getNestedEditor } from './nestedEditorPort';
 import { classifyActiveCellChanges } from './activeCell/activeCellChangeScope';
 
 /**
@@ -21,7 +21,7 @@ export function createUndoScrollPreservation(getView: () => EditorView): Extensi
         if (!tr.isUserEvent('undo') && !tr.isUserEvent('redo')) return null;
 
         const view = getView();
-        if (!getNestedEditorPort(view).isOpen(view)) return null;
+        if (!getNestedEditor(view).isOpen()) return null;
 
         const resolvedActiveCell = getResolvedActiveCell(tr.startState);
         if (!resolvedActiveCell) return null;

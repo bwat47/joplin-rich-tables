@@ -8,7 +8,7 @@ import {
 } from '../../tableState/activeCellState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
-import { getNestedEditorPort } from '../nestedEditorPort';
+import { getNestedEditor } from '../nestedEditorPort';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition } from '../activeCell/cellActivation';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
@@ -78,7 +78,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
 
         update(update: ViewUpdate): void {
             const facts = classifyTableRuntimeFacts(update, {
-                nestedEditorOpen: getNestedEditorPort(this.view).isOpen(this.view),
+                nestedEditorOpen: getNestedEditor(this.view).isOpen(),
             });
             const actions = reduceTableRuntime(facts);
 
@@ -101,7 +101,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                         this.scheduleOpenRequestedCell(action.requestId);
                         break;
                     case 'syncMainToNested':
-                        getNestedEditorPort(this.view).handleMainEditorUpdate(this.view, update, action.resolvedCell);
+                        getNestedEditor(this.view).handleMainEditorUpdate(update, action.resolvedCell);
                         break;
                     case 'clearActiveCell':
                         requestViewAnimationFrame(this.view, () => {
@@ -117,9 +117,9 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         private closeNestedEditor(action: Extract<TableRuntimeAction, { type: 'closeNestedEditor' }>): void {
-            const nestedEditor = getNestedEditorPort(this.view);
-            const restoreFocus = action.restoreMainFocus === true && nestedEditor.isFocused(this.view);
-            nestedEditor.close(this.view, action.mappedRange);
+            const nestedEditor = getNestedEditor(this.view);
+            const restoreFocus = action.restoreMainFocus === true && nestedEditor.isFocused();
+            nestedEditor.close(action.mappedRange);
             if (!restoreFocus) return;
 
             // Destroying the focused nested editor drops focus to the document body. Focus is
@@ -208,8 +208,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
                     return;
                 }
 
-                const opened = getNestedEditorPort(this.view).open({
-                    mainView: this.view,
+                const opened = getNestedEditor(this.view).open({
                     cellElement: guardResult.cellElement,
                     resolvedCell: guardResult.resolvedCell,
                     featureSettings: this.view.state.facet(hostEditorConfigFacet).nestedEditor,
@@ -270,7 +269,7 @@ export const nestedEditorLifecyclePlugin = ViewPlugin.fromClass(
         }
 
         destroy(): void {
-            getNestedEditorPort(this.view).close(this.view);
+            getNestedEditor(this.view).close();
         }
     }
 );

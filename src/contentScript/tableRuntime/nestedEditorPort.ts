@@ -49,6 +49,61 @@ export const nestedEditorPortFacet = Facet.define<NestedEditorPort, NestedEditor
     combine: (values) => values[0] ?? absentNestedEditorPort,
 });
 
-export function getNestedEditorPort(view: EditorView): NestedEditorPort {
-    return view.state.facet(nestedEditorPortFacet);
+/** The nested editor port bound to one main editor view, so callers don't pass the view to every call. */
+export interface NestedEditorHandle {
+    isOpen(): boolean;
+    isFocused(): boolean;
+    /** Mounts a nested editor for `params.resolvedCell`; false when no nested editor is available. */
+    open(params: Omit<OpenNestedEditorParams, 'mainView'>): boolean;
+    close(range?: CellContentRange): void;
+    handleMainEditorUpdate(update: ViewUpdate, resolvedCell: ResolvedActiveCell): void;
+    refocus(): void;
+    /** Flushes the nested editor's current text and selection before an external interaction takes ownership. */
+    flush(): void;
+    /** Closes the nested editor if it is mounted inside `container`. */
+    closeIfHostedIn(container: HTMLElement): void;
+}
+
+class BoundNestedEditor implements NestedEditorHandle {
+    constructor(
+        private readonly view: EditorView,
+        private readonly port: NestedEditorPort
+    ) {}
+
+    isOpen(): boolean {
+        return this.port.isOpen(this.view);
+    }
+
+    isFocused(): boolean {
+        return this.port.isFocused(this.view);
+    }
+
+    open(params: Omit<OpenNestedEditorParams, 'mainView'>): boolean {
+        return this.port.open({ ...params, mainView: this.view });
+    }
+
+    close(range?: CellContentRange): void {
+        this.port.close(this.view, range);
+    }
+
+    handleMainEditorUpdate(update: ViewUpdate, resolvedCell: ResolvedActiveCell): void {
+        this.port.handleMainEditorUpdate(this.view, update, resolvedCell);
+    }
+
+    refocus(): void {
+        this.port.refocus(this.view);
+    }
+
+    flush(): void {
+        this.port.flush(this.view);
+    }
+
+    closeIfHostedIn(container: HTMLElement): void {
+        this.port.closeIfHostedIn(this.view, container);
+    }
+}
+
+/** The nested editor installed on `view`, or a never-open no-op handle when none is installed. */
+export function getNestedEditor(view: EditorView): NestedEditorHandle {
+    return new BoundNestedEditor(view, view.state.facet(nestedEditorPortFacet));
 }

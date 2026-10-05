@@ -13,7 +13,7 @@ import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
-import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
+import { getNestedEditor } from '../tableRuntime/nestedEditorPort';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import {
     activeCellField,
@@ -70,7 +70,7 @@ function createHarness(params: {
                 EditorView.updateListener.of((update) => {
                     const resolvedCell = getResolvedActiveCell(update.state);
                     if (mainView && resolvedCell && (update.docChanged || update.selectionSet)) {
-                        getNestedEditorPort(mainView).handleMainEditorUpdate(mainView, update, resolvedCell);
+                        getNestedEditor(mainView).handleMainEditorUpdate(update, resolvedCell);
                     }
                 }),
             ],
@@ -90,8 +90,7 @@ function createHarness(params: {
 
 /** Opens the nested editor on the active cell, resolved the way the lifecycle resolves it before opening. */
 function openInCell(view: EditorView, cellElement: HTMLElement, initialCursorPos?: InitialCursorPos): boolean {
-    return getNestedEditorPort(view).open({
-        mainView: view,
+    return getNestedEditor(view).open({
         cellElement,
         resolvedCell: requireResolvedActiveCell(view.state),
         featureSettings: FEATURE_SETTINGS,
@@ -123,7 +122,7 @@ describe('nestedEditorController open', () => {
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
         expect(openInCell(view, cellElement)).toBe(true);
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
+        expect(getNestedEditor(view).isOpen()).toBe(true);
         expect(cellElement.classList.contains(CLASS_CELL_ACTIVE)).toBe(true);
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('a | b\nc');
 
@@ -288,7 +287,7 @@ describe('nestedEditorController unresolved active cell', () => {
         });
 
         expect(getResolvedActiveCell(view.state)).toBeNull();
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
+        expect(getNestedEditor(view).isOpen()).toBe(true);
         expect(nested.state.doc.toString()).toBe(typed);
         expect(nested.state.selection.main).toMatchObject({ anchor: 4, head: 4 });
 
@@ -349,7 +348,7 @@ describe('nestedEditorController handleMainEditorUpdate', () => {
         openInCell(view, cellElement);
         view.dispatch({ changes: { from: 0, to: 0, insert: 'more ' } });
 
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
+        expect(getNestedEditor(view).isOpen()).toBe(true);
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('abc');
 
         view.destroy();
@@ -367,9 +366,9 @@ describe('nestedEditorController close', () => {
         vi.mocked(renderer.getCached).mockReturnValue(htmlFragment('<p><strong>bold</strong></p>'));
 
         openInCell(view, cellElement);
-        getNestedEditorPort(view).close(view);
+        getNestedEditor(view).close();
 
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
+        expect(getNestedEditor(view).isOpen()).toBe(false);
         expect(nestedViewIn(cellElement)).toBeNull();
         expect(cellElement.classList.contains(CLASS_CELL_ACTIVE)).toBe(false);
         expect(renderer.getCached).toHaveBeenCalledWith('**bold**');
@@ -383,7 +382,7 @@ describe('nestedEditorController close', () => {
         const { view, cellElement, renderer } = createHarness({ doc, activeCell: bodyCell() });
 
         openInCell(view, cellElement);
-        getNestedEditorPort(view).close(view, { contentFrom: 2, contentTo: 4 });
+        getNestedEditor(view).close({ contentFrom: 2, contentTo: 4 });
 
         expect(renderer.getCached).toHaveBeenCalledWith('H1');
 
@@ -394,9 +393,9 @@ describe('nestedEditorController close', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, renderer } = createHarness({ doc, activeCell: bodyCell() });
 
-        getNestedEditorPort(view).close(view);
+        getNestedEditor(view).close();
 
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
+        expect(getNestedEditor(view).isOpen()).toBe(false);
         expect(renderer.getCached).not.toHaveBeenCalled();
 
         view.destroy();
@@ -413,9 +412,9 @@ describe('nestedEditorController host cleanup', () => {
         const { view, cellElement, parent } = createHarness({ doc, activeCell: bodyCell() });
 
         openInCell(view, cellElement);
-        getNestedEditorPort(view).closeIfHostedIn(view, parent);
+        getNestedEditor(view).closeIfHostedIn(parent);
 
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
+        expect(getNestedEditor(view).isOpen()).toBe(false);
 
         view.destroy();
     });
@@ -425,9 +424,9 @@ describe('nestedEditorController host cleanup', () => {
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
         openInCell(view, cellElement);
-        getNestedEditorPort(view).closeIfHostedIn(view, document.createElement('div'));
+        getNestedEditor(view).closeIfHostedIn(document.createElement('div'));
 
-        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
+        expect(getNestedEditor(view).isOpen()).toBe(true);
 
         view.destroy();
     });
@@ -436,8 +435,8 @@ describe('nestedEditorController host cleanup', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, parent } = createHarness({ doc, activeCell: bodyCell() });
 
-        expect(() => getNestedEditorPort(view).refocus(view)).not.toThrow();
-        expect(() => getNestedEditorPort(view).closeIfHostedIn(view, parent)).not.toThrow();
+        expect(() => getNestedEditor(view).refocus()).not.toThrow();
+        expect(() => getNestedEditor(view).closeIfHostedIn(parent)).not.toThrow();
 
         view.destroy();
     });
