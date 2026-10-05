@@ -164,10 +164,6 @@ export function setActiveElement(element: Element | null): void {
     });
 }
 
-/**
- * A main editor that renders table widgets and opens nested cell editors. Callers add
- * `history()` when the test drives undo/redo.
- */
 /** A nested editor port that is never open and ignores every action, with `overrides` applied. */
 export function createNestedEditorPortStub(overrides: Partial<NestedEditorPort> = {}): NestedEditorPort {
     return {
@@ -183,6 +179,10 @@ export function createNestedEditorPortStub(overrides: Partial<NestedEditorPort> 
     };
 }
 
+/**
+ * A main editor that renders table widgets and opens nested cell editors. Callers add
+ * `history()` when the test drives undo/redo.
+ */
 export function nestedEditorTestExtensions(...extra: Extension[]): Extension[] {
     return [
         markdown({ extensions: [GFM] }),
