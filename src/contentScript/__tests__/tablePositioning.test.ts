@@ -1,4 +1,4 @@
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

@@ -1,4 +1,4 @@
-import { createNestedEditorInteractionExtensions } from '../nestedEditorInteractionExtensions';
+import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
 import type { EditorState } from '@codemirror/state';
 import { ViewPlugin, EditorView, type ViewUpdate } from '@codemirror/view';
 import {

@@ -24,4 +24,4 @@ The nested editor parses inline Markdown without enabling block constructs that 
 
 ## Interaction Ownership
 
-`tableRuntime/nestedEditorInteractionExtensions.ts` owns cell-boundary navigation, Shift-arrow cell selection, table-fragment paste, and root-history bindings. The lifecycle passes an extension factory to `openNestedEditor`; the controller invokes it with session close and flush callbacks. `nestedEditor/` keeps local select-all, root-command event routing, selection mirroring, and mouse-event isolation, with no runtime imports. Visual-line measurement lives in `shared/caretVisualLine.ts`.
+`tableRuntime/interaction/nestedEditorInteractionExtensions.ts` owns cell-boundary navigation, Shift-arrow cell selection, table-fragment paste, and root-history bindings. The lifecycle passes an extension factory to `openNestedEditor`; the controller invokes it with session close and flush callbacks. `nestedEditor/` keeps local select-all, root-command event routing, selection mirroring, and mouse-event isolation, with no runtime imports. Visual-line measurement lives in `shared/caretVisualLine.ts`.

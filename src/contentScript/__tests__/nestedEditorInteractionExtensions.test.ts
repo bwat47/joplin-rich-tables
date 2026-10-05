@@ -4,7 +4,7 @@ import type * as CellSelectionClipboard from '../tableRuntime/selection/cellSele
 import { installRangeLayoutStubs } from './tableEditorFixtures';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';

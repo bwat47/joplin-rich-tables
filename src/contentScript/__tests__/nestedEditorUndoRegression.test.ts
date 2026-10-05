@@ -1,4 +1,4 @@
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { history, undo } from '@codemirror/commands';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';

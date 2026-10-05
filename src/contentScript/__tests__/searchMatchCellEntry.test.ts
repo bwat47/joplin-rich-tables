@@ -1,4 +1,4 @@
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/nestedEditorInteractionExtensions';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import {
     findNext,
     findPrevious,
