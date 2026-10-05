@@ -1,4 +1,4 @@
-import { CLASS_CELL_EDITOR } from './tableDomClasses';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 
 /**
  * Keyboard and text-input events a nested cell editor owns. The root editor must not see them:

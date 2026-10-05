@@ -10,7 +10,7 @@ import { startCellDragEffect } from '../tableState/cellDragState';
 import { syncAnnotation } from '../shared/syncAnnotation';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { findCellElement } from '../tableWidget/domHelpers';
-import { isNestedEditorOwnedEvent } from '../shared/nestedEditorEventRouting';
+import { isNestedEditorOwnedEvent } from '../tableRuntime/nestedEditorEventRouting';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { requireResolvedActiveCell } from './testUtils';
 import {

@@ -1,8 +1,8 @@
 import { WidgetType, type EditorView } from '@codemirror/view';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
-import { isNestedEditorOwnedEvent } from '../shared/nestedEditorEventRouting';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
+import { isNestedEditorOwnedEvent } from '../tableRuntime/nestedEditorEventRouting';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
 import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';

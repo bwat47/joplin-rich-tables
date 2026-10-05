@@ -7,7 +7,7 @@ import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cell
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
 import { createHistoryKeyBindings } from '../tableRuntime/historyKeymap';
-import { routeKeyEventToRootEditor } from '../shared/nestedEditorEventRouting';
+import { routeKeyEventToRootEditor } from '../tableRuntime/nestedEditorEventRouting';
 
 /** Dedicated keymap scope so root-routing bindings never match nested-editor navigation. */
 const ROOT_ROUTING_SCOPE = 'table.nestedEditor.rootRouting';
