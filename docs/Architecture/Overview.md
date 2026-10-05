@@ -5,9 +5,9 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 ## Content Script Layers
 
 - `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, and table math.
-- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, and state-derived active-cell resolution.
-- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
-- `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
+- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, state-derived active-cell resolution, active-cell change classification, and open-cell request state.
+- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
+- `tableWidget/`: widget rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, and widget visuals.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.
 - `services/`: Joplin/external integration.
@@ -17,6 +17,37 @@ Host/editor settings and Joplin-backed services are startup-owned. The content s
 from Joplin before installing the CodeMirror extension, creates shared bridge-backed services, then exposes those
 dependencies through facets; runtime code reads facets rather than calling back into Joplin or keeping module-level
 mutable state.
+
+The composition root, `contentScript/tableWidgetExtension.ts`, initializes services and registers every extension. It
+sits outside the layer folders so it may import from all of them.
+
+### Allowed Dependencies
+
+Enforced by `eslint.config.mjs` (`import-x/no-restricted-paths` on resolved paths).
+
+| Module           | Allowed dependencies                                                                            |
+| :--------------- | :---------------------------------------------------------------------------------------------- |
+| `shared`         | None                                                                                            |
+| `services`       | `shared`                                                                                        |
+| `tableModel`     | `shared`                                                                                        |
+| `tableState`     | `shared`, `tableModel`                                                                          |
+| `nestedEditor`   | `shared`, `services`, `tableModel`, `tableState`                                                |
+| `tableWidget`    | `shared`, `services`, `tableModel`, `tableState`, `nestedEditor`                                |
+| `tableRuntime`   | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `nestedEditor`                 |
+| `toolbar`        | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `tableRuntime`, `nestedEditor` |
+| `tableCommands`  | `shared`, `tableModel`, `tableState`, `tableRuntime`                                            |
+| Composition root | All layers                                                                                      |
+
+`nestedEditorController` is further restricted by name (`no-restricted-imports`):
+
+- `tableWidget` may import only `cleanupHostedNestedEditors`: widgets host nested editors and own their cleanup and
+  event ownership. Event-routing helpers in `nestedEditorEventRouting` remain available to widgets.
+- `toolbar` may import only `isNestedEditorOpen` and `refocusNestedEditor`: focus restoration, a no-op when no nested
+  editor is open.
+
+This rule matches import specifiers (`**/nestedEditor/nestedEditorController`), not resolved paths, so a re-export
+would bypass it. In flat config a later block's `no-restricted-imports` replaces an earlier one, so the widget,
+toolbar, and `tableModel` blocks must not target overlapping files.
 
 ## Documentation Index
 
@@ -41,7 +72,7 @@ mutable state.
 
 | Component     | File                                                            | Purpose                                                          |
 | :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`             | Main entry point; initializes services and assembles extensions. |
+| **Wiring**    | `contentScript/tableWidgetExtension.ts`                         | Main entry point; initializes services and assembles extensions. |
 | **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering, click-to-cell coordinate mapping.                |
 | **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.        |
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                                 |

@@ -218,7 +218,7 @@ joplin.plugins
             await joplin.contentScripts.register(
                 ContentScriptType.CodeMirrorPlugin,
                 CONTENT_SCRIPT_ID,
-                './contentScript/tableWidget/tableWidgetExtension.js'
+                './contentScript/tableWidgetExtension.js'
             );
 
             logger.info('Rich Tables plugin started');
