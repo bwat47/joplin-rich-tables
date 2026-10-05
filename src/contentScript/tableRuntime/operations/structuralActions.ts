@@ -1,7 +1,8 @@
 import type { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommandById, StructuralTableCommandId } from '../../tableModel/structuralCommandSemantics';
-import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { runStructuralCommand } from './runStructuralCommand';
 
 type AlignmentStructuralActionId = 'alignLeft' | 'alignCenter' | 'alignRight';
@@ -62,4 +63,18 @@ export function runStructuralAction(
     }
 
     return assertNeverAction(actionId);
+}
+
+/**
+ * Runs an action triggered from a control outside the cell editor, such as a toolbar button. The control
+ * takes focus from an open nested editor, so a no-op hands focus back to it.
+ */
+export function runStructuralActionOnActiveCell(view: EditorView, actionId: StructuralActionId): boolean {
+    const resolvedCell = getResolvedActiveCell(view.state);
+    const handled = resolvedCell ? runStructuralAction(view, actionId, resolvedCell) : false;
+    if (!handled) {
+        refocusNestedEditor(view);
+    }
+
+    return handled;
 }

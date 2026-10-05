@@ -25,18 +25,18 @@ sits outside the layer folders so it may import from all of them.
 
 Enforced by `eslint.config.mjs` (`import-x/no-restricted-paths` on resolved paths).
 
-| Module           | Allowed dependencies                                                                            |
-| :--------------- | :---------------------------------------------------------------------------------------------- |
-| `shared`         | None                                                                                            |
-| `services`       | `shared`                                                                                        |
-| `tableModel`     | `shared`                                                                                        |
-| `tableState`     | `shared`, `tableModel`                                                                          |
-| `nestedEditor`   | `shared`, `services`, `tableModel`, `tableState`                                                |
-| `tableWidget`    | `shared`, `services`, `tableModel`, `tableState`, `nestedEditor`                                |
-| `tableRuntime`   | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `nestedEditor`                 |
-| `toolbar`        | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `tableRuntime`, `nestedEditor` |
-| `tableCommands`  | `shared`, `tableModel`, `tableState`, `tableRuntime`                                            |
-| Composition root | All layers                                                                                      |
+| Module           | Allowed dependencies                                                            |
+| :--------------- | :------------------------------------------------------------------------------ |
+| `shared`         | None                                                                            |
+| `services`       | `shared`                                                                        |
+| `tableModel`     | `shared`                                                                        |
+| `tableState`     | `shared`, `tableModel`                                                          |
+| `nestedEditor`   | `shared`, `services`, `tableModel`, `tableState`                                |
+| `tableWidget`    | `shared`, `services`, `tableModel`, `tableState`, `nestedEditor`                |
+| `tableRuntime`   | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `nestedEditor` |
+| `toolbar`        | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `tableRuntime` |
+| `tableCommands`  | `shared`, `tableModel`, `tableState`, `tableRuntime`                            |
+| Composition root | All layers                                                                      |
 
 ## Documentation Index
 

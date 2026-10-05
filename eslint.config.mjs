@@ -52,8 +52,9 @@ const LAYER_DEPENDENCIES = {
         message: 'tableRuntime must stay below toolbar UI and command entry points in the dependency graph.',
     },
     toolbar: {
-        allowed: ['shared', 'services', 'tableModel', 'tableState', 'tableWidget', 'tableRuntime', 'nestedEditor'],
-        message: 'toolbar actions should go through state/runtime APIs instead of command entry points.',
+        allowed: ['shared', 'services', 'tableModel', 'tableState', 'tableWidget', 'tableRuntime'],
+        message:
+            'toolbar actions should go through state/runtime APIs instead of nested-editor internals or command entry points.',
     },
     tableCommands: {
         allowed: ['shared', 'tableModel', 'tableState', 'tableRuntime'],
