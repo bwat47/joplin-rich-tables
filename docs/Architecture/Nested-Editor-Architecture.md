@@ -4,7 +4,7 @@ Editing a cell mounts a temporary CodeMirror editor inside that cell's widget. I
 
 ## Lifecycle
 
-Cell activation records a logical table and cell identity plus an explicit request to open it. `nestedEditorLifecycle.ts` resolves that identity against the current `tableContextField` index before mounting or updating the nested editor. `nestedEditorController.ts` owns the CodeMirror instance, focus handoff, synchronization, and cleanup. When editing ends, the cell returns to rendered Markdown.
+Cell activation records a logical table and cell identity plus an explicit request to open it. `nestedEditorLifecycle.ts` resolves that identity against the current `tableContextField` index before mounting or updating the nested editor. `nestedEditorController.ts` owns the CodeMirror instance, focus handoff, synchronization, and cleanup. The lifecycle reaches the controller through `nestedEditorPortFacet`, which the controller's plugin provides, so runtime code never imports the nested editor. When editing ends, the cell returns to rendered Markdown.
 
 The lifecycle separates facts, decisions, and effects: `runtimeEventClassifier.ts` describes editor updates, `lifecyclePolicy.ts` decides whether to open, update, or close, and the lifecycle plugin executes that decision. A note switch takes priority over every other path. Otherwise an explicit open request takes priority over close, sync, and reposition decisions. Document changes can invalidate a widget or cell position, so delayed work rechecks current state rather than trusting saved DOM or offsets. Entry-time table normalization is included in the activating transaction.
 

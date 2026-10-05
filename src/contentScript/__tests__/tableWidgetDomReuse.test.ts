@@ -57,9 +57,6 @@ function createView(): EditorView {
         // CodeMirror batches these into its measure phase; running read() inline keeps the
         // assertions synchronous without changing what the widget schedules.
         requestMeasure: vi.fn((spec: { read: () => void }) => spec.read()),
-        // destroy() routes through cleanupHostedNestedEditors, which looks up the nested editor
-        // plugin. No nested editor is mounted in these tests.
-        plugin: vi.fn(() => null),
     } as unknown as EditorView;
 }
 

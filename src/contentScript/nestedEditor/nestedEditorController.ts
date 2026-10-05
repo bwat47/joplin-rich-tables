@@ -21,11 +21,10 @@ import {
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { renderCellMarkdownInto } from '../services/renderCellInto';
-import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
+import { nestedEditorPortFacet, type OpenNestedEditorParams } from '../tableRuntime/nestedEditorPort';
 import { requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
 import {
     areSelectionsEqual,
     resolveInitialLocalSelection,
@@ -45,15 +44,6 @@ interface NestedEditorSession {
     /** Mirrors nested state, except for right-click selection mirroring; see `syncSelectionToMain`. */
     local: NestedEditorTextState;
     editor: EditorView | null;
-}
-
-export interface OpenNestedEditorParams {
-    mainView: EditorView;
-    cellElement: HTMLElement;
-    /** The active cell, already resolved against the main editor's current state by the caller. */
-    resolvedCell: ResolvedActiveCell;
-    featureSettings: NestedEditorHostConfig;
-    initialCursorPos?: InitialCursorPos;
 }
 
 class NestedEditorController {
@@ -433,6 +423,19 @@ export const nestedEditorPlugin = ViewPlugin.fromClass(
         destroy(): void {
             this.controller.close();
         }
+    },
+    {
+        provide: () =>
+            nestedEditorPortFacet.of({
+                isOpen: isNestedEditorOpen,
+                isFocused: isNestedEditorFocused,
+                open: openNestedEditor,
+                close: closeNestedEditor,
+                handleMainEditorUpdate,
+                refocus: refocusNestedEditor,
+                flush: flushNestedEditorState,
+                closeIfHostedIn: cleanupHostedNestedEditors,
+            }),
     }
 );
 
@@ -460,7 +463,7 @@ export function isNestedEditorOpen(view: EditorView): boolean {
     return getController(view)?.isOpen() ?? false;
 }
 
-export function isNestedEditorFocused(view: EditorView): boolean {
+function isNestedEditorFocused(view: EditorView): boolean {
     return getController(view)?.hasFocus() ?? false;
 }
 
@@ -473,7 +476,7 @@ export function refocusNestedEditor(view: EditorView): void {
 }
 
 /** Flushes the nested editor's current text and selection before an external interaction takes ownership. */
-export function flushNestedEditorState(view: EditorView): void {
+function flushNestedEditorState(view: EditorView): void {
     getController(view)?.flushLocalStateToRoot();
 }
 

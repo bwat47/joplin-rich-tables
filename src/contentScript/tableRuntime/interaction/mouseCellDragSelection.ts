@@ -5,7 +5,7 @@ import { requestOpenCell } from '../openCellRequest';
 import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
 import { resolveTableContextFromEventTarget } from '../tablePositioning';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
-import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../nestedEditorPort';
 import { getViewWindow } from '../../shared/domContext';
 import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';
@@ -165,7 +165,7 @@ class MouseCellDragSelectionController {
 
             if (ownsNestedEditor(gesture.origin)) {
                 this.capturePointer(gesture);
-                flushNestedEditorState(this.view);
+                getNestedEditorPort(this.view).flush(this.view);
                 this.endNativeTextDrag(event);
             }
 
@@ -258,7 +258,7 @@ class MouseCellDragSelectionController {
                 // The anchor editor never left the DOM, so contracting back to it only needs
                 // to discard the provisional rectangle and restore keyboard focus.
                 this.view.dispatch({ effects: clearCellSelectionEffect.of(null) });
-                refocusNestedEditor(this.view);
+                getNestedEditorPort(this.view).refocus(this.view);
             }
             return;
         }

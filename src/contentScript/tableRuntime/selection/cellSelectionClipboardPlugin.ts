@@ -1,14 +1,8 @@
 import { type EditorView, ViewPlugin } from '@codemirror/view';
-import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../nestedEditorPort';
 import { handleSelectionCopy, handleSelectionCut, handleTableClipboardPaste } from './cellSelectionClipboard';
 
-/**
- * Document-level clipboard wiring for table cell selections.
- *
- * Kept separate from `cellSelectionClipboard` so that module stays free of nested-editor
- * imports: `nestedEditorController` pulls in the nested editor's DOM handlers, which in turn
- * use the clipboard module's paste logic.
- */
+/** Document-level clipboard wiring for table cell selections. */
 export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
     class {
         private readonly onCopy: (event: ClipboardEvent) => void;
@@ -24,7 +18,7 @@ export const cellSelectionClipboardPlugin = ViewPlugin.fromClass(
             };
             this.onPaste = (event) => {
                 handleTableClipboardPaste(event, this.view, {
-                    nestedEditorOpen: isNestedEditorOpen(this.view),
+                    nestedEditorOpen: getNestedEditorPort(this.view).isOpen(this.view),
                 });
             };
 

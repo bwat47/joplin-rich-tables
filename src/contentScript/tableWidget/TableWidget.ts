@@ -1,10 +1,10 @@
 import { WidgetType, type EditorView } from '@codemirror/view';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
-import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
-import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
+import { isNestedEditorOwnedEvent } from '../shared/nestedEditorEventRouting';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
@@ -352,6 +352,6 @@ export class TableWidget extends WidgetType {
 
         // Ensure any nested editor hosted in this widget is closed when the widget is destroyed.
         // This prevents "orphan" subviews from keeping DOM alive and causing scroll jumps.
-        cleanupHostedNestedEditors(state.view, dom);
+        getNestedEditorPort(state.view).closeIfHostedIn(state.view, dom);
     }
 }

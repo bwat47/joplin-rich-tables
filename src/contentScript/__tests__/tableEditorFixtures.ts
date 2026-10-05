@@ -12,6 +12,7 @@ import { cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField } from '../tableState/cellDragState';
 import { tableContextField } from '../tableState/tableContextField';
 import { openCellRequestField } from '../tableRuntime/openCellRequest';
+import type { NestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
@@ -167,6 +168,21 @@ export function setActiveElement(element: Element | null): void {
  * A main editor that renders table widgets and opens nested cell editors. Callers add
  * `history()` when the test drives undo/redo.
  */
+/** A nested editor port that is never open and ignores every action, with `overrides` applied. */
+export function createNestedEditorPortStub(overrides: Partial<NestedEditorPort> = {}): NestedEditorPort {
+    return {
+        isOpen: () => false,
+        isFocused: () => false,
+        open: () => false,
+        close: () => {},
+        handleMainEditorUpdate: () => {},
+        refocus: () => {},
+        flush: () => {},
+        closeIfHostedIn: () => {},
+        ...overrides,
+    };
+}
+
 export function nestedEditorTestExtensions(...extra: Extension[]): Extension[] {
     return [
         markdown({ extensions: [GFM] }),

@@ -1,6 +1,6 @@
 import { Compartment, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import {
     activeCellField,
@@ -27,7 +27,7 @@ import { parseTableFixture } from './testUtils';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS, createFrameQueue } from './tableEditorFixtures';
-import * as nestedEditorController from '../nestedEditor/nestedEditorController';
+import { nestedEditorPortFacet, type NestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
 import type { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
@@ -37,12 +37,16 @@ const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
     activateCellAtPositionMock: vi.fn<typeof activateCellAtPosition>(),
     findCellElementMock: vi.fn<(...args: unknown[]) => HTMLTableCellElement | null>(() => document.createElement('td')),
 }));
-const nestedEditorControllerMock = nestedEditorController as unknown as {
-    closeNestedEditor: Mock;
-    handleMainEditorUpdate: Mock;
-    isNestedEditorOpen: Mock;
-    openNestedEditor: Mock;
-};
+const nestedEditorPortMock = {
+    isOpen: vi.fn<NestedEditorPort['isOpen']>(() => false),
+    isFocused: vi.fn<NestedEditorPort['isFocused']>(() => false),
+    open: vi.fn<NestedEditorPort['open']>(),
+    close: vi.fn<NestedEditorPort['close']>(),
+    handleMainEditorUpdate: vi.fn<NestedEditorPort['handleMainEditorUpdate']>(),
+    refocus: vi.fn<NestedEditorPort['refocus']>(),
+    flush: vi.fn<NestedEditorPort['flush']>(),
+    closeIfHostedIn: vi.fn<NestedEditorPort['closeIfHostedIn']>(),
+} satisfies NestedEditorPort;
 const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_DOC = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');
 const INITIAL_NOTE_ID = 'note-a';
@@ -81,6 +85,7 @@ function createLifecycleState(params: {
             hostEditorConfigFacet.of(TEST_HOST_CONFIG),
             noteConfiguration.of(noteIdentityFacet.of(INITIAL_NOTE_ID)),
             tableDecorationField,
+            nestedEditorPortFacet.of(nestedEditorPortMock),
             nestedEditorLifecyclePlugin,
         ],
     });
@@ -132,27 +137,18 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
         findCellElementMock(view, tableId, activeCell),
 }));
 
-vi.mock('../nestedEditor/nestedEditorController', () => ({
-    cleanupHostedNestedEditors: vi.fn(),
-    closeNestedEditor: vi.fn(),
-    handleMainEditorUpdate: vi.fn(),
-    isNestedEditorFocused: vi.fn(() => false),
-    isNestedEditorOpen: vi.fn(() => false),
-    openNestedEditor: vi.fn(),
-}));
-
 describe('nestedEditorLifecycle', () => {
     const frames = createFrameQueue();
 
     beforeEach(() => {
         activateCellAtPositionMock.mockReset();
         findCellElementMock.mockClear();
-        nestedEditorControllerMock.closeNestedEditor.mockReset();
-        nestedEditorControllerMock.handleMainEditorUpdate.mockReset();
-        nestedEditorControllerMock.isNestedEditorOpen.mockReset();
-        nestedEditorControllerMock.openNestedEditor.mockReset();
-        nestedEditorControllerMock.openNestedEditor.mockReturnValue(true);
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(false);
+        nestedEditorPortMock.close.mockReset();
+        nestedEditorPortMock.handleMainEditorUpdate.mockReset();
+        nestedEditorPortMock.isOpen.mockReset();
+        nestedEditorPortMock.open.mockReset();
+        nestedEditorPortMock.open.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(false);
         frames.install();
     });
 
@@ -162,7 +158,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('passes the mapped cell range when undo or redo closes the nested editor', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell = headerCell();
@@ -182,7 +178,7 @@ describe('nestedEditorLifecycle', () => {
             throw new Error('Expected resolved active cell after redo');
         }
 
-        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, {
+        expect(nestedEditorPortMock.close).toHaveBeenCalledWith(view, {
             contentFrom: resolved.contentFrom,
             contentTo: resolved.contentTo,
         });
@@ -191,7 +187,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('passes the classified resolved cell when syncing a main-editor update', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(true);
 
         const view = createLifecycleView({
             doc: CANONICAL_DOC,
@@ -203,17 +199,13 @@ describe('nestedEditorLifecycle', () => {
 
         const resolvedCell = resolveActiveCell(view.state, getActiveCell(view.state));
         expect(resolvedCell).not.toBeNull();
-        expect(nestedEditorControllerMock.handleMainEditorUpdate).toHaveBeenCalledWith(
-            view,
-            expect.anything(),
-            resolvedCell
-        );
+        expect(nestedEditorPortMock.handleMainEditorUpdate).toHaveBeenCalledWith(view, expect.anything(), resolvedCell);
 
         view.destroy();
     });
 
     it('renders tables immediately and repositions after a full replace with a cell open', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(true);
 
         const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
         const replacement = ['intro', '', CANONICAL_DOC, '', CANONICAL_DOC.replace('a', 'c')].join('\n');
@@ -226,7 +218,7 @@ describe('nestedEditorLifecycle', () => {
         });
 
         expect(view.contentDOM.querySelectorAll('table')).toHaveLength(2);
-        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledTimes(1);
+        expect(nestedEditorPortMock.close).toHaveBeenCalledTimes(1);
 
         const decorationsAfterReplace = view.state.field(tableDecorationField).decorations;
         await frames.flush();
@@ -307,16 +299,16 @@ describe('nestedEditorLifecycle', () => {
         }
 
         it('closes the open cell and moves the cursor out of a table without reopening a cell', async () => {
-            nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+            nestedEditorPortMock.isOpen.mockReturnValue(true);
             const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
             view.dispatch({ effects: openRequestEffects({ requestId: 'queued-open', activeCell: headerCell() }) });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: true });
             await frames.flush();
 
-            expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenCalledWith(view, undefined);
+            expect(nestedEditorPortMock.close).toHaveBeenCalledWith(view, undefined);
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
-            expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+            expect(nestedEditorPortMock.open).not.toHaveBeenCalled();
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_TABLE_TO + 1);
             expect(getActiveCell(view.state)).toBeNull();
             expect(getPendingOpenCellRequest(view.state)).toBeNull();
@@ -325,7 +317,7 @@ describe('nestedEditorLifecycle', () => {
         });
 
         it('leaves a cursor outside every table where the switch put it', async () => {
-            nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+            nestedEditorPortMock.isOpen.mockReturnValue(true);
             const view = createLifecycleView({ doc: CANONICAL_DOC, activeCell: headerCell() });
 
             switchNote(view, { anchor: NOTE_SWITCH_POS_OUTSIDE_TABLE, hadActiveCell: true });
@@ -344,7 +336,7 @@ describe('nestedEditorLifecycle', () => {
             switchNote(view, { anchor: NOTE_SWITCH_POS_IN_TABLE, hadActiveCell: false });
             await frames.flush();
 
-            expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
+            expect(nestedEditorPortMock.close).not.toHaveBeenCalled();
             expect(activateCellAtPositionMock).not.toHaveBeenCalled();
             expect(view.state.selection.main.head).toBe(NOTE_SWITCH_TABLE_TO + 1);
 
@@ -439,7 +431,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('does not close the nested editor for a structural-edit signal without an explicit request', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(true);
 
         const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const activeCell = headerCell();
@@ -459,8 +451,8 @@ describe('nestedEditorLifecycle', () => {
             effects: [setActiveCellEffect.of(nextActiveCell), structuralTableEditEffect.of(null)],
         });
 
-        expect(nestedEditorControllerMock.closeNestedEditor).not.toHaveBeenCalled();
-        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(nestedEditorPortMock.close).not.toHaveBeenCalled();
+        expect(nestedEditorPortMock.open).not.toHaveBeenCalled();
 
         view.destroy();
     });
@@ -485,7 +477,7 @@ describe('nestedEditorLifecycle', () => {
         await frames.flush();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+        expect(nestedEditorPortMock.open).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 resolvedCell: expect.objectContaining({ activeCell }),
@@ -521,7 +513,7 @@ describe('nestedEditorLifecycle', () => {
         });
         await frames.flush();
 
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+        expect(nestedEditorPortMock.open).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 featureSettings: TEST_NESTED_EDITOR_SETTINGS,
@@ -552,7 +544,7 @@ describe('nestedEditorLifecycle', () => {
         });
         await frames.flush();
 
-        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(nestedEditorPortMock.open).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
         view.destroy();
@@ -576,7 +568,7 @@ describe('nestedEditorLifecycle', () => {
         });
         await frames.flush();
 
-        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(nestedEditorPortMock.open).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toBeNull();
 
@@ -593,7 +585,7 @@ describe('nestedEditorLifecycle', () => {
         });
         await frames.flush();
 
-        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
+        expect(nestedEditorPortMock.open).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
         view.destroy();
@@ -620,9 +612,7 @@ describe('nestedEditorLifecycle', () => {
         });
         await Promise.resolve();
 
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
-            expect.objectContaining({ mainView: view })
-        );
+        expect(nestedEditorPortMock.open).toHaveBeenCalledWith(expect.objectContaining({ mainView: view }));
 
         view.destroy();
     });
@@ -653,7 +643,7 @@ describe('nestedEditorLifecycle', () => {
         await frames.flush();
 
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+        expect(nestedEditorPortMock.open).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 featureSettings: TEST_NESTED_EDITOR_SETTINGS,
@@ -689,7 +679,7 @@ describe('nestedEditorLifecycle', () => {
 
         await frames.flush();
 
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+        expect(nestedEditorPortMock.open).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 featureSettings: TEST_NESTED_EDITOR_SETTINGS,
@@ -761,7 +751,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('closes and clears the active cell when main-editor selection leaves the active table', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(true);
 
         const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
         const tableFrom = 'before\n\n'.length;
@@ -784,7 +774,7 @@ describe('nestedEditorLifecycle', () => {
         });
         await frames.flush();
 
-        expect(nestedEditorControllerMock.closeNestedEditor).toHaveBeenNthCalledWith(1, view, {
+        expect(nestedEditorPortMock.close).toHaveBeenNthCalledWith(1, view, {
             contentFrom: resolved.contentFrom,
             contentTo: resolved.contentTo,
         });
@@ -794,7 +784,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('closes with the shifted cell range when an edit before the table also moves selection out', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValue(true);
+        nestedEditorPortMock.isOpen.mockReturnValue(true);
 
         const prefixedDoc = ['before', '', '| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '', 'after'].join('\n');
         const tableFrom = 'before\n\n'.length;
@@ -812,8 +802,7 @@ describe('nestedEditorLifecycle', () => {
             selection: { anchor: 0 },
         });
 
-        const closeParams = nestedEditorControllerMock.closeNestedEditor.mock.calls[0]?.[1] as
-            { contentFrom: number; contentTo: number } | undefined;
+        const closeParams = nestedEditorPortMock.close.mock.calls[0]?.[1];
         expect(closeParams).toBeDefined();
         if (!closeParams) {
             throw new Error('Expected the close to carry a cell range');
@@ -828,7 +817,7 @@ describe('nestedEditorLifecycle', () => {
     });
 
     it('keeps the pending reopen when selection leaves the table after a structural close', async () => {
-        nestedEditorControllerMock.isNestedEditorOpen.mockReturnValueOnce(true).mockReturnValue(false);
+        nestedEditorPortMock.isOpen.mockReturnValueOnce(true).mockReturnValue(false);
 
         const originalTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const updatedTable = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '|  |  |'].join('\n');
@@ -876,7 +865,7 @@ describe('nestedEditorLifecycle', () => {
         await frames.flush();
 
         expect(getActiveCell(view.state)).toEqual(nextCell);
-        expect(nestedEditorControllerMock.openNestedEditor).toHaveBeenCalledWith(
+        expect(nestedEditorPortMock.open).toHaveBeenCalledWith(
             expect.objectContaining({
                 mainView: view,
                 featureSettings: TEST_NESTED_EDITOR_SETTINGS,

@@ -64,8 +64,9 @@ const LAYER_BOUNDARIES = [
     },
     {
         layer: 'tableRuntime',
-        forbidden: ['tableCommands'],
-        message: 'tableRuntime must stay below tableCommands in the dependency graph.',
+        forbidden: ['tableCommands', 'nestedEditor'],
+        message:
+            'tableRuntime must stay below tableCommands and nestedEditor; reach the nested editor through nestedEditorPortFacet.',
     },
     {
         layer: 'tableCommands',
@@ -74,8 +75,9 @@ const LAYER_BOUNDARIES = [
     },
     {
         layer: 'tableWidget',
-        forbidden: ['tableCommands'],
-        message: 'tableWidget modules must not depend on command registration or command entry points.',
+        forbidden: ['tableCommands', 'nestedEditor'],
+        message:
+            'tableWidget must not depend on command entry points or nested-editor internals; reach the nested editor through nestedEditorPortFacet.',
     },
     {
         layer: 'nestedEditor',

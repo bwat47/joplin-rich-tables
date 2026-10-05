@@ -2,22 +2,19 @@ import { markdown } from '@codemirror/lang-markdown';
 import { StateField, type StateEffect, type Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { vi, type Mock } from 'vitest';
+import { vi } from 'vitest';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
-import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
-
-vi.mock('../nestedEditor/nestedEditorController', () => ({
-    isNestedEditorOpen: vi.fn(),
-}));
+import { nestedEditorPortFacet, type NestedEditorPort } from '../tableRuntime/nestedEditorPort';
+import { createNestedEditorPortStub } from './tableEditorFixtures';
 
 const markdownExtension = markdown({
     extensions: [GFM],
 });
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-const mockIsNestedEditorOpen = isNestedEditorOpen as Mock;
+const mockIsNestedEditorOpen = vi.fn<NestedEditorPort['isOpen']>();
 
 interface UndoHarness {
     view: EditorView;
@@ -46,6 +43,7 @@ function createHarness(activeCell: ActiveCell): UndoHarness {
             tableContextField,
             activeCellField,
             probeField,
+            nestedEditorPortFacet.of(createNestedEditorPortStub({ isOpen: mockIsNestedEditorOpen })),
             createUndoScrollPreservation(() => view),
             EditorView.updateListener.of((update) => transactions.push(...update.transactions)),
         ],

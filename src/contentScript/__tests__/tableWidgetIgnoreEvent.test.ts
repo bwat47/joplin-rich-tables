@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { routeKeyEventToRootEditor } from '../nestedEditor/nestedEditorEventRouting';
+import { routeKeyEventToRootEditor } from '../shared/nestedEditorEventRouting';
 import { CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { parseCellRangesFixture } from './testUtils';
 
