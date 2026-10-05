@@ -1,5 +1,5 @@
 import type { EditorState } from '@codemirror/state';
-import { ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
+import { ViewPlugin, EditorView, type ViewUpdate } from '@codemirror/view';
 import {
     clearActiveCellEffect,
     getActiveCell,

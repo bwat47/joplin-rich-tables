@@ -1,4 +1,4 @@
-import { MarkdownTable, type TableAlignment } from './MarkdownTable';
+import type { MarkdownTable, TableAlignment } from './MarkdownTable';
 import type { CellCoords } from './types';
 import type { TableSortDirection } from './rawMarkdownSort';
 

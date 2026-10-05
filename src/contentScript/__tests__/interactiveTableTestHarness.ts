@@ -1,6 +1,6 @@
 import { vi, type Mock } from 'vitest';
-import { EditorState, type Extension, type TransactionSpec } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorState, Extension, TransactionSpec } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 import { getCellSelector, SECTION_BODY, SECTION_HEADER, SELECTOR_CELL } from '../tableWidget/domHelpers';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';

@@ -1,7 +1,7 @@
 import {
     ChangeSet,
     EditorState,
-    Transaction,
+    type Transaction,
     type Extension,
     type Line,
     type Text,

@@ -1,5 +1,5 @@
 import type { Extension } from '@codemirror/state';
-import { EditorView, ViewPlugin, type PluginValue } from '@codemirror/view';
+import { type EditorView, ViewPlugin, type PluginValue } from '@codemirror/view';
 
 /** Picks the elements that should currently carry the class. */
 export type ClassSyncCollector = (view: EditorView) => HTMLElement[];

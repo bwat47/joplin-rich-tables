@@ -1,5 +1,5 @@
 import { historyKeymap, redo, undo } from '@codemirror/commands';
-import { type Command, type EditorView, type KeyBinding } from '@codemirror/view';
+import type { Command, EditorView, KeyBinding } from '@codemirror/view';
 
 type HistoryCommandRunner = (view: EditorView, command: Command) => boolean;
 

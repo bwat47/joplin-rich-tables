@@ -1,4 +1,4 @@
-import { Annotation, EditorSelection, EditorState } from '@codemirror/state';
+import { Annotation, EditorSelection, type EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';

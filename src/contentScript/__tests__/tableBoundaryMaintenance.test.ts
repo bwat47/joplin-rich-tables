@@ -1,5 +1,5 @@
 import { history, redo, undo } from '@codemirror/commands';
-import { Annotation, EditorState, type Extension, type Transaction } from '@codemirror/state';
+import { Annotation, type EditorState, type Extension, type Transaction } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { createMainEditorActiveCellGuard } from '../editorBridge/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';

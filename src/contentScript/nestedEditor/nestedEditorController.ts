@@ -1,12 +1,12 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
-import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
+import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin } from './decorationPlugins';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSelectionToMain } from './domHandlers';
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import { createNestedEditorTheme } from './nestedEditorTheme';
-import { LocalSelection, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
+import { type LocalSelection, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
 import { sanitizeLocalText, unsanitizeRootText } from '../shared/cellTextNormalization';
 import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';

@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { Extension } from '@codemirror/state';
+import type { Extension } from '@codemirror/state';
 import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
 
 /**

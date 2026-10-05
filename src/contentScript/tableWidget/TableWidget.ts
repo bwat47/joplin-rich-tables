@@ -1,4 +1,4 @@
-import { WidgetType, EditorView } from '@codemirror/view';
+import { WidgetType, type EditorView } from '@codemirror/view';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';

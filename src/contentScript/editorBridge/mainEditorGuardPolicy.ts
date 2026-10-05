@@ -1,4 +1,4 @@
-import { ChangeSet, EditorSelection, Transaction } from '@codemirror/state';
+import { ChangeSet, EditorSelection, type Transaction } from '@codemirror/state';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection } from '../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';

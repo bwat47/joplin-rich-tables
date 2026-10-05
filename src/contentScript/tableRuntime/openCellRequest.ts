@@ -1,5 +1,5 @@
-import { EditorState, StateEffect, StateField, type ChangeDesc, type TransactionSpec } from '@codemirror/state';
-import { keymap, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
+import { type EditorState, StateEffect, StateField, type ChangeDesc, type TransactionSpec } from '@codemirror/state';
+import { keymap, type EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { logger } from '../../logger';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';

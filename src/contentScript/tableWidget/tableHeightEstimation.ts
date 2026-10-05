@@ -1,4 +1,4 @@
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+import type { MarkdownTable } from '../tableModel/MarkdownTable';
 
 // Height estimation constants
 const ROW_HEIGHT_BASE = 35; // Approx px per row (including padding/border)

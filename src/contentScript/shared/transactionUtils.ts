@@ -1,4 +1,4 @@
-import { Transaction } from '@codemirror/state';
+import type { Transaction } from '@codemirror/state';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
 
 export function hasSyncAnnotation(transactions: readonly Transaction[]): boolean {

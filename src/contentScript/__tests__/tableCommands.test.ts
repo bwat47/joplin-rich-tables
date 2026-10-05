@@ -1,9 +1,9 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+import type { MarkdownTable } from '../tableModel/MarkdownTable';
 import { registerTableCommands } from '../tableCommands/tableCommands';
 
 // Mock dependencies

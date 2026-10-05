@@ -1,6 +1,6 @@
 import { searchPanelOpen } from '@codemirror/search';
 import type { StateEffect } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { requestViewAnimationFrame } from '../shared/domContext';

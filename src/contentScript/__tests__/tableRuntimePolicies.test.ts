@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EditorState, Transaction } from '@codemirror/state';
+import { type EditorState, Transaction } from '@codemirror/state';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';

@@ -1,4 +1,4 @@
-import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/state';
+import { Annotation, type EditorState, StateEffect, StateField } from '@codemirror/state';
 import { setActiveCellEffect } from './activeCellState';
 import { getTableContextStartingAt } from './tableContextField';
 import type { TableContext } from '../tableModel/tableContext';
