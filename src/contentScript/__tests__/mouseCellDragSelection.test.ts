@@ -13,7 +13,7 @@ import { MarkdownTable } from '../tableModel/MarkdownTable';
 import type { CellCoords } from '../tableModel/types';
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { createMarkdownState } from './testMarkdownState';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
 import { createResizeObserverStub } from './tableEditorFixtures';

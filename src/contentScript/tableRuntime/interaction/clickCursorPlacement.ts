@@ -4,7 +4,7 @@ import { cellTextCaret, type InitialCursorPos } from '../../shared/cursorPlaceme
 import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
 import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
 import { balanceSyntaxMarkers, projectCellText, type HiddenSyntaxSpan } from './cellTextProjection';
-import type { ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 
 /**
  * Turns a press on a rendered cell into the caret placement the nested editor should open

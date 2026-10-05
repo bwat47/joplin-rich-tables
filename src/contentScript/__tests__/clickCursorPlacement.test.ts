@@ -10,7 +10,7 @@ import {
     type RenderedSelectionHit,
 } from '../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { LocalSelection } from '../shared/cellTextCodec';

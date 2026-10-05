@@ -7,7 +7,7 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import type { MarkdownTable } from '../tableModel/MarkdownTable';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
@@ -22,7 +22,7 @@ const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOp
         mockRefocusNestedEditor: vi.fn(),
     }));
 
-vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
+vi.mock('../tableState/resolvedActiveCell', () => ({
     getResolvedActiveCell: mockGetResolvedActiveCell,
 }));
 

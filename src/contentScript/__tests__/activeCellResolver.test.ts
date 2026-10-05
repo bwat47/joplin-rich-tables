@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import {
-    createResolvedActiveCell,
-    getResolvedActiveCell,
-    resolveActiveCell,
-} from '../tableRuntime/activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, getResolvedActiveCell, resolveActiveCell } from '../tableState/resolvedActiveCell';
 import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 

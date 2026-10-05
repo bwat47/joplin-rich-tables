@@ -1,9 +1,9 @@
 import type { EditorState } from '@codemirror/state';
-import { getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
-import { getTableContextStartingAt } from '../../tableState/tableContextField';
-import type { TableContext } from '../../tableModel/tableContext';
-import { normalizeCellCoords, type CellCoords } from '../../tableModel/types';
-import { getCellRange, type CellRange } from '../../tableModel/markdownTableCellRanges';
+import { getActiveCell, type ActiveCell } from './activeCellState';
+import { getTableContextStartingAt } from './tableContextField';
+import type { TableContext } from '../tableModel/tableContext';
+import { normalizeCellCoords, type CellCoords } from '../tableModel/types';
+import { getCellRange, type CellRange } from '../tableModel/markdownTableCellRanges';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;

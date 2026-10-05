@@ -1,7 +1,7 @@
 import type { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import type { ActiveCell } from '../tableState/activeCellState';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import type { MarkdownTable } from '../tableModel/MarkdownTable';
 import { registerTableCommands } from '../tableCommands/tableCommands';
@@ -10,7 +10,7 @@ import { registerTableCommands } from '../tableCommands/tableCommands';
 vi.mock('../tableRuntime/operations/runStructuralCommand', () => ({
     runStructuralCommand: vi.fn(),
 }));
-vi.mock('../tableRuntime/activeCell/resolvedActiveCell', () => ({
+vi.mock('../tableState/resolvedActiveCell', () => ({
     getResolvedActiveCell: vi.fn(),
 }));
 

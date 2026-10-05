@@ -7,7 +7,7 @@ import {
     mapActiveCellThroughChanges,
 } from '../../tableState/activeCellState';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,

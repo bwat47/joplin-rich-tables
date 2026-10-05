@@ -11,7 +11,7 @@ import { getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { createResolvedActiveCell, type ResolvedActiveCell } from './activeCell/resolvedActiveCell';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { prepareOpenCellRequestTransaction } from './openCellRequest';
 
 /** User event `findNext` and `findPrevious` dispatch; select-all-matches uses a sub-event. */

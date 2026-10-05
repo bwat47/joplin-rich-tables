@@ -1,7 +1,7 @@
 import type { EditorState, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import {
     activeCellField,
     clearActiveCellEffect,

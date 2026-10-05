@@ -2,7 +2,7 @@ import { vi, type Mock } from 'vitest';
 import type { EditorView } from '@codemirror/view';
 import type { ActiveCell } from '../tableState/activeCellState';
 import type { MarkdownTable, TableAlignment } from '../tableModel/MarkdownTable';
-import type { ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import type { ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
 

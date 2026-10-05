@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { type EditorState, Transaction } from '@codemirror/state';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { resolveActiveCell } from '../tableState/resolvedActiveCell';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { sourceModeField } from '../tableState/sourceMode';
 import { openSearchPanelInState } from './searchPanelTestUtils';

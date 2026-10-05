@@ -4,7 +4,7 @@ import { getCellSelection } from '../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { sanitizeCellChanges } from '../shared/cellTextCodec';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { getResolvedActiveCell, type ResolvedActiveCell } from './activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';
 import { normalizeBeforeEditAnnotation } from './tableCanonicalForm';
 import {

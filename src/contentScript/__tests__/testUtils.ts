@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
 import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 

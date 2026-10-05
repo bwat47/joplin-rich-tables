@@ -7,7 +7,7 @@ import { GFM } from '@lezer/markdown';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createResizeObserverStub } from './tableEditorFixtures';
 import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { isEffectiveRawMode, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';

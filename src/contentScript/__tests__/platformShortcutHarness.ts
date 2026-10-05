@@ -8,7 +8,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { startCellDragEffect } from '../tableState/cellDragState';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';

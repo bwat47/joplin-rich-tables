@@ -4,7 +4,7 @@ import { logger } from '../../logger';
 import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { getTableContextStartingAt, tableContextField } from '../tableState/tableContextField';

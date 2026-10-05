@@ -3,7 +3,7 @@ import { clampCellToRanges, computeCellAnchorForTable, type TableCellAnchor } fr
 import type { CellCoords } from '../../tableModel/types';
 import type { ActiveCell } from '../../tableState/activeCellState';
 import type { TableContext } from '../../tableModel/tableContext';
-import { toResolvedActiveCell, type ResolvedActiveCell } from './resolvedActiveCell';
+import { toResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 
 export interface ActiveCellSelectionTarget {
     activeCell: ActiveCell;
