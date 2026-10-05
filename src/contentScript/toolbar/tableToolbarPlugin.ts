@@ -1,4 +1,4 @@
-import { ViewPlugin, ViewUpdate, EditorView } from '@codemirror/view';
+import { ViewPlugin, type ViewUpdate, EditorView } from '@codemirror/view';
 import { activeCellField, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import {
     computePosition,
@@ -10,8 +10,7 @@ import {
     type VirtualElement,
 } from '@floating-ui/dom';
 import { syncAnnotation } from '../editorBridge/syncAnnotation';
-import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
+import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';

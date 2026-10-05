@@ -1,5 +1,4 @@
-import { Annotation } from '@codemirror/state';
-import type { EditorState } from '@codemirror/state';
+import { Annotation, type EditorState } from '@codemirror/state';
 import type { SerializedTable } from '../tableModel/MarkdownTable';
 import type { TableContext, TableSpan } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';

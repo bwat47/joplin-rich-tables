@@ -2,7 +2,7 @@
  * Shared cell activation logic for activating table cells and opening nested editors.
  */
 import type { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../../tableState/activeCellState';
 import { getTableContextAtPos } from '../../tableState/tableContextField';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';

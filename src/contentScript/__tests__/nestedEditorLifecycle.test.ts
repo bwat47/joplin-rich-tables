@@ -15,8 +15,8 @@ import { tableContextField } from '../tableState/tableContextField';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import {
+    triggerOpenCellRequestEffect,
     beginOpenCellRequestEffect,
     getPendingOpenCellRequest,
     openCellRequestField,
@@ -30,10 +30,11 @@ import { TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS, createFrameQueue } from 
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
+import type { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
+import type * as DomHelpers from '../tableWidget/domHelpers';
 
 const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
-    activateCellAtPositionMock:
-        vi.fn<typeof import('../tableRuntime/activeCell/cellActivation').activateCellAtPosition>(),
+    activateCellAtPositionMock: vi.fn<typeof activateCellAtPosition>(),
     findCellElementMock: vi.fn<(...args: unknown[]) => HTMLTableCellElement | null>(() => document.createElement('td')),
 }));
 const nestedEditorControllerMock = nestedEditorController as unknown as {
@@ -126,7 +127,7 @@ vi.mock('../tableRuntime/activeCell/cellActivation', () => ({
 }));
 
 vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('../tableWidget/domHelpers')>()),
+    ...(await importOriginal<typeof DomHelpers>()),
     findCellElement: (view: unknown, tableId: unknown, activeCell: unknown) =>
         findCellElementMock(view, tableId, activeCell),
 }));

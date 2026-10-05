@@ -1,4 +1,4 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { runStructuralCommand } from '../operations/runStructuralCommand';

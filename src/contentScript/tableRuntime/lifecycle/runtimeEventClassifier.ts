@@ -1,4 +1,4 @@
-import { type ViewUpdate } from '@codemirror/view';
+import type { ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
 import { containsSelection, getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';

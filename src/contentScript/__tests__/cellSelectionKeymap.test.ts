@@ -1,11 +1,12 @@
 vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('../tableWidget/domHelpers')>()),
+    ...(await importOriginal<typeof DomHelpers>()),
     findCellElement: vi.fn(() => ({})),
 }));
 
 import { history } from '@codemirror/commands';
 import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import type * as DomHelpers from '../tableWidget/domHelpers';
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { setCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';

@@ -3,12 +3,13 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';
+import type * as CellSelectionClipboard from '../tableRuntime/selection/cellSelectionClipboard';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
 
 installRangeLayoutStubs();
 
 vi.mock('../tableRuntime/selection/cellSelectionClipboard', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('../tableRuntime/selection/cellSelectionClipboard')>()),
+    ...(await importOriginal<typeof CellSelectionClipboard>()),
     handleTableClipboardTextPaste: vi.fn(() => false),
 }));
 

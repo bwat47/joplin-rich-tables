@@ -1,4 +1,4 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { createMarkdownState } from './testMarkdownState';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';

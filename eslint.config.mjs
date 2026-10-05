@@ -127,6 +127,12 @@ export default [
             // report an error if any circular dependency is found
             'import-x/no-cycle': ['error', { maxDepth: Infinity }],
             'import-x/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: LAYER_ZONES }],
+            'import-x/no-self-import': 'error',
+            // Merge duplicate imports using inline `type` specifiers, matching consistent-type-imports below
+            'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
+            '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
+            // Use `import type { A }` rather than `import { type A }` when every specifier is a type
+            '@typescript-eslint/no-import-type-side-effects': 'error',
             '@typescript-eslint/no-inferrable-types': 'error',
             '@typescript-eslint/explicit-module-boundary-types': 'error',
         },

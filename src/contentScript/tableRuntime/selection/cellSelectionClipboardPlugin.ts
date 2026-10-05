@@ -1,4 +1,4 @@
-import { EditorView, ViewPlugin } from '@codemirror/view';
+import { type EditorView, ViewPlugin } from '@codemirror/view';
 import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { handleSelectionCopy, handleSelectionCut, handleTableClipboardPaste } from './cellSelectionClipboard';
 

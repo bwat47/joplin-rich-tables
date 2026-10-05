@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
-import type { HostEditorConfigDeps } from '../contentScriptBridge/hostEditorConfigBridge';
 import {
+    type HostEditorConfigDeps,
     AUTO_MATCHING_BRACES_SETTING_KEY,
     SPELLCHECK_ENABLED_SETTING_KEY,
     TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,

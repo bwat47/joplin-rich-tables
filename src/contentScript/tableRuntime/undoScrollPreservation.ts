@@ -1,5 +1,5 @@
-import { EditorState, Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorState, type Extension } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell } from './activeCell/resolvedActiveCell';
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 import { classifyActiveCellChanges } from './activeCell/activeCellChangeScope';

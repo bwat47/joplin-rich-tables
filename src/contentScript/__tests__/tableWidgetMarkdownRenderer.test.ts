@@ -1,5 +1,5 @@
 import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';

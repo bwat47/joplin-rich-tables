@@ -11,9 +11,8 @@ import {
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect, beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
-import { beginOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';

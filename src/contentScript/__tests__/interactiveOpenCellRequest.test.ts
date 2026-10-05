@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type StateEffect, type TransactionSpec } from '@codemirror/state';
+import type { StateEffect, TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';

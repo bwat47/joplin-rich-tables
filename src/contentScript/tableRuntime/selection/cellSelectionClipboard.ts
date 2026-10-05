@@ -1,6 +1,6 @@
 import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-import { ClipboardTableFragment, MarkdownTable, type SerializedTable } from '../../tableModel/MarkdownTable';
+import type { EditorView } from '@codemirror/view';
+import { type ClipboardTableFragment, MarkdownTable, type SerializedTable } from '../../tableModel/MarkdownTable';
 import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {

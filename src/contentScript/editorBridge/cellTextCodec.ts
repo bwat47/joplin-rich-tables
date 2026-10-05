@@ -1,4 +1,4 @@
-import { Transaction } from '@codemirror/state';
+import type { Transaction } from '@codemirror/state';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipesWithContext,

@@ -1,4 +1,4 @@
-import { EditorState, RangeSetBuilder, StateField, type Transaction } from '@codemirror/state';
+import { type EditorState, RangeSetBuilder, StateField, type Transaction } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { logger } from '../../logger';
 import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';

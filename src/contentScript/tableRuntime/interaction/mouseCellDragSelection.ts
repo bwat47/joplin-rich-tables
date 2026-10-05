@@ -1,4 +1,4 @@
-import { EditorView, ViewPlugin } from '@codemirror/view';
+import { type EditorView, ViewPlugin } from '@codemirror/view';
 import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../activeCell/resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';

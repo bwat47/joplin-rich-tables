@@ -1,6 +1,13 @@
-import { Decoration, DecorationSet, EditorView, MatchDecorator, ViewPlugin, ViewUpdate } from '@codemirror/view';
+import {
+    Decoration,
+    type DecorationSet,
+    type EditorView,
+    MatchDecorator,
+    ViewPlugin,
+    type ViewUpdate,
+} from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { Range } from '@codemirror/state';
+import type { Range } from '@codemirror/state';
 import type { SyntaxNodeRef } from '@lezer/common';
 import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
 
