@@ -3,7 +3,7 @@ import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
 import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
-import { resolveTableContextFromEventTarget } from '../tablePositioning';
+import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';

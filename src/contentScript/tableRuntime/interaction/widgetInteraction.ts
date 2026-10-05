@@ -5,7 +5,7 @@ import { parseFootnoteHref } from '../../shared/footnoteAnchor';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { setOrExtendCellSelectionToCoords } from '../selection/cellSelectionController';
-import { resolveTableContextFromEventTarget } from '../tablePositioning';
+import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
 import { linkOpenerFacet } from '../../services/linkOpener';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
 import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from '../../tableWidget/domHelpers';

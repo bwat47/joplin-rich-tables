@@ -4,7 +4,7 @@ import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorControll
 import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
-import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
+import { resolveTableContextFromEventTarget } from './widgetTableContext';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { tableHeightCache } from './tableHeightCache';
 import {
