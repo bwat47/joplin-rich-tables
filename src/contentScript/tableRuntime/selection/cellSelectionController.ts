@@ -44,7 +44,7 @@ function focusMainEditorForCellSelection(view: EditorView): void {
  * Catches cell selections created outside this module.
  *
  * A paste inside a cell editor is rewritten into a multi-cell one by
- * `editorBridge/mainEditorGuard.ts`, and a transaction filter has neither a view to focus nor any
+ * `tableRuntime/mainEditorGuard.ts`, and a transaction filter has neither a view to focus nor any
  * business running a side effect — so the selection arrives with focus still on the torn-down
  * nested editor's former home.
  *

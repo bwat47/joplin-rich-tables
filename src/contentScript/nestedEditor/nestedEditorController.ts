@@ -6,10 +6,10 @@ import { createNestedEditorDomHandlers, createNestedEditorKeymap, mirrorLocalSel
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import { createNestedEditorTheme } from './nestedEditorTheme';
-import { type LocalSelection, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
+import { type LocalSelection, toLocalSelection, toRootSelection } from '../shared/cellTextCodec';
 import { sanitizeLocalText, unsanitizeRootText } from '../shared/cellTextNormalization';
-import { forceRootDomSelection } from '../editorBridge/rootDomSelection';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { forceRootDomSelection } from './rootDomSelection';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { hasSyncAnnotation } from '../shared/transactionUtils';
 import { ensureCellWrapper } from './mounting';
 import {

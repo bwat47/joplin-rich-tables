@@ -96,7 +96,7 @@ See [Markdown-Rendering.md](./Markdown-Rendering.md).
 Common ownership boundaries:
 
 - `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, and table math.
-- `tableRuntime/` owns editor-bound orchestration and active-cell lifecycle.
+- `tableRuntime/` owns editor-bound orchestration, active-cell lifecycle, and the main-editor guard policy.
 - `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
-- `editorBridge/` owns cross-editor text/selection conversion and main-editor guard policy.
+- `shared/` holds feature-agnostic primitives, including `syncAnnotation` and cell text/selection conversion (`cellTextCodec`).
 - `tableWidget/` owns widget DOM, visual styling, display-mode behavior, and decoration policy.

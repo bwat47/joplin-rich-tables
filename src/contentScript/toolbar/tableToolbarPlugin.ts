@@ -9,7 +9,7 @@ import {
     type Middleware,
     type VirtualElement,
 } from '@floating-ui/dom';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';

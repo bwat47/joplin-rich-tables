@@ -13,8 +13,8 @@ import {
     type TableRuntimeFacts,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { classifyActiveCellChanges } from '../tableRuntime/activeCell/activeCellChangeScope';
-import { decideMainEditorGuardTransaction } from '../editorBridge/mainEditorGuardPolicy';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { decideMainEditorGuardTransaction } from '../tableRuntime/mainEditorGuardPolicy';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';

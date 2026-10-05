@@ -1,8 +1,8 @@
 import { EditorState, type Extension } from '@codemirror/state';
 import { clearActiveCellEffect } from '../tableState/activeCellState';
-import { createFirstActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
-import { prepareOpenCellRequestAttachment } from '../tableRuntime/openCellRequest';
-import { createTableClipboardRewriteSpec } from '../tableRuntime/selection/cellSelectionClipboard';
+import { createFirstActiveCellForTable } from './activeCell/activeCellFactory';
+import { prepareOpenCellRequestAttachment } from './openCellRequest';
+import { createTableClipboardRewriteSpec } from './selection/cellSelectionClipboard';
 import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
 
 /**

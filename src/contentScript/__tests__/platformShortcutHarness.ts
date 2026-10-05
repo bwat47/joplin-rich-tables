@@ -7,7 +7,7 @@ import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEdit
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { startCellDragEffect } from '../tableState/cellDragState';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { getResolvedActiveCell } from '../tableRuntime/activeCell/resolvedActiveCell';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';

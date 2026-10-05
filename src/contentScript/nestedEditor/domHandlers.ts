@@ -2,7 +2,7 @@ import { selectAll } from '@codemirror/commands';
 import { EditorSelection, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
 import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
-import { syncAnnotation } from '../editorBridge/syncAnnotation';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { startCellSelectionFromActiveCell } from '../tableRuntime/selection/cellSelectionController';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSelectionClipboard';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { sanitizeCellChanges, toLocalSelection, toRootSelection } from '../editorBridge/cellTextCodec';
+import { sanitizeCellChanges, toLocalSelection, toRootSelection } from '../shared/cellTextCodec';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 describe('selection mapping', () => {

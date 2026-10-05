@@ -77,6 +77,16 @@ const LAYER_BOUNDARIES = [
         forbidden: ['tableCommands'],
         message: 'tableWidget modules must not depend on command registration or command entry points.',
     },
+    {
+        layer: 'nestedEditor',
+        forbidden: ['tableCommands', 'toolbar'],
+        message: 'nestedEditor must not depend on command entry points or toolbar UI.',
+    },
+    {
+        layer: 'toolbar',
+        forbidden: ['tableCommands'],
+        message: 'toolbar actions should go through state/runtime APIs instead of command entry points.',
+    },
 ];
 
 const LAYER_ZONES = LAYER_BOUNDARIES.map(({ layer, forbidden, message }) => ({
