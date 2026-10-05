@@ -715,12 +715,14 @@ export function registerPlatformShortcutTests(
         }
     );
 
-    it.each(UNROUTED[platform])('nested $label bubbles to the host but not the root editor', ({ init }) => {
-        mountMainActiveCellView();
-        const nested = mountNestedRoutingView();
+    it.each(UNROUTED[platform])(
+        'nested $label bubbles to the host and remains owned by the nested editor',
+        ({ init }) => {
+            const nested = mountNestedRoutingView();
 
-        expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
-    });
+            expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
+        }
+    );
 
     // Nothing below depends on the simulated platform, so one platform file runs it.
     if (!options.includeSharedBehavior) {
@@ -743,12 +745,14 @@ export function registerPlatformShortcutTests(
         expectSelectionDeleteIgnored({ key: 'Delete', shiftKey: true });
     });
 
-    it.each(UNROUTED_EVERYWHERE)('nested $label bubbles to the host but not the root editor', ({ init }) => {
-        mountMainActiveCellView();
-        const nested = mountNestedRoutingView();
+    it.each(UNROUTED_EVERYWHERE)(
+        'nested $label bubbles to the host and remains owned by the nested editor',
+        ({ init }) => {
+            const nested = mountNestedRoutingView();
 
-        expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
-    });
+            expectUnroutedBubble(nested, pressKey(nested.view.contentDOM, init));
+        }
+    );
 
     it('keeps scoped history bindings out of the root editor keyboard scope', () => {
         const { view, historyCounter } = mountSelectionView();

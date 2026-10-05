@@ -9,12 +9,45 @@ import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } 
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { createMarkdownState } from './testMarkdownState';
 
+installRangeLayoutStubs();
+
+vi.mock('../tableRuntime/selection/cellSelectionClipboard', async (importOriginal) => ({
+    ...(await importOriginal<typeof CellSelectionClipboard>()),
+    handleTableClipboardTextPaste: vi.fn(() => false),
+}));
+
+const handleTableClipboardTextPasteMock = vi.mocked(handleTableClipboardTextPaste);
+
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 const PREFIX = 'above\n\n';
 const DOC = `${PREFIX}${TABLE}\n\nbelow`;
 const TABLE_FROM = PREFIX.length;
 const TABLE_TO = TABLE_FROM + TABLE.length;
 const mountedViews: EditorView[] = [];
+
+function dispatchPaste(target: HTMLElement, text: string): void {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+        value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
+    });
+    target.dispatchEvent(event);
+}
+
+function createPasteView(parent: HTMLElement): EditorView {
+    const view = new EditorView({
+        parent,
+        state: EditorState.create({
+            doc: 'selected text',
+            selection: EditorSelection.single(0, 'selected'.length),
+            extensions: createNestedEditorInteractionExtensions({} as EditorView, {
+                closeEditor: vi.fn(),
+                syncPendingChangesToRoot: vi.fn(),
+            }),
+        }),
+    });
+    mountedViews.push(view);
+    return view;
+}
 
 function mountMainView(activeCell: ActiveCell): EditorView {
     const parent = document.createElement('div');
@@ -181,39 +214,6 @@ describe('nested editor vertical cell selection', () => {
         expect(getCellSelection(mainView.state)).toBeNull();
     });
 });
-
-installRangeLayoutStubs();
-
-vi.mock('../tableRuntime/selection/cellSelectionClipboard', async (importOriginal) => ({
-    ...(await importOriginal<typeof CellSelectionClipboard>()),
-    handleTableClipboardTextPaste: vi.fn(() => false),
-}));
-
-const handleTableClipboardTextPasteMock = vi.mocked(handleTableClipboardTextPaste);
-
-function dispatchPaste(target: HTMLElement, text: string): void {
-    const event = new Event('paste', { bubbles: true, cancelable: true });
-    Object.defineProperty(event, 'clipboardData', {
-        value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
-    });
-    target.dispatchEvent(event);
-}
-
-function createPasteView(parent: HTMLElement): EditorView {
-    const view = new EditorView({
-        parent,
-        state: EditorState.create({
-            doc: 'selected text',
-            selection: EditorSelection.single(0, 'selected'.length),
-            extensions: createNestedEditorInteractionExtensions({} as EditorView, {
-                closeEditor: vi.fn(),
-                syncPendingChangesToRoot: vi.fn(),
-            }),
-        }),
-    });
-    mountedViews.push(view);
-    return view;
-}
 
 describe('nested editor table paste', () => {
     afterEach(() => {
