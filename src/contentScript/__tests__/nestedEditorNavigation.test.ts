@@ -2,7 +2,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { requireResolvedActiveCell } from './testUtils';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
@@ -42,7 +43,7 @@ describe('nested editor navigation', () => {
             throw new Error('Expected active cell to be set');
         }
 
-        openNestedEditor({
+        getNestedEditorPort(mainView).open({
             mainView,
             cellElement,
             resolvedCell: requireResolvedActiveCell(mainView.state),
@@ -110,7 +111,7 @@ describe('nested editor navigation', () => {
         const cellElement = document.createElement('td');
         document.body.appendChild(cellElement);
 
-        openNestedEditor({
+        getNestedEditorPort(mainView).open({
             mainView,
             cellElement,
             resolvedCell: requireResolvedActiveCell(mainView.state),

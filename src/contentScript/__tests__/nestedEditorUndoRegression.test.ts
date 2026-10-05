@@ -4,7 +4,7 @@ import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { requireResolvedActiveCell } from './testUtils';
 import { getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
@@ -59,14 +59,14 @@ describe('nested editor undo regression', () => {
             throw new Error('Expected first body cell element');
         }
 
-        const opened = openNestedEditor({
+        const opened = getNestedEditorPort(view).open({
             mainView: view,
             resolvedCell: requireResolvedActiveCell(view.state),
             cellElement,
             featureSettings: TEST_HOST_CONFIG.nestedEditor,
         });
         expect(opened).toBe(true);
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
 
         const resolved = getResolvedActiveCell(view.state);
         expect(resolved).not.toBeNull();
@@ -84,7 +84,7 @@ describe('nested editor undo regression', () => {
         await frames.flush();
 
         expect(getActiveCell(view.state)).toEqual(activeCell);
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
 
         view.destroy();
     });
@@ -114,7 +114,7 @@ describe('nested editor undo regression', () => {
         const cellElement = findCellElement(view, 0, activeCell);
         if (!cellElement) throw new Error('Expected active cell element');
         expect(
-            openNestedEditor({
+            getNestedEditorPort(view).open({
                 mainView: view,
                 resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement,
@@ -134,7 +134,7 @@ describe('nested editor undo regression', () => {
         const tableBCellFrom = view.state.doc.toString().indexOf('stale');
         view.dispatch({ changes: { from: tableBCellFrom, to: tableBCellFrom + 'stale'.length, insert: 'fresh' } });
 
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
         expect(cellElement.closest(SELECTOR_WIDGET)).toBe(activeWidget);
         expect(cellElement.querySelector('.cm-editor')).toBe(nestedEditorDom);
         expect(cellElement.textContent).toContain('typed');
@@ -184,7 +184,7 @@ describe('nested editor undo regression', () => {
             expect(secondElement.querySelector('.cm-editor')).not.toBeNull();
             expect(secondElement.querySelector('.cm-content')?.textContent).toBe('second');
             expect(getActiveCell(view.state)).toEqual(secondCell);
-            expect(isNestedEditorOpen(view)).toBe(true);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
 
             await openCell(firstCell);
             expect(firstElement.querySelector('.cm-content')?.textContent).toBe('updated first');
@@ -209,7 +209,7 @@ describe('nested editor undo regression', () => {
             const cellElement = findCellElement(view, 0, activeCell);
             if (!cellElement) throw new Error('Expected active cell element');
             expect(
-                openNestedEditor({
+                getNestedEditorPort(view).open({
                     mainView: view,
                     resolvedCell: requireResolvedActiveCell(view.state),
                     cellElement,
@@ -230,7 +230,7 @@ describe('nested editor undo regression', () => {
             }
 
             expect(view.state.field(tableContextField).treeIncomplete).toBe(true);
-            expect(isNestedEditorOpen(view)).toBe(false);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
             expect(view.contentDOM.querySelector(SELECTOR_WIDGET)).toBeNull();
             expect(view.state.doc.sliceString(0, doc.length)).toBe(doc);
             await frames.flush();
@@ -240,7 +240,7 @@ describe('nested editor undo regression', () => {
             view.dispatch({});
             expect(view.state.field(tableDecorationField).decorations.size).toBe(appendedTableCount + 1);
             expect(view.contentDOM.querySelector(SELECTOR_WIDGET)).not.toBeNull();
-            expect(isNestedEditorOpen(view)).toBe(false);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
         } finally {
             view.destroy();
         }
@@ -280,7 +280,7 @@ describe('nested editor undo regression', () => {
         const cellElement = findCellElement(view, 0, activeCell);
         if (!cellElement) throw new Error('Expected active cell element');
         expect(
-            openNestedEditor({
+            getNestedEditorPort(view).open({
                 mainView: view,
                 resolvedCell: requireResolvedActiveCell(view.state),
                 cellElement,
@@ -300,7 +300,7 @@ describe('nested editor undo regression', () => {
 
         expect(view.state.doc.toString()).toContain('| old |');
         expect(getActiveCell(view.state)?.tableFrom).toBe(tableBFrom);
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
         expect(cellElement.querySelector('.cm-editor')).toBeNull();
         const focusedWidget = document.activeElement?.closest(SELECTOR_WIDGET);
         expect(focusedWidget).not.toBeNull();

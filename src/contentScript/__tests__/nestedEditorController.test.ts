@@ -1,6 +1,6 @@
 /**
- * Characterization tests for the nested editor controller, driven through its
- * exported API and the DOM it owns. The nested EditorView is reached via
+ * Characterization tests for the nested editor controller, driven through the
+ * nested editor port and the DOM it owns. The nested EditorView is reached via
  * `EditorView.findFromDOM` on the cell's editor host rather than the
  * controller's private session, so these tests describe observable behavior.
  */
@@ -12,15 +12,8 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import {
-    cleanupHostedNestedEditors,
-    closeNestedEditor,
-    handleMainEditorUpdate,
-    isNestedEditorOpen,
-    nestedEditorPlugin,
-    openNestedEditor,
-    refocusNestedEditor,
-} from '../nestedEditor/nestedEditorController';
+import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import {
     activeCellField,
@@ -77,7 +70,7 @@ function createHarness(params: {
                 EditorView.updateListener.of((update) => {
                     const resolvedCell = getResolvedActiveCell(update.state);
                     if (mainView && resolvedCell && (update.docChanged || update.selectionSet)) {
-                        handleMainEditorUpdate(mainView, update, resolvedCell);
+                        getNestedEditorPort(mainView).handleMainEditorUpdate(mainView, update, resolvedCell);
                     }
                 }),
             ],
@@ -97,7 +90,7 @@ function createHarness(params: {
 
 /** Opens the nested editor on the active cell, resolved the way the lifecycle resolves it before opening. */
 function openInCell(view: EditorView, cellElement: HTMLElement, initialCursorPos?: InitialCursorPos): boolean {
-    return openNestedEditor({
+    return getNestedEditorPort(view).open({
         mainView: view,
         cellElement,
         resolvedCell: requireResolvedActiveCell(view.state),
@@ -130,7 +123,7 @@ describe('nestedEditorController open', () => {
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
         expect(openInCell(view, cellElement)).toBe(true);
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
         expect(cellElement.classList.contains(CLASS_CELL_ACTIVE)).toBe(true);
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('a | b\nc');
 
@@ -295,7 +288,7 @@ describe('nestedEditorController unresolved active cell', () => {
         });
 
         expect(getResolvedActiveCell(view.state)).toBeNull();
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
         expect(nested.state.doc.toString()).toBe(typed);
         expect(nested.state.selection.main).toMatchObject({ anchor: 4, head: 4 });
 
@@ -356,7 +349,7 @@ describe('nestedEditorController handleMainEditorUpdate', () => {
         openInCell(view, cellElement);
         view.dispatch({ changes: { from: 0, to: 0, insert: 'more ' } });
 
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
         expect(requireNestedView(cellElement).state.doc.toString()).toBe('abc');
 
         view.destroy();
@@ -374,9 +367,9 @@ describe('nestedEditorController close', () => {
         vi.mocked(renderer.getCached).mockReturnValue(htmlFragment('<p><strong>bold</strong></p>'));
 
         openInCell(view, cellElement);
-        closeNestedEditor(view);
+        getNestedEditorPort(view).close(view);
 
-        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
         expect(nestedViewIn(cellElement)).toBeNull();
         expect(cellElement.classList.contains(CLASS_CELL_ACTIVE)).toBe(false);
         expect(renderer.getCached).toHaveBeenCalledWith('**bold**');
@@ -390,7 +383,7 @@ describe('nestedEditorController close', () => {
         const { view, cellElement, renderer } = createHarness({ doc, activeCell: bodyCell() });
 
         openInCell(view, cellElement);
-        closeNestedEditor(view, { contentFrom: 2, contentTo: 4 });
+        getNestedEditorPort(view).close(view, { contentFrom: 2, contentTo: 4 });
 
         expect(renderer.getCached).toHaveBeenCalledWith('H1');
 
@@ -401,9 +394,9 @@ describe('nestedEditorController close', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, renderer } = createHarness({ doc, activeCell: bodyCell() });
 
-        closeNestedEditor(view);
+        getNestedEditorPort(view).close(view);
 
-        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
         expect(renderer.getCached).not.toHaveBeenCalled();
 
         view.destroy();
@@ -420,9 +413,9 @@ describe('nestedEditorController host cleanup', () => {
         const { view, cellElement, parent } = createHarness({ doc, activeCell: bodyCell() });
 
         openInCell(view, cellElement);
-        cleanupHostedNestedEditors(view, parent);
+        getNestedEditorPort(view).closeIfHostedIn(view, parent);
 
-        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
 
         view.destroy();
     });
@@ -432,9 +425,9 @@ describe('nestedEditorController host cleanup', () => {
         const { view, cellElement } = createHarness({ doc, activeCell: bodyCell() });
 
         openInCell(view, cellElement);
-        cleanupHostedNestedEditors(view, document.createElement('div'));
+        getNestedEditorPort(view).closeIfHostedIn(view, document.createElement('div'));
 
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
 
         view.destroy();
     });
@@ -443,8 +436,8 @@ describe('nestedEditorController host cleanup', () => {
         const doc = ['| H1 |', '| --- |', '| abc |'].join('\n');
         const { view, parent } = createHarness({ doc, activeCell: bodyCell() });
 
-        expect(() => refocusNestedEditor(view)).not.toThrow();
-        expect(() => cleanupHostedNestedEditors(view, parent)).not.toThrow();
+        expect(() => getNestedEditorPort(view).refocus(view)).not.toThrow();
+        expect(() => getNestedEditorPort(view).closeIfHostedIn(view, parent)).not.toThrow();
 
         view.destroy();
     });

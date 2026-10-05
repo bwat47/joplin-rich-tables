@@ -3,7 +3,7 @@ import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNestedEditorDomHandlers, createNestedEditorKeymap } from '../nestedEditor/domHandlers';
-import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { startCellDragEffect } from '../tableState/cellDragState';
@@ -837,14 +837,14 @@ export function registerPlatformShortcutTests(
             }
 
             expect(
-                openNestedEditor({
+                getNestedEditorPort(view).open({
                     mainView: view,
                     resolvedCell: requireResolvedActiveCell(view.state),
                     cellElement,
                     featureSettings: TEST_HOST_CONFIG.nestedEditor,
                 })
             ).toBe(true);
-            expect(isNestedEditorOpen(view)).toBe(true);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
             return cellElement;
         }
 
@@ -908,7 +908,7 @@ export function registerPlatformShortcutTests(
             await frames.flush();
 
             expect(view.state.doc.toString()).toContain('| abc |');
-            expect(isNestedEditorOpen(view)).toBe(true);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
             expect(getActiveCell(view.state)).toMatchObject({ tableFrom: 0, section: 'body', row: 0, col: 0 });
             expect(EditorView.findFromDOM(document.activeElement as HTMLElement)).not.toBe(view);
 
@@ -917,7 +917,7 @@ export function registerPlatformShortcutTests(
             await frames.flush();
 
             expect(view.state.doc.toString()).toContain('| typed |');
-            expect(isNestedEditorOpen(view)).toBe(true);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
             typeIntoFocusedEditor('Y');
             expect(view.state.doc.toString()).toContain('| typedY |');
         });
@@ -942,7 +942,7 @@ export function registerPlatformShortcutTests(
             await frames.flush();
 
             expect(view.state.doc.toString()).toBe(intro);
-            expect(isNestedEditorOpen(view)).toBe(false);
+            expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
             expect(getActiveCell(view.state)).toBeNull();
 
             typeIntoFocusedEditor('X');

@@ -18,7 +18,7 @@ import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime
 import { searchMatchCellEntryExtension } from '../tableRuntime/searchMatchCellEntry';
 import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
-import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { getNestedEditorPort } from '../tableRuntime/nestedEditorPort';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
@@ -198,7 +198,7 @@ describe('search shortcuts with rendered tables', () => {
         pressF3(view.contentDOM);
         await frames.flush();
 
-        expect(isNestedEditorOpen(view)).toBe(true);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(true);
         expect(getActiveCell(view.state)).toEqual(FIRST_BODY_CELL);
         expect(nestedSelectionIn(view, FIRST_BODY_CELL)).toEqual({ anchor: 0, head: MATCH_LENGTH });
     });
@@ -209,7 +209,7 @@ describe('search shortcuts with rendered tables', () => {
         if (!cellElement) {
             throw new Error('Expected the body cell element');
         }
-        openNestedEditor({
+        getNestedEditorPort(view).open({
             mainView: view,
             cellElement,
             resolvedCell: requireResolvedActiveCell(view.state),
@@ -235,7 +235,7 @@ describe('search shortcuts with rendered tables', () => {
         expect(searchPanelOpen(view.state)).toBe(true);
         expect(getSearchQuery(view.state).search).toBe('abc');
         expect(getActiveCell(view.state)).toBeNull();
-        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
     });
 
     it('opens the search panel when F3 runs in a cell editor without a query', async () => {
@@ -247,7 +247,7 @@ describe('search shortcuts with rendered tables', () => {
 
         expect(searchPanelOpen(view.state)).toBe(true);
         expect(getActiveCell(view.state)).toBeNull();
-        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
     });
 
     it('returns focus to the main editor when F3 jumps from a cell to a match outside tables', async () => {
@@ -257,7 +257,7 @@ describe('search shortcuts with rendered tables', () => {
         pressF3(document.activeElement ?? view.contentDOM);
         await frames.flush();
 
-        expect(isNestedEditorOpen(view)).toBe(false);
+        expect(getNestedEditorPort(view).isOpen(view)).toBe(false);
         expect(getActiveCell(view.state)).toBeNull();
         expect(view.state.selection.main).toMatchObject({ from: OUTSIDE_MATCH, to: OUTSIDE_MATCH + MATCH_LENGTH });
         expect(view.hasFocus).toBe(true);
