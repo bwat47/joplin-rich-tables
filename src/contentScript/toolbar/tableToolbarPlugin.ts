@@ -16,7 +16,7 @@ import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     computePinnedAbsolutePlacement,

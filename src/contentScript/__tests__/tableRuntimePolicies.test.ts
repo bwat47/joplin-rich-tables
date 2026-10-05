@@ -18,7 +18,7 @@ import { syncAnnotation } from '../shared/syncAnnotation';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { parseTableFixture } from './testUtils';
 

@@ -15,7 +15,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { sourceModeField } from '../tableState/sourceMode';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 import { searchMatchCellEntryExtension } from '../tableRuntime/searchMatchCellEntry';
 import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';

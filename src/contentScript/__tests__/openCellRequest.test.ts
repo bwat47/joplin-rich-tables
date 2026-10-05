@@ -7,9 +7,9 @@ import {
     clearOpenCellRequestEffect,
     getPendingOpenCellRequest,
     openCellRequestField,
-    openCellRequestTimeoutPlugin,
     shouldSuppressNavigationKeys,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
+import { openCellRequestTimeoutPlugin } from '../tableRuntime/openCellRequest';
 
 vi.mock('../../logger', () => ({
     logger: {

@@ -12,7 +12,7 @@ import type { MarkdownTable } from '../tableModel/MarkdownTable';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 
 const { mockGetResolvedActiveCell, mockRunStructuralAction, mockIsNestedEditorOpen, mockRefocusNestedEditor } =
     vi.hoisted(() => ({

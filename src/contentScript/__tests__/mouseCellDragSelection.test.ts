@@ -3,7 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';

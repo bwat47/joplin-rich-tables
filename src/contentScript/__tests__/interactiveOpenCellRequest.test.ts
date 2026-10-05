@@ -8,7 +8,7 @@ import {
     beginOpenCellRequestEffect,
     getPendingOpenCellRequest,
     triggerOpenCellRequestEffect,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
 import {
     createInteractiveTableHarness,
     getLastDispatchSpec,

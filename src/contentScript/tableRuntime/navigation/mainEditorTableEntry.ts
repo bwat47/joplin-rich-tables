@@ -16,7 +16,7 @@ import {
     toResolvedActiveCell,
     type ResolvedActiveCell,
 } from '../../tableState/resolvedActiveCell';
-import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../openCellRequest';
+import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
 import {

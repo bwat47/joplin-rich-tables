@@ -11,7 +11,7 @@ import { activeCellField } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { cellDragField } from '../tableState/cellDragState';
 import { tableContextField } from '../tableState/tableContextField';
-import { openCellRequestField } from '../tableRuntime/openCellRequest';
+import { openCellRequestField } from '../tableState/openCellRequestState';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';

@@ -8,7 +8,7 @@ import {
     getPendingOpenCellRequest,
     openCellRequestField,
     triggerOpenCellRequestEffect,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
 import { activeCellField } from '../tableState/activeCellState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { findCellElement } from '../tableWidget/domHelpers';

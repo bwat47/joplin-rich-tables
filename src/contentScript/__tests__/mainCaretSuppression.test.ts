@@ -8,7 +8,7 @@ import {
     beginOpenCellRequestEffect,
     clearOpenCellRequestEffect,
     openCellRequestField,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
 import { mainCaretSuppression } from '../tableWidget/mainCaretSuppression';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
