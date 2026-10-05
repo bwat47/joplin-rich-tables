@@ -11,7 +11,7 @@ import { alphaEquivalentLayer, parseHexColor, toPercentageCss, toRgbCss } from '
  * color (light `#e5e5e5`, dark `#616161`), not the text-selection color.
  *
  * Exported for the two themes that paint cell text with the browser's own highlight --
- * `renderedTextSelectionTheme.ts` and `nestedEditor/rootEditorSelectionTheme.ts` -- which need the
+ * `renderedTextSelectionTheme.ts` and `rootEditorSelectionTheme.ts` -- which need the
  * colors themselves rather than the variables below: a `::selection` rule cannot read them.
  */
 export const JOPLIN_SELECTION_COLORS = {

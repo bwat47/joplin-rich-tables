@@ -49,7 +49,7 @@ import {
     outsideInteractionCapturePlugin,
 } from '../tableRuntime/interaction/outsideTableInteraction';
 import { tableDecorationField } from './tableDecorationField';
-import { rootEditorActiveCellAttribute, rootEditorSelectionPainting } from '../nestedEditor/rootEditorSelectionTheme';
+import { rootEditorActiveCellAttribute, rootEditorSelectionPainting } from './rootEditorSelectionTheme';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 
 // Registered ahead of `closeOnOutsideMouseDown` so a widget press is routed first. CodeMirror

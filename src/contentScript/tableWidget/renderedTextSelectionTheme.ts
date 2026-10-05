@@ -15,7 +15,7 @@ import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
  *   `wholeTableSelectionVisuals.ts`, which paints the block itself and needs the browser's own
  *   highlight out of the way underneath.
  * - `:not(.${CLASS_CELL_ACTIVE})` leaves the open cell's browser-painted selection to
- *   `nestedEditor/rootEditorSelectionTheme.ts`, which supplies its focused and blurred colours.
+ *   `rootEditorSelectionTheme.ts`, which supplies its focused and blurred colours.
  *
  * Being mutually exclusive with both, this rule contends on specificity only with Joplin's own
  * `&.cm-focused ::selection !important`, which it outweighs. The coordinate attributes anchor the

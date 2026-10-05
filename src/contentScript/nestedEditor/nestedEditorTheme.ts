@@ -21,8 +21,8 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
             // --- Selection rendering ---
             // No `drawSelection`: the browser paints the caret and selection, so an open cell and
             // the rendered cells around it are highlighted by the same engine, and iOS keeps its
-            // native selection handles. `rootEditorSelectionTheme.ts` colours both, overriding the
-            // blanking the host editor's own `drawSelection` applies throughout its DOM.
+            // native selection handles. `tableWidget/rootEditorSelectionTheme.ts` colours both,
+            // overriding the blanking the host editor's own `drawSelection` applies throughout its DOM.
 
             // --- Joplin/CM environment resets ---
             // These override Joplin's and CodeMirror's aggressive defaults that would

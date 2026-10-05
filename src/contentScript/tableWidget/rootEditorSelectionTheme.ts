@@ -1,8 +1,8 @@
 import { EditorView } from '@codemirror/view';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { JOPLIN_SELECTION_COLORS } from '../tableWidget/richTableThemeVars';
-import { ATTR_CARET_SUPPRESSED } from '../tableWidget/mainCaretSuppression';
+import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
+import { ATTR_CARET_SUPPRESSED } from './mainCaretSuppression';
 
 // Set data-rt-nested-active on Joplin's root .cm-editor when a cell is being edited.
 // This attribute lets the painting theme below scope its selectors from the root.
@@ -33,7 +33,7 @@ function openCellText(scope: string, focused: boolean): string {
 
 /**
  * Joplin's selection colours, written out rather than read from `--rt-selection-*-bg` for the
- * reason `tableWidget/renderedTextSelectionTheme.ts` gives: a highlight pseudo-element cannot
+ * reason `renderedTextSelectionTheme.ts` gives: a highlight pseudo-element cannot
  * see custom properties defined on the editor root.
  */
 function selectionFill(
