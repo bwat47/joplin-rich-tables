@@ -4,7 +4,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
-import { handleWidgetClick, handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
 import { getCellSelector } from '../tableWidget/domHelpers';

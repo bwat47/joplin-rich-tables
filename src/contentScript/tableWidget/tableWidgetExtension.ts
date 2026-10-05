@@ -1,4 +1,4 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import type { Facet } from '@codemirror/state';
 import type { ContentScriptContext, CodeMirrorControl, MarkdownEditorContentScriptModule } from 'api/types';
 import {
@@ -28,7 +28,7 @@ import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelecti
 import { isNestedEditorOpen, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from '../nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from '../tableRuntime/mainEditorGuard';
-import { handleWidgetClick, handleWidgetPress } from './tableWidgetInteractions';
+import { widgetInteractionHandlers } from '../tableRuntime/interaction/widgetInteraction';
 import { tableToolbarPlugin, tableToolbarTheme } from '../toolbar/tableToolbarPlugin';
 import { tableStyles } from './tableStyles';
 import { richTableThemeVars } from './richTableThemeVars';
@@ -51,21 +51,6 @@ import {
 import { tableDecorationField } from './tableDecorationField';
 import { rootEditorActiveCellAttribute, rootEditorSelectionPainting } from './rootEditorSelectionTheme';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
-
-// Registered ahead of `closeOnOutsideMouseDown` so a widget press is routed first. CodeMirror
-// stops running handlers for an event once one returns true, and appends its own built-in
-// handlers after every plugin's, so a press this router takes reaches neither.
-const tableWidgetInteractionHandlers = EditorView.domEventHandlers({
-    pointerdown: (event, view) => {
-        return handleWidgetPress(view, event);
-    },
-    mousedown: (event, view) => {
-        return handleWidgetPress(view, event);
-    },
-    click: (event, view) => {
-        return handleWidgetClick(view, event);
-    },
-});
 
 /**
  * Content script module export.
@@ -136,7 +121,10 @@ async function registerTableWidgetExtension(
         openCellRequestTimeoutPlugin,
 
         mouseCellDragSelectionPlugin,
-        tableWidgetInteractionHandlers,
+        // Registered ahead of `closeOnOutsideMouseDown` so a widget press is routed first. CodeMirror
+        // stops running handlers for an event once one returns true, and appends its own built-in
+        // handlers after every plugin's, so a press this router takes reaches neither.
+        widgetInteractionHandlers,
         closeOnOutsideMouseDown,
         outsideInteractionCapturePlugin,
         cellSelectionKeyCapturePlugin,

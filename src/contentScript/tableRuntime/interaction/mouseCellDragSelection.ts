@@ -556,7 +556,7 @@ export const mouseCellDragSelectionPlugin = ViewPlugin.fromClass(MouseCellDragSe
  * Starts a gesture for a press on `cell`, and reports whether that press is taken from the editor.
  *
  * The answer is returned rather than applied, so one router decides what happens to every press
- * it sees; see `tableWidget/tableWidgetInteractions.ts`.
+ * it sees; see `tableRuntime/interaction/widgetInteraction.ts`.
  */
 export function beginMouseCellGesture(
     view: EditorView,

@@ -16,7 +16,7 @@ import type { InitialCursorPos } from '../shared/cursorPlacement';
 import type { LocalSelection } from '../shared/cellTextCodec';
 import type { CellCoords } from '../tableModel/types';
 import { unsanitizeRootText } from '../shared/cellTextNormalization';
-import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { getPendingOpenCellRequest } from '../tableRuntime/openCellRequest';
 import { resolveInitialLocalSelection } from '../nestedEditor/nestedEditorSelection';
 import { createInteractiveTableHarness } from './interactiveTableTestHarness';
