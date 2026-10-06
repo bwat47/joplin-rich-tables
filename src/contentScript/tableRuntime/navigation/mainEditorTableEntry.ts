@@ -18,7 +18,7 @@ import {
 } from '../../tableState/resolvedActiveCell';
 import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
-import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../tableBoundarySpacing';
+import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../boundaries/tableBoundarySpacing';
 import {
     countBlankLinesInRun,
     resolveAdjoiningTable,
@@ -26,7 +26,7 @@ import {
     scanNewlinesForward,
     type AdjoiningTable,
     type TableSide,
-} from '../tableBoundaryResolution';
+} from '../boundaries/tableBoundaryResolution';
 import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { fromUnifiedRow } from '../../tableModel/types';
 

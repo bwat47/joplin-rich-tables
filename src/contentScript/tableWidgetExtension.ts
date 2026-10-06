@@ -40,7 +40,7 @@ import { openCellRequestField } from './tableState/openCellRequestState';
 import { openCellRequestKeymap, openCellRequestTimeoutPlugin } from './tableRuntime/openCellRequest';
 import { createUndoScrollPreservation } from './tableRuntime/undoScrollPreservation';
 import { mainEditorTableEntryExtension } from './tableRuntime/navigation/mainEditorTableEntry';
-import { tableBoundaryMaintenanceExtension } from './tableRuntime/tableBoundaryMaintenance';
+import { tableBoundaryMaintenanceExtension } from './tableRuntime/boundaries/tableBoundaryMaintenance';
 import {
     closeOnOutsideMouseDown,
     outsideInteractionCapturePlugin,

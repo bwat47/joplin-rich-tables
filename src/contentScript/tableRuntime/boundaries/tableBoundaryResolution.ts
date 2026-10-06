@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
-import type { TableContext } from '../tableModel/tableContext';
-import { getTableContextEndingAt, getTableContextStartingAt } from '../tableState/tableContextField';
+import type { TableContext } from '../../tableModel/tableContext';
+import { getTableContextEndingAt, getTableContextStartingAt } from '../../tableState/tableContextField';
 import { isBlankLineContent } from './tableBoundarySpacing';
 
 /** Which side of a boundary a table sits on. */

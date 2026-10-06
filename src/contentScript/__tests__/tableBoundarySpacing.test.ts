@@ -5,7 +5,7 @@ import {
     hasRequiredBlankLinesBefore,
     needsLeadingSeparator,
     needsTrailingSeparator,
-} from '../tableRuntime/tableBoundarySpacing';
+} from '../tableRuntime/boundaries/tableBoundarySpacing';
 
 const TABLE_LINES = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'];
 

@@ -7,7 +7,7 @@ import { cellSelectionField } from '../tableState/cellSelectionState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { openSearchPanelInState } from './searchPanelTestUtils';
 import { openCellRequestField } from '../tableState/openCellRequestState';
-import { tableBoundaryMaintenanceExtension } from '../tableRuntime/tableBoundaryMaintenance';
+import { tableBoundaryMaintenanceExtension } from '../tableRuntime/boundaries/tableBoundaryMaintenance';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { createMarkdownState } from './testMarkdownState';
 

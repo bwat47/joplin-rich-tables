@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countBlankLinesInRun, type NewlineScan } from '../tableRuntime/tableBoundaryResolution';
+import { countBlankLinesInRun, type NewlineScan } from '../tableRuntime/boundaries/tableBoundaryResolution';
 
 function scan(count: number, reachesDocumentEdge: boolean): NewlineScan {
     return { count, edge: 0, reachesDocumentEdge };
