@@ -13,7 +13,7 @@ import {
     type TableRuntimeFacts,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
 import { classifyActiveCellChanges } from '../tableState/activeCellChangeScope';
-import { decideMainEditorGuardTransaction } from '../tableRuntime/mainEditorGuardPolicy';
+import { decideMainEditorGuardTransaction } from '../tableRuntime/guard/mainEditorGuardPolicy';
 import { syncAnnotation } from '../shared/syncAnnotation';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';

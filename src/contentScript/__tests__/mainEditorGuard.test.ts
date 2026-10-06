@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Transaction } from '@codemirror/state';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { createMainEditorActiveCellGuard } from '../tableRuntime/mainEditorGuard';
+import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
 import {
     buildMultiCellPasteRewrite,
     createTableClipboardRewriteSpec,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { sanitizeCellChanges } from '../tableRuntime/sanitizeCellChanges';
+import { sanitizeCellChanges } from '../tableRuntime/guard/sanitizeCellChanges';
 
 describe('sanitizeCellChanges', () => {
     it('sanitizes direct main-editor paste inside the active cell', () => {

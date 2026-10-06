@@ -3,7 +3,7 @@ import {
     convertNewlinesToBr,
     escapeUnescapedPipesWithContext,
     normalizeBrTags,
-} from '../tableModel/cellTextNormalization';
+} from '../../tableModel/cellTextNormalization';
 
 /** A simple change spec for building sanitized transactions. */
 type SimpleChange = { from: number; to: number; insert: string };
