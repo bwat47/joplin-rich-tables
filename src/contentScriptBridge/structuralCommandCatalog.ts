@@ -1,5 +1,3 @@
-import type { StructuralActionId } from '../contentScript/tableRuntime/operations/structuralActions';
-
 /**
  * Single source of truth for the structural table commands, shared by the Joplin host
  * (`src/index.ts`) and the CodeMirror content script (`tableCommands.ts`).
@@ -20,12 +18,9 @@ interface StructuralCommandDescriptor {
     accelerator?: string;
 }
 
-export interface StructuralCommandEntry extends StructuralCommandDescriptor {
-    actionId: StructuralActionId;
-}
-
 /**
- * Keyed by action id so adding a `StructuralActionId` fails to compile until it has a command.
+ * Keyed by action id. `StructuralActionId` is these keys, so a new entry fails in
+ * `runStructuralAction` until the runtime handles it.
  * Declaration order drives both the Tools menu and registration order.
  */
 const structuralCommands = {
@@ -120,7 +115,14 @@ const structuralCommands = {
         commandName: 'richTables.sortColumnDescending',
         label: 'Sort rows by column (Z to A)',
     },
-} satisfies Record<StructuralActionId, StructuralCommandDescriptor>;
+} satisfies Record<string, StructuralCommandDescriptor>;
+
+/** Action ids shared by the host command catalog and the content-script runtime. */
+export type StructuralActionId = keyof typeof structuralCommands;
+
+export interface StructuralCommandEntry extends StructuralCommandDescriptor {
+    actionId: StructuralActionId;
+}
 
 export const STRUCTURAL_COMMANDS: readonly StructuralCommandEntry[] = (
     Object.keys(structuralCommands) as StructuralActionId[]

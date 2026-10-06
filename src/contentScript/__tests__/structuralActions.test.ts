@@ -5,11 +5,8 @@ import type { MarkdownTable, TableAlignment } from '../tableModel/MarkdownTable'
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
-import {
-    runStructuralAction,
-    runStructuralActionOnActiveCell,
-    type StructuralActionId,
-} from '../tableRuntime/operations/structuralActions';
+import type { StructuralActionId } from '../../contentScriptBridge/structuralCommandCatalog';
+import { runStructuralAction, runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
 
 vi.mock('../tableRuntime/operations/runStructuralCommand', () => ({
     runStructuralCommand: vi.fn(),

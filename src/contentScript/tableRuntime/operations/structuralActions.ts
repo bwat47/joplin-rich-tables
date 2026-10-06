@@ -1,13 +1,12 @@
 import type { EditorView } from '@codemirror/view';
 import type { TableAlignment } from '../../tableModel/MarkdownTable';
 import type { StructuralTableCommandById, StructuralTableCommandId } from '../../tableModel/structuralCommandSemantics';
+import type { StructuralActionId } from '../../../contentScriptBridge/structuralCommandCatalog';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { runStructuralCommand } from './runStructuralCommand';
 
 type AlignmentStructuralActionId = 'alignLeft' | 'alignCenter' | 'alignRight';
-
-export type StructuralActionId = StructuralTableCommandId | AlignmentStructuralActionId;
 
 const modelBackedCommands = {
     insertRowBefore: { type: 'insertRowBefore' },
