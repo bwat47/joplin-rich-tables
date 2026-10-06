@@ -1,22 +1,19 @@
-import type { EditorView } from '@codemirror/view';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { slugify } from '../shared/cellContentUtils';
-import { parseFootnoteHref } from '../shared/footnoteAnchor';
-import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
-import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { setOrExtendCellSelectionToCoords } from '../tableRuntime/selection/cellSelectionController';
-import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
-import { linkOpenerFacet } from '../services/linkOpener';
-import { isPrimaryMouseButton, isPrimaryMousePointer } from '../shared/mouseEvents';
-import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from './domHelpers';
-import { readRenderedCaretHit } from './cellCaretHit';
-import { resolveClickCursorPos } from '../tableRuntime/interaction/clickCursorPlacement';
-import { requestOpenCell } from '../tableRuntime/openCellRequest';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import {
-    beginMouseCellGesture,
-    mouseCellGestureConsumesMouseDown,
-} from '../tableRuntime/interaction/mouseCellDragSelection';
+import { EditorView } from '@codemirror/view';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
+import { slugify } from '../../shared/cellContentUtils';
+import { parseFootnoteHref } from '../../shared/footnoteAnchor';
+import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
+import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import { setOrExtendCellSelectionToCoords } from '../selection/cellSelectionController';
+import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
+import { linkOpenerFacet } from '../../services/linkOpener';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
+import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from '../../tableWidget/domHelpers';
+import { readRenderedCaretHit } from '../../tableWidget/cellCaretHit';
+import { resolveClickCursorPos } from './clickCursorPlacement';
+import { requestOpenCell } from '../openCellRequest';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { beginMouseCellGesture, mouseCellGestureConsumesMouseDown } from './mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (``` or ~~~) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
@@ -325,3 +322,16 @@ export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerE
     // The nested editor owns the rest of its own events.
     return insideNestedEditor ? false : handleWidgetMouseDown(view, event, target);
 }
+
+/** Routes presses and clicks inside a table widget; see {@link handleWidgetPress}. */
+export const widgetInteractionHandlers = EditorView.domEventHandlers({
+    pointerdown: (event, view) => {
+        return handleWidgetPress(view, event);
+    },
+    mousedown: (event, view) => {
+        return handleWidgetPress(view, event);
+    },
+    click: (event, view) => {
+        return handleWidgetClick(view, event);
+    },
+});

@@ -3,7 +3,7 @@ import { Compartment, type Extension, StateEffect, Transaction } from '@codemirr
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 import {
     classifyTableRuntimeFacts,
     type TableRuntimeExternalFacts,

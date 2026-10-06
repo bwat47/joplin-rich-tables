@@ -5,7 +5,7 @@ import { createNestedEditorInteractionExtensions } from '../tableRuntime/interac
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { requireResolvedActiveCell } from './testUtils';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { resolveTableContextFromEventTarget } from '../tableRuntime/tablePositioning';
+import { resolveTableContextFromEventTarget } from '../tableWidget/widgetTableContext';
 import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
 import type { CellCoords } from '../tableModel/types';
 import { TEST_HOST_CONFIG, createResizeObserverStub, nestedEditorTestExtensions } from './tableEditorFixtures';

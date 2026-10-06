@@ -1,7 +1,7 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 
 /** Marks the editor root while the main editor's caret should not be painted. */
 export const ATTR_CARET_SUPPRESSED = 'data-rt-caret-suppressed';

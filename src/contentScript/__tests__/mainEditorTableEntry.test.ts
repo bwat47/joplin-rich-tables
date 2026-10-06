@@ -7,7 +7,7 @@ import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableSta
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableRuntime/openCellRequest';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';

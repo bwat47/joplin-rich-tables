@@ -18,7 +18,7 @@ import {
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition } from '../activeCell/cellActivation';
 import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
-import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../openCellRequest';
+import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../../tableState/openCellRequestState';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';

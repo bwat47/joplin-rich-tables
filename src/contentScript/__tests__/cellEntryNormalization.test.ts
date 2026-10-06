@@ -5,10 +5,9 @@ import { createResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import {
     beginOpenCellRequestEffect,
     openCellRequestField,
-    prepareOpenCellRequestTransaction,
     triggerOpenCellRequestEffect,
-    type CellEntryMode,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
+import { prepareOpenCellRequestTransaction, type CellEntryMode } from '../tableRuntime/openCellRequest';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';

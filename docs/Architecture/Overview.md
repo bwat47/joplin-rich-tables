@@ -5,9 +5,9 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 ## Content Script Layers
 
 - `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, and table math.
-- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, and state-derived active-cell resolution.
-- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
-- `tableWidget/`: widget rendering, DOM helpers, widget visuals, and widget-local event handling.
+- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, state-derived active-cell resolution, active-cell change classification, and open-cell request state.
+- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
+- `tableWidget/`: widget rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, and widget visuals.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.
 - `services/`: Joplin/external integration.
@@ -17,6 +17,17 @@ Host/editor settings and Joplin-backed services are startup-owned. The content s
 from Joplin before installing the CodeMirror extension, creates shared bridge-backed services, then exposes those
 dependencies through facets; runtime code reads facets rather than calling back into Joplin or keeping module-level
 mutable state.
+
+The composition root, `contentScript/tableWidgetExtension.ts`, initializes services and registers every extension. It
+sits outside the layer folders so it may import from all of them.
+
+### Allowed Dependencies
+
+`LAYER_DEPENDENCIES` in `eslint.config.mjs` is the source of truth. Each layer folder lists the sibling layers it may
+import from, and every other layer is forbidden. `import-x/no-restricted-paths` checks resolved file paths, so the rule
+holds at any nesting depth and however the import is written. Lower layers (`shared`, `tableModel`, `tableState`)
+never depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and `tableCommands`, which reach the
+editor only through state and runtime APIs. Tests and the composition root are outside every layer zone.
 
 ## Documentation Index
 
@@ -41,8 +52,8 @@ mutable state.
 
 | Component     | File                                                            | Purpose                                                          |
 | :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidget/tableWidgetExtension.ts`             | Main entry point; initializes services and assembles extensions. |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering, click-to-cell coordinate mapping.                |
+| **Wiring**    | `contentScript/tableWidgetExtension.ts`                         | Main entry point; initializes services and assembles extensions. |
+| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering and cell geometry for positions the widget hides. |
 | **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.        |
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                                 |
 | **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                         |
@@ -97,7 +108,7 @@ Common ownership boundaries:
 
 - `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, and table math.
 - `tableState/resolvedActiveCell.ts` resolves logical active-cell identity into current table context and document ranges, using only state and model dependencies.
-- `tableRuntime/` owns editor-bound orchestration, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
+- `tableRuntime/` owns editor-bound orchestration, widget press and click routing, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
 - `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
 - `shared/` holds feature-agnostic primitives, including `syncAnnotation` and cell text/selection conversion (`cellTextCodec`).
-- `tableWidget/` owns widget DOM, visual styling, display-mode behavior, and decoration policy.
+- `tableWidget/` owns widget DOM, DOM measurement and coordinate reading, DOM-to-table-context resolution, visual styling, display-mode behavior, and decoration policy.

@@ -3,7 +3,7 @@
   "entry": [
     "webpack.config.js",
     "src/index.ts",
-    "src/contentScript/tableWidget/tableWidgetExtension.ts",
+    "src/contentScript/tableWidgetExtension.ts",
     "src/**/*.test.ts"
   ],
   "project": [

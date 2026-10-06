@@ -12,87 +12,63 @@ import vitest from '@vitest/eslint-plugin';
 const CONTENT_SCRIPT_DIR = 'src/contentScript';
 
 /**
- * Content-script layer boundaries: files anywhere under `layer` must not import from the
- * `forbidden` sibling folders. Enforced by import-x/no-restricted-paths on resolved file paths,
+ * Content-script layer dependencies: each layer lists the sibling folders it may import from; every
+ * other layer folder is forbidden. Enforced by import-x/no-restricted-paths on resolved file paths,
  * so it applies at any nesting depth and regardless of how the import specifier is written.
+ *
+ * The composition root (`contentScript/tableWidgetExtension.ts`) sits directly under
+ * `contentScript/`, outside every layer zone, so it may wire all layers together.
  */
-const LAYER_BOUNDARIES = [
-    {
-        layer: 'shared',
-        forbidden: [
-            'tableModel',
-            'tableState',
-            'tableRuntime',
-            'tableWidget',
-            'tableCommands',
-            'nestedEditor',
-            'services',
-            'toolbar',
-        ],
+const LAYER_DEPENDENCIES = {
+    shared: {
+        allowed: [],
         message: 'shared must stay feature-agnostic.',
     },
-    {
-        layer: 'services',
-        forbidden: [
-            'tableModel',
-            'tableState',
-            'tableRuntime',
-            'tableWidget',
-            'tableCommands',
-            'nestedEditor',
-            'toolbar',
-        ],
+    services: {
+        allowed: ['shared'],
         message: 'services may depend only on shared utilities and external integration code.',
     },
-    {
-        layer: 'tableModel',
-        forbidden: [
-            'tableState',
-            'tableRuntime',
-            'tableWidget',
-            'tableCommands',
-            'nestedEditor',
-            'services',
-            'toolbar',
-        ],
+    tableModel: {
+        allowed: ['shared'],
         message: 'tableModel must not depend on higher-level editor layers.',
     },
-    {
-        layer: 'tableState',
-        forbidden: ['tableRuntime', 'tableWidget', 'tableCommands', 'nestedEditor', 'services', 'toolbar'],
+    tableState: {
+        allowed: ['shared', 'tableModel'],
         message: 'tableState is limited to model types, shared helpers, and sibling state modules.',
     },
-    {
-        layer: 'tableRuntime',
-        forbidden: ['tableCommands'],
-        message: 'tableRuntime must stay below tableCommands in the dependency graph.',
-    },
-    {
-        layer: 'tableCommands',
-        forbidden: ['tableWidget', 'nestedEditor', 'services'],
-        message: 'tableCommands should go through state/runtime APIs instead of widget or nested-editor internals.',
-    },
-    {
-        layer: 'tableWidget',
-        forbidden: ['tableCommands'],
-        message: 'tableWidget modules must not depend on command registration or command entry points.',
-    },
-    {
-        layer: 'nestedEditor',
-        forbidden: ['tableRuntime', 'tableWidget', 'tableCommands', 'toolbar'],
+    nestedEditor: {
+        allowed: ['shared', 'services', 'tableModel', 'tableState'],
         message:
             'nestedEditor must not depend on runtime orchestration, widget rendering, command entry points, or toolbar UI; tableRuntime injects table interaction policy.',
     },
-    {
-        layer: 'toolbar',
-        forbidden: ['tableCommands'],
-        message: 'toolbar actions should go through state/runtime APIs instead of command entry points.',
+    tableWidget: {
+        allowed: ['shared', 'services', 'tableModel', 'tableState', 'nestedEditor'],
+        message:
+            'tableWidget owns rendering and DOM reading; event handling and editor orchestration belong in tableRuntime.',
     },
-];
+    tableRuntime: {
+        allowed: ['shared', 'services', 'tableModel', 'tableState', 'tableWidget', 'nestedEditor'],
+        message: 'tableRuntime must stay below toolbar UI and command entry points in the dependency graph.',
+    },
+    toolbar: {
+        allowed: ['shared', 'services', 'tableModel', 'tableState', 'tableWidget', 'tableRuntime'],
+        message:
+            'toolbar actions should go through state/runtime APIs instead of nested-editor internals or command entry points.',
+    },
+    tableCommands: {
+        allowed: ['shared', 'tableModel', 'tableState', 'tableRuntime'],
+        message:
+            'tableCommands should go through state/runtime APIs instead of widget, nested-editor, or toolbar internals.',
+    },
+};
 
-const LAYER_ZONES = LAYER_BOUNDARIES.map(({ layer, forbidden, message }) => ({
+const LAYERS = Object.keys(LAYER_DEPENDENCIES);
+
+const LAYER_ZONES = Object.entries(LAYER_DEPENDENCIES).map(([layer, { allowed, message }]) => ({
     target: `${CONTENT_SCRIPT_DIR}/${layer}`,
-    from: forbidden.map((folder) => `${CONTENT_SCRIPT_DIR}/${folder}`),
+    from: LAYERS.filter((folder) => folder !== layer && !allowed.includes(folder)).map(
+        (folder) => `${CONTENT_SCRIPT_DIR}/${folder}`
+    ),
     message,
 }));
 
@@ -162,14 +138,6 @@ export default [
                     })),
                 },
             ],
-        },
-    },
-
-    // Composition root: wires every layer together, so it is exempt from layer boundaries.
-    {
-        files: [`${CONTENT_SCRIPT_DIR}/tableWidget/tableWidgetExtension.ts`],
-        rules: {
-            'import-x/no-restricted-paths': 'off',
         },
     },
 

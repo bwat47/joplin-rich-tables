@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { StateEffect, TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
-import { handleWidgetPress } from '../tableWidget/tableWidgetInteractions';
+import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import {
     beginOpenCellRequestEffect,
     getPendingOpenCellRequest,
     triggerOpenCellRequestEffect,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
 import {
     createInteractiveTableHarness,
     getLastDispatchSpec,

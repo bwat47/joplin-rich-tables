@@ -14,7 +14,7 @@ import {
     setCellDragSelection,
     startCellSelectionFromActiveCell,
 } from '../tableRuntime/selection/cellSelectionController';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 /** Table with three columns and two body rows, so selection can move in every direction. */

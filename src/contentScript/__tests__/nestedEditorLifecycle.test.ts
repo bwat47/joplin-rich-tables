@@ -21,7 +21,7 @@ import {
     getPendingOpenCellRequest,
     openCellRequestField,
     type OpenCellRequest,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { parseTableFixture } from './testUtils';
 import type { InitialCursorPos } from '../shared/cursorPlacement';

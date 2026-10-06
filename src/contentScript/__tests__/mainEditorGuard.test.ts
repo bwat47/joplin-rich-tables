@@ -14,7 +14,7 @@ import {
     beginOpenCellRequestEffect,
     openCellRequestField,
     triggerOpenCellRequestEffect,
-} from '../tableRuntime/openCellRequest';
+} from '../tableState/openCellRequestState';
 import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { parseCellRangesFixture } from './testUtils';

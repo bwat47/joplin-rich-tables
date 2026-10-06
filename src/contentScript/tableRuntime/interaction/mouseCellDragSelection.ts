@@ -3,7 +3,7 @@ import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { requestOpenCell } from '../openCellRequest';
 import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
-import { resolveTableContextFromEventTarget } from '../tablePositioning';
+import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';
@@ -556,7 +556,7 @@ export const mouseCellDragSelectionPlugin = ViewPlugin.fromClass(MouseCellDragSe
  * Starts a gesture for a press on `cell`, and reports whether that press is taken from the editor.
  *
  * The answer is returned rather than applied, so one router decides what happens to every press
- * it sees; see `tableWidget/tableWidgetInteractions.ts`.
+ * it sees; see `tableRuntime/interaction/widgetInteraction.ts`.
  */
 export function beginMouseCellGesture(
     view: EditorView,

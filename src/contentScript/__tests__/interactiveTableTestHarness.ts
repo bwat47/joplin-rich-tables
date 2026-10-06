@@ -6,7 +6,7 @@ import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { sourceModeField } from '../tableState/sourceMode';
-import { openCellRequestField } from '../tableRuntime/openCellRequest';
+import { openCellRequestField } from '../tableState/openCellRequestState';
 import { createMarkdownState } from './testMarkdownState';
 
 export const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');

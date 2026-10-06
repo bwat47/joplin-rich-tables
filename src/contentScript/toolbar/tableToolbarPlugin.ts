@@ -13,10 +13,8 @@ import { syncAnnotation } from '../shared/syncAnnotation';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
-import { isNestedEditorOpen, refocusNestedEditor } from '../nestedEditor/nestedEditorController';
-import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { runStructuralAction, type StructuralActionId } from '../tableRuntime/operations/structuralActions';
-import { triggerOpenCellRequestEffect } from '../tableRuntime/openCellRequest';
+import { runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
+import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     computePinnedAbsolutePlacement,
@@ -132,7 +130,7 @@ class TableToolbarPlugin {
         const doc = getViewDocument(this.view);
         this.dom.replaceChildren();
 
-        const createIconBtn = (label: string, svg: SVGSVGElement, onClick: () => boolean) => {
+        const createIconBtn = (label: string, svg: SVGSVGElement, onClick: () => void) => {
             const btn = doc.createElement('button');
             btn.title = label;
             btn.className = 'cm-table-toolbar-btn';
@@ -141,9 +139,7 @@ class TableToolbarPlugin {
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (onClick() === false) {
-                    this.restoreNestedEditorFocusAfterNoop();
-                }
+                onClick();
             };
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
@@ -159,29 +155,12 @@ class TableToolbarPlugin {
         renderToolbarButtonGroups(
             getToolbarButtonGroups(this.view.state.facet(hostEditorConfigFacet).toolbar),
             (button) => {
-                createIconBtn(button.label, button.iconFactory(doc), this.getActionHandler(button.actionId));
+                createIconBtn(button.label, button.iconFactory(doc), () => {
+                    runStructuralActionOnActiveCell(this.view, button.actionId);
+                });
             },
             createSeparator
         );
-    }
-
-    private getActionHandler(actionId: StructuralActionId): () => boolean {
-        return () => {
-            const resolvedCell = getResolvedActiveCell(this.view.state);
-            if (!resolvedCell) {
-                return false;
-            }
-
-            return runStructuralAction(this.view, actionId, resolvedCell);
-        };
-    }
-
-    private restoreNestedEditorFocusAfterNoop() {
-        if (!this.currentActiveCell || !isNestedEditorOpen(this.view)) {
-            return;
-        }
-
-        refocusNestedEditor(this.view);
     }
 
     private showToolbar() {
