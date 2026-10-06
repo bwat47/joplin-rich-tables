@@ -1,4 +1,5 @@
 import type { ToolbarHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import type { StructuralActionId } from '../../contentScriptBridge/structuralCommandCatalog';
 import {
     alignCenterIcon,
     alignLeftIcon,
@@ -19,7 +20,6 @@ import {
     sortDescendingIcon,
     type ToolbarIconFactory,
 } from './icons';
-import type { StructuralActionId } from '../tableRuntime/operations/structuralActions';
 
 export interface ToolbarButtonDescriptor {
     actionId: StructuralActionId;
