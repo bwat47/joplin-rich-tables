@@ -3,7 +3,7 @@ import type { SerializedTable } from '../tableModel/MarkdownTable';
 import type { TableContext, TableSpan } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
 import { createActiveCellForTable, type ActiveCellSelectionTarget } from '../tableState/activeCellTarget';
-import { needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
+import { needsLeadingSeparator, needsTrailingSeparator } from './boundaries/tableBoundarySpacing';
 
 /**
  * Marks a transaction that rewrites a table into canonical form as part of entering it.

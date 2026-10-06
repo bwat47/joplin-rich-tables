@@ -7,14 +7,14 @@ import {
     type Text,
     type TransactionSpec,
 } from '@codemirror/state';
-import { syncAnnotation } from '../shared/syncAnnotation';
-import type { TableContext } from '../tableModel/tableContext';
-import { changesOverlapRange } from '../shared/transactionUtils';
-import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';
-import { normalizeBeforeEditAnnotation } from './tableCanonicalForm';
+import { syncAnnotation } from '../../shared/syncAnnotation';
+import type { TableContext } from '../../tableModel/tableContext';
+import { changesOverlapRange } from '../../shared/transactionUtils';
+import { mapTableSpanThroughChanges } from '../../tableState/tableStartMapping';
+import { normalizeBeforeEditAnnotation } from '../tableCanonicalForm';
 import { resolveAdjacentTables } from './tableBoundaryResolution';
 import { isBlankLineContent, needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
-import { hasPlainRenderedTableCaret } from './renderedTableCaret';
+import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 
 /** A newline inserted into the post-change document to restore a table's separation. */
 interface BoundaryPadding {

@@ -4,7 +4,7 @@ import {
     needsLeadingSeparator,
     needsTrailingSeparator,
     REQUIRED_TABLE_BOUNDARY_BLANK_LINES,
-} from '../tableBoundarySpacing';
+} from '../boundaries/tableBoundarySpacing';
 
 export interface RootTableInsertRewrite {
     changes: {
