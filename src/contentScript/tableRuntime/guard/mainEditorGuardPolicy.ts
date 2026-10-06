@@ -1,19 +1,19 @@
 import { ChangeSet, EditorSelection, type Transaction } from '@codemirror/state';
-import { getActiveCell } from '../tableState/activeCellState';
-import { getCellSelection } from '../tableState/cellSelectionState';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
+import { getActiveCell } from '../../tableState/activeCellState';
+import { getCellSelection } from '../../tableState/cellSelectionState';
+import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
 import { sanitizeCellChanges } from './sanitizeCellChanges';
-import { syncAnnotation } from '../shared/syncAnnotation';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { isFullDocumentReplace } from '../shared/transactionUtils';
-import { normalizeBeforeEditAnnotation } from './tableCanonicalForm';
+import { syncAnnotation } from '../../shared/syncAnnotation';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { isFullDocumentReplace } from '../../shared/transactionUtils';
+import { normalizeBeforeEditAnnotation } from '../tableCanonicalForm';
 import {
     buildMultiCellPasteRewrite,
     tableClipboardRewriteAnnotation,
     type TableClipboardRewrite,
-} from './selection/cellSelectionClipboard';
-import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from './operations/pasteTableNormalizer';
-import { isEffectiveRawMode } from '../tableState/sourceMode';
+} from '../selection/cellSelectionClipboard';
+import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from '../operations/pasteTableNormalizer';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
 
 export type GuardDecision =
     | { type: 'allowTransaction' }

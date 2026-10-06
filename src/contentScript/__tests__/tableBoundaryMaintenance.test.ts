@@ -1,7 +1,7 @@
 import { history, redo, undo } from '@codemirror/commands';
 import { Annotation, type EditorState, type Extension, type Transaction } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { createMainEditorActiveCellGuard } from '../tableRuntime/mainEditorGuard';
+import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
