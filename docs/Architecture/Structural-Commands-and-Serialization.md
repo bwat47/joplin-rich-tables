@@ -4,7 +4,7 @@ Table changes operate on a normalized `MarkdownTable`, then write canonical Mark
 
 ## Command Flow
 
-Named commands and toolbar actions resolve the current active cell through `tableContextField`, then pass a `StructuralTableCommand` to `runStructuralCommand.ts`. Navigation can enter the same runner with a command that includes its destination column. The shared command catalog defines names and labels used across the Joplin host and content script; command names also appear in saved Joplin keymaps.
+Named commands resolve the current active cell and call `runStructuralAction`, which passes a `StructuralTableCommand` to `runStructuralCommand.ts`. Toolbar buttons call `runStructuralActionOnActiveCell`, which resolves the active cell and runs the same action, returning focus to the nested editor when the action does not apply. Navigation can enter the same runner with a command that includes its destination column. The shared command catalog defines names and labels used across the Joplin host and content script; command names also appear in saved Joplin keymaps.
 
 `structuralCommandSemantics.ts` applies the command to the table model without depending on CodeMirror. It returns either a resulting table with the intended target cell or a whole-table deletion. `MarkdownTable` owns the underlying row, column, sort, clear, and alignment operations.
 

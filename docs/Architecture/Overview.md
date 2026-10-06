@@ -62,7 +62,7 @@ Enforced by `eslint.config.mjs` (`import-x/no-restricted-paths` on resolved path
 | Component     | File                                                            | Purpose                                                          |
 | :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------------- |
 | **Wiring**    | `contentScript/tableWidgetExtension.ts`                         | Main entry point; initializes services and assembles extensions. |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering, click-to-cell coordinate mapping.                |
+| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering and cell geometry for positions the widget hides. |
 | **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.        |
 | **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                                 |
 | **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                         |
@@ -117,7 +117,7 @@ Common ownership boundaries:
 
 - `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, and table math.
 - `tableState/resolvedActiveCell.ts` resolves logical active-cell identity into current table context and document ranges, using only state and model dependencies.
-- `tableRuntime/` owns editor-bound orchestration, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
+- `tableRuntime/` owns editor-bound orchestration, widget press and click routing, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
 - `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
 - `shared/` holds feature-agnostic primitives, including `syncAnnotation` and cell text/selection conversion (`cellTextCodec`).
-- `tableWidget/` owns widget DOM, visual styling, display-mode behavior, and decoration policy.
+- `tableWidget/` owns widget DOM, DOM measurement and coordinate reading, DOM-to-table-context resolution, visual styling, display-mode behavior, and decoration policy.
