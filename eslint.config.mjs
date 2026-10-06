@@ -1,7 +1,8 @@
 // Flat config (ESM). Adds ignores, Node + Vitest globals, and TS-friendly rule tweaks.
 
 import js from '@eslint/js';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
+import { defineConfig } from 'eslint/config';
+import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import-x';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import prettier from 'eslint-config-prettier';
@@ -74,7 +75,7 @@ const LAYER_ZONES = Object.entries(LAYER_DEPENDENCIES).map(([layer, { allowed, m
 
 const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@codemirror/language'];
 
-export default [
+export default defineConfig([
     {
         // webpack.config.js is generator-managed scaffold (overwritten on generator updates).
         ignores: ['api/**', 'dist/**', 'coverage/**', 'webpack.config.js'],
@@ -83,7 +84,7 @@ export default [
     js.configs.recommended,
     sonarjs.configs.recommended,
     // Registers the TS parser/plugin, disables core rules TypeScript already checks, enables recommended rules.
-    ...tsPlugin.configs['flat/recommended-type-checked'],
+    tseslint.configs.recommendedTypeChecked,
 
     // Project TS/JS sources
     {
@@ -193,9 +194,9 @@ export default [
     // Root JS config files (e.g. .prettierrc.js, eslint.config.mjs) aren't part of the typed source; lint them untyped.
     {
         files: ['**/*.{js,mjs,cjs}'],
-        ...tsPlugin.configs['flat/disable-type-checked'],
+        ...tseslint.configs.disableTypeChecked,
     },
 
     // Prettier compatibility
     prettier,
-];
+]);

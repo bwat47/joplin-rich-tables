@@ -39,8 +39,6 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^25.9.4",
-        "@typescript-eslint/eslint-plugin": "^8.65.0",
-        "@typescript-eslint/parser": "^8.65.0",
         "@vitest/coverage-v8": "^5.0.2",
         "@vitest/eslint-plugin": "^1.6.27",
         "chalk": "^4.1.0",
@@ -59,6 +57,7 @@
         "tar": "^7.5.13",
         "ts-loader": "^9.5.7",
         "typescript": "^6.0.3",
+        "typescript-eslint": "^8.65.0",
         "vitest": "^5.0.2",
         "webpack": "^5.105.4",
         "webpack-cli": "^7.0.2"
