@@ -4,7 +4,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Content Script Layers
 
-- `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, and table math.
+- `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, table math, cell text encoding, and cell text selection mapping.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, state-derived active-cell resolution, active-cell change classification, and open-cell request state.
 - `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, and widget visuals.
