@@ -6,7 +6,7 @@ import type { Decoration } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createResizeObserverStub } from './tableEditorFixtures';
-import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
+import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';

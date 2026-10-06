@@ -7,12 +7,12 @@
  * and adopts its selection, so the nested editor mirrors the match when it mounts.
  */
 import { EditorState, Transaction, type Extension } from '@codemirror/state';
-import { getActiveCell, isSameActiveCell } from '../tableState/activeCellState';
-import { getTableContextAtPos } from '../tableState/tableContextField';
-import { isEffectiveRawMode } from '../tableState/sourceMode';
-import { findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { prepareOpenCellRequestTransaction } from './openCellRequest';
+import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { findCellForPos } from '../../tableModel/markdownTableCellRanges';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { prepareOpenCellRequestTransaction } from '../openCellRequest';
 
 /** User event `findNext` and `findPrevious` dispatch; select-all-matches uses a sub-event. */
 const FIND_MATCH_USER_EVENT = 'select.search';

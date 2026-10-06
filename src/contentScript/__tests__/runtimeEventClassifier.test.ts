@@ -10,7 +10,7 @@ import {
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
-import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
+import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { createMarkdownState } from './testMarkdownState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';

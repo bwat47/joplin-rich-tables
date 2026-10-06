@@ -7,7 +7,7 @@
  */
 import { searchPanelOpen } from '@codemirror/search';
 import { EditorState, StateEffect, type Extension, type Transaction, type TransactionSpec } from '@codemirror/state';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 
 /**
  * Effect dispatched when search-forced raw mode is exited.
