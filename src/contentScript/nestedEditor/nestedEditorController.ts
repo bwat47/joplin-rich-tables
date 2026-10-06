@@ -6,8 +6,8 @@ import { createNestedEditorDomHandlers, mirrorLocalSelectionToMain } from './dom
 import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
 import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import { createNestedEditorTheme } from './nestedEditorTheme';
-import { type LocalSelection, toLocalSelection, toRootSelection } from '../shared/cellTextCodec';
-import { sanitizeLocalText, unsanitizeRootText } from '../shared/cellTextNormalization';
+import { type CellTextSelection, toLocalSelection, toRootSelection } from '../tableModel/cellTextSelection';
+import { sanitizeLocalText, unsanitizeRootText } from '../tableModel/cellTextNormalization';
 import { forceRootDomSelection } from './rootDomSelection';
 import { syncAnnotation } from '../shared/syncAnnotation';
 import { hasSyncAnnotation } from '../shared/transactionUtils';
@@ -25,7 +25,7 @@ import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEdito
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
 import { requestViewAnimationFrame } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import {
     areSelectionsEqual,
     resolveInitialLocalSelection,
@@ -37,7 +37,7 @@ const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 
 interface NestedEditorTextState {
     text: string;
-    selection: LocalSelection;
+    selection: CellTextSelection;
 }
 
 interface NestedEditorSession {
@@ -337,7 +337,7 @@ class NestedEditorController {
             return;
         }
 
-        let localSelection: LocalSelection = {
+        let localSelection: CellTextSelection = {
             anchor: nestedView.state.selection.main.anchor,
             head: nestedView.state.selection.main.head,
         };

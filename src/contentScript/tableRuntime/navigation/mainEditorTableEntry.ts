@@ -27,7 +27,7 @@ import {
     type AdjoiningTable,
     type TableSide,
 } from '../tableBoundaryResolution';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { fromUnifiedRow } from '../../tableModel/types';
 
 type DeletionDirection = 'backward' | 'forward';

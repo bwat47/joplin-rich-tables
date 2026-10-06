@@ -1,10 +1,10 @@
 import type { EditorSelection } from '@codemirror/state';
-import type { LocalSelection } from '../shared/cellTextCodec';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
+import type { CellTextSelection } from '../tableModel/cellTextSelection';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { clamp } from '../shared/numberUtils';
 
 /** Shifts a cell-relative selection into main-document coordinates. */
-export function toAbsoluteSelection(selection: LocalSelection, editableFrom: number): LocalSelection {
+export function toAbsoluteSelection(selection: CellTextSelection, editableFrom: number): CellTextSelection {
     return {
         anchor: editableFrom + selection.anchor,
         head: editableFrom + selection.head,
@@ -20,7 +20,7 @@ export function toRelativeSelection(
     selection: EditorSelection,
     editableFrom: number,
     editableTo: number
-): LocalSelection {
+): CellTextSelection {
     const main = selection.main;
     return {
         anchor: clamp(main.anchor, editableFrom, editableTo) - editableFrom,
@@ -28,7 +28,7 @@ export function toRelativeSelection(
     };
 }
 
-export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolean {
+export function areSelectionsEqual(a: CellTextSelection, b: CellTextSelection): boolean {
     return a.anchor === b.anchor && a.head === b.head;
 }
 
@@ -46,10 +46,10 @@ export function areSelectionsEqual(a: LocalSelection, b: LocalSelection): boolea
  * transaction.
  */
 export function resolveInitialLocalSelection(
-    mirroredSelection: LocalSelection,
+    mirroredSelection: CellTextSelection,
     localText: string,
     initialCursorPos?: InitialCursorPos
-): LocalSelection {
+): CellTextSelection {
     if (typeof initialCursorPos === 'object') {
         const { anchor, head } = initialCursorPos;
         return { anchor: clamp(anchor, 0, localText.length), head: clamp(head, 0, localText.length) };

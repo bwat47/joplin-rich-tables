@@ -12,10 +12,10 @@ import {
 import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { getTableContextAtPos } from '../tableState/tableContextField';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
-import type { LocalSelection } from '../shared/cellTextCodec';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
+import type { CellTextSelection } from '../tableModel/cellTextSelection';
 import type { CellCoords } from '../tableModel/types';
-import { unsanitizeRootText } from '../shared/cellTextNormalization';
+import { unsanitizeRootText } from '../tableModel/cellTextNormalization';
 import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import { resolveInitialLocalSelection } from '../nestedEditor/nestedEditorSelection';
@@ -236,7 +236,7 @@ function resolveCell(
  * coordinate system the offset is expressed in stays visible.
  */
 /** The cell-text offsets a placement carries, rejecting the named edges the helpers never expect. */
-function offsetsOf(pos: InitialCursorPos, expected: string): LocalSelection {
+function offsetsOf(pos: InitialCursorPos, expected: string): CellTextSelection {
     if (typeof pos !== 'object') {
         throw new Error(`Expected ${expected}, got ${pos}`);
     }

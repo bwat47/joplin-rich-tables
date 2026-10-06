@@ -6,7 +6,7 @@ import {
     toAbsoluteSelection,
     toRelativeSelection,
 } from '../nestedEditor/nestedEditorSelection';
-import { cellTextCaret } from '../shared/cursorPlacement';
+import { cellTextCaret } from '../tableState/cursorPlacement';
 
 describe('toAbsoluteSelection', () => {
     it('shifts a cell-relative selection by the editable start', () => {

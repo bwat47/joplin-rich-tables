@@ -1,6 +1,6 @@
 import type { EditorState } from '@codemirror/state';
-import { unsanitizeRootText } from '../../shared/cellTextNormalization';
-import { cellTextCaret, type InitialCursorPos } from '../../shared/cursorPlacement';
+import { unsanitizeRootText } from '../../tableModel/cellTextNormalization';
+import { cellTextCaret, type InitialCursorPos } from '../../tableState/cursorPlacement';
 import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
 import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
 import { balanceSyntaxMarkers, projectCellText, type HiddenSyntaxSpan } from './cellTextProjection';

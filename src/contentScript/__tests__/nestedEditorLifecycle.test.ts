@@ -24,7 +24,7 @@ import {
 } from '../tableState/openCellRequestState';
 import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
 import { parseTableFixture } from './testUtils';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS, createFrameQueue } from './tableEditorFixtures';
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';

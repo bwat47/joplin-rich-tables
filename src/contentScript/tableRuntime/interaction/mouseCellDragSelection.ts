@@ -18,7 +18,7 @@ import {
     type RenderedSelectionHit,
 } from '../../tableWidget/cellCaretHit';
 import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
 const DRAG_START_DISTANCE_PX = 5;
