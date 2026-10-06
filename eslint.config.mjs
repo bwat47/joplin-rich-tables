@@ -122,6 +122,7 @@ export default [
             '@typescript-eslint/no-import-type-side-effects': 'error',
             '@typescript-eslint/no-inferrable-types': 'error',
             '@typescript-eslint/explicit-module-boundary-types': 'error',
+            '@typescript-eslint/switch-exhaustiveness-check': 'error',
         },
     },
 

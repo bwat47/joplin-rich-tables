@@ -62,7 +62,7 @@ export function resolveInitialLocalSelection(
             const pos = lastNewline === -1 ? 0 : lastNewline + 1;
             return { anchor: pos, head: pos };
         }
-        default:
+        case undefined:
             return mirroredSelection;
     }
 }
