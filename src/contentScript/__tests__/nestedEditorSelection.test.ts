@@ -10,11 +10,13 @@ import { cellTextCaret } from '../tableState/cursorPlacement';
 
 describe('toAbsoluteSelection', () => {
     it('shifts a cell-relative selection by the editable start', () => {
-        expect(toAbsoluteSelection({ anchor: 2, head: 5 }, 10)).toEqual({ anchor: 12, head: 15 });
+        const range = toAbsoluteSelection({ anchor: 2, head: 5 }, 10);
+        expect([range.anchor, range.head]).toEqual([12, 15]);
     });
 
     it('preserves a reversed selection', () => {
-        expect(toAbsoluteSelection({ anchor: 5, head: 2 }, 10)).toEqual({ anchor: 15, head: 12 });
+        const range = toAbsoluteSelection({ anchor: 5, head: 2 }, 10);
+        expect([range.anchor, range.head]).toEqual([15, 12]);
     });
 });
 

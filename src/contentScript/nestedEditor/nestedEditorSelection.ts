@@ -1,14 +1,11 @@
-import type { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type SelectionRange } from '@codemirror/state';
 import type { CellTextSelection } from '../tableModel/cellTextSelection';
 import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { clamp } from '../shared/numberUtils';
 
-/** Shifts a cell-relative selection into main-document coordinates. */
-export function toAbsoluteSelection(selection: CellTextSelection, editableFrom: number): CellTextSelection {
-    return {
-        anchor: editableFrom + selection.anchor,
-        head: editableFrom + selection.head,
-    };
+/** Shifts a cell-relative selection into a main-document selection range. */
+export function toAbsoluteSelection(selection: CellTextSelection, editableFrom: number): SelectionRange {
+    return EditorSelection.range(editableFrom + selection.anchor, editableFrom + selection.head);
 }
 
 /**

@@ -318,7 +318,7 @@ class NestedEditorController {
                           insert: rootText,
                       }
                     : undefined,
-            selection: EditorSelection.single(absoluteSelection.anchor, absoluteSelection.head),
+            selection: EditorSelection.create([absoluteSelection]),
             annotations: textChanged
                 ? syncAnnotation.of(true)
                 : [syncAnnotation.of(true), Transaction.addToHistory.of(false)],

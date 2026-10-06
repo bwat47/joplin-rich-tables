@@ -1,5 +1,5 @@
 import { selectAll } from '@codemirror/commands';
-import { EditorSelection, Transaction, type Extension } from '@codemirror/state';
+import { EditorSelection, Transaction, type Extension, type SelectionRange } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
 import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
 import { syncAnnotation } from '../shared/syncAnnotation';
@@ -128,11 +128,11 @@ export function createNestedEditorDomHandlers(options: {
 export function mirrorLocalSelectionToMain(params: {
     nestedView: EditorView;
     mainView: EditorView;
-    selection: { anchor: number; head: number };
+    selection: SelectionRange;
 }): void {
     params.nestedView.focus();
     params.mainView.dispatch({
-        selection: EditorSelection.single(params.selection.anchor, params.selection.head),
+        selection: EditorSelection.create([params.selection]),
         annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
         scrollIntoView: false,
     });
