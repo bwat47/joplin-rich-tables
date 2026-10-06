@@ -2,7 +2,7 @@ import type { ViewUpdate } from '@codemirror/view';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
 import { containsSelection, getTableContextAtPos } from '../../tableState/tableContextField';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
-import { exitSearchForceSourceModeEffect } from '../searchPanelTransitions';
+import { exitSearchForceSourceModeEffect } from '../search/searchPanelTransitions';
 import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourceMode';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';

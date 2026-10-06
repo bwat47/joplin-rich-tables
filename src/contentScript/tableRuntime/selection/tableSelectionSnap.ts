@@ -2,7 +2,7 @@ import { EditorSelection, EditorState, type Extension, type SelectionRange } fro
 import type { TableSpan } from '../../tableModel/tableContext';
 import { getTableContextsTouching } from '../../tableState/tableContextField';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
-import { resolveSearchMatchCell } from '../searchMatchCellEntry';
+import { resolveSearchMatchCell } from '../search/searchMatchCellEntry';
 
 /** Looks up every rendered table a document range reaches. */
 export type TablesTouching = (from: number, to: number) => readonly TableSpan[];

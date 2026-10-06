@@ -16,8 +16,8 @@ import { createNestedEditorInteractionExtensions } from '../tableRuntime/interac
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { sourceModeField } from '../tableState/sourceMode';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
-import { searchMatchCellEntryExtension } from '../tableRuntime/searchMatchCellEntry';
-import { searchPanelTransitionExtension } from '../tableRuntime/searchPanelTransitions';
+import { searchMatchCellEntryExtension } from '../tableRuntime/search/searchMatchCellEntry';
+import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { findCellElement } from '../tableWidget/domHelpers';

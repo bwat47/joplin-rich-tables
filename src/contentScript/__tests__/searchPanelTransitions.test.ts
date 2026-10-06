@@ -18,7 +18,7 @@ import {
 import {
     exitSearchForceSourceModeEffect,
     searchPanelTransitionExtension,
-} from '../tableRuntime/searchPanelTransitions';
+} from '../tableRuntime/search/searchPanelTransitions';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { openSearchPanelInState } from './searchPanelTestUtils';
