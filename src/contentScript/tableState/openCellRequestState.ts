@@ -3,9 +3,10 @@ import type { ActiveCell } from './activeCellState';
 import { mapTableStartUnlessDeleted } from './tableStartMapping';
 import type { InitialCursorPos } from '../shared/cursorPlacement';
 
-// Explicit open requests are single-flight, may survive normalization/structural edits,
-// and temporarily suppress navigation until settled.
-
+/**
+ * An explicit request to open a cell's nested editor. Requests are single-flight, may survive
+ * normalization/structural edits, and temporarily suppress navigation until settled.
+ */
 export interface OpenCellRequest {
     requestId: string;
     activeCell: ActiveCell;

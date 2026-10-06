@@ -23,20 +23,11 @@ sits outside the layer folders so it may import from all of them.
 
 ### Allowed Dependencies
 
-Enforced by `eslint.config.mjs` (`import-x/no-restricted-paths` on resolved paths).
-
-| Module           | Allowed dependencies                                                            |
-| :--------------- | :------------------------------------------------------------------------------ |
-| `shared`         | None                                                                            |
-| `services`       | `shared`                                                                        |
-| `tableModel`     | `shared`                                                                        |
-| `tableState`     | `shared`, `tableModel`                                                          |
-| `nestedEditor`   | `shared`, `services`, `tableModel`, `tableState`                                |
-| `tableWidget`    | `shared`, `services`, `tableModel`, `tableState`, `nestedEditor`                |
-| `tableRuntime`   | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `nestedEditor` |
-| `toolbar`        | `shared`, `services`, `tableModel`, `tableState`, `tableWidget`, `tableRuntime` |
-| `tableCommands`  | `shared`, `tableModel`, `tableState`, `tableRuntime`                            |
-| Composition root | All layers                                                                      |
+`LAYER_DEPENDENCIES` in `eslint.config.mjs` is the source of truth. Each layer folder lists the sibling layers it may
+import from, and every other layer is forbidden. `import-x/no-restricted-paths` checks resolved file paths, so the rule
+holds at any nesting depth and however the import is written. Lower layers (`shared`, `tableModel`, `tableState`)
+never depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and `tableCommands`, which reach the
+editor only through state and runtime APIs. Tests and the composition root are outside every layer zone.
 
 ## Documentation Index
 

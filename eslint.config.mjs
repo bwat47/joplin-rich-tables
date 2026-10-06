@@ -18,7 +18,6 @@ const CONTENT_SCRIPT_DIR = 'src/contentScript';
  *
  * The composition root (`contentScript/tableWidgetExtension.ts`) sits directly under
  * `contentScript/`, outside every layer zone, so it may wire all layers together.
- * Keep in sync with docs/Architecture/Overview.md.
  */
 const LAYER_DEPENDENCIES = {
     shared: {
