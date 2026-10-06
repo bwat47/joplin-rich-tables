@@ -2,16 +2,8 @@ import type { Transaction } from '@codemirror/state';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipesWithContext,
-    localToRootOffsets,
     normalizeBrTags,
-    rootToLocalOffsets,
-} from './cellTextNormalization';
-import { clamp } from './numberUtils';
-
-export interface LocalSelection {
-    anchor: number;
-    head: number;
-}
+} from '../tableModel/cellTextNormalization';
 
 /** A simple change spec for building sanitized transactions. */
 type SimpleChange = { from: number; to: number; insert: string };
@@ -21,29 +13,6 @@ export interface SanitizeChangesResult {
     rejected: boolean;
     didModifyInserts: boolean;
     changes: SimpleChange[];
-}
-
-/**
- * Reads both endpoints out of an offset map built once for the whole cell.
- *
- * Each endpoint is mapped on its own, so a backward selection stays backward, and every value
- * the map holds is a real offset in the text it maps into - the map never needs the text it
- * measures to be altered first, so there is nothing to clamp away afterwards.
- */
-function mapSelection(selection: LocalSelection, offsets: Int32Array): LocalSelection {
-    const lastOffset = offsets.length - 1;
-    return {
-        anchor: offsets[clamp(selection.anchor, 0, lastOffset)],
-        head: offsets[clamp(selection.head, 0, lastOffset)],
-    };
-}
-
-export function toRootSelection(localSelection: LocalSelection, localText: string): LocalSelection {
-    return mapSelection(localSelection, localToRootOffsets(localText));
-}
-
-export function toLocalSelection(rootSelection: LocalSelection, rootText: string): LocalSelection {
-    return mapSelection(rootSelection, rootToLocalOffsets(rootText));
 }
 
 function countTrailingBackslashesInDoc(doc: Transaction['startState']['doc'], pos: number): number {

@@ -2,7 +2,7 @@ import { ChangeSet, EditorSelection, type Transaction } from '@codemirror/state'
 import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection } from '../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { sanitizeCellChanges } from '../shared/cellTextCodec';
+import { sanitizeCellChanges } from './sanitizeCellChanges';
 import { syncAnnotation } from '../shared/syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { isFullDocumentReplace } from '../shared/transactionUtils';

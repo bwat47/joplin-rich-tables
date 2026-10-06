@@ -6,7 +6,7 @@
  * root-level table.
  */
 import { MarkdownTable } from './MarkdownTable';
-import { trimTablePaddingEnd } from '../shared/tablePadding';
+import { trimTablePaddingEnd } from './tablePadding';
 
 /**
  * Splits on any line ending. Row content remains untouched until Lezer classifies it.

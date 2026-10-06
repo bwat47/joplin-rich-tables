@@ -12,7 +12,7 @@ Leaving a table, entering raw source mode, or switching notes closes the nested 
 
 ## Live Synchronization
 
-Local edits are converted to valid single-cell Markdown and written immediately into the main document. `cellTextNormalization.ts` converts visible line breaks and pipes to their stored form; `cellTextCodec.ts` maps selections between local coordinates and the cell's editable range in the root document. Selection changes are mirrored upward so root-owned commands and Joplin's toolbar see the current caret.
+Local edits are converted to valid single-cell Markdown and written immediately into the main document. `cellTextNormalization.ts` converts visible line breaks and pipes to their stored form; `cellTextSelection.ts` maps selections between those local offsets and stored cell-text offsets. `nestedEditorSelection.ts` shifts the stored offsets by the cell's editable start into a main-document selection. Selection changes are mirrored upward so root-owned commands and Joplin's toolbar see the current caret.
 
 Changes from the main editor rebase the nested editor from authoritative document text and selection. Both directions mark forwarded transactions with `syncAnnotation` to prevent feedback loops. The nested editor does not keep independent undo history; undo and redo act on the main document.
 

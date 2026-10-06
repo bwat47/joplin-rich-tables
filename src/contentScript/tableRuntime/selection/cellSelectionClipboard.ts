@@ -22,7 +22,7 @@ import type { TableContext } from '../../tableModel/tableContext';
 import { fromUnifiedRow, type CellCoords, type TableRect } from '../../tableModel/types';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { clamp } from '../../shared/numberUtils';
-import { sanitizeLocalText } from '../../shared/cellTextNormalization';
+import { sanitizeLocalText } from '../../tableModel/cellTextNormalization';
 
 /**
  * Marks a transaction as one of this module's own table rewrites. The main-editor guard

@@ -4,14 +4,14 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Content Script Layers
 
-- `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, and table math.
+- `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, table math, cell text encoding, and cell text selection mapping.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, state-derived active-cell resolution, active-cell change classification, and open-cell request state.
 - `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
 - `tableWidget/`: widget rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, and widget visuals.
 - `tableCommands/`: Joplin command registration only.
 - `nestedEditor/`: isolated in-cell editor implementation.
 - `services/`: Joplin/external integration.
-- `shared/`: generic helpers with no table-feature ownership.
+- `shared/`: helpers and cross-layer contracts that depend on no other content-script layer (sync annotation, DOM class names, footnote anchors).
 
 Host/editor settings and Joplin-backed services are startup-owned. The content script fetches a normalized host config
 from Joplin before installing the CodeMirror extension, creates shared bridge-backed services, then exposes those
@@ -84,7 +84,7 @@ See [Interaction-and-Navigation.md](./Interaction-and-Navigation.md) and [Nested
 
 ### 3. Nested Editing
 
-The nested editor contains only the active cell text. `nestedEditorController.ts` translates text and selections between local cell coordinates and root document coordinates through `cellTextNormalization.ts` and `cellTextCodec.ts`, using `syncAnnotation` for cross-editor transactions.
+The nested editor contains only the active cell text. `nestedEditorController.ts` translates text and selections between local cell coordinates and root document coordinates through `tableModel/cellTextNormalization.ts` and `tableModel/cellTextSelection.ts`, using `syncAnnotation` for cross-editor transactions.
 
 The main editor remains authoritative for document state and history.
 
@@ -106,9 +106,9 @@ See [Markdown-Rendering.md](./Markdown-Rendering.md).
 
 Common ownership boundaries:
 
-- `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, and table math.
+- `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, table math, cell text encoding, and cell text selection mapping.
 - `tableState/resolvedActiveCell.ts` resolves logical active-cell identity into current table context and document ranges, using only state and model dependencies.
 - `tableRuntime/` owns editor-bound orchestration, widget press and click routing, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
 - `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
-- `shared/` holds feature-agnostic primitives, including `syncAnnotation` and cell text/selection conversion (`cellTextCodec`).
+- `shared/` holds helpers and cross-layer contracts that depend on no other content-script layer, including `syncAnnotation`, `tableDomClasses`, and `footnoteAnchor`.
 - `tableWidget/` owns widget DOM, DOM measurement and coordinate reading, DOM-to-table-context resolution, visual styling, display-mode behavior, and decoration policy.

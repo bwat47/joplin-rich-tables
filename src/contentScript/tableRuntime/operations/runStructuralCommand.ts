@@ -4,7 +4,7 @@ import { structuralTableEditEffect } from '../../tableState/structuralTableEditE
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { createActiveCellForTable } from '../activeCell/activeCellFactory';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { isSameCellCoords } from '../../tableModel/types';
 

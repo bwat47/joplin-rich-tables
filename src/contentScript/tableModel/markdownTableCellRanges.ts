@@ -11,7 +11,7 @@ import type {
     MarkdownTableSyntaxCell,
     MarkdownTableSyntaxRow,
 } from './lezerTableSyntax';
-import { isTablePadding } from '../shared/tablePadding';
+import { isTablePadding } from './tablePadding';
 import type { CellCoords } from './types';
 
 export interface CellRange {

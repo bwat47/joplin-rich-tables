@@ -7,7 +7,7 @@ import {
     rootToLocalOffsets,
     sanitizeLocalText,
     unsanitizeRootText,
-} from '../shared/cellTextNormalization';
+} from '../tableModel/cellTextNormalization';
 
 describe('escapeUnescapedPipesWithContext', () => {
     const escapePipes = (text: string): string => escapeUnescapedPipesWithContext(text, 0);

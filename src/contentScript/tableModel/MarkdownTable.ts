@@ -3,7 +3,7 @@ import {
     type MarkdownTableSyntax,
     type MarkdownTableSyntaxCell,
 } from './lezerTableSyntax';
-import { normalizeBrTags } from '../shared/cellTextNormalization';
+import { normalizeBrTags } from './cellTextNormalization';
 import { clamp } from '../shared/numberUtils';
 import { toUnifiedRow, type CellCoords, type TableRect, type TableSection } from './types';
 import { compareRawMarkdownCells, type TableSortDirection } from './rawMarkdownSort';

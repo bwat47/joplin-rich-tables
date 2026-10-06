@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { resolveClampedCell } from '../activeCell/activeCellFactory';
 import { runStructuralCommand } from '../operations/runStructuralCommand';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { isSameCellCoords } from '../../tableModel/types';
 import { getTableGridBounds } from '../../tableModel/tableContext';
 import { shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';

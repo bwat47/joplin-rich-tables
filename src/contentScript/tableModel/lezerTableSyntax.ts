@@ -1,6 +1,6 @@
 import type { SyntaxNode } from '@lezer/common';
 import { GFM, parser } from '@lezer/markdown';
-import { isTablePadding } from '../shared/tablePadding';
+import { isTablePadding } from './tablePadding';
 import { logger } from '../../logger';
 
 export interface MarkdownTableSourceRange {

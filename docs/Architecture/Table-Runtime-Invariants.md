@@ -26,7 +26,7 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 - Semantic cell bounds and editable text bounds are not interchangeable.
 - Semantic bounds identify the Markdown cell span, including delimiters and padding.
 - Editable bounds identify the user-editable cell content.
-- Cross-editor selection conversion must use editable bounds and `cellTextCodec` helpers.
+- Cross-editor selection conversion must use editable bounds and `cellTextSelection` helpers.
 - Structural table commands must operate on the parsed table model, not on nested editor DOM.
 
 ## Sync Transactions

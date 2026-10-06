@@ -1,4 +1,4 @@
-import type { LocalSelection } from './cellTextCodec';
+import type { CellTextSelection } from '../tableModel/cellTextSelection';
 
 /**
  * Where the caret should land when a cell is opened programmatically.
@@ -12,7 +12,7 @@ import type { LocalSelection } from './cellTextCodec';
  * - `start` / `end`: collapse to the corresponding edge of the cell text.
  * - `lastLineStart`: collapse to the start of the final line, so moving up into
  *   a multi-line cell lands on the line nearest the cell the caret came from.
- * - a {@link LocalSelection}: exact offsets in the cell text, preserving direction and
+ * - a {@link CellTextSelection}: exact offsets in the cell text, preserving direction and
  *   collapsing to a caret when the two are equal. Carried by placements derived from
  *   something outside the document - a click or drag on rendered Markdown, whose offsets come
  *   from aligning what was drawn against the source. They are clamped when applied, because
@@ -20,9 +20,9 @@ import type { LocalSelection } from './cellTextCodec';
  *
  * Omitting the value mirrors the main editor's own selection into the cell.
  */
-export type InitialCursorPos = 'start' | 'end' | 'lastLineStart' | LocalSelection;
+export type InitialCursorPos = 'start' | 'end' | 'lastLineStart' | CellTextSelection;
 
 /** The placement that opens a cell with its caret at `offset` in the cell text. */
-export function cellTextCaret(offset: number): LocalSelection {
+export function cellTextCaret(offset: number): CellTextSelection {
     return { anchor: offset, head: offset };
 }

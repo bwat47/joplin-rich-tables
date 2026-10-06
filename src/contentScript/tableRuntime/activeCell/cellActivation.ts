@@ -15,7 +15,7 @@ import {
     type CellEntryMode,
     type PreparedOpenCellRequestTransaction,
 } from '../openCellRequest';
-import type { InitialCursorPos } from '../../shared/cursorPlacement';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */

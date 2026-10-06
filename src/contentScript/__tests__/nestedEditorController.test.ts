@@ -28,7 +28,7 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { tableContextField } from '../tableState/tableContextField';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { htmlFragment, requireResolvedActiveCell } from './testUtils';

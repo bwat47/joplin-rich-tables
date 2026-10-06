@@ -12,7 +12,7 @@ import {
 } from '../tableState/openCellRequestState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
-import type { InitialCursorPos } from '../shared/cursorPlacement';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import type { ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 /** How long a request may stay pending before the timeout plugin forcibly releases it. */
