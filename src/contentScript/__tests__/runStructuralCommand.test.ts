@@ -12,7 +12,7 @@ import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { triggerOpenCellRequestEffect, beginOpenCellRequestEffect } from '../tableState/openCellRequestState';
-import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableState/activeCellTarget';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';

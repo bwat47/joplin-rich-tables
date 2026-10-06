@@ -1,6 +1,9 @@
 import type { EditorView } from '@codemirror/view';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
-import { resolveClampedCell } from '../activeCell/activeCellFactory';
+import {
+    getResolvedActiveCell,
+    resolveClampedCell,
+    type ResolvedActiveCell,
+} from '../../tableState/resolvedActiveCell';
 import { runStructuralCommand } from '../operations/runStructuralCommand';
 import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { isSameCellCoords } from '../../tableModel/types';

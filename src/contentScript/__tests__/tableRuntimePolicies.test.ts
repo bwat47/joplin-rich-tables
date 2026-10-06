@@ -19,7 +19,7 @@ import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/t
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
-import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableState/activeCellTarget';
 import { parseTableFixture } from './testUtils';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

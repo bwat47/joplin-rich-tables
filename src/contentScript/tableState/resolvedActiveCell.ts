@@ -1,4 +1,5 @@
 import type { EditorState } from '@codemirror/state';
+import { clampCellToRanges } from '../tableModel/cellAnchors';
 import { getActiveCell, type ActiveCell } from './activeCellState';
 import { getTableContextStartingAt } from './tableContextField';
 import type { TableContext } from '../tableModel/tableContext';
@@ -34,6 +35,20 @@ export function toResolvedActiveCell(params: {
         editableFrom: ctx.from + range.editableFrom,
         editableTo: ctx.from + range.editableTo,
     };
+}
+
+/**
+ * Resolves `target` against `ctx`, clamping coordinates the table does not have.
+ *
+ * Entry points that derive a target from user intent - a click, a selection focus, a
+ * navigation step - can name a cell a ragged row is missing, and clamping lands them on
+ * the nearest real one.
+ * Cell identity read back from editor state must never be clamped: `createResolvedActiveCell`
+ * returning null is how the lifecycle learns that an active cell no longer exists.
+ */
+export function resolveClampedCell(params: { ctx: TableContext; target: CellCoords }): ResolvedActiveCell {
+    const { coords, range } = clampCellToRanges(params.ctx.cellRanges, params.target);
+    return toResolvedActiveCell({ ctx: params.ctx, coords, range });
 }
 
 export function createResolvedActiveCell(params: { ctx: TableContext; coords: CellCoords }): ResolvedActiveCell | null {
