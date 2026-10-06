@@ -3,7 +3,7 @@ import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
-import { createActiveCellForTable } from '../activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../../tableState/activeCellTarget';
 import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { isSameCellCoords } from '../../tableModel/types';

@@ -22,7 +22,7 @@ import {
     openCellRequestField,
     type OpenCellRequest,
 } from '../tableState/openCellRequestState';
-import { createActiveCellForTable } from '../tableRuntime/activeCell/activeCellFactory';
+import { createActiveCellForTable } from '../tableState/activeCellTarget';
 import { parseTableFixture } from './testUtils';
 import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
@@ -30,7 +30,7 @@ import { TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS, createFrameQueue } from 
 import * as nestedEditorController from '../nestedEditor/nestedEditorController';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { noteIdentityFacet } from '../services/noteIdentity';
-import type { activateCellAtPosition } from '../tableRuntime/activeCell/cellActivation';
+import type { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import type * as DomHelpers from '../tableWidget/domHelpers';
 
 const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
@@ -122,7 +122,7 @@ function openRequestEffects(params: {
     ];
 }
 
-vi.mock('../tableRuntime/activeCell/cellActivation', () => ({
+vi.mock('../tableRuntime/cellActivation', () => ({
     activateCellAtPosition: activateCellAtPositionMock,
 }));
 

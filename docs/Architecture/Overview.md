@@ -4,14 +4,15 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 ## Content Script Layers
 
-- `tableModel/`: Lezer syntax projection, normalized table semantics, serialization, table math, cell text encoding, and cell text selection mapping.
-- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, state-derived active-cell resolution, active-cell change classification, and open-cell request state.
-- `tableRuntime/`: editor-bound orchestration with shared runtime primitives at the root and subdomains for `activeCell/`, `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
-- `tableWidget/`: widget rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, and widget visuals.
+- `tableModel/`: Lezer syntax projection into editable ranges, normalized table semantics, serialization, table math, cell text encoding, and cell text selection mapping.
+- `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, active-cell change classification, and open-cell request state. `tableContextField.ts` is the authoritative root-table index. `activeCellState.ts` holds logical active-cell state. `resolvedActiveCell.ts` resolves that identity into the current table context and document ranges, clamping requested targets and resolving stored identities strictly. `activeCellTarget.ts` constructs active-cell identity and selection anchors for serialized tables.
+- `tableRuntime/`: editor-bound orchestration, including the main-editor guard, with shared runtime primitives at the root and subdomains for `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, and `selection/`.
+- `tableWidget/`: widget DOM and rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, visual styling, display-mode behavior, and decoration policy.
+- `nestedEditor/`: in-cell editor mount, synchronization, selection mirroring, and cleanup.
+- `toolbar/`: floating UI for row, column, alignment, and sorting actions (`tableToolbarPlugin.ts`).
 - `tableCommands/`: Joplin command registration only.
-- `nestedEditor/`: isolated in-cell editor implementation.
 - `services/`: Joplin/external integration.
-- `shared/`: helpers and cross-layer contracts that depend on no other content-script layer (sync annotation, DOM class names, footnote anchors).
+- `shared/`: helpers and cross-layer contracts that depend on no other content-script layer, including `syncAnnotation`, `tableDomClasses`, and `footnoteAnchor`.
 
 Host/editor settings and Joplin-backed services are startup-owned. The content script fetches a normalized host config
 from Joplin before installing the CodeMirror extension, creates shared bridge-backed services, then exposes those
@@ -23,11 +24,9 @@ sits outside the layer folders so it may import from all of them.
 
 ### Allowed Dependencies
 
-`LAYER_DEPENDENCIES` in `eslint.config.mjs` is the source of truth. Each layer folder lists the sibling layers it may
-import from, and every other layer is forbidden. `import-x/no-restricted-paths` checks resolved file paths, so the rule
-holds at any nesting depth and however the import is written. Lower layers (`shared`, `tableModel`, `tableState`)
-never depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and `tableCommands`, which reach the
-editor only through state and runtime APIs. Tests and the composition root are outside every layer zone.
+`LAYER_DEPENDENCIES` in `eslint.config.mjs` is the source of truth. `shared`, `tableModel`, and `tableState` never
+depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and `tableCommands`, which reach the editor
+only through state and runtime APIs. Tests and the composition root are outside every layer zone.
 
 ## Documentation Index
 
@@ -41,28 +40,6 @@ editor only through state and runtime APIs. Tests and the composition root are o
 - [ADR/](../ADR/) - Architecture Decision Records.
 
 ---
-
-## Editor Hierarchy
-
-1. **Main Editor (CodeMirror)**: Parses document, identifies table ranges via Lezer syntax tree.
-2. **Table Widget**: Block decoration replacing raw Markdown. Renders HTML table grid.
-3. **Nested Editor**: Transient isolated CodeMirror instance spawned inside `<td>` for in-cell editing.
-
-## Core Components
-
-| Component     | File                                                            | Purpose                                                          |
-| :------------ | :-------------------------------------------------------------- | :--------------------------------------------------------------- |
-| **Wiring**    | `contentScript/tableWidgetExtension.ts`                         | Main entry point; initializes services and assembles extensions. |
-| **Rendering** | `contentScript/tableWidget/TableWidget.ts`                      | HTML rendering and cell geometry for positions the widget hides. |
-| **Lifecycle** | `contentScript/tableRuntime/lifecycle/nestedEditorLifecycle.ts` | Nested editor open/close state, synchronization triggers.        |
-| **Styles**    | `contentScript/tableWidget/tableStyles.ts`                      | CSS-in-JS for theme consistency.                                 |
-| **Editor**    | `contentScript/nestedEditor/nestedEditorController.ts`          | Nested editor mount/sync/close behavior.                         |
-| **Syntax**    | `contentScript/tableModel/lezerTableSyntax.ts`                  | Root-table syntax projection from Lezer.                         |
-| **Model**     | `contentScript/tableModel/MarkdownTable.ts`                     | Normalized table model, serialization, mutations.                |
-| **Context**   | `contentScript/tableState/tableContextField.ts`                 | Authoritative root-table index and selectors.                    |
-| **State**     | `contentScript/tableState/activeCellState.ts`                   | Logical active-cell state and effect wiring.                     |
-| **Runtime**   | `contentScript/tableRuntime/operations/runStructuralCommand.ts` | Editor transaction orchestration for structural table commands.  |
-| **Toolbar**   | `contentScript/toolbar/tableToolbarPlugin.ts`                   | Floating UI for row, column, alignment, and sorting actions.     |
 
 ## Data Flow
 
@@ -101,14 +78,3 @@ See [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Seriali
 Inactive cells render Markdown through the `MarkdownRenderService`, which calls Joplin's `renderMarkup`, sanitizes and post-processes HTML, caches rendered payloads, and upgrades Markdown-looking cells asynchronously.
 
 See [Markdown-Rendering.md](./Markdown-Rendering.md).
-
-## Runtime Ownership
-
-Common ownership boundaries:
-
-- `tableModel/` projects Lezer syntax into editable ranges and owns normalized semantics, serialization, table math, cell text encoding, and cell text selection mapping.
-- `tableState/resolvedActiveCell.ts` resolves logical active-cell identity into current table context and document ranges, using only state and model dependencies.
-- `tableRuntime/` owns editor-bound orchestration, widget press and click routing, active-cell lifecycle, nested-editor table interaction extensions, and the main-editor guard policy.
-- `nestedEditor/` owns nested editor mount, synchronization, selection mirroring, and cleanup.
-- `shared/` holds helpers and cross-layer contracts that depend on no other content-script layer, including `syncAnnotation`, `tableDomClasses`, and `footnoteAnchor`.
-- `tableWidget/` owns widget DOM, DOM measurement and coordinate reading, DOM-to-table-context resolution, visual styling, display-mode behavior, and decoration policy.

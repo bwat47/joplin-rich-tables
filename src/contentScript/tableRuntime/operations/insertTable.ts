@@ -1,6 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { MarkdownTable, type SerializedTable, type TableAlignment } from '../../tableModel/MarkdownTable';
-import { createFirstActiveCellForTable } from '../activeCell/activeCellFactory';
+import { createFirstActiveCellForTable } from '../../tableState/activeCellTarget';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 import { buildRootTableInsertRewrite } from './rootTableInsertRewrite';
 

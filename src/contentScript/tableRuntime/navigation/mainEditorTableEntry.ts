@@ -10,7 +10,7 @@ import { Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
 import type { TableContext } from '../../tableModel/tableContext';
-import { prepareCellEntryTransaction } from '../activeCell/cellActivation';
+import { prepareCellEntryTransaction } from '../cellActivation';
 import {
     getResolvedActiveCell,
     toResolvedActiveCell,

@@ -1,4 +1,4 @@
-import { resolveActivationTargetCell } from '../tableRuntime/activeCell/cellActivation';
+import { resolveActivationTargetCell } from '../tableRuntime/cellActivation';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { parseCellRangesFixture } from './testUtils';
 

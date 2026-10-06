@@ -16,7 +16,7 @@ import {
     openNestedEditor,
 } from '../../nestedEditor/nestedEditorController';
 import { findCellElement } from '../../tableWidget/domHelpers';
-import { activateCellAtPosition } from '../activeCell/cellActivation';
+import { activateCellAtPosition } from '../cellActivation';
 import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
 import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../../tableState/openCellRequestState';
 import { hostEditorConfigFacet } from '../../services/hostEditorConfig';

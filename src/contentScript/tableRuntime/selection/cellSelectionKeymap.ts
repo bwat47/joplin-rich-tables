@@ -12,7 +12,7 @@ import {
 import { type EditorView, keymap, runScopeHandlers, ViewPlugin, type Command, type KeyBinding } from '@codemirror/view';
 import { getCellSelection, getSelectedTable, type CellSelectionDirection } from '../../tableState/cellSelectionState';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { resolveClampedCell } from '../activeCell/activeCellFactory';
+import { resolveClampedCell } from '../../tableState/resolvedActiveCell';
 import {
     collapseCellSelectionOutOfTable,
     extendExistingCellSelection,

@@ -2,7 +2,7 @@ import { Annotation, type EditorState } from '@codemirror/state';
 import type { SerializedTable } from '../tableModel/MarkdownTable';
 import type { TableContext, TableSpan } from '../tableModel/tableContext';
 import type { CellCoords } from '../tableModel/types';
-import { createActiveCellForTable, type ActiveCellSelectionTarget } from './activeCell/activeCellFactory';
+import { createActiveCellForTable, type ActiveCellSelectionTarget } from '../tableState/activeCellTarget';
 import { needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
 
 /**

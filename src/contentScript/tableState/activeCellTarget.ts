@@ -1,9 +1,7 @@
-import type { SerializedTable } from '../../tableModel/MarkdownTable';
-import { clampCellToRanges, computeCellAnchorForTable, type TableCellAnchor } from '../../tableModel/cellAnchors';
-import type { CellCoords } from '../../tableModel/types';
-import type { ActiveCell } from '../../tableState/activeCellState';
-import type { TableContext } from '../../tableModel/tableContext';
-import { toResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import type { SerializedTable } from '../tableModel/MarkdownTable';
+import { computeCellAnchorForTable, type TableCellAnchor } from '../tableModel/cellAnchors';
+import type { CellCoords } from '../tableModel/types';
+import type { ActiveCell } from './activeCellState';
 
 export interface ActiveCellSelectionTarget {
     activeCell: ActiveCell;
@@ -44,18 +42,4 @@ export function createFirstActiveCellForTable(params: {
         serialized: params.serialized,
         target: { section: 'header', row: 0, col: 0 },
     });
-}
-
-/**
- * Resolves `target` against `ctx`, clamping coordinates the table does not have.
- *
- * Entry points that derive a target from user intent - a click, a selection focus, a
- * navigation step - can name a cell a ragged row is missing, and clamping lands them on
- * the nearest real one.
- * Cell identity read back from editor state must never be clamped: `createResolvedActiveCell`
- * returning null is how the lifecycle learns that an active cell no longer exists.
- */
-export function resolveClampedCell(params: { ctx: TableContext; target: CellCoords }): ResolvedActiveCell {
-    const { coords, range } = clampCellToRanges(params.ctx.cellRanges, params.target);
-    return toResolvedActiveCell({ ctx: params.ctx, coords, range });
 }
