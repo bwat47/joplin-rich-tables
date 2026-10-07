@@ -81,8 +81,12 @@ export type TableRuntimeAction =
 // 1. A note switch short-circuits everything: no cell from the previous note is reopened.
 // 2. Explicit open requests short-circuit remaining lifecycle work.
 // 3. Forced raw-mode exit is terminal. Otherwise cursor-visibility work accumulates
-//    before the terminal reposition or selection-departure transitions (the first match returns).
-// 4. Continuing close, sync, and stale-clear actions follow.
+//    before the terminal reposition transition.
+// 4. Teardown follows: closing the editor of a removed active cell, and clearing one a document
+//    change left stale.
+// 5. A cell drag returns the actions already queued. The parked caret must not close or sync the
+//    open cell; release owns that outcome. Otherwise selection-departure is terminal, and sync is
+//    appended when the open cell still matches.
 export function reduceTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] {
     if (facts.noteChanged) {
         return reduceNoteSwitch(facts);
@@ -145,6 +149,22 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         return actions;
     }
 
+    if (activeCellWasRemoved(facts)) {
+        actions.push({ type: 'closeNestedEditor' });
+    }
+
+    if (shouldClearStaleActiveCell(facts)) {
+        actions.push({ type: 'clearActiveCell' });
+    }
+
+    // A drag parks the main caret in the cell under the pointer, so its updates look like the
+    // user moving the selection inside the open cell. Closing that cell would reflow the table
+    // mid-gesture, and syncing it would copy the parked caret into it. Release clears that
+    // cell, or keeps its editor when the gesture reactivates the anchor.
+    if (facts.cellDragInProgress) {
+        return actions;
+    }
+
     if (shouldClearActiveCellWhenSelectionLeavesTable(facts)) {
         // A programmatic selection move (find next, a host jump) leaves the table with no focus
         // owner of its own, unlike a click or arrow exit.
@@ -157,16 +177,8 @@ function reduceCoreTableRuntime(facts: TableRuntimeFacts): TableRuntimeAction[] 
         return actions;
     }
 
-    if (activeCellWasRemoved(facts)) {
-        actions.push({ type: 'closeNestedEditor' });
-    }
-
     if (shouldSyncMainToNested(facts)) {
         actions.push({ type: 'syncMainToNested', resolvedCell: facts.activeCell.resolvedCell });
-    }
-
-    if (shouldClearStaleActiveCell(facts)) {
-        actions.push({ type: 'clearActiveCell' });
     }
 
     return actions;
@@ -229,15 +241,12 @@ function shouldClearStaleActiveCell(facts: TableRuntimeFacts): boolean {
     return facts.activeCell.status === 'resolved' && !facts.nestedEditorOpen;
 }
 
-// A drag parks the main caret in the cell under the pointer; syncing the open cell from it
-// would overwrite the cell's text with the drag's own selection.
 function shouldSyncMainToNested(
     facts: TableRuntimeFacts
 ): facts is TableRuntimeFacts & { activeCell: ResolvedActiveCellFacts } {
     return (
         facts.nestedEditorOpen &&
         !facts.isSync &&
-        !facts.cellDragInProgress &&
         facts.activeCell.status === 'resolved' &&
         (facts.docChanged || (facts.selectionChanged && facts.activeCellIdentityUnchanged))
     );
@@ -251,15 +260,11 @@ function requiresCellReposition(facts: TableRuntimeFacts): boolean {
     return facts.activeCellBefore === 'resolved' ? facts.activeHostInvalidated : facts.isUndoRedoInsideTable;
 }
 
-// A drag parks the main caret in the cell under the pointer, so the active cell it left open
-// always reads as "selection left the table". Closing it would reflow the table mid-gesture;
-// the drag clears the active cell itself on release.
 function shouldClearActiveCellWhenSelectionLeavesTable(facts: TableRuntimeFacts): boolean {
     return (
         facts.selectionChanged &&
         !facts.isSync &&
         !facts.isCellSelectionTransition &&
-        !facts.cellDragInProgress &&
         !facts.effectiveRawMode &&
         facts.nestedEditorOpen &&
         facts.activeCell.status === 'resolved' &&
