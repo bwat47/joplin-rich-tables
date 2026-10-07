@@ -132,19 +132,15 @@ async function registerContentScript(): Promise<void> {
     );
 }
 
-joplin.plugins
-    .register({
-        onStart: async function () {
-            logger.info('Rich Tables plugin starting...');
-            await registerPluginSettings();
-            await warnIfJoplinTableEditorEnabled();
-            await registerCommands();
-            await registerToolsMenu();
-            await registerToolbarButtons();
-            await registerContentScript();
-            logger.info('Rich Tables plugin started');
-        },
-    })
-    .catch((error: unknown) => {
-        logger.error('Failed to register Rich Tables plugin', error);
-    });
+void joplin.plugins.register({
+    onStart: async function () {
+        logger.info('Rich Tables plugin starting...');
+        await registerPluginSettings();
+        await warnIfJoplinTableEditorEnabled();
+        await registerCommands();
+        await registerToolsMenu();
+        await registerToolbarButtons();
+        await registerContentScript();
+        logger.info('Rich Tables plugin started');
+    },
+});
