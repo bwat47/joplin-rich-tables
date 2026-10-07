@@ -704,6 +704,56 @@ describe('tableRuntimePolicies', () => {
         expect(reduceTableRuntime(facts)).toEqual([]);
     });
 
+    it('does not mirror document changes into the retained nested editor during a cell drag', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: resolvedActiveCellFacts(false),
+            nestedEditorOpen: true,
+            activeCellBefore: 'resolved',
+            activeCellIdentityUnchanged: true,
+            docChanged: true,
+            cellDragInProgress: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([]);
+    });
+
+    it('does not close or sync the nested editor when a cell drag changes the document and leaves the table', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: resolvedActiveCellFacts(true),
+            nestedEditorOpen: true,
+            activeCellBefore: 'resolved',
+            activeCellIdentityUnchanged: true,
+            docChanged: true,
+            selectionChanged: true,
+            cellDragInProgress: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([]);
+    });
+
+    it('still clears an active cell that a document change left unresolved during a cell drag', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'unresolved' },
+            nestedEditorOpen: true,
+            activeCellBefore: 'resolved',
+            docChanged: true,
+            cellDragInProgress: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'clearActiveCell' }]);
+    });
+
+    it('still closes the nested editor when its active cell is removed during a cell drag', () => {
+        const facts = defaultRuntimeFacts({
+            activeCell: { status: 'absent' },
+            nestedEditorOpen: true,
+            activeCellBefore: 'unresolved',
+            cellDragInProgress: true,
+        });
+
+        expect(reduceTableRuntime(facts)).toEqual([{ type: 'closeNestedEditor' }]);
+    });
+
     it('prefers an explicit open request over generic branches', () => {
         const facts = defaultRuntimeFacts({
             activeCell: resolvedActiveCellFacts(true),
