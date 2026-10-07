@@ -1,8 +1,17 @@
 import { markdown } from '@codemirror/lang-markdown';
+import { closeSearchPanel, openSearchPanel, search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import {
+    cellSelectionField,
+    clearCellSelectionEffect,
+    getCellSelection,
+    setCellSelectionEffect,
+} from '../tableState/cellSelectionState';
+import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { toggleSourceMode } from '../tableRuntime/sourceModeController';
 import { activeCellField } from '../tableState/activeCellState';
 import {
     beginOpenCellRequestEffect,
@@ -29,7 +38,10 @@ function mountView(): EditorView {
         doc: DOC,
         extensions: [
             markdown({ extensions: [GFM] }),
+            search(),
+            sourceModeField,
             cellSelectionField,
+            cellDragField,
             activeCellField,
             openCellRequestField,
             mainCaretSuppression,
@@ -68,6 +80,40 @@ afterEach(() => {
 });
 
 describe('mainCaretSuppression', () => {
+    it.each(['source', 'search'] as const)('releases cell selection and the caret on entering %s mode', (mode) => {
+        const view = mountView();
+        view.dispatch({ selection: { anchor: TABLE_FROM + 2 } });
+        selectCells(view);
+        view.dispatch({ effects: startCellDragEffect.of(null) });
+        const selection = view.state.selection;
+        expect(view.dom.hasAttribute(ATTR)).toBe(true);
+
+        if (mode === 'source') {
+            toggleSourceMode(view);
+        } else {
+            openSearchPanel(view);
+        }
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.state.field(cellDragField)).toBe(false);
+        expect(view.dom.hasAttribute(ATTR)).toBe(false);
+        expect(view.state.selection.eq(selection)).toBe(true);
+
+        // A stale cell-selection request cannot reclaim interaction in raw mode.
+        selectCells(view);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.dom.hasAttribute(ATTR)).toBe(false);
+
+        if (mode === 'source') {
+            view.dispatch({ effects: toggleSourceModeEffect.of(false) });
+        } else {
+            closeSearchPanel(view);
+        }
+
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(view.dom.hasAttribute(ATTR)).toBe(false);
+    });
+
     it('suppresses the caret while a cell selection is active', () => {
         const view = mountView();
         expect(view.dom.hasAttribute(ATTR)).toBe(false);

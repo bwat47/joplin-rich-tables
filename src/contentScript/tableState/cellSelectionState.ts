@@ -1,5 +1,6 @@
 import { Annotation, type EditorState, StateEffect, StateField } from '@codemirror/state';
 import { setActiveCellEffect } from './activeCellState';
+import { isEffectiveRawMode } from './sourceMode';
 import { getTableContextStartingAt } from './tableContextField';
 import type { TableContext } from '../tableModel/tableContext';
 import { fromUnifiedRow, toUnifiedRow, type CellCoords, type TableRect } from '../tableModel/types';
@@ -74,6 +75,12 @@ export const cellSelectionField = StateField.define<CellSelection | null>({
         return null;
     },
     update(value, tr) {
+        // Raw Markdown has no rendered cells to select. Clear in the same transaction
+        // so caret suppression, drag state, and table shortcuts release immediately.
+        if (isEffectiveRawMode(tr.state)) {
+            return null;
+        }
+
         let nextValue = value;
         let sawSetSelectionEffect = false;
 
