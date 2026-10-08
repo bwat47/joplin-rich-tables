@@ -11,8 +11,7 @@ Within a table, Tab moves to the next cell, and from the last cell it adds a row
 ## Selection Scopes
 
 - **Inside a cell:** The nested editor owns the visible text selection and mirrors it to the main editor for document commands and Joplin toolbar actions.
-- **Across cells:** A rectangular selection lives in main-editor state and is drawn by the widget. Keyboard navigation, deletion, clipboard operations, and undo use main-editor state. Pasting a table fragment can fill the selection or expand the table.
-- Entering raw Markdown mode (source mode or search) clears rectangular cell selection in the same transaction, releasing caret suppression, drag state, and table shortcut ownership.
+- **Across cells:** A rectangular selection lives in main-editor state and is drawn by the widget. Keyboard navigation, deletion, clipboard operations, and undo use main-editor state. Pasting a table fragment can fill the selection or expand the table. Entering raw Markdown mode (source mode or search) clears that selection in the same transaction, releasing caret suppression, drag state, and table shortcut ownership.
 - **Whole table:** A main-editor range that reaches a rendered table expands to include the full table block. Row and column selection remain part of the rectangular cell-selection mode.
 
 Mouse dragging can select text within one rendered cell or promote the gesture to a rectangular selection when it crosses into another cell. The [runtime invariants](./Table-Runtime-Invariants.md#cell-drag-ownership) define which state owns an active drag. Clipboard rewrites are described in [Structural-Commands-and-Serialization.md](./Structural-Commands-and-Serialization.md).

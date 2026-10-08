@@ -110,7 +110,8 @@ The table runtime behaves like a cross-file state machine. These invariants defi
 ## Cell Drag Ownership
 
 - Once a mouse gesture becomes a rectangular cell selection it owns the table's rendered geometry until the pointer
-  is released, recorded in `cellDragField`.
+  is released, recorded in `cellDragField`. Entering raw mode clears the selection in that transaction, which drops
+  the flag before release.
 - The gesture hit-tests the rendered table on every pointer move, so lifecycle policy must not mistake the caret it
   parks in the cell under the pointer for the user leaving the open cell: neither closing that cell's nested editor nor
   synchronizing it from the parked caret. Document-driven teardown still runs — a table that actually changed under the
