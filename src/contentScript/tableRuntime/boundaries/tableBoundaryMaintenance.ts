@@ -28,12 +28,10 @@ const BOUNDARY_PADDING_NEWLINE = '\n';
 /**
  * User events whose transactions must never be padded.
  *
- * Composition is excluded because rewriting the document mid-composition breaks IME and
- * soft-keyboard input; if composition fills the boundary, cell entry normalization repairs it later.
  * Deletions are protected by `mainEditorTableEntry` instead, and undo must be able to reach the
  * document as the user last left it.
  */
-const EXCLUDED_USER_EVENTS = ['input.type.compose', 'delete', 'undo', 'redo'] as const;
+const EXCLUDED_USER_EVENTS = ['delete', 'undo', 'redo'] as const;
 
 /**
  * Transactions this filter inspects: document changes that are neither an excluded event nor a
@@ -174,6 +172,8 @@ function buildPaddedTransaction(transaction: Transaction, padding: BoundaryPaddi
  * remaining hole, where the user writes text into the blank line instead of removing it.
  * The padding is folded into the same transaction so the host never sees the unseparated
  * document, and one undo takes both back.
+ * Composition input must also be padded: otherwise Markdown absorbs the composing line below
+ * a table as a new row, and its block widget replaces the DOM the IME is still editing.
  */
 const tableBoundaryMaintenanceFilter = EditorState.transactionFilter.of((transaction) => {
     if (!isBoundaryMaintenanceCandidate(transaction)) {

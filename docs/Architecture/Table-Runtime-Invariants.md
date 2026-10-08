@@ -54,9 +54,11 @@ The table runtime behaves like a cross-file state machine. These invariants defi
   lines by subtracting one between two text lines (that newline ends the neighbour) and subtracting none at a
   document edge.
 - The invariant is enforced at three points: table insertion and paste, cell entry normalization, and boundary
-  maintenance for typed or pasted text. All three decide whether to pad through `needsLeadingSeparator` /
+  maintenance for typed, pasted, or composed text. All three decide whether to pad through `needsLeadingSeparator` /
   `needsTrailingSeparator`. Cell-entry and maintenance repairs assume `REQUIRED_TABLE_BOUNDARY_BLANK_LINES === 1`.
   Repairs belong in the transaction that broke it, never in a later dispatch.
+- Composition is padded mid-composition, in the transaction that fills the blank line, and keeps its compose
+  annotation; deferring it lets the table absorb the composing line and replace the DOM the IME is editing.
 - Deletion protects the separation instead of repairing it, since the caret has somewhere to go.
 - Maintenance decides from the post-change document, so enforcement points cannot stack.
 

@@ -1,5 +1,5 @@
 import { history, redo, undo } from '@codemirror/commands';
-import { Annotation, type EditorState, type Extension, type Transaction } from '@codemirror/state';
+import { Annotation, Transaction, type EditorState, type Extension } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
@@ -71,6 +71,8 @@ describe('table boundary maintenance', () => {
         { label: 'typed', userEvent: 'input.type' },
         { label: 'pasted', userEvent: 'input.paste' },
         { label: 'dropped', userEvent: 'input.drop' },
+        { label: 'composed', userEvent: 'input.type.compose' },
+        { label: 'first composed', userEvent: 'input.type.compose.start' },
         // Joplin's `insertText`/`replaceSelection` commands, which other plugins insert
         // through, dispatch without a user event.
         { label: 'inserted by a host command', userEvent: undefined },
@@ -165,12 +167,84 @@ describe('table boundary maintenance', () => {
         expect(transaction.state.doc.toString()).toBe(`intro\nx\n${TABLE}\n`);
     });
 
-    it('leaves composition input alone', () => {
-        const doc = `intro\n\n${TABLE}\n`;
-        const transaction = input(createState(doc), blankLinePos(doc, TABLE), 'x', 'input.type.compose');
+    it.each([
+        {
+            label: 'above a table',
+            before: 'intro\n',
+            after: `\n${TABLE}\n`,
+            paddedBefore: 'intro\n',
+            paddedAfter: `\n\n${TABLE}\n`,
+        },
+        {
+            label: 'below a table',
+            before: `\n${TABLE}\n`,
+            after: '\nafter',
+            paddedBefore: `\n${TABLE}\n\n`,
+            paddedAfter: '\nafter',
+        },
+        {
+            label: 'at document end below a table',
+            before: `\n${TABLE}\n`,
+            after: '',
+            paddedBefore: `\n${TABLE}\n\n`,
+            paddedAfter: '',
+        },
+        {
+            label: 'below a table at document start',
+            before: `${TABLE}\n`,
+            after: '',
+            paddedBefore: `\n${TABLE}\n\n`,
+            paddedAfter: '',
+        },
+        {
+            label: 'between tables',
+            before: `\n${TABLE}\n`,
+            after: `\n${TABLE}\n`,
+            paddedBefore: `\n${TABLE}\n\n`,
+            paddedAfter: `\n\n${TABLE}\n`,
+        },
+    ])(
+        'keeps composition updates and acceptance outside tables $label',
+        ({ before, after, paddedBefore, paddedAfter }) => {
+            const doc = before + after;
+            let state = createState(doc).update({ selection: { anchor: before.length } }).state;
+            let from = before.length;
+            let previousText = '';
+            // Each update replaces the previous composing range, including a shorter candidate.
+            const candidates = ['に', '日本語', '日本', '日本語 '];
+            for (const [index, text] of candidates.entries()) {
+                const userEvent = index === 0 ? 'input.type.compose.start' : 'input.type.compose';
+                const transaction = state.update({
+                    changes: { from, to: from + previousText.length, insert: text },
+                    selection: { anchor: from + text.length },
+                    userEvent,
+                });
+                state = transaction.state;
 
-        expect(transaction.state.doc.toString()).toBe(`intro\nx\n${TABLE}\n`);
-    });
+                expect(transaction.annotation(Transaction.userEvent)).toBe(userEvent);
+                expect(state.doc.toString()).toBe(paddedBefore + text + paddedAfter);
+                expect(state.selection.main.head).toBe(paddedBefore.length + text.length);
+                expect(state.doc.lineAt(state.selection.main.head).text).toBe(text);
+                expect(getTableContextAtPos(state, paddedBefore.length)).toBeNull();
+                expect(getTableContextAtPos(state, state.doc.toString().indexOf(TABLE))?.text).toBe(TABLE);
+                from = paddedBefore.length;
+                previousText = text;
+            }
+
+            // Typing after accepting the composition must stay on the same ordinary text line.
+            state = input(state, state.selection.main.head, 'x', 'input.type').state;
+            expect(state.doc.toString()).toBe(paddedBefore + previousText + 'x' + paddedAfter);
+            expect(state.selection.main.head).toBe(paddedBefore.length + previousText.length + 1);
+
+            let undone = state;
+            expect(undo({ state, dispatch: (transaction) => (undone = transaction.state) })).toBe(true);
+            expect(undone.doc.toString()).toBe(doc);
+
+            let redone = undone;
+            expect(redo({ state: undone, dispatch: (transaction) => (redone = transaction.state) })).toBe(true);
+            expect(redone.doc.toString()).toBe(state.doc.toString());
+        }
+    );
 
     it('takes back the typed text and the padding in one undo', () => {
         const doc = `intro\n\n${TABLE}\n`;
