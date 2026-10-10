@@ -148,7 +148,12 @@ class NestedEditorController {
         this.session = session;
 
         this.flushSelectionToRoot();
+        // The bare DOM focus scrolls the cell into view; `focus()` then writes the initial
+        // selection to the DOM, which a bare focus leaves at the start of the content. A
+        // keystroke that opened this cell is inserted at the DOM caret before CodeMirror
+        // would get round to writing it.
         session.editor.contentDOM.focus();
+        session.editor.focus();
     }
 
     /**

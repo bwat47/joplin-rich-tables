@@ -4,7 +4,7 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
 }));
 
 import { history } from '@codemirror/commands';
-import type { StateEffect } from '@codemirror/state';
+import type { Extension, StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type * as DomHelpers from '../tableWidget/domHelpers';
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -14,7 +14,11 @@ import {
     setCellDragSelection,
     startCellSelectionFromActiveCell,
 } from '../tableRuntime/selection/cellSelectionController';
-import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import {
+    getPendingOpenCellRequest,
+    openCellRequestField,
+    triggerOpenCellRequestEffect,
+} from '../tableState/openCellRequestState';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 /** Table with three columns and two body rows, so selection can move in every direction. */
@@ -31,13 +35,13 @@ function nextAnimationFrame(): Promise<void> {
     });
 }
 
-function mountSelectionView(doc: string): EditorView {
+function mountSelectionView(doc: string, ...extra: Extension[]): EditorView {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
 
     const view = new EditorView({
         parent,
-        extensions: cellSelectionTestExtensions(history()),
+        extensions: cellSelectionTestExtensions(history(), ...extra),
         doc,
     });
     mountedViews.push(view);
@@ -45,8 +49,10 @@ function mountSelectionView(doc: string): EditorView {
     return view;
 }
 
-function pressKey(init: KeyboardEventInit & { key: string }): void {
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+function pressKey(init: KeyboardEventInit & { key: string }): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    document.body.dispatchEvent(event);
+    return event;
 }
 
 afterEach(() => {
@@ -368,6 +374,74 @@ describe('cellSelectionKeymap', () => {
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
         pressKey(init);
+
+        expect(getCellSelection(view.state)).toEqual(selection);
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    it.each([
+        { label: 'a letter', init: { key: 'x' } },
+        { label: 'a shifted letter', init: { key: 'X', shiftKey: true } },
+        { label: 'Space', init: { key: ' ' } },
+        { label: 'an AltGr character', init: { key: '€', ctrlKey: true, altKey: true, modifierAltGraph: true } },
+        { label: 'a dead key', init: { key: 'Dead' } },
+        { label: 'a key that starts an IME composition', init: { key: 'Process' } },
+    ])('opens the focus cell with the caret at its end when typing $label', ({ init }) => {
+        const view = mountSelectionView(
+            ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'),
+            openCellRequestField
+        );
+        view.dispatch({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 0 },
+                focus: { section: 'body', row: 0, col: 1 },
+            }),
+        });
+
+        const event = pressKey(init);
+
+        // The browser's text insertion has to stay in place: it lands in the cell editor.
+        expect(event.defaultPrevented).toBe(false);
+        expect(getCellSelection(view.state)).toBeNull();
+        expect(getActiveCell(view.state)).toMatchObject({ section: 'body', row: 0, col: 1 });
+        expect(getPendingOpenCellRequest(view.state)?.initialCursorPos).toBe('end');
+    });
+
+    it.each([
+        { label: 'Ctrl+letter', init: { key: 'b', ctrlKey: true } },
+        { label: 'Meta+letter', init: { key: 'b', metaKey: true } },
+        { label: 'a Ctrl+Alt chord', init: { key: 'b', ctrlKey: true, altKey: true } },
+        { label: 'a key inside an IME composition', init: { key: 'a', isComposing: true } },
+        { label: 'a named key', init: { key: 'F2' } },
+    ])('leaves the selection untouched on $label', ({ init }) => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        const selection = {
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of(selection) });
+
+        pressKey(init);
+
+        expect(getCellSelection(view.state)).toEqual(selection);
+        expect(getActiveCell(view.state)).toBeNull();
+    });
+
+    it('leaves typing to a focused external control', () => {
+        const view = mountSelectionView(['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n'));
+        const selection = {
+            tableFrom: 0,
+            anchor: { section: 'body', row: 0, col: 0 },
+            focus: { section: 'body', row: 0, col: 1 },
+        } as const;
+        view.dispatch({ effects: setCellSelectionEffect.of(selection) });
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true }));
 
         expect(getCellSelection(view.state)).toEqual(selection);
         expect(getActiveCell(view.state)).toBeNull();
