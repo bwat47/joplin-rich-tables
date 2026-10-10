@@ -34,7 +34,7 @@
         "@lezer/common": "^1.5.2",
         "@lezer/highlight": "^1.2.3",
         "@lezer/markdown": "^1.6.2",
-        "dompurify": "^3.4.12"
+        "dompurify": "^3.4.16"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
