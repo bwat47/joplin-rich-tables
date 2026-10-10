@@ -22,6 +22,7 @@ import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { handleSelectionDelete } from './cellSelectionClipboard';
 import { requestOpenCell } from '../openCellRequest';
 import { createHistoryKeyBindings } from '../historyKeymap';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 
 /** Dedicated keymap scope so these bindings never match the root editor's ordinary keyboard handling. */
 const CELL_SELECTION_SCOPE = 'table.cellSelection';
@@ -49,6 +50,26 @@ const ARROW_BINDINGS: ReadonlyArray<{ key: string; direction: CellSelectionDirec
 ];
 
 const SELECTION_ACTIVATION_KEYS = ['Enter', 'Tab', 'Escape'] as const;
+
+/** `KeyboardEvent.key` for a dead key, which starts an accent composition rather than typing. */
+const DEAD_KEY = 'Dead';
+
+/** `KeyboardEvent.key` for a keystroke an IME consumes, such as the one that starts a composition. */
+const IME_PROCESS_KEY = 'Process';
+
+/** `getModifierState` name for the AltGr key. */
+const ALT_GRAPH_MODIFIER = 'AltGraph';
+
+/**
+ * Matches a `KeyboardEvent.key` naming exactly one character, as opposed to a named key.
+ * The `u` flag counts an astral character as one, so `'😀'` matches.
+ *
+ * @example 'a', 'A', ' ', 'é', '€' match; 'Enter', 'ArrowLeft', 'Shift' do not.
+ */
+const SINGLE_CHARACTER_KEY = /^.$/u;
+
+/** Where typed text goes in the focus cell: appended, so the keystroke never discards its content. */
+const TEXT_INPUT_CURSOR_POS: InitialCursorPos = 'end';
 
 /**
  * Deletion commands currently represented in `defaultKeymap`. Word- and line-wise
@@ -130,7 +151,7 @@ function extendOrStartSelection(view: EditorView, direction: CellSelectionDirect
     return false;
 }
 
-function activateSelectionFocus(view: EditorView): boolean {
+function openSelectionFocusCell(view: EditorView, initialCursorPos?: InitialCursorPos): boolean {
     const selected = getSelectedTable(view.state);
     if (!selected) {
         return false;
@@ -138,10 +159,31 @@ function activateSelectionFocus(view: EditorView): boolean {
 
     requestOpenCell(view, {
         resolvedCell: resolveClampedCell({ ctx: selected.ctx, target: selected.selection.focus }),
+        initialCursorPos,
         scrollIntoView: false,
     });
 
     return true;
+}
+
+const activateSelectionFocus: Command = (view) => openSelectionFocusCell(view);
+
+/**
+ * True for a keystroke whose default action types text. Ctrl and Meta chords are commands,
+ * except AltGr, which Windows also reports as Ctrl+Alt; the `AltGraph` modifier tells it
+ * apart from a pressed Ctrl+Alt shortcut. A keystroke during an IME composition belongs to
+ * that composition, wherever it is running.
+ */
+function isTextInputKey(event: KeyboardEvent): boolean {
+    if (event.isComposing || event.metaKey) {
+        return false;
+    }
+
+    if (event.ctrlKey && !event.getModifierState(ALT_GRAPH_MODIFIER)) {
+        return false;
+    }
+
+    return event.key === DEAD_KEY || event.key === IME_PROCESS_KEY || SINGLE_CHARACTER_KEY.test(event.key);
 }
 
 /**
@@ -209,12 +251,20 @@ export const cellSelectionKeyCapturePlugin = ViewPlugin.fromClass(
                     return;
                 }
 
-                if (!runSelectionKeydown(this.view, event)) {
+                if (runSelectionKeydown(this.view, event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
                     return;
                 }
 
-                event.preventDefault();
-                event.stopPropagation();
+                if (isTextInputKey(event) && canHandleTableSelectionKeydown(this.view)) {
+                    // The default is kept on purpose. The cell editor mounts and takes focus in a
+                    // microtask, which runs before the browser inserts the text, so the keystroke
+                    // types into the cell. Stopping propagation keeps the root editor from acting on
+                    // the key against its caret parked in the table's hidden Markdown.
+                    openSelectionFocusCell(this.view, TEXT_INPUT_CURSOR_POS);
+                    event.stopPropagation();
+                }
             };
 
             this.view.dom.ownerDocument.addEventListener('keydown', this.onKeyDown, true);
