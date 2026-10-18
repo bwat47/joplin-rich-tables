@@ -1,6 +1,6 @@
 import { ChangeSet, EditorSelection, type Transaction } from '@codemirror/state';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { getCellSelection } from '../../tableState/cellSelectionState';
+import { getCellSelection, getSelectedTable } from '../../tableState/cellSelectionState';
 import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
 import { sanitizeCellChanges } from './sanitizeCellChanges';
 import { syncAnnotation } from '../../shared/syncAnnotation';
@@ -14,6 +14,7 @@ import {
 } from '../selection/cellSelectionClipboard';
 import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from '../operations/pasteTableNormalizer';
 import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { isEditConfinedToSelectedCells } from '../selection/cellSelectionEditScope';
 
 export type GuardDecision =
     | { type: 'allowTransaction' }
@@ -169,6 +170,38 @@ function decideActiveCellEdit(tr: Transaction): GuardDecision {
     return decideCellSanitization(tr, resolvedActiveCell);
 }
 
+function isHistoryTransaction(tr: Transaction): boolean {
+    return tr.isUserEvent('undo') || tr.isUserEvent('redo');
+}
+
+/**
+ * Decides how to treat a main-editor edit while a cell selection is active, or returns null
+ * when there is no resolvable selection.
+ *
+ * The selection parks one main-editor range per selected cell so host formatting commands
+ * reach every cell. Commands that act on lines instead (headings, lists, quotes, code fences)
+ * would write table syntax into the rows, so any edit touching the selected table must stay
+ * inside the selected cells' text. History may revert a structural edit, and structural
+ * commands rewrite the table on purpose, so both pass.
+ */
+function decideCellSelectionEdit(tr: Transaction): GuardDecision | null {
+    const selected = getSelectedTable(tr.startState);
+    if (!selected) {
+        return null;
+    }
+
+    if (
+        isHistoryTransaction(tr) ||
+        tr.effects.some((effect) => effect.is(structuralTableEditEffect)) ||
+        !tr.changes.touchesRange(selected.ctx.from, selected.ctx.to) ||
+        isEditConfinedToSelectedCells(tr.changes, selected)
+    ) {
+        return { type: 'allowTransaction' };
+    }
+
+    return { type: 'rejectTransaction' };
+}
+
 export function decideMainEditorGuardTransaction(
     tr: Transaction,
     params: { nestedEditorOpen: boolean }
@@ -185,6 +218,14 @@ export function decideMainEditorGuardTransaction(
     const fullReplaceDecision = decideFullDocumentReplace(tr);
     if (fullReplaceDecision) {
         return fullReplaceDecision;
+    }
+
+    // A drag keeps its anchor cell open alongside the selection; that cell's guard applies.
+    if (!getActiveCell(tr.startState)) {
+        const cellSelectionDecision = decideCellSelectionEdit(tr);
+        if (cellSelectionDecision) {
+            return cellSelectionDecision;
+        }
     }
 
     if (!params.nestedEditorOpen || !getActiveCell(tr.startState)) {

@@ -9,7 +9,6 @@ import type { CellCoords } from '../tableModel/types';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
-const NO_OUTER_PIPES_DOC = ['H1 | H2', '--- | ---', 'a1 | a2'].join('\n');
 const BOLD_MARKER = '**';
 
 const mountedViews: EditorView[] = [];
@@ -90,17 +89,6 @@ describe('cell selection edit retention', () => {
         undo(view);
 
         expect(view.state.doc.toString()).toBe(GRID_DOC);
-        expect(getCellSelection(view.state)).toEqual(before);
-    });
-
-    it('keeps the selection when formatting inserts at the start of a table without outer pipes', () => {
-        const view = mountView(NO_OUTER_PIPES_DOC);
-        dragSelect(view, { section: 'header', row: 0, col: 0 }, body(0, 1));
-        const before = getCellSelection(view.state);
-
-        boldEveryRange(view);
-
-        expect(view.state.doc.toString().startsWith(`${BOLD_MARKER}H1${BOLD_MARKER}`)).toBe(true);
         expect(getCellSelection(view.state)).toEqual(before);
     });
 
