@@ -1,10 +1,14 @@
 import { EditorSelection, EditorState, type SelectionRange } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildCellSelectionRanges } from '../tableRuntime/selection/cellSelectionRanges';
+import { buildCellSelectionRanges, cellTextFromContext } from '../tableRuntime/selection/cellSelectionRanges';
 import { setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
-import { getCellSelection } from '../tableState/cellSelectionState';
+import { getCellSelection, toSelectionRect } from '../tableState/cellSelectionState';
+import {
+    buildMultiCellPasteRewrite,
+    createTableClipboardRewriteSpec,
+} from '../tableRuntime/selection/cellSelectionClipboard';
 import { getTableContextStartingAt } from '../tableState/tableContextField';
 import type { TableContext } from '../tableModel/tableContext';
 import type { CellCoords, TableRect } from '../tableModel/types';
@@ -29,6 +33,10 @@ function tableContext(doc: string): { state: EditorState; ctx: TableContext } {
         throw new Error('test document has no table at 0');
     }
     return { state, ctx };
+}
+
+function buildFromContext(ctx: TableContext, rect: TableRect, focus: CellCoords): EditorSelection {
+    return buildCellSelectionRanges({ tableFrom: ctx.from, rect, focus, cellText: cellTextFromContext(ctx) });
 }
 
 function rangeTexts(state: EditorState, ranges: readonly SelectionRange[]): string[] {
@@ -73,7 +81,7 @@ describe('buildCellSelectionRanges', () => {
     it('covers the text of every cell in the rectangle, with the focus cell as main', () => {
         const { state, ctx } = tableContext(GRID_DOC);
 
-        const selection = buildCellSelectionRanges(ctx, BODY_RECT, body(1, 1));
+        const selection = buildFromContext(ctx, BODY_RECT, body(1, 1));
 
         expect(rangeTexts(state, selection.ranges)).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'b3']);
         expect(state.sliceDoc(selection.main.from, selection.main.to)).toBe('b2');
@@ -82,7 +90,7 @@ describe('buildCellSelectionRanges', () => {
     it('covers header cells when the rectangle includes the header row', () => {
         const { state, ctx } = tableContext(GRID_DOC);
 
-        const selection = buildCellSelectionRanges(ctx, { minRow: 0, maxRow: 1, minCol: 1, maxCol: 1 }, body(0, 1));
+        const selection = buildFromContext(ctx, { minRow: 0, maxRow: 1, minCol: 1, maxCol: 1 }, body(0, 1));
 
         expect(rangeTexts(state, selection.ranges)).toEqual(['H2', 'a2']);
     });
@@ -90,7 +98,7 @@ describe('buildCellSelectionRanges', () => {
     it('skips empty cells and cells a ragged row is missing', () => {
         const { state, ctx } = tableContext(SPARSE_DOC);
 
-        const selection = buildCellSelectionRanges(ctx, BODY_RECT, body(1, 1));
+        const selection = buildFromContext(ctx, BODY_RECT, body(1, 1));
 
         expect(rangeTexts(state, selection.ranges)).toEqual(['a1', 'a3', 'b2']);
         expect(state.sliceDoc(selection.main.from, selection.main.to)).toBe('b2');
@@ -99,7 +107,7 @@ describe('buildCellSelectionRanges', () => {
     it('makes the first range main when the focus cell is empty', () => {
         const { state, ctx } = tableContext(SPARSE_DOC);
 
-        const selection = buildCellSelectionRanges(ctx, BODY_RECT, body(0, 1));
+        const selection = buildFromContext(ctx, BODY_RECT, body(0, 1));
 
         expect(state.sliceDoc(selection.main.from, selection.main.to)).toBe('a1');
     });
@@ -108,7 +116,7 @@ describe('buildCellSelectionRanges', () => {
         const { ctx } = tableContext(SPARSE_DOC);
         const emptyCellRect: TableRect = { minRow: 1, maxRow: 1, minCol: 1, maxCol: 1 };
 
-        const selection = buildCellSelectionRanges(ctx, emptyCellRect, body(0, 1));
+        const selection = buildFromContext(ctx, emptyCellRect, body(0, 1));
 
         expect(selection.ranges).toHaveLength(1);
         expect(selection.main.empty).toBe(true);
@@ -137,5 +145,39 @@ describe('cell selection main-editor ranges', () => {
                 '\n'
             )
         );
+    });
+});
+
+describe('paste rewrite main-editor ranges', () => {
+    it.each([
+        ['plain cells', ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |']],
+        [
+            'escaped pipes and line breaks',
+            [String.raw`| P\|1 | P<br>2 |`, '| --- | --- |', String.raw`| Q1 | x\|y<br>z |`],
+        ],
+        [
+            'a fragment that grows the table',
+            ['| P1 | P2 | P3 | P4 |', '| --- | --- | --- | --- |', '| Q1 | Q2 | Q3 | Q4 |', '| R1 | R2 | R3 | R4 |'],
+        ],
+    ])('matches the ranges the re-indexed table yields for %s', (_label, fragmentLines) => {
+        const { state, ctx } = tableContext(GRID_DOC);
+        const rewrite = buildMultiCellPasteRewrite(
+            { ctx, anchor: body(0, 1), source: 'selection', rect: { minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 } },
+            fragmentLines.join('\n')
+        );
+        if (!rewrite?.selection) {
+            throw new Error('paste produced no cell selection');
+        }
+
+        const next = state.update(createTableClipboardRewriteSpec(state, rewrite)).state;
+        const nextCtx = getTableContextStartingAt(next, 0);
+        if (!nextCtx) {
+            throw new Error('rewritten table is not indexed');
+        }
+        const expected = buildFromContext(nextCtx, toSelectionRect(rewrite.selection), rewrite.selection.focus);
+
+        expect(next.selection.ranges).toEqual(expected.ranges);
+        expect(next.selection.mainIndex).toBe(expected.mainIndex);
+        expect(next.selection.ranges.length).toBeGreaterThan(1);
     });
 });

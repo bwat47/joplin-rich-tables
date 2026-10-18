@@ -1,6 +1,6 @@
 import type { ChangeSet } from '@codemirror/state';
 import { toSelectionRect, type SelectedTable } from '../../tableState/cellSelectionState';
-import { collectSelectedCellRanges } from './cellSelectionRanges';
+import { cellTextFromContext, collectSelectedCellSpans } from './cellSelectionRanges';
 
 /**
  * Inserted characters that would change the table's structure: a line break ends the row
@@ -20,13 +20,13 @@ const STRUCTURAL_TABLE_CHARACTERS = /[\n|]/;
  */
 export function isEditConfinedToSelectedCells(changes: ChangeSet, selected: SelectedTable): boolean {
     const { selection, ctx } = selected;
-    const cells = collectSelectedCellRanges(ctx, toSelectionRect(selection));
+    const cells = collectSelectedCellSpans(toSelectionRect(selection), cellTextFromContext(ctx));
     let confined = true;
 
     changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         confined &&=
             !STRUCTURAL_TABLE_CHARACTERS.test(inserted.toString()) &&
-            cells.some(({ range }) => ctx.from + range.editableFrom <= fromA && toA <= ctx.from + range.editableTo);
+            cells.some((cell) => cell.from <= fromA && toA <= cell.to);
     });
 
     return confined;

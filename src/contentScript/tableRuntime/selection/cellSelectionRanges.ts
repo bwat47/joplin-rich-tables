@@ -1,29 +1,67 @@
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
+import type { SerializedTable } from '../../tableModel/MarkdownTable';
 import type { TableContext } from '../../tableModel/tableContext';
-import { getCellRange, type CellRange } from '../../tableModel/markdownTableCellRanges';
+import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { fromUnifiedRow, isSameCellCoords, type CellCoords, type TableRect } from '../../tableModel/types';
 
-/** A selected cell that has source text, with its table-relative range. */
-export interface SelectedCellRange {
-    coords: CellCoords;
-    range: CellRange;
+/** A cell's editable text span, in document positions. */
+interface CellTextSpan {
+    from: number;
+    to: number;
 }
 
-/** Lists the source-backed cells inside `rect`, row by row. Cells a ragged row is missing are skipped. */
-export function collectSelectedCellRanges(ctx: TableContext, rect: TableRect): SelectedCellRange[] {
-    const cells: SelectedCellRange[] = [];
+/** Looks up a cell's editable text span, or null for a cell the table does not have. */
+export type CellTextLookup = (coords: CellCoords) => CellTextSpan | null;
+
+/** A selected cell together with its editable text span. */
+export interface SelectedCellSpan extends CellTextSpan {
+    coords: CellCoords;
+}
+
+/** Cell text spans of an indexed table, from its parsed editable ranges. */
+export function cellTextFromContext(ctx: TableContext): CellTextLookup {
+    return (coords) => {
+        const range = getCellRange(ctx.cellRanges, coords);
+        return range ? { from: ctx.from + range.editableFrom, to: ctx.from + range.editableTo } : null;
+    };
+}
+
+/**
+ * Cell text spans of a table about to be written at `tableFrom`, from its serialization.
+ *
+ * Canonical serialization writes each cell's content between single-space pipe padding,
+ * which is exactly the editable range the parser reports once the text is indexed.
+ */
+export function cellTextFromSerialized(tableFrom: number, serialized: SerializedTable): CellTextLookup {
+    return (coords) => {
+        const range = serialized.cellRange(coords);
+        return range ? { from: tableFrom + range.from, to: tableFrom + range.to } : null;
+    };
+}
+
+/** Lists the cells inside `rect` that the table has, row by row. Cells a ragged row is missing are skipped. */
+export function collectSelectedCellSpans(rect: TableRect, cellText: CellTextLookup): SelectedCellSpan[] {
+    const cells: SelectedCellSpan[] = [];
 
     for (let row = rect.minRow; row <= rect.maxRow; row++) {
         for (let col = rect.minCol; col <= rect.maxCol; col++) {
             const coords = fromUnifiedRow(row, col);
-            const range = getCellRange(ctx.cellRanges, coords);
-            if (range) {
-                cells.push({ coords, range });
+            const span = cellText(coords);
+            if (span) {
+                cells.push({ coords, ...span });
             }
         }
     }
 
     return cells;
+}
+
+/** What a cell selection's main-editor ranges are built from. */
+export interface CellSelectionRangesParams {
+    tableFrom: number;
+    rect: TableRect;
+    focus: CellCoords;
+    cellText: CellTextLookup;
 }
 
 /**
@@ -36,26 +74,27 @@ export function collectSelectedCellRanges(ctx: TableContext, rect: TableRect): S
  *
  * The focus cell's range is the main one, keeping `selection.main` inside the selected table
  * for the scope guard. When the focus cell is empty, the first range is main instead; when no
- * selected cell has text, the selection collapses to a caret at the focus cell's start.
+ * selected cell has text, the selection collapses to a caret at the focus cell's start (or the
+ * table start, should the focus cell be missing).
  */
-export function buildCellSelectionRanges(ctx: TableContext, rect: TableRect, focus: CellCoords): EditorSelection {
+export function buildCellSelectionRanges(params: CellSelectionRangesParams): EditorSelection {
+    const { tableFrom, rect, focus, cellText } = params;
     const ranges: SelectionRange[] = [];
     let mainIndex = 0;
 
-    for (const { coords, range } of collectSelectedCellRanges(ctx, rect)) {
-        if (range.editableFrom === range.editableTo) {
+    for (const { coords, from, to } of collectSelectedCellSpans(rect, cellText)) {
+        if (from === to) {
             continue;
         }
 
         if (isSameCellCoords(coords, focus)) {
             mainIndex = ranges.length;
         }
-        ranges.push(EditorSelection.range(ctx.from + range.editableFrom, ctx.from + range.editableTo));
+        ranges.push(EditorSelection.range(from, to));
     }
 
     if (ranges.length === 0) {
-        const focusRange = getCellRange(ctx.cellRanges, focus);
-        return EditorSelection.single(ctx.from + (focusRange?.editableFrom ?? 0));
+        return EditorSelection.single(cellText(focus)?.from ?? tableFrom);
     }
 
     return EditorSelection.create(ranges, mainIndex);

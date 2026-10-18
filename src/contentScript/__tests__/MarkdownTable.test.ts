@@ -725,8 +725,9 @@ describe('serializeWithOffsets agrees with parsing the serialization', () => {
         expect(coords.length).toBeGreaterThan(0);
 
         for (const cell of coords) {
-            const expected = getCellRange(ranges, cell)?.editableFrom;
-            expect(serialized.cellOffset(cell)).toBe(expected);
+            const parsed = getCellRange(ranges, cell);
+            expect(serialized.cellOffset(cell)).toBe(parsed?.editableFrom);
+            expect(serialized.cellRange(cell)).toEqual({ from: parsed?.editableFrom, to: parsed?.editableTo });
         }
     });
 
@@ -737,5 +738,6 @@ describe('serializeWithOffsets agrees with parsing the serialization', () => {
 
         expect(serialized.cellOffset({ section: 'header', row: 0, col: 1 })).toBeNull();
         expect(serialized.cellOffset({ section: 'body', row: 1, col: 0 })).toBeNull();
+        expect(serialized.cellRange({ section: 'header', row: 0, col: 1 })).toBeNull();
     });
 });

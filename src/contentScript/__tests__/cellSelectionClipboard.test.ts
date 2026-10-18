@@ -1,4 +1,4 @@
-import type { EditorState } from '@codemirror/state';
+import { EditorSelection, type EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -301,7 +301,7 @@ describe('cellSelectionClipboard', () => {
         expect(rewrite?.tableText).toBe('');
         expect(rewrite?.selection).toBeNull();
         expect(rewrite?.clearActiveCell).toBe(true);
-        expect(rewrite?.selectionAnchorPos).toBe(0);
+        expect(rewrite?.mainSelection.ranges).toEqual([EditorSelection.cursor(0)]);
     });
 
     it('deletes the whole table when an empty full-row selection exhausts all rows', () => {

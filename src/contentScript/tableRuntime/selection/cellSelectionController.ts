@@ -21,7 +21,7 @@ import { getResolvedActiveCell, resolveClampedCell } from '../../tableState/reso
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
-import { buildCellSelectionRanges } from './cellSelectionRanges';
+import { buildCellSelectionRanges, cellTextFromContext } from './cellSelectionRanges';
 
 /**
  * Hands focus to the main editor for a cell selection it does not already hold.
@@ -95,7 +95,12 @@ function dispatchSelectionWithContext(
     };
 
     view.dispatch({
-        selection: buildCellSelectionRanges(ctx, toSelectionRect(cellSelection), focus),
+        selection: buildCellSelectionRanges({
+            tableFrom: ctx.from,
+            rect: toSelectionRect(cellSelection),
+            focus,
+            cellText: cellTextFromContext(ctx),
+        }),
         effects: [
             setCellSelectionEffect.of(cellSelection),
             ...(options.clearActiveCell ? [clearActiveCellEffect.of(null)] : []),
