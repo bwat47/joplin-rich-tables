@@ -12,7 +12,7 @@ The runtime runner serializes a surviving table, replaces its source range when 
 
 ## Clipboard and Table Creation
 
-Multi-cell paste and selection removal enter through `cellSelectionClipboard.ts`. They resolve current table state, apply changes through the model, and serialize the resulting table. A pasted table fragment can expand the target table; clearing or cutting a selection can clear cell contents or remove rows, columns, or an empty whole table. Root-editor paste handling also routes table fragments into this flow when a nested cell editor is active.
+Multi-cell paste and selection removal enter through `cellSelectionClipboard.ts`. They resolve current table state, apply changes through the model, and serialize the resulting table. A pasted table fragment can expand the target table; clearing or cutting a selection can clear cell contents or remove rows, columns, or an empty whole table. A rewrite that leaves a cell selection sets its per-cell main-editor ranges in the same transaction, from the serializer's cell offsets. Root-editor paste handling also routes table fragments into this flow when a nested cell editor is active.
 
 Inserting a new table and pasting a standalone table use shared rewrite logic to place canonical table Markdown with the required blank-line separation. These paths attach an explicit request to open the intended cell after insertion.
 

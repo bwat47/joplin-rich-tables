@@ -1,4 +1,4 @@
-import { EditorSelection, type StateEffect } from '@codemirror/state';
+import type { StateEffect } from '@codemirror/state';
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
@@ -8,6 +8,8 @@ import {
     getSelectedTable,
     moveCellCoords,
     setCellSelectionEffect,
+    toSelectionRect,
+    type CellSelection,
     type CellSelectionDirection,
     type CellSelectionEndpoints,
 } from '../../tableState/cellSelectionState';
@@ -19,6 +21,7 @@ import { getResolvedActiveCell, resolveClampedCell } from '../../tableState/reso
 import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
+import { buildCellSelectionRanges, cellTextFromContext } from './cellSelectionRanges';
 
 /**
  * Hands focus to the main editor for a cell selection it does not already hold.
@@ -85,15 +88,21 @@ function dispatchSelectionWithContext(
     const resolvedAnchor = resolveClampedCell({ ctx, target: selection.anchor });
     const resolvedFocus = resolveClampedCell({ ctx, target: selection.focus });
     const focus = normalizeCellCoords(resolvedFocus.activeCell);
+    const cellSelection: CellSelection = {
+        tableFrom: ctx.from,
+        anchor: normalizeCellCoords(resolvedAnchor.activeCell),
+        focus,
+    };
 
     view.dispatch({
-        selection: EditorSelection.single(resolvedFocus.editableFrom),
+        selection: buildCellSelectionRanges({
+            tableFrom: ctx.from,
+            rect: toSelectionRect(cellSelection),
+            focus,
+            cellText: cellTextFromContext(ctx),
+        }),
         effects: [
-            setCellSelectionEffect.of({
-                tableFrom: ctx.from,
-                anchor: normalizeCellCoords(resolvedAnchor.activeCell),
-                focus,
-            }),
+            setCellSelectionEffect.of(cellSelection),
             ...(options.clearActiveCell ? [clearActiveCellEffect.of(null)] : []),
             ...(options.extraEffects ?? []),
         ],

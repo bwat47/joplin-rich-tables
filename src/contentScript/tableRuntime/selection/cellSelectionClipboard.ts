@@ -14,12 +14,12 @@ import {
     type CellSelection,
     type SelectedTable,
 } from '../../tableState/cellSelectionState';
-import { createActiveCellForTable } from '../../tableState/activeCellTarget';
 import { getResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
 import type { TableContext } from '../../tableModel/tableContext';
 import { fromUnifiedRow, type CellCoords, type TableRect } from '../../tableModel/types';
+import { buildCellSelectionRanges, cellTextFromSerialized } from './cellSelectionRanges';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
 import { clamp } from '../../shared/numberUtils';
 import { sanitizeLocalText } from '../../tableModel/cellTextNormalization';
@@ -57,7 +57,8 @@ export interface TableClipboardRewrite {
     tableText: string;
     selection: CellSelection | null;
     clearActiveCell: boolean;
-    selectionAnchorPos: number;
+    /** Main-editor selection after the rewrite: the cell selection's per-cell ranges, or a caret. */
+    mainSelection: EditorSelection;
 }
 
 function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
@@ -151,14 +152,22 @@ export function resolveTableClipboardTarget(
     };
 }
 
-function computeSelectionAnchorPos(tableFrom: number, serialized: SerializedTable, coords: CellCoords): number | null {
-    const activeCell = createActiveCellForTable({
-        tableFrom,
-        serialized,
-        target: coords,
-    });
+/** The main selection for a table written at `tableFrom`: per-cell ranges for `selection`, or a caret. */
+function buildRewriteMainSelection(
+    tableFrom: number,
+    serialized: SerializedTable,
+    selection: CellSelection | null
+): EditorSelection {
+    if (!selection) {
+        return EditorSelection.single(tableFrom);
+    }
 
-    return activeCell?.selectionAnchor ?? null;
+    return buildCellSelectionRanges({
+        tableFrom,
+        rect: toSelectionRect(selection),
+        focus: selection.focus,
+        cellText: cellTextFromSerialized(tableFrom, serialized),
+    });
 }
 
 function buildTableRewrite(params: {
@@ -166,20 +175,9 @@ function buildTableRewrite(params: {
     table: MarkdownTable;
     selection: CellSelection | null;
     clearActiveCell: boolean;
-}): TableClipboardRewrite | null {
+}): TableClipboardRewrite {
     const { from: tableFrom, to: tableTo } = params.ctx;
     const serialized = params.table.serializeWithOffsets();
-
-    let selectionAnchorPos = tableFrom;
-    if (params.selection) {
-        const rect = toSelectionRect(params.selection);
-        const topLeft = fromUnifiedRow(rect.minRow, rect.minCol);
-        const nextSelectionAnchorPos = computeSelectionAnchorPos(tableFrom, serialized, topLeft);
-        if (nextSelectionAnchorPos === null) {
-            return null;
-        }
-        selectionAnchorPos = nextSelectionAnchorPos;
-    }
 
     return {
         tableFrom,
@@ -187,7 +185,7 @@ function buildTableRewrite(params: {
         tableText: serialized.text,
         selection: params.selection,
         clearActiveCell: params.clearActiveCell,
-        selectionAnchorPos,
+        mainSelection: buildRewriteMainSelection(tableFrom, serialized, params.selection),
     };
 }
 
@@ -198,7 +196,7 @@ function buildTableDeletionRewrite(ctx: TableContext): TableClipboardRewrite {
         tableText: '',
         selection: null,
         clearActiveCell: true,
-        selectionAnchorPos: ctx.from,
+        mainSelection: EditorSelection.single(ctx.from),
     };
 }
 
@@ -351,12 +349,7 @@ export function buildMultiCellPasteRewrite(
     }
 
     const nextSelection = selectionFromRect(ctx.from, result.pastedRect);
-    const topLeft = fromUnifiedRow(result.pastedRect.minRow, result.pastedRect.minCol);
     const serialized = result.table.serializeWithOffsets();
-    const selectionAnchorPos = computeSelectionAnchorPos(ctx.from, serialized, topLeft);
-    if (selectionAnchorPos === null) {
-        return null;
-    }
 
     return {
         tableFrom: ctx.from,
@@ -364,7 +357,7 @@ export function buildMultiCellPasteRewrite(
         tableText: serialized.text,
         selection: nextSelection,
         clearActiveCell: target.source === 'activeCell',
-        selectionAnchorPos,
+        mainSelection: buildRewriteMainSelection(ctx.from, serialized, nextSelection),
     };
 }
 
@@ -384,7 +377,7 @@ export function createTableClipboardRewriteSpec(state: EditorState, rewrite: Tab
                   },
               }
             : {}),
-        selection: EditorSelection.single(rewrite.selectionAnchorPos),
+        selection: rewrite.mainSelection,
         effects,
         annotations: [cellSelectionTransitionAnnotation.of(true), tableClipboardRewriteAnnotation.of(true)],
         scrollIntoView: false,

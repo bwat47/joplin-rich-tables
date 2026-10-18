@@ -1,5 +1,6 @@
 import { EditorSelection, EditorState, type Extension, type SelectionRange } from '@codemirror/state';
 import type { TableSpan } from '../../tableModel/tableContext';
+import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
 import { getTableContextsTouching } from '../../tableState/tableContextField';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { resolveSearchMatchCell } from '../search/searchMatchCellEntry';
@@ -62,8 +63,10 @@ export function snapSelectionAroundTables(
  *
  * Applies to any selection-only transaction on a document the main editor still owns: a nested
  * cell editor, a cell selection and an in-flight entry request each park the main selection
- * inside a table on purpose, and raw mode has no widgets to snap around. Everything the plugin
- * itself dispatches under those conditions moves a bare caret, which this leaves alone.
+ * inside a table on purpose, and raw mode has no widgets to snap around. A cell selection parks
+ * one range per selected cell (`cellSelectionRanges.ts`). The transaction that creates one can
+ * start from a plain caret — a drag from a rendered cell — so cell selection transitions are
+ * exempt by annotation rather than by start state.
  *
  * Document changes are left alone too. This exists for selection gestures, which never carry
  * one, and an edit that rewrites a table has its own policies deciding where the caret lands.
@@ -73,7 +76,13 @@ export function snapSelectionAroundTables(
  * carries survives. The second, sequential spec only replaces its selection with the snapped one.
  */
 export const tableSelectionSnapFilter: Extension = EditorState.transactionFilter.of((tr) => {
-    if (tr.docChanged || !tr.selection || !hasPlainRenderedTableCaret(tr.startState) || resolveSearchMatchCell(tr)) {
+    if (
+        tr.docChanged ||
+        !tr.selection ||
+        !hasPlainRenderedTableCaret(tr.startState) ||
+        tr.annotation(cellSelectionTransitionAnnotation) ||
+        resolveSearchMatchCell(tr)
+    ) {
         return [tr];
     }
 

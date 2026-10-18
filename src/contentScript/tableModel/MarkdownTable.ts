@@ -107,15 +107,22 @@ function cellOffsetInSerializedRow(cells: readonly string[], col: number): numbe
     return offset;
 }
 
+/** A cell's content span inside a serialized table, relative to the table text. */
+interface SerializedCellRange {
+    readonly from: number;
+    readonly to: number;
+}
+
 /**
  * A table's canonical serialization paired with the cell positions inside it.
- * `cellOffset` is only meaningful against `text`, so the two travel together.
+ * `cellOffset` and `cellRange` are only meaningful against `text`, so they travel together.
  */
 export interface SerializedTable {
     readonly text: string;
     readonly columnCount: number;
     readonly rowCount: number;
     cellOffset(coords: CellCoords): number | null;
+    cellRange(coords: CellCoords): SerializedCellRange | null;
 }
 
 function cloneRows(rows: readonly (readonly string[])[]): string[][] {
@@ -409,21 +416,25 @@ export class MarkdownTable {
             offset += line.length + LINE_SEPARATOR.length;
         }
 
+        const cellRange = (coords: CellCoords): SerializedCellRange | null => {
+            const rowIndex = toUnifiedRow(coords);
+            // Unified row 0 is the header on line 0; row N is a body row below the separator.
+            const lineIndex = rowIndex === 0 ? 0 : rowIndex + 1;
+            const cells = rows[lineIndex];
+            if (!cells || coords.col < 0 || coords.col >= cells.length) {
+                return null;
+            }
+
+            const from = lineStarts[lineIndex] + cellOffsetInSerializedRow(cells, coords.col);
+            return { from, to: from + cells[coords.col].length };
+        };
+
         return {
             text: lines.join(LINE_SEPARATOR),
             columnCount: this.columnCount,
             rowCount: this.rowCount,
-            cellOffset(coords: CellCoords): number | null {
-                const rowIndex = toUnifiedRow(coords);
-                // Unified row 0 is the header on line 0; row N is a body row below the separator.
-                const lineIndex = rowIndex === 0 ? 0 : rowIndex + 1;
-                const cells = rows[lineIndex];
-                if (!cells || coords.col < 0 || coords.col >= cells.length) {
-                    return null;
-                }
-
-                return lineStarts[lineIndex] + cellOffsetInSerializedRow(cells, coords.col);
-            },
+            cellOffset: (coords) => cellRange(coords)?.from ?? null,
+            cellRange,
         };
     }
 

@@ -22,6 +22,10 @@ import { decideMainEditorGuardTransaction } from './mainEditorGuardPolicy';
  *
  * It also *sanitizes* input inside the active cell (converting newlines to <br>)
  * to support context-menu paste operations which bypass the nested editor.
+ *
+ * While a cell selection is active, edits touching its table must stay inside the selected
+ * cells' text (`isEditConfinedToSelectedCells`), apart from undo/redo and structural
+ * operations. This lets host inline formatting through and rejects line-based commands.
  */
 export function createMainEditorActiveCellGuard(isNestedEditorOpen: () => boolean): Extension {
     const guardFilter = EditorState.transactionFilter.of((tr) => {
