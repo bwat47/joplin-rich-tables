@@ -26,6 +26,7 @@ import { wholeTableSelectionVisuals } from './tableWidget/wholeTableSelectionVis
 import { renderedTextSelectionTheme } from './tableWidget/renderedTextSelectionTheme';
 import { tableSelectionSnapFilter } from './tableRuntime/selection/tableSelectionSnap';
 import { cellSelectionEditRetention } from './tableRuntime/selection/cellSelectionEditRetention';
+import { cellSelectionRangeRelease } from './tableRuntime/selection/cellSelectionRangeRelease';
 import { isNestedEditorOpen, nestedEditorPlugin } from './nestedEditor/nestedEditorController';
 import { nestedEditorFocusGuard } from './nestedEditor/nestedEditorFocusGuard';
 import { createMainEditorActiveCellGuard } from './tableRuntime/guard/mainEditorGuard';
@@ -128,6 +129,7 @@ async function registerTableWidgetExtension(
         outsideInteractionCapturePlugin,
         cellSelectionKeyCapturePlugin,
         cellSelectionScopeGuard,
+        cellSelectionRangeRelease,
         cellSelectionClipboardPlugin,
         cellSelectionFocusPlugin,
         cellSelectionVisuals,
