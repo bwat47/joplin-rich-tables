@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     convertNewlinesToBr,
     escapeUnescapedPipesWithContext,
+    hasUnescapedPipe,
     localToRootOffsets,
     normalizeBrTags,
     rootToLocalOffsets,
@@ -30,6 +31,18 @@ describe('escapeUnescapedPipesWithContext', () => {
     it('counts a backslash run the text is preceded by', () => {
         expect(escapeUnescapedPipesWithContext('|', 1)).toBe('|');
         expect(escapeUnescapedPipesWithContext('|', 2)).toBe(String.raw`\|`);
+    });
+});
+
+describe('hasUnescapedPipe', () => {
+    it.each([
+        ['plain text', 'ls grep', false],
+        ['an escaped pipe', String.raw`ls \| grep`, false],
+        ['a bare pipe', 'ls | grep', true],
+        ['a pipe after an escaped backslash', String.raw`ls \\| grep`, true],
+        ['an escaped pipe after an escaped backslash', String.raw`ls \\\| grep`, false],
+    ])('reports %s', (_label, text, expected) => {
+        expect(hasUnescapedPipe(text)).toBe(expected);
     });
 });
 

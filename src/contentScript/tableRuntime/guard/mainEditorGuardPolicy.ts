@@ -194,7 +194,7 @@ function decideCellSelectionEdit(tr: Transaction): GuardDecision | null {
         isHistoryTransaction(tr) ||
         tr.effects.some((effect) => effect.is(structuralTableEditEffect)) ||
         !tr.changes.touchesRange(selected.ctx.from, selected.ctx.to) ||
-        isEditConfinedToSelectedCells(tr.changes, selected)
+        isEditConfinedToSelectedCells(tr, selected)
     ) {
         return { type: 'allowTransaction' };
     }

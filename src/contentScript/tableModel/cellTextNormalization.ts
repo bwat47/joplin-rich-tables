@@ -45,6 +45,14 @@ export function escapeUnescapedPipesWithContext(text: string, precedingBackslash
     return result;
 }
 
+/**
+ * True when `text` holds a pipe that is not backslash-escaped, which stored cell text never does:
+ * inside a table row such a pipe is a cell separator. `a \| b` is escaped; `a \\| b` is not.
+ */
+export function hasUnescapedPipe(text: string): boolean {
+    return escapeUnescapedPipesWithContext(text, 0) !== text;
+}
+
 /** The text `pattern` spells out at `index`, or null where it matches nothing there. */
 function matchAt(pattern: RegExp, text: string, index: number): string | null {
     pattern.lastIndex = index;

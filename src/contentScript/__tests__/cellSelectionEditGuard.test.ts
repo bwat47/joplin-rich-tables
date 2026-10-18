@@ -120,3 +120,52 @@ describe('main-editor guard under a cell selection', () => {
         expect(getCellSelection(next)).toEqual(selection);
     });
 });
+
+describe('main-editor guard with escaped pipes in selected cells', () => {
+    const PIPE_TABLE = [
+        '| Request Type | Note |',
+        '| --- | --- |',
+        '| PUT | **Single Record** |',
+        String.raw`| POST | **ls \| grep** |`,
+    ].join('\n');
+    const ESCAPED_PIPE_CELL = String.raw`**ls \| grep**`;
+
+    /** The `Note` column's two body cells selected. */
+    function createPipeTableState(): EditorState {
+        return createMarkdownState(PIPE_TABLE, [activeCellField, cellSelectionField, sourceModeField]).update({
+            effects: setCellSelectionEffect.of({
+                tableFrom: 0,
+                anchor: { section: 'body', row: 0, col: 1 },
+                focus: { section: 'body', row: 1, col: 1 },
+            }),
+        }).state;
+    }
+
+    function decideOnPipeTable(spec: TransactionSpec): unknown {
+        return decideMainEditorGuardTransaction(createPipeTableState().update(spec), { nestedEditorOpen: false });
+    }
+
+    /** What the host's bold toggle dispatches for a bold cell: its whole span, re-inserted without markers. */
+    function unwrapBold(cellText: string): { from: number; to: number; insert: string } {
+        const from = PIPE_TABLE.indexOf(cellText);
+        return { from, to: from + cellText.length, insert: cellText.slice(BOLD_MARKER.length, -BOLD_MARKER.length) };
+    }
+
+    it('allows unbolding cells whose re-inserted content holds an escaped pipe', () => {
+        expect(
+            decideOnPipeTable({ changes: [unwrapBold('**Single Record**'), unwrapBold(ESCAPED_PIPE_CELL)] })
+        ).toEqual(ALLOW);
+    });
+
+    it('allows inserting an escaped pipe', () => {
+        expect(decideOnPipeTable({ changes: { from: PIPE_TABLE.indexOf('Single'), insert: String.raw`\|` } })).toEqual(
+            ALLOW
+        );
+    });
+
+    it('rejects deleting the backslash that escapes a pipe', () => {
+        const backslash = PIPE_TABLE.indexOf(String.raw`\|`);
+
+        expect(decideOnPipeTable({ changes: { from: backslash, to: backslash + 1 } })).toEqual(REJECT);
+    });
+});

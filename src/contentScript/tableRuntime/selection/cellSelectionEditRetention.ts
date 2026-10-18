@@ -35,7 +35,7 @@ function retainedCellSelection(tr: Transaction): CellSelection | null {
     }
 
     const selected = getSelectedTable(tr.startState);
-    return selected && isEditConfinedToSelectedCells(tr.changes, selected) ? selected.selection : null;
+    return selected && isEditConfinedToSelectedCells(tr, selected) ? selected.selection : null;
 }
 
 /** Keeps a cell selection across edits confined to its cells' text. See `retainedCellSelection`. */
