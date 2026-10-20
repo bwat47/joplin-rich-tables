@@ -96,6 +96,8 @@ On desktop, rectangular ranges of cells can be selected in the following ways:
 
 Selected cells can be cut, copied, pasted, cleared, or deleted. When pasting into a selection, a single cell or plain text fills the entire selection. Multi-cell clipboard data is tiled horizontally and vertically using every complete copy that fits; if the selection is not an exact multiple of the copied range, any unmatched trailing cells are left unchanged.
 
+Selected cells also get their text selected in the main editor, so joplin inline formatting commands can act on multiple selected cells.
+
 The below table editing commands can be assigned keyboard shortcuts, the defaults are below:
 
 | Action                       | Shortcut                       |
