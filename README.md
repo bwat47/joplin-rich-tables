@@ -86,18 +86,6 @@ General keyboard controls for navigation/editing:
 - **Enter Key:** Moves to next row, or creates new row on last row.
 - **Shift + Enter:** Insert `<br>` (line break).
 
-#### Multi-cell selection
-
-On desktop, rectangular ranges of cells can be selected in the following ways:
-
-- **Click and drag:** Drag from one cell to another. When dragging from a cell being edited, text selection remains active until the pointer crosses into another cell.
-- **Shift + Click:** Extend a selection from the active cell or the existing selection anchor to the clicked cell.
-- **Shift + Arrow:** Start a selection from the active cell or extend an existing selection one cell at a time.
-
-Selected cells can be cut, copied, pasted, cleared, or deleted. When pasting into a selection, a single cell or plain text fills the entire selection. Multi-cell clipboard data is tiled horizontally and vertically using every complete copy that fits; if the selection is not an exact multiple of the copied range, any unmatched trailing cells are left unchanged.
-
-Selected cells also get their text selected in the main editor, so joplin inline formatting commands can act on multiple selected cells.
-
 The below table editing commands can be assigned keyboard shortcuts, the defaults are below:
 
 | Action                       | Shortcut                       |
@@ -113,6 +101,18 @@ The below table editing commands can be assigned keyboard shortcuts, the default
 | **Move Column Left/Right**   | `Ctrl + Alt + Left` / `Right`  |
 | **Align Left/Center/Right**  | `Alt + Shift + Q` / `W` / `E`  |
 | **Source Mode**              | `Ctrl + Shift + /`             |
+
+#### Multi-cell selection
+
+On desktop, rectangular ranges of cells can be selected in the following ways:
+
+- **Click and drag:** Drag from one cell to another. When dragging from a cell being edited, text selection remains active until the pointer crosses into another cell.
+- **Shift + Click:** Extend a selection from the active cell or the existing selection anchor to the clicked cell.
+- **Shift + Arrow:** Start a selection from the active cell or extend an existing selection one cell at a time.
+
+Selected cells can be cut, copied, pasted, cleared, or deleted. When pasting into a selection, a single cell or plain text fills the entire selection. Multi-cell clipboard data is tiled horizontally and vertically using every complete copy that fits; if the selection is not an exact multiple of the copied range, any unmatched trailing cells are left unchanged.
+
+Selected cells also get their text selected in the main editor, so joplin inline formatting commands can act on multiple selected cells.
 
 ### Settings
 
