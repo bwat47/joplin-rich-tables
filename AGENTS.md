@@ -62,6 +62,12 @@ Start here when exploring the codebase:
 - **Constants and configuration**: No magic literals — extract to constants, enums, config objects, or dedicated types.
 - **Structure and Testability**: Pure logic lives in small, focused units when internal behaviour is non-trivial. Global state and hidden side effects are avoided in favour of explicit dependencies.
 
+## Line endings
+
+- All text files use LF. If you must fall back to a Python script for file editing, write LF explicitly
+  (Python: `open(path, 'w', newline='\n')` or `write_text(..., newline='\n')`).
+- Don't manually repair incidental CRLF changes. Git normalizes text to LF when staging; Prettier also normalizes files when formatting.
+
 ## Tests
 
 - Focus on Behavior, not Implementation details.
@@ -74,8 +80,4 @@ Start here when exploring the codebase:
 
 - Use conventional commit format for commit messages. Only use "fix" for bugfixes.
 - Never run git commit proactively; always wait for explicit user consent.
-
-## Codex working instructions
-
-- GitHub credentials are stored in the OS keyring.
-- If `gh auth status` fails inside the sandbox, retry it with escalated permissions before asking me to authenticate.
+- GitHub credentials are stored in the OS keyring. If `gh auth status` fails inside the sandbox, retry it with escalated permissions before asking me to authenticate.
