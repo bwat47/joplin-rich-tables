@@ -8,6 +8,9 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "moduleResolution": "bundler",
+        "isolatedModules": true,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnreachableCode": false,
         "types": ["node", "vitest/globals"],
         "paths": {
             "api": ["./api/index.ts"],
