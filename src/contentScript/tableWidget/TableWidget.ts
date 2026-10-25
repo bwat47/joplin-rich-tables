@@ -111,7 +111,7 @@ export class TableWidget extends WidgetType {
         super();
     }
 
-    eq(other: TableWidget): boolean {
+    override eq(other: TableWidget): boolean {
         // Everything else the widget exposes derives from the source text through the same
         // Lezer syntax projection. Text equality therefore implies that the normalized model,
         // cell ranges, rendered DOM, and estimated height match too.
@@ -123,7 +123,7 @@ export class TableWidget extends WidgetType {
         return this.ctx.text === other.ctx.text && this.ctx.from === other.ctx.from;
     }
 
-    updateDOM(dom: HTMLElement, view: EditorView): boolean {
+    override updateDOM(dom: HTMLElement, view: EditorView): boolean {
         // Reached when eq() returned false, i.e. the text or the position changed. A text change
         // needs a full rebuild; a position change can reuse the DOM after refreshing the state
         // that tracks it. This work cannot move into eq() because it has side effects.
@@ -264,7 +264,7 @@ export class TableWidget extends WidgetType {
      * Without it, CM6 guesses the height, finds the real height on render,
      * and jumps the scroll position.
      */
-    get estimatedHeight(): number {
+    override get estimatedHeight(): number {
         const cached = tableHeightCache.get({ tableFrom: this.ctx.from, tableText: this.ctx.text });
         if (cached !== undefined && cached > 0) {
             return cached;
@@ -284,7 +284,7 @@ export class TableWidget extends WidgetType {
      * editor keeps the widget DOM alive. Coordinate lookup therefore resolves the current table
      * from the document index starting at the widget's live DOM position.
      */
-    coordsAt(
+    override coordsAt(
         dom: HTMLElement,
         pos: number,
         _side: number
@@ -313,7 +313,7 @@ export class TableWidget extends WidgetType {
         return cell.getBoundingClientRect();
     }
 
-    ignoreEvent(event: Event): boolean {
+    override ignoreEvent(event: Event): boolean {
         // A native range inside rendered text belongs to the pending cell gesture, not
         // the outer document selection. Pointer/mouse events use the interaction handlers.
         if (event.type === 'selectionchange') {
@@ -329,7 +329,7 @@ export class TableWidget extends WidgetType {
         return event.type === 'copy' && isSelectionInsideRenderedCell(event);
     }
 
-    destroy(dom: HTMLElement): void {
+    override destroy(dom: HTMLElement): void {
         // After updateDOM() reuses an element, CodeMirror associates it with the newer widget.
         // Read the per-DOM state so cleanup uses the element's current recorded identity.
         const state = widgetDomState.get(dom);

@@ -11,6 +11,7 @@
         "isolatedModules": true,
         "noFallthroughCasesInSwitch": true,
         "allowUnreachableCode": false,
+        "noImplicitOverride": true,
         "types": ["node", "vitest/globals"],
         "paths": {
             "api": ["./api/index.ts"],
