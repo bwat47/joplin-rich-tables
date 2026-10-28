@@ -66,7 +66,9 @@ function wholeRepetitions(available: number, fragmentLength: number): number {
  * unchanged for a single anchored paste.
  *
  * @example
+ * ```ts
  * // fragment [['A']] over rows 0-1, cols 0-1 -> [['A', 'A'], ['A', 'A']]
+ * ```
  */
 export function tileFragmentToRect(fragment: ClipboardTableFragment, rect: TableRect): ClipboardTableFragment {
     const fragmentSize = measureFragment(fragment);

@@ -3,6 +3,7 @@
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
+import tsdoc from 'eslint-plugin-tsdoc';
 import importPlugin from 'eslint-plugin-import-x';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import prettier from 'eslint-config-prettier';
@@ -100,6 +101,7 @@ export default defineConfig([
         },
         plugins: {
             'import-x': importPlugin,
+            tsdoc,
         },
         settings: {
             // Without these, import-x silently skips TS imports and rules like no-cycle never fire.
@@ -124,6 +126,7 @@ export default defineConfig([
             '@typescript-eslint/no-inferrable-types': 'error',
             '@typescript-eslint/explicit-module-boundary-types': 'error',
             '@typescript-eslint/switch-exhaustiveness-check': 'error',
+            'tsdoc/syntax': 'error',
         },
     },
 

@@ -15,7 +15,7 @@ import { requestOpenCell } from '../openCellRequest';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { beginMouseCellGesture, mouseCellGestureConsumesMouseDown } from './mouseCellDragSelection';
 
-/** Matches fenced code block delimiters (``` or ~~~) */
+/** Matches fenced code block delimiters (three or more backticks or tildes) */
 const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
 
 /** Matches an ATX heading, capturing the hashes and the heading text: `## Some heading` */

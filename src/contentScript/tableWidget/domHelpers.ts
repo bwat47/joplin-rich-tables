@@ -42,8 +42,10 @@ export const SELECTOR_CELL = CELL_TAGS.map((tag) => `${tag}${CELL_COORDS_ATTRIBU
  * @returns The CSS selector string targeting the specific data attributes.
  *
  * @example
+ * ```ts
  * getCellSelector({ section: 'header', row: 0, col: 2 }); // returns '[data-section="header"][data-row="0"][data-col="2"]'
  * getCellSelector({ section: 'body', row: 1, col: 0 });   // returns '[data-section="body"][data-row="1"][data-col="0"]'
+ * ```
  */
 export function getCellSelector(coords: CellCoords): string {
     return `[data-${DATA_SECTION}="${coords.section}"][data-${DATA_ROW}="${coords.row}"][data-${DATA_COL}="${coords.col}"]`;
