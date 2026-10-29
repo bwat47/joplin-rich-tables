@@ -26,24 +26,6 @@ function isSelectionEndpointInView(view: EditorView, endpoint: DomSelectionEndpo
 }
 
 /**
- * Fallback for browsers without `Selection.setBaseAndExtent`. A DOM Range has no
- * direction, so callers must pass the endpoints in document order: for a backward
- * selection that means `head` first.
- */
-function setDomSelectionRange(
-    documentSelection: Selection,
-    doc: Document,
-    start: DomSelectionEndpoint,
-    end: DomSelectionEndpoint
-): void {
-    const range = doc.createRange();
-    range.setStart(start.node, start.offset);
-    range.setEnd(end.node, end.offset);
-    documentSelection.removeAllRanges();
-    documentSelection.addRange(range);
-}
-
-/**
  * Mirrors CodeMirror's state selection into the browser DOM selection even when
  * the root editor is blurred. This keeps host editor focus restoration from
  * reconciling against a stale DOM selection after command-driven root edits.
@@ -68,14 +50,7 @@ export function forceRootDomSelection(view: EditorView, selection: { anchor: num
     }
 
     try {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Retain the fallback for webviews without this lib.dom API.
-        if (documentSelection.setBaseAndExtent) {
-            documentSelection.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
-        } else if (forward) {
-            setDomSelectionRange(documentSelection, doc, anchor, head);
-        } else {
-            setDomSelectionRange(documentSelection, doc, head, anchor);
-        }
+        documentSelection.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
         return true;
     } catch {
         return false;
