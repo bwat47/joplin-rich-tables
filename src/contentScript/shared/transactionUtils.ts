@@ -16,7 +16,7 @@ export function isFullDocumentReplace(tr: Transaction): boolean {
 
     const docLength = tr.startState.doc.length;
     let changeCount = 0;
-    let isFullReplace = false;
+    let isFullReplace = false as boolean;
 
     tr.changes.iterChanges((fromA, toA) => {
         changeCount++;
@@ -25,7 +25,6 @@ export function isFullDocumentReplace(tr: Transaction): boolean {
         }
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates isFullReplace.
     return isFullReplace && changeCount === 1;
 }
 

@@ -21,8 +21,8 @@ function isStrictlyOutsideTable(from: number, to: number, span: ActiveCellSpan):
 
 /** Classifies changes in start-document coordinates against an active cell's spans. */
 export function classifyActiveCellChanges(changes: ChangeSet, span: ActiveCellSpan): ActiveCellChangeScope {
-    let hasOutsideTableChange = false;
-    let touchesTableOutsideCell = false;
+    let hasOutsideTableChange = false as boolean;
+    let touchesTableOutsideCell = false as boolean;
 
     changes.iterChanges((from, to) => {
         if (touchesTableOutsideCell || isInsideEditableSpan(from, to, span)) {
@@ -35,10 +35,8 @@ export function classifyActiveCellChanges(changes: ChangeSet, span: ActiveCellSp
         touchesTableOutsideCell = true;
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates touchesTableOutsideCell.
     if (touchesTableOutsideCell) {
         return 'touchesTable';
     }
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates hasOutsideTableChange.
     return hasOutsideTableChange ? 'outsideTable' : 'inCell';
 }
