@@ -86,7 +86,7 @@ function scanLocalRuns(localText: string, visit: (index: number, consumed: numbe
             continue;
         }
 
-        const char = localText[index];
+        const char = localText.charAt(index);
         if (char === '|') {
             visit(index, 1, backslashRun % 2 === 1 ? '|' : ESCAPED_PIPE);
             backslashRun = 0;

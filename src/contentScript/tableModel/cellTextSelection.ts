@@ -14,10 +14,11 @@ export interface CellTextSelection {
  * measures to be altered first, so there is nothing to clamp away afterwards.
  */
 function mapSelection(selection: CellTextSelection, offsets: Int32Array): CellTextSelection {
+    // Offset maps include both endpoints, even for empty cell text.
     const lastOffset = offsets.length - 1;
     return {
-        anchor: offsets[clamp(selection.anchor, 0, lastOffset)],
-        head: offsets[clamp(selection.head, 0, lastOffset)],
+        anchor: offsets[clamp(selection.anchor, 0, lastOffset)]!,
+        head: offsets[clamp(selection.head, 0, lastOffset)]!,
     };
 }
 

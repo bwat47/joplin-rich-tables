@@ -100,7 +100,7 @@ function readHtmlTag(source: string, from: number, to: number): HtmlTagRef {
     if (!match || (!closing && SELF_CLOSING_TAG.test(source))) {
         return { from, to, closing: false };
     }
-    return { from, to, name: match[2].toLowerCase(), closing };
+    return { from, to, name: match[2]!.toLowerCase(), closing };
 }
 
 /**
@@ -135,14 +135,16 @@ function pairHtmlTags(tags: readonly HtmlTagRef[]): Map<number, SourceSpan> {
         // The count guarantees a match, and every entry the search passes is dropped with it,
         // so pairing a whole cell stays linear in the number of tags it holds.
         let index = open.length - 1;
-        while (open[index].name !== name) {
+        while (open[index]!.name !== name) {
             index--;
         }
         for (let i = index; i < open.length; i++) {
-            openCounts.set(open[i].name, (openCounts.get(open[i].name) ?? 0) - 1);
+            const openTag = open[i]!;
+            openCounts.set(openTag.name, (openCounts.get(openTag.name) ?? 0) - 1);
         }
-        const owner: SourceSpan = { from: open[index].from, to: tag.to };
-        owners.set(open[index].from, owner);
+        const opener = open[index]!;
+        const owner: SourceSpan = { from: opener.from, to: tag.to };
+        owners.set(opener.from, owner);
         owners.set(tag.from, owner);
         open.length = index;
     }
@@ -167,8 +169,8 @@ export function projectCellText(
     // the whole cell again for each selection range.
     const localOffsets = rootToLocalOffsets(rootText);
     const toLocal = (from: number, to: number): { from: number; to: number } => ({
-        from: localOffsets[clamp(from - cell.editableFrom, 0, rootText.length)],
-        to: localOffsets[clamp(to - cell.editableFrom, 0, rootText.length)],
+        from: localOffsets[clamp(from - cell.editableFrom, 0, rootText.length)]!,
+        to: localOffsets[clamp(to - cell.editableFrom, 0, rootText.length)]!,
     });
     /** Hides `from`-`to`, as part of `owner` when the syntax is one marker of a pair. */
     const exclude = (from: number, to: number, owner?: { from: number; to: number }): void => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { parseCellRangesFixture } from './testUtils';
+import { parseCellRangesFixture, requireBodyCellRange } from './testUtils';
 
 describe('computeMarkdownTableCellRangesFromSyntax', () => {
     it('keeps semantic, editable, and empty-cell bounds table-relative despite enclosing whitespace', () => {
@@ -55,7 +55,7 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         const ranges = parseCellRangesFixture(text);
 
         expect(ranges.headers).toHaveLength(1);
-        const r = ranges.headers[0];
+        const r = ranges.headers[0]!;
 
         // Range should be zero-width, and not collapsed onto either pipe boundary.
         expect(r.from).toBe(r.to);
@@ -77,7 +77,7 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         const text = [headerLine, '| --- |'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        const header = ranges.headers[0];
+        const header = ranges.headers[0]!;
         expect(text.slice(header.from, header.to)).toBe('foo');
         expect(text.slice(header.editableFrom, header.editableTo)).toBe(editable);
     });
@@ -86,7 +86,7 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         const text = ['|  |', '| --- |'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        const header = ranges.headers[0];
+        const header = ranges.headers[0]!;
         expect(header.editableFrom).toBe(header.editableTo);
         expect(text.slice(header.editableFrom, header.editableTo)).toBe('');
     });
@@ -105,8 +105,8 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         const text = ['|foo|bar|', '|---|---|'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        expect(text.slice(ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe('foo');
-        expect(text.slice(ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
+        expect(text.slice(ranges.headers[0]!.editableFrom, ranges.headers[0]!.editableTo)).toBe('foo');
+        expect(text.slice(ranges.headers[1]!.editableFrom, ranges.headers[1]!.editableTo)).toBe('bar');
     });
 
     it('represents an adjacent leading empty cell without consuming its delimiter', () => {
@@ -116,7 +116,7 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         expect(ranges.headers).toHaveLength(2);
         expect(ranges.headers[0]).toEqual({ from: 1, to: 1, editableFrom: 1, editableTo: 1 });
         expect(findCellForPos(ranges, 1)).toEqual({ section: 'header', row: 0, col: 0 });
-        expect(text.slice(ranges.headers[1].editableFrom, ranges.headers[1].editableTo)).toBe('bar');
+        expect(text.slice(ranges.headers[1]!.editableFrom, ranges.headers[1]!.editableTo)).toBe('bar');
     });
 
     it('preserves non-ASCII whitespace that Lezer treats as cell content', () => {
@@ -124,8 +124,8 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         const text = [`|${nonBreakingSpace}|`, '|---|'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        expect(text.slice(ranges.headers[0].from, ranges.headers[0].to)).toBe(nonBreakingSpace);
-        expect(text.slice(ranges.headers[0].editableFrom, ranges.headers[0].editableTo)).toBe(nonBreakingSpace);
+        expect(text.slice(ranges.headers[0]!.from, ranges.headers[0]!.to)).toBe(nonBreakingSpace);
+        expect(text.slice(ranges.headers[0]!.editableFrom, ranges.headers[0]!.editableTo)).toBe(nonBreakingSpace);
     });
 
     it.each([
@@ -135,7 +135,7 @@ describe('computeMarkdownTableCellRangesFromSyntax', () => {
         const text = [`| a | value${suffix}|`, '| --- | --- |'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        const range = ranges.headers[1];
+        const range = ranges.headers[1]!;
         // Semantic and editable bounds agree, and the reserved pad still separates the
         // cell from its closing pipe so an edit at the end cannot escape the delimiter.
         expect(text.slice(range.from, range.to)).toBe('value\\');
@@ -150,11 +150,11 @@ describe('findCellForPos', () => {
         const ranges = parseCellRangesFixture(text);
 
         // Position in first header cell
-        const coords1 = findCellForPos(ranges, ranges.headers[0].from);
+        const coords1 = findCellForPos(ranges, ranges.headers[0]!.from);
         expect(coords1).toEqual({ section: 'header', row: 0, col: 0 });
 
         // Position in second header cell
-        const coords2 = findCellForPos(ranges, ranges.headers[1].from);
+        const coords2 = findCellForPos(ranges, ranges.headers[1]!.from);
         expect(coords2).toEqual({ section: 'header', row: 0, col: 1 });
     });
 
@@ -165,11 +165,11 @@ describe('findCellForPos', () => {
         const ranges = parseCellRangesFixture(text);
 
         // Position in first row, first cell
-        const coords1 = findCellForPos(ranges, ranges.rows[0][0].from);
+        const coords1 = findCellForPos(ranges, requireBodyCellRange(ranges, 0, 0).from);
         expect(coords1).toEqual({ section: 'body', row: 0, col: 0 });
 
         // Position in second row, second cell
-        const coords2 = findCellForPos(ranges, ranges.rows[1][1].from);
+        const coords2 = findCellForPos(ranges, requireBodyCellRange(ranges, 1, 1).from);
         expect(coords2).toEqual({ section: 'body', row: 1, col: 1 });
     });
 
@@ -177,7 +177,7 @@ describe('findCellForPos', () => {
         const text = ['| abc | def |', '| --- | --- |', '| ghi | jkl |'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        const headerCell = ranges.headers[0];
+        const headerCell = ranges.headers[0]!;
 
         // Position at start of cell (inclusive)
         const coordsStart = findCellForPos(ranges, headerCell.from);
@@ -196,7 +196,7 @@ describe('findCellForPos', () => {
         const text = ['|  foo  |', '| --- |'].join('\n');
         const ranges = parseCellRangesFixture(text);
 
-        const headerCell = ranges.headers[0];
+        const headerCell = ranges.headers[0]!;
 
         expect(findCellForPos(ranges, headerCell.editableFrom)).toEqual({ section: 'header', row: 0, col: 0 });
         expect(findCellForPos(ranges, headerCell.editableTo)).toEqual({ section: 'header', row: 0, col: 0 });
@@ -226,7 +226,7 @@ describe('findCellForPos', () => {
         const ranges = parseCellRangesFixture(text);
 
         // Empty header cell has a zero-width range
-        const emptyCell = ranges.headers[0];
+        const emptyCell = ranges.headers[0]!;
         expect(emptyCell.from).toBe(emptyCell.to);
 
         // Position at the insertion point should find the cell
@@ -243,13 +243,13 @@ describe('findCellForPos', () => {
         expect(ranges.rows).toHaveLength(3);
 
         // Check each row's first cell
-        const row0Coords = findCellForPos(ranges, ranges.rows[0][0].from);
+        const row0Coords = findCellForPos(ranges, requireBodyCellRange(ranges, 0, 0).from);
         expect(row0Coords).toEqual({ section: 'body', row: 0, col: 0 });
 
-        const row1Coords = findCellForPos(ranges, ranges.rows[1][0].from);
+        const row1Coords = findCellForPos(ranges, requireBodyCellRange(ranges, 1, 0).from);
         expect(row1Coords).toEqual({ section: 'body', row: 1, col: 0 });
 
-        const row2Coords = findCellForPos(ranges, ranges.rows[2][0].from);
+        const row2Coords = findCellForPos(ranges, requireBodyCellRange(ranges, 2, 0).from);
         expect(row2Coords).toEqual({ section: 'body', row: 2, col: 0 });
     });
 });

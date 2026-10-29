@@ -78,7 +78,7 @@ function findLinePosition(view: EditorView, predicate: (line: string) => boolean
 /** True when `line` is an ATX heading whose slugified text equals `slug`. */
 function isHeadingWithSlug(line: string, slug: string): boolean {
     const headingMatch = HEADING_REGEX.exec(line);
-    return headingMatch !== null && slugify(headingMatch[2].trim()) === slug;
+    return headingMatch !== null && slugify(headingMatch[2]!.trim()) === slug;
 }
 
 /**

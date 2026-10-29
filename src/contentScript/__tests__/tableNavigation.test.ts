@@ -10,14 +10,14 @@ import { createInteractiveTableHarness, type MutableTestView } from './interacti
  * parser reads the adjacent line as a ragged table row. The table is already canonical, so
  * entry finds nothing to repair and every document assertion below is about navigation.
  */
-const TABLE_LINES = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'];
+const TABLE_LINES = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'] as const;
 const DOC = ['before', '', ...TABLE_LINES, '', 'after'].join('\n');
 const TABLE_FROM = DOC.indexOf(TABLE_LINES[0]);
 const TABLE_TO = TABLE_FROM + TABLE_LINES.join('\n').length;
 const DOC_WITH_APPENDED_ROW = ['before', '', ...TABLE_LINES, '|  |  |', '', 'after'].join('\n');
 
 /** Last body row is short of the header, so grid geometry can name a cell the source lacks. */
-const RAGGED_LINES = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 |'];
+const RAGGED_LINES = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 |'] as const;
 const RAGGED_DOC = ['before', '', ...RAGGED_LINES, '', 'after'].join('\n');
 const RAGGED_TABLE_FROM = RAGGED_DOC.indexOf(RAGGED_LINES[0]);
 const RAGGED_DOC_REPAIRED = [

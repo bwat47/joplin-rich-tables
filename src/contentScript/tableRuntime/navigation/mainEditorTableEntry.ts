@@ -94,10 +94,11 @@ function deletedCharOffset(head: number, direction: DeletionDirection): number {
 function resolveSourceEdgeCell(ctx: TableContext, edges: EdgeCellTarget): ResolvedActiveCell {
     const rows = [ctx.cellRanges.headers, ...ctx.cellRanges.rows];
     const rowIndex = edges.row === 'first' ? 0 : rows.length - 1;
-    const row = rows[rowIndex];
+    // Parsed tables always have a header and at least one source cell in each row.
+    const row = rows[rowIndex]!;
     const colIndex = edges.col === 'first' ? 0 : row.length - 1;
 
-    return toResolvedActiveCell({ ctx, coords: fromUnifiedRow(rowIndex, colIndex), range: row[colIndex] });
+    return toResolvedActiveCell({ ctx, coords: fromUnifiedRow(rowIndex, colIndex), range: row[colIndex]! });
 }
 
 /** Transaction opening a table's edge cell. */

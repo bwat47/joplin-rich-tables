@@ -47,7 +47,7 @@ function toRelativeRange(node: Pick<SyntaxNode, 'from' | 'to'>, source: TableTex
 }
 
 function charAt(source: TableTextSource, position: number): string {
-    return source.text[position - source.tableFrom];
+    return source.text.charAt(position - source.tableFrom);
 }
 
 /**
@@ -195,7 +195,7 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
         });
     }
 
-    const header = extractRowSyntax(source, headers[0]);
+    const header = extractRowSyntax(source, headers[0]!);
     if (!header) {
         return null;
     }
@@ -211,7 +211,7 @@ function extractValidatedRootTableSyntax(source: TableTextSource, tableNode: Syn
 
     return {
         header,
-        separator: toRelativeRange(separators[0], source),
+        separator: toRelativeRange(separators[0]!, source),
         bodyRows,
     };
 }
@@ -236,7 +236,7 @@ export function parseRootMarkdownTableSyntax(text: string): ParsedRootMarkdownTa
         return null;
     }
 
-    const table = tables[0];
+    const table = tables[0]!;
     if (text.slice(0, table.from).trim().length > 0 || text.slice(table.to).trim().length > 0) {
         return null;
     }

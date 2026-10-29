@@ -30,11 +30,11 @@ function trimOuterBlankLines(lines: string[]): string[] {
     let start = 0;
     let end = lines.length;
 
-    while (start < end && isBlankLine(lines[start])) {
+    while (start < end && isBlankLine(lines[start]!)) {
         start++;
     }
 
-    while (end > start && isBlankLine(lines[end - 1])) {
+    while (end > start && isBlankLine(lines[end - 1]!)) {
         end--;
     }
 

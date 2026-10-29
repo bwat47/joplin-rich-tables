@@ -85,8 +85,8 @@ describe('searchPanelTransitionExtension', () => {
         openSearchPanel(view);
 
         expect(updates).toHaveLength(1);
-        expect(updates[0].transactions).toHaveLength(1);
-        const transaction = updates[0].transactions[0];
+        expect(updates[0]!.transactions).toHaveLength(1);
+        const transaction = updates[0]!.transactions[0]!;
         expect(searchPanelOpen(transaction.startState)).toBe(false);
         expect(searchPanelOpen(transaction.state)).toBe(true);
         expect(getActiveCell(transaction.startState)).toEqual(HEADER_CELL);
@@ -105,8 +105,8 @@ describe('searchPanelTransitionExtension', () => {
         expect(closeSearchPanel(view)).toBe(true);
 
         expect(updates).toHaveLength(1);
-        expect(updates[0].transactions).toHaveLength(1);
-        const transaction = updates[0].transactions[0];
+        expect(updates[0]!.transactions).toHaveLength(1);
+        const transaction = updates[0]!.transactions[0]!;
         expect(searchPanelOpen(transaction.startState)).toBe(true);
         expect(searchPanelOpen(transaction.state)).toBe(false);
         expect(transaction.effects.some((effect) => effect.is(exitSearchForceSourceModeEffect))).toBe(true);
@@ -167,7 +167,7 @@ describe('searchPanelTransitionExtension', () => {
         view.dispatch({ selection: { anchor: 1 } });
 
         expect(updates).toHaveLength(1);
-        const transaction = updates[0].transactions[0];
+        const transaction = updates[0]!.transactions[0]!;
         expect(transaction.effects.some((effect) => effect.is(clearActiveCellEffect))).toBe(false);
         expect(transaction.effects.some((effect) => effect.is(exitSearchForceSourceModeEffect))).toBe(false);
         expect(getActiveCell(transaction.state)).toEqual(HEADER_CELL);

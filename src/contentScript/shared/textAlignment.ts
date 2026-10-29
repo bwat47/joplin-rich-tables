@@ -133,17 +133,23 @@ export function mapCaretToSource(toSource: Int32Array, caret: number, sourceLeng
     }
 
     let after = -1;
+    let afterSource = -1;
     for (let i = caret; i < toSource.length; i++) {
-        if (toSource[i] >= 0) {
+        const sourceOffset = toSource[i]!;
+        if (sourceOffset >= 0) {
             after = i;
+            afterSource = sourceOffset;
             break;
         }
     }
 
     let before = -1;
+    let beforeSource = -1;
     for (let i = caret - 1; i >= 0; i--) {
-        if (toSource[i] >= 0) {
+        const sourceOffset = toSource[i]!;
+        if (sourceOffset >= 0) {
             before = i;
+            beforeSource = sourceOffset;
             break;
         }
     }
@@ -152,13 +158,13 @@ export function mapCaretToSource(toSource: Int32Array, caret: number, sourceLeng
         return 0;
     }
     if (after < 0) {
-        return toSource[before] + 1;
+        return beforeSource + 1;
     }
     if (before < 0) {
-        return toSource[after];
+        return afterSource;
     }
 
-    return after - caret <= caret - 1 - before ? toSource[after] : toSource[before] + 1;
+    return after - caret <= caret - 1 - before ? afterSource : beforeSource + 1;
 }
 
 /** A source range, as the offsets the nested editor should select between. */
@@ -190,13 +196,14 @@ export function mapSelectionToSource(toSource: Int32Array, from: number, to: num
     let first = -1;
     let last = -1;
     for (let i = Math.max(from, 0); i < Math.min(to, toSource.length); i++) {
-        if (toSource[i] < 0) {
+        const sourceOffset = toSource[i]!;
+        if (sourceOffset < 0) {
             continue;
         }
         if (first < 0) {
-            first = toSource[i];
+            first = sourceOffset;
         }
-        last = toSource[i];
+        last = sourceOffset;
     }
 
     return first < 0

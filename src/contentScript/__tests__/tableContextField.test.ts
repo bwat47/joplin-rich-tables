@@ -49,7 +49,7 @@ describe('tableContextField selectors', () => {
 
     it('uses inclusive containment at both table boundaries', () => {
         const state = createMarkdownState(TWO_TABLES);
-        const first = getTableContexts(state)[0];
+        const first = getTableContexts(state)[0]!;
         const span = { from: first.from, to: first.to };
 
         expect(containsPos(first, 0)).toBe(true);
@@ -175,15 +175,15 @@ describe('tableContextField updates', () => {
     it('reuses derivations for duplicate text on creation', () => {
         const contexts = getTableContexts(createMarkdownState(`${TABLE}\n\n${TABLE}`));
 
-        expect(contexts[1].table).toBe(contexts[0].table);
-        expect(contexts[1].cellRanges).toBe(contexts[0].cellRanges);
+        expect(contexts[1]!.table).toBe(contexts[0]!.table);
+        expect(contexts[1]!.cellRanges).toBe(contexts[0]!.cellRanges);
     });
 
     it('reuses derivations while mapping shifted table spans', () => {
         const state = createMarkdownState(TABLE);
-        const before = getTableContexts(state)[0];
+        const before = getTableContexts(state)[0]!;
         const updated = state.update({ changes: { from: 0, insert: 'before\n\n' } }).state;
-        const after = getTableContexts(updated)[0];
+        const after = getTableContexts(updated)[0]!;
 
         expect(after.from).toBe('before\n\n'.length);
         expect(after.table).toBe(before.table);

@@ -36,7 +36,7 @@ interface RejectedShortcutCase {
     init: KeyboardEventInit & { key: string };
 }
 
-const SUPPORTED: Record<SimulatedPlatform, ShortcutCase[]> = {
+const SUPPORTED: Record<SimulatedPlatform, [ShortcutCase, ...ShortcutCase[]]> = {
     macOS: [
         { label: 'Cmd-Z', init: { key: 'z', metaKey: true }, action: 'undo' },
         { label: 'Cmd-Shift-Z', init: { key: 'z', metaKey: true, shiftKey: true }, action: 'redo' },
@@ -88,6 +88,9 @@ interface KeyCase {
     init: KeyboardEventInit & { key: string };
 }
 
+/** Cases a test reads by first entry, so each list must hold at least one. */
+type NonEmptyKeyCases = [KeyCase, ...KeyCase[]];
+
 const WINDOWS_LINUX_DELETION: KeyCase[] = [
     { label: 'Ctrl-Backspace', init: { key: 'Backspace', ctrlKey: true } },
     { label: 'Ctrl-Delete', init: { key: 'Delete', ctrlKey: true } },
@@ -134,7 +137,7 @@ const DELETION_REJECTED_EVERYWHERE: KeyCase[] = [
 ];
 
 const WINDOWS_LINUX_SEARCH: KeyCase[] = [{ label: 'Ctrl-F', init: { key: 'f', ctrlKey: true } }];
-const WINDOWS_LINUX_FORMATTING: KeyCase[] = [
+const WINDOWS_LINUX_FORMATTING: NonEmptyKeyCases = [
     { label: 'Ctrl-B', init: { key: 'b', ctrlKey: true } },
     { label: 'Ctrl-I', init: { key: 'i', ctrlKey: true } },
     { label: 'Ctrl-U', init: { key: 'u', ctrlKey: true } },
@@ -142,7 +145,7 @@ const WINDOWS_LINUX_FORMATTING: KeyCase[] = [
     { label: 'Ctrl-E', init: { key: 'e', ctrlKey: true } },
     { label: 'Ctrl-K', init: { key: 'k', ctrlKey: true } },
 ];
-const WINDOWS_LINUX_UNROUTED: KeyCase[] = [
+const WINDOWS_LINUX_UNROUTED: NonEmptyKeyCases = [
     { label: 'Cmd-F', init: { key: 'f', metaKey: true } },
     { label: 'Cmd-B', init: { key: 'b', metaKey: true } },
     { label: 'Ctrl-N', init: { key: 'n', ctrlKey: true } },
@@ -220,7 +223,7 @@ const FIND_MATCH_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
     Linux: WINDOWS_LINUX_FIND_MATCH,
 };
 
-const FORMATTING_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
+const FORMATTING_SUPPORTED: Record<SimulatedPlatform, NonEmptyKeyCases> = {
     macOS: [
         { label: 'Cmd-B', init: { key: 'b', metaKey: true } },
         { label: 'Cmd-I', init: { key: 'i', metaKey: true } },
@@ -234,7 +237,7 @@ const FORMATTING_SUPPORTED: Record<SimulatedPlatform, KeyCase[]> = {
 };
 
 /** Chords the nested editor leaves to the host: they bubble, but the root editor must ignore them. */
-const UNROUTED: Record<SimulatedPlatform, KeyCase[]> = {
+const UNROUTED: Record<SimulatedPlatform, NonEmptyKeyCases> = {
     macOS: [
         { label: 'Ctrl-F', init: { key: 'f', ctrlKey: true } },
         { label: 'Ctrl-B', init: { key: 'b', ctrlKey: true } },

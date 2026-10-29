@@ -106,7 +106,7 @@ export function flatOffsetFromDomPosition(index: RenderedTextIndex, node: Node, 
         return span.end;
     }
 
-    return index.spans.get(children[offset])?.start ?? span.end;
+    return index.spans.get(children[offset]!)?.start ?? span.end;
 }
 
 interface CaretDomPosition {

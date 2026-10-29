@@ -170,7 +170,8 @@ export class TableWidget extends WidgetType {
             th.dataset[DATA_ROW] = '0';
             th.dataset[DATA_COL] = String(i);
 
-            const content = headerCells[i];
+            // The normalized model contains every cell that has a source range.
+            const content = headerCells[i]!;
             this.renderCellContent(th, content, doc, renderer);
 
             const align = alignments[i];
@@ -185,17 +186,17 @@ export class TableWidget extends WidgetType {
         // Render body — skip synthetic cells that have no source range
         const tbody = doc.createElement('tbody');
         const rowRanges = this.ctx.cellRanges.rows;
-        for (let r = 0; r < rowRanges.length; r++) {
-            const row = bodyRows[r];
+        for (const [r, ranges] of rowRanges.entries()) {
+            const row = bodyRows[r]!;
             const tr = doc.createElement('tr');
-            const colCount = rowRanges[r].length;
+            const colCount = ranges.length;
             for (let c = 0; c < colCount; c++) {
                 const td = doc.createElement('td');
                 td.dataset[DATA_SECTION] = SECTION_BODY;
                 td.dataset[DATA_ROW] = String(r);
                 td.dataset[DATA_COL] = String(c);
 
-                const content = row[c];
+                const content = row[c]!;
                 this.renderCellContent(td, content, doc, renderer);
 
                 const align = alignments[c];

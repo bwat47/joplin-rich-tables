@@ -24,7 +24,7 @@ describe('parseRootMarkdownTableSyntax', () => {
 
         expect(parsed.tableText).toBe(text);
         expect(parsed.syntax.header.cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['A', 'B']);
-        expect(parsed.syntax.bodyRows[0].cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['C', 'D']);
+        expect(parsed.syntax.bodyRows[0]!.cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['C', 'D']);
     });
 
     it('reconstructs adjacent empty cells from delimiter positions', () => {
@@ -33,8 +33,8 @@ describe('parseRootMarkdownTableSyntax', () => {
 
         expect(parsed.syntax.header.cells).toHaveLength(2);
         expect(parsed.syntax.header.cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['', 'B']);
-        expect(parsed.syntax.bodyRows[0].cells).toHaveLength(2);
-        expect(parsed.syntax.bodyRows[0].cells.every((cell) => cell.content === null)).toBe(true);
+        expect(parsed.syntax.bodyRows[0]!.cells).toHaveLength(2);
+        expect(parsed.syntax.bodyRows[0]!.cells.every((cell) => cell.content === null)).toBe(true);
     });
 
     it.each([
@@ -52,7 +52,7 @@ describe('parseRootMarkdownTableSyntax', () => {
         const parsed = parse(text);
 
         expect(parsed.syntax.header.cells).toHaveLength(2);
-        expect(parsed.syntax.bodyRows[0].cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['C']);
+        expect(parsed.syntax.bodyRows[0]!.cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['C']);
     });
 
     it('associates ordered content nodes across a wide row', () => {
@@ -70,8 +70,8 @@ describe('parseRootMarkdownTableSyntax', () => {
         const parsed = parse(text);
 
         expect(parsed.syntax.bodyRows.map((row) => row.cells.length)).toEqual([1, 2, 1]);
-        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[0].cells[0])).toBe('plain');
-        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[2].cells[0])).toBe('another');
+        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[0]!.cells[0]!)).toBe('plain');
+        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[2]!.cells[0]!)).toBe('another');
     });
 
     it.each([
@@ -82,15 +82,15 @@ describe('parseRootMarkdownTableSyntax', () => {
         const parsed = parse(text);
 
         expect(parsed.syntax.header.cells).toHaveLength(2);
-        expect(parsed.syntax.bodyRows[0].cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['C', 'D']);
+        expect(parsed.syntax.bodyRows[0]!.cells.map((cell) => cellContent(parsed.tableText, cell))).toEqual(['C', 'D']);
     });
 
     it('trims trailing padding on a pipe-free row', () => {
         const text = ['| A | B |', '| --- | --- |', 'plain   '].join('\n');
         const parsed = parse(text);
 
-        expect(parsed.syntax.bodyRows[0].cells).toHaveLength(1);
-        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[0].cells[0])).toBe('plain');
+        expect(parsed.syntax.bodyRows[0]!.cells).toHaveLength(1);
+        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[0]!.cells[0]!)).toBe('plain');
     });
 
     it.each([
@@ -103,8 +103,8 @@ describe('parseRootMarkdownTableSyntax', () => {
         const text = [`a | value${suffix}`, '--- | ---', `b | value${suffix}`].join('\n');
         const parsed = parse(text);
 
-        expect(cellContent(parsed.tableText, parsed.syntax.header.cells[1])).toBe('value\\');
-        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[0].cells[1])).toBe('value\\');
+        expect(cellContent(parsed.tableText, parsed.syntax.header.cells[1]!)).toBe('value\\');
+        expect(cellContent(parsed.tableText, parsed.syntax.bodyRows[0]!.cells[1]!)).toBe('value\\');
     });
 
     it('keeps a cell ending in a backslash stable across serialization', () => {

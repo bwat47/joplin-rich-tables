@@ -42,7 +42,7 @@ export function releaseParkedCellRanges(selection: EditorSelection, table: Table
     });
 
     const unchanged =
-        ranges.length === selection.ranges.length && ranges.every((range, index) => range.eq(selection.ranges[index]));
+        ranges.length === selection.ranges.length && ranges.every((range, index) => range.eq(selection.ranges[index]!));
 
     return unchanged ? null : EditorSelection.create(ranges, mainIndex);
 }

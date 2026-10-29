@@ -22,15 +22,15 @@ export function clampCellToRanges(ranges: TableCellRanges, target: CellCoords): 
 
     // A table without body rows falls back to its header.
     if (target.section === 'header' || ranges.rows.length === 0) {
-        return { coords: { section: 'header', row: 0, col: safeCol }, range: ranges.headers[safeCol] };
+        return { coords: { section: 'header', row: 0, col: safeCol }, range: ranges.headers[safeCol]! };
     }
 
     const safeRow = clamp(target.row, 0, ranges.rows.length - 1);
     // Ragged rows can be shorter than the header.
-    const row = ranges.rows[safeRow];
+    const row = ranges.rows[safeRow]!;
     const safeColInRow = clamp(safeCol, 0, row.length - 1);
 
-    return { coords: { section: 'body', row: safeRow, col: safeColInRow }, range: row[safeColInRow] };
+    return { coords: { section: 'body', row: safeRow, col: safeColInRow }, range: row[safeColInRow]! };
 }
 
 /** A serialized table is rectangular, so clamping needs only its column and row counts. */

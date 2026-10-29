@@ -14,6 +14,7 @@ import type { TableContext } from '../tableModel/tableContext';
 import type { CellCoords, TableRect } from '../tableModel/types';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
+import { requireBodyCellRange } from './testUtils';
 
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
 /** `a2` and `b1` are empty; the last row is missing its third cell. */
@@ -120,7 +121,7 @@ describe('buildCellSelectionRanges', () => {
 
         expect(selection.ranges).toHaveLength(1);
         expect(selection.main.empty).toBe(true);
-        expect(selection.main.head).toBe(ctx.from + ctx.cellRanges.rows[0][1].editableFrom);
+        expect(selection.main.head).toBe(ctx.from + requireBodyCellRange(ctx.cellRanges, 0, 1).editableFrom);
     });
 });
 
