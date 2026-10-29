@@ -53,7 +53,10 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
 /**
  * Sanitize HTML rendered by Joplin to ensure security and fix display issues.
  * - Allows specific attributes needed for internal links/images/videos
- * - Allows unknown protocols for joplin-content://
+ * - Allows unknown protocols (DOMPurify still strips script-like and non-image data: URIs), which
+ *   renderMarkup output relies on: joplin-content:// resources on desktop, file:// resources on
+ *   mobile, blob: media on web, and Markdown links with custom schemes, which Joplin supports and
+ *   opens via openItem. Joplin's own sanitizer has already filtered hrefs in raw HTML.
  * - Drops `<form>`, which DOMPurify allows by default
  * - Relies on DOMPurify's safe defaults to block dangerous tags/attributes
  *
@@ -62,7 +65,7 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * nodes belong to DOMPurify's own document until something appends them, which adopts them.
  */
 export function sanitizeToFragment(html: string): DocumentFragment {
-    // eslint-disable-next-line sonarjs/dompurify-unsafe-config -- ALLOW_UNKNOWN_PROTOCOLS is needed to load joplin-content:// images from renderMarkup.
+    // eslint-disable-next-line sonarjs/dompurify-unsafe-config -- ALLOW_UNKNOWN_PROTOCOLS is needed for renderMarkup's resource URLs and custom-scheme links; see above.
     return DOMPurify.sanitize(html, {
         RETURN_DOM_FRAGMENT: true,
         ALLOW_UNKNOWN_PROTOCOLS: true,
