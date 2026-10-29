@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { StateEffect, TransactionSpec } from '@codemirror/state';
+import type { TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
@@ -15,29 +15,22 @@ import {
     type MutableTestView,
     NON_CANONICAL_DOC,
 } from './interactiveTableTestHarness';
+import { getDispatchedEffects } from './testUtils';
 
 /** What {@link NON_CANONICAL_DOC} becomes once entry repairs it, document padding included. */
 const NORMALIZED_DOC = `\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`;
 
 function findOpenRequest(spec: TransactionSpec) {
-    const dispatchedEffects = spec.effects ?? [];
-    const effects: readonly StateEffect<unknown>[] = Array.isArray(dispatchedEffects)
-        ? dispatchedEffects
-        : [dispatchedEffects];
     return (
-        effects.find((effect): effect is ReturnType<typeof triggerOpenCellRequestEffect.of> =>
+        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof triggerOpenCellRequestEffect.of> =>
             effect.is(triggerOpenCellRequestEffect)
         ) ?? null
     );
 }
 
 function findBeginOpenRequest(spec: TransactionSpec) {
-    const dispatchedEffects = spec.effects ?? [];
-    const effects: readonly StateEffect<unknown>[] = Array.isArray(dispatchedEffects)
-        ? dispatchedEffects
-        : [dispatchedEffects];
     return (
-        effects.find((effect): effect is ReturnType<typeof beginOpenCellRequestEffect.of> =>
+        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof beginOpenCellRequestEffect.of> =>
             effect.is(beginOpenCellRequestEffect)
         ) ?? null
     );
