@@ -503,8 +503,7 @@ class MouseCellDragSelectionController {
         }
 
         try {
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- DOM test environments can omit pointer capture.
-            gesture.anchorCell.setPointerCapture?.(gesture.pointerId);
+            gesture.anchorCell.setPointerCapture(gesture.pointerId);
         } catch {
             // Pointer capture is an enhancement. Document listeners still finish the gesture.
         }
@@ -526,8 +525,7 @@ class MouseCellDragSelectionController {
         this.autoScroller.cancel();
 
         try {
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- DOM test environments can omit pointer capture.
-            gesture.anchorCell.releasePointerCapture?.(gesture.pointerId);
+            gesture.anchorCell.releasePointerCapture(gesture.pointerId);
         } catch {
             // The browser may already have released capture on pointerup/cancel.
         }
