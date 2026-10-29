@@ -85,9 +85,10 @@ export function tileFragmentToRect(fragment: ClipboardTableFragment, rect: Table
     }
 
     const cells = Array.from({ length: rowCount }, (_value, row) => {
-        const sourceRow = fragment.cells[row % fragmentSize.rowCount];
+        // measureFragment validated a nonempty rectangular grid; modulo stays in bounds.
+        const sourceRow = fragment.cells[row % fragmentSize.rowCount]!;
 
-        return Array.from({ length: colCount }, (_cell, col) => sourceRow[col % fragmentSize.colCount]);
+        return Array.from({ length: colCount }, (_cell, col) => sourceRow[col % fragmentSize.colCount]!);
     });
 
     return {

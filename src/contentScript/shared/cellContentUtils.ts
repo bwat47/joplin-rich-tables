@@ -52,7 +52,9 @@ export function escapeLeadingBlockMarkers(text: string): string {
     // Ordered list: "1. " / "1) "
     const orderedMatch = /^(\d+)([.)])(\s|$)/.exec(rest);
     if (orderedMatch) {
-        const [, number, marker] = orderedMatch;
+        // Both capture groups are required by the ordered-list pattern.
+        const number = orderedMatch[1]!;
+        const marker = orderedMatch[2]!;
         return `${leading}${number}\\${marker}${rest.slice(number.length + 1)}`;
     }
 

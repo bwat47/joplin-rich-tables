@@ -98,11 +98,11 @@ function joinSerializedRow(cells: readonly string[]): string {
     return ROW_PREFIX + cells.join(ROW_SEPARATOR) + ROW_SUFFIX;
 }
 
-/** Offset of `col`'s content within `joinSerializedRow(cells)`. */
+/** Offset of `col`'s content within `joinSerializedRow(cells)`; the caller validates the column. */
 function cellOffsetInSerializedRow(cells: readonly string[], col: number): number {
     let offset = ROW_PREFIX.length;
     for (let index = 0; index < col; index++) {
-        offset += cells[index].length + ROW_SEPARATOR.length;
+        offset += cells[index]!.length + ROW_SEPARATOR.length;
     }
     return offset;
 }
@@ -263,11 +263,12 @@ function writeFragmentCells(rows: string[][], geometry: PasteGeometry, cells: re
     let didChange = false;
 
     for (let rowOffset = 0; rowOffset < geometry.rowCount; rowOffset++) {
-        const targetRow = rows[geometry.anchorRow + rowOffset];
+        // Geometry was validated and the destination grid has already been grown.
+        const targetRow = rows[geometry.anchorRow + rowOffset]!;
 
         for (let colOffset = 0; colOffset < geometry.colCount; colOffset++) {
             const targetCol = geometry.anchorCol + colOffset;
-            const nextValue = cells[rowOffset][colOffset];
+            const nextValue = cells[rowOffset]![colOffset]!;
 
             if (targetRow[targetCol] !== nextValue) {
                 targetRow[targetCol] = nextValue;
@@ -368,7 +369,7 @@ export class MarkdownTable {
         }
 
         const bodyRowIndex = rowIndex - 1;
-        return bodyRowIndex >= 0 && bodyRowIndex < this.rowsData.length ? this.rowsData[bodyRowIndex] : null;
+        return this.rowsData[bodyRowIndex] ?? null;
     }
 
     private isValidRect(rect: TableRect): boolean {
@@ -425,8 +426,8 @@ export class MarkdownTable {
                 return null;
             }
 
-            const from = lineStarts[lineIndex] + cellOffsetInSerializedRow(cells, coords.col);
-            return { from, to: from + cells[coords.col].length };
+            const from = lineStarts[lineIndex]! + cellOffsetInSerializedRow(cells, coords.col);
+            return { from, to: from + cells[coords.col]!.length };
         };
 
         return {
@@ -488,7 +489,8 @@ export class MarkdownTable {
 
         const swapInArray = <T>(arr: readonly T[]) => {
             const nextArr = [...arr];
-            [nextArr[col1], nextArr[col2]] = [nextArr[col2], nextArr[col1]];
+            // Normalization gives every row and the alignments the validated column count.
+            [nextArr[col1], nextArr[col2]] = [nextArr[col2]!, nextArr[col1]!];
             return nextArr;
         };
 
@@ -550,7 +552,7 @@ export class MarkdownTable {
             return this;
         }
 
-        if (this.rowsData[rowIndex].every((cell) => cell === '')) {
+        if (this.rowsData[rowIndex]!.every((cell) => cell === '')) {
             return this;
         }
 
@@ -596,9 +598,10 @@ export class MarkdownTable {
         let didChange = false;
 
         for (let row = rect.minRow; row <= rect.maxRow; row++) {
+            const rowCells = nextRows[row]!;
             for (let col = rect.minCol; col <= rect.maxCol; col++) {
-                if (nextRows[row][col] !== '') {
-                    nextRows[row][col] = '';
+                if (rowCells[col] !== '') {
+                    rowCells[col] = '';
                     didChange = true;
                 }
             }
@@ -742,7 +745,7 @@ export class MarkdownTable {
 
             const [newHeader, ...remainingRows] = cloneRows(this.rowsData);
             return MarkdownTable.create({
-                headerCells: newHeader,
+                headerCells: newHeader!,
                 alignments: this.alignmentsData,
                 bodyRows: remainingRows,
             });
@@ -797,10 +800,10 @@ export class MarkdownTable {
 
         const allRows = [[...this.headersData], ...cloneRows(this.rowsData)];
 
-        [allRows[row1], allRows[row2]] = [allRows[row2], allRows[row1]];
+        [allRows[row1], allRows[row2]] = [allRows[row2]!, allRows[row1]!];
 
         return MarkdownTable.create({
-            headerCells: allRows[0],
+            headerCells: allRows[0]!,
             alignments: this.alignmentsData,
             bodyRows: allRows.slice(1),
         });
@@ -819,7 +822,7 @@ export class MarkdownTable {
         const sortedRows = this.rowsData
             .map((row, originalIndex) => ({ row, originalIndex }))
             .sort((a, b) => {
-                const result = compareRawMarkdownCells(a.row[colIndex], b.row[colIndex], direction);
+                const result = compareRawMarkdownCells(a.row[colIndex]!, b.row[colIndex]!, direction);
                 return result !== 0 ? result : a.originalIndex - b.originalIndex;
             });
         const sortedIndexByOriginalIndex = new Array<number>(this.rowsData.length);

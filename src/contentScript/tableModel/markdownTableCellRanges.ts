@@ -93,18 +93,15 @@ export function computeMarkdownTableCellRangesFromSyntax(
  */
 export function findCellForPos(ranges: TableCellRanges, relativePos: number): CellCoords | null {
     // Check header cells
-    for (let col = 0; col < ranges.headers.length; col++) {
-        const r = ranges.headers[col];
+    for (const [col, r] of ranges.headers.entries()) {
         if (relativePos >= r.editableFrom && relativePos <= r.editableTo) {
             return { section: 'header', row: 0, col };
         }
     }
 
     // Check body cells
-    for (let row = 0; row < ranges.rows.length; row++) {
-        const rowCells = ranges.rows[row];
-        for (let col = 0; col < rowCells.length; col++) {
-            const r = rowCells[col];
+    for (const [row, rowCells] of ranges.rows.entries()) {
+        for (const [col, r] of rowCells.entries()) {
             if (relativePos >= r.editableFrom && relativePos <= r.editableTo) {
                 return { section: 'body', row, col };
             }
