@@ -83,7 +83,56 @@ export default defineConfig([
     },
 
     js.configs.recommended,
-    sonarjs.configs.recommended,
+    // Curated sonarjs subset: the recommended preset is dominated by irrelevant (AWS, SQL, cookie) and stylistic rules.
+    {
+        plugins: { sonarjs },
+        rules: {
+            // Maintainability and suspicious control flow
+            'sonarjs/cognitive-complexity': 'error',
+            'sonarjs/no-identical-functions': 'error',
+            'sonarjs/no-invariant-returns': 'error',
+            'sonarjs/no-all-duplicated-branches': 'error',
+            'sonarjs/no-duplicated-branches': 'error',
+            'sonarjs/no-identical-expressions': 'error',
+            'sonarjs/no-gratuitous-expressions': 'error',
+            'sonarjs/no-unthrown-error': 'error',
+            'sonarjs/updated-loop-counter': 'error',
+            'sonarjs/no-useless-increment': 'error',
+            'sonarjs/no-nested-assignment': 'error',
+
+            // Readability
+            'sonarjs/no-nested-conditional': 'error',
+            'sonarjs/prefer-single-boolean-return': 'error',
+            'sonarjs/no-redundant-boolean': 'error',
+            'sonarjs/no-inverted-boolean-check': 'error',
+
+            // Assignments and ignored results
+            'sonarjs/no-dead-store': 'error',
+            'sonarjs/no-redundant-assignments': 'error',
+            'sonarjs/no-ignored-return': 'error',
+
+            // Collections: relevant to table transformations and state
+            'sonarjs/no-collection-size-mischeck': 'error',
+            'sonarjs/no-empty-collection': 'error',
+            'sonarjs/no-unused-collection': 'error',
+            'sonarjs/no-element-overwrite': 'error',
+            'sonarjs/no-misleading-array-reverse': 'error',
+            'sonarjs/no-alphabetical-sort': 'error',
+            'sonarjs/reduce-initial-value': 'error',
+
+            // Sanitizing rendered Markdown
+            'sonarjs/dompurify-unsafe-config': 'error',
+
+            // Regex correctness and performance (core no-misleading-character-class is already enabled)
+            'sonarjs/slow-regex': 'error',
+            'sonarjs/super-linear-regex': 'error',
+            'sonarjs/stateful-regex': 'error',
+            'sonarjs/anchor-precedence': 'error',
+            'sonarjs/duplicates-in-character-class': 'error',
+            'sonarjs/no-empty-alternatives': 'error',
+            'sonarjs/unused-named-groups': 'error',
+        },
+    },
     // Registers the TS parser/plugin, disables core rules TypeScript already checks, enables recommended rules.
     tseslint.configs.recommendedTypeChecked,
 
@@ -126,7 +175,18 @@ export default defineConfig([
             '@typescript-eslint/no-inferrable-types': 'error',
             '@typescript-eslint/explicit-module-boundary-types': 'error',
             '@typescript-eslint/switch-exhaustiveness-check': 'error',
+            '@typescript-eslint/no-deprecated': 'error',
+            // Log through src/logger.ts, which owns the console calls (exempted below).
+            'no-console': 'error',
             'tsdoc/syntax': 'error',
+        },
+    },
+
+    // The logger wrapper is the one place allowed to write to the console.
+    {
+        files: ['src/logger.ts'],
+        rules: {
+            'no-console': 'off',
         },
     },
 
@@ -174,23 +234,6 @@ export default defineConfig([
             '@typescript-eslint/require-await': 'off',
             // Vitest asymmetric matchers are typed as any.
             '@typescript-eslint/no-unsafe-assignment': 'off',
-        },
-    },
-
-    // Vitest 5 benchmarks use test() to measure workloads without correctness assertions.
-    {
-        files: ['**/*.bench.ts'],
-        rules: {
-            'sonarjs/assertions-in-tests': 'off',
-        },
-    },
-
-    // Per-platform shortcut entry points. Each one only installs a navigator stub and
-    // calls the shared harness, which registers every case; the rule sees no literal `it`.
-    {
-        files: ['src/contentScript/__tests__/platformShortcuts.*.test.ts'],
-        rules: {
-            'sonarjs/no-empty-test-file': 'off',
         },
     },
 
