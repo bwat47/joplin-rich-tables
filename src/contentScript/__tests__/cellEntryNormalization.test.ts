@@ -116,7 +116,7 @@ describe('entering a cell', () => {
             canonicalCell,
             'next',
         ]);
-        expect(ctx?.cellRanges.rows[0].map((range) => ctx.text.slice(range.editableFrom, range.editableTo))).toEqual([
+        expect(ctx?.cellRanges.rows[0]!.map((range) => ctx.text.slice(range.editableFrom, range.editableTo))).toEqual([
             canonicalCell,
             'next',
         ]);

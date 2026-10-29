@@ -298,7 +298,7 @@ describe('nested editor undo regression', () => {
             changes: { from: resolved.editableFrom, to: resolved.editableTo, insert: 'typed' },
             annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
         });
-        const tableBFrom = view.state.field(tableContextField).tables[1].from;
+        const tableBFrom = view.state.field(tableContextField).tables[1]!.from;
 
         expect(undo(view)).toBe(true);
         await frames.flush();

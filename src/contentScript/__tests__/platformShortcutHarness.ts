@@ -36,7 +36,7 @@ interface RejectedShortcutCase {
     init: KeyboardEventInit & { key: string };
 }
 
-const SUPPORTED: Record<SimulatedPlatform, ShortcutCase[]> = {
+const SUPPORTED: Record<SimulatedPlatform, [ShortcutCase, ...ShortcutCase[]]> = {
     macOS: [
         { label: 'Cmd-Z', init: { key: 'z', metaKey: true }, action: 'undo' },
         { label: 'Cmd-Shift-Z', init: { key: 'z', metaKey: true, shiftKey: true }, action: 'redo' },
@@ -855,8 +855,8 @@ export function registerPlatformShortcutTests(
         }
 
         it('lets the root keymap see only chords routed to it, while the host sees every chord', async () => {
-            const formatting = FORMATTING_SUPPORTED[platform][0];
-            const unrouted = UNROUTED[platform][0];
+            const formatting = FORMATTING_SUPPORTED[platform][0]!;
+            const unrouted = UNROUTED[platform][0]!;
             const rootFormatting = vi.fn(() => true);
             const rootUnrouted = vi.fn(() => true);
             const toBinding = ({ init }: KeyCase) =>

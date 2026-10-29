@@ -78,7 +78,7 @@ const fixtures = FIXTURE_SPECS.map((spec) => {
     if (contexts.length === 0) {
         throw new Error('tableContextField found no benchmark table');
     }
-    const tableFrom = contexts[0].from;
+    const tableFrom = contexts[0]!.from;
 
     requireParsed(getTableContextAtPos(state, tableFrom), 'getTableContextAtPos');
     return { ...spec, text, table, anchorTarget, state, tableFrom };
@@ -130,7 +130,7 @@ for (const spec of DOCUMENT_FIXTURE_SPECS) {
         effects: setActiveCellEffect.of({ tableFrom: firstContext.from, section: 'body', row: 0, col: 0 }),
     }).state;
     const rawModeState = noActiveState.update({ effects: toggleSourceModeEffect.of(true) }).state;
-    const activeCell = firstContext.cellRanges.rows[0][0];
+    const activeCell = firstContext.cellRanges.rows[0]![0]!;
     const activeInsert = firstContext.from + activeCell.editableFrom;
     const paragraphInsert = document.lastIndexOf('paragraph');
     // Inside the trailing paragraph, so the caret never lands in a table.

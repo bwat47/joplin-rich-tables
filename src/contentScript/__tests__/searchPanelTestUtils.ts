@@ -23,7 +23,7 @@ export function applySearchCommand(state: EditorState, command: (view: EditorVie
         if (transactions.length !== 1) {
             throw new Error(`Expected one search transaction, received ${transactions.length}`);
         }
-        return transactions[0];
+        return transactions[0]!;
     } finally {
         view.destroy();
         parent.remove();

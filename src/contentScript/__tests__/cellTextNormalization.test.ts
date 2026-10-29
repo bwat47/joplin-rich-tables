@@ -206,6 +206,6 @@ describe('localToRootOffsets', () => {
         const rootText = sanitizeLocalText(localText);
 
         expect(unsanitizeRootText(rootText)).toBe(localText);
-        expect(rootToLocalOffsets(rootText)[localToRootOffsets(localText)[3]]).toBe(3);
+        expect(rootToLocalOffsets(rootText)[localToRootOffsets(localText)[3]!]).toBe(3);
     });
 });

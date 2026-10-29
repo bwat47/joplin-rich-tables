@@ -123,7 +123,7 @@ describe('runStructuralCommand', () => {
         expect(view.dispatch).toHaveBeenCalledTimes(1);
         expect(view.focus).toHaveBeenCalledTimes(1);
 
-        const dispatched = view.dispatch.mock.calls[0][0] as {
+        const dispatched = view.dispatch.mock.calls[0]![0] as {
             changes?: unknown;
             selection?: { anchor: number };
             effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
@@ -178,7 +178,7 @@ describe('runStructuralCommand', () => {
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
 
-        const dispatched = view.dispatch.mock.calls[0][0] as {
+        const dispatched = view.dispatch.mock.calls[0]![0] as {
             changes?: unknown;
             selection?: { anchor: number };
             effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
@@ -216,7 +216,7 @@ describe('runStructuralCommand', () => {
         expect(result).toBe(true);
         expect(view.dispatch).toHaveBeenCalledTimes(1);
 
-        const dispatched = view.dispatch.mock.calls[0][0] as {
+        const dispatched = view.dispatch.mock.calls[0]![0] as {
             changes?: { insert: string };
             effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
         };
@@ -248,7 +248,7 @@ describe('runStructuralCommand', () => {
         expect(view.dispatch).toHaveBeenCalledTimes(1);
         expect(view.focus).toHaveBeenCalledTimes(1);
 
-        const dispatched = view.dispatch.mock.calls[0][0] as {
+        const dispatched = view.dispatch.mock.calls[0]![0] as {
             changes?: unknown;
             selection?: unknown;
             effects: Array<{ is?: (value: unknown) => boolean }>;

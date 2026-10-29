@@ -213,7 +213,7 @@ ${TABLE.replace('a', 'c')}`;
 
         expect(getDecorationAt(state, 0, TABLE.length)).toBe(activeBefore);
         expect(wasActiveHostInvalidated(state)).toBe(false);
-        expect(state.field(tableContextField).tables[1].text).toContain('changed');
+        expect(state.field(tableContextField).tables[1]!.text).toContain('changed');
     });
 
     it('does not preserve the active decoration for an outside-table undo', () => {

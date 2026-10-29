@@ -120,7 +120,7 @@ describe('buildCellSelectionRanges', () => {
 
         expect(selection.ranges).toHaveLength(1);
         expect(selection.main.empty).toBe(true);
-        expect(selection.main.head).toBe(ctx.from + ctx.cellRanges.rows[0][1].editableFrom);
+        expect(selection.main.head).toBe(ctx.from + ctx.cellRanges.rows[0]![1]!.editableFrom);
     });
 });
 
