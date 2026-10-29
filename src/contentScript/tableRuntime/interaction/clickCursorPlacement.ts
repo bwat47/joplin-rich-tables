@@ -127,8 +127,9 @@ function alignRenderedCellText(
         return undefined;
     }
 
+    // Every matched offset addresses a projected character with an entry in toLocal.
     return {
-        toLocal: Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset])),
+        toLocal: Int32Array.from(alignment.toSource, (offset) => (offset < 0 ? -1 : projection.toLocal[offset]!)),
         localLength: localText.length,
         hiddenSpans: projection.hiddenSpans,
     };

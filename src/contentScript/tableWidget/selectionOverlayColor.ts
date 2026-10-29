@@ -38,7 +38,7 @@ export function parseHexColor(hex: string): Rgb {
         throw new RangeError(`Expected a #rrggbb colour, received "${hex}"`);
     }
 
-    const value = Number.parseInt(match[1], 16);
+    const value = Number.parseInt(match[1]!, 16);
 
     // Unpack the packed 24-bit colour.
     return { r: (value >> 16) & 0xff, g: (value >> 8) & 0xff, b: value & 0xff };

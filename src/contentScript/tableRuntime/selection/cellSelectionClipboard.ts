@@ -83,12 +83,12 @@ function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
 export function copySelectionAsMarkdown({ selection, ctx }: SelectedTable): string | null {
     const rect = toSelectionRect(selection);
     const rows = extractCellContents(ctx, rect);
-    if (rows.length === 0) {
+    const headerCells = rows[0];
+    if (!headerCells) {
         return null;
     }
 
     const selectionIncludesHeader = rect.minRow === 0;
-    const headerCells = rows[0];
     const bodyRows = rows.slice(1);
     const alignments = selectionIncludesHeader
         ? ctx.table.alignments.slice(rect.minCol, rect.maxCol + 1)
