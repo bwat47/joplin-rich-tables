@@ -11,7 +11,7 @@ import { activeCellField, setActiveCellEffect } from '../tableState/activeCellSt
 import { tableContextField } from '../tableState/tableContextField';
 import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { htmlFragment, parseCellRangesFixture } from './testUtils';
+import { htmlFragment, parseCellRangesFixture, requireBodyCellRange } from './testUtils';
 import { createResizeObserverStub } from './tableEditorFixtures';
 
 const resizeObserver = createResizeObserverStub();
@@ -95,8 +95,8 @@ describe('TableWidget coordsAt', () => {
         const rect = { top: 10, bottom: 20, left: 30, right: 40 } as DOMRect;
         vi.spyOn(targetCell, 'getBoundingClientRect').mockReturnValue(rect);
 
-        expect(widget.coordsAt(dom, cellRanges.rows[0]![1]!.from, 1)).toBe(rect);
-        expect(widget.coordsAt(dom, tableFrom + cellRanges.rows[0]![1]!.from, 1)).toBeNull();
+        expect(widget.coordsAt(dom, requireBodyCellRange(cellRanges, 0, 1).from, 1)).toBe(rect);
+        expect(widget.coordsAt(dom, tableFrom + requireBodyCellRange(cellRanges, 0, 1).from, 1)).toBeNull();
     });
 
     describe('with a live, unrebuilt widget', () => {
@@ -111,8 +111,8 @@ describe('TableWidget coordsAt', () => {
         // ranges from the document-level table index.
         function editCellAWithoutRebuild(view: EditorView, insertText: string): void {
             const cellARanges = parseCellRangesFixture(view.state.doc.toString());
-            const cellAFrom = cellARanges.rows[0]![0]!.editableFrom;
-            const cellATo = cellARanges.rows[0]![0]!.editableTo;
+            const cellAFrom = requireBodyCellRange(cellARanges, 0, 0).editableFrom;
+            const cellATo = requireBodyCellRange(cellARanges, 0, 0).editableTo;
             view.dispatch({
                 effects: setActiveCellEffect.of({ tableFrom: TABLE_FROM, section: 'body', row: 0, col: 0 }),
             });
@@ -130,7 +130,7 @@ describe('TableWidget coordsAt', () => {
                 const liveRanges = parseCellRangesFixture(view.state.doc.toString());
                 // Points at the tail of the newly inserted text -- past where the pre-edit
                 // cellRanges recorded cell A as ending.
-                const posInGrownCellA = liveRanges.rows[0]![0]!.editableTo;
+                const posInGrownCellA = requireBodyCellRange(liveRanges, 0, 0).editableTo;
 
                 const cellA = view.contentDOM.querySelector<HTMLElement>('tbody td:nth-child(1)');
                 if (!cellA) {
@@ -158,7 +158,7 @@ describe('TableWidget coordsAt', () => {
                 editCellAWithoutRebuild(view, 'aaaaaaaaaa');
 
                 const liveRanges = parseCellRangesFixture(view.state.doc.toString());
-                const posInCellB = liveRanges.rows[0]![1]!.editableFrom;
+                const posInCellB = requireBodyCellRange(liveRanges, 0, 1).editableFrom;
 
                 const cellA = view.contentDOM.querySelector<HTMLElement>('tbody td:nth-child(1)');
                 const cellB = view.contentDOM.querySelector<HTMLElement>('tbody td:nth-child(2)');
@@ -205,7 +205,7 @@ describe('TableWidget coordsAt', () => {
                 editCellAWithoutRebuild(view, 'a');
 
                 const liveRanges = parseCellRangesFixture(view.state.doc.toString());
-                const delimiterPos = liveRanges.rows[0]![0]!.editableTo + 1;
+                const delimiterPos = requireBodyCellRange(liveRanges, 0, 0).editableTo + 1;
 
                 // This position moved into the delimiter after cell A was shortened, but the
                 // pre-edit ranges still identify it as part of the old, longer cell A.
@@ -236,8 +236,8 @@ describe('TableWidget coordsAt', () => {
             });
             view.dispatch({
                 changes: {
-                    from: preRanges.rows[0]![0]!.editableFrom,
-                    to: preRanges.rows[0]![0]!.editableTo,
+                    from: requireBodyCellRange(preRanges, 0, 0).editableFrom,
+                    to: requireBodyCellRange(preRanges, 0, 0).editableTo,
                     insert: 'aaaaaaaaaa',
                 },
                 annotations: [syncAnnotation.of(true)],
@@ -253,7 +253,7 @@ describe('TableWidget coordsAt', () => {
             const liveDocText = view.state.doc.toString();
             const liveARanges = parseCellRangesFixture(liveDocText.slice(0, liveDocText.indexOf('\n\n')));
             // Tail of the grown cell A: past where A's pre-edit ranges said the cell ended.
-            const posInGrownCellA = liveARanges.rows[0]![0]!.editableTo;
+            const posInGrownCellA = requireBodyCellRange(liveARanges, 0, 0).editableTo;
 
             const tableABody = view.contentDOM.querySelectorAll('tbody')[0];
             const cellA = tableABody?.querySelector<HTMLElement>('td:nth-child(1)');
@@ -316,6 +316,6 @@ describe('TableWidget coordsAt', () => {
         const rect = { top: 10, bottom: 20, left: 30, right: 40 } as DOMRect;
         vi.spyOn(targetCell, 'getBoundingClientRect').mockReturnValue(rect);
 
-        expect(widget.coordsAt(dom, cellRanges.rows[0]![1]!.from, 1)).toBeNull();
+        expect(widget.coordsAt(dom, requireBodyCellRange(cellRanges, 0, 1).from, 1)).toBeNull();
     });
 });

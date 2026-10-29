@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
-import { parseCellRangesFixture } from './testUtils';
+import { parseCellRangesFixture, requireBodyCellRange } from './testUtils';
 
 describe('computeMarkdownTableCellRangesFromSyntax', () => {
     it('keeps semantic, editable, and empty-cell bounds table-relative despite enclosing whitespace', () => {
@@ -165,11 +165,11 @@ describe('findCellForPos', () => {
         const ranges = parseCellRangesFixture(text);
 
         // Position in first row, first cell
-        const coords1 = findCellForPos(ranges, ranges.rows[0]![0]!.from);
+        const coords1 = findCellForPos(ranges, requireBodyCellRange(ranges, 0, 0).from);
         expect(coords1).toEqual({ section: 'body', row: 0, col: 0 });
 
         // Position in second row, second cell
-        const coords2 = findCellForPos(ranges, ranges.rows[1]![1]!.from);
+        const coords2 = findCellForPos(ranges, requireBodyCellRange(ranges, 1, 1).from);
         expect(coords2).toEqual({ section: 'body', row: 1, col: 1 });
     });
 
@@ -243,13 +243,13 @@ describe('findCellForPos', () => {
         expect(ranges.rows).toHaveLength(3);
 
         // Check each row's first cell
-        const row0Coords = findCellForPos(ranges, ranges.rows[0]![0]!.from);
+        const row0Coords = findCellForPos(ranges, requireBodyCellRange(ranges, 0, 0).from);
         expect(row0Coords).toEqual({ section: 'body', row: 0, col: 0 });
 
-        const row1Coords = findCellForPos(ranges, ranges.rows[1]![0]!.from);
+        const row1Coords = findCellForPos(ranges, requireBodyCellRange(ranges, 1, 0).from);
         expect(row1Coords).toEqual({ section: 'body', row: 1, col: 0 });
 
-        const row2Coords = findCellForPos(ranges, ranges.rows[2]![0]!.from);
+        const row2Coords = findCellForPos(ranges, requireBodyCellRange(ranges, 2, 0).from);
         expect(row2Coords).toEqual({ section: 'body', row: 2, col: 0 });
     });
 });

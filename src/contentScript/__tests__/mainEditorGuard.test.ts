@@ -17,7 +17,7 @@ import {
 } from '../tableState/openCellRequestState';
 import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
-import { parseCellRangesFixture } from './testUtils';
+import { parseCellRangesFixture, requireBodyCellRange } from './testUtils';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 
@@ -212,7 +212,7 @@ describe('createMainEditorActiveCellGuard', () => {
         const doc = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a | b | c |', '| d | e | f |'].join('\n');
         const tableRanges = parseCellRangesFixture(doc);
 
-        const bodyCell = tableRanges.rows[0]![1]!;
+        const bodyCell = requireBodyCellRange(tableRanges, 0, 1);
         const state = createActiveHeaderState({
             doc,
             activeCell: headerCell({

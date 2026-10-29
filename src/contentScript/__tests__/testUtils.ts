@@ -2,7 +2,11 @@ import type { EditorState } from '@codemirror/state';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
-import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
+import {
+    computeMarkdownTableCellRangesFromSyntax,
+    type CellRange,
+    type TableCellRanges,
+} from '../tableModel/markdownTableCellRanges';
 
 /** Parses a real Markdown fixture into table-relative ranges, failing on invalid input. */
 export function parseCellRangesFixture(text: string): TableCellRanges {
@@ -11,6 +15,15 @@ export function parseCellRangesFixture(text: string): TableCellRanges {
         throw new Error('Expected a valid root table fixture for cell ranges');
     }
     return computeMarkdownTableCellRangesFromSyntax(parsed.tableText, parsed.syntax);
+}
+
+/** The body cell range at `row`, `col`, failing when the fixture has no such cell. */
+export function requireBodyCellRange(ranges: TableCellRanges, row: number, col: number): CellRange {
+    const range = ranges.rows[row]?.[col];
+    if (!range) {
+        throw new Error(`Expected a body cell range at row ${row}, col ${col}`);
+    }
+    return range;
 }
 
 export function parseTableFixture(text: string): MarkdownTable {
