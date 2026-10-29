@@ -46,6 +46,7 @@ export function isEditConfinedToSelectedCells(tr: Transaction, selected: Selecte
         }
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates confined.
     if (!confined) {
         return false;
     }

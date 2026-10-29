@@ -35,8 +35,10 @@ export function classifyActiveCellChanges(changes: ChangeSet, span: ActiveCellSp
         touchesTableOutsideCell = true;
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates touchesTableOutsideCell.
     if (touchesTableOutsideCell) {
         return 'touchesTable';
     }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates hasOutsideTableChange.
     return hasOutsideTableChange ? 'outsideTable' : 'inCell';
 }

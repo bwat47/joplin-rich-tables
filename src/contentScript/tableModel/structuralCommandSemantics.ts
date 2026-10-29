@@ -133,10 +133,7 @@ function isValidColumn(table: MarkdownTable, col: number): boolean {
 }
 
 function shouldDeleteWholeTableFromRow(table: MarkdownTable, activeCell: CellCoords): boolean {
-    return (
-        table.rowCount === 1 &&
-        (activeCell.section === 'header' || (activeCell.section === 'body' && isValidBodyRow(table, activeCell.row)))
-    );
+    return table.rowCount === 1 && (activeCell.section === 'header' || isValidBodyRow(table, activeCell.row));
 }
 
 function deleteRowResult(table: MarkdownTable, activeCell: CellCoords): StructuralTableCommandResult {

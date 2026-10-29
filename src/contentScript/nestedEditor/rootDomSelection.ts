@@ -68,6 +68,7 @@ export function forceRootDomSelection(view: EditorView, selection: { anchor: num
     }
 
     try {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Retain the fallback for webviews without this lib.dom API.
         if (documentSelection.setBaseAndExtent) {
             documentSelection.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
         } else if (forward) {

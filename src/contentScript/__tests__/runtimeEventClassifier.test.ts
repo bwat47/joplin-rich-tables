@@ -78,6 +78,7 @@ function dispatchAndCaptureUpdate(params: {
     parent.remove();
 
     expect(captured).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- The update listener synchronously assigns captured during dispatch.
     if (!captured) {
         throw new Error('Expected dispatch to produce a ViewUpdate');
     }

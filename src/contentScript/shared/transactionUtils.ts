@@ -25,6 +25,7 @@ export function isFullDocumentReplace(tr: Transaction): boolean {
         }
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates isFullReplace.
     return isFullReplace && changeCount === 1;
 }
 

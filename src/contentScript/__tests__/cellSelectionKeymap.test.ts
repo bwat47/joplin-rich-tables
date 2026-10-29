@@ -331,10 +331,11 @@ describe('cellSelectionKeymap', () => {
                 col: 1,
             });
             const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
-            const effects: readonly StateEffect<unknown>[] = Array.isArray(lastSpec?.effects)
-                ? lastSpec.effects
-                : [lastSpec?.effects];
-            expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
+            const dispatchedEffects = lastSpec?.effects ?? [];
+            const effects: readonly StateEffect<unknown>[] = Array.isArray(dispatchedEffects)
+                ? dispatchedEffects
+                : [dispatchedEffects];
+            expect(effects.some((effect) => effect.is(triggerOpenCellRequestEffect))).toBe(true);
         }
     );
 

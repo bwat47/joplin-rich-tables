@@ -153,7 +153,9 @@ describe('runStructuralCommand', () => {
             suppressKeys: true,
             initialCursorPos: 'start',
         });
-        expect(openRequest?.value).toEqual({ requestId: (beginRequest?.value as { requestId?: string })?.requestId });
+        expect(openRequest?.value).toEqual({
+            requestId: (beginRequest?.value as { requestId?: string } | undefined)?.requestId,
+        });
     });
 
     it('does not focus the main editor when the structural command is a no-op', () => {

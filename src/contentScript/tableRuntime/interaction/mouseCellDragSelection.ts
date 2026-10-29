@@ -503,6 +503,7 @@ class MouseCellDragSelectionController {
         }
 
         try {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- DOM test environments can omit pointer capture.
             gesture.anchorCell.setPointerCapture?.(gesture.pointerId);
         } catch {
             // Pointer capture is an enhancement. Document listeners still finish the gesture.
@@ -525,6 +526,7 @@ class MouseCellDragSelectionController {
         this.autoScroller.cancel();
 
         try {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- DOM test environments can omit pointer capture.
             gesture.anchorCell.releasePointerCapture?.(gesture.pointerId);
         } catch {
             // The browser may already have released capture on pointerup/cancel.
@@ -565,11 +567,11 @@ export function beginMouseCellGesture(
     resolvedCell: ResolvedActiveCell,
     origin: MouseCellGestureOrigin
 ): boolean {
-    const started = view.plugin?.(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, origin) ?? false;
+    const started = view.plugin(mouseCellDragSelectionPlugin)?.begin(event, cell, resolvedCell, origin) ?? false;
     return started && ORIGIN_CONSUMES_PRESS[origin];
 }
 
 /** True when the compatibility mousedown behind a running gesture's press should be taken. */
 export function mouseCellGestureConsumesMouseDown(view: EditorView, event: MouseEvent): boolean {
-    return view.plugin?.(mouseCellDragSelectionPlugin)?.consumesCompatibilityMouseDown(event) ?? false;
+    return view.plugin(mouseCellDragSelectionPlugin)?.consumesCompatibilityMouseDown(event) ?? false;
 }

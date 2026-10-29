@@ -48,6 +48,7 @@ function getDecorationAt(state: EditorState, from: number, to: number): Decorati
             result = decoration;
         }
     });
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- between synchronously assigns result in its callback.
     if (!result) {
         throw new Error(`Expected decoration at ${from}-${to}`);
     }

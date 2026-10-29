@@ -48,6 +48,7 @@ function extractSinglePasteChange(tr: Transaction): SingleChange | null {
         }
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- iterChanges synchronously updates hasInsertedText.
     return changeCount === 1 && hasInsertedText ? singleChange : null;
 }
 
