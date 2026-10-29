@@ -827,10 +827,10 @@ export class MarkdownTable {
             });
         const sortedIndexByOriginalIndex = new Array<number>(this.rowsData.length);
         let didChange = false;
-        sortedRows.forEach((entry, sortedIndex) => {
+        for (const [sortedIndex, entry] of sortedRows.entries()) {
             sortedIndexByOriginalIndex[entry.originalIndex] = sortedIndex;
             didChange ||= entry.originalIndex !== sortedIndex;
-        });
+        }
 
         if (!didChange) {
             return { table: this, sortedIndexByOriginalIndex };

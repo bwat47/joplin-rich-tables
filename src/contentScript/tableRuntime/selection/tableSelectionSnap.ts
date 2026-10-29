@@ -46,13 +46,8 @@ export function snapSelectionAroundTables(
     selection: EditorSelection,
     findTablesTouching: TablesTouching
 ): EditorSelection | null {
-    let changed = false;
-
-    const ranges = selection.ranges.map((range) => {
-        const snapped = snapRange(range, findTablesTouching);
-        changed ||= snapped !== range;
-        return snapped;
-    });
+    const ranges = selection.ranges.map((range) => snapRange(range, findTablesTouching));
+    const changed = ranges.some((range, index) => range !== selection.ranges[index]);
 
     // `create` merges any ranges the growth pushed into each other.
     return changed ? EditorSelection.create(ranges, selection.mainIndex) : null;

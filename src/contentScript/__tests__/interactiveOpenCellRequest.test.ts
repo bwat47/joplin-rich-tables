@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { StateEffect, TransactionSpec } from '@codemirror/state';
+import type { TransactionSpec } from '@codemirror/state';
 import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
@@ -15,24 +15,23 @@ import {
     type MutableTestView,
     NON_CANONICAL_DOC,
 } from './interactiveTableTestHarness';
+import { getDispatchedEffects } from './testUtils';
 
 /** What {@link NON_CANONICAL_DOC} becomes once entry repairs it, document padding included. */
 const NORMALIZED_DOC = `\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`;
 
 function findOpenRequest(spec: TransactionSpec) {
-    const effects: readonly StateEffect<unknown>[] = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
     return (
-        effects.find((effect): effect is ReturnType<typeof triggerOpenCellRequestEffect.of> =>
-            effect?.is(triggerOpenCellRequestEffect)
+        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof triggerOpenCellRequestEffect.of> =>
+            effect.is(triggerOpenCellRequestEffect)
         ) ?? null
     );
 }
 
 function findBeginOpenRequest(spec: TransactionSpec) {
-    const effects: readonly StateEffect<unknown>[] = Array.isArray(spec.effects) ? spec.effects : [spec.effects];
     return (
-        effects.find((effect): effect is ReturnType<typeof beginOpenCellRequestEffect.of> =>
-            effect?.is(beginOpenCellRequestEffect)
+        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof beginOpenCellRequestEffect.of> =>
+            effect.is(beginOpenCellRequestEffect)
         ) ?? null
     );
 }
@@ -80,7 +79,8 @@ describe('interactive open-cell requests', () => {
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
         const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
         const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(openRequest?.value).toEqual({ requestId: beginRequest?.value?.requestId });
+        expect(beginRequest).not.toBeNull();
+        expect(openRequest?.value).toEqual({ requestId: beginRequest?.value.requestId });
     });
 
     it('clamps a preferred fallback cell instead of reopening the first cell on structural punctuation', () => {

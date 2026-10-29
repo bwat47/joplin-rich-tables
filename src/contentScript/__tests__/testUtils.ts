@@ -1,4 +1,4 @@
-import type { EditorState } from '@codemirror/state';
+import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
@@ -24,6 +24,15 @@ export function requireBodyCellRange(ranges: TableCellRanges, row: number, col: 
         throw new Error(`Expected a body cell range at row ${row}, col ${col}`);
     }
     return range;
+}
+
+/** The effects a dispatched spec carries, as an array whether it named none, one or many. */
+export function getDispatchedEffects(spec: TransactionSpec): readonly StateEffect<unknown>[] {
+    const dispatchedEffects = spec.effects ?? [];
+    const effects: readonly StateEffect<unknown>[] = Array.isArray(dispatchedEffects)
+        ? dispatchedEffects
+        : [dispatchedEffects];
+    return effects;
 }
 
 export function parseTableFixture(text: string): MarkdownTable {

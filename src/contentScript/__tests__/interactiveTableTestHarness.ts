@@ -77,6 +77,7 @@ export interface MutableTestView {
     focus: Mock;
     posAtDOM: Mock;
     requestMeasure: Mock;
+    plugin: Mock;
     contentDOM: {
         querySelectorAll: Mock;
     };
@@ -182,6 +183,7 @@ export function createInteractiveTableHarness(params?: {
         focus: vi.fn(),
         posAtDOM: vi.fn(() => 0),
         requestMeasure: vi.fn(),
+        plugin: vi.fn(() => null),
         contentDOM: {
             querySelectorAll: vi.fn(() => [widget]),
         },

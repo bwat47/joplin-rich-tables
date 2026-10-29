@@ -51,7 +51,7 @@ function dispatchAndCaptureUpdate(params: {
     activeCell?: ActiveCell | null;
     extensions?: Extension[];
 }): ViewUpdate {
-    let captured: ViewUpdate | null = null;
+    let captured = null as ViewUpdate | null;
     const parent = document.createElement('div');
     document.body.appendChild(parent);
 

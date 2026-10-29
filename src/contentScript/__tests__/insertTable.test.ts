@@ -15,6 +15,7 @@ import { findCellElement } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { getDispatchedEffects } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 
@@ -23,12 +24,7 @@ const INSERTED_TABLE_HEADER_CELL = { section: 'header', row: 0, col: 0 } as cons
 
 interface CapturedDispatch {
     spec: TransactionSpec;
-    effects: StateEffect<unknown>[];
-}
-
-function toEffectArray(effects: TransactionSpec['effects']): StateEffect<unknown>[] {
-    if (!effects) return [];
-    return Array.isArray(effects) ? [...(effects as StateEffect<unknown>[])] : [effects as StateEffect<unknown>];
+    effects: readonly StateEffect<unknown>[];
 }
 
 function createMockView(doc: string, cursorPos: number): EditorView & { state: EditorState } {
@@ -39,7 +35,7 @@ function createMockView(doc: string, cursorPos: number): EditorView & { state: E
             return dispatches;
         },
         dispatch(spec: TransactionSpec) {
-            dispatches.push({ spec, effects: toEffectArray(spec.effects) });
+            dispatches.push({ spec, effects: getDispatchedEffects(spec) });
             this.state = this.state.update(spec).state;
         },
     };

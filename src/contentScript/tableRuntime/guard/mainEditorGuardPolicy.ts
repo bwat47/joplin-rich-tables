@@ -36,7 +36,7 @@ interface SingleChange {
 
 function extractSinglePasteChange(tr: Transaction): SingleChange | null {
     let singleChange: SingleChange | null = null;
-    let hasInsertedText = false;
+    let hasInsertedText = false as boolean;
     let changeCount = 0;
 
     tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {

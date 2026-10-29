@@ -35,7 +35,7 @@ export function isEditConfinedToSelectedCells(tr: Transaction, selected: Selecte
     const { selection, ctx } = selected;
     const cells = collectSelectedCellSpans(toSelectionRect(selection), cellTextFromContext(ctx));
     const touchedCells = new Set<SelectedCellSpan>();
-    let confined = true;
+    let confined = true as boolean;
 
     tr.changes.iterChanges((fromA, toA) => {
         const cell = cells.find((candidate) => candidate.from <= fromA && toA <= candidate.to);

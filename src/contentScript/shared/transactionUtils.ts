@@ -16,7 +16,7 @@ export function isFullDocumentReplace(tr: Transaction): boolean {
 
     const docLength = tr.startState.doc.length;
     let changeCount = 0;
-    let isFullReplace = false;
+    let isFullReplace = false as boolean;
 
     tr.changes.iterChanges((fromA, toA) => {
         changeCount++;

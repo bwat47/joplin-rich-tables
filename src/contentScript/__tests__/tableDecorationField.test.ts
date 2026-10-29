@@ -42,7 +42,7 @@ function getDecoratedSpans(state: EditorState): number[][] {
 }
 
 function getDecorationAt(state: EditorState, from: number, to: number): Decoration {
-    let result: Decoration | null = null;
+    let result = null as Decoration | null;
     state.field(tableDecorationField).decorations.between(from, to, (rangeFrom, rangeTo, decoration) => {
         if (rangeFrom === from && rangeTo === to) {
             result = decoration;

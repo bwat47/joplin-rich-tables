@@ -4,7 +4,7 @@ vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
 }));
 
 import { history } from '@codemirror/commands';
-import type { Extension, StateEffect } from '@codemirror/state';
+import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type * as DomHelpers from '../tableWidget/domHelpers';
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -20,6 +20,7 @@ import {
     triggerOpenCellRequestEffect,
 } from '../tableState/openCellRequestState';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
+import { getDispatchedEffects } from './testUtils';
 
 /** Table with three columns and two body rows, so selection can move in every direction. */
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
@@ -331,10 +332,9 @@ describe('cellSelectionKeymap', () => {
                 col: 1,
             });
             const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
-            const effects: readonly StateEffect<unknown>[] = Array.isArray(lastSpec?.effects)
-                ? lastSpec.effects
-                : [lastSpec?.effects];
-            expect(effects.some((effect) => effect?.is?.(triggerOpenCellRequestEffect))).toBe(true);
+            expect(lastSpec).toBeDefined();
+            const effects = lastSpec ? getDispatchedEffects(lastSpec) : [];
+            expect(effects.some((effect) => effect.is(triggerOpenCellRequestEffect))).toBe(true);
         }
     );
 
