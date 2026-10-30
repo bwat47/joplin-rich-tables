@@ -10,7 +10,7 @@ import {
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
-import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 
 const { mockRunStructuralActionOnActiveCell } = vi.hoisted(() => ({
     mockRunStructuralActionOnActiveCell: vi.fn(),
@@ -142,7 +142,13 @@ describe('tableToolbarPlugin', () => {
         const requestMeasure = vi.spyOn(view, 'requestMeasure');
         requestMeasure.mockClear();
 
-        view.dispatch({ effects: triggerOpenCellRequestEffect.of({ requestId: 'same-cell' }) });
+        view.dispatch({
+            effects: openCellRequestEffect.of({
+                requestId: 'same-cell',
+                activeCell: createCell(),
+                suppressKeys: false,
+            }),
+        });
 
         expect(requestMeasure).toHaveBeenCalledWith(
             expect.objectContaining({ key: expect.anything(), read: expect.any(Function), write: expect.any(Function) })

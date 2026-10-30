@@ -3,7 +3,7 @@ import { EditorView } from '@codemirror/view';
 import { vi } from 'vitest';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
-    beginOpenCellRequestEffect,
+    openCellRequestEffect,
     clearOpenCellRequestEffect,
     getPendingOpenCellRequest,
     openCellRequestField,
@@ -39,7 +39,7 @@ describe('openCellRequestField', () => {
         params?: { requestId?: string; suppressKeys?: boolean; activeCell?: ActiveCell }
     ) =>
         state.update({
-            effects: beginOpenCellRequestEffect.of({
+            effects: openCellRequestEffect.of({
                 requestId: params?.requestId ?? 'request-1',
                 activeCell: params?.activeCell ?? activeCell,
                 suppressKeys: params?.suppressKeys ?? true,
@@ -95,7 +95,7 @@ describe('openCellRequestField', () => {
         // active cell already expressed in post-change coordinates.
         const state = createState().update({
             changes: { from: 0, to: 0, insert: 'prefix\n' },
-            effects: beginOpenCellRequestEffect.of({
+            effects: openCellRequestEffect.of({
                 requestId: 'request-1',
                 activeCell,
                 suppressKeys: true,
@@ -176,7 +176,7 @@ describe('openCellRequestField', () => {
         });
 
         view.dispatch({
-            effects: beginOpenCellRequestEffect.of({
+            effects: openCellRequestEffect.of({
                 requestId: 'request-timeout',
                 activeCell,
                 suppressKeys: true,

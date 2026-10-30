@@ -14,7 +14,7 @@ import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement 
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
 import { getDocumentWindow, getViewDocument } from '../shared/domContext';
 import { runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
-import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     computePinnedAbsolutePlacement,
@@ -432,7 +432,7 @@ function createPositioningMiddleware(): Middleware[] {
  */
 function shouldRefreshToolbarPosition(update: ViewUpdate): boolean {
     const hasOpenRequest = update.transactions.some((tr) =>
-        tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))
+        tr.effects.some((effect) => effect.is(openCellRequestEffect))
     );
     const isNonSyncDocChange = update.transactions.some((tr) => tr.docChanged && !tr.annotation(syncAnnotation));
 

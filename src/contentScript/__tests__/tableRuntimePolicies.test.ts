@@ -18,7 +18,7 @@ import { syncAnnotation } from '../shared/syncAnnotation';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
-import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { createActiveCellForTable } from '../tableState/activeCellTarget';
 import { parseTableFixture } from './testUtils';
 
@@ -632,7 +632,11 @@ describe('tableRuntimePolicies', () => {
             effects: [
                 setActiveCellEffect.of(nextActiveCell.activeCell),
                 structuralTableEditEffect.of(null),
-                triggerOpenCellRequestEffect.of({ requestId: 'normalize-request' }),
+                openCellRequestEffect.of({
+                    requestId: 'normalize-request',
+                    activeCell: nextActiveCell.activeCell,
+                    suppressKeys: false,
+                }),
             ],
             annotations: normalizeBeforeEditAnnotation.of(true),
         });

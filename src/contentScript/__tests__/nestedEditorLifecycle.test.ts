@@ -16,8 +16,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { resolveActiveCell } from '../tableState/resolvedActiveCell';
 import {
-    triggerOpenCellRequestEffect,
-    beginOpenCellRequestEffect,
+    openCellRequestEffect,
     getPendingOpenCellRequest,
     openCellRequestField,
     type OpenCellRequest,
@@ -114,12 +113,7 @@ function openRequestEffects(params: {
         suppressKeys: false,
     };
 
-    return [
-        beginOpenCellRequestEffect.of(request),
-        triggerOpenCellRequestEffect.of({
-            requestId: params.requestId,
-        }),
-    ];
+    return [openCellRequestEffect.of(request)];
 }
 
 vi.mock('../tableRuntime/cellActivation', () => ({
@@ -579,22 +573,6 @@ describe('nestedEditorLifecycle', () => {
         expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toBeNull();
-
-        view.destroy();
-    });
-
-    it('ignores a request-open signal when the pending request is missing', async () => {
-        const view = createLifecycleView({
-            doc: CANONICAL_DOC,
-        });
-
-        view.dispatch({
-            effects: triggerOpenCellRequestEffect.of({ requestId: 'missing-request' }),
-        });
-        await frames.flush();
-
-        expect(nestedEditorControllerMock.openNestedEditor).not.toHaveBeenCalled();
-        expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
         view.destroy();
     });

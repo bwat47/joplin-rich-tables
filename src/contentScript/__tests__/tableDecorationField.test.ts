@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createResizeObserverStub } from './tableEditorFixtures';
 import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
 import { isEffectiveRawMode, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { tableContextField } from '../tableState/tableContextField';
@@ -261,7 +261,16 @@ ${TABLE.replace('a', 'c')}`;
     it.each([
         ['the same cell', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 0 })]],
         ['a cell switch', [setActiveCellEffect.of({ tableFrom: 0, section: 'body' as const, row: 0, col: 1 })]],
-        ['an open request', [triggerOpenCellRequestEffect.of({ requestId: 'test-request' })]],
+        [
+            'an open request',
+            [
+                openCellRequestEffect.of({
+                    requestId: 'test-request',
+                    activeCell: { tableFrom: 0, section: 'body' as const, row: 0, col: 0 },
+                    suppressKeys: false,
+                }),
+            ],
+        ],
     ])('preserves the active table for %s', (_name, effects) => {
         const activeCell = { tableFrom: 0, section: 'body' as const, row: 0, col: 0 };
         let state = createMarkdownState(TABLE, [activeCellField, tableDecorationField]);

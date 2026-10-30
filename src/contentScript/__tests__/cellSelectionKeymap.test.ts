@@ -16,8 +16,8 @@ import {
 } from '../tableRuntime/selection/cellSelectionController';
 import {
     getPendingOpenCellRequest,
+    openCellRequestEffect,
     openCellRequestField,
-    triggerOpenCellRequestEffect,
 } from '../tableState/openCellRequestState';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 import { getDispatchedEffects } from './testUtils';
@@ -334,7 +334,7 @@ describe('cellSelectionKeymap', () => {
             const lastSpec = dispatchSpy.mock.calls[dispatchSpy.mock.calls.length - 1]?.[0];
             expect(lastSpec).toBeDefined();
             const effects = lastSpec ? getDispatchedEffects(lastSpec) : [];
-            expect(effects.some((effect) => effect.is(triggerOpenCellRequestEffect))).toBe(true);
+            expect(effects.some((effect) => effect.is(openCellRequestEffect))).toBe(true);
         }
     );
 
