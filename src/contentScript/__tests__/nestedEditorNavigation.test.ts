@@ -3,7 +3,8 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import { openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { flushNestedEditorState, openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { requireResolvedActiveCell } from './testUtils';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
@@ -55,7 +56,6 @@ describe('nested editor navigation', () => {
             | {
                   session: {
                       editor: EditorView;
-                      local: { text: string; selection: { anchor: number; head: number } };
                   } | null;
               }
             | undefined;
@@ -65,10 +65,12 @@ describe('nested editor navigation', () => {
             throw new Error('Expected nested editor session to be open');
         }
 
-        controller.session.local = {
-            text: 'a2x',
-            selection: { anchor: 3, head: 3 },
-        };
+        // A sync-annotated edit is not forwarded on update, leaving it pending until a flush.
+        nestedView.dispatch({
+            changes: { from: nestedView.state.doc.length, insert: 'x' },
+            selection: { anchor: 3 },
+            annotations: syncAnnotation.of(true),
+        });
 
         nestedView.contentDOM.dispatchEvent(
             new KeyboardEvent('keydown', {
@@ -157,6 +159,16 @@ describe('nested editor navigation', () => {
             controller.session.resolvedCell.editableFrom + clickedLocalPos
         );
         expect(mainView.state.selection.main.head).toBe(controller.session.resolvedCell.editableFrom + clickedLocalPos);
+
+        // The mirrored position is transient: a later flush forwards the nested editor's own selection.
+        flushNestedEditorState(mainView);
+
+        expect(mainView.state.selection.main.anchor).toBe(
+            controller.session.resolvedCell.editableFrom + initialNestedSelection.anchor
+        );
+        expect(mainView.state.selection.main.head).toBe(
+            controller.session.resolvedCell.editableFrom + initialNestedSelection.head
+        );
 
         mainView.destroy();
     });
