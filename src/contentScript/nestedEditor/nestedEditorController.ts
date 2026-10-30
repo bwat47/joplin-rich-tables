@@ -42,8 +42,6 @@ interface NestedEditorTextState {
 
 interface NestedEditorSession {
     resolvedCell: ResolvedActiveCell;
-    /** Mirrors nested state, except for right-click selection mirroring; see `syncSelectionToMain`. */
-    local: NestedEditorTextState;
     editor: EditorView | null;
 }
 
@@ -99,7 +97,6 @@ class NestedEditorController {
 
         const session: NestedEditorSession = {
             resolvedCell: resolved,
-            local: { text: localText, selection: localSelection },
             editor: null,
         };
 
@@ -280,13 +277,6 @@ class NestedEditorController {
             return;
         }
 
-        const localSelection = {
-            anchor: update.state.selection.main.anchor,
-            head: update.state.selection.main.head,
-        };
-        const localText = update.state.doc.toString();
-        this.session.local = { text: localText, selection: localSelection };
-
         if (update.docChanged) {
             this.forwardLocalStateToRoot(true);
         } else if (update.selectionSet) {
@@ -295,12 +285,18 @@ class NestedEditorController {
     }
 
     private forwardLocalStateToRoot(includeChanges: boolean): void {
-        if (!this.session || !this.mainView) {
+        if (!this.session?.editor || !this.mainView) {
             return;
         }
 
-        const rootText = sanitizeLocalText(this.session.local.text);
-        const rootSelection = toRootSelection(this.session.local.selection, this.session.local.text);
+        const localState = this.session.editor.state;
+        const localText = localState.doc.toString();
+        const localSelection = {
+            anchor: localState.selection.main.anchor,
+            head: localState.selection.main.head,
+        };
+        const rootText = sanitizeLocalText(localText);
+        const rootSelection = toRootSelection(localSelection, localText);
         const absoluteSelection = toAbsoluteSelection(rootSelection, this.session.resolvedCell.editableFrom);
         const currentMainSelection = this.mainView.state.selection.main;
         const previousRootText = this.readRootText(this.mainView.state, this.session.resolvedCell);
@@ -361,8 +357,7 @@ class NestedEditorController {
             }
         }
 
-        this.session.local.selection = localSelection;
-        const rootSelection = toRootSelection(localSelection, this.session.local.text);
+        const rootSelection = toRootSelection(localSelection, nestedView.state.doc.toString());
         mirrorLocalSelectionToMain({
             nestedView,
             mainView: this.mainView,
@@ -415,7 +410,6 @@ class NestedEditorController {
         };
 
         if (currentLocalText === nextLocalText && areSelectionsEqual(currentSelection, nextLocalSelection)) {
-            this.session.local = { text: nextLocalText, selection: nextLocalSelection };
             return;
         }
 
@@ -429,7 +423,6 @@ class NestedEditorController {
             annotations: [syncAnnotation.of(true), Transaction.addToHistory.of(false)],
             scrollIntoView: false,
         });
-        this.session.local = { text: nextLocalText, selection: nextLocalSelection };
 
         const mainView = this.mainView;
         if (shouldRefocus && mainView) {
