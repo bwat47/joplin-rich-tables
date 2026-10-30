@@ -4,10 +4,9 @@ import { EditorView } from '@codemirror/view';
 import { insertTableAndActivate } from '../tableRuntime/operations/insertTable';
 import { planCellEntryNormalization } from '../tableRuntime/tableCanonicalForm';
 import {
-    beginOpenCellRequestEffect,
+    openCellRequestEffect,
     getPendingOpenCellRequest,
     openCellRequestField,
-    triggerOpenCellRequestEffect,
 } from '../tableState/openCellRequestState';
 import { activeCellField } from '../tableState/activeCellState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
@@ -44,24 +43,20 @@ function createMockView(doc: string, cursorPos: number): EditorView & { state: E
 }
 
 function expectInsertOpenCellRequest(view: ReturnType<typeof createMockView>, tableFrom: number): void {
-    let begin: ReturnType<typeof beginOpenCellRequestEffect.of>['value'] | null = null;
-    let trigger: ReturnType<typeof triggerOpenCellRequestEffect.of>['value'] | null = null;
+    let request: ReturnType<typeof openCellRequestEffect.of>['value'] | null = null;
 
     for (const { effects } of (view as unknown as { dispatches: CapturedDispatch[] }).dispatches) {
         for (const effect of effects) {
-            if (effect.is(beginOpenCellRequestEffect)) {
-                begin = effect.value;
-            } else if (effect.is(triggerOpenCellRequestEffect)) {
-                trigger = effect.value;
+            if (effect.is(openCellRequestEffect)) {
+                request = effect.value;
             }
         }
     }
 
-    expect(begin).toMatchObject({
+    expect(request).toMatchObject({
         activeCell: { tableFrom, ...INSERTED_TABLE_HEADER_CELL },
         suppressKeys: true,
     });
-    expect(trigger).toEqual({ requestId: begin?.requestId });
 }
 
 function expectCellEntryWouldNotRewrite(view: ReturnType<typeof createMockView>, tableFrom: number): void {

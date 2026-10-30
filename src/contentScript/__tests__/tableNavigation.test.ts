@@ -1,6 +1,6 @@
 import type { EditorView } from '@codemirror/view';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { beginOpenCellRequestEffect, getPendingOpenCellRequest } from '../tableState/openCellRequestState';
+import { openCellRequestEffect, getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { createInteractiveTableHarness, type MutableTestView } from './interactiveTableTestHarness';
@@ -64,7 +64,7 @@ describe('navigateCell', () => {
     it('swallows the keypress while an open-cell request is still suppressing navigation', () => {
         const { view } = openHarness({ activeCell: activeCellAt(SECTION_HEADER, 0, 0) });
         view.dispatch({
-            effects: beginOpenCellRequestEffect.of({
+            effects: openCellRequestEffect.of({
                 requestId: 'pending-open',
                 activeCell: activeCellAt(SECTION_HEADER, 0, 1),
                 suppressKeys: true,

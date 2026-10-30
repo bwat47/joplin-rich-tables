@@ -11,7 +11,7 @@ import {
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { triggerOpenCellRequestEffect, beginOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { createActiveCellForTable } from '../tableState/activeCellTarget';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
@@ -143,18 +143,12 @@ describe('runStructuralCommand', () => {
             effects.some((effect: { is?: (value: unknown) => boolean }) => effect.is?.(structuralTableEditEffect))
         ).toBe(true);
         const openRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
-            effect.is?.(triggerOpenCellRequestEffect)
+            effect.is?.(openCellRequestEffect)
         );
-        const beginRequest = effects.find((effect: { is?: (value: unknown) => boolean }) =>
-            effect.is?.(beginOpenCellRequestEffect)
-        );
-        expect(beginRequest?.value).toMatchObject({
+        expect(openRequest?.value).toMatchObject({
             activeCell: nextTarget,
             suppressKeys: true,
             initialCursorPos: 'start',
-        });
-        expect(openRequest?.value).toEqual({
-            requestId: (beginRequest?.value as { requestId?: string } | undefined)?.requestId,
         });
     });
 
@@ -190,7 +184,7 @@ describe('runStructuralCommand', () => {
 
         const effects = dispatched.effects;
         expect(effects.some((effect) => effect.is?.(setActiveCellEffect))).toBe(true);
-        expect(effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
+        expect(effects.some((effect) => effect.is?.(openCellRequestEffect))).toBe(true);
         expect(effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
     });
 
@@ -223,11 +217,10 @@ describe('runStructuralCommand', () => {
             effects: Array<{ is?: (value: unknown) => boolean; value?: unknown }>;
         };
         expect(dispatched.changes?.insert).toBe(updatedTableText);
-        expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
-        const beginRequest = dispatched.effects.find((effect) => effect.is?.(beginOpenCellRequestEffect));
-        expect(beginRequest?.value).toMatchObject({ suppressKeys: true });
-        expect(beginRequest?.value).toHaveProperty('initialCursorPos', undefined);
+        const openRequest = dispatched.effects.find((effect) => effect.is?.(openCellRequestEffect));
+        expect(openRequest?.value).toMatchObject({ suppressKeys: true });
+        expect(openRequest?.value).toHaveProperty('initialCursorPos', undefined);
     });
 
     it.each([
@@ -263,8 +256,7 @@ describe('runStructuralCommand', () => {
         expect(dispatched.selection).toBeUndefined();
         expect(dispatched.effects.some((effect) => effect.is?.(clearActiveCellEffect))).toBe(true);
         expect(dispatched.effects.some((effect) => effect.is?.(structuralTableEditEffect))).toBe(true);
-        expect(dispatched.effects.some((effect) => effect.is?.(triggerOpenCellRequestEffect))).toBe(false);
-        expect(dispatched.effects.some((effect) => effect.is?.(beginOpenCellRequestEffect))).toBe(false);
+        expect(dispatched.effects.some((effect) => effect.is?.(openCellRequestEffect))).toBe(false);
     });
 
     describe('main editor focus after structural dispatch', () => {

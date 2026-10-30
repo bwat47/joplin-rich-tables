@@ -7,7 +7,7 @@ import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourc
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { noteIdentityFacet } from '../../services/noteIdentity';
-import { triggerOpenCellRequestEffect } from '../../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../../tableState/openCellRequestState';
 import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
 import { hasCellSelectionTransitionAnnotation } from './transactionFactPredicates';
 import type { ActiveCellFacts, RawModeTransitionFacts, TableRuntimeFacts } from './lifecyclePolicy';
@@ -114,7 +114,7 @@ function extractOpenRequestId(update: ViewUpdate): string | null {
 
     for (const tr of update.transactions) {
         for (const effect of tr.effects) {
-            if (effect.is(triggerOpenCellRequestEffect)) {
+            if (effect.is(openCellRequestEffect)) {
                 requestId = effect.value.requestId;
             }
         }

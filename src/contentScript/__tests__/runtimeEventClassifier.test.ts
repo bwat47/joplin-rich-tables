@@ -3,7 +3,7 @@ import { Compartment, type Extension, StateEffect, Transaction } from '@codemirr
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { triggerOpenCellRequestEffect } from '../tableState/openCellRequestState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import {
     classifyTableRuntimeFacts,
     type TableRuntimeExternalFacts,
@@ -191,8 +191,16 @@ describe('runtimeEventClassifier', () => {
                 view.dispatch({
                     effects: [
                         toggleSourceModeEffect.of(true),
-                        triggerOpenCellRequestEffect.of({ requestId: 'first-request' }),
-                        triggerOpenCellRequestEffect.of({ requestId: 'latest-request' }),
+                        openCellRequestEffect.of({
+                            requestId: 'first-request',
+                            activeCell: getHeaderCell(),
+                            suppressKeys: false,
+                        }),
+                        openCellRequestEffect.of({
+                            requestId: 'latest-request',
+                            activeCell: getHeaderCell(),
+                            suppressKeys: false,
+                        }),
                     ],
                     annotations: cellSelectionTransitionAnnotation.of(true),
                 });

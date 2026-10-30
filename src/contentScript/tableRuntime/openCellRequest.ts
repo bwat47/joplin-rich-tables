@@ -3,12 +3,11 @@ import { keymap, type EditorView, ViewPlugin, type ViewUpdate } from '@codemirro
 import { logger } from '../../logger';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import {
-    beginOpenCellRequestEffect,
     clearOpenCellRequestEffect,
     getPendingOpenCellRequest,
+    openCellRequestEffect,
     openCellRequestField,
     shouldSuppressNavigationKeys,
-    triggerOpenCellRequestEffect,
 } from '../tableState/openCellRequestState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
@@ -73,13 +72,12 @@ function buildOpenCellRequestEffects(
 ): StateEffect<unknown>[] {
     return [
         setActiveCellEffect.of(params.activeCell),
-        beginOpenCellRequestEffect.of({
+        openCellRequestEffect.of({
             requestId: params.requestId,
             activeCell: params.activeCell,
             initialCursorPos: params.initialCursorPos,
             suppressKeys: params.suppressKeys ?? false,
         }),
-        triggerOpenCellRequestEffect.of({ requestId: params.requestId }),
     ];
 }
 

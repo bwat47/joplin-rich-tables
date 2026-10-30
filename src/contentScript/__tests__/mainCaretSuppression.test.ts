@@ -14,7 +14,7 @@ import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMod
 import { toggleSourceMode } from '../tableRuntime/sourceModeController';
 import { activeCellField } from '../tableState/activeCellState';
 import {
-    beginOpenCellRequestEffect,
+    openCellRequestEffect,
     clearOpenCellRequestEffect,
     openCellRequestField,
 } from '../tableState/openCellRequestState';
@@ -54,7 +54,7 @@ function mountView(): EditorView {
 
 function beginOpenRequest(view: EditorView): void {
     view.dispatch({
-        effects: beginOpenCellRequestEffect.of({
+        effects: openCellRequestEffect.of({
             requestId: REQUEST_ID,
             activeCell: { tableFrom: TABLE_FROM, section: 'body', row: 0, col: 0 },
             suppressKeys: false,

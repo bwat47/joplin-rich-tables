@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { createResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import {
-    beginOpenCellRequestEffect,
-    openCellRequestField,
-    triggerOpenCellRequestEffect,
-} from '../tableState/openCellRequestState';
+import { openCellRequestEffect, openCellRequestField } from '../tableState/openCellRequestState';
 import { prepareOpenCellRequestTransaction, type CellEntryMode } from '../tableRuntime/openCellRequest';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
 import { getTableContextAtPos } from '../tableState/tableContextField';
@@ -124,20 +120,18 @@ describe('entering a cell', () => {
 
     it('opens the request that the repair landed on', () => {
         const { transaction } = enterCell({ doc: nonCanonicalTable, tableFrom: 0 });
-        const beginEffect = transaction.effects.find((effect) => effect.is(beginOpenCellRequestEffect));
-        const triggerEffect = transaction.effects.find((effect) => effect.is(triggerOpenCellRequestEffect));
-        if (!beginEffect?.is(beginOpenCellRequestEffect) || !triggerEffect?.is(triggerOpenCellRequestEffect)) {
-            throw new Error('Expected begin and trigger open-cell effects');
+        const requestEffect = transaction.effects.find((effect) => effect.is(openCellRequestEffect));
+        if (!requestEffect?.is(openCellRequestEffect)) {
+            throw new Error('Expected an open-cell request effect');
         }
 
-        expect(beginEffect.value.activeCell).toEqual({
+        expect(requestEffect.value.activeCell).toEqual({
             tableFrom: 1,
             section: 'header',
             row: 0,
             col: 0,
         });
-        expect(beginEffect.value.initialCursorPos).toBe('end');
-        expect(beginEffect.value.requestId).toBe(triggerEffect.value.requestId);
+        expect(requestEffect.value.initialCursorPos).toBe('end');
     });
 
     describe('boundary spacing', () => {

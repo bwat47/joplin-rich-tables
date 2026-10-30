@@ -30,7 +30,12 @@ function mapActiveCell(activeCell: ActiveCell, changes: ChangeDesc): ActiveCell 
     return tableFrom === null ? undefined : { ...activeCell, tableFrom };
 }
 
-export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
+/**
+ * Opens a request. The field stores its payload, and runtime consumers observe the same effect
+ * as the "open requested" event, so a request is never stored without being announced or
+ * announced without being stored, including when mapping drops it.
+ */
+export const openCellRequestEffect = StateEffect.define<OpenCellRequest>({
     map(value, changes) {
         const activeCell = mapActiveCell(value.activeCell, changes);
         return activeCell ? { ...value, activeCell } : undefined;
@@ -38,7 +43,6 @@ export const beginOpenCellRequestEffect = StateEffect.define<OpenCellRequest>({
 });
 
 export const clearOpenCellRequestEffect = StateEffect.define<OpenCellRequestIdentity>();
-export const triggerOpenCellRequestEffect = StateEffect.define<OpenCellRequestIdentity>();
 
 /** A clear only applies to the request it names, so a stale clear cannot cancel a newer request. */
 function clearsRequest(effect: StateEffect<unknown>, request: OpenCellRequest | null): boolean {
@@ -46,7 +50,7 @@ function clearsRequest(effect: StateEffect<unknown>, request: OpenCellRequest | 
 }
 
 /**
- * Folds a transaction's effects into the pending request. `replaced` reports whether a begin
+ * Folds a transaction's effects into the pending request. `replaced` reports whether a request
  * effect supplied the value, which the caller needs in order to decide about remapping.
  */
 function applyOpenCellRequestEffects(
@@ -57,7 +61,7 @@ function applyOpenCellRequestEffects(
     let replaced = false;
 
     for (const effect of effects) {
-        if (effect.is(beginOpenCellRequestEffect)) {
+        if (effect.is(openCellRequestEffect)) {
             nextValue = effect.value;
             replaced = true;
         } else if (clearsRequest(effect, nextValue)) {
@@ -82,7 +86,7 @@ export const openCellRequestField = StateField.define<OpenCellRequest | null>({
     update(value, tr) {
         const { value: nextValue, replaced } = applyOpenCellRequestEffects(value, tr.effects);
 
-        // A begin effect dispatched alongside its own document change already carries
+        // A request effect dispatched alongside its own document change already carries
         // post-change coordinates, so remapping it would shift the anchor a second time.
         if (!nextValue || replaced || !tr.docChanged) {
             return nextValue;

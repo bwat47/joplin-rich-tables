@@ -4,11 +4,7 @@ import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import {
-    beginOpenCellRequestEffect,
-    getPendingOpenCellRequest,
-    triggerOpenCellRequestEffect,
-} from '../tableState/openCellRequestState';
+import { openCellRequestEffect, getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import {
     createInteractiveTableHarness,
     getLastDispatchSpec,
@@ -22,16 +18,8 @@ const NORMALIZED_DOC = `\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('
 
 function findOpenRequest(spec: TransactionSpec) {
     return (
-        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof triggerOpenCellRequestEffect.of> =>
-            effect.is(triggerOpenCellRequestEffect)
-        ) ?? null
-    );
-}
-
-function findBeginOpenRequest(spec: TransactionSpec) {
-    return (
-        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof beginOpenCellRequestEffect.of> =>
-            effect.is(beginOpenCellRequestEffect)
+        getDispatchedEffects(spec).find((effect): effect is ReturnType<typeof openCellRequestEffect.of> =>
+            effect.is(openCellRequestEffect)
         ) ?? null
     );
 }
@@ -77,10 +65,7 @@ describe('interactive open-cell requests', () => {
 
         expect(activateCellAtPosition(view, NON_CANONICAL_DOC.indexOf('H1'), { entryMode: 'enter' })).toBe(true);
         expect(view.state.doc.toString()).toBe(NON_CANONICAL_DOC);
-        const openRequest = findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        const beginRequest = findBeginOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView));
-        expect(beginRequest).not.toBeNull();
-        expect(openRequest?.value).toEqual({ requestId: beginRequest?.value.requestId });
+        expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
     });
 
     it('clamps a preferred fallback cell instead of reopening the first cell on structural punctuation', () => {

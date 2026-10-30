@@ -10,11 +10,7 @@ import {
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { openSearchPanelInState } from './searchPanelTestUtils';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import {
-    beginOpenCellRequestEffect,
-    openCellRequestField,
-    triggerOpenCellRequestEffect,
-} from '../tableState/openCellRequestState';
+import { openCellRequestEffect, openCellRequestField } from '../tableState/openCellRequestState';
 import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { parseCellRangesFixture, requireBodyCellRange } from './testUtils';
@@ -42,10 +38,7 @@ function headerCell(overrides: Partial<ActiveCell> = {}): ActiveCell {
 }
 
 function hasOpenCellRequestEffects(tr: Transaction): boolean {
-    return (
-        tr.effects.some((effect) => effect.is(beginOpenCellRequestEffect)) &&
-        tr.effects.some((effect) => effect.is(triggerOpenCellRequestEffect))
-    );
+    return tr.effects.some((effect) => effect.is(openCellRequestEffect));
 }
 
 function expectRootTablePasteOpenRequest(tr: Transaction, tableFrom: number): void {
