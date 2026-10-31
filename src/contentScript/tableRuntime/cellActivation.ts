@@ -5,9 +5,11 @@ import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
+import type { TableContext } from '../tableModel/tableContext';
+import { fromUnifiedRow } from '../tableModel/types';
 import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import type { InitialCursorPos } from '../tableState/cursorPlacement';
-import { resolveClampedCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { resolveClampedCell, toResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import {
@@ -94,11 +96,34 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     return true;
 }
 
+/** Which end of a grid axis an entry lands on. */
+type GridEdge = 'first' | 'last';
+
+/** The corner cell an entry from outside the table lands on. */
+export interface EdgeCellTarget {
+    row: GridEdge;
+    col: GridEdge;
+}
+
 /**
- * Builds the transaction that opens `resolvedCell` as the active cell.
+ * Resolves the edge cell from the table's own source rows. Every indexed table has a header
+ * row and every row has at least one cell, so the edge always names a real cell.
+ */
+function resolveSourceEdgeCell(ctx: TableContext, edges: EdgeCellTarget): ResolvedActiveCell {
+    const rows = [ctx.cellRanges.headers, ...ctx.cellRanges.rows];
+    const rowIndex = edges.row === 'first' ? 0 : rows.length - 1;
+    // Parsed tables always have a header and at least one source cell in each row.
+    const row = rows[rowIndex]!;
+    const colIndex = edges.col === 'first' ? 0 : row.length - 1;
+
+    return toResolvedActiveCell({ ctx, coords: fromUnifiedRow(rowIndex, colIndex), range: row[colIndex]! });
+}
+
+/**
+ * Transaction opening a table's edge cell, for entry from outside the table.
  *
- * Shared by the dispatching entry points and by the boundary-deletion transaction
- * filter, which can only return a spec.
+ * Returns a spec rather than dispatching because the boundary-deletion transaction filter
+ * can only return a spec; arrow-key entry dispatches the same spec.
  *
  * The request suppresses navigation keys: until the nested editor mounts and takes focus,
  * the main editor still owns the keyboard with the caret parked in the table's replaced
@@ -107,15 +132,19 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
  * Any normalization the table needs is folded into this same transaction, so the whole
  * entry is one document change dispatched from the event that asked for it.
  */
-export function prepareCellEntryTransaction(params: {
-    state: EditorState;
-    resolvedCell: ResolvedActiveCell;
-    initialCursorPos?: InitialCursorPos;
-}): PreparedOpenCellRequestTransaction {
+export function prepareEdgeCellEntry(
+    state: EditorState,
+    ctx: TableContext,
+    edges: EdgeCellTarget,
+    initialCursorPos: InitialCursorPos
+): PreparedOpenCellRequestTransaction {
+    // Open requests must start from a source-backed cell. Normalization can make a
+    // ragged table rectangular after activation, but it cannot resolve a synthetic
+    // padded cell before that transaction has run.
     return prepareOpenCellRequestTransaction({
-        state: params.state,
-        resolvedCell: params.resolvedCell,
-        initialCursorPos: params.initialCursorPos,
+        state,
+        resolvedCell: resolveSourceEdgeCell(ctx, edges),
+        initialCursorPos,
         suppressKeys: true,
     });
 }

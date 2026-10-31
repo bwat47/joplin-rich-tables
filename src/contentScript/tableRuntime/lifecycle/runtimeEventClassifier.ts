@@ -4,6 +4,7 @@ import { noteIdentityFacet } from '../../services/noteIdentity';
 import { hasSyncAnnotation } from '../../shared/transactionUtils';
 import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
+import { hasCellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
 import { openCellRequestEffect } from '../../tableState/openCellRequestState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourceMode';
@@ -11,7 +12,6 @@ import { containsSelection, getTableContextAtPos } from '../../tableState/tableC
 import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
 import { exitSearchForceSourceModeEffect } from '../search/searchPanelTransitions';
 import type { ActiveCellFacts, RawModeTransitionFacts, TableRuntimeFacts } from './lifecyclePolicy';
-import { hasCellSelectionTransitionAnnotation } from './transactionFactPredicates';
 
 export interface TableRuntimeExternalFacts {
     nestedEditorOpen: boolean;

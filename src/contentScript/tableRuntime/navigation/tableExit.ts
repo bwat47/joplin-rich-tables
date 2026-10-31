@@ -1,7 +1,8 @@
-import type { StateEffect } from '@codemirror/state';
+import type { EditorState, StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
 import type { TableSpan } from '../../tableModel/tableContext';
+import { getTableContextAtPos } from '../../tableState/tableContextField';
 
 /** Which side of a table the caret leaves through. */
 export type TableExitSide = 'before' | 'after';
@@ -30,4 +31,17 @@ export function exitTableToAdjacentLine(
     view.focus();
 
     return true;
+}
+
+/**
+ * Where the main cursor should go to leave the table containing it, or null when the cursor
+ * is not inside a table. The position is right after the table (start of the next line).
+ */
+export function getPositionOutsideTable(state: EditorState): number | null {
+    const tableContainingCursor = getTableContextAtPos(state, state.selection.main.head);
+    if (!tableContainingCursor) {
+        return null;
+    }
+
+    return Math.min(tableContainingCursor.to + 1, state.doc.length);
 }

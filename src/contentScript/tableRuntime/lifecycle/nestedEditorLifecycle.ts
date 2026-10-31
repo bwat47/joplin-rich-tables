@@ -23,7 +23,7 @@ import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition } from '../cellActivation';
 import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
-import { getPositionOutsideTable } from '../navigation/cursorUtils';
+import { getPositionOutsideTable } from '../navigation/tableExit';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
 import { classifyTableRuntimeFacts } from './runtimeEventClassifier';

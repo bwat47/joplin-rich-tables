@@ -1,4 +1,4 @@
-import { Annotation, StateEffect, StateField, type EditorState } from '@codemirror/state';
+import { Annotation, StateEffect, StateField, type EditorState, type Transaction } from '@codemirror/state';
 
 import type { TableContext } from '../tableModel/tableContext';
 import { fromUnifiedRow, toUnifiedRow, type CellCoords, type TableRect } from '../tableModel/types';
@@ -20,6 +20,10 @@ export type CellSelectionDirection = 'left' | 'right' | 'up' | 'down';
 export const cellSelectionTransitionAnnotation = Annotation.define<boolean>();
 export const setCellSelectionEffect = StateEffect.define<CellSelection>();
 export const clearCellSelectionEffect = StateEffect.define<null>();
+
+export function hasCellSelectionTransitionAnnotation(transactions: readonly Transaction[]): boolean {
+    return transactions.some((tr) => Boolean(tr.annotation(cellSelectionTransitionAnnotation)));
+}
 
 export function toSelectionRect(selection: CellSelection): TableRect {
     const anchorRow = toUnifiedRow(selection.anchor);

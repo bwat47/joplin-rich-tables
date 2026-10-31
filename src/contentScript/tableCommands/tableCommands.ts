@@ -2,8 +2,8 @@ import type { EditorView } from '@codemirror/view';
 
 import { STRUCTURAL_COMMANDS, type StructuralActionId } from '../../contentScriptBridge/structuralCommandCatalog';
 import { insertTableAndActivate } from '../tableRuntime/operations/insertTable';
+import { toggleSourceMode } from '../tableRuntime/operations/sourceModeController';
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
-import { toggleSourceMode } from '../tableRuntime/sourceModeController';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 /**
