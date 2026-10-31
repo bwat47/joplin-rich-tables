@@ -1,25 +1,23 @@
-import { defaultKeymap } from '@codemirror/commands';
-import { openSearchPanel } from '@codemirror/search';
-import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EditorSelection } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
+import { describe, expect, it, vi } from 'vitest';
 
 import { tableBoundaryDeletionExtension } from '../tableRuntime/boundaries/tableBoundaryDeletion';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { createResizeObserverStub } from './tableEditorFixtures';
-import { createMarkdownState } from './testMarkdownState';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getCellSelection } from '../tableState/cellSelectionState';
+import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
+import {
+    currentTableFrom,
+    expectBoundaryCellOpen,
+    expectCellOpen,
+    mountTableEntryView,
+    pressKey,
+    RAW_MODE_CASES,
+    TABLE,
+} from './tableEntryFixtures';
 
-const resizeObserver = createResizeObserverStub();
-
-const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
 const BEFORE = 'before';
 const AFTER = 'after';
-const mountedViews: EditorView[] = [];
 
 /**
  * Canonically spaced fixtures: a table needs a blank line on each side, and entering a
@@ -39,61 +37,8 @@ const BELOW_TABLE_DOC = docBelowTable();
 const ABOVE_TABLE_DOC = docAboveTable();
 const AROUND_TABLE_DOC = `${BEFORE}\n\n${TABLE}\n\n${AFTER}`;
 
-/** The two ways every table stops rendering as a widget. */
-const RAW_MODE_CASES: ReadonlyArray<{ label: string; enterRawMode: (view: EditorView) => void }> = [
-    {
-        label: 'source mode',
-        enterRawMode: (view) => {
-            view.dispatch({ effects: toggleSourceModeEffect.of(true) });
-        },
-    },
-    {
-        label: 'search-forced raw mode',
-        enterRawMode: (view) => {
-            openSearchPanel(view);
-        },
-    },
-];
-
-/** The table's offset in the document as it stands, which entry may have normalized. */
-function currentTableFrom(view: EditorView, table: string = TABLE): number {
-    return view.state.doc.toString().indexOf(table);
-}
-
-/** TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver. */
 function mountView(doc: string, selection: number | { anchor: number; head: number }): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
-        state: createMarkdownState(doc, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            openCellRequestField,
-            tableDecorationField,
-            EditorState.allowMultipleSelections.of(true),
-            tableBoundaryDeletionExtension,
-            cellSelectionKeyCapturePlugin,
-            keymap.of(defaultKeymap),
-        ]),
-    });
-    view.dispatch({ selection: typeof selection === 'number' ? { anchor: selection } : selection });
-    view.contentDOM.focus();
-    mountedViews.push(view);
-    return view;
-}
-
-function pressKey(view: EditorView, key: string, modifiers: KeyboardEventInit = {}): void {
-    view.contentDOM.dispatchEvent(
-        new KeyboardEvent('keydown', {
-            key,
-            bubbles: true,
-            cancelable: true,
-            ...modifiers,
-        })
-    );
+    return mountTableEntryView(doc, selection, [tableBoundaryDeletionExtension]);
 }
 
 /** What CodeMirror's cut handler dispatches when no range is selected: one change per line. */
@@ -120,39 +65,6 @@ function dispatchCutEvent(view: EditorView): void {
         },
     });
     view.contentDOM.dispatchEvent(event);
-}
-
-function expectBoundaryCellOpen(view: EditorView, edge: 'start' | 'end'): void {
-    const tableFrom = view.state.doc.toString().indexOf(TABLE);
-    expect(getActiveCell(view.state)).toEqual(
-        edge === 'start'
-            ? { tableFrom, section: 'header', row: 0, col: 0 }
-            : { tableFrom, section: 'body', row: 1, col: 1 }
-    );
-    expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos: edge });
-    expect(getCellSelection(view.state)).toBeNull();
-}
-
-beforeEach(() => {
-    resizeObserver.install();
-});
-
-afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
-});
-
-function expectCellOpen(
-    view: EditorView,
-    expected: { tableFrom: number; section: 'header' | 'body'; row: number; col: number },
-    initialCursorPos: 'start' | 'end'
-): void {
-    expect(getActiveCell(view.state)).toEqual(expected);
-    expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos });
 }
 
 describe('table boundary deletion protection', () => {
