@@ -9,8 +9,6 @@ import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescrip
 import prettier from 'eslint-config-prettier';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
-import { readdirSync } from 'node:fs';
-import path from 'node:path';
 import vitest from '@vitest/eslint-plugin';
 
 const CONTENT_SCRIPT_DIR = 'src/contentScript';
@@ -83,13 +81,12 @@ const TABLE_RUNTIME_COORDINATOR = 'lifecycle';
  * `tableRuntime/lifecycle/` coordinates the other runtime subfolders, so it sits above them:
  * root primitives and sibling subfolders must not import from it.
  *
- * Targets are the folder's other entries as plain paths, not a glob: import-x matches glob
- * targets case-sensitively, so a drive-letter case mismatch on Windows silently disables them.
+ * A flat-config scope excludes lifecycle itself and covers future files without scanning
+ * the directory. Keep the zone paths plain: import-x matches glob targets case-sensitively,
+ * so a drive-letter case mismatch on Windows silently disables them.
  */
 const TABLE_RUNTIME_LIFECYCLE_ZONE = {
-    target: readdirSync(path.join(import.meta.dirname, TABLE_RUNTIME_DIR))
-        .filter((entry) => entry !== TABLE_RUNTIME_COORDINATOR)
-        .map((entry) => `${TABLE_RUNTIME_DIR}/${entry}`),
+    target: TABLE_RUNTIME_DIR,
     from: `${TABLE_RUNTIME_DIR}/${TABLE_RUNTIME_COORDINATOR}`,
     message: 'tableRuntime/lifecycle coordinates the other runtime subfolders; they must not depend on it.',
 };
@@ -185,7 +182,7 @@ export default defineConfig([
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
             'import-x/no-cycle': ['error', { maxDepth: Infinity }],
-            'import-x/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: [...LAYER_ZONES, TABLE_RUNTIME_LIFECYCLE_ZONE] }],
+            'import-x/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: LAYER_ZONES }],
             'import-x/no-self-import': 'error',
             // Merge duplicate imports using inline `type` specifiers, matching consistent-type-imports below
             'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
@@ -202,6 +199,18 @@ export default defineConfig([
             // Log through src/logger.ts, which owns the console calls (exempted below).
             'no-console': 'error',
             'tsdoc/syntax': 'error',
+        },
+    },
+
+    // Apply the coordinator boundary outside lifecycle, preserving every content-script layer zone.
+    {
+        files: [`${TABLE_RUNTIME_DIR}/**/*.{ts,tsx,js,mts}`],
+        ignores: [`${TABLE_RUNTIME_DIR}/${TABLE_RUNTIME_COORDINATOR}/**`],
+        rules: {
+            'import-x/no-restricted-paths': [
+                'error',
+                { basePath: import.meta.dirname, zones: [...LAYER_ZONES, TABLE_RUNTIME_LIFECYCLE_ZONE] },
+            ],
         },
     },
 
