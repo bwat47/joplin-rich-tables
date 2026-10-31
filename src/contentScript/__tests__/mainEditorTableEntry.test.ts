@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type Extension } from '@codemirror/state';
 import { Direction, type EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,9 +21,12 @@ const harness = createTableEntryTestHarness();
 beforeEach(() => harness.install());
 afterEach(() => harness.cleanup());
 
-function mountView(doc: string, selection: number | { anchor: number; head: number }): EditorView {
-    // The deletion filter exercises arrow-key suppression after a deletion opens a cell.
-    return harness.mountView(doc, selection, [tableBoundaryDeletionExtension, mainEditorTableEntryExtension]);
+function mountView(
+    doc: string,
+    selection: number | { anchor: number; head: number },
+    extraExtensions: Extension[] = []
+): EditorView {
+    return harness.mountView(doc, selection, [...extraExtensions, mainEditorTableEntryExtension]);
 }
 
 function mockVerticalTarget(view: EditorView, targetPos: number): void {
@@ -260,7 +263,8 @@ describe('mainEditorTableEntry key repeat', () => {
 
     it('pins the caret when an arrow follows a deletion that entered the table', () => {
         const doc = `${TABLE}\n\nbelow`;
-        const view = mountView(doc, TABLE.length + 2);
+        // The deletion filter opens the cell, so the arrow keys are pinned by the open-cell request.
+        const view = mountView(doc, TABLE.length + 2, [tableBoundaryDeletionExtension]);
 
         pressKey(view, 'Backspace');
         pressKey(view, 'Backspace');
