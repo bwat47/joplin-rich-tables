@@ -178,6 +178,7 @@ export default defineConfig([
             '@typescript-eslint/explicit-module-boundary-types': 'error',
             '@typescript-eslint/switch-exhaustiveness-check': 'error',
             '@typescript-eslint/no-deprecated': 'error',
+            eqeqeq: ['error', 'always'],
             // Log through src/logger.ts, which owns the console calls (exempted below).
             'no-console': 'error',
             'tsdoc/syntax': 'error',

@@ -351,7 +351,7 @@ class NestedEditorController {
         // spelling suggestions. The browser positions the nested caret natively on right-click.
         if (nestedView.state.selection.main.empty) {
             const clickedPos = nestedView.posAtCoords({ x: event.clientX, y: event.clientY });
-            if (clickedPos != null) {
+            if (clickedPos !== null) {
                 const clamped = clamp(clickedPos, 0, nestedView.state.doc.length);
                 localSelection = { anchor: clamped, head: clamped };
             }

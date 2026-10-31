@@ -39,5 +39,5 @@ export function isNestedEditorOwnedEvent(event: Event): boolean {
 
     const target = event.target as Node | null;
     const element = target?.nodeType === Node.ELEMENT_NODE ? (target as Element) : (target?.parentElement ?? null);
-    return element?.closest(`.${CLASS_CELL_EDITOR}`) != null;
+    return Boolean(element?.closest(`.${CLASS_CELL_EDITOR}`));
 }
