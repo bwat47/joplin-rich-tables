@@ -1,17 +1,18 @@
 // Flat config (ESM). Adds ignores, Node + Vitest globals, and TS-friendly rule tweaks.
 
 import js from '@eslint/js';
-import { defineConfig } from 'eslint/config';
-import tseslint from 'typescript-eslint';
-import tsdoc from 'eslint-plugin-tsdoc';
-import importPlugin from 'eslint-plugin-import-x';
-import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
-import prettier from 'eslint-config-prettier';
-import sonarjs from 'eslint-plugin-sonarjs';
-import globals from 'globals';
 import vitest from '@vitest/eslint-plugin';
+import prettier from 'eslint-config-prettier';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
+import importPlugin from 'eslint-plugin-import-x';
+import sonarjs from 'eslint-plugin-sonarjs';
+import tsdoc from 'eslint-plugin-tsdoc';
+import { defineConfig } from 'eslint/config';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
 const CONTENT_SCRIPT_DIR = 'src/contentScript';
+const SOURCE_FILE_GLOB = '**/*.{ts,tsx,js,mts}';
 
 /**
  * Content-script layer dependencies: each layer lists the sibling folders it may import from; every
@@ -75,21 +76,31 @@ const LAYER_ZONES = Object.entries(LAYER_DEPENDENCIES).map(([layer, { allowed, m
 }));
 
 const TABLE_RUNTIME_DIR = `${CONTENT_SCRIPT_DIR}/tableRuntime`;
-const TABLE_RUNTIME_COORDINATOR = 'lifecycle';
+const TABLE_RUNTIME_COORDINATOR_DIR = `${TABLE_RUNTIME_DIR}/lifecycle`;
 
 /**
  * `tableRuntime/lifecycle/` coordinates the other runtime subfolders, so it sits above them:
  * root primitives and sibling subfolders must not import from it.
  *
- * A flat-config scope excludes lifecycle itself and covers future files without scanning
- * the directory. Keep the zone paths plain: import-x matches glob targets case-sensitively,
- * so a drive-letter case mismatch on Windows silently disables them.
+ * The zone targets all of `tableRuntime/`, lifecycle included, so it is only correct inside the
+ * tableRuntime config block below, whose `ignores` excludes lifecycle; do not add it to the base
+ * zones. Scoping by config block also covers future files without scanning the directory. Keep
+ * the zone paths plain: import-x matches glob targets case-sensitively, so a drive-letter case
+ * mismatch on Windows silently disables them.
  */
 const TABLE_RUNTIME_LIFECYCLE_ZONE = {
     target: TABLE_RUNTIME_DIR,
-    from: `${TABLE_RUNTIME_DIR}/${TABLE_RUNTIME_COORDINATOR}`,
+    from: TABLE_RUNTIME_COORDINATOR_DIR,
     message: 'tableRuntime/lifecycle coordinates the other runtime subfolders; they must not depend on it.',
 };
+
+/**
+ * Options for `import-x/no-restricted-paths`. A later config block replaces the rule's options
+ * wholesale, so every block builds them here and extends `LAYER_ZONES` rather than restating it.
+ */
+function restrictedPathsRule(extraZones = []) {
+    return ['error', { basePath: import.meta.dirname, zones: [...LAYER_ZONES, ...extraZones] }];
+}
 
 const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@codemirror/language'];
 
@@ -155,7 +166,7 @@ export default defineConfig([
 
     // Project TS/JS sources
     {
-        files: ['**/*.{ts,tsx,js,mts}'],
+        files: [SOURCE_FILE_GLOB],
         languageOptions: {
             parserOptions: {
                 projectService: true,
@@ -182,7 +193,7 @@ export default defineConfig([
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
             'import-x/no-cycle': ['error', { maxDepth: Infinity }],
-            'import-x/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: LAYER_ZONES }],
+            'import-x/no-restricted-paths': restrictedPathsRule(),
             'import-x/no-self-import': 'error',
             // Merge duplicate imports using inline `type` specifiers, matching consistent-type-imports below
             'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
@@ -204,13 +215,10 @@ export default defineConfig([
 
     // Apply the coordinator boundary outside lifecycle, preserving every content-script layer zone.
     {
-        files: [`${TABLE_RUNTIME_DIR}/**/*.{ts,tsx,js,mts}`],
-        ignores: [`${TABLE_RUNTIME_DIR}/${TABLE_RUNTIME_COORDINATOR}/**`],
+        files: [`${TABLE_RUNTIME_DIR}/${SOURCE_FILE_GLOB}`],
+        ignores: [`${TABLE_RUNTIME_COORDINATOR_DIR}/**`],
         rules: {
-            'import-x/no-restricted-paths': [
-                'error',
-                { basePath: import.meta.dirname, zones: [...LAYER_ZONES, TABLE_RUNTIME_LIFECYCLE_ZONE] },
-            ],
+            'import-x/no-restricted-paths': restrictedPathsRule([TABLE_RUNTIME_LIFECYCLE_ZONE]),
         },
     },
 
