@@ -1,15 +1,14 @@
 /**
  * Shared harness for main-editor table entry tests (arrow-key entry and boundary deletion).
  *
- * Importing this module registers the hooks below in the importing test file: the
- * ResizeObserver stub is installed before each test, and every mounted view is destroyed
- * after it. Keep it scoped to entry tests; general helpers belong in `tableEditorFixtures`.
+ * Each suite creates its own harness and calls install/cleanup from its lifecycle hooks.
+ * Keep it scoped to entry tests; general helpers belong in `tableEditorFixtures`.
  */
 import { defaultKeymap } from '@codemirror/commands';
 import { openSearchPanel } from '@codemirror/search';
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { afterEach, beforeEach, expect, vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
@@ -52,60 +51,72 @@ export const RAW_MODE_CASES: readonly RawModeCase[] = [
     },
 ];
 
-const resizeObserver = createResizeObserverStub();
-const mountedViews: EditorView[] = [];
-
-beforeEach(() => {
-    // TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver.
-    resizeObserver.install();
-});
-
-afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
-});
-
 /** The table's offset in the document as it stands, which entry may have normalized. */
 export function currentTableFrom(view: EditorView, table: string = TABLE): number {
     return view.state.doc.toString().indexOf(table);
 }
 
-/**
- * Mounts a focused main editor that renders table widgets, with `entryExtensions` (the
- * entry behaviour under test) registered ahead of the cell-selection and default keymaps.
- */
-export function mountTableEntryView(
-    doc: string,
-    selection: number | { anchor: number; head: number },
-    entryExtensions: Extension[]
-): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
+export interface TableEntryTestHarness {
+    /** Installs the ResizeObserver stub before each test. */
+    install(): void;
+    /** Restores mocks and globals, destroys mounted views, and clears the document. */
+    cleanup(): void;
+    /** Mounts a focused editor, with entry extensions ahead of selection and default keymaps. */
+    mountView(
+        doc: string,
+        selection: number | { anchor: number; head: number },
+        entryExtensions: Extension[]
+    ): EditorView;
+}
 
-    const view = new EditorView({
-        parent,
-        state: createMarkdownState(doc, [
-            activeCellField,
-            cellSelectionField,
-            sourceModeField,
-            openCellRequestField,
-            // Tables must render as block replace decorations: vertical entry reads the
-            // block structure to find the table a movement stepped over.
-            tableDecorationField,
-            EditorState.allowMultipleSelections.of(true),
-            ...entryExtensions,
-            cellSelectionKeyCapturePlugin,
-            keymap.of(defaultKeymap),
-        ]),
-    });
-    view.dispatch({ selection: typeof selection === 'number' ? { anchor: selection } : selection });
-    view.contentDOM.focus();
-    mountedViews.push(view);
-    return view;
+/** Creates isolated view tracking and lifecycle operations for one table-entry suite. */
+export function createTableEntryTestHarness(): TableEntryTestHarness {
+    const resizeObserver = createResizeObserverStub();
+    const mountedViews: EditorView[] = [];
+
+    return {
+        install(): void {
+            // TableWidget observes its own DOM for height changes; jsdom has no ResizeObserver.
+            resizeObserver.install();
+        },
+        cleanup(): void {
+            vi.restoreAllMocks();
+            vi.unstubAllGlobals();
+            while (mountedViews.length > 0) {
+                mountedViews.pop()?.destroy();
+            }
+            document.body.replaceChildren();
+        },
+        mountView(
+            doc: string,
+            selection: number | { anchor: number; head: number },
+            entryExtensions: Extension[]
+        ): EditorView {
+            const parent = document.createElement('div');
+            document.body.appendChild(parent);
+
+            const view = new EditorView({
+                parent,
+                state: createMarkdownState(doc, [
+                    activeCellField,
+                    cellSelectionField,
+                    sourceModeField,
+                    openCellRequestField,
+                    // Tables must render as block replace decorations: vertical entry reads the
+                    // block structure to find the table a movement stepped over.
+                    tableDecorationField,
+                    EditorState.allowMultipleSelections.of(true),
+                    ...entryExtensions,
+                    cellSelectionKeyCapturePlugin,
+                    keymap.of(defaultKeymap),
+                ]),
+            });
+            view.dispatch({ selection: typeof selection === 'number' ? { anchor: selection } : selection });
+            view.contentDOM.focus();
+            mountedViews.push(view);
+            return view;
+        },
+    };
 }
 
 export function pressKey(view: EditorView, key: string, modifiers: KeyboardEventInit = {}): void {

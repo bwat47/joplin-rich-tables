@@ -1,24 +1,29 @@
 import { EditorSelection } from '@codemirror/state';
 import { Direction, type EditorView } from '@codemirror/view';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { tableBoundaryDeletionExtension } from '../tableRuntime/boundaries/tableBoundaryDeletion';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import {
+    createTableEntryTestHarness,
     currentTableFrom,
     expectBoundaryCellOpen,
     expectCellOpen,
-    mountTableEntryView,
     pressKey,
     RAW_MODE_CASES,
     TABLE,
 } from './tableEntryFixtures';
 
+const harness = createTableEntryTestHarness();
+
+beforeEach(() => harness.install());
+afterEach(() => harness.cleanup());
+
 function mountView(doc: string, selection: number | { anchor: number; head: number }): EditorView {
     // The deletion filter exercises arrow-key suppression after a deletion opens a cell.
-    return mountTableEntryView(doc, selection, [tableBoundaryDeletionExtension, mainEditorTableEntryExtension]);
+    return harness.mountView(doc, selection, [tableBoundaryDeletionExtension, mainEditorTableEntryExtension]);
 }
 
 function mockVerticalTarget(view: EditorView, targetPos: number): void {

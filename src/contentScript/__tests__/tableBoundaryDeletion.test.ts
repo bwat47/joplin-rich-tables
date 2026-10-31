@@ -1,20 +1,25 @@
 import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { tableBoundaryDeletionExtension } from '../tableRuntime/boundaries/tableBoundaryDeletion';
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { getCellSelection } from '../tableState/cellSelectionState';
 import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import {
+    createTableEntryTestHarness,
     currentTableFrom,
     expectBoundaryCellOpen,
     expectCellOpen,
-    mountTableEntryView,
     pressKey,
     RAW_MODE_CASES,
     TABLE,
 } from './tableEntryFixtures';
+
+const harness = createTableEntryTestHarness();
+
+beforeEach(() => harness.install());
+afterEach(() => harness.cleanup());
 
 const BEFORE = 'before';
 const AFTER = 'after';
@@ -38,7 +43,7 @@ const ABOVE_TABLE_DOC = docAboveTable();
 const AROUND_TABLE_DOC = `${BEFORE}\n\n${TABLE}\n\n${AFTER}`;
 
 function mountView(doc: string, selection: number | { anchor: number; head: number }): EditorView {
-    return mountTableEntryView(doc, selection, [tableBoundaryDeletionExtension]);
+    return harness.mountView(doc, selection, [tableBoundaryDeletionExtension]);
 }
 
 /** What CodeMirror's cut handler dispatches when no range is selected: one change per line. */
