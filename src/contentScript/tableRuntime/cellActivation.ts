@@ -96,32 +96,6 @@ export function activateCellAtPosition(view: EditorView, pos: number, options?: 
     return true;
 }
 
-/**
- * Builds the transaction that opens `resolvedCell` as the active cell.
- *
- * Returns a spec rather than dispatching so the boundary-deletion transaction filter,
- * which can only return a spec, shares it with the arrow-key entry points.
- *
- * The request suppresses navigation keys: until the nested editor mounts and takes focus,
- * the main editor still owns the keyboard with the caret parked in the table's replaced
- * range, so key repeat would otherwise walk it through the hidden Markdown.
- *
- * Any normalization the table needs is folded into this same transaction, so the whole
- * entry is one document change dispatched from the event that asked for it.
- */
-function prepareCellEntryTransaction(params: {
-    state: EditorState;
-    resolvedCell: ResolvedActiveCell;
-    initialCursorPos?: InitialCursorPos;
-}): PreparedOpenCellRequestTransaction {
-    return prepareOpenCellRequestTransaction({
-        state: params.state,
-        resolvedCell: params.resolvedCell,
-        initialCursorPos: params.initialCursorPos,
-        suppressKeys: true,
-    });
-}
-
 /** Which end of a grid axis an entry lands on. */
 type GridEdge = 'first' | 'last';
 
@@ -145,7 +119,19 @@ function resolveSourceEdgeCell(ctx: TableContext, edges: EdgeCellTarget): Resolv
     return toResolvedActiveCell({ ctx, coords: fromUnifiedRow(rowIndex, colIndex), range: row[colIndex]! });
 }
 
-/** Transaction opening a table's edge cell, for entry from outside the table. */
+/**
+ * Transaction opening a table's edge cell, for entry from outside the table.
+ *
+ * Returns a spec rather than dispatching because the boundary-deletion transaction filter
+ * can only return a spec; arrow-key entry dispatches the same spec.
+ *
+ * The request suppresses navigation keys: until the nested editor mounts and takes focus,
+ * the main editor still owns the keyboard with the caret parked in the table's replaced
+ * range, so key repeat would otherwise walk it through the hidden Markdown.
+ *
+ * Any normalization the table needs is folded into this same transaction, so the whole
+ * entry is one document change dispatched from the event that asked for it.
+ */
 export function prepareEdgeCellEntry(
     state: EditorState,
     ctx: TableContext,
@@ -155,5 +141,10 @@ export function prepareEdgeCellEntry(
     // Open requests must start from a source-backed cell. Normalization can make a
     // ragged table rectangular after activation, but it cannot resolve a synthetic
     // padded cell before that transaction has run.
-    return prepareCellEntryTransaction({ state, resolvedCell: resolveSourceEdgeCell(ctx, edges), initialCursorPos });
+    return prepareOpenCellRequestTransaction({
+        state,
+        resolvedCell: resolveSourceEdgeCell(ctx, edges),
+        initialCursorPos,
+        suppressKeys: true,
+    });
 }
