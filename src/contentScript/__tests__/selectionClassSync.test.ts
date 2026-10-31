@@ -1,6 +1,7 @@
 import { EditorSelection } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { cellDragField } from '../tableState/cellDragState';
 import {
@@ -13,9 +14,9 @@ import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_SELECTED, SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
+import { createResizeObserverStub, flushViewMeasure } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment } from './testUtils';
-import { createResizeObserverStub, flushViewMeasure } from './tableEditorFixtures';
 
 const resizeObserver = createResizeObserverStub();
 

@@ -1,6 +1,6 @@
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { tags } from '@lezer/highlight';
 import type { Extension } from '@codemirror/state';
+import { tags } from '@lezer/highlight';
 
 /**
  * Theme-aware syntax highlighting that matches Joplin's native color schemes.

@@ -1,7 +1,8 @@
 import type { EditorView } from '@codemirror/view';
+
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { openCellRequestEffect, getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import { getActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { getPendingOpenCellRequest, openCellRequestEffect } from '../tableState/openCellRequestState';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
 import { createInteractiveTableHarness, type MutableTestView } from './interactiveTableTestHarness';
 

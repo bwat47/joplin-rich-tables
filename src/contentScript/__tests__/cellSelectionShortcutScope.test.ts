@@ -1,15 +1,16 @@
 import type { EditorView } from '@codemirror/view';
-import { createMarkdownState } from './testMarkdownState';
-import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { cellDragField, isCellDragInProgress, startCellDragEffect } from '../tableState/cellDragState';
+
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import {
     canHandleTableClipboardShortcut,
     canHandleTableSelectionKeydown,
 } from '../tableRuntime/selection/cellSelectionShortcutScope';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { cellDragField, isCellDragInProgress, startCellDragEffect } from '../tableState/cellDragState';
+import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { CLASS_FLOATING_TOOLBAR, CLASS_TABLE_WIDGET } from '../tableWidget/domHelpers';
 import { setActiveElement } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
 
 function createViewHarness(options: { activeCell?: boolean; selection?: boolean; dragging?: boolean } = {}) {
     const { activeCell = true, selection = true, dragging = false } = options;

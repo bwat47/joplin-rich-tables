@@ -1,7 +1,8 @@
-import { type EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
+import { StateEffect, StateField, type ChangeDesc, type EditorState } from '@codemirror/state';
+
 import type { ActiveCell } from './activeCellState';
-import { mapTableStartUnlessDeleted } from './tableStartMapping';
 import type { InitialCursorPos } from './cursorPlacement';
+import { mapTableStartUnlessDeleted } from './tableStartMapping';
 
 /**
  * An explicit request to open a cell's nested editor. Requests are single-flight, may survive

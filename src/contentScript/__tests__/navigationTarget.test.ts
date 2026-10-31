@@ -1,6 +1,6 @@
+import type { CellCoords, TableGridBounds } from '../tableModel/types';
 import { resolveNavigationTarget, type NavigationDirection } from '../tableRuntime/navigation/navigationTarget';
 import { SECTION_BODY, SECTION_HEADER } from '../tableWidget/domHelpers';
-import type { CellCoords, TableGridBounds } from '../tableModel/types';
 
 /** 1 header row + `bodyRows` body rows. */
 const gridOf = (bodyRows: number, cols: number): TableGridBounds => ({

@@ -1,5 +1,5 @@
-import type { SerializedTable } from '../tableModel/MarkdownTable';
 import { computeCellAnchorForTable, type TableCellAnchor } from '../tableModel/cellAnchors';
+import type { SerializedTable } from '../tableModel/MarkdownTable';
 import type { CellCoords } from '../tableModel/types';
 import type { ActiveCell } from './activeCellState';
 

@@ -4,10 +4,11 @@
  *
  * Built by `tableContextField`, the document table index; consumers read contexts from there.
  */
-import { MarkdownTable } from './MarkdownTable';
-import { extractRootMarkdownTableSyntax } from './lezerTableSyntax';
-import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from './markdownTableCellRanges';
 import type { SyntaxNode } from '@lezer/common';
+
+import { extractRootMarkdownTableSyntax } from './lezerTableSyntax';
+import { MarkdownTable } from './MarkdownTable';
+import { computeMarkdownTableCellRangesFromSyntax, type TableCellRanges } from './markdownTableCellRanges';
 import type { TableGridBounds } from './types';
 
 /** A table's inclusive `[from, to]` document bounds. */

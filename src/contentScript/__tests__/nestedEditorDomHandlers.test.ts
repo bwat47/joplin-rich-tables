@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
+
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
 

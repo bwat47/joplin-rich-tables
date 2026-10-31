@@ -1,4 +1,7 @@
 import type { EditorState } from '@codemirror/state';
+
+import { fromUnifiedRow, toUnifiedRow, type CellCoords } from '../tableModel/types';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import {
     cellSelectionField,
     clearCellSelectionEffect,
@@ -8,8 +11,6 @@ import {
     toSelectionRect,
     type CellSelection,
 } from '../tableState/cellSelectionState';
-import { fromUnifiedRow, toUnifiedRow, type CellCoords } from '../tableModel/types';
-import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { createMarkdownState } from './testMarkdownState';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');

@@ -1,6 +1,13 @@
+import { markdown } from '@codemirror/lang-markdown';
 import { Compartment, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { GFM } from '@lezer/markdown';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+
+import * as nestedEditorController from '../nestedEditor/nestedEditorController';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { noteIdentityFacet } from '../services/noteIdentity';
+import type { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import {
     activeCellField,
@@ -9,28 +16,22 @@ import {
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { tableContextField } from '../tableState/tableContextField';
-import { markdown } from '@codemirror/lang-markdown';
-import { GFM } from '@lezer/markdown';
-import { resolveActiveCell } from '../tableState/resolvedActiveCell';
+import { createActiveCellForTable } from '../tableState/activeCellTarget';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import {
-    openCellRequestEffect,
     getPendingOpenCellRequest,
+    openCellRequestEffect,
     openCellRequestField,
     type OpenCellRequest,
 } from '../tableState/openCellRequestState';
-import { createActiveCellForTable } from '../tableState/activeCellTarget';
-import { parseTableFixture } from './testUtils';
-import type { InitialCursorPos } from '../tableState/cursorPlacement';
-import { hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS, createFrameQueue } from './tableEditorFixtures';
-import * as nestedEditorController from '../nestedEditor/nestedEditorController';
-import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { noteIdentityFacet } from '../services/noteIdentity';
-import type { activateCellAtPosition } from '../tableRuntime/cellActivation';
+import { resolveActiveCell } from '../tableState/resolvedActiveCell';
+import { exitSourceModeEffect, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
+import { tableContextField } from '../tableState/tableContextField';
 import type * as DomHelpers from '../tableWidget/domHelpers';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { createFrameQueue, TEST_HOST_CONFIG, TEST_NESTED_EDITOR_SETTINGS } from './tableEditorFixtures';
+import { parseTableFixture } from './testUtils';
 
 const { activateCellAtPositionMock, findCellElementMock } = vi.hoisted(() => ({
     activateCellAtPositionMock: vi.fn<typeof activateCellAtPosition>(),

@@ -2,7 +2,11 @@ import { closeSearchPanel, openSearchPanel, search, searchPanelOpen } from '@cod
 import { StateEffect } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { createResizeObserverStub } from './tableEditorFixtures';
+
+import {
+    exitSearchForceSourceModeEffect,
+    searchPanelTransitionExtension,
+} from '../tableRuntime/search/searchPanelTransitions';
 import {
     activeCellField,
     clearActiveCellEffect,
@@ -15,13 +19,10 @@ import {
     sourceModeField,
     toggleSourceModeEffect,
 } from '../tableState/sourceMode';
-import {
-    exitSearchForceSourceModeEffect,
-    searchPanelTransitionExtension,
-} from '../tableRuntime/search/searchPanelTransitions';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { createMarkdownState } from './testMarkdownState';
 import { openSearchPanelInState } from './searchPanelTestUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const HEADER_CELL = { tableFrom: 0, section: 'header' as const, row: 0, col: 0 };

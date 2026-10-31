@@ -1,14 +1,15 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
+
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
-import { requireResolvedActiveCell } from './testUtils';
-import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { resolveTableContextFromEventTarget } from '../tableWidget/widgetTableContext';
-import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
 import type { CellCoords } from '../tableModel/types';
-import { TEST_HOST_CONFIG, createResizeObserverStub, nestedEditorTestExtensions } from './tableEditorFixtures';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
+import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { findCellElement, findTableWidgetElement } from '../tableWidget/domHelpers';
+import { resolveTableContextFromEventTarget } from '../tableWidget/widgetTableContext';
+import { createResizeObserverStub, nestedEditorTestExtensions, TEST_HOST_CONFIG } from './tableEditorFixtures';
+import { requireResolvedActiveCell } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 

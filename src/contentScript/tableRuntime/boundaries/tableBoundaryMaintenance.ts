@@ -1,20 +1,21 @@
 import {
     ChangeSet,
     EditorState,
-    type Transaction,
     type Extension,
     type Line,
     type Text,
+    type Transaction,
     type TransactionSpec,
 } from '@codemirror/state';
+
 import { syncAnnotation } from '../../shared/syncAnnotation';
-import type { TableContext } from '../../tableModel/tableContext';
 import { changesOverlapRange } from '../../shared/transactionUtils';
+import type { TableContext } from '../../tableModel/tableContext';
 import { mapTableSpanThroughChanges } from '../../tableState/tableStartMapping';
+import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 import { normalizeBeforeEditAnnotation } from '../tableCanonicalForm';
 import { resolveAdjacentTables } from './tableBoundaryResolution';
 import { isBlankLineContent, needsLeadingSeparator, needsTrailingSeparator } from './tableBoundarySpacing';
-import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 
 /** A newline inserted into the post-change document to restore a table's separation. */
 interface BoundaryPadding {

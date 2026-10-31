@@ -3,16 +3,17 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { syncAnnotation } from '../shared/syncAnnotation';
+
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
-import { TableWidget } from '../tableWidget/TableWidget';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { htmlFragment, parseCellRangesFixture, requireBodyCellRange } from './testUtils';
+import { TableWidget } from '../tableWidget/TableWidget';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { htmlFragment, parseCellRangesFixture, requireBodyCellRange } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 

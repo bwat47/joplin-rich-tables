@@ -1,12 +1,13 @@
-import { vi, type Mock } from 'vitest';
 import type { EditorState, Extension, TransactionSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { getCellSelector, SECTION_BODY, SECTION_HEADER, SELECTOR_CELL } from '../tableWidget/domHelpers';
+import { vi, type Mock } from 'vitest';
+
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
-import { sourceModeField } from '../tableState/sourceMode';
 import { openCellRequestField } from '../tableState/openCellRequestState';
+import { sourceModeField } from '../tableState/sourceMode';
+import { getCellSelector, SECTION_BODY, SECTION_HEADER, SELECTOR_CELL } from '../tableWidget/domHelpers';
 import { createMarkdownState } from './testMarkdownState';
 
 export const NON_CANONICAL_DOC = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');

@@ -1,16 +1,8 @@
 import { EditorSelection, type EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import {
-    cellSelectionField,
-    getCellSelection,
-    setCellSelectionEffect,
-    type CellSelection,
-    type SelectedTable,
-} from '../tableState/cellSelectionState';
-import { createMarkdownState } from './testMarkdownState';
-import { getTableContextAtPos, getTableContextStartingAt } from '../tableState/tableContextField';
+
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import {
     buildMultiCellPasteRewrite,
     buildSelectionRemovalRewrite,
@@ -21,8 +13,17 @@ import {
     parseMarkdownTableClipboard,
     resolveTableClipboardTarget,
 } from '../tableRuntime/selection/cellSelectionClipboard';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import {
+    cellSelectionField,
+    getCellSelection,
+    setCellSelectionEffect,
+    type CellSelection,
+    type SelectedTable,
+} from '../tableState/cellSelectionState';
+import { getTableContextAtPos, getTableContextStartingAt } from '../tableState/tableContextField';
 import { setActiveElement } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
 
 const doc = [
     String.raw`| H\|1 | H2 | H3 |`,

@@ -11,6 +11,7 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import {
     cleanupHostedNestedEditors,
@@ -22,6 +23,7 @@ import {
     refocusNestedEditor,
 } from '../nestedEditor/nestedEditorController';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import {
     activeCellField,
     clearActiveCellEffect,
@@ -29,11 +31,10 @@ import {
     type ActiveCell,
 } from '../tableState/activeCellState';
 import type { InitialCursorPos } from '../tableState/cursorPlacement';
-import { tableContextField } from '../tableState/tableContextField';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { tableContextField } from '../tableState/tableContextField';
 import { installRangeLayoutStubs } from './tableEditorFixtures';
+import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 
 installRangeLayoutStubs();
 

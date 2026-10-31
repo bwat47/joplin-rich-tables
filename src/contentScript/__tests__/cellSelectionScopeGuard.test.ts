@@ -1,15 +1,16 @@
-import { ensureSyntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
 import {
     cellSelectionField,
     cellSelectionTransitionAnnotation,
     getCellSelection,
     setCellSelectionEffect,
 } from '../tableState/cellSelectionState';
-import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
 import { getTableContextAtPos, tableContextField } from '../tableState/tableContextField';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

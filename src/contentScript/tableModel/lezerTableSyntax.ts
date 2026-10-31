@@ -1,7 +1,8 @@
 import type { SyntaxNode } from '@lezer/common';
 import { GFM, parser } from '@lezer/markdown';
-import { isTablePadding } from './tablePadding';
+
 import { logger } from '../../logger';
+import { isTablePadding } from './tablePadding';
 
 export interface MarkdownTableSourceRange {
     readonly from: number;

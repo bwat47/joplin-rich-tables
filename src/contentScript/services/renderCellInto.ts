@@ -1,7 +1,7 @@
+import { logger } from '../../logger';
 import { buildRenderableContent, containsMarkdown } from '../shared/cellContentUtils';
 import { replaceContent, textFragmentPreservingBr } from './domFragment';
 import type { MarkdownRenderService } from './markdownRenderer';
-import { logger } from '../../logger';
 
 /**
  * The newest render request each target has seen.

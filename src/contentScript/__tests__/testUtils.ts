@@ -1,12 +1,13 @@
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
+
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import {
     computeMarkdownTableCellRangesFromSyntax,
     type CellRange,
     type TableCellRanges,
 } from '../tableModel/markdownTableCellRanges';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 /** Parses a real Markdown fixture into table-relative ranges, failing on invalid input. */
 export function parseCellRangesFixture(text: string): TableCellRanges {

@@ -1,4 +1,5 @@
 import type { EditorState } from '@codemirror/state';
+
 import type { SerializedTable } from '../../tableModel/MarkdownTable';
 import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
 import { buildIsolatedRootTableInsertRewrite, buildRootTableInsertRewrite } from './rootTableInsertRewrite';

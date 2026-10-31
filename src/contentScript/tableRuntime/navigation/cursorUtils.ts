@@ -1,4 +1,5 @@
 import type { EditorState } from '@codemirror/state';
+
 import { getTableContextAtPos } from '../../tableState/tableContextField';
 
 /**

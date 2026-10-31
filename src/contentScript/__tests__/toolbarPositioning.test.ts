@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+
+import type { ViewportBounds } from '../shared/editorViewport';
 import {
     computePinnedAbsolutePlacement,
     computePinnedFixedPlacement,
@@ -11,7 +13,6 @@ import {
     TOOLBAR_VIEWPORT_PADDING_PX,
     type ToolbarRect,
 } from '../toolbar/toolbarPositioning';
-import type { ViewportBounds } from '../shared/editorViewport';
 
 function rect(partial: Partial<ToolbarRect>): ToolbarRect {
     return { top: 0, bottom: 0, left: 0, width: 0, height: 0, ...partial };

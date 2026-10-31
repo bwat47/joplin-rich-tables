@@ -1,4 +1,5 @@
 import type { EditorState, Text } from '@codemirror/state';
+
 import {
     isBlankLineContent,
     needsLeadingSeparator,

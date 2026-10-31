@@ -1,9 +1,10 @@
 import { Facet } from '@codemirror/state';
-import { logger } from '../../logger';
+
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
+import { logger } from '../../logger';
 import { textFragmentPreservingBr } from './domFragment';
-import { sanitizeToFragment } from './htmlSanitizer';
 import { postProcessFragment } from './htmlPostProcessor';
+import { sanitizeToFragment } from './htmlSanitizer';
 
 /**
  * Markdown rendering service that communicates with the main plugin

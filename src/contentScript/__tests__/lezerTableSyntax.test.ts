@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+
 import { parseRootMarkdownTableSyntax } from '../tableModel/lezerTableSyntax';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 
 function parse(text: string) {
     const parsed = parseRootMarkdownTableSyntax(text);

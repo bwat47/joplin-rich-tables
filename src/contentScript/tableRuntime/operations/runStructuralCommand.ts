@@ -1,12 +1,13 @@
 import type { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect } from '../../tableState/activeCellState';
-import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
+
 import { applyStructuralTableCommand, type StructuralTableCommand } from '../../tableModel/structuralCommandSemantics';
-import { prepareOpenCellRequestAttachment } from '../openCellRequest';
+import { isSameCellCoords } from '../../tableModel/types';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { createActiveCellForTable } from '../../tableState/activeCellTarget';
 import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
-import { isSameCellCoords } from '../../tableModel/types';
+import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
+import { prepareOpenCellRequestAttachment } from '../openCellRequest';
 
 const ROW_INSERT_CURSOR_POS: InitialCursorPos = 'start';
 

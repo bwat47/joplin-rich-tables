@@ -1,11 +1,12 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
+
 import type { NestedEditorInteractionControls } from '../../nestedEditor/nestedEditorController';
 import { isCaretOnSameVisualLine } from '../../shared/caretVisualLine';
-import { startCellSelectionFromActiveCell } from '../selection/cellSelectionController';
-import { handleTableClipboardTextPaste } from '../selection/cellSelectionClipboard';
-import { navigateCell } from '../navigation/tableNavigation';
 import { createHistoryKeyBindings } from '../historyKeymap';
+import { navigateCell } from '../navigation/tableNavigation';
+import { handleTableClipboardTextPaste } from '../selection/cellSelectionClipboard';
+import { startCellSelectionFromActiveCell } from '../selection/cellSelectionController';
 
 /** Table policy installed in a cell editor using the controller's session controls. */
 export function createNestedEditorInteractionExtensions(

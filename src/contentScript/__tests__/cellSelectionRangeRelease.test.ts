@@ -1,14 +1,15 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
+
+import type { CellCoords } from '../tableModel/types';
+import { endCellDragSelection, setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
 import {
     cellSelectionRangeRelease,
     releaseParkedCellRanges,
 } from '../tableRuntime/selection/cellSelectionRangeRelease';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
-import { endCellDragSelection, setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import type { CellCoords } from '../tableModel/types';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 const TABLE = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');

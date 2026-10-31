@@ -1,24 +1,25 @@
-import { type EditorView, ViewPlugin } from '@codemirror/view';
-import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
-import { requestOpenCell } from '../openCellRequest';
-import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
-import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
-import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import { ViewPlugin, type EditorView } from '@codemirror/view';
+
 import { flushNestedEditorState, refocusNestedEditor } from '../../nestedEditor/nestedEditorController';
 import { getViewWindow } from '../../shared/domContext';
 import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
-import { clamp } from '../../shared/numberUtils';
 import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
-import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from '../../tableWidget/domHelpers';
+import { clamp } from '../../shared/numberUtils';
+import { isSameCellCoords, type CellCoords } from '../../tableModel/types';
+import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import {
     readRenderedCaretHit,
     setRenderedTextSelection,
     type RenderedCaretDomHit,
     type RenderedSelectionHit,
 } from '../../tableWidget/cellCaretHit';
+import { readCellCoords, SELECTOR_CELL, SELECTOR_WIDGET } from '../../tableWidget/domHelpers';
+import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
+import { requestOpenCell } from '../openCellRequest';
+import { endCellDragSelection, setCellDragSelection } from '../selection/cellSelectionController';
 import { resolveClickCursorPos, resolveRenderedSelection } from './clickCursorPlacement';
-import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { CellDragAutoScroller } from './mouseCellDragAutoScroll';
 
 const DRAG_START_DISTANCE_PX = 5;

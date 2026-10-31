@@ -1,10 +1,11 @@
 import type { EditorState } from '@codemirror/state';
+
+import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
 import { unsanitizeRootText } from '../../tableModel/cellTextNormalization';
 import { cellTextCaret, type InitialCursorPos } from '../../tableState/cursorPlacement';
-import { alignRenderedToSource, mapCaretToSource, mapSelectionToSource } from '../../shared/textAlignment';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 import type { RenderedCaretHit, RenderedSelectionHit } from '../../tableWidget/cellCaretHit';
 import { balanceSyntaxMarkers, projectCellText, type HiddenSyntaxSpan } from './cellTextProjection';
-import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 
 /**
  * Turns a press on a rendered cell into the caret placement the nested editor should open

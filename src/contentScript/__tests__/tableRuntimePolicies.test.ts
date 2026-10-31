@@ -1,25 +1,26 @@
+import { Transaction, type EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { type EditorState, Transaction } from '@codemirror/state';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { resolveActiveCell } from '../tableState/resolvedActiveCell';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { sourceModeField } from '../tableState/sourceMode';
-import { openSearchPanelInState } from './searchPanelTestUtils';
+
+import { syncAnnotation } from '../shared/syncAnnotation';
+import { decideMainEditorGuardTransaction } from '../tableRuntime/guard/mainEditorGuardPolicy';
 import {
     reduceTableRuntime,
     type ActiveCellFacts,
     type TableRuntimeAction,
     type TableRuntimeFacts,
 } from '../tableRuntime/lifecycle/lifecyclePolicy';
-import { classifyActiveCellChanges } from '../tableState/activeCellChangeScope';
-import { decideMainEditorGuardTransaction } from '../tableRuntime/guard/mainEditorGuardPolicy';
-import { syncAnnotation } from '../shared/syncAnnotation';
-import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
-import { createMarkdownState } from './testMarkdownState';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
-import { openCellRequestEffect } from '../tableState/openCellRequestState';
+import { classifyActiveCellChanges } from '../tableState/activeCellChangeScope';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { createActiveCellForTable } from '../tableState/activeCellTarget';
+import { cellSelectionField, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
+import { resolveActiveCell } from '../tableState/resolvedActiveCell';
+import { sourceModeField } from '../tableState/sourceMode';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
+import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
+import { openSearchPanelInState } from './searchPanelTestUtils';
+import { createMarkdownState } from './testMarkdownState';
 import { parseTableFixture } from './testUtils';
 
 const doc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

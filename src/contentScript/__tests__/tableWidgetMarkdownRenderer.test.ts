@@ -1,11 +1,12 @@
 import { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { TableWidget } from '../tableWidget/TableWidget';
-import { deferred, htmlFragment, parseCellRangesFixture } from './testUtils';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { deferred, htmlFragment, parseCellRangesFixture } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 

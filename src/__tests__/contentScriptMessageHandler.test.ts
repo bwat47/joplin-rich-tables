@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createContentScriptMessageHandler } from '../contentScriptBridge/contentScriptMessageHandler';
 import { isHostEditorConfig } from '../contentScriptBridge/hostEditorConfigBridge';
 

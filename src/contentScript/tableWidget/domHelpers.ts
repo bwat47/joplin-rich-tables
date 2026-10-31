@@ -1,5 +1,6 @@
-import { normalizeCellCoords, type CellCoords, type TableSection } from '../tableModel/types';
 import type { EditorView } from '@codemirror/view';
+
+import { normalizeCellCoords, type CellCoords, type TableSection } from '../tableModel/types';
 
 // Main widget structure classes
 export const CLASS_TABLE_WIDGET = 'cm-table-widget';

@@ -1,13 +1,14 @@
-import { describe, test } from 'vitest';
 import { EditorSelection } from '@codemirror/state';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { describe, test } from 'vitest';
+
+import { createMarkdownState } from '../__tests__/testMarkdownState';
+import { syncAnnotation } from '../shared/syncAnnotation';
 import { computeCellAnchorForTable } from '../tableModel/cellAnchors';
-import { getTableContextAtPos, getTableContexts } from '../tableState/tableContextField';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { getTableContextAtPos, getTableContexts } from '../tableState/tableContextField';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { syncAnnotation } from '../shared/syncAnnotation';
-import { createMarkdownState } from '../__tests__/testMarkdownState';
 
 // Capture imported functions once so timed calls bypass Vite's module export getters.
 const readTableContexts = getTableContexts;

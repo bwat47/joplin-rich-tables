@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { EditorSelection, EditorState } from '@codemirror/state';
+import { describe, expect, it } from 'vitest';
+
 import { sanitizeCellChanges } from '../tableRuntime/guard/sanitizeCellChanges';
 
 describe('sanitizeCellChanges', () => {

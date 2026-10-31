@@ -1,8 +1,9 @@
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, afterEach, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { closeNestedEditor, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { closeNestedEditor, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment, requireResolvedActiveCell } from './testUtils';
 

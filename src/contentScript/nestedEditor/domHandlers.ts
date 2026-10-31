@@ -1,7 +1,8 @@
 import { selectAll } from '@codemirror/commands';
+import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
 import { EditorSelection, Transaction, type Extension, type SelectionRange } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers, type KeyBinding } from '@codemirror/view';
-import { findNext, openSearchPanel, searchKeymap } from '@codemirror/search';
+
 import { syncAnnotation } from '../shared/syncAnnotation';
 import { routeKeyEventToRootEditor } from './nestedEditorEventRouting';
 

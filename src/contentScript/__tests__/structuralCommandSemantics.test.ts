@@ -1,9 +1,9 @@
 import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import {
     applyStructuralTableCommand,
-    type StructuralTableCommandResult,
     type StructuralTableCommand,
     type StructuralTableCommandId,
+    type StructuralTableCommandResult,
 } from '../tableModel/structuralCommandSemantics';
 import type { CellCoords } from '../tableModel/types';
 

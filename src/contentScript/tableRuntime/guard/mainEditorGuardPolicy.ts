@@ -1,20 +1,21 @@
 import { ChangeSet, EditorSelection, type Transaction } from '@codemirror/state';
+
+import { syncAnnotation } from '../../shared/syncAnnotation';
+import { isFullDocumentReplace } from '../../shared/transactionUtils';
 import { getActiveCell } from '../../tableState/activeCellState';
 import { getCellSelection, getSelectedTable } from '../../tableState/cellSelectionState';
-import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
-import { sanitizeCellChanges } from './sanitizeCellChanges';
-import { syncAnnotation } from '../../shared/syncAnnotation';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
-import { isFullDocumentReplace } from '../../shared/transactionUtils';
-import { normalizeBeforeEditAnnotation } from '../tableCanonicalForm';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { structuralTableEditEffect } from '../../tableState/structuralTableEditEffect';
+import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from '../operations/pasteTableNormalizer';
 import {
     buildMultiCellPasteRewrite,
     tableClipboardRewriteAnnotation,
     type TableClipboardRewrite,
 } from '../selection/cellSelectionClipboard';
-import { buildRootTablePasteRewrite, type RootTablePasteRewrite } from '../operations/pasteTableNormalizer';
-import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { isEditConfinedToSelectedCells } from '../selection/cellSelectionEditScope';
+import { normalizeBeforeEditAnnotation } from '../tableCanonicalForm';
+import { sanitizeCellChanges } from './sanitizeCellChanges';
 
 export type GuardDecision =
     | { type: 'allowTransaction' }

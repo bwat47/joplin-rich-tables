@@ -1,37 +1,38 @@
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
-import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin } from './decorationPlugins';
-import { createNestedEditorDomHandlers, mirrorLocalSelectionToMain } from './domHandlers';
-import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
-import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
-import { createNestedEditorTheme } from './nestedEditorTheme';
-import { type CellTextSelection, toLocalSelection, toRootSelection } from '../tableModel/cellTextSelection';
-import { sanitizeLocalText, unsanitizeRootText } from '../tableModel/cellTextNormalization';
-import { forceRootDomSelection } from './rootDomSelection';
+
+import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import { markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { renderCellMarkdownInto } from '../services/renderCellInto';
+import { requestViewAnimationFrame } from '../shared/domContext';
+import { clamp } from '../shared/numberUtils';
 import { syncAnnotation } from '../shared/syncAnnotation';
+import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { hasSyncAnnotation } from '../shared/transactionUtils';
-import { ensureCellWrapper } from './mounting';
+import { sanitizeLocalText, unsanitizeRootText } from '../tableModel/cellTextNormalization';
+import { toLocalSelection, toRootSelection, type CellTextSelection } from '../tableModel/cellTextSelection';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import {
     getResolvedActiveCell,
     resolveActiveCell,
     type CellContentRange,
     type ResolvedActiveCell,
 } from '../tableState/resolvedActiveCell';
-import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
-import { markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { renderCellMarkdownInto } from '../services/renderCellInto';
-import type { NestedEditorHostConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import { inlineCodePlugin, insertPlugin, linkDestinationWrapPlugin, markPlugin } from './decorationPlugins';
+import { createNestedEditorDomHandlers, mirrorLocalSelectionToMain } from './domHandlers';
+import { createJoplinSyntaxHighlighting } from './joplinHighlightStyle';
+import { ensureCellWrapper } from './mounting';
 import { createNestedEditorFeatureExtensions } from './nestedEditorFeatureConfig';
-import { requestViewAnimationFrame } from '../shared/domContext';
-import { clamp } from '../shared/numberUtils';
-import type { InitialCursorPos } from '../tableState/cursorPlacement';
+import { createNestedEditorMarkdownExtension } from './nestedEditorMarkdown';
 import {
     areSelectionsEqual,
     resolveInitialLocalSelection,
     toAbsoluteSelection,
     toRelativeSelection,
 } from './nestedEditorSelection';
+import { createNestedEditorTheme } from './nestedEditorTheme';
+import { forceRootDomSelection } from './rootDomSelection';
 
 const SYNTAX_TREE_PARSE_TIMEOUT = 50;
 

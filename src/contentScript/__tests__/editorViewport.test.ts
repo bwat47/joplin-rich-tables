@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { getViewportHeight, getViewportWidth, resolveViewportBounds } from '../shared/editorViewport';
 
 describe('resolveViewportBounds', () => {

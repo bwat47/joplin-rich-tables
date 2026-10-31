@@ -1,13 +1,7 @@
 import type { EditorState } from '@codemirror/state';
-import { ViewPlugin, EditorView, type ViewUpdate } from '@codemirror/view';
-import {
-    clearActiveCellEffect,
-    getActiveCell,
-    isSameActiveCell,
-    mapActiveCellThroughChanges,
-} from '../../tableState/activeCellState';
-import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
+
+import { logger } from '../../../logger';
 import {
     closeNestedEditor,
     handleMainEditorUpdate,
@@ -15,17 +9,24 @@ import {
     isNestedEditorOpen,
     openNestedEditor,
 } from '../../nestedEditor/nestedEditorController';
+import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
+import { getViewDocument, requestViewAnimationFrame } from '../../shared/domContext';
+import {
+    clearActiveCellEffect,
+    getActiveCell,
+    isSameActiveCell,
+    mapActiveCellThroughChanges,
+} from '../../tableState/activeCellState';
+import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../../tableState/openCellRequestState';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
 import { findCellElement } from '../../tableWidget/domHelpers';
 import { activateCellAtPosition } from '../cellActivation';
 import { createNestedEditorInteractionExtensions } from '../interaction/nestedEditorInteractionExtensions';
-import { clearOpenCellRequestEffect, getOpenCellRequestById } from '../../tableState/openCellRequestState';
-import { hostEditorConfigFacet } from '../../services/hostEditorConfig';
-import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
-import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
-import { getViewDocument, requestViewAnimationFrame } from '../../shared/domContext';
 import { getPositionOutsideTable } from '../navigation/cursorUtils';
 import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
-import { logger } from '../../../logger';
+import { reduceTableRuntime, type ActivateCellAtCursorOptions, type TableRuntimeAction } from './lifecyclePolicy';
+import { classifyTableRuntimeFacts } from './runtimeEventClassifier';
 
 // ============================================================================
 // Utilities

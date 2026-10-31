@@ -1,16 +1,17 @@
 import type { ViewUpdate } from '@codemirror/view';
-import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
-import { containsSelection, getTableContextAtPos } from '../../tableState/tableContextField';
-import { isCellDragInProgress } from '../../tableState/cellDragState';
-import { exitSearchForceSourceModeEffect } from '../search/searchPanelTransitions';
-import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourceMode';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
-import { hasSyncAnnotation } from '../../shared/transactionUtils';
+
 import { noteIdentityFacet } from '../../services/noteIdentity';
+import { hasSyncAnnotation } from '../../shared/transactionUtils';
+import { getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
+import { isCellDragInProgress } from '../../tableState/cellDragState';
 import { openCellRequestEffect } from '../../tableState/openCellRequestState';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { exitSourceModeEffect, isEffectiveRawMode } from '../../tableState/sourceMode';
+import { containsSelection, getTableContextAtPos } from '../../tableState/tableContextField';
 import { wasActiveHostInvalidated } from '../../tableWidget/tableDecorationField';
-import { hasCellSelectionTransitionAnnotation } from './transactionFactPredicates';
+import { exitSearchForceSourceModeEffect } from '../search/searchPanelTransitions';
 import type { ActiveCellFacts, RawModeTransitionFacts, TableRuntimeFacts } from './lifecyclePolicy';
+import { hasCellSelectionTransitionAnnotation } from './transactionFactPredicates';
 
 export interface TableRuntimeExternalFacts {
     nestedEditorOpen: boolean;

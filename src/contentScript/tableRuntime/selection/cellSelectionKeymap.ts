@@ -9,20 +9,21 @@ import {
     deleteLineBoundaryForward,
     deleteToLineEnd,
 } from '@codemirror/commands';
-import { type EditorView, keymap, runScopeHandlers, ViewPlugin, type Command, type KeyBinding } from '@codemirror/view';
-import { getCellSelection, getSelectedTable, type CellSelectionDirection } from '../../tableState/cellSelectionState';
+import { keymap, runScopeHandlers, ViewPlugin, type Command, type EditorView, type KeyBinding } from '@codemirror/view';
+
 import { getActiveCell } from '../../tableState/activeCellState';
+import { getCellSelection, getSelectedTable, type CellSelectionDirection } from '../../tableState/cellSelectionState';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 import { resolveClampedCell } from '../../tableState/resolvedActiveCell';
+import { createHistoryKeyBindings } from '../historyKeymap';
+import { requestOpenCell } from '../openCellRequest';
+import { handleSelectionDelete } from './cellSelectionClipboard';
 import {
     collapseCellSelectionOutOfTable,
     extendExistingCellSelection,
     startCellSelectionFromActiveCell,
 } from './cellSelectionController';
 import { canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
-import { handleSelectionDelete } from './cellSelectionClipboard';
-import { requestOpenCell } from '../openCellRequest';
-import { createHistoryKeyBindings } from '../historyKeymap';
-import type { InitialCursorPos } from '../../tableState/cursorPlacement';
 
 /** Dedicated keymap scope so these bindings never match the root editor's ordinary keyboard handling. */
 const CELL_SELECTION_SCOPE = 'table.cellSelection';

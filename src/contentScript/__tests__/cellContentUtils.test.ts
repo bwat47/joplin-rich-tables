@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { buildRenderableContent, containsMarkdown, escapeLeadingBlockMarkers } from '../shared/cellContentUtils';
 
 describe('escapeLeadingBlockMarkers', () => {

@@ -2,23 +2,24 @@ import { history, undo } from '@codemirror/commands';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
-import { syncAnnotation } from '../shared/syncAnnotation';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
-import { requireResolvedActiveCell } from './testUtils';
-import { getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { tableContextField } from '../tableState/tableContextField';
+import { syncAnnotation } from '../shared/syncAnnotation';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { requestOpenCell } from '../tableRuntime/openCellRequest';
+import { getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, resolveActiveCell } from '../tableState/resolvedActiveCell';
+import { tableContextField } from '../tableState/tableContextField';
+import { findCellElement, SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { SELECTOR_WIDGET, findCellElement } from '../tableWidget/domHelpers';
 import {
-    TEST_HOST_CONFIG,
     createFrameQueue,
     installRangeLayoutStubs,
     nestedEditorTestExtensions,
+    TEST_HOST_CONFIG,
 } from './tableEditorFixtures';
+import { requireResolvedActiveCell } from './testUtils';
 
 installRangeLayoutStubs();
 

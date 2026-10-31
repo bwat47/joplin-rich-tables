@@ -1,5 +1,8 @@
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+
+import { isEffectiveRawMode } from '../tableState/sourceMode';
+import { getTableContextsWithin } from '../tableState/tableContextField';
 import {
     CELL_COORDS_ATTRIBUTES,
     CELL_TAGS,
@@ -7,8 +10,6 @@ import {
     CLASS_TABLE_WIDGET_TABLE,
     SELECTOR_WIDGET,
 } from './domHelpers';
-import { getTableContextsWithin } from '../tableState/tableContextField';
-import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { measuredClassSyncPlugin } from './measuredClassSync';
 import { selectedCellRules } from './selectionTint';
 

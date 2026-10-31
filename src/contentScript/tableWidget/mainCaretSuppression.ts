@@ -1,5 +1,6 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 

@@ -1,4 +1,5 @@
 import type { EditorView } from '@codemirror/view';
+
 import { getViewWindow, requestViewAnimationFrame } from '../../shared/domContext';
 import { getViewportHeight, resolveViewportBounds } from '../../shared/editorViewport';
 import { clamp } from '../../shared/numberUtils';

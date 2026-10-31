@@ -1,4 +1,5 @@
 import { EditorSelection, EditorState, type Extension, type SelectionRange } from '@codemirror/state';
+
 import type { TableSpan } from '../../tableModel/tableContext';
 import { cellSelectionTransitionAnnotation } from '../../tableState/cellSelectionState';
 import { getTableContextsTouching } from '../../tableState/tableContextField';

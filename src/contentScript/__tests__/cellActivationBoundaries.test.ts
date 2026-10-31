@@ -1,6 +1,7 @@
 import { openSearchPanel } from '@codemirror/search';
-import { describe, expect, it } from 'vitest';
 import { EditorView } from '@codemirror/view';
+import { describe, expect, it } from 'vitest';
+
 import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';

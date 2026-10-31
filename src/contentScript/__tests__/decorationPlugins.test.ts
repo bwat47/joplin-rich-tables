@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
+
 import { linkDestinationWrapPlugin } from '../nestedEditor/decorationPlugins';
 import { createNestedEditorMarkdownExtension } from '../nestedEditor/nestedEditorMarkdown';
 import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';

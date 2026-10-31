@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EditorView } from '@codemirror/view';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { closeOnOutsideMouseDown, handleOutsideMouseDown } from '../tableRuntime/interaction/outsideTableInteraction';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 
 const DOC = 'above\nbelow';
 const INITIAL_SELECTION = 2;

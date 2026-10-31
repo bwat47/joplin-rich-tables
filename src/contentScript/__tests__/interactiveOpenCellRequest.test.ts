@@ -1,15 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { TransactionSpec } from '@codemirror/state';
+import { describe, expect, it, vi } from 'vitest';
+
 import { activateCellAtPosition } from '../tableRuntime/cellActivation';
-import { getActiveCell } from '../tableState/activeCellState';
 import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
-import { openCellRequestEffect, getPendingOpenCellRequest } from '../tableState/openCellRequestState';
+import { getActiveCell } from '../tableState/activeCellState';
+import { getPendingOpenCellRequest, openCellRequestEffect } from '../tableState/openCellRequestState';
 import {
     createInteractiveTableHarness,
     getLastDispatchSpec,
-    type MutableTestView,
     NON_CANONICAL_DOC,
+    type MutableTestView,
 } from './interactiveTableTestHarness';
 import { getDispatchedEffects } from './testUtils';
 

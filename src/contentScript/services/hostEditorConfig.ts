@@ -1,12 +1,13 @@
 import { Facet } from '@codemirror/state';
-import { logger } from '../../logger';
+
+import type { PostMessageFn } from '../../contentScriptBridge/contentScriptMessages';
 import {
     defaultHostEditorConfig,
     isHostEditorConfig,
     type GetHostEditorConfigMessage,
     type HostEditorConfig,
 } from '../../contentScriptBridge/hostEditorConfigBridge';
-import type { PostMessageFn } from '../../contentScriptBridge/contentScriptMessages';
+import { logger } from '../../logger';
 
 export const hostEditorConfigFacet = Facet.define<HostEditorConfig, HostEditorConfig>({
     combine: (values) => values[0] ?? defaultHostEditorConfig(),

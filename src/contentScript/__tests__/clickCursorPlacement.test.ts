@@ -1,24 +1,25 @@
-import { afterEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { resolveInitialLocalSelection } from '../nestedEditor/nestedEditorSelection';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
+import { unsanitizeRootText } from '../tableModel/cellTextNormalization';
+import type { CellTextSelection } from '../tableModel/cellTextSelection';
+import type { CellCoords } from '../tableModel/types';
+import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
+import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
+import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
+import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import {
-    indexRenderedText,
     flatOffsetFromDomPosition,
+    indexRenderedText,
     readRenderedCaretHit,
     setRenderedTextSelection,
     type RenderedCaretDomHit,
     type RenderedCaretHit,
     type RenderedSelectionHit,
 } from '../tableWidget/cellCaretHit';
-import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
-import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { getTableContextAtPos } from '../tableState/tableContextField';
-import type { InitialCursorPos } from '../tableState/cursorPlacement';
-import type { CellTextSelection } from '../tableModel/cellTextSelection';
-import type { CellCoords } from '../tableModel/types';
-import { unsanitizeRootText } from '../tableModel/cellTextNormalization';
-import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
-import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
-import { resolveInitialLocalSelection } from '../nestedEditor/nestedEditorSelection';
 import { createInteractiveTableHarness } from './interactiveTableTestHarness';
 import { createMarkdownState } from './testMarkdownState';
 

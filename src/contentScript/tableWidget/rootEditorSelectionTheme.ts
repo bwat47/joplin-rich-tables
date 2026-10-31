@@ -1,8 +1,9 @@
 import { EditorView } from '@codemirror/view';
-import { activeCellField, getActiveCell } from '../tableState/activeCellState';
+
 import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
+import { activeCellField, getActiveCell } from '../tableState/activeCellState';
 import { ATTR_CARET_SUPPRESSED } from './mainCaretSuppression';
+import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';
 
 // Set data-rt-nested-active on Joplin's root .cm-editor when a cell is being edited.
 // This attribute lets the painting theme below scope its selectors from the root.

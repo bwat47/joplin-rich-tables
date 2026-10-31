@@ -1,20 +1,21 @@
 import { markdown } from '@codemirror/lang-markdown';
-import { GFM } from '@lezer/markdown';
-import { vi } from 'vitest';
 import type { Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+import { GFM } from '@lezer/markdown';
+import { vi } from 'vitest';
+
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
-import { activeCellField } from '../tableState/activeCellState';
-import { cellSelectionField } from '../tableState/cellSelectionState';
-import { cellDragField } from '../tableState/cellDragState';
-import { tableContextField } from '../tableState/tableContextField';
-import { openCellRequestField } from '../tableState/openCellRequestState';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { activeCellField } from '../tableState/activeCellState';
+import { cellDragField } from '../tableState/cellDragState';
+import { cellSelectionField } from '../tableState/cellSelectionState';
+import { openCellRequestField } from '../tableState/openCellRequestState';
+import { tableContextField } from '../tableState/tableContextField';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 
 /** Nested-editor settings a test can assert against when it does not set its own. */

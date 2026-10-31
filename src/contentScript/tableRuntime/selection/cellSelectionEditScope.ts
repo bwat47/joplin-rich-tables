@@ -1,4 +1,5 @@
 import type { Transaction } from '@codemirror/state';
+
 import { hasUnescapedPipe } from '../../tableModel/cellTextNormalization';
 import { toSelectionRect, type SelectedTable } from '../../tableState/cellSelectionState';
 import { cellTextFromContext, collectSelectedCellSpans, type SelectedCellSpan } from './cellSelectionRanges';

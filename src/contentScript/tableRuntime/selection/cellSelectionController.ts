@@ -1,6 +1,10 @@
 import type { StateEffect } from '@codemirror/state';
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
+
+import type { TableContext } from '../../tableModel/tableContext';
+import { isSameCellCoords, normalizeCellCoords, type CellCoords } from '../../tableModel/types';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
+import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
 import {
     cellSelectionTransitionAnnotation,
     clearCellSelectionEffect,
@@ -13,12 +17,9 @@ import {
     type CellSelectionDirection,
     type CellSelectionEndpoints,
 } from '../../tableState/cellSelectionState';
-import type { TableContext } from '../../tableModel/tableContext';
-import { getTableContextStartingAt } from '../../tableState/tableContextField';
-import { isSameCellCoords, normalizeCellCoords, type CellCoords } from '../../tableModel/types';
-import { findCellElement } from '../../tableWidget/domHelpers';
 import { getResolvedActiveCell, resolveClampedCell } from '../../tableState/resolvedActiveCell';
-import { endCellDragEffect, isCellDragInProgress, startCellDragEffect } from '../../tableState/cellDragState';
+import { getTableContextStartingAt } from '../../tableState/tableContextField';
+import { findCellElement } from '../../tableWidget/domHelpers';
 import { exitTableToAdjacentLine, type TableExitSide } from '../navigation/tableExit';
 import { requestOpenCell } from '../openCellRequest';
 import { buildCellSelectionRanges, cellTextFromContext } from './cellSelectionRanges';

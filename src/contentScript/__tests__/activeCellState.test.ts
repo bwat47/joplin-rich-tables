@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { EditorState } from '@codemirror/state';
+import { describe, expect, it } from 'vitest';
+
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 
 const DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

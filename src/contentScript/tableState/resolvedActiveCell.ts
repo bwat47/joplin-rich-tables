@@ -1,10 +1,11 @@
 import type { EditorState } from '@codemirror/state';
+
 import { clampCellToRanges } from '../tableModel/cellAnchors';
-import { getActiveCell, type ActiveCell } from './activeCellState';
-import { getTableContextStartingAt } from './tableContextField';
+import { getCellRange, type CellRange } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { normalizeCellCoords, type CellCoords } from '../tableModel/types';
-import { getCellRange, type CellRange } from '../tableModel/markdownTableCellRanges';
+import { getActiveCell, type ActiveCell } from './activeCellState';
+import { getTableContextStartingAt } from './tableContextField';
 
 export interface ResolvedActiveCell {
     activeCell: ActiveCell;

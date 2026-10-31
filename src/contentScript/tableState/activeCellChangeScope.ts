@@ -1,4 +1,5 @@
 import type { ChangeSet } from '@codemirror/state';
+
 import { rangeTouchesInclusive } from '../shared/rangeUtils';
 import type { TableSpan } from '../tableModel/tableContext';
 

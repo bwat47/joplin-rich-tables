@@ -1,18 +1,19 @@
-import { describe, expect, it } from 'vitest';
 import type { Transaction } from '@codemirror/state';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
+import { describe, expect, it } from 'vitest';
+
 import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
 import {
     buildMultiCellPasteRewrite,
     createTableClipboardRewriteSpec,
 } from '../tableRuntime/selection/cellSelectionClipboard';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { openSearchPanelInState } from './searchPanelTestUtils';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
 import { openCellRequestEffect, openCellRequestField } from '../tableState/openCellRequestState';
-import { createMarkdownState } from './testMarkdownState';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { getTableContextAtPos } from '../tableState/tableContextField';
+import { openSearchPanelInState } from './searchPanelTestUtils';
+import { createMarkdownState } from './testMarkdownState';
 import { parseCellRangesFixture, requireBodyCellRange } from './testUtils';
 
 const TABLE_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

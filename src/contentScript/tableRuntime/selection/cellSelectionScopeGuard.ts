@@ -1,4 +1,5 @@
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
+
 import { clearCellSelectionEffect, getSelectedTable } from '../../tableState/cellSelectionState';
 import { containsSelection } from '../../tableState/tableContextField';
 import { hasCellSelectionTransitionAnnotation } from '../lifecycle/transactionFactPredicates';

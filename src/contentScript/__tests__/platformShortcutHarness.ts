@@ -2,26 +2,27 @@ import { history, isolateHistory, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
+
 import { createNestedEditorDomHandlers } from '../nestedEditor/domHandlers';
 import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { startCellDragEffect } from '../tableState/cellDragState';
+import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
 import { syncAnnotation } from '../shared/syncAnnotation';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { startCellDragEffect } from '../tableState/cellDragState';
+import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { findCellElement } from '../tableWidget/domHelpers';
-import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { requireResolvedActiveCell } from './testUtils';
+import type { SimulatedPlatform } from './keymapPlatformNavigator';
 import {
-    TEST_HOST_CONFIG,
     cellSelectionTestExtensions,
     createFrameQueue,
     installRangeLayoutStubs,
     nestedEditorTestExtensions,
+    TEST_HOST_CONFIG,
 } from './tableEditorFixtures';
-import type { SimulatedPlatform } from './keymapPlatformNavigator';
+import { requireResolvedActiveCell } from './testUtils';
 
 type HistoryAction = 'undo' | 'redo';
 

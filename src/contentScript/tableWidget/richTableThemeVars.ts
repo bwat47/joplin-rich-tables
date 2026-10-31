@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+
 import { alphaEquivalentLayer, parseHexColor, toPercentageCss, toRgbCss } from './selectionOverlayColor';
 
 /**

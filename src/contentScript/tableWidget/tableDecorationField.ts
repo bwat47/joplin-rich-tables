@@ -1,11 +1,12 @@
-import { type EditorState, RangeSetBuilder, StateField, type Transaction } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
+import { RangeSetBuilder, StateField, type EditorState, type Transaction } from '@codemirror/state';
+import { Decoration, EditorView, type DecorationSet } from '@codemirror/view';
+
 import { logger } from '../../logger';
 import { getCellRange, type TableCellRanges } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
 import { classifyActiveCellChanges } from '../tableState/activeCellChangeScope';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { getTableContextStartingAt, tableContextField } from '../tableState/tableContextField';
 import { mapTableSpanThroughChanges } from '../tableState/tableStartMapping';

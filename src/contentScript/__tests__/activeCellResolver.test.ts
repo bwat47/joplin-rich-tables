@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { createResolvedActiveCell, getResolvedActiveCell, resolveActiveCell } from '../tableState/resolvedActiveCell';
-import { createMarkdownState } from './testMarkdownState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
+import { createMarkdownState } from './testMarkdownState';
 
 function buildContext(text: string) {
     return getTableContextAtPos(createMarkdownState(text), 0);

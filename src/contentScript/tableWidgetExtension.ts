@@ -1,55 +1,56 @@
-import type { EditorView } from '@codemirror/view';
 import type { Facet } from '@codemirror/state';
-import type { ContentScriptContext, CodeMirrorControl, MarkdownEditorContentScriptModule } from 'api/types';
+import type { EditorView } from '@codemirror/view';
+
+import type { CodeMirrorControl, ContentScriptContext, MarkdownEditorContentScriptModule } from 'api/types';
+import { logger } from '../logger';
+import { isNestedEditorOpen, nestedEditorPlugin } from './nestedEditor/nestedEditorController';
+import { nestedEditorFocusGuard } from './nestedEditor/nestedEditorFocusGuard';
+import { fetchHostEditorConfig, hostEditorConfigFacet } from './services/hostEditorConfig';
+import { createJoplinBridge } from './services/joplinBridge';
+import { createLinkOpener, linkOpenerFacet, type LinkOpener } from './services/linkOpener';
 import {
     createMarkdownRenderer,
     markdownRenderServiceFacet,
     type MarkdownRenderService,
 } from './services/markdownRenderer';
-import { fetchHostEditorConfig, hostEditorConfigFacet } from './services/hostEditorConfig';
-import { createJoplinBridge } from './services/joplinBridge';
-import { createLinkOpener, linkOpenerFacet, type LinkOpener } from './services/linkOpener';
 import { noteIdentityFacet } from './services/noteIdentity';
-import { logger } from '../logger';
-import { activeCellField } from './tableState/activeCellState';
-import { tableContextField } from './tableState/tableContextField';
-import { cellSelectionField } from './tableState/cellSelectionState';
-import { cellDragField } from './tableState/cellDragState';
-import { sourceModeField } from './tableState/sourceMode';
-import { cellSelectionClipboardPlugin } from './tableRuntime/selection/cellSelectionClipboardPlugin';
-import { cellSelectionKeyCapturePlugin } from './tableRuntime/selection/cellSelectionKeymap';
-import { cellSelectionFocusPlugin } from './tableRuntime/selection/cellSelectionController';
-import { cellSelectionScopeGuard } from './tableRuntime/selection/cellSelectionScopeGuard';
-import { cellSelectionVisuals } from './tableWidget/cellSelectionVisuals';
-import { mainCaretSuppression } from './tableWidget/mainCaretSuppression';
-import { wholeTableSelectionVisuals } from './tableWidget/wholeTableSelectionVisuals';
-import { renderedTextSelectionTheme } from './tableWidget/renderedTextSelectionTheme';
-import { tableSelectionSnapFilter } from './tableRuntime/selection/tableSelectionSnap';
-import { cellSelectionEditRetention } from './tableRuntime/selection/cellSelectionEditRetention';
-import { cellSelectionRangeRelease } from './tableRuntime/selection/cellSelectionRangeRelease';
-import { isNestedEditorOpen, nestedEditorPlugin } from './nestedEditor/nestedEditorController';
-import { nestedEditorFocusGuard } from './nestedEditor/nestedEditorFocusGuard';
-import { createMainEditorActiveCellGuard } from './tableRuntime/guard/mainEditorGuard';
-import { widgetInteractionHandlers } from './tableRuntime/interaction/widgetInteraction';
-import { tableToolbarPlugin, tableToolbarTheme } from './toolbar/tableToolbarPlugin';
-import { tableStyles } from './tableWidget/tableStyles';
-import { richTableThemeVars } from './tableWidget/richTableThemeVars';
-import { nestedEditorLifecyclePlugin } from './tableRuntime/lifecycle/nestedEditorLifecycle';
 import { registerTableCommands } from './tableCommands/tableCommands';
-import { searchPanelTransitionExtension } from './tableRuntime/search/searchPanelTransitions';
-import { searchMatchCellEntryExtension } from './tableRuntime/search/searchMatchCellEntry';
-import { openCellRequestField } from './tableState/openCellRequestState';
-import { openCellRequestKeymap, openCellRequestTimeoutPlugin } from './tableRuntime/openCellRequest';
-import { createUndoScrollPreservation } from './tableRuntime/undoScrollPreservation';
-import { mainEditorTableEntryExtension } from './tableRuntime/navigation/mainEditorTableEntry';
 import { tableBoundaryMaintenanceExtension } from './tableRuntime/boundaries/tableBoundaryMaintenance';
+import { createMainEditorActiveCellGuard } from './tableRuntime/guard/mainEditorGuard';
+import { mouseCellDragSelectionPlugin } from './tableRuntime/interaction/mouseCellDragSelection';
 import {
     closeOnOutsideMouseDown,
     outsideInteractionCapturePlugin,
 } from './tableRuntime/interaction/outsideTableInteraction';
-import { tableDecorationField } from './tableWidget/tableDecorationField';
+import { widgetInteractionHandlers } from './tableRuntime/interaction/widgetInteraction';
+import { nestedEditorLifecyclePlugin } from './tableRuntime/lifecycle/nestedEditorLifecycle';
+import { mainEditorTableEntryExtension } from './tableRuntime/navigation/mainEditorTableEntry';
+import { openCellRequestKeymap, openCellRequestTimeoutPlugin } from './tableRuntime/openCellRequest';
+import { searchMatchCellEntryExtension } from './tableRuntime/search/searchMatchCellEntry';
+import { searchPanelTransitionExtension } from './tableRuntime/search/searchPanelTransitions';
+import { cellSelectionClipboardPlugin } from './tableRuntime/selection/cellSelectionClipboardPlugin';
+import { cellSelectionFocusPlugin } from './tableRuntime/selection/cellSelectionController';
+import { cellSelectionEditRetention } from './tableRuntime/selection/cellSelectionEditRetention';
+import { cellSelectionKeyCapturePlugin } from './tableRuntime/selection/cellSelectionKeymap';
+import { cellSelectionRangeRelease } from './tableRuntime/selection/cellSelectionRangeRelease';
+import { cellSelectionScopeGuard } from './tableRuntime/selection/cellSelectionScopeGuard';
+import { tableSelectionSnapFilter } from './tableRuntime/selection/tableSelectionSnap';
+import { createUndoScrollPreservation } from './tableRuntime/undoScrollPreservation';
+import { activeCellField } from './tableState/activeCellState';
+import { cellDragField } from './tableState/cellDragState';
+import { cellSelectionField } from './tableState/cellSelectionState';
+import { openCellRequestField } from './tableState/openCellRequestState';
+import { sourceModeField } from './tableState/sourceMode';
+import { tableContextField } from './tableState/tableContextField';
+import { cellSelectionVisuals } from './tableWidget/cellSelectionVisuals';
+import { mainCaretSuppression } from './tableWidget/mainCaretSuppression';
+import { renderedTextSelectionTheme } from './tableWidget/renderedTextSelectionTheme';
+import { richTableThemeVars } from './tableWidget/richTableThemeVars';
 import { rootEditorActiveCellAttribute, rootEditorSelectionPainting } from './tableWidget/rootEditorSelectionTheme';
-import { mouseCellDragSelectionPlugin } from './tableRuntime/interaction/mouseCellDragSelection';
+import { tableDecorationField } from './tableWidget/tableDecorationField';
+import { tableStyles } from './tableWidget/tableStyles';
+import { wholeTableSelectionVisuals } from './tableWidget/wholeTableSelectionVisuals';
+import { tableToolbarPlugin, tableToolbarTheme } from './toolbar/tableToolbarPlugin';
 
 /**
  * Content script module export.

@@ -1,12 +1,13 @@
-import { vi, type Mock } from 'vitest';
 import type { EditorView } from '@codemirror/view';
-import type { ActiveCell } from '../tableState/activeCellState';
-import type { MarkdownTable, TableAlignment } from '../tableModel/MarkdownTable';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { refocusNestedEditor } from '../nestedEditor/nestedEditorController';
-import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
+import { vi, type Mock } from 'vitest';
+
 import type { StructuralActionId } from '../../contentScriptBridge/structuralCommandCatalog';
+import { refocusNestedEditor } from '../nestedEditor/nestedEditorController';
+import type { MarkdownTable, TableAlignment } from '../tableModel/MarkdownTable';
+import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { runStructuralAction, runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
+import type { ActiveCell } from '../tableState/activeCellState';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 vi.mock('../tableRuntime/operations/runStructuralCommand', () => ({
     runStructuralCommand: vi.fn(),

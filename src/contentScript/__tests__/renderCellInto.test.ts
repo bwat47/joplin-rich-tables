@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import type { MarkdownRenderService } from '../services/markdownRenderer';
 import { renderCellMarkdownInto } from '../services/renderCellInto';
 import { deferred, htmlFragment } from './testUtils';

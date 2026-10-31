@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it } from 'vitest';
+
 import { createNestedEditorFeatureExtensions } from '../nestedEditor/nestedEditorFeatureConfig';
 
 describe('nestedEditorFeatureConfig', () => {

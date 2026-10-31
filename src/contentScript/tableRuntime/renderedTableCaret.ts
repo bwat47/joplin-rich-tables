@@ -1,8 +1,9 @@
 import type { EditorState } from '@codemirror/state';
+
 import { getActiveCell } from '../tableState/activeCellState';
 import { getCellSelection } from '../tableState/cellSelectionState';
-import { isEffectiveRawMode } from '../tableState/sourceMode';
 import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
+import { isEffectiveRawMode } from '../tableState/sourceMode';
 
 /**
  * True when the main editor holds a plain caret over rendered tables.

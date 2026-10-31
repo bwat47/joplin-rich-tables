@@ -1,22 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorView } from '@codemirror/view';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
-import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
-import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
-import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
-import { getCellSelector } from '../tableWidget/domHelpers';
-import { TableWidget } from '../tableWidget/TableWidget';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { markdownRenderServiceFacet } from '../services/markdownRenderer';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import type { CellCoords } from '../tableModel/types';
-import { markdownRenderServiceFacet } from '../services/markdownRenderer';
-import { createMarkdownState } from './testMarkdownState';
+import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
+import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
+import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
+import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR, CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
-import { htmlFragment, parseCellRangesFixture } from './testUtils';
+import { getCellSelector } from '../tableWidget/domHelpers';
+import { TableWidget } from '../tableWidget/TableWidget';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
+import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 

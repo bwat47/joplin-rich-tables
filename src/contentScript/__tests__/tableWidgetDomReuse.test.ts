@@ -3,13 +3,14 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { tableContextField } from '../tableState/tableContextField';
-import { TableWidget } from '../tableWidget/TableWidget';
 import { SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { tableHeightCache } from '../tableWidget/tableHeightCache';
+import { TableWidget } from '../tableWidget/TableWidget';
 import { createResizeObserverStub, installRangeLayoutStubs } from './tableEditorFixtures';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
 

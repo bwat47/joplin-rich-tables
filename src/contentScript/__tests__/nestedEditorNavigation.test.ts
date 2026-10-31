@@ -1,13 +1,14 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
-import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
+
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import { flushNestedEditorState, openNestedEditor, nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { flushNestedEditorState, nestedEditorPlugin, openNestedEditor } from '../nestedEditor/nestedEditorController';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { requireResolvedActiveCell } from './testUtils';
+import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
+import { requireResolvedActiveCell } from './testUtils';
 
 const markdownExtension = markdown({
     extensions: [GFM],

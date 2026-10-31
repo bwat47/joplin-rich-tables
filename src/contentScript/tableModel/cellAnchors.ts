@@ -1,7 +1,7 @@
-import type { CellRange, TableCellRanges } from './markdownTableCellRanges';
-import type { SerializedTable } from './MarkdownTable';
-import type { CellCoords } from './types';
 import { clamp } from '../shared/numberUtils';
+import type { SerializedTable } from './MarkdownTable';
+import type { CellRange, TableCellRanges } from './markdownTableCellRanges';
+import type { CellCoords } from './types';
 
 export interface TableCellAnchor extends CellCoords {
     anchorOffset: number;

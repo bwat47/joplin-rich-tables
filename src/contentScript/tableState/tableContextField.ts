@@ -1,5 +1,6 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from '@codemirror/language';
 import { StateField, type EditorState, type SelectionRange } from '@codemirror/state';
+
 import { logger } from '../../logger';
 import { rangeTouchesInclusive } from '../shared/rangeUtils';
 import { buildTableContext, type TableContext, type TableSpan } from '../tableModel/tableContext';

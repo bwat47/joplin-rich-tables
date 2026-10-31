@@ -1,4 +1,5 @@
-import { type EditorState, StateEffect, StateField } from '@codemirror/state';
+import { StateEffect, StateField, type EditorState } from '@codemirror/state';
+
 import { getCellSelection } from './cellSelectionState';
 
 export const startCellDragEffect = StateEffect.define<null>();

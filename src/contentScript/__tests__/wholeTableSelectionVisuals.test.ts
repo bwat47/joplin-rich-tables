@@ -1,5 +1,6 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+
 import type { TableContext } from '../tableModel/tableContext';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getTableContextsTouching, getTableContextsWithin } from '../tableState/tableContextField';

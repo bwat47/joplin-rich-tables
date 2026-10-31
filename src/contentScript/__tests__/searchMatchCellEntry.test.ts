@@ -1,10 +1,10 @@
 import {
     findNext,
     findPrevious,
+    getSearchQuery,
     openSearchPanel,
     search,
     searchKeymap,
-    getSearchQuery,
     searchPanelOpen,
     SearchQuery,
     setSearchQuery,
@@ -12,26 +12,27 @@ import {
 import { EditorSelection, EditorState, type Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { sourceModeField } from '../tableState/sourceMode';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 import { searchMatchCellEntryExtension } from '../tableRuntime/search/searchMatchCellEntry';
 import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
-import { isNestedEditorOpen, openNestedEditor } from '../nestedEditor/nestedEditorController';
+import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
+import { sourceModeField } from '../tableState/sourceMode';
 import { findCellElement } from '../tableWidget/domHelpers';
-import { CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { createMarkdownState } from './testMarkdownState';
 import { applySearchCommand } from './searchPanelTestUtils';
 import {
-    TEST_HOST_CONFIG,
     createFrameQueue,
     createResizeObserverStub,
     installRangeLayoutStubs,
     nestedEditorTestExtensions,
+    TEST_HOST_CONFIG,
 } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
 import { requireResolvedActiveCell } from './testUtils';
 
 const ABOVE = 'above';

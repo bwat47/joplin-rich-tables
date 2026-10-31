@@ -5,15 +5,16 @@ import { EditorState, StateEffect, Transaction } from '@codemirror/state';
 import type { Decoration } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { createResizeObserverStub } from './tableEditorFixtures';
+
 import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
-import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { activeCellField, clearActiveCellEffect, setActiveCellEffect } from '../tableState/activeCellState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
+import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { isEffectiveRawMode, sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { tableContextField } from '../tableState/tableContextField';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { applySearchCommand } from './searchPanelTestUtils';
+import { createResizeObserverStub } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 
 const resizeObserver = createResizeObserverStub();

@@ -1,5 +1,6 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+
 import { changesOverlapRange } from '../shared/transactionUtils';
 
 const FROM = 10;

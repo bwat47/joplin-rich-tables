@@ -1,7 +1,8 @@
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
+
+import { clamp } from '../shared/numberUtils';
 import type { CellTextSelection } from '../tableModel/cellTextSelection';
 import type { InitialCursorPos } from '../tableState/cursorPlacement';
-import { clamp } from '../shared/numberUtils';
 
 /** Shifts a cell-relative selection into a main-document selection range. */
 export function toAbsoluteSelection(selection: CellTextSelection, editableFrom: number): SelectionRange {

@@ -3,18 +3,19 @@
  */
 import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
-import { getTableContextAtPos } from '../tableState/tableContextField';
-import { isEffectiveRawMode } from '../tableState/sourceMode';
+
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
+import { clearActiveCellEffect, getActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { resolveClampedCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { isEffectiveRawMode } from '../tableState/sourceMode';
+import { getTableContextAtPos } from '../tableState/tableContextField';
 import {
     prepareOpenCellRequestTransaction,
     requestOpenCell,
     type CellEntryMode,
     type PreparedOpenCellRequestTransaction,
 } from './openCellRequest';
-import type { InitialCursorPos } from '../tableState/cursorPlacement';
 
 export interface ActivateCellOptions {
     /** If true and position is outside any table, clears active cell and focuses main editor (default: false) */

@@ -1,7 +1,8 @@
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
+
 import type { SerializedTable } from '../../tableModel/MarkdownTable';
-import type { TableContext } from '../../tableModel/tableContext';
 import { getCellRange } from '../../tableModel/markdownTableCellRanges';
+import type { TableContext } from '../../tableModel/tableContext';
 import { fromUnifiedRow, isSameCellCoords, type CellCoords, type TableRect } from '../../tableModel/types';
 
 /** A cell's editable text span, in document positions. */

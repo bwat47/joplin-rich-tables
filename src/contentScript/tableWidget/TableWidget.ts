@@ -1,25 +1,26 @@
 import { WidgetType, type EditorView } from '@codemirror/view';
-import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
+
 import { cleanupHostedNestedEditors } from '../nestedEditor/nestedEditorController';
 import { isNestedEditorOwnedEvent } from '../nestedEditor/nestedEditorEventRouting';
+import { markdownRenderServiceFacet, type MarkdownRenderService } from '../services/markdownRenderer';
+import { renderCellMarkdownInto } from '../services/renderCellInto';
+import { getViewDocument, getViewWindow } from '../shared/domContext';
+import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
 import { findCellForPos } from '../tableModel/markdownTableCellRanges';
 import type { TableContext } from '../tableModel/tableContext';
-import { resolveTableContextFromEventTarget } from './widgetTableContext';
-import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
-import { tableHeightCache } from './tableHeightCache';
 import {
     CLASS_TABLE_WIDGET,
     CLASS_TABLE_WIDGET_TABLE,
     DATA_COL,
     DATA_ROW,
     DATA_SECTION,
+    getCellSelector,
     SECTION_BODY,
     SECTION_HEADER,
-    getCellSelector,
 } from './domHelpers';
+import { tableHeightCache } from './tableHeightCache';
 import { estimateTableHeight } from './tableHeightEstimation';
-import { renderCellMarkdownInto } from '../services/renderCellInto';
-import { getViewDocument, getViewWindow } from '../shared/domContext';
+import { resolveTableContextFromEventTarget } from './widgetTableContext';
 
 /**
  * What a rendered widget root currently represents.

@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { tableBoundaryMaintenanceExtension } from '../tableRuntime/boundaries/tableBoundaryMaintenance';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';

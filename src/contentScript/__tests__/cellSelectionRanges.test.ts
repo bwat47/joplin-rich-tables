@@ -1,17 +1,18 @@
 import { EditorSelection, EditorState, type SelectionRange } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildCellSelectionRanges, cellTextFromContext } from '../tableRuntime/selection/cellSelectionRanges';
-import { setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
-import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
-import { getCellSelection, toSelectionRect } from '../tableState/cellSelectionState';
+
+import type { TableContext } from '../tableModel/tableContext';
+import type { CellCoords, TableRect } from '../tableModel/types';
 import {
     buildMultiCellPasteRewrite,
     createTableClipboardRewriteSpec,
 } from '../tableRuntime/selection/cellSelectionClipboard';
+import { setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
+import { buildCellSelectionRanges, cellTextFromContext } from '../tableRuntime/selection/cellSelectionRanges';
+import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
+import { getCellSelection, toSelectionRect } from '../tableState/cellSelectionState';
 import { getTableContextStartingAt } from '../tableState/tableContextField';
-import type { TableContext } from '../tableModel/tableContext';
-import type { CellCoords, TableRect } from '../tableModel/types';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 import { requireBodyCellRange } from './testUtils';

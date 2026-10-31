@@ -3,10 +3,11 @@ import { StateField, type StateEffect, type Transaction } from '@codemirror/stat
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { vi, type Mock } from 'vitest';
+
+import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
+import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
-import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
-import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
 
 vi.mock('../nestedEditor/nestedEditorController', () => ({
     isNestedEditorOpen: vi.fn(),

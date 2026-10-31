@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@codemirror/view';
-import { getActiveCell } from '../tableState/activeCellState';
-import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
+import { describe, expect, it, vi } from 'vitest';
+
 import { linkOpenerFacet } from '../services/linkOpener';
 import { buildFootnoteHref } from '../shared/footnoteAnchor';
+import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
+import { getActiveCell } from '../tableState/activeCellState';
+import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import {
     createInteractiveTableHarness,
     getLastDispatchSpec,

@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
+
 import {
-    type HostEditorConfigDeps,
     AUTO_MATCHING_BRACES_SETTING_KEY,
-    SPELLCHECK_ENABLED_SETTING_KEY,
-    TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
     defaultHostEditorConfig,
     isHostEditorConfig,
     readHostEditorConfig,
+    SPELLCHECK_ENABLED_SETTING_KEY,
+    TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_DELETE_TABLE_BUTTON_SETTING_KEY,
     TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_SORT_BUTTONS_SETTING_KEY,
+    type HostEditorConfigDeps,
 } from '../contentScriptBridge/hostEditorConfigBridge';
 
 vi.mock('../logger', () => ({

@@ -1,22 +1,23 @@
 import type { EditorState, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
+
+import { MarkdownTable } from '../tableModel/MarkdownTable';
+import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import {
     activeCellField,
     clearActiveCellEffect,
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
-import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { createActiveCellForTable } from '../tableState/activeCellTarget';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
+import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
-import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';
-import { parseTableFixture, parseCellRangesFixture } from './testUtils';
+import { createMarkdownState } from './testMarkdownState';
+import { parseCellRangesFixture, parseTableFixture } from './testUtils';
 
 describe('runStructuralCommand', () => {
     let currentTableText = '';

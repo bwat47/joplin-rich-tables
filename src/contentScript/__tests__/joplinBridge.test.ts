@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { createJoplinBridge } from '../services/joplinBridge';
 
 describe('createJoplinBridge', () => {

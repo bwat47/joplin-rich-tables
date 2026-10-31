@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'vitest';
 import { EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
+import { describe, expect, it } from 'vitest';
+
+import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
+import { decideMainEditorGuardTransaction } from '../tableRuntime/guard/mainEditorGuardPolicy';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { sourceModeField } from '../tableState/sourceMode';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { decideMainEditorGuardTransaction } from '../tableRuntime/guard/mainEditorGuardPolicy';
-import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');

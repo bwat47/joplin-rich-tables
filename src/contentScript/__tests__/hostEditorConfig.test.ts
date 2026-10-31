@@ -1,5 +1,6 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it, vi } from 'vitest';
+
 import { defaultHostEditorConfig, type HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { fetchHostEditorConfig, hostEditorConfigFacet } from '../services/hostEditorConfig';
 

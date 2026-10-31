@@ -1,5 +1,5 @@
 import { searchPanelOpen } from '@codemirror/search';
-import { StateField, StateEffect, type EditorState } from '@codemirror/state';
+import { StateEffect, StateField, type EditorState } from '@codemirror/state';
 
 /**
  * Effect to toggle source mode on/off.

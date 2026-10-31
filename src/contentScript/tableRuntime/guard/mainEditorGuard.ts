@@ -1,4 +1,5 @@
 import { EditorState, type Extension } from '@codemirror/state';
+
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { createFirstActiveCellForTable } from '../../tableState/activeCellTarget';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';

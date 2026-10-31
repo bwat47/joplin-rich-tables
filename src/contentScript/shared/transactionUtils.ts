@@ -1,4 +1,5 @@
 import type { Transaction } from '@codemirror/state';
+
 import { syncAnnotation } from './syncAnnotation';
 
 export function hasSyncAnnotation(transactions: readonly Transaction[]): boolean {

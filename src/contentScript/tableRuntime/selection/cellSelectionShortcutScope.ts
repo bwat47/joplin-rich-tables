@@ -1,8 +1,9 @@
 import type { EditorView } from '@codemirror/view';
+
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { getActiveCell } from '../../tableState/activeCellState';
-import { getCellSelection, type CellSelection } from '../../tableState/cellSelectionState';
 import { isCellDragInProgress } from '../../tableState/cellDragState';
+import { getCellSelection, type CellSelection } from '../../tableState/cellSelectionState';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement } from '../../tableWidget/domHelpers';
 
 /** Native HTML elements that handle their own keyboard/clipboard events. */

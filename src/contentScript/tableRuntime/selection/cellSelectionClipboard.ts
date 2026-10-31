@@ -1,7 +1,14 @@
 import { Annotation, EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { type ClipboardTableFragment, MarkdownTable, type SerializedTable } from '../../tableModel/MarkdownTable';
+
+import { clamp } from '../../shared/numberUtils';
+import { sanitizeLocalText } from '../../tableModel/cellTextNormalization';
+import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
+import { MarkdownTable, type ClipboardTableFragment, type SerializedTable } from '../../tableModel/MarkdownTable';
+import { getCellRange } from '../../tableModel/markdownTableCellRanges';
 import { parseSingleTableBlock } from '../../tableModel/singleTableBlock';
+import type { TableContext } from '../../tableModel/tableContext';
+import { fromUnifiedRow, type CellCoords, type TableRect } from '../../tableModel/types';
 import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import {
     cellSelectionTransitionAnnotation,
@@ -15,14 +22,8 @@ import {
     type SelectedTable,
 } from '../../tableState/cellSelectionState';
 import { getResolvedActiveCell } from '../../tableState/resolvedActiveCell';
-import { getCellRange } from '../../tableModel/markdownTableCellRanges';
-import { tileFragmentToRect } from '../../tableModel/clipboardFragmentTiling';
-import type { TableContext } from '../../tableModel/tableContext';
-import { fromUnifiedRow, type CellCoords, type TableRect } from '../../tableModel/types';
 import { buildCellSelectionRanges, cellTextFromSerialized } from './cellSelectionRanges';
 import { canHandleTableClipboardShortcut, canHandleTableSelectionKeydown } from './cellSelectionShortcutScope';
-import { clamp } from '../../shared/numberUtils';
-import { sanitizeLocalText } from '../../tableModel/cellTextNormalization';
 
 /**
  * Marks a transaction as one of this module's own table rewrites. The main-editor guard

@@ -1,8 +1,8 @@
 import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';
-import { logger } from './logger';
 import { createContentScriptMessageHandler } from './contentScriptBridge/contentScriptMessageHandler';
 import { STRUCTURAL_COMMANDS } from './contentScriptBridge/structuralCommandCatalog';
+import { logger } from './logger';
 import {
     registerPluginSettings,
     TOOLBAR_SHOW_INSERT_TABLE_BUTTON_SETTING_KEY,

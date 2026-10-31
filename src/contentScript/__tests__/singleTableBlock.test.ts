@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { parseSingleTableBlock } from '../tableModel/singleTableBlock';
 
 const NON_CANONICAL_TABLE = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');

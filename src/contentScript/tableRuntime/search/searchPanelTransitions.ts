@@ -7,6 +7,7 @@
  */
 import { searchPanelOpen } from '@codemirror/search';
 import { EditorState, StateEffect, type Extension, type Transaction, type TransactionSpec } from '@codemirror/state';
+
 import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 
 /**

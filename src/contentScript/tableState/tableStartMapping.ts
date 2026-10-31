@@ -1,4 +1,5 @@
 import { MapMode, type ChangeDesc } from '@codemirror/state';
+
 import type { TableSpan } from '../tableModel/tableContext';
 
 /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createMarkdownState } from './testMarkdownState';
+
 import { buildRootTablePasteRewrite } from '../tableRuntime/operations/pasteTableNormalizer';
+import { createMarkdownState } from './testMarkdownState';
 
 const NON_CANONICAL_TABLE = ['|H1|H2|', '|---|---|', '|a|b|'].join('\n');
 const CANONICAL_TABLE = ['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n');

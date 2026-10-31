@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+
 import {
     DATA_COL,
     DATA_ROW,
     DATA_SECTION,
+    readCellCoords,
     SECTION_BODY,
     SECTION_HEADER,
-    readCellCoords,
 } from '../tableWidget/domHelpers';
 
 function createCell(attributes: Partial<Record<string, string>>): HTMLElement {

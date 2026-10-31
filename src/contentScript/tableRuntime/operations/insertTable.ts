@@ -1,4 +1,5 @@
 import type { EditorView } from '@codemirror/view';
+
 import { MarkdownTable, type SerializedTable, type TableAlignment } from '../../tableModel/MarkdownTable';
 import { createFirstActiveCellForTable } from '../../tableState/activeCellTarget';
 import { prepareOpenCellRequestAttachment } from '../openCellRequest';

@@ -2,10 +2,11 @@ import { history, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cellSelectionEditRetention } from '../tableRuntime/selection/cellSelectionEditRetention';
-import { endCellDragSelection, setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
-import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
+
 import type { CellCoords } from '../tableModel/types';
+import { endCellDragSelection, setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
+import { cellSelectionEditRetention } from '../tableRuntime/selection/cellSelectionEditRetention';
+import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');

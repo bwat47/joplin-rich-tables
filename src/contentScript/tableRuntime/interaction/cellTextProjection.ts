@@ -1,10 +1,11 @@
-import type { EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
+import type { EditorState } from '@codemirror/state';
 import type { SyntaxNodeRef } from '@lezer/common';
-import { rootToLocalOffsets } from '../../tableModel/cellTextNormalization';
-import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+
 import { clamp } from '../../shared/numberUtils';
 import type { SourceSpan } from '../../shared/textAlignment';
+import { rootToLocalOffsets } from '../../tableModel/cellTextNormalization';
+import type { ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 
 /** Visible source characters and their offsets in the nested editor's decoded text. */
 export interface CellTextProjection {

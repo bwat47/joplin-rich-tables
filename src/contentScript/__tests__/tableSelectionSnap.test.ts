@@ -1,10 +1,11 @@
 import { Annotation, EditorSelection, type EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
-import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { snapSelectionAroundTables, tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
+
 import type { TableSpan } from '../tableModel/tableContext';
+import { snapSelectionAroundTables, tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
+import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

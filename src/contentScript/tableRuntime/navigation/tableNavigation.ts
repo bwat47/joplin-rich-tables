@@ -1,17 +1,18 @@
 import type { EditorView } from '@codemirror/view';
+
+import { getTableGridBounds } from '../../tableModel/tableContext';
+import { isSameCellCoords } from '../../tableModel/types';
+import { clearActiveCellEffect } from '../../tableState/activeCellState';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
+import { shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';
 import {
     getResolvedActiveCell,
     resolveClampedCell,
     type ResolvedActiveCell,
 } from '../../tableState/resolvedActiveCell';
-import { runStructuralCommand } from '../operations/runStructuralCommand';
-import type { InitialCursorPos } from '../../tableState/cursorPlacement';
-import { isSameCellCoords } from '../../tableModel/types';
-import { getTableGridBounds } from '../../tableModel/tableContext';
-import { shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';
 import { requestOpenCell } from '../openCellRequest';
+import { runStructuralCommand } from '../operations/runStructuralCommand';
 import { resolveNavigationTarget, type NavigationDirection } from './navigationTarget';
-import { clearActiveCellEffect } from '../../tableState/activeCellState';
 import { exitTableToAdjacentLine } from './tableExit';
 
 export interface NavigateCellOptions {

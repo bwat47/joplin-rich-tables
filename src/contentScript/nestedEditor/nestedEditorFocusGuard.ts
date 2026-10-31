@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+
 import { getActiveCell } from '../tableState/activeCellState';
 import { isNestedEditorOpen, refocusNestedEditor } from './nestedEditorController';
 

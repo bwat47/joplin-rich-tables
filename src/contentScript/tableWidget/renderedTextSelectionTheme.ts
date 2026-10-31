@@ -1,5 +1,6 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+
 import { CLASS_CELL_ACTIVE } from '../shared/tableDomClasses';
 import { CELL_COORDS_ATTRIBUTES, CELL_TAGS, CLASS_TABLE_WIDGET_SELECTED, SELECTOR_WIDGET } from './domHelpers';
 import { JOPLIN_SELECTION_COLORS } from './richTableThemeVars';

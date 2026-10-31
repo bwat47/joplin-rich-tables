@@ -1,9 +1,10 @@
-import { Annotation, type EditorState, StateEffect, StateField } from '@codemirror/state';
+import { Annotation, StateEffect, StateField, type EditorState } from '@codemirror/state';
+
+import type { TableContext } from '../tableModel/tableContext';
+import { fromUnifiedRow, toUnifiedRow, type CellCoords, type TableRect } from '../tableModel/types';
 import { setActiveCellEffect } from './activeCellState';
 import { isEffectiveRawMode } from './sourceMode';
 import { getTableContextStartingAt } from './tableContextField';
-import type { TableContext } from '../tableModel/tableContext';
-import { fromUnifiedRow, toUnifiedRow, type CellCoords, type TableRect } from '../tableModel/types';
 
 export interface CellSelectionEndpoints {
     anchor: CellCoords;

@@ -3,21 +3,22 @@ import { closeSearchPanel, openSearchPanel, search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
+
+import { toggleSourceMode } from '../tableRuntime/sourceModeController';
+import { activeCellField } from '../tableState/activeCellState';
+import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
 import {
     cellSelectionField,
     clearCellSelectionEffect,
     getCellSelection,
     setCellSelectionEffect,
 } from '../tableState/cellSelectionState';
-import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { toggleSourceMode } from '../tableRuntime/sourceModeController';
-import { activeCellField } from '../tableState/activeCellState';
 import {
-    openCellRequestEffect,
     clearOpenCellRequestEffect,
+    openCellRequestEffect,
     openCellRequestField,
 } from '../tableState/openCellRequestState';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { mainCaretSuppression } from '../tableWidget/mainCaretSuppression';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

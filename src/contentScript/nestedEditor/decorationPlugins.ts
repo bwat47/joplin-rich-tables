@@ -1,14 +1,15 @@
-import {
-    Decoration,
-    type DecorationSet,
-    type EditorView,
-    MatchDecorator,
-    ViewPlugin,
-    type ViewUpdate,
-} from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import type { Range } from '@codemirror/state';
+import {
+    Decoration,
+    MatchDecorator,
+    ViewPlugin,
+    type DecorationSet,
+    type EditorView,
+    type ViewUpdate,
+} from '@codemirror/view';
 import type { SyntaxNodeRef } from '@lezer/common';
+
 import { CLASS_NESTED_EDITOR_URL } from '../shared/tableDomClasses';
 
 const INLINE_CODE_NODE_NAME = 'InlineCode';

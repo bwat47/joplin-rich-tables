@@ -7,18 +7,18 @@ import {
     type TransactionSpec,
 } from '@codemirror/state';
 import { Direction, keymap, type BlockInfo, type EditorView } from '@codemirror/view';
-import { isEffectiveRawMode } from '../../tableState/sourceMode';
-import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
+
 import type { TableContext } from '../../tableModel/tableContext';
-import { prepareCellEntryTransaction } from '../cellActivation';
+import { fromUnifiedRow } from '../../tableModel/types';
+import type { InitialCursorPos } from '../../tableState/cursorPlacement';
+import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';
 import {
     getResolvedActiveCell,
     toResolvedActiveCell,
     type ResolvedActiveCell,
 } from '../../tableState/resolvedActiveCell';
-import { getPendingOpenCellRequest, shouldSuppressNavigationKeys } from '../../tableState/openCellRequestState';
-import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
-import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../boundaries/tableBoundarySpacing';
+import { isEffectiveRawMode } from '../../tableState/sourceMode';
+import { containsPos, getTableContextAtPos } from '../../tableState/tableContextField';
 import {
     countBlankLinesInRun,
     resolveAdjoiningTable,
@@ -27,8 +27,9 @@ import {
     type AdjoiningTable,
     type TableSide,
 } from '../boundaries/tableBoundaryResolution';
-import type { InitialCursorPos } from '../../tableState/cursorPlacement';
-import { fromUnifiedRow } from '../../tableModel/types';
+import { isBlankLineContent, REQUIRED_TABLE_BOUNDARY_BLANK_LINES } from '../boundaries/tableBoundarySpacing';
+import { prepareCellEntryTransaction } from '../cellActivation';
+import { hasPlainRenderedTableCaret } from '../renderedTableCaret';
 
 type DeletionDirection = 'backward' | 'forward';
 /** A native cut with no selection removes whole lines, so it is not a directed deletion. */

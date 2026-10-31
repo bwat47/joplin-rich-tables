@@ -1,4 +1,5 @@
-import { type EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
+import { StateEffect, StateField, type ChangeDesc, type EditorState } from '@codemirror/state';
+
 import { isSameCellCoords, type CellCoords } from '../tableModel/types';
 import { mapTableStartThroughChanges } from './tableStartMapping';
 

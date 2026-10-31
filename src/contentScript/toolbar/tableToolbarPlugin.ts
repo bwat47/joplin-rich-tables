@@ -1,21 +1,28 @@
-import { ViewPlugin, type ViewUpdate, EditorView } from '@codemirror/view';
-import { activeCellField, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import {
-    computePosition,
     autoUpdate,
+    computePosition,
+    hide,
     offset,
     shift,
-    hide,
     type Middleware,
     type VirtualElement,
 } from '@floating-ui/dom';
+
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
+import { getDocumentWindow, getViewDocument } from '../shared/domContext';
+import {
+    getViewportHeight,
+    getViewportWidth,
+    resolveViewportBounds,
+    type ViewportBounds,
+} from '../shared/editorViewport';
 import { syncAnnotation } from '../shared/syncAnnotation';
+import { runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
+import { activeCellField, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
 import { getToolbarButtonGroups, renderToolbarButtonGroups } from './toolbarLayout';
-import { getDocumentWindow, getViewDocument } from '../shared/domContext';
-import { runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
-import { openCellRequestEffect } from '../tableState/openCellRequestState';
-import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     computePinnedAbsolutePlacement,
     computePinnedFixedPlacement,
@@ -30,12 +37,6 @@ import {
     type ToolbarPlacement,
     type ToolbarRect,
 } from './toolbarPositioning';
-import {
-    getViewportHeight,
-    getViewportWidth,
-    resolveViewportBounds,
-    type ViewportBounds,
-} from '../shared/editorViewport';
 
 /** Everything resolved once per `autoUpdate` registration and reused by every reposition. */
 interface PositioningContext {

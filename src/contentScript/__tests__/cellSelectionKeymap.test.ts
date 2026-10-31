@@ -1,26 +1,27 @@
-vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
-    ...(await importOriginal<typeof DomHelpers>()),
-    findCellElement: vi.fn(() => ({})),
-}));
-
 import { history } from '@codemirror/commands';
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import type * as DomHelpers from '../tableWidget/domHelpers';
-import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
-import { setCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
+
 import {
     setCellDragSelection,
     startCellSelectionFromActiveCell,
 } from '../tableRuntime/selection/cellSelectionController';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
+import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import {
     getPendingOpenCellRequest,
     openCellRequestEffect,
     openCellRequestField,
 } from '../tableState/openCellRequestState';
+import type * as DomHelpers from '../tableWidget/domHelpers';
 import { cellSelectionTestExtensions } from './tableEditorFixtures';
 import { getDispatchedEffects } from './testUtils';
+
+vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
+    ...(await importOriginal<typeof DomHelpers>()),
+    findCellElement: vi.fn(() => ({})),
+}));
 
 /** Table with three columns and two body rows, so selection can move in every direction. */
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');

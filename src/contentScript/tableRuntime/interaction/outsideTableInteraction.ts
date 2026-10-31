@@ -1,11 +1,12 @@
 import type { StateEffect } from '@codemirror/state';
 import { EditorView, ViewPlugin } from '@codemirror/view';
+
+import { logger } from '../../../logger';
+import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
 import { CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
 import { CLASS_FLOATING_TOOLBAR, SELECTOR_WIDGET } from '../../tableWidget/domHelpers';
-import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
-import { logger } from '../../../logger';
 
 function getEventTargetElement(event: MouseEvent | PointerEvent): Element | null {
     const target = event.target;

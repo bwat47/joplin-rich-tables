@@ -1,6 +1,7 @@
 import { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
+
 import { measuredClassSyncPlugin } from '../tableWidget/measuredClassSync';
 import { flushViewMeasure } from './tableEditorFixtures';
 

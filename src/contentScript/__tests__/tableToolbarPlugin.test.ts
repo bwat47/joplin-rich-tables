@@ -1,16 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
+import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import {
     activeCellField,
     clearActiveCellEffect,
     setActiveCellEffect,
     type ActiveCell,
 } from '../tableState/activeCellState';
-import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
-import { hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { openCellRequestEffect } from '../tableState/openCellRequestState';
+import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
+import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
 const { mockRunStructuralActionOnActiveCell } = vi.hoisted(() => ({
     mockRunStructuralActionOnActiveCell: vi.fn(),
@@ -19,8 +21,6 @@ const { mockRunStructuralActionOnActiveCell } = vi.hoisted(() => ({
 vi.mock('../tableRuntime/operations/structuralActions', () => ({
     runStructuralActionOnActiveCell: mockRunStructuralActionOnActiveCell,
 }));
-
-import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
 const createdViews: EditorView[] = [];
 

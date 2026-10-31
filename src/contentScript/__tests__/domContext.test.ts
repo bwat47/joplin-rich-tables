@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@codemirror/view';
+import { describe, expect, it, vi } from 'vitest';
+
 import { getDocumentWindow, requestViewAnimationFrame } from '../shared/domContext';
 
 describe('domContext', () => {

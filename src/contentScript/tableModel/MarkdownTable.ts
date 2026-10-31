@@ -1,12 +1,12 @@
+import { clamp } from '../shared/numberUtils';
+import { normalizeBrTags } from './cellTextNormalization';
 import {
     parseRootMarkdownTableSyntax,
     type MarkdownTableSyntax,
     type MarkdownTableSyntaxCell,
 } from './lezerTableSyntax';
-import { normalizeBrTags } from './cellTextNormalization';
-import { clamp } from '../shared/numberUtils';
-import { toUnifiedRow, type CellCoords, type TableRect, type TableSection } from './types';
 import { compareRawMarkdownCells, type TableSortDirection } from './rawMarkdownSort';
+import { toUnifiedRow, type CellCoords, type TableRect, type TableSection } from './types';
 
 export type TableAlignment = 'left' | 'center' | 'right' | null;
 export interface MarkdownTableParts {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { toLocalSelection, toRootSelection } from '../tableModel/cellTextSelection';
 import { MarkdownTable } from '../tableModel/MarkdownTable';
 

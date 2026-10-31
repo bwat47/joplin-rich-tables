@@ -3,15 +3,16 @@ import { openSearchPanel } from '@codemirror/search';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { Direction, EditorView, keymap } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
+import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
-import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
 
 const resizeObserver = createResizeObserverStub();
 

@@ -1,6 +1,7 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorState, type Extension } from '@codemirror/state';
 import { GFM, type InlineContext, type MarkdownConfig } from '@lezer/markdown';
+
 import { tableContextField } from '../tableState/tableContextField';
 
 const EQUALS_SIGN = 61;

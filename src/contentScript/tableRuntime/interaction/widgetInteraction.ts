@@ -1,18 +1,19 @@
 import { EditorView } from '@codemirror/view';
-import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
+
+import { linkOpenerFacet } from '../../services/linkOpener';
 import { slugify } from '../../shared/cellContentUtils';
 import { parseFootnoteHref } from '../../shared/footnoteAnchor';
+import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
+import { CLASS_CELL_ACTIVE, CLASS_CELL_EDITOR } from '../../shared/tableDomClasses';
 import { clearActiveCellEffect, getActiveCell, isSameActiveCell } from '../../tableState/activeCellState';
 import { clearCellSelectionEffect, getCellSelection } from '../../tableState/cellSelectionState';
-import { setOrExtendCellSelectionToCoords } from '../selection/cellSelectionController';
-import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
-import { linkOpenerFacet } from '../../services/linkOpener';
-import { isPrimaryMouseButton, isPrimaryMousePointer } from '../../shared/mouseEvents';
-import { SELECTOR_CELL, SELECTOR_WIDGET, readCellCoords } from '../../tableWidget/domHelpers';
-import { readRenderedCaretHit } from '../../tableWidget/cellCaretHit';
-import { resolveClickCursorPos } from './clickCursorPlacement';
-import { requestOpenCell } from '../openCellRequest';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import { readRenderedCaretHit } from '../../tableWidget/cellCaretHit';
+import { readCellCoords, SELECTOR_CELL, SELECTOR_WIDGET } from '../../tableWidget/domHelpers';
+import { resolveTableContextFromEventTarget } from '../../tableWidget/widgetTableContext';
+import { requestOpenCell } from '../openCellRequest';
+import { setOrExtendCellSelectionToCoords } from '../selection/cellSelectionController';
+import { resolveClickCursorPos } from './clickCursorPlacement';
 import { beginMouseCellGesture, mouseCellGestureConsumesMouseDown } from './mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (three or more backticks or tildes) */

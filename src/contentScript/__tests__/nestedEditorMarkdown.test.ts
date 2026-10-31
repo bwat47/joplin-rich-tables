@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
+import { describe, expect, it } from 'vitest';
+
 import { createNestedEditorMarkdownExtension } from '../nestedEditor/nestedEditorMarkdown';
 
 function getNodeNames(doc: string): string[] {

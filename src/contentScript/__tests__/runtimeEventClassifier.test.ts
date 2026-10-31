@@ -1,22 +1,23 @@
 import { closeSearchPanel, openSearchPanel, search } from '@codemirror/search';
-import { Compartment, type Extension, StateEffect, Transaction } from '@codemirror/state';
+import { Compartment, StateEffect, Transaction, type Extension } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { noteIdentityFacet } from '../services/noteIdentity';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import {
     classifyTableRuntimeFacts,
     type TableRuntimeExternalFacts,
 } from '../tableRuntime/lifecycle/runtimeEventClassifier';
+import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionTransitionAnnotation } from '../tableState/cellSelectionState';
-import { searchPanelTransitionExtension } from '../tableRuntime/search/searchPanelTransitions';
+import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { createMarkdownState } from './testMarkdownState';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { noteIdentityFacet } from '../services/noteIdentity';
-import { requireResolvedActiveCell } from './testUtils';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
+import { requireResolvedActiveCell } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();
 

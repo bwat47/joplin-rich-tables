@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
-import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
-import { createResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { openCellRequestEffect, openCellRequestField } from '../tableState/openCellRequestState';
+
 import { prepareOpenCellRequestTransaction, type CellEntryMode } from '../tableRuntime/openCellRequest';
 import { normalizeBeforeEditAnnotation } from '../tableRuntime/tableCanonicalForm';
+import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { openCellRequestEffect, openCellRequestField } from '../tableState/openCellRequestState';
+import { createResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { tableDecorationField, wasActiveHostInvalidated } from '../tableWidget/tableDecorationField';
 import { createMarkdownState } from './testMarkdownState';

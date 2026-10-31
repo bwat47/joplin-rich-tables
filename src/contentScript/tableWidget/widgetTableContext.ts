@@ -1,4 +1,5 @@
 import type { EditorView } from '@codemirror/view';
+
 import type { TableContext } from '../tableModel/tableContext';
 import { getTableContextStartingAt } from '../tableState/tableContextField';
 

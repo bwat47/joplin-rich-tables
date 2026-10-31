@@ -1,14 +1,15 @@
 import { history, redo, undo } from '@codemirror/commands';
 import { Annotation, Transaction, type EditorState, type Extension } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+
+import { tableBoundaryMaintenanceExtension } from '../tableRuntime/boundaries/tableBoundaryMaintenance';
 import { createMainEditorActiveCellGuard } from '../tableRuntime/guard/mainEditorGuard';
 import { activeCellField, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellSelectionField } from '../tableState/cellSelectionState';
-import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
-import { openSearchPanelInState } from './searchPanelTestUtils';
 import { openCellRequestField } from '../tableState/openCellRequestState';
-import { tableBoundaryMaintenanceExtension } from '../tableRuntime/boundaries/tableBoundaryMaintenance';
+import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { getTableContextAtPos } from '../tableState/tableContextField';
+import { openSearchPanelInState } from './searchPanelTestUtils';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');

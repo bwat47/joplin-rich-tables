@@ -1,19 +1,20 @@
-import { describe, expect, it, afterEach, beforeEach, vi } from 'vitest';
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { insertTableAndActivate } from '../tableRuntime/operations/insertTable';
 import { planCellEntryNormalization } from '../tableRuntime/tableCanonicalForm';
+import { activeCellField } from '../tableState/activeCellState';
 import {
-    openCellRequestEffect,
     getPendingOpenCellRequest,
+    openCellRequestEffect,
     openCellRequestField,
 } from '../tableState/openCellRequestState';
-import { activeCellField } from '../tableState/activeCellState';
 import { getTableContextAtPos } from '../tableState/tableContextField';
 import { findCellElement } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { createMarkdownState } from './testMarkdownState';
 import { createResizeObserverStub } from './tableEditorFixtures';
+import { createMarkdownState } from './testMarkdownState';
 import { getDispatchedEffects } from './testUtils';
 
 const resizeObserver = createResizeObserverStub();

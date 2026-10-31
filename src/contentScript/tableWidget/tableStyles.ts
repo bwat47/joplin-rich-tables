@@ -1,13 +1,14 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
-import { CELL_BORDER_WIDTH, CELL_MIN_WIDTH, CELL_PADDING } from './cellGeometry';
 import {
     CLASS_CELL_ACTIVE,
     CLASS_CELL_CONTENT,
     CLASS_CELL_EDITOR,
     CLASS_CELL_EDITOR_HIDDEN,
 } from '../shared/tableDomClasses';
+import { CELL_BORDER_WIDTH, CELL_MIN_WIDTH, CELL_PADDING } from './cellGeometry';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, SELECTOR_WIDGET } from './domHelpers';
 
 /**

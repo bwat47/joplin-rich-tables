@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import type { RenderMarkupResult } from '../../contentScriptBridge/contentScriptMessages';
 import { createMarkdownRenderer, MAX_CACHE_SIZE, type RenderMarkupFn } from '../services/markdownRenderer';
 import { deferred, fragmentHtml } from './testUtils';

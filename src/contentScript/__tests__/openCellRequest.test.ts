@@ -1,15 +1,17 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { vi } from 'vitest';
+
+import { logger } from '../../logger';
+import { openCellRequestTimeoutPlugin } from '../tableRuntime/openCellRequest';
 import { activeCellField, type ActiveCell } from '../tableState/activeCellState';
 import {
-    openCellRequestEffect,
     clearOpenCellRequestEffect,
     getPendingOpenCellRequest,
+    openCellRequestEffect,
     openCellRequestField,
     shouldSuppressNavigationKeys,
 } from '../tableState/openCellRequestState';
-import { openCellRequestTimeoutPlugin } from '../tableRuntime/openCellRequest';
 
 vi.mock('../../logger', () => ({
     logger: {
@@ -17,7 +19,6 @@ vi.mock('../../logger', () => ({
     },
 }));
 
-import { logger } from '../../logger';
 const mockLoggerWarn = vi.mocked(logger.warn);
 
 describe('openCellRequestField', () => {

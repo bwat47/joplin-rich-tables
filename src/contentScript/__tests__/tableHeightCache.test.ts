@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+
 import { MAX_ENTRIES, tableHeightCache } from '../tableWidget/tableHeightCache';
 
 const HEIGHT = 120;

@@ -1,7 +1,8 @@
 import type { EditorView } from '@codemirror/view';
+
+import { logger } from '../../logger';
 import { getViewDocument } from '../shared/domContext';
 import { clamp } from '../shared/numberUtils';
-import { logger } from '../../logger';
 
 interface DomSelectionEndpoint {
     node: Node;

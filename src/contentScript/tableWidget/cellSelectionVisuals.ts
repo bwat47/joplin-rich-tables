@@ -1,15 +1,16 @@
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
+
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
+import { getCellSelection, isCellInRect, toSelectionRect } from '../tableState/cellSelectionState';
 import {
     CELL_TAGS,
     CLASS_CELL_SELECTED,
     CLASS_TABLE_WIDGET_TABLE,
-    SELECTOR_CELL,
-    SELECTOR_WIDGET,
     findTableWidgetElement,
     readCellCoords,
+    SELECTOR_CELL,
+    SELECTOR_WIDGET,
 } from './domHelpers';
 import { measuredClassSyncPlugin } from './measuredClassSync';
 import { selectedCellRules } from './selectionTint';

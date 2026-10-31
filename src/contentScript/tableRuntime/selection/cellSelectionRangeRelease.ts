@@ -1,5 +1,6 @@
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
 import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
+
 import type { TableSpan } from '../../tableModel/tableContext';
 import { getActiveCell } from '../../tableState/activeCellState';
 import {

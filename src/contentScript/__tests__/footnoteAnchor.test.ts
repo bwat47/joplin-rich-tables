@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { buildFootnoteHref, parseFootnoteHref } from '../shared/footnoteAnchor';
 
 describe('footnote anchor contract', () => {

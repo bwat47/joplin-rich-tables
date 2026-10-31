@@ -1,12 +1,13 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+
 import {
     containsPos,
     containsSelection,
     getTableContextAtPos,
     getTableContextEndingAt,
-    getTableContextStartingAt,
     getTableContexts,
+    getTableContextStartingAt,
     getTableContextsTouching,
     getTableContextsWithin,
     tableContextField,

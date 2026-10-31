@@ -1,5 +1,5 @@
-import type { CellEntryMode } from '../openCellRequest';
 import type { CellContentRange, ResolvedActiveCell } from '../../tableState/resolvedActiveCell';
+import type { CellEntryMode } from '../openCellRequest';
 
 export type ActiveCellFacts =
     | { status: 'absent' }

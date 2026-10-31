@@ -1,7 +1,9 @@
 import type { EditorState, StateEffect, TransactionSpec } from '@codemirror/state';
-import { keymap, type EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
+import { keymap, ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view';
+
 import { logger } from '../../logger';
 import { setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import {
     clearOpenCellRequestEffect,
     getPendingOpenCellRequest,
@@ -9,10 +11,9 @@ import {
     openCellRequestField,
     shouldSuppressNavigationKeys,
 } from '../tableState/openCellRequestState';
+import type { ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { structuralTableEditEffect } from '../tableState/structuralTableEditEffect';
 import { normalizeBeforeEditAnnotation, planCellEntryNormalization } from './tableCanonicalForm';
-import type { InitialCursorPos } from '../tableState/cursorPlacement';
-import type { ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 /** How long a request may stay pending before the timeout plugin forcibly releases it. */
 const OPEN_CELL_REQUEST_TIMEOUT_MS = 1000;
