@@ -3,19 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { closeOnOutsideMouseDown, handleOutsideMouseDown } from '../tableRuntime/interaction/outsideTableInteraction';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { createEditorViewHarness } from './tableEditorFixtures';
 
 const DOC = 'above\nbelow';
 const INITIAL_SELECTION = 2;
 const VALID_CLICK_POSITION = 8;
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountActiveView(laterMouseDown?: (event: MouseEvent) => boolean, doc = DOC): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    const view = viewHarness.mountView({
         doc,
         selection: { anchor: INITIAL_SELECTION },
         extensions: [
@@ -25,7 +22,6 @@ function mountActiveView(laterMouseDown?: (event: MouseEvent) => boolean, doc = 
         ],
     });
     activateCell(view);
-    mountedViews.push(view);
     return view;
 }
 
@@ -56,10 +52,7 @@ function makeOutsideMouseDown(view: EditorView): MouseEvent {
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
     vi.restoreAllMocks();
 });
 

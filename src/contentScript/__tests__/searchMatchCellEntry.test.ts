@@ -26,10 +26,12 @@ import { findCellElement } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { applySearchCommand } from './searchPanelTestUtils';
 import {
+    createEditorViewHarness,
     createFrameQueue,
     createResizeObserverStub,
     installRangeLayoutStubs,
     nestedEditorTestExtensions,
+    pressKey,
     TEST_HOST_CONFIG,
 } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
@@ -141,25 +143,18 @@ describe('searchMatchCellEntryExtension', () => {
 
 describe('search shortcuts with rendered tables', () => {
     const frames = createFrameQueue();
-    const mountedViews: EditorView[] = [];
+    const viewHarness = createEditorViewHarness();
 
     beforeEach(() => {
         frames.install();
     });
 
     afterEach(() => {
-        for (const view of mountedViews) {
-            view.destroy();
-            view.dom.remove();
-        }
-        mountedViews.length = 0;
+        viewHarness.destroyViews();
     });
 
     function mount(cursor: number, query: string | null = 'abc'): EditorView {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const view = new EditorView({
-            parent,
+        const view = viewHarness.mountView({
             state: EditorState.create({
                 doc: DOC,
                 selection: EditorSelection.single(cursor),
@@ -173,7 +168,6 @@ describe('search shortcuts with rendered tables', () => {
                 ),
             }),
         });
-        mountedViews.push(view);
         if (query !== null) {
             view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: query })) });
         }
@@ -190,14 +184,10 @@ describe('search shortcuts with rendered tables', () => {
         return { anchor, head };
     }
 
-    function pressF3(target: EventTarget): void {
-        target.dispatchEvent(new KeyboardEvent('keydown', { key: 'F3', bubbles: true, cancelable: true }));
-    }
-
     it('opens the matched cell with the match selected when F3 runs in the main editor', async () => {
         const view = mount(0);
 
-        pressF3(view.contentDOM);
+        pressKey(view.contentDOM, { key: 'F3' });
         await frames.flush();
 
         expect(isNestedEditorOpen(view)).toBe(true);
@@ -230,9 +220,7 @@ describe('search shortcuts with rendered tables', () => {
         }
         nested.dispatch({ selection: { anchor: 0, head: MATCH_LENGTH } });
 
-        (document.activeElement ?? view.contentDOM).dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true, cancelable: true })
-        );
+        pressKey(document.activeElement ?? view.contentDOM, { key: 'f', ctrlKey: true });
         await frames.flush();
 
         expect(searchPanelOpen(view.state)).toBe(true);
@@ -245,7 +233,7 @@ describe('search shortcuts with rendered tables', () => {
         const view = mount(FIRST_MATCH, null);
         openBodyCellAtEnd(view, FIRST_BODY_CELL);
 
-        pressF3(document.activeElement ?? view.contentDOM);
+        pressKey(document.activeElement ?? view.contentDOM, { key: 'F3' });
         await frames.flush();
 
         expect(searchPanelOpen(view.state)).toBe(true);
@@ -257,7 +245,7 @@ describe('search shortcuts with rendered tables', () => {
         const view = mount(SECOND_MATCH);
         openBodyCellAtEnd(view, SECOND_BODY_CELL);
 
-        pressF3(document.activeElement ?? view.contentDOM);
+        pressKey(document.activeElement ?? view.contentDOM, { key: 'F3' });
         await frames.flush();
 
         expect(isNestedEditorOpen(view)).toBe(false);
@@ -265,7 +253,7 @@ describe('search shortcuts with rendered tables', () => {
         expect(view.state.selection.main).toMatchObject({ from: OUTSIDE_MATCH, to: OUTSIDE_MATCH + MATCH_LENGTH });
         expect(view.hasFocus).toBe(true);
 
-        pressF3(document.activeElement ?? view.contentDOM);
+        pressKey(document.activeElement ?? view.contentDOM, { key: 'F3' });
         await frames.flush();
 
         expect(getActiveCell(view.state)).toEqual(FIRST_BODY_CELL);
@@ -275,7 +263,7 @@ describe('search shortcuts with rendered tables', () => {
         const view = mount(FIRST_MATCH);
         openBodyCellAtEnd(view, FIRST_BODY_CELL);
 
-        pressF3(document.activeElement ?? view.contentDOM);
+        pressKey(document.activeElement ?? view.contentDOM, { key: 'F3' });
         await frames.flush();
 
         expect(getActiveCell(view.state)).toEqual(SECOND_BODY_CELL);

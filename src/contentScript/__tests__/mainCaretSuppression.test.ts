@@ -1,6 +1,6 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { closeSearchPanel, openSearchPanel, search } from '@codemirror/search';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -20,6 +20,7 @@ import {
 } from '../tableState/openCellRequestState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { mainCaretSuppression } from '../tableWidget/mainCaretSuppression';
+import { createEditorViewHarness } from './tableEditorFixtures';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC = `above\n${TABLE}\nbelow`;
@@ -28,14 +29,10 @@ const ATTR = 'data-rt-caret-suppressed';
 
 const REQUEST_ID = 'open-cell-test';
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountView(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         doc: DOC,
         extensions: [
             markdown({ extensions: [GFM] }),
@@ -48,9 +45,6 @@ function mountView(): EditorView {
             mainCaretSuppression,
         ],
     });
-    mountedViews.push(view);
-
-    return view;
 }
 
 function beginOpenRequest(view: EditorView): void {
@@ -74,10 +68,7 @@ function selectCells(view: EditorView): void {
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('mainCaretSuppression', () => {

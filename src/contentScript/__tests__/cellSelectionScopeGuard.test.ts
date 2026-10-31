@@ -1,6 +1,6 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +12,7 @@ import {
     setCellSelectionEffect,
 } from '../tableState/cellSelectionState';
 import { getTableContextAtPos, tableContextField } from '../tableState/tableContextField';
+import { createEditorViewHarness } from './tableEditorFixtures';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const PREFIX = 'above';
@@ -23,20 +24,13 @@ const LONG_TABLE_DOCUMENT = Array.from({ length: 5 }, () => `${FILLER}\n\n${TABL
 const CLOCK_ADVANCE_MS = 2_000;
 const COMPLETE_PARSE_TIMEOUT_MS = 1_000;
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountView(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         doc: DOC,
         extensions: [markdown({ extensions: [GFM] }), tableContextField, cellSelectionField, cellSelectionScopeGuard],
     });
-    mountedViews.push(view);
-
-    return view;
 }
 
 /** Lets the guard's deferred clear run after CodeMirror returns to idle. */
@@ -57,10 +51,7 @@ function selectTable(view: EditorView): void {
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('cellSelectionScopeGuard', () => {

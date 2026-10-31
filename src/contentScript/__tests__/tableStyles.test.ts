@@ -1,5 +1,5 @@
 import type { Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
@@ -7,15 +7,13 @@ import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE } from '../tableWidget/domHelpers';
 import { ATTR_ZEBRA_STRIPING, tableStyles } from '../tableWidget/tableStyles';
+import { createEditorViewHarness } from './tableEditorFixtures';
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountView(zebraStriping: boolean, extraExtensions: Extension = []): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
     const defaults = defaultHostEditorConfig();
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         extensions: [
             hostEditorConfigFacet.of({
                 ...defaults,
@@ -25,9 +23,6 @@ function mountView(zebraStriping: boolean, extraExtensions: Extension = []): Edi
             extraExtensions,
         ],
     });
-    mountedViews.push(view);
-
-    return view;
 }
 
 /**
@@ -61,10 +56,7 @@ function renderRowBackgrounds(view: EditorView, rows: { selected?: boolean }[]):
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('tableStyles', () => {

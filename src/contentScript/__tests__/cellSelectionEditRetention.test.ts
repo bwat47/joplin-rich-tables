@@ -1,28 +1,25 @@
 import { history, undo } from '@codemirror/commands';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { CellCoords } from '../tableModel/types';
 import { endCellDragSelection, setCellDragSelection } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionEditRetention } from '../tableRuntime/selection/cellSelectionEditRetention';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { cellSelectionTestExtensions } from './tableEditorFixtures';
+import { cellSelectionTestExtensions, createEditorViewHarness } from './tableEditorFixtures';
 
 const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
 const BOLD_MARKER = '**';
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function body(row: number, col: number): CellCoords {
     return { section: 'body', row, col };
 }
 
 function mountView(doc: string): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         doc,
         extensions: cellSelectionTestExtensions(
             history(),
@@ -30,8 +27,6 @@ function mountView(doc: string): EditorView {
             cellSelectionEditRetention
         ),
     });
-    mountedViews.push(view);
-    return view;
 }
 
 /** Selects `anchor`–`focus` with a completed drag. */
@@ -66,10 +61,7 @@ function insertAt(view: EditorView, text: string, insert: string): void {
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('cell selection edit retention', () => {

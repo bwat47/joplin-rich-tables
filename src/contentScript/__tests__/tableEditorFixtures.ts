@@ -1,6 +1,6 @@
 import { markdown } from '@codemirror/lang-markdown';
 import type { Extension } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
+import { EditorView, type EditorViewConfig } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { vi } from 'vitest';
 
@@ -197,4 +197,46 @@ export function cellSelectionTestExtensions(...extra: Extension[]): Extension[] 
         cellSelectionFocusPlugin,
         ...extra,
     ];
+}
+
+/** Dispatches a bubbling, cancelable keydown without changing focus or normalizing the key. */
+export function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(event);
+    return event;
+}
+
+export interface EditorViewHarness {
+    mountView(config: Omit<EditorViewConfig, 'parent'>): EditorView;
+    /**
+     * Destroys this harness's views and detaches the parents it created. Suites that append
+     * their own elements to the document, or install mocks, still clean those up themselves.
+     */
+    destroyViews(): void;
+}
+
+interface MountedEditorView {
+    view: EditorView;
+    parent: HTMLElement;
+}
+
+/** Creates isolated view tracking for a suite, leaving editor configuration to each caller. */
+export function createEditorViewHarness(): EditorViewHarness {
+    const mounted: MountedEditorView[] = [];
+    return {
+        mountView(config): EditorView {
+            const parent = document.createElement('div');
+            document.body.appendChild(parent);
+            const view = new EditorView({ ...config, parent });
+            mounted.push({ view, parent });
+            return view;
+        },
+        destroyViews(): void {
+            // Newest first, so a view mounted against an earlier one goes before it.
+            for (const { view, parent } of mounted.splice(0).reverse()) {
+                view.destroy();
+                parent.remove();
+            }
+        },
+    };
 }

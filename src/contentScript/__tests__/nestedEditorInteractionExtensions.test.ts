@@ -1,5 +1,5 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createNestedEditorInteractionExtensions } from '../tableRuntime/interaction/nestedEditorInteractionExtensions';
@@ -7,7 +7,7 @@ import { handleTableClipboardTextPaste } from '../tableRuntime/selection/cellSel
 import type * as CellSelectionClipboard from '../tableRuntime/selection/cellSelectionClipboard';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellSelectionField, getCellSelection } from '../tableState/cellSelectionState';
-import { installRangeLayoutStubs } from './tableEditorFixtures';
+import { createEditorViewHarness, installRangeLayoutStubs, pressKey } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 
 installRangeLayoutStubs();
@@ -24,7 +24,7 @@ const PREFIX = 'above\n\n';
 const DOC = `${PREFIX}${TABLE}\n\nbelow`;
 const TABLE_FROM = PREFIX.length;
 const TABLE_TO = TABLE_FROM + TABLE.length;
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function dispatchPaste(target: HTMLElement, text: string): void {
     const event = new Event('paste', { bubbles: true, cancelable: true });
@@ -34,9 +34,8 @@ function dispatchPaste(target: HTMLElement, text: string): void {
     target.dispatchEvent(event);
 }
 
-function createPasteView(parent: HTMLElement): EditorView {
-    const view = new EditorView({
-        parent,
+function createPasteView(): EditorView {
+    return viewHarness.mountView({
         state: EditorState.create({
             doc: 'selected text',
             selection: EditorSelection.single(0, 'selected'.length),
@@ -46,19 +45,13 @@ function createPasteView(parent: HTMLElement): EditorView {
             }),
         }),
     });
-    mountedViews.push(view);
-    return view;
 }
 
 function mountMainView(activeCell: ActiveCell): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-    const view = new EditorView({
-        parent,
+    const view = viewHarness.mountView({
         state: createMarkdownState(DOC, [activeCellField, cellSelectionField]),
     });
     view.dispatch({ effects: setActiveCellEffect.of(activeCell) });
-    mountedViews.push(view);
     return view;
 }
 
@@ -66,12 +59,9 @@ function mountNestedView(
     mainView: EditorView,
     selection: number
 ): { view: EditorView; sync: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
     const sync = vi.fn();
     const close = vi.fn();
-    const view = new EditorView({
-        parent,
+    const view = viewHarness.mountView({
         doc: 'cell',
         selection: { anchor: selection },
         extensions: [
@@ -82,7 +72,6 @@ function mountNestedView(
         ],
     });
     view.contentDOM.focus();
-    mountedViews.push(view);
     return { view, sync, close };
 }
 
@@ -97,16 +86,9 @@ function stubLineTops(view: EditorView, tops: Record<number, number>): void {
     });
 }
 
-function pressKey(view: EditorView, key: string, init: KeyboardEventInit = {}): void {
-    view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
-}
-
 afterEach(() => {
     vi.restoreAllMocks();
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('nested editor horizontal table exit', () => {
@@ -114,7 +96,7 @@ describe('nested editor horizontal table exit', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
         const nested = mountNestedView(mainView, 0);
 
-        pressKey(nested.view, 'ArrowLeft');
+        pressKey(nested.view.contentDOM, { key: 'ArrowLeft' });
 
         expect(nested.sync).toHaveBeenCalledOnce();
         expect(getActiveCell(mainView.state)).toBeNull();
@@ -125,7 +107,7 @@ describe('nested editor horizontal table exit', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 1, col: 1 });
         const nested = mountNestedView(mainView, 'cell'.length);
 
-        pressKey(nested.view, 'ArrowRight');
+        pressKey(nested.view.contentDOM, { key: 'ArrowRight' });
 
         expect(nested.sync).toHaveBeenCalledOnce();
         expect(getActiveCell(mainView.state)).toBeNull();
@@ -140,7 +122,7 @@ describe('nested editor vertical table exit', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
         const nested = mountNestedView(mainView, 0);
 
-        pressKey(nested.view, 'ArrowUp');
+        pressKey(nested.view.contentDOM, { key: 'ArrowUp' });
 
         expect(nested.sync).toHaveBeenCalledOnce();
         expect(getActiveCell(mainView.state)).toBeNull();
@@ -151,7 +133,7 @@ describe('nested editor vertical table exit', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 1, col: 1 });
         const nested = mountNestedView(mainView, CELL_END);
 
-        pressKey(nested.view, 'ArrowDown');
+        pressKey(nested.view.contentDOM, { key: 'ArrowDown' });
 
         expect(nested.sync).toHaveBeenCalledOnce();
         expect(getActiveCell(mainView.state)).toBeNull();
@@ -163,7 +145,7 @@ describe('nested editor vertical table exit', () => {
         const nested = mountNestedView(mainView, 2);
         stubLineTops(nested.view, { 0: 0, 2: 20 });
 
-        pressKey(nested.view, 'ArrowUp');
+        pressKey(nested.view.contentDOM, { key: 'ArrowUp' });
 
         expect(nested.sync).not.toHaveBeenCalled();
         expect(getActiveCell(mainView.state)).not.toBeNull();
@@ -174,7 +156,7 @@ describe('nested editor vertical table exit', () => {
         const nested = mountNestedView(mainView, 2);
         stubLineTops(nested.view, { 0: 0, 2: 0 });
 
-        pressKey(nested.view, 'ArrowUp');
+        pressKey(nested.view.contentDOM, { key: 'ArrowUp' });
 
         expect(nested.sync).toHaveBeenCalledOnce();
         expect(getActiveCell(mainView.state)).toBeNull();
@@ -188,7 +170,7 @@ describe('nested editor vertical cell selection', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 1, col: 0 });
         const nested = mountNestedView(mainView, 0);
 
-        pressKey(nested.view, 'ArrowUp', { shiftKey: true });
+        pressKey(nested.view.contentDOM, { key: 'ArrowUp', shiftKey: true });
 
         expect(nested.close).toHaveBeenCalledOnce();
         expect(getCellSelection(mainView.state)).not.toBeNull();
@@ -198,7 +180,7 @@ describe('nested editor vertical cell selection', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
         const nested = mountNestedView(mainView, CELL_END);
 
-        pressKey(nested.view, 'ArrowDown', { shiftKey: true });
+        pressKey(nested.view.contentDOM, { key: 'ArrowDown', shiftKey: true });
 
         expect(nested.close).toHaveBeenCalledOnce();
         expect(getCellSelection(mainView.state)).not.toBeNull();
@@ -209,7 +191,7 @@ describe('nested editor vertical cell selection', () => {
         const nested = mountNestedView(mainView, 2);
         stubLineTops(nested.view, { 0: 0, 2: 20 });
 
-        pressKey(nested.view, 'ArrowUp', { shiftKey: true });
+        pressKey(nested.view.contentDOM, { key: 'ArrowUp', shiftKey: true });
 
         expect(nested.close).not.toHaveBeenCalled();
         expect(getCellSelection(mainView.state)).toBeNull();
@@ -222,9 +204,7 @@ describe('nested editor table paste', () => {
         handleTableClipboardTextPasteMock.mockReturnValue(false);
     });
     it('routes a table fragment pasted into the nested editor through the multi-cell rewrite', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const nestedView = createPasteView(parent);
+        const nestedView = createPasteView();
         handleTableClipboardTextPasteMock.mockReturnValue(true);
 
         const clipboardText = ['| P1 | P2 |', '| --- | --- |', '| Q1 | Q2 |'].join('\n');
@@ -238,9 +218,7 @@ describe('nested editor table paste', () => {
     });
 
     it('lets a non-table paste fall through to the nested editor', () => {
-        const parent = document.createElement('div');
-        document.body.appendChild(parent);
-        const nestedView = createPasteView(parent);
+        const nestedView = createPasteView();
 
         dispatchPaste(nestedView.contentDOM, 'plain');
 

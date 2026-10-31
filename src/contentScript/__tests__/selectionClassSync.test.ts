@@ -1,5 +1,5 @@
 import { EditorSelection } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
@@ -14,7 +14,7 @@ import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_SELECTED, SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { wholeTableSelectionVisuals } from '../tableWidget/wholeTableSelectionVisuals';
-import { createResizeObserverStub, flushViewMeasure } from './tableEditorFixtures';
+import { createEditorViewHarness, createResizeObserverStub, flushViewMeasure } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment } from './testUtils';
 
@@ -34,14 +34,10 @@ const BODY_ROW_SELECTION: CellSelection = {
     focus: { section: 'body', row: 0, col: 1 },
 };
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountView(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         state: createMarkdownState(DOC, [
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
@@ -55,8 +51,6 @@ function mountView(): EditorView {
             wholeTableSelectionVisuals,
         ]),
     });
-    mountedViews.push(view);
-    return view;
 }
 
 function getWidget(view: EditorView): HTMLElement {
@@ -72,10 +66,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
 });

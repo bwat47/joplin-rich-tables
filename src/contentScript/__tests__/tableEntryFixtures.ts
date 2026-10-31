@@ -7,7 +7,7 @@
 import { defaultKeymap } from '@codemirror/commands';
 import { openSearchPanel } from '@codemirror/search';
 import { EditorState, type Extension } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
+import { keymap, type EditorView } from '@codemirror/view';
 import { expect, vi } from 'vitest';
 
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
@@ -16,7 +16,7 @@ import { cellSelectionField, getCellSelection } from '../tableState/cellSelectio
 import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
 import { sourceModeField, toggleSourceModeEffect } from '../tableState/sourceMode';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
-import { createResizeObserverStub } from './tableEditorFixtures';
+import { createEditorViewHarness, createResizeObserverStub } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 
 export const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |', '| b1 | b2 |'].join('\n');
@@ -59,7 +59,7 @@ export function currentTableFrom(view: EditorView, table: string = TABLE): numbe
 export interface TableEntryTestHarness {
     /** Installs the ResizeObserver stub before each test. */
     install(): void;
-    /** Restores mocks and globals, destroys mounted views, and clears the document. */
+    /** Restores mocks and globals and destroys mounted views. */
     cleanup(): void;
     /** Mounts a focused editor, with entry extensions ahead of selection and default keymaps. */
     mountView(
@@ -72,7 +72,7 @@ export interface TableEntryTestHarness {
 /** Creates isolated view tracking and lifecycle operations for one table-entry suite. */
 export function createTableEntryTestHarness(): TableEntryTestHarness {
     const resizeObserver = createResizeObserverStub();
-    const mountedViews: EditorView[] = [];
+    const viewHarness = createEditorViewHarness();
 
     return {
         install(): void {
@@ -82,21 +82,14 @@ export function createTableEntryTestHarness(): TableEntryTestHarness {
         cleanup(): void {
             vi.restoreAllMocks();
             vi.unstubAllGlobals();
-            while (mountedViews.length > 0) {
-                mountedViews.pop()?.destroy();
-            }
-            document.body.replaceChildren();
+            viewHarness.destroyViews();
         },
         mountView(
             doc: string,
             selection: number | { anchor: number; head: number },
             entryExtensions: Extension[]
         ): EditorView {
-            const parent = document.createElement('div');
-            document.body.appendChild(parent);
-
-            const view = new EditorView({
-                parent,
+            const view = viewHarness.mountView({
                 state: createMarkdownState(doc, [
                     activeCellField,
                     cellSelectionField,
@@ -113,21 +106,9 @@ export function createTableEntryTestHarness(): TableEntryTestHarness {
             });
             view.dispatch({ selection: typeof selection === 'number' ? { anchor: selection } : selection });
             view.contentDOM.focus();
-            mountedViews.push(view);
             return view;
         },
     };
-}
-
-export function pressKey(view: EditorView, key: string, modifiers: KeyboardEventInit = {}): void {
-    view.contentDOM.dispatchEvent(
-        new KeyboardEvent('keydown', {
-            key,
-            bubbles: true,
-            cancelable: true,
-            ...modifiers,
-        })
-    );
 }
 
 export function expectCellOpen(view: EditorView, expected: ExpectedActiveCell, initialCursorPos: EntryEdge): void {

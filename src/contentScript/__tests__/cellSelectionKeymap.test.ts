@@ -1,6 +1,6 @@
 import { history } from '@codemirror/commands';
 import type { Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 
 import {
     setCellDragSelection,
@@ -15,7 +15,7 @@ import {
     openCellRequestField,
 } from '../tableState/openCellRequestState';
 import type * as DomHelpers from '../tableWidget/domHelpers';
-import { cellSelectionTestExtensions } from './tableEditorFixtures';
+import { cellSelectionTestExtensions, createEditorViewHarness, pressKey } from './tableEditorFixtures';
 import { getDispatchedEffects } from './testUtils';
 
 vi.mock('../tableWidget/domHelpers', async (importOriginal) => ({
@@ -28,7 +28,7 @@ const GRID_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |',
 /** Last body row is short of the header, so grid-width clamping would name a missing cell. */
 const RAGGED_DOC = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 |'].join('\n');
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 /** Waits one frame, which is when CodeMirror runs its measure cycle. */
 function nextAnimationFrame(): Promise<void> {
@@ -38,32 +38,18 @@ function nextAnimationFrame(): Promise<void> {
 }
 
 function mountSelectionView(doc: string, ...extra: Extension[]): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         extensions: cellSelectionTestExtensions(history(), ...extra),
         doc,
     });
-    mountedViews.push(view);
-
-    return view;
-}
-
-function pressKey(init: KeyboardEventInit & { key: string }): KeyboardEvent {
-    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
-    document.body.dispatchEvent(event);
-    return event;
 }
 
 afterEach(() => {
     vi.restoreAllMocks();
     // Destroy here rather than per-test so a failing assertion cannot leak the
     // plugin's document-level keydown listener into the next test.
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
+    viewHarness.destroyViews();
+    // Some tests focus external controls appended directly to the document.
     document.body.replaceChildren();
 });
 
@@ -83,7 +69,7 @@ describe('cellSelectionKeymap', () => {
             ],
         });
 
-        pressKey({ key: 'Escape' });
+        pressKey(document.body, { key: 'Escape' });
 
         expect(getActiveCell(view.state)).toMatchObject(anchor);
         expect(getCellSelection(view.state)).not.toBeNull();
@@ -103,7 +89,7 @@ describe('cellSelectionKeymap', () => {
         });
         view.dispatch({ effects: endCellDragEffect.of(null) });
 
-        pressKey({ key: 'Escape' });
+        pressKey(document.body, { key: 'Escape' });
 
         expect(getCellSelection(view.state)).toBeNull();
     });
@@ -121,7 +107,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Delete' });
+        pressKey(document.body, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(
             ['| H1 | H3 |', '| --- | --- |', '| A1 | A3 |', '| B1 | B3 |'].join('\n')
@@ -144,7 +130,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Backspace' });
+        pressKey(document.body, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
         expect(getCellSelection(view.state)).toEqual({
@@ -165,7 +151,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Backspace', shiftKey: true });
+        pressKey(document.body, { key: 'Backspace', shiftKey: true });
 
         expect(view.state.doc.toString()).toBe(['| H1 | H2 |', '| --- | --- |', '|  |  |'].join('\n'));
     });
@@ -182,7 +168,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Delete', shiftKey: true });
+        pressKey(document.body, { key: 'Delete', shiftKey: true });
 
         expect(view.state.doc.toString()).toBe(initialDoc);
     });
@@ -204,12 +190,7 @@ describe('cellSelectionKeymap', () => {
 
         const rootKeyDown = vi.fn();
         view.contentDOM.addEventListener('keydown', rootKeyDown);
-        const event = new KeyboardEvent('keydown', {
-            bubbles: true,
-            cancelable: true,
-            ...init,
-        });
-        view.contentDOM.dispatchEvent(event);
+        const event = pressKey(view.contentDOM, init);
 
         expect(rootKeyDown).not.toHaveBeenCalled();
         expect(event.defaultPrevented).toBe(false);
@@ -233,7 +214,7 @@ describe('cellSelectionKeymap', () => {
 
         const rootKeyDown = vi.fn();
         view.contentDOM.addEventListener('keydown', rootKeyDown);
-        view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+        pressKey(view.contentDOM, init);
 
         expect(rootKeyDown).toHaveBeenCalledTimes(1);
     });
@@ -253,14 +234,7 @@ describe('cellSelectionKeymap', () => {
         externalInput.focus();
         const inputKeyDown = vi.fn();
         externalInput.addEventListener('keydown', inputKeyDown);
-        externalInput.dispatchEvent(
-            new KeyboardEvent('keydown', {
-                bubbles: true,
-                cancelable: true,
-                key: 'x',
-                ctrlKey: true,
-            })
-        );
+        pressKey(externalInput, { key: 'x', ctrlKey: true });
 
         expect(inputKeyDown).toHaveBeenCalledTimes(1);
     });
@@ -277,7 +251,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'Delete' });
+        pressKey(document.body, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(['|  |  |', '| --- | --- |', '|  |  |'].join('\n'));
         expect(getCellSelection(view.state)).toEqual({
@@ -288,7 +262,7 @@ describe('cellSelectionKeymap', () => {
 
         focusSpy.mockClear();
 
-        pressKey({ key: 'Delete' });
+        pressKey(document.body, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe('');
         expect(getCellSelection(view.state)).toBeNull();
@@ -300,7 +274,7 @@ describe('cellSelectionKeymap', () => {
         const initialDoc = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
         const view = mountSelectionView(initialDoc);
 
-        pressKey({ key: 'Delete' });
+        pressKey(document.body, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(initialDoc);
         expect(getCellSelection(view.state)).toBeNull();
@@ -321,7 +295,7 @@ describe('cellSelectionKeymap', () => {
                 }),
             });
 
-            pressKey({ key });
+            pressKey(document.body, { key });
 
             expect(getCellSelection(view.state)).toBeNull();
             // The fixture table sits flush against both document edges, so entry pads it.
@@ -351,7 +325,7 @@ describe('cellSelectionKeymap', () => {
             } as const;
             view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-            pressKey({ key, shiftKey: true });
+            pressKey(document.body, { key, shiftKey: true });
 
             expect(getCellSelection(view.state)).toEqual(selection);
             expect(getActiveCell(view.state)).toBeNull();
@@ -374,7 +348,7 @@ describe('cellSelectionKeymap', () => {
         } as const;
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-        pressKey(init);
+        pressKey(document.body, init);
 
         expect(getCellSelection(view.state)).toEqual(selection);
         expect(getActiveCell(view.state)).toBeNull();
@@ -400,7 +374,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        const event = pressKey(init);
+        const event = pressKey(document.body, init);
 
         // The browser's text insertion has to stay in place: it lands in the cell editor.
         expect(event.defaultPrevented).toBe(false);
@@ -424,7 +398,7 @@ describe('cellSelectionKeymap', () => {
         } as const;
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-        pressKey(init);
+        pressKey(document.body, init);
 
         expect(getCellSelection(view.state)).toEqual(selection);
         expect(getActiveCell(view.state)).toBeNull();
@@ -442,7 +416,7 @@ describe('cellSelectionKeymap', () => {
         document.body.appendChild(input);
         input.focus();
 
-        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true }));
+        pressKey(input, { key: 'x' });
 
         expect(getCellSelection(view.state)).toEqual(selection);
         expect(getActiveCell(view.state)).toBeNull();
@@ -463,7 +437,7 @@ describe('cellSelectionKeymap', () => {
             effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }),
         });
 
-        pressKey({ key, shiftKey: true });
+        pressKey(document.body, { key, shiftKey: true });
 
         expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: expected });
     });
@@ -479,7 +453,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key: 'ArrowLeft', shiftKey: true });
+        pressKey(document.body, { key: 'ArrowLeft', shiftKey: true });
 
         expect(getCellSelection(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toMatchObject({
@@ -495,7 +469,7 @@ describe('cellSelectionKeymap', () => {
         const anchor = { section: 'header', row: 0, col: 0 } as const;
         view.dispatch({ effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }) });
 
-        pressKey({ key: 'ArrowLeft', shiftKey: true });
+        pressKey(document.body, { key: 'ArrowLeft', shiftKey: true });
 
         expect(getCellSelection(view.state)).toEqual({ tableFrom: 0, anchor, focus: anchor });
         expect(getActiveCell(view.state)).toBeNull();
@@ -518,7 +492,7 @@ describe('cellSelectionKeymap', () => {
             }),
         });
 
-        pressKey({ key });
+        pressKey(document.body, { key });
 
         expect(getCellSelection(view.state)).toBeNull();
         expect(view.state.selection.main.head).toBe(
@@ -538,7 +512,7 @@ describe('cellSelectionKeymap', () => {
                 }),
             });
 
-            pressKey({ key });
+            pressKey(document.body, { key });
 
             expect(getCellSelection(view.state)).toBeNull();
         }
@@ -560,7 +534,7 @@ describe('cellSelectionKeymap', () => {
         } as const;
         view.dispatch({ effects: setCellSelectionEffect.of(selection) });
 
-        pressKey(init);
+        pressKey(document.body, init);
 
         expect(getCellSelection(view.state)).toEqual(selection);
     });
@@ -649,7 +623,7 @@ describe('cellSelectionKeymap', () => {
         const anchor = { section: 'body', row: 0, col: 2 } as const;
         view.dispatch({ effects: setCellSelectionEffect.of({ tableFrom: 0, anchor, focus: anchor }) });
 
-        pressKey({ key: 'ArrowDown', shiftKey: true });
+        pressKey(document.body, { key: 'ArrowDown', shiftKey: true });
 
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,

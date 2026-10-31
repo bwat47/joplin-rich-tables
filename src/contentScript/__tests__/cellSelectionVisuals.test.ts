@@ -1,37 +1,28 @@
 import { markdown } from '@codemirror/lang-markdown';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { cellDragField, endCellDragEffect, startCellDragEffect } from '../tableState/cellDragState';
 import { cellSelectionField, clearCellSelectionEffect, setCellSelectionEffect } from '../tableState/cellSelectionState';
 import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
+import { createEditorViewHarness } from './tableEditorFixtures';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const DOC = `above\n${TABLE}\nbelow`;
 const TABLE_FROM = 'above'.length + 1;
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountView(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         doc: DOC,
         extensions: [markdown({ extensions: [GFM] }), cellSelectionField, cellDragField, cellSelectionVisuals],
     });
-    mountedViews.push(view);
-
-    return view;
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('cell drag focus override', () => {

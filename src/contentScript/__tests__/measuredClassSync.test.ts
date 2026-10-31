@@ -1,13 +1,12 @@
 import { StateEffect } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { measuredClassSyncPlugin } from '../tableWidget/measuredClassSync';
-import { flushViewMeasure } from './tableEditorFixtures';
+import { createEditorViewHarness, flushViewMeasure } from './tableEditorFixtures';
 
 const CLASS_NAME = 'tracked';
 const refreshEffect = StateEffect.define<void>();
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 interface MutationTracker {
     disconnect: () => void;
@@ -32,26 +31,22 @@ function observeClassMutations(element: HTMLElement): MutationTracker {
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
+    viewHarness.destroyViews();
+    // The tracked elements sit beside the editor, directly in the document.
     document.body.replaceChildren();
 });
 
 describe('measuredClassSyncPlugin', () => {
     it('mutates classes only for elements whose collected membership changed', async () => {
-        const parent = document.createElement('div');
         const retained = document.createElement('div');
         const removed = document.createElement('div');
         const added = document.createElement('div');
-        document.body.append(parent, retained, removed, added);
+        document.body.append(retained, removed, added);
 
         let collected = [retained, removed];
-        const view = new EditorView({
-            parent,
+        const view = viewHarness.mountView({
             extensions: [measuredClassSyncPlugin(CLASS_NAME, () => collected)],
         });
-        mountedViews.push(view);
         await flushViewMeasure(view);
 
         expect(retained.classList.contains(CLASS_NAME)).toBe(true);
@@ -89,20 +84,17 @@ describe('measuredClassSyncPlugin', () => {
     });
 
     it('removes the class from the elements it marked when the view is destroyed', async () => {
-        const parent = document.createElement('div');
         const marked = document.createElement('div');
-        document.body.append(parent, marked);
+        document.body.append(marked);
 
-        const view = new EditorView({
-            parent,
+        const view = viewHarness.mountView({
             extensions: [measuredClassSyncPlugin(CLASS_NAME, () => [marked])],
         });
-        mountedViews.push(view);
         await flushViewMeasure(view);
 
         expect(marked.classList.contains(CLASS_NAME)).toBe(true);
 
-        mountedViews.pop()?.destroy();
+        viewHarness.destroyViews();
 
         expect(marked.classList.contains(CLASS_NAME)).toBe(false);
     });

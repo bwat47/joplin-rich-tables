@@ -1,5 +1,5 @@
 import { EditorSelection, EditorState, type SelectionRange } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { TableContext } from '../tableModel/tableContext';
@@ -13,7 +13,7 @@ import { buildCellSelectionRanges, cellTextFromContext } from '../tableRuntime/s
 import { tableSelectionSnapFilter } from '../tableRuntime/selection/tableSelectionSnap';
 import { getCellSelection, toSelectionRect } from '../tableState/cellSelectionState';
 import { getTableContextStartingAt } from '../tableState/tableContextField';
-import { cellSelectionTestExtensions } from './tableEditorFixtures';
+import { cellSelectionTestExtensions, createEditorViewHarness } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 import { requireBodyCellRange } from './testUtils';
 
@@ -58,25 +58,17 @@ function boldEveryRange(view: EditorView): void {
     );
 }
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function mountView(doc: string): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-    const view = new EditorView({
-        parent,
+    return viewHarness.mountView({
         doc,
         extensions: cellSelectionTestExtensions(EditorState.allowMultipleSelections.of(true), tableSelectionSnapFilter),
     });
-    mountedViews.push(view);
-    return view;
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('buildCellSelectionRanges', () => {

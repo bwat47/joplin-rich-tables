@@ -21,14 +21,14 @@ import {
 } from '../tableState/sourceMode';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
 import { openSearchPanelInState } from './searchPanelTestUtils';
-import { createResizeObserverStub } from './tableEditorFixtures';
+import { createEditorViewHarness, createResizeObserverStub } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
 const HEADER_CELL = { tableFrom: 0, section: 'header' as const, row: 0, col: 0 };
 
 const resizeObserver = createResizeObserverStub();
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 beforeAll(() => {
     resizeObserver.install();
@@ -39,19 +39,12 @@ afterAll(() => {
 });
 
 afterEach(() => {
-    for (const view of mountedViews) {
-        view.destroy();
-        view.dom.remove();
-    }
-    mountedViews.length = 0;
+    viewHarness.destroyViews();
 });
 
 function mount(): { view: EditorView; updates: ViewUpdate[] } {
     const updates: ViewUpdate[] = [];
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-    const view = new EditorView({
-        parent,
+    const view = viewHarness.mountView({
         state: createMarkdownState(TABLE, [
             search(),
             activeCellField,
@@ -65,7 +58,6 @@ function mount(): { view: EditorView; updates: ViewUpdate[] } {
             }),
         ]),
     });
-    mountedViews.push(view);
     return { view, updates };
 }
 

@@ -6,12 +6,12 @@ import { tableBoundaryDeletionExtension } from '../tableRuntime/boundaries/table
 import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { getCellSelection } from '../tableState/cellSelectionState';
 import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
+import { pressKey } from './tableEditorFixtures';
 import {
     createTableEntryTestHarness,
     currentTableFrom,
     expectBoundaryCellOpen,
     expectCellOpen,
-    pressKey,
     RAW_MODE_CASES,
     TABLE,
 } from './tableEntryFixtures';
@@ -210,7 +210,7 @@ describe('table boundary deletion protection', () => {
     ] as const)('$key at $caret preserves the boundary by entering the table', ({ key, pos, edge }) => {
         const view = mountView(AROUND_TABLE_DOC, pos);
 
-        pressKey(view, key);
+        pressKey(view.contentDOM, { key });
 
         expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
         expectBoundaryCellOpen(view, edge);
@@ -229,7 +229,7 @@ describe('table boundary deletion protection', () => {
     ] as const)('$key at $caret preserves the boundary by moving the caret', ({ key, pos, offset }) => {
         const view = mountView(AROUND_TABLE_DOC, pos);
 
-        pressKey(view, key);
+        pressKey(view.contentDOM, { key });
 
         expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
         expect(view.state.selection.main.head).toBe(pos + offset);
@@ -255,7 +255,7 @@ describe('table boundary deletion protection', () => {
     ] as const)('protects a whitespace-only blank line $side the table', ({ key, doc, pos, edge }) => {
         const view = mountView(doc, pos);
 
-        pressKey(view, key);
+        pressKey(view.contentDOM, { key });
 
         expect(view.state.doc.toString()).toBe(doc);
         expectBoundaryCellOpen(view, edge);
@@ -265,7 +265,7 @@ describe('table boundary deletion protection', () => {
         const doc = `${BEFORE}\n \n \t\n${TABLE}\n`;
         const view = mountView(doc, BEFORE.length);
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(`${BEFORE} \n \t\n${TABLE}\n`);
         expect(getActiveCell(view.state)).toBeNull();
@@ -292,7 +292,7 @@ describe('table boundary deletion protection', () => {
         const view = mountView(AROUND_TABLE_DOC, start);
 
         for (const position of positions) {
-            pressKey(view, key);
+            pressKey(view.contentDOM, { key });
             expect(view.state.doc.toString()).toBe(AROUND_TABLE_DOC);
             expect(view.state.selection.main.head).toBe(position);
             expect(getActiveCell(view.state)).toBeNull();
@@ -320,8 +320,8 @@ describe('table boundary deletion protection', () => {
         ({ key, start, expectedDoc, expectedCaret }) => {
             const view = mountView(AROUND_TABLE_DOC, start);
 
-            pressKey(view, key);
-            pressKey(view, key);
+            pressKey(view.contentDOM, { key });
+            pressKey(view.contentDOM, { key });
 
             expect(view.state.doc.toString()).toBe(expectedDoc);
             expect(view.state.selection.main.head).toBe(expectedCaret);
@@ -339,7 +339,7 @@ describe('table boundary deletion protection', () => {
         const doc = `${BEFORE}\n\n\n${TABLE}\n`;
         const view = mountView(doc, BEFORE.length + offset);
 
-        pressKey(view, key);
+        pressKey(view.contentDOM, { key });
 
         expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
         expect(getActiveCell(view.state)).toBeNull();
@@ -350,7 +350,7 @@ describe('table boundary deletion protection', () => {
         const doc = `${BEFORE}\n\n\n${TABLE}\n`;
         const view = mountView(doc, doc.indexOf(TABLE) - 1);
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expectBoundaryCellOpen(view, 'start');
@@ -361,7 +361,7 @@ describe('table boundary deletion protection', () => {
         const tableFrom = doc.indexOf(TABLE);
         const view = mountView(doc, tableFrom);
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expect(view.state.selection.main.head).toBe(tableFrom - 1);
@@ -391,11 +391,11 @@ describe('table boundary deletion protection', () => {
 
             // The surplus blank lines are ordinary text: each press removes one until only
             // the required separation is left.
-            pressKey(view, key);
+            pressKey(view.contentDOM, { key });
             expect(view.state.doc.toString()).toBe(`\n${TABLE}\n\n\n${TABLE}\n`);
             expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
-            pressKey(view, key);
+            pressKey(view.contentDOM, { key });
 
             expect(view.state.doc.toString()).toBe(`\n${TABLE}\n\n\n${TABLE}\n`);
             const currentFirstTableFrom = view.state.doc.toString().indexOf(TABLE);
@@ -425,7 +425,7 @@ describe('table boundary deletion protection', () => {
             const tableFrom = expectedTable === 0 ? firstTableFrom : secondTableFrom;
             const view = mountView(doc, firstTableFrom + TABLE.length + 1);
 
-            pressKey(view, key);
+            pressKey(view.contentDOM, { key });
 
             expect(view.state.doc.toString()).toBe(doc);
             expectCellOpen(
@@ -442,7 +442,7 @@ describe('table boundary deletion protection', () => {
         const doc = BELOW_TABLE_DOC;
         const view = mountView(doc, doc.indexOf(AFTER));
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expectBoundaryCellOpen(view, 'end');
@@ -452,7 +452,7 @@ describe('table boundary deletion protection', () => {
         const doc = BELOW_TABLE_DOC;
         const view = mountView(doc, doc.indexOf(AFTER));
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
         view.dispatch({
             changes: { from: doc.length - 1, to: doc.length },
             userEvent: 'delete.backward',
@@ -466,9 +466,9 @@ describe('table boundary deletion protection', () => {
         const view = mountView(doc, doc.indexOf(AFTER));
 
         // The nested editor mounts a frame later, so the main editor still owns these.
-        pressKey(view, 'Backspace');
-        pressKey(view, 'Backspace');
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
+        pressKey(view.contentDOM, { key: 'Backspace' });
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expectBoundaryCellOpen(view, 'end');
@@ -478,7 +478,7 @@ describe('table boundary deletion protection', () => {
         const doc = ABOVE_TABLE_DOC;
         const view = mountView(doc, BEFORE.length);
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expectBoundaryCellOpen(view, 'start');
@@ -489,7 +489,7 @@ describe('table boundary deletion protection', () => {
         const doc = docBelowTable(headerOnlyTable);
         const view = mountView(doc, doc.indexOf(AFTER));
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expect(getActiveCell(view.state)).toEqual({
@@ -519,7 +519,7 @@ describe('table boundary deletion protection', () => {
         const doc = docBelowTable(table);
         const view = mountView(doc, doc.indexOf(AFTER));
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         // A ragged table is not canonical, so entry rewrites it in the same transaction.
         expect(view.state.doc.toString()).toBe(docBelowTable(normalized));
@@ -537,12 +537,12 @@ describe('table boundary deletion protection', () => {
         const doc = `\n${TABLE}\n\n\n${AFTER}`;
         const view = mountView(doc, doc.indexOf(AFTER));
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
         expect(view.state.doc.toString()).toBe(BELOW_TABLE_DOC);
         expect(getCellSelection(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toBeNull();
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
         expect(view.state.doc.toString()).toBe(BELOW_TABLE_DOC);
         expectBoundaryCellOpen(view, 'end');
     });
@@ -568,14 +568,14 @@ ${TABLE}
 ${AFTER}`;
         const view = mountView(doc, pos);
 
-        pressKey(view, key);
+        pressKey(view.contentDOM, { key });
         expect(view.state.doc.toString()).toBe(expectedDoc);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
         // Target the remaining newline from the side appropriate to each deletion direction.
         view.dispatch({ selection: { anchor: protectedPos } });
-        pressKey(view, key);
+        pressKey(view.contentDOM, { key });
         expect(view.state.doc.toString()).toBe(expectedDoc);
         return view;
     }
@@ -602,12 +602,12 @@ ${TABLE}
 `;
         const view = mountView(doc, doc.length);
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
         expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getPendingOpenCellRequest(view.state)).toBeNull();
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
         expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
         expectBoundaryCellOpen(view, 'end');
     });
@@ -634,11 +634,11 @@ ${AFTER}`);
         const doc = `${BEFORE}\n\n\n${TABLE}\n`;
         const view = mountView(doc, BEFORE.length);
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
         expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
         expect(getActiveCell(view.state)).toBeNull();
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
         expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
         expectBoundaryCellOpen(view, 'start');
     });
@@ -647,7 +647,7 @@ ${AFTER}`);
         const doc = `${BEFORE}\n${TABLE}\n${AFTER}`;
         const view = mountView(doc, BEFORE.length);
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(`${BEFORE}\n\n${TABLE}\n| ${AFTER} |  |\n`);
         expectBoundaryCellOpen(view, 'start');
@@ -656,7 +656,7 @@ ${AFTER}`);
     it('enters a canonical table without touching the document', () => {
         const view = mountView(ABOVE_TABLE_DOC, BEFORE.length);
 
-        pressKey(view, 'Delete');
+        pressKey(view.contentDOM, { key: 'Delete' });
 
         expect(view.state.doc.toString()).toBe(ABOVE_TABLE_DOC);
         expectBoundaryCellOpen(view, 'start');
@@ -709,7 +709,7 @@ ${AFTER}`);
         const view = mountView(doc, TABLE.length + 1);
         enterRawMode(view);
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).not.toBe(doc);
         expect(getCellSelection(view.state)).toBeNull();
@@ -721,7 +721,7 @@ ${AFTER}`);
         const doc = `${TABLE}\nafter`;
         const view = mountView(doc, { anchor: TABLE.length + 1, head: TABLE.length + 'after'.length + 1 });
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(`${TABLE}\n`);
         expect(getCellSelection(view.state)).toBeNull();
@@ -756,7 +756,7 @@ ${AFTER}`);
     ])('protects the table from $label', ({ key, modifiers, doc, caret, edge }) => {
         const view = mountView(doc, caret);
 
-        pressKey(view, key, modifiers);
+        pressKey(view.contentDOM, { key, ...modifiers });
 
         expect(view.state.doc.toString()).toBe(doc);
         expectBoundaryCellOpen(view, edge);
@@ -774,7 +774,7 @@ ${AFTER}`);
             }),
         });
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(getCellSelection(view.state)).toBeNull();
     });
@@ -789,7 +789,7 @@ ${AFTER}`);
             ]),
         });
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expect(view.state.selection.ranges).toHaveLength(1);
@@ -806,7 +806,7 @@ ${AFTER}`);
             ]),
         });
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(`${BEFORE}\n${TABLE}\n\n${AFTER.slice(0, -1)}`);
         expect(view.state.selection.ranges).toHaveLength(2);
@@ -889,7 +889,7 @@ ${AFTER}`);
             ]),
         });
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(doc);
         expect(getActiveCell(view.state)).toEqual({
@@ -910,7 +910,7 @@ ${AFTER}`);
             ]),
         });
 
-        pressKey(view, 'Backspace');
+        pressKey(view.contentDOM, { key: 'Backspace' });
 
         expect(view.state.doc.toString()).toBe(`${TABLE}\n\nalph\nbet`);
         expect(getActiveCell(view.state)).toBeNull();

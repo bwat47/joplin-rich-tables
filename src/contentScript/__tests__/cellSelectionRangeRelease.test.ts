@@ -1,5 +1,5 @@
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { CellCoords } from '../tableModel/types';
@@ -10,14 +10,14 @@ import {
 } from '../tableRuntime/selection/cellSelectionRangeRelease';
 import { cellSelectionScopeGuard } from '../tableRuntime/selection/cellSelectionScopeGuard';
 import { clearCellSelectionEffect, getCellSelection } from '../tableState/cellSelectionState';
-import { cellSelectionTestExtensions } from './tableEditorFixtures';
+import { cellSelectionTestExtensions, createEditorViewHarness } from './tableEditorFixtures';
 
 const TABLE = ['| H1 | H2 | H3 |', '| --- | --- | --- |', '| a1 | a2 | a3 |', '| b1 | b2 | b3 |'].join('\n');
 const AFTER = 'after';
 const DOC = `${TABLE}\n\n${AFTER}`;
 const TABLE_SPAN = { from: 0, to: TABLE.length };
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 
 function pos(text: string): number {
     return DOC.indexOf(text);
@@ -40,10 +40,7 @@ async function flushMicrotasks(): Promise<void> {
 
 /** Mounts the document with body cells (0,0)–(1,1) selected by a completed drag. */
 function mountWithSelection(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-    const view = new EditorView({
-        parent,
+    const view = viewHarness.mountView({
         doc: DOC,
         extensions: cellSelectionTestExtensions(
             EditorState.allowMultipleSelections.of(true),
@@ -51,17 +48,13 @@ function mountWithSelection(): EditorView {
             cellSelectionRangeRelease
         ),
     });
-    mountedViews.push(view);
     setCellDragSelection(view, 0, body(0, 0), body(1, 1));
     endCellDragSelection(view, { keepActiveCell: false });
     return view;
 }
 
 afterEach(() => {
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
-    document.body.replaceChildren();
+    viewHarness.destroyViews();
 });
 
 describe('releaseParkedCellRanges', () => {

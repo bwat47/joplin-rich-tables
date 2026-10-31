@@ -1,4 +1,4 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { markdownRenderServiceFacet } from '../services/markdownRenderer';
@@ -15,7 +15,7 @@ import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/o
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 import { getCellSelector } from '../tableWidget/domHelpers';
 import { TableWidget } from '../tableWidget/TableWidget';
-import { createResizeObserverStub } from './tableEditorFixtures';
+import { createEditorViewHarness, createResizeObserverStub } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 import { htmlFragment, parseCellRangesFixture } from './testUtils';
 
@@ -35,7 +35,7 @@ interface MountedGestureView {
     };
 }
 
-const mountedViews: EditorView[] = [];
+const viewHarness = createEditorViewHarness();
 let elementAtPoint: Element | null = null;
 let originalElementFromPoint: PropertyDescriptor | undefined;
 let originalCaretRangeFromPoint: PropertyDescriptor | undefined;
@@ -79,11 +79,7 @@ function findCell(widget: HTMLElement, coords: CellCoords): HTMLTableCellElement
 }
 
 function mountGestureView(doc = GRID_DOC): MountedGestureView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-
-    const view = new EditorView({
-        parent,
+    const view = viewHarness.mountView({
         state: createMarkdownState(doc, [
             markdownRenderServiceFacet.of({
                 getCached: vi.fn(() => undefined),
@@ -97,7 +93,6 @@ function mountGestureView(doc = GRID_DOC): MountedGestureView {
             mouseCellDragSelectionPlugin,
         ]),
     });
-    mountedViews.push(view);
 
     vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
 
@@ -227,9 +222,8 @@ beforeEach(() => {
 afterEach(() => {
     elementAtPoint = null;
     resetPageScroller();
-    while (mountedViews.length > 0) {
-        mountedViews.pop()?.destroy();
-    }
+    viewHarness.destroyViews();
+    // Some tests append external controls and page content directly to the document.
     document.body.replaceChildren();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -1399,8 +1393,7 @@ describe('mouse cell drag selection', () => {
         const { view, cells } = mountGestureView();
         cells.header0.dispatchEvent(pointerEvent('pointerdown', { button: 0, clientX: 10, clientY: 10 }));
 
-        mountedViews.splice(mountedViews.indexOf(view), 1);
-        view.destroy();
+        viewHarness.destroyViews();
 
         elementAtPoint = cells.body1;
         const drag = pointerEvent('pointermove', { button: 0, clientX: 40, clientY: 40 });
