@@ -6,7 +6,7 @@ A Joplin plugin that replaces Markdown table syntax with interactive `TableWidge
 
 - `tableModel/`: Lezer syntax projection into editable ranges, normalized table semantics, serialization, table math, cell text encoding, and cell text selection mapping.
 - `tableState/`: CodeMirror `StateField`/`StateEffect` definitions, selectors, active-cell change classification, and open-cell request state. `tableContextField.ts` is the authoritative root-table index. `activeCellState.ts` holds logical active-cell state. `resolvedActiveCell.ts` resolves that identity into the current table context and document ranges, clamping requested targets and resolving stored identities strictly. `activeCellTarget.ts` constructs active-cell identity and selection anchors for serialized tables.
-- `tableRuntime/`: editor-bound orchestration, with shared runtime primitives at the root and subdomains for `boundaries/` (blank-line separation and adjacent-table resolution), `guard/` (main-editor transaction guard and active-cell input sanitization), `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/`, `navigation/`, `operations/`, `search/` (search-panel open/close side effects and find-match cell entry), and `selection/`.
+- `tableRuntime/`: editor-bound orchestration, with shared runtime primitives at the root and subdomains for `boundaries/` (blank-line separation, adjacent-table resolution, and deletion protection at table boundaries), `guard/` (main-editor transaction guard and active-cell input sanitization), `interaction/` (widget press/click routing, pointer gestures, outside-interaction handling, and nested-editor table interaction extensions), `lifecycle/` (nested-editor coordination), `navigation/`, `operations/`, `search/` (search-panel open/close side effects and find-match cell entry), and `selection/`. The root holds only primitives shared across subdomains; a feature with a single consumer lives in that consumer's subdomain.
 - `tableWidget/`: widget DOM and rendering, DOM measurement and coordinate reading, DOM-to-table-context resolution, visual styling, display-mode behavior, and decoration policy.
 - `nestedEditor/`: in-cell editor mount, synchronization, selection mirroring, and cleanup.
 - `toolbar/`: floating UI for row, column, alignment, and sorting actions (`tableToolbarPlugin.ts`).
@@ -27,6 +27,9 @@ sits outside the layer folders so it may import from all of them.
 `LAYER_DEPENDENCIES` in `eslint.config.mjs` is the source of truth. `shared`, `tableModel`, and `tableState` never
 depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and `tableCommands`, which reach the editor
 only through state and runtime APIs. Tests and the composition root are outside every layer zone.
+
+Inside `tableRuntime`, `lifecycle/` is the coordinator: it may import the other subdomains, but neither they nor the
+root primitives may import from it (`TABLE_RUNTIME_LIFECYCLE_ZONE` in `eslint.config.mjs`).
 
 ## Documentation Index
 

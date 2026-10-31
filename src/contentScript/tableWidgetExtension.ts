@@ -15,6 +15,7 @@ import {
 } from './services/markdownRenderer';
 import { noteIdentityFacet } from './services/noteIdentity';
 import { registerTableCommands } from './tableCommands/tableCommands';
+import { tableBoundaryDeletionExtension } from './tableRuntime/boundaries/tableBoundaryDeletion';
 import { tableBoundaryMaintenanceExtension } from './tableRuntime/boundaries/tableBoundaryMaintenance';
 import { createMainEditorActiveCellGuard } from './tableRuntime/guard/mainEditorGuard';
 import { mouseCellDragSelectionPlugin } from './tableRuntime/interaction/mouseCellDragSelection';
@@ -24,6 +25,7 @@ import {
 } from './tableRuntime/interaction/outsideTableInteraction';
 import { widgetInteractionHandlers } from './tableRuntime/interaction/widgetInteraction';
 import { nestedEditorLifecyclePlugin } from './tableRuntime/lifecycle/nestedEditorLifecycle';
+import { createUndoScrollPreservation } from './tableRuntime/lifecycle/undoScrollPreservation';
 import { mainEditorTableEntryExtension } from './tableRuntime/navigation/mainEditorTableEntry';
 import { openCellRequestKeymap, openCellRequestTimeoutPlugin } from './tableRuntime/openCellRequest';
 import { searchMatchCellEntryExtension } from './tableRuntime/search/searchMatchCellEntry';
@@ -35,7 +37,6 @@ import { cellSelectionKeyCapturePlugin } from './tableRuntime/selection/cellSele
 import { cellSelectionRangeRelease } from './tableRuntime/selection/cellSelectionRangeRelease';
 import { cellSelectionScopeGuard } from './tableRuntime/selection/cellSelectionScopeGuard';
 import { tableSelectionSnapFilter } from './tableRuntime/selection/tableSelectionSnap';
-import { createUndoScrollPreservation } from './tableRuntime/undoScrollPreservation';
 import { activeCellField } from './tableState/activeCellState';
 import { cellDragField } from './tableState/cellDragState';
 import { cellSelectionField } from './tableState/cellSelectionState';
@@ -112,6 +113,7 @@ async function registerTableWidgetExtension(
         cellSelectionField,
         cellSelectionEditRetention,
         cellDragField,
+        tableBoundaryDeletionExtension,
         mainEditorTableEntryExtension,
         tableSelectionSnapFilter,
         // Registered ahead of the guard so its paste rewrites are already spaced when

@@ -5,7 +5,7 @@ import { GFM } from '@lezer/markdown';
 import { vi, type Mock } from 'vitest';
 
 import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
-import { createUndoScrollPreservation } from '../tableRuntime/undoScrollPreservation';
+import { createUndoScrollPreservation } from '../tableRuntime/lifecycle/undoScrollPreservation';
 import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { tableContextField } from '../tableState/tableContextField';
 

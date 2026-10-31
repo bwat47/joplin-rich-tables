@@ -1,9 +1,9 @@
 import { EditorState, type Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
-import { isNestedEditorOpen } from '../nestedEditor/nestedEditorController';
-import { classifyActiveCellChanges } from '../tableState/activeCellChangeScope';
-import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
+import { isNestedEditorOpen } from '../../nestedEditor/nestedEditorController';
+import { classifyActiveCellChanges } from '../../tableState/activeCellChangeScope';
+import { getResolvedActiveCell } from '../../tableState/resolvedActiveCell';
 
 /**
  * Injects a scroll snapshot effect into undo/redo transactions while a nested

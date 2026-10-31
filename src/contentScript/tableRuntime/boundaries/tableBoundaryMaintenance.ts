@@ -29,7 +29,7 @@ const BOUNDARY_PADDING_NEWLINE = '\n';
 /**
  * User events whose transactions must never be padded.
  *
- * Deletions are protected by `mainEditorTableEntry` instead, and undo must be able to reach the
+ * Deletions are protected by `tableBoundaryDeletion` instead, and undo must be able to reach the
  * document as the user last left it.
  */
 const EXCLUDED_USER_EVENTS = ['delete', 'undo', 'redo'] as const;
@@ -169,7 +169,7 @@ function buildPaddedTransaction(transaction: Transaction, padding: BoundaryPaddi
  * Restores the blank line a table needs when typing, pasting, or a host command fills it in.
  *
  * The separation a table keeps from its neighbours is protected against deletion by
- * `mainEditorTableEntry` and repaired on cell entry by `tableCanonicalForm`; this closes the
+ * `tableBoundaryDeletion` and repaired on cell entry by `tableCanonicalForm`; this closes the
  * remaining hole, where the user writes text into the blank line instead of removing it.
  * The padding is folded into the same transaction so the host never sees the unseparated
  * document, and one undo takes both back.

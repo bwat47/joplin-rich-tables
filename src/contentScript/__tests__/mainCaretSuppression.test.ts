@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { toggleSourceMode } from '../tableRuntime/sourceModeController';
+import { toggleSourceMode } from '../tableRuntime/operations/sourceModeController';
 import { activeCellField } from '../tableState/activeCellState';
 import { cellDragField, startCellDragEffect } from '../tableState/cellDragState';
 import {

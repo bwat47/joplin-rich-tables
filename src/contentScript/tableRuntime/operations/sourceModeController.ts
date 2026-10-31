@@ -2,9 +2,9 @@ import { searchPanelOpen } from '@codemirror/search';
 import type { StateEffect } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
-import { requestViewAnimationFrame } from '../shared/domContext';
-import { clearActiveCellEffect, getActiveCell } from '../tableState/activeCellState';
-import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../tableState/sourceMode';
+import { requestViewAnimationFrame } from '../../shared/domContext';
+import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCellState';
+import { exitSourceModeEffect, isSourceModeEnabled, toggleSourceModeEffect } from '../../tableState/sourceMode';
 
 function focusMainEditorForExplicitSourceModeEntry(view: EditorView): void {
     requestViewAnimationFrame(view, () => {

@@ -4,6 +4,7 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import { Direction, EditorView, keymap } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { tableBoundaryDeletionExtension } from '../tableRuntime/boundaries/tableBoundaryDeletion';
 import { mainEditorTableEntryExtension } from '../tableRuntime/navigation/mainEditorTableEntry';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
@@ -76,6 +77,7 @@ function mountView(doc: string, selection: number | { anchor: number; head: numb
             // block structure to find the table a movement stepped over.
             tableDecorationField,
             EditorState.allowMultipleSelections.of(true),
+            tableBoundaryDeletionExtension,
             mainEditorTableEntryExtension,
             cellSelectionKeyCapturePlugin,
             keymap.of(defaultKeymap),
@@ -161,7 +163,7 @@ function expectCellOpen(
     expect(getPendingOpenCellRequest(view.state)).toMatchObject({ initialCursorPos });
 }
 
-describe('mainEditorTableEntry deletion protection', () => {
+describe('table boundary deletion protection', () => {
     it('protects the boundary above a table from a native linewise cut', () => {
         const tableFrom = AROUND_TABLE_DOC.indexOf(TABLE);
         const view = mountView(AROUND_TABLE_DOC, tableFrom - 1);
