@@ -59,9 +59,14 @@
         "tar": "^7.5.13",
         "ts-loader": "^9.5.7",
         "typescript": "^6.0.3",
-        "typescript-eslint": "^8.71.2",
+        "typescript-eslint": "8.71.2",
         "vitest": "^5.0.5",
         "webpack": "^5.105.4",
         "webpack-cli": "^7.0.2"
+    },
+    "overrides": {
+        "eslint-plugin-tsdoc": {
+            "@typescript-eslint/utils": "8.72.1"
+        }
     }
 }
