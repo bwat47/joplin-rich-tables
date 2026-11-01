@@ -26,15 +26,21 @@ import { requireResolvedActiveCell } from './testUtils';
 
 type HistoryAction = 'undo' | 'redo';
 
+/**
+ * Keydown init for a simulated chord. `keyCode` is redeclared without the DOM deprecation:
+ * CodeMirror reads it to resolve shortcuts typed on non-Latin layouts, so cases must set it.
+ */
+type KeyInit = Omit<KeyboardEventInit, 'keyCode'> & { key: string; keyCode?: number };
+
 interface ShortcutCase {
     label: string;
-    init: KeyboardEventInit & { key: string };
+    init: KeyInit;
     action: HistoryAction;
 }
 
 interface RejectedShortcutCase {
     label: string;
-    init: KeyboardEventInit & { key: string };
+    init: KeyInit;
 }
 
 const SUPPORTED: Record<SimulatedPlatform, [ShortcutCase, ...ShortcutCase[]]> = {
@@ -86,7 +92,7 @@ const REJECTED_EVERYWHERE: RejectedShortcutCase[] = [
 
 interface KeyCase {
     label: string;
-    init: KeyboardEventInit & { key: string };
+    init: KeyInit;
 }
 
 /** Cases a test reads by first entry, so each list must hold at least one. */
@@ -306,7 +312,7 @@ const SECOND_EDIT = '\n#two';
 const LETTER_KEY = /^[a-z]$/i;
 installRangeLayoutStubs();
 
-function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }): KeyboardEvent {
+function pressKey(target: EventTarget, init: KeyInit): KeyboardEvent {
     const isLetter = LETTER_KEY.test(init.key);
     const key = isLetter && init.shiftKey ? init.key.toUpperCase() : init.key;
     const event = new KeyboardEvent('keydown', {
@@ -317,7 +323,6 @@ function pressKey(target: EventTarget, init: KeyboardEventInit & { key: string }
     });
     // jsdom ignores `keyCode` in the init dictionary, and CodeMirror needs it to resolve
     // non-Latin layouts, so an explicit value wins over the one derived from a Latin letter.
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- CodeMirror uses keyCode to resolve non-Latin shortcuts.
     const keyCode = init.keyCode ?? (isLetter ? init.key.toUpperCase().charCodeAt(0) : undefined);
     if (keyCode !== undefined) {
         Object.defineProperty(event, 'keyCode', { get: () => keyCode });
@@ -547,7 +552,7 @@ export function registerPlatformShortcutTests(
         expect(historyCounter.events).toEqual([action]);
     });
 
-    function expectNestedShortcutIgnored(init: KeyboardEventInit & { key: string }): void {
+    function expectNestedShortcutIgnored(init: KeyInit): void {
         const { view: mainView, historyCounter } = mountMainHistoryView();
         const nestedView = mountNestedKeymap(mainView);
         const before = mainView.state.doc.toString();
@@ -559,7 +564,7 @@ export function registerPlatformShortcutTests(
         expect(historyCounter.events).toEqual([]);
     }
 
-    function expectSelectionShortcutIgnored(init: KeyboardEventInit & { key: string }): void {
+    function expectSelectionShortcutIgnored(init: KeyInit): void {
         const { view, historyCounter } = mountSelectionView();
         primeTwoEdits(view);
         selectBodyCells(view);
@@ -598,7 +603,7 @@ export function registerPlatformShortcutTests(
         expectSelectionShortcutIgnored(init);
     });
 
-    function expectSelectionDeleted(init: KeyboardEventInit & { key: string }): void {
+    function expectSelectionDeleted(init: KeyInit): void {
         const { view } = mountSelectionView();
         selectBodyCells(view);
 
@@ -608,7 +613,7 @@ export function registerPlatformShortcutTests(
         expect(view.state.doc.toString()).toBe(EMPTY_BODY_DOC);
     }
 
-    function expectSelectionDeleteIgnored(init: KeyboardEventInit & { key: string }): void {
+    function expectSelectionDeleteIgnored(init: KeyInit): void {
         const { view } = mountSelectionView();
         selectBodyCells(view);
 
@@ -633,7 +638,7 @@ export function registerPlatformShortcutTests(
      * still belongs to the table runtime: the main caret is parked inside the focus cell,
      * so letting it through would delete document text the user cannot see.
      */
-    function expectSelectionDeleteSwallowed(init: KeyboardEventInit & { key: string }): void {
+    function expectSelectionDeleteSwallowed(init: KeyInit): void {
         const { view } = mountSelectionView();
         view.dispatch({
             effects: setCellSelectionEffect.of({
@@ -657,7 +662,7 @@ export function registerPlatformShortcutTests(
     );
 
     /** Presses `init` on the root editor and reports whether the root's own keydown listener saw it. */
-    function pressClipboardChord(init: KeyboardEventInit & { key: string }): {
+    function pressClipboardChord(init: KeyInit): {
         view: EditorView;
         event: KeyboardEvent;
         rootKeyDown: ReturnType<typeof vi.fn>;
