@@ -2,7 +2,7 @@ import type { Extension } from '@codemirror/state';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 
 import type { NestedEditorInteractionControls } from '../../nestedEditor/nestedEditorController';
-import { isCaretOnSameVisualLine } from '../../shared/caretVisualLine';
+import { isCaretOnFirstVisualLine, isCaretOnLastVisualLine } from '../../shared/caretVisualLine';
 import { createHistoryKeyBindings } from '../historyKeymap';
 import { navigateCell } from '../navigation/tableNavigation';
 import { handleTableClipboardTextPaste } from '../selection/cellSelectionClipboard';
@@ -65,7 +65,7 @@ export function createNestedEditorInteractionExtensions(
         {
             key: 'ArrowUp',
             run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, 0)) {
+                if (!isCaretOnFirstVisualLine(nestedView)) {
                     return false;
                 }
 
@@ -79,7 +79,7 @@ export function createNestedEditorInteractionExtensions(
         {
             key: 'ArrowDown',
             run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, nestedView.state.doc.length)) {
+                if (!isCaretOnLastVisualLine(nestedView)) {
                     return false;
                 }
 
@@ -115,7 +115,7 @@ export function createNestedEditorInteractionExtensions(
         {
             key: 'Shift-ArrowUp',
             run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, 0)) {
+                if (!isCaretOnFirstVisualLine(nestedView)) {
                     return false;
                 }
 
@@ -126,7 +126,7 @@ export function createNestedEditorInteractionExtensions(
         {
             key: 'Shift-ArrowDown',
             run: (nestedView) => {
-                if (!isCaretOnSameVisualLine(nestedView, nestedView.state.doc.length)) {
+                if (!isCaretOnLastVisualLine(nestedView)) {
                     return false;
                 }
 
