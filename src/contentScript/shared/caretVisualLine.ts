@@ -1,25 +1,28 @@
+import { EditorSelection, type SelectionRange } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
-/** Vertical tolerance (px) for treating two caret rects as the same visual line. */
-const SAME_VISUAL_LINE_TOLERANCE_PX = 2;
-
 /**
- * True when the caret sits on the same visual (wrapped) line as `pos`.
+ * Start of the visual (wrapped) row that `range` is drawn on.
  *
- * `coordsAtPos` returns null when the view is not laid out (notably under jsdom),
- * so the exact-position check is both the fast path and the measurement fallback.
+ * `moveToLineBoundary` respects `assoc`, so a caret at a wrap point is attributed to the
+ * row it is drawn on. It only measures wrapped rows when the view has `lineWrapping`
+ * enabled; without layout (notably under jsdom) it falls back to the logical line start.
  */
-export function isCaretOnSameVisualLine(view: EditorView, pos: number): boolean {
-    const { head } = view.state.selection.main;
-    if (head === pos) {
-        return true;
-    }
+function visualRowStart(view: EditorView, range: SelectionRange): number {
+    return view.moveToLineBoundary(range, false).head;
+}
 
-    const headRect = view.coordsAtPos(head);
-    const posRect = view.coordsAtPos(pos);
-    if (!headRect || !posRect) {
-        return false;
-    }
+/** True when the caret sits on the same visual row as `boundary`. */
+function isCaretOnSameVisualRowAs(view: EditorView, boundary: SelectionRange): boolean {
+    return visualRowStart(view, view.state.selection.main) === visualRowStart(view, boundary);
+}
 
-    return Math.abs(headRect.top - posRect.top) < SAME_VISUAL_LINE_TOLERANCE_PX;
+/** True when the caret sits on the first visual (wrapped) line of the document. */
+export function isCaretOnFirstVisualLine(view: EditorView): boolean {
+    return isCaretOnSameVisualRowAs(view, EditorSelection.cursor(0, 1));
+}
+
+/** True when the caret sits on the last visual (wrapped) line of the document. */
+export function isCaretOnLastVisualLine(view: EditorView): boolean {
+    return isCaretOnSameVisualRowAs(view, EditorSelection.cursor(view.state.doc.length, -1));
 }

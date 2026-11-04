@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState, type SelectionRange } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,13 +57,14 @@ function mountMainView(activeCell: ActiveCell): EditorView {
 
 function mountNestedView(
     mainView: EditorView,
-    selection: number
+    caretPos: number,
+    caretAssoc = 0
 ): { view: EditorView; sync: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } {
     const sync = vi.fn();
     const close = vi.fn();
     const view = viewHarness.mountView({
         doc: 'cell',
-        selection: { anchor: selection },
+        selection: EditorSelection.create([EditorSelection.cursor(caretPos, caretAssoc)]),
         extensions: [
             createNestedEditorInteractionExtensions(mainView, {
                 closeEditor: close,
@@ -76,13 +77,18 @@ function mountNestedView(
 }
 
 /**
- * jsdom has no layout, so `coordsAtPos` returns null and the keymap falls back to its
- * exact-position check. Stubbing it exercises the wrapped-line measurement branch instead.
+ * jsdom has no layout, so `moveToLineBoundary` falls back to logical lines and a
+ * single-line cell is one visual row. Stubbing it simulates soft wrapping at `rowStarts`:
+ * a caret exactly on a wrap point belongs to the row before it when `assoc < 0`, as in
+ * CodeMirror.
  */
-function stubLineTops(view: EditorView, tops: Record<number, number>): void {
-    vi.spyOn(view, 'coordsAtPos').mockImplementation((pos: number) => {
-        const top = tops[pos];
-        return top !== undefined ? { top, bottom: top + 10, left: 0, right: 5 } : null;
+function stubVisualRows(view: EditorView, rowStarts: readonly number[]): void {
+    vi.spyOn(view, 'moveToLineBoundary').mockImplementation((range: SelectionRange) => {
+        const { head, assoc } = range;
+        const rowsAtOrBefore = rowStarts.filter(
+            (start) => start < head || (start === head && (assoc >= 0 || start === 0))
+        );
+        return EditorSelection.cursor(Math.max(0, ...rowsAtOrBefore), 1);
     });
 }
 
@@ -117,6 +123,9 @@ describe('nested editor horizontal table exit', () => {
 
 describe('nested editor vertical table exit', () => {
     const CELL_END = 'cell'.length;
+    /** 'cell' soft-wrapped as 'ce' / 'll'. */
+    const WRAP_POINT = 2;
+    const WRAPPED_ROWS = [0, WRAP_POINT];
 
     it('exits above the table on ArrowUp from the first cell start', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
@@ -140,10 +149,20 @@ describe('nested editor vertical table exit', () => {
         expect(mainView.state.selection.main.head).toBe(TABLE_TO + 1);
     });
 
-    it('stays inside the cell when the caret sits on a lower visual line than the start', () => {
+    it('exits the table on ArrowUp from mid-cell when the cell does not wrap', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
-        const nested = mountNestedView(mainView, 2);
-        stubLineTops(nested.view, { 0: 0, 2: 20 });
+        const nested = mountNestedView(mainView, WRAP_POINT);
+
+        pressKey(nested.view.contentDOM, { key: 'ArrowUp' });
+
+        expect(nested.sync).toHaveBeenCalledOnce();
+        expect(getActiveCell(mainView.state)).toBeNull();
+    });
+
+    it('stays inside the cell on ArrowUp when the caret sits on a lower visual line', () => {
+        const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
+        const nested = mountNestedView(mainView, WRAP_POINT, 1);
+        stubVisualRows(nested.view, WRAPPED_ROWS);
 
         pressKey(nested.view.contentDOM, { key: 'ArrowUp' });
 
@@ -151,15 +170,38 @@ describe('nested editor vertical table exit', () => {
         expect(getActiveCell(mainView.state)).not.toBeNull();
     });
 
-    it('exits the table when a wrapped caret shares the start visual line', () => {
+    it('exits the table on ArrowUp when a caret at the wrap point is drawn on the first line', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'header', row: 0, col: 0 });
-        const nested = mountNestedView(mainView, 2);
-        stubLineTops(nested.view, { 0: 0, 2: 0 });
+        const nested = mountNestedView(mainView, WRAP_POINT, -1);
+        stubVisualRows(nested.view, WRAPPED_ROWS);
 
         pressKey(nested.view.contentDOM, { key: 'ArrowUp' });
 
         expect(nested.sync).toHaveBeenCalledOnce();
         expect(getActiveCell(mainView.state)).toBeNull();
+    });
+
+    it('stays inside the cell on ArrowDown when a caret at the wrap point is drawn on the first line', () => {
+        const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 1, col: 1 });
+        const nested = mountNestedView(mainView, WRAP_POINT, -1);
+        stubVisualRows(nested.view, WRAPPED_ROWS);
+
+        pressKey(nested.view.contentDOM, { key: 'ArrowDown' });
+
+        expect(nested.sync).not.toHaveBeenCalled();
+        expect(getActiveCell(mainView.state)).not.toBeNull();
+    });
+
+    it('exits the table on ArrowDown when the caret sits on the last visual line', () => {
+        const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 1, col: 1 });
+        const nested = mountNestedView(mainView, WRAP_POINT, 1);
+        stubVisualRows(nested.view, WRAPPED_ROWS);
+
+        pressKey(nested.view.contentDOM, { key: 'ArrowDown' });
+
+        expect(nested.sync).toHaveBeenCalledOnce();
+        expect(getActiveCell(mainView.state)).toBeNull();
+        expect(mainView.state.selection.main.head).toBe(TABLE_TO + 1);
     });
 });
 
@@ -186,10 +228,10 @@ describe('nested editor vertical cell selection', () => {
         expect(getCellSelection(mainView.state)).not.toBeNull();
     });
 
-    it('leaves the nested editor open when the caret is mid-cell', () => {
+    it('leaves the nested editor open when the caret is on a lower visual line', () => {
         const mainView = mountMainView({ tableFrom: TABLE_FROM, section: 'body', row: 1, col: 0 });
-        const nested = mountNestedView(mainView, 2);
-        stubLineTops(nested.view, { 0: 0, 2: 20 });
+        const nested = mountNestedView(mainView, 3);
+        stubVisualRows(nested.view, [0, 2]);
 
         pressKey(nested.view.contentDOM, { key: 'ArrowUp', shiftKey: true });
 
