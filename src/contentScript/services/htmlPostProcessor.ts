@@ -57,6 +57,13 @@ function cleanupAndOptimize(fragment: DocumentFragment): void {
     stripFormattingWhitespace(fragment);
 }
 
+/**
+ * Elements whose text is literal, so both post-processing passes leave it untouched: `[^label]`
+ * inside them is not a footnote reference, and their newlines are content, not serializer
+ * formatting.
+ */
+const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
+
 /** Rendered plugin output (math, embeds, diagrams), which Joplin serializes with newlines between tags. */
 const JOPLIN_EDITABLE_SELECTOR = '.joplin-editable';
 
@@ -123,9 +130,6 @@ const FOOTNOTE_REF_PATTERN = /\[\^([^\]]+)\]/;
 
 /** The opening of a footnote reference. Cheap to test for, and almost no text node has one. */
 const FOOTNOTE_REF_PREFIX = '[^';
-
-/** Elements whose text is literal, so `[^label]` inside them is not a reference. */
-const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
 
 /**
  * Convert [^label] patterns to footnote links, but only in text nodes
