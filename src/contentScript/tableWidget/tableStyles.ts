@@ -98,11 +98,13 @@ const tableTheme = EditorView.baseTheme({
     // Carries the cell's inset, so a press in it hit-tests against the rendered content rather
     // than against the <td> around it. The nested editor's `.cm-content` declares the same one.
     //
-    // white-space is inherited from Joplin's editor (`break-spaces`), matching the nested editor so
-    // text wraps identically on activation. Serializer newlines that would render as gaps are
-    // stripped from the rendered HTML in htmlPostProcessor instead.
+    // white-space is declared rather than inherited from the host `.cm-content`, which is only
+    // `break-spaces` while the main editor has line wrapping on (`pre` otherwise). It matches the
+    // nested editor's `lineWrapping` mode so text wraps identically on activation. Serializer
+    // newlines that would render as gaps are stripped from the rendered HTML in htmlPostProcessor.
     [`.${CLASS_TABLE_WIDGET_TABLE} .${CLASS_CELL_CONTENT}`]: {
         padding: `${CELL_PADDING} !important`,
+        whiteSpace: 'break-spaces',
     },
     [`.${CLASS_CELL_EDITOR_HIDDEN}`]: {
         // Empty span - no display:none to preserve cursor positioning at boundaries

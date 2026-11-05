@@ -43,7 +43,7 @@ export function createNestedEditorTheme(isDarkTheme: boolean): Extension {
                 // CodeMirror's `lineWrapping` uses break-spaces/break-word; override the word
                 // breaking to match rendered-table behavior (wrap at whitespace, but don't split
                 // short words). white-space stays `break-spaces`, the same mode the rendered cell
-                // inherits, so typed spaces at a wrap point stay visible and text measures the
+                // declares, so typed spaces at a wrap point stay visible and text measures the
                 // same width on activation.
                 wordBreak: 'normal !important',
                 overflowWrap: 'normal !important',

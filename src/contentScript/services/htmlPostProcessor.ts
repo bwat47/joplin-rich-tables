@@ -72,7 +72,7 @@ const LINE_BREAK_PATTERN = /[\n\r]/;
 /**
  * Removes whitespace text nodes that only exist as serializer formatting.
  *
- * Cells inherit Joplin's `white-space: break-spaces`, which keeps typed spaces visible but also
+ * Cells use `white-space: break-spaces` (matching the editor), which keeps typed spaces visible but also
  * draws every newline between tags as a blank line, e.g. the `\n` left on either side of a removed
  * `.joplin-source` above a math block or YouTube embed. Only two places are touched:
  * - inside `.joplin-editable`, whitespace-only nodes containing a line break (an `<mtext> </mtext>`
