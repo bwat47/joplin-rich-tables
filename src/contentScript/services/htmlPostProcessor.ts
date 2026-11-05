@@ -64,6 +64,9 @@ function cleanupAndOptimize(fragment: DocumentFragment): void {
  */
 const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
 
+/** Only HTML elements are recursed into; foreign content (MathML, SVG) keeps its whitespace text. */
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+
 /** Rendered plugin output (math, embeds, diagrams), which Joplin serializes with newlines between tags. */
 const JOPLIN_EDITABLE_SELECTOR = '.joplin-editable';
 
@@ -82,8 +85,8 @@ const LINE_BREAK_PATTERN = /[\n\r]/;
  * Cells use `white-space: break-spaces` (matching the editor), which keeps typed spaces visible but also
  * draws every newline between tags as a blank line, e.g. the `\n` left on either side of a removed
  * `.joplin-source` above a math block or YouTube embed. Only two places are touched:
- * - inside `.joplin-editable`, whitespace-only nodes containing a line break (an `<mtext> </mtext>`
- *   from TeX `a\ b` has none, so it survives);
+ * - inside `.joplin-editable`, whitespace-only nodes containing a line break, among HTML elements
+ *   only (MathML and SVG subtrees are left alone, since their text is rendered content);
  * - whitespace-only nodes at the fragment's start and end.
  *
  * Whitespace between inline elements elsewhere is real content (`**a** *b*` renders as
@@ -103,8 +106,9 @@ function isWhitespaceOnlyText(node: Node | null): node is Text {
 function removeLineBreakWhitespace(node: Node): void {
     for (const child of Array.from(node.childNodes)) {
         if (child.nodeType === Node.ELEMENT_NODE) {
-            if (!LITERAL_TEXT_TAGS.has((child as Element).tagName)) {
-                removeLineBreakWhitespace(child);
+            const element = child as Element;
+            if (element.namespaceURI === HTML_NAMESPACE && !LITERAL_TEXT_TAGS.has(element.tagName)) {
+                removeLineBreakWhitespace(element);
             }
         } else if (isWhitespaceOnlyText(child) && LINE_BREAK_PATTERN.test(child.textContent || '')) {
             child.remove();

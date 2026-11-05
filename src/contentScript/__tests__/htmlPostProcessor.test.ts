@@ -172,4 +172,16 @@ describe('postProcessFragment', () => {
 
         expect(postProcessHtml(html)).toBe(html);
     });
+
+    test('keeps whitespace-only text inside MathML and SVG elements', () => {
+        const html =
+            '<div class="joplin-editable">\n' +
+            '<math><mtext>\n</mtext></math>\n' +
+            '<svg><text>\n</text></svg>\n' +
+            '</div>';
+
+        expect(postProcessHtml(html)).toBe(
+            '<div class="joplin-editable"><math><mtext>\n</mtext></math><svg><text>\n</text></svg></div>'
+        );
+    });
 });
