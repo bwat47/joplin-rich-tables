@@ -139,4 +139,37 @@ describe('postProcessFragment', () => {
 
         expect(math?.querySelector('mrow')).not.toBeNull();
     });
+
+    test('strips serializer newlines around a rendered math block', () => {
+        const html =
+            '\n<div class="joplin-editable">\n<pre class="joplin-source">x</pre>\n' +
+            '<span class="katex-display"><span class="katex"><math><mi>x</mi></math></span></span>\n</div>\n';
+
+        expect(postProcessHtml(html)).toBe('<div class="joplin-editable"><math><mi>x</mi></math></div>');
+    });
+
+    test('strips serializer newlines around a YouTube embed', () => {
+        const html =
+            '<div class="joplin-editable">\n<div class="joplin-youtube-player-rendered">\n' +
+            '<iframe src="https://www.youtube-nocookie.com/embed/x"></iframe>\n</div>\n</div>';
+
+        expect(postProcessHtml(html)).toBe(
+            '<div class="joplin-editable"><div class="joplin-youtube-player-rendered">' +
+                '<iframe src="https://www.youtube-nocookie.com/embed/x"></iframe></div></div>'
+        );
+    });
+
+    test('keeps authored spaces between inline elements and inside rendered blocks', () => {
+        const html =
+            '<strong>a</strong> <em>b</em>' +
+            '<div class="joplin-editable"><math><mi>a</mi><mtext> </mtext><mi>b</mi></math></div>';
+
+        expect(postProcessHtml(html)).toBe(html);
+    });
+
+    test('keeps newlines inside code within rendered blocks', () => {
+        const html = '<div class="joplin-editable"><pre><code>a<span>b</span>\n<span>c</span></code></pre></div>';
+
+        expect(postProcessHtml(html)).toBe(html);
+    });
 });

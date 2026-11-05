@@ -249,7 +249,7 @@ export class TableWidget extends WidgetType {
         renderer: MarkdownRenderService
     ): void {
         // Create a wrapper div for the content. This matches the structure ensureCellWrapper()
-        // creates on activation, ensuring CSS rules (like white-space: normal) apply consistently.
+        // creates on activation, ensuring CSS rules (like the cell padding) apply consistently.
         const contentWrapper = doc.createElement('div');
         contentWrapper.className = CLASS_CELL_CONTENT;
         // Native selection must focus the rendered content rather than the outer editor,
