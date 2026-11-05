@@ -17,6 +17,7 @@ export function postProcessFragment(fragment: DocumentFragment): void {
  * - Removes broken resource icon spans
  * - Extracts inner MathML from KaTeX structures to avoid duplicate/glitched rendering
  * - Removes <annotation> tags which might contain raw TeX
+ * - Strips formatting whitespace the renderer leaves around block-level output
  */
 function cleanupAndOptimize(fragment: DocumentFragment): void {
     // Remove Joplin source blocks
@@ -52,6 +53,76 @@ function cleanupAndOptimize(fragment: DocumentFragment): void {
             }
         }
     });
+
+    stripFormattingWhitespace(fragment);
+}
+
+/**
+ * Elements whose text is literal, so both post-processing passes leave it untouched: `[^label]`
+ * inside them is not a footnote reference, and their newlines are content, not serializer
+ * formatting.
+ */
+const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
+
+/** Only HTML elements are recursed into; foreign content (MathML, SVG) keeps its whitespace text. */
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+
+/** Rendered plugin output (math, embeds, diagrams), which Joplin serializes with newlines between tags. */
+const JOPLIN_EDITABLE_SELECTOR = '.joplin-editable';
+
+/**
+ * Text made only of ASCII whitespace, e.g. `"\n"` or `" \n  "`. Excludes `\u00a0`, which is
+ * authored content rather than serializer formatting.
+ */
+const ASCII_WHITESPACE_ONLY_PATTERN = /^[ \t\n\r\f]*$/;
+
+/** A line break, the mark of whitespace the serializer inserted between tags. */
+const LINE_BREAK_PATTERN = /[\n\r]/;
+
+/**
+ * Removes whitespace text nodes that only exist as serializer formatting.
+ *
+ * Cells use `white-space: break-spaces` (matching the editor), which keeps typed spaces visible but also
+ * draws every newline between tags as a blank line, e.g. the `\n` left on either side of a removed
+ * `.joplin-source` above a math block or YouTube embed. Only two places are touched:
+ * - inside `.joplin-editable`, whitespace-only nodes containing a line break, among HTML elements
+ *   only (MathML and SVG subtrees are left alone, since their text is rendered content);
+ * - whitespace-only nodes at the fragment's start and end.
+ *
+ * Whitespace between inline elements elsewhere is real content (`**a** *b*` renders as
+ * `<strong>a</strong> <em>b</em>`) and is left alone.
+ */
+function stripFormattingWhitespace(fragment: DocumentFragment): void {
+    fragment.querySelectorAll(JOPLIN_EDITABLE_SELECTOR).forEach((editable) => {
+        removeLineBreakWhitespace(editable);
+    });
+    trimEdgeWhitespace(fragment);
+}
+
+function isWhitespaceOnlyText(node: Node | null): node is Text {
+    return node?.nodeType === Node.TEXT_NODE && ASCII_WHITESPACE_ONLY_PATTERN.test(node.textContent || '');
+}
+
+function removeLineBreakWhitespace(node: Node): void {
+    for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+            const element = child as Element;
+            if (element.namespaceURI === HTML_NAMESPACE && !LITERAL_TEXT_TAGS.has(element.tagName)) {
+                removeLineBreakWhitespace(element);
+            }
+        } else if (isWhitespaceOnlyText(child) && LINE_BREAK_PATTERN.test(child.textContent || '')) {
+            child.remove();
+        }
+    }
+}
+
+function trimEdgeWhitespace(fragment: DocumentFragment): void {
+    while (isWhitespaceOnlyText(fragment.firstChild)) {
+        fragment.firstChild.remove();
+    }
+    while (isWhitespaceOnlyText(fragment.lastChild)) {
+        fragment.lastChild.remove();
+    }
 }
 
 /**
@@ -63,9 +134,6 @@ const FOOTNOTE_REF_PATTERN = /\[\^([^\]]+)\]/;
 
 /** The opening of a footnote reference. Cheap to test for, and almost no text node has one. */
 const FOOTNOTE_REF_PREFIX = '[^';
-
-/** Elements whose text is literal, so `[^label]` inside them is not a reference. */
-const LITERAL_TEXT_TAGS = new Set(['CODE', 'PRE']);
 
 /**
  * Convert [^label] patterns to footnote links, but only in text nodes
