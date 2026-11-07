@@ -1,22 +1,9 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
-    "entry": [
-        "src/index.ts",
-        "src/contentScript/tableWidgetExtension.ts",
-        "src/**/*.test.ts",
-        "scripts/*.test.mjs"
-    ],
-    "project": [
-        "src/**/*.ts",
-        "scripts/*.mjs"
-    ],
+    "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts", "src/**/*.test.ts", "scripts/*.test.mjs"],
+    "project": ["src/**/*.ts", "scripts/*.mjs"],
     "ignoreIssues": {
-        "api/**": [
-            "unlisted",
-            "unresolved"
-        ]
+        "api/**": ["unlisted", "unresolved"]
     },
-    "tags": [
-        "-lintignore"
-    ]
+    "tags": ["-lintignore"]
 }
