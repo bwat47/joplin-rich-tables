@@ -60,7 +60,7 @@ export async function readProject(root) {
             throw new Error(`Unsupported screenshot type: ${screenshot.src}`);
         }
         if ((await stat(path.join(root, screenshot.src))).size > MAX_SCREENSHOT_BYTES) {
-            throw new Error(`Screenshot exceeds 1 MB: ${screenshot.src}`);
+            throw new Error(`Screenshot exceeds ${MAX_SCREENSHOT_BYTES / (1024 * 1024)} MB: ${screenshot.src}`);
         }
     }
     return { packageJson, manifest };
