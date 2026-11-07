@@ -19,5 +19,5 @@
             "api/*": ["./api/*"]
         }
     },
-    "exclude": ["dist"]
+    "exclude": ["dist", ".api-staging-*"]
 }

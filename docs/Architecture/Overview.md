@@ -33,6 +33,7 @@ root primitives may import from it (`TABLE_RUNTIME_LIFECYCLE_ZONE` in `eslint.co
 
 ## Documentation Index
 
+- [Building the plugin](../BUILDING.md) - esbuild bundles, content-script externals, and packaging.
 - [Table-Display.md](./Table-Display.md) - Rendering, optimizations, display modes.
 - [Table-Runtime-Invariants.md](./Table-Runtime-Invariants.md) - Cross-module runtime rules for active cells, sync, rebuilds, and focus.
 - [Nested-Editor-Architecture.md](./Nested-Editor-Architecture.md) - Synchronization, boundary enforcement, undo/redo.

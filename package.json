@@ -2,19 +2,23 @@
     "name": "joplin-plugin-rich-tables",
     "version": "1.14.2",
     "scripts": {
-        "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
+        "dist": "npm run typecheck && node scripts/build.mjs",
         "prepare": "npm run dist",
-        "updateVersion": "webpack --env joplin-plugin-config=updateVersion",
-        "update": "npm install -g generator-joplin && yo joplin --node-package-manager npm --update --force",
-        "lint": "eslint --ext .ts src/",
-        "lint:fix": "eslint --ext .ts src/ --fix",
-        "format": "prettier --write \"src/**/*.ts\"",
+        "updateVersion": "node scripts/updateVersion.mjs",
+        "lint": "eslint src/ scripts/",
+        "lint:fix": "eslint src/ scripts/ --fix",
+        "format": "prettier --write \"src/**/*.ts\" \"scripts/*.mjs\"",
         "bench:table-parsing": "vitest bench src/contentScript/__benchmarks__/tableParsing.bench.ts --run",
-        "test": "vitest run --passWithNoTests",
+        "test": "vitest run --passWithNoTests && node --test scripts/*.test.mjs",
         "test:watch": "vitest --passWithNoTests",
-        "knip": "knip"
+        "knip": "knip",
+        "typecheck": "tsc --noEmit",
+        "updateApi": "node scripts/updateApi.mjs"
     },
     "license": "MIT",
+    "engines": {
+        "node": ">=22"
+    },
     "keywords": [
         "joplin-plugin"
     ],
@@ -42,27 +46,21 @@
         "@types/node": "^25.9.4",
         "@vitest/coverage-v8": "^5.1.0",
         "@vitest/eslint-plugin": "^1.6.28",
-        "chalk": "^4.1.0",
-        "copy-webpack-plugin": "^14.0.0",
+        "esbuild": "^0.28.0",
         "eslint": "^10.14.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-import-resolver-typescript": "^4.4.5",
         "eslint-plugin-import-x": "^4.18.0",
         "eslint-plugin-sonarjs": "^4.2.2",
         "eslint-plugin-tsdoc": "^0.5.4",
-        "fs-extra": "^10.1.0",
-        "glob": "^14.0.3",
         "globals": "^17.7.0",
         "jsdom": "^31.0.0",
         "knip": "^6.44.1",
         "prettier": "^3.9.10",
         "tar": "^7.5.13",
-        "ts-loader": "^9.6.2",
         "typescript": "^6.0.3",
         "typescript-eslint": "8.72.1",
-        "vitest": "^5.1.0",
-        "webpack": "^5.105.4",
-        "webpack-cli": "^7.0.2"
+        "vitest": "^5.1.0"
     },
     "overrides": {
         "eslint-plugin-tsdoc": {

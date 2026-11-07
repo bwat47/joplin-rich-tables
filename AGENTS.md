@@ -31,19 +31,23 @@ Start here when exploring the codebase:
 - **Sync transactions**: Always use `syncAnnotation` when forwarding changes between main and nested editors. Without it, changes trigger infinite re-render loops.
 - **Block decorations**: Must be provided via `StateField`, not `ViewPlugin`. CodeMirror requires decorations affecting layout to come from state.
 - **Main editor focus**: Restore focus with `view.focus()`, not a bare `contentDOM.focus()`. CodeMirror writes the DOM selection only while focused, so when a nested cell editor held focus during the dispatch, only `view.focus()` syncs the new selection and paints the caret. It suppresses the DOM observer and prevents scrolling internally.
-- **Build command**: Use `npm run dist`, not `npm run build` or `npx tsc`.
+- **Build command**: Use `npm run dist`, not `npm run build`. For type checking only, use `npm run typecheck`.
 
 ## Build, Test, and Development Commands
 
-- `npm test` Run Vitest test suite.
-- `npm run test:watch` Run tests in watch mode during development.
+Build details: docs/BUILDING.md
+
+- `npm test` Run the Vitest suite, then the build-script tests (`scripts/*.test.mjs`).
+- `npm run test:watch` Run Vitest in watch mode during development (excludes build-script tests).
 - `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
-- `npm run dist` Build plugin and create archive at `publish/*.jpl`.
-- `npm run lint` Lint TypeScript with ESLint.
+- `npm run typecheck` Type-check with `tsc --noEmit`.
+- `npm run dist` Type-check, bundle with esbuild, and create archive at `publish/*.jpl`.
+- `npm run lint` Lint TypeScript and build scripts with ESLint.
 - `npm run lint:fix` Auto-fix lint issues.
 - `npm run format` Format code with Prettier.
 - `npm run knip` Find unused dependencies, exports and files.
-- `npm run updateVersion` Sync plugin version metadata.
+- `npm run updateVersion` Increment the patch version in `package.json`, `src/manifest.json`, and `package-lock.json`.
+- `npm run updateApi` Replace `api/` with the latest `generator-joplin` API types; review `git diff api/` afterwards.
 
 ## Design Principles
 

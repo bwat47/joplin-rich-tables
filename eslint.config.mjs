@@ -106,8 +106,8 @@ const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@code
 
 export default defineConfig([
     {
-        // webpack.config.js is generator-managed scaffold (overwritten on generator updates).
-        ignores: ['api/**', 'dist/**', 'coverage/**', 'webpack.config.js'],
+        // .api-staging-* is left behind only if `npm run updateApi` is interrupted.
+        ignores: ['api/**', '.api-staging-*/**', 'dist/**', 'coverage/**'],
     },
 
     js.configs.recommended,
@@ -277,10 +277,11 @@ export default defineConfig([
         },
     },
 
-    // Root JS config files (e.g. .prettierrc.js, eslint.config.mjs) aren't part of the typed source; lint them untyped.
+    // Node build scripts and JS config files are linted without TypeScript's type checker.
     {
         files: ['**/*.{js,mjs,cjs}'],
         ...tseslint.configs.disableTypeChecked,
+        languageOptions: { globals: globals.node },
     },
 
     // Prettier compatibility

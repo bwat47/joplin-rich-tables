@@ -3,6 +3,8 @@ dist/
 build/
 coverage/
 publish/
+# Left behind only if `npm run updateApi` is interrupted.
+.api-staging-*/
 *.log
 .DS_Store
 .env

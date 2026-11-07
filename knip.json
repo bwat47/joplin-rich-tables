@@ -1,28 +1,22 @@
 {
-  "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "webpack.config.js",
-    "src/index.ts",
-    "src/contentScript/tableWidgetExtension.ts",
-    "src/**/*.test.ts"
-  ],
-  "project": [
-    "src/**/*.ts"
-  ],
-  "ignoreBinaries": [
-    "yo"
-  ],
-  "ignoreDependencies": [
-    "ts-loader"
-  ],
-  "ignoreIssues": {
-    "api/**": [
-      "unlisted",
-      "unresolved"
+    "$schema": "https://unpkg.com/knip@6/schema.json",
+    "entry": [
+        "src/index.ts",
+        "src/contentScript/tableWidgetExtension.ts",
+        "src/**/*.test.ts",
+        "scripts/*.test.mjs"
+    ],
+    "project": [
+        "src/**/*.ts",
+        "scripts/*.mjs"
+    ],
+    "ignoreIssues": {
+        "api/**": [
+            "unlisted",
+            "unresolved"
+        ]
+    },
+    "tags": [
+        "-lintignore"
     ]
-  },
-  "tags": [
-    "-lintignore"
-  ],
-  "webpack": false
 }
