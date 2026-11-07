@@ -2,19 +2,19 @@
     "name": "joplin-plugin-rich-tables",
     "version": "1.14.2",
     "scripts": {
-        "dist": "npm run typecheck && node scripts/build.mjs",
+        "dist": "npm run typecheck && joplin-plugin-scripts build",
         "prepare": "npm run dist",
-        "updateVersion": "node scripts/updateVersion.mjs",
-        "lint": "eslint src/ scripts/",
-        "lint:fix": "eslint src/ scripts/ --fix",
+        "updateVersion": "joplin-plugin-scripts update-version",
+        "lint": "eslint src/ test/",
+        "lint:fix": "eslint src/ test/ --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "bench:table-parsing": "vitest bench src/contentScript/__benchmarks__/tableParsing.bench.ts --run",
-        "test": "vitest run --passWithNoTests && node --test scripts/*.test.mjs",
+        "test": "vitest run --passWithNoTests && node --test test/*.test.mjs",
         "test:watch": "vitest --passWithNoTests",
         "knip": "knip",
         "typecheck": "tsc --noEmit",
-        "updateApi": "node scripts/updateApi.mjs"
+        "updateApi": "joplin-plugin-scripts update-api"
     },
     "license": "MIT",
     "engines": {
@@ -42,6 +42,7 @@
         "dompurify": "^3.4.17"
     },
     "devDependencies": {
+        "@bwat47/joplin-plugin-scripts": "^1.0.0",
         "@eslint/js": "^10.0.1",
         "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
         "@types/node": "^25.9.4",
@@ -58,7 +59,6 @@
         "jsdom": "^31.0.0",
         "knip": "^6.44.1",
         "prettier": "^3.9.10",
-        "tar": "^7.5.13",
         "typescript": "^6.0.3",
         "typescript-eslint": "8.72.1",
         "vitest": "^5.1.0"

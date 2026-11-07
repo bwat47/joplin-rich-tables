@@ -37,7 +37,7 @@ Start here when exploring the codebase:
 
 Build details: docs/BUILDING.md
 
-- `npm test` Run the Vitest suite, then the build-script tests (`scripts/*.test.mjs`).
+- `npm test` Run the Vitest suite, then the bundle tests (`test/*.test.mjs`).
 - `npm run test:watch` Run Vitest in watch mode during development (excludes build-script tests).
 - `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
 - `npm run typecheck` Type-check with `tsc --noEmit`.

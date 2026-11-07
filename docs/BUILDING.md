@@ -7,13 +7,19 @@ npm ci
 npm run dist
 ```
 
-The build checks TypeScript, bundles with esbuild, and creates:
+The build checks TypeScript, then runs `joplin-plugin-scripts build` from the shared
+`@bwat47/joplin-plugin-scripts` dev dependency, which bundles with esbuild and creates:
 
-- `dist/`: the plugin bundles and runtime assets.
+- `dist/`: the plugin bundles and runtime assets, without tests or fixtures.
 - `publish/com.bwat47.rich-tables.jpl`: the installable plugin.
 - `publish/com.bwat47.rich-tables.json`: publish metadata.
 
-Each build clears `dist/` and `publish/` first.
+Each build clears `dist/` and `publish/` first. Extra content scripts are read from
+`plugin.config.json`. Content scripts target the browser and keep Joplin's CodeMirror
+and Lezer libraries external.
+
+Build, packaging, version, and API-update behavior lives in the shared package. Change it
+there and update the dependency here, rather than adding local build scripts.
 
 ## Maintenance
 
@@ -21,14 +27,15 @@ Each build clears `dist/` and `publish/` first.
   `src/manifest.json`, and `package-lock.json` together. Their versions must match
   before bumping.
 - `npm run updateApi`: update `api/` from the latest `generator-joplin` package
-  without regenerating the project. Review `git diff api/`, address any category
-  or content-script external warnings, and run `npm run typecheck` afterward.
+  without regenerating the project. Review `git diff api/` and run `npm run typecheck`
+  afterward. Category or content-script external warnings mean the shared package
+  needs updating.
 
 ## Verification
 
-- `npm test`: run application and build-tool tests.
+- `npm test`: run application and bundle tests.
 - `npm run typecheck`: check TypeScript without producing output.
-- `npm run lint`: lint application sources and build scripts.
+- `npm run lint`: lint application sources and bundle tests.
 - `npm run knip`: check for unused dependencies, exports, and files.
 - `npm run dist`: build and package the plugin.
 
