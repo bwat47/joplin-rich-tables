@@ -6,6 +6,7 @@ import { defaultHostEditorConfig } from '../../contentScriptBridge/hostEditorCon
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { cellSelectionVisuals } from '../tableWidget/cellSelectionVisuals';
 import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE } from '../tableWidget/domHelpers';
+import { richTableThemeVars } from '../tableWidget/richTableThemeVars';
 import { ATTR_ZEBRA_STRIPING, tableStyles } from '../tableWidget/tableStyles';
 import { createEditorViewHarness } from './tableEditorFixtures';
 
@@ -19,6 +20,7 @@ function mountView(zebraStriping: boolean, extraExtensions: Extension = []): Edi
                 ...defaults,
                 tableAppearance: { zebraStriping },
             }),
+            richTableThemeVars,
             tableStyles,
             extraExtensions,
         ],
@@ -29,9 +31,9 @@ function mountView(zebraStriping: boolean, extraExtensions: Extension = []): Edi
  * Renders a single-column widget table, one body row per entry, and returns the background each
  * row's cell resolves to.
  *
- * These backgrounds name theme variables whose colours come from the host, and jsdom does not
- * substitute custom properties, so the tests below compare rows against each other rather than
- * against any particular colour.
+ * Mount the production theme variables so background colours resolve as they do in the host.
+ * Compare rows against each other so these tests exercise striping and selection independently
+ * of the theme's particular colours.
  */
 function renderRowBackgrounds(view: EditorView, rows: { selected?: boolean }[]): string[] {
     const table = document.createElement('table');
