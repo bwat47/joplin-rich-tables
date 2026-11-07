@@ -10,9 +10,9 @@ export default defineConfig({
         passWithNoTests: true,
     },
     resolve: {
+        tsconfigPaths: true,
         alias: {
             '@joplin/fork-uslug': path.resolve(import.meta.dirname, '__mocks__/@joplin/fork-uslug.ts'),
-            api: path.resolve(import.meta.dirname, 'api/index.ts'),
         },
     },
 });
