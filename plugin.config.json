@@ -1,3 +1,4 @@
 {
-    "extraScripts": ["contentScript/tableWidgetExtension.ts"]
+    "extraScripts": ["contentScript/tableWidgetExtension.ts"],
+    "buildOptions": { "target": "es2020" }
 }
