@@ -17,6 +17,8 @@ prompts/
 .claude/settings.local.json
 .repowise/
 .claude/
+.codex/
+.fallow/
 *.mcp.json
 .fallowrc.json
 coverage
