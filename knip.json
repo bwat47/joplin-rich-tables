@@ -1,7 +1,7 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
-    "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts", "src/**/*.test.ts", "test/*.test.mjs"],
-    "project": ["src/**/*.ts", "test/*.mjs"],
+    "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts", "src/**/*.test.ts"],
+    "project": ["src/**/*.ts"],
     "ignoreIssues": {
         "api/**": ["unlisted", "unresolved"]
     },

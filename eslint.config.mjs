@@ -277,7 +277,7 @@ export default defineConfig([
         },
     },
 
-    // Node bundle tests and JS config files are linted without TypeScript's type checker.
+    // JS config files are linted without TypeScript's type checker.
     {
         files: ['**/*.{js,mjs,cjs}'],
         ...tseslint.configs.disableTypeChecked,

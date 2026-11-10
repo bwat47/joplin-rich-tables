@@ -37,12 +37,12 @@ Start here when exploring the codebase:
 
 Build details: docs/BUILDING.md
 
-- `npm test` Run the Vitest suite, then the bundle tests (`test/*.test.mjs`).
-- `npm run test:watch` Run Vitest in watch mode during development (excludes build-script tests).
+- `npm test` Run the Vitest suite.
+- `npm run test:watch` Run Vitest in watch mode during development.
 - `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
 - `npm run typecheck` Type-check with `tsc --noEmit`.
 - `npm run dist` Type-check, bundle with esbuild, and create archive at `publish/*.jpl`.
-- `npm run lint` Lint TypeScript and build scripts with ESLint.
+- `npm run lint` Lint application sources with ESLint.
 - `npm run lint:fix` Auto-fix lint issues.
 - `npm run format` Format code with Prettier.
 - `npm run knip` Find unused dependencies, exports and files.
