@@ -133,6 +133,7 @@ export default defineConfig([
             'sonarjs/prefer-single-boolean-return': 'error',
             'sonarjs/no-redundant-boolean': 'error',
             'sonarjs/no-inverted-boolean-check': 'error',
+            'sonarjs/no-collapsible-if': 'error',
 
             // Assignments and ignored results
             'sonarjs/no-dead-store': 'error',
