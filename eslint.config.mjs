@@ -187,7 +187,6 @@ export default defineConfig([
             'import-x/resolver-next': [createTypeScriptImportResolver({ project: './tsconfig.json' })],
             // ...and parse resolved .ts files when following the import graph.
             'import-x/extensions': ['.ts', '.tsx', '.js'],
-            'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx'] },
         },
         rules: {
             // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
