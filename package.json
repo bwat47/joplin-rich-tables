@@ -45,7 +45,7 @@
     },
     "devDependencies": {
         "@bwat47/joplin-plugin-scripts": "^1.6.0",
-        "@types/node": "^25.9.4",
+        "@types/node": "^24.19.2",
         "@vitest/coverage-v8": "^5.1.0",
         "eslint-plugin-regexp": "^3.3.3",
         "fallow": "^3.43.0",
