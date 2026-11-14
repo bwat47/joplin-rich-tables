@@ -35,7 +35,9 @@ Start here when exploring the codebase:
 
 ## Build, Test, and Development Commands
 
-Build details: docs/BUILDING.md
+Build, packaging, version, and API-update behavior lives in the shared `@bwat47/joplin-plugin-scripts`
+dev dependency. Change it there and update the dependency, rather than adding local build scripts. Extra
+content scripts are declared in `plugin.config.json`.
 
 - `npm test` Run the Vitest suite.
 - `npm run test:watch` Run Vitest in watch mode during development.
@@ -49,8 +51,11 @@ Build details: docs/BUILDING.md
 - `npm run format` Format code with Oxfmt.
 - `npm run format:check` Check formatting without writing files.
 - `npm run knip` Find unused dependencies, exports and files.
-- `npm run updateVersion` Increment the patch version in `package.json`, `src/manifest.json`, and `package-lock.json`.
-- `npm run updateApi` Replace `api/` with the latest `generator-joplin` API types; review `git diff api/` afterwards.
+- `npm run updateVersion` Increment the patch version in `package.json`, `src/manifest.json`, and `package-lock.json` (their versions must already match).
+- `npm run updateApi` Replace `api/` with the latest `generator-joplin` API types; review `git diff api/` and run `npm run typecheck` afterwards.
+
+Before releasing, install the `.jpl` in Joplin on desktop and mobile and check table rendering, nested cell
+editing, structural commands, search, and undo/redo.
 
 ## Design Principles
 

@@ -146,3 +146,14 @@ Selected cells also get their text selected in the main editor, so joplin inline
 - Only supports markdown tables (GFM). Doesn't support HTML tables, multi-markdown table extensions, etc...
 - Only supports top level tables (indented tables, tables in lists, tables in blockquotes aren't rendered).
 - Does not support pretty formatting (full padding) for markdown tables. The plugin enforces a minimal format (one space padding around table cell content, similar to the output of the rich text editor). This is an architectural limitation to support the realtime sync between the cell editor and the main editor (allowing joplin's formatting commands to work smoothly).
+
+## Building
+
+Requires Node 22 or later.
+
+```sh
+npm ci
+npm run dist
+```
+
+The installable plugin is written to `publish/com.bwat47.rich-tables.jpl`.

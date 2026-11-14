@@ -1,7 +1,11 @@
 {
-    "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-    "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts", "src/**/*.test.ts"],
+    "$schema": "./node_modules/fallow/schema.json",
+    "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts"],
+    "supportEntry": ["src/**/*.test.ts"],
     "ignorePatterns": ["**/*.d.ts", "api/**"],
+    "rules": {
+        "dev-dependencies-in-production": "off"
+    },
     "health": {
         "maxCognitive": 15,
         "maxCyclomatic": 20,
