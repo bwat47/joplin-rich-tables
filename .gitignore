@@ -20,5 +20,4 @@ prompts/
 .codex/
 .fallow/
 *.mcp.json
-.fallowrc.json
 coverage

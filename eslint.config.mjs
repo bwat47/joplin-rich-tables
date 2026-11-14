@@ -14,94 +14,6 @@ import tseslint from 'typescript-eslint';
 const CONTENT_SCRIPT_DIR = 'src/contentScript';
 const SOURCE_FILE_GLOB = '**/*.{ts,tsx,js,mts}';
 
-/**
- * Content-script layer dependencies: each layer lists the sibling folders it may import from; every
- * other layer folder is forbidden. Enforced by import-x/no-restricted-paths on resolved file paths,
- * so it applies at any nesting depth and regardless of how the import specifier is written.
- *
- * The composition root (`contentScript/tableWidgetExtension.ts`) sits directly under
- * `contentScript/`, outside every layer zone, so it may wire all layers together.
- */
-const LAYER_DEPENDENCIES = {
-    shared: {
-        allowed: [],
-        message: 'shared must stay feature-agnostic.',
-    },
-    services: {
-        allowed: ['shared'],
-        message: 'services may depend only on shared utilities and external integration code.',
-    },
-    tableModel: {
-        allowed: ['shared'],
-        message: 'tableModel must not depend on higher-level editor layers.',
-    },
-    tableState: {
-        allowed: ['shared', 'tableModel'],
-        message: 'tableState is limited to model types, shared helpers, and sibling state modules.',
-    },
-    nestedEditor: {
-        allowed: ['shared', 'services', 'tableModel', 'tableState'],
-        message:
-            'nestedEditor must not depend on runtime orchestration, widget rendering, command entry points, or toolbar UI; tableRuntime injects table interaction policy.',
-    },
-    tableWidget: {
-        allowed: ['shared', 'services', 'tableModel', 'tableState', 'nestedEditor'],
-        message:
-            'tableWidget owns rendering and DOM reading; event handling and editor orchestration belong in tableRuntime.',
-    },
-    tableRuntime: {
-        allowed: ['shared', 'services', 'tableModel', 'tableState', 'tableWidget', 'nestedEditor'],
-        message: 'tableRuntime must stay below toolbar UI and command entry points in the dependency graph.',
-    },
-    toolbar: {
-        allowed: ['shared', 'services', 'tableModel', 'tableState', 'tableWidget', 'tableRuntime'],
-        message:
-            'toolbar actions should go through state/runtime APIs instead of nested-editor internals or command entry points.',
-    },
-    tableCommands: {
-        allowed: ['shared', 'tableModel', 'tableState', 'tableRuntime'],
-        message:
-            'tableCommands should go through state/runtime APIs instead of widget, nested-editor, or toolbar internals.',
-    },
-};
-
-const LAYERS = Object.keys(LAYER_DEPENDENCIES);
-
-const LAYER_ZONES = Object.entries(LAYER_DEPENDENCIES).map(([layer, { allowed, message }]) => ({
-    target: `${CONTENT_SCRIPT_DIR}/${layer}`,
-    from: LAYERS.filter((folder) => folder !== layer && !allowed.includes(folder)).map(
-        (folder) => `${CONTENT_SCRIPT_DIR}/${folder}`
-    ),
-    message,
-}));
-
-const TABLE_RUNTIME_DIR = `${CONTENT_SCRIPT_DIR}/tableRuntime`;
-const TABLE_RUNTIME_COORDINATOR_DIR = `${TABLE_RUNTIME_DIR}/lifecycle`;
-
-/**
- * `tableRuntime/lifecycle/` coordinates the other runtime subfolders, so it sits above them:
- * root primitives and sibling subfolders must not import from it.
- *
- * The zone targets all of `tableRuntime/`, lifecycle included, so it is only correct inside the
- * tableRuntime config block below, whose `ignores` excludes lifecycle; do not add it to the base
- * zones. Scoping by config block also covers future files without scanning the directory. Keep
- * the zone paths plain: import-x matches glob targets case-sensitively, so a drive-letter case
- * mismatch on Windows silently disables them.
- */
-const TABLE_RUNTIME_LIFECYCLE_ZONE = {
-    target: TABLE_RUNTIME_DIR,
-    from: TABLE_RUNTIME_COORDINATOR_DIR,
-    message: 'tableRuntime/lifecycle coordinates the other runtime subfolders; they must not depend on it.',
-};
-
-/**
- * Options for `import-x/no-restricted-paths`. A later config block replaces the rule's options
- * wholesale, so every block builds them here and extends `LAYER_ZONES` rather than restating it.
- */
-function restrictedPathsRule(extraZones = []) {
-    return ['error', { basePath: import.meta.dirname, zones: [...LAYER_ZONES, ...extraZones] }];
-}
-
 const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@codemirror/language'];
 
 export default defineConfig([
@@ -193,7 +105,6 @@ export default defineConfig([
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             // report an error if any circular dependency is found
             'import-x/no-cycle': ['error', { maxDepth: Infinity }],
-            'import-x/no-restricted-paths': restrictedPathsRule(),
             'import-x/no-self-import': 'error',
             // Merge duplicate imports using inline `type` specifiers, matching consistent-type-imports below
             'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
@@ -210,15 +121,6 @@ export default defineConfig([
             // Log through src/logger.ts, which owns the console calls (exempted below).
             'no-console': 'error',
             'tsdoc/syntax': 'error',
-        },
-    },
-
-    // Apply the coordinator boundary outside lifecycle, preserving every content-script layer zone.
-    {
-        files: [`${TABLE_RUNTIME_DIR}/${SOURCE_FILE_GLOB}`],
-        ignores: [`${TABLE_RUNTIME_COORDINATOR_DIR}/**`],
-        rules: {
-            'import-x/no-restricted-paths': restrictedPathsRule([TABLE_RUNTIME_LIFECYCLE_ZONE]),
         },
     },
 

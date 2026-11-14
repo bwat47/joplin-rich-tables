@@ -1,0 +1,66 @@
+{
+    "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+    "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts", "src/**/*.test.ts"],
+    "ignorePatterns": ["**/*.generated.ts", "**/*.d.ts", "api/**"],
+    "health": {
+        "maxCognitive": 17,
+        "ignore": ["src/**/*.test.ts", "src/**/*.spec.ts", "**/__tests__/**"]
+    },
+    "boundaries": {
+        "zones": [
+            { "name": "shared", "patterns": ["src/contentScript/shared/**"] },
+            { "name": "services", "patterns": ["src/contentScript/services/**"] },
+            { "name": "tableModel", "patterns": ["src/contentScript/tableModel/**"] },
+            { "name": "tableState", "patterns": ["src/contentScript/tableState/**"] },
+            { "name": "nestedEditor", "patterns": ["src/contentScript/nestedEditor/**"] },
+            { "name": "tableWidget", "patterns": ["src/contentScript/tableWidget/**"] },
+            { "name": "tableRuntimeLifecycle", "patterns": ["src/contentScript/tableRuntime/lifecycle/**"] },
+            { "name": "tableRuntime", "patterns": ["src/contentScript/tableRuntime/**"] },
+            { "name": "toolbar", "patterns": ["src/contentScript/toolbar/**"] },
+            { "name": "tableCommands", "patterns": ["src/contentScript/tableCommands/**"] }
+        ],
+        "rules": [
+            { "from": "shared", "allow": [] },
+            { "from": "services", "allow": ["shared"] },
+            { "from": "tableModel", "allow": ["shared"] },
+            { "from": "tableState", "allow": ["shared", "tableModel"] },
+            { "from": "nestedEditor", "allow": ["shared", "services", "tableModel", "tableState"] },
+            {
+                "from": "tableWidget",
+                "allow": ["shared", "services", "tableModel", "tableState", "nestedEditor"]
+            },
+            {
+                "from": "tableRuntime",
+                "allow": ["shared", "services", "tableModel", "tableState", "tableWidget", "nestedEditor"]
+            },
+            {
+                "from": "tableRuntimeLifecycle",
+                "allow": [
+                    "shared",
+                    "services",
+                    "tableModel",
+                    "tableState",
+                    "tableWidget",
+                    "nestedEditor",
+                    "tableRuntime"
+                ]
+            },
+            {
+                "from": "toolbar",
+                "allow": [
+                    "shared",
+                    "services",
+                    "tableModel",
+                    "tableState",
+                    "tableWidget",
+                    "tableRuntime",
+                    "tableRuntimeLifecycle"
+                ]
+            },
+            {
+                "from": "tableCommands",
+                "allow": ["shared", "tableModel", "tableState", "tableRuntime", "tableRuntimeLifecycle"]
+            }
+        ]
+    }
+}

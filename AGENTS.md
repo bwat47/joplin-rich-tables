@@ -42,7 +42,8 @@ Build details: docs/BUILDING.md
 - `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
 - `npm run typecheck` Type-check with `tsc --noEmit`.
 - `npm run dist` Type-check, bundle with esbuild, and create archive at `publish/*.jpl`.
-- `npm run lint` Lint application sources with ESLint.
+- `npm run lint` Lint application sources with ESLint, then check layer boundaries.
+- `npm run lint:boundaries` Check content-script layer boundaries with fallow (`.fallowrc.json`).
 - `npm run lint:fix` Auto-fix lint issues.
 - `npm run format` Format code with Prettier.
 - `npm run knip` Find unused dependencies, exports and files.
