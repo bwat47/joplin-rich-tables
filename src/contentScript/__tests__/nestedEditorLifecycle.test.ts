@@ -792,7 +792,8 @@ describe('nestedEditorLifecycle', () => {
         });
 
         const closeParams = nestedEditorControllerMock.closeNestedEditor.mock.calls[0]?.[1] as
-            { contentFrom: number; contentTo: number } | undefined;
+            | { contentFrom: number; contentTo: number }
+            | undefined;
         expect(closeParams).toBeDefined();
         if (!closeParams) {
             throw new Error('Expected the close to carry a cell range');

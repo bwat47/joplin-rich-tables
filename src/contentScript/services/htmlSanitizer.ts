@@ -18,7 +18,7 @@ const YOUTUBE_EMBED_ALLOWED_HOSTS = new Set<string>([
     'youtube.com',
 ]);
 
-const YOUTUBE_EMBED_PATH_REGEX = /^\/embed\/[A-Za-z0-9_-]{11}$/;
+const YOUTUBE_EMBED_PATH_REGEX = /^\/embed\/[\w-]{11}$/;
 
 function isAllowedYouTubeEmbedSrc(src: string): boolean {
     try {
@@ -65,7 +65,7 @@ DOMPurify.addHook('afterSanitizeElements', (node) => {
  * nodes belong to DOMPurify's own document until something appends them, which adopts them.
  */
 export function sanitizeToFragment(html: string): DocumentFragment {
-    // eslint-disable-next-line sonarjs/dompurify-unsafe-config -- ALLOW_UNKNOWN_PROTOCOLS is needed for renderMarkup's resource URLs and custom-scheme links; see above.
+    // ALLOW_UNKNOWN_PROTOCOLS is needed for renderMarkup's resource URLs and custom-scheme links; see above.
     return DOMPurify.sanitize(html, {
         RETURN_DOM_FRAGMENT: true,
         ALLOW_UNKNOWN_PROTOCOLS: true,

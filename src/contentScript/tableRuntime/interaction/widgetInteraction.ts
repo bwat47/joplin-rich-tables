@@ -17,7 +17,7 @@ import { resolveClickCursorPos } from './clickCursorPlacement';
 import { beginMouseCellGesture, mouseCellGestureConsumesMouseDown } from './mouseCellDragSelection';
 
 /** Matches fenced code block delimiters (three or more backticks or tildes) */
-const FENCED_CODE_REGEX = /^(`{3,}|~{3,})/;
+const FENCED_CODE_REGEX = /^(?:`{3,}|~{3,})/;
 
 /** Matches an ATX heading, capturing the hashes and the heading text: `## Some heading` */
 const HEADING_REGEX = /^(#{1,6})\s+(.*)/;

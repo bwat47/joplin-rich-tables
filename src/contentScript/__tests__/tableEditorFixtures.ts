@@ -80,7 +80,7 @@ export function createResizeObserverStub(): ResizeObserverStub {
  * module scope; both guards are no-ops when a richer stub is already installed.
  */
 export function installRangeLayoutStubs(): void {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- jsdom omits layout APIs declared by lib.dom.
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- jsdom omits layout APIs declared by lib.dom.
     if (!Range.prototype.getBoundingClientRect) {
         Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
             value: () => ({
@@ -97,7 +97,7 @@ export function installRangeLayoutStubs(): void {
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- jsdom omits layout APIs declared by lib.dom.
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- jsdom omits layout APIs declared by lib.dom.
     if (!Range.prototype.getClientRects) {
         Object.defineProperty(Range.prototype, 'getClientRects', {
             value: () => [],

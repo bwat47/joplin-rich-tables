@@ -50,7 +50,7 @@ export function escapeLeadingBlockMarkers(text: string): string {
     }
 
     // Ordered list: "1. " / "1) "
-    const orderedMatch = /^(\d+)([.)])(\s|$)/.exec(rest);
+    const orderedMatch = /^(\d+)([.)])(?:\s|$)/.exec(rest);
     if (orderedMatch) {
         // Both capture groups are required by the ordered-list pattern.
         const number = orderedMatch[1]!;
@@ -101,7 +101,7 @@ const MARKDOWN_MARKERS = [
 
 /** HTML named/numeric entities and Joplin emoji shortcodes (for example, `&amp;` and `:smile:`). */
 const HTML_ENTITY_PATTERN = /&(?:#\d+|#x[\da-f]+|[a-z][\da-z]+);/i;
-const EMOJI_SHORTCODE_PATTERN = /:[a-z\d_+-]+:/i;
+const EMOJI_SHORTCODE_PATTERN = /:[\w+-]+:/;
 
 /**
  * Quick check if content likely contains markdown formatting

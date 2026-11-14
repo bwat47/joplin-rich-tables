@@ -19,7 +19,7 @@ export type CellSelectionDirection = 'left' | 'right' | 'up' | 'down';
 
 export const cellSelectionTransitionAnnotation = Annotation.define<boolean>();
 export const setCellSelectionEffect = StateEffect.define<CellSelection>();
-export const clearCellSelectionEffect = StateEffect.define<null>();
+export const clearCellSelectionEffect = StateEffect.define();
 
 export function hasCellSelectionTransitionAnnotation(transactions: readonly Transaction[]): boolean {
     return transactions.some((tr) => Boolean(tr.annotation(cellSelectionTransitionAnnotation)));

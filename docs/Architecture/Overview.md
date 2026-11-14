@@ -33,7 +33,7 @@ every layer zone.
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | `shared`        | Feature-agnostic; imports no other layer.                                                            |
 | `services`      | Only shared utilities and external integration code.                                                 |
-| `tableModel`    | Pure data logic; no higher layers and no editor/runtime packages (ESLint `no-restricted-imports`).   |
+| `tableModel`    | Pure data logic; no higher layers and no editor/runtime packages (Oxlint `no-restricted-imports`).   |
 | `nestedEditor`  | No runtime orchestration, widget rendering, commands, or toolbar; `tableRuntime` injects its policy. |
 | `tableWidget`   | Owns rendering and DOM reading; event handling and orchestration belong in `tableRuntime`.           |
 | `toolbar`       | Goes through state/runtime APIs, not nested-editor internals or command entry points.                |
