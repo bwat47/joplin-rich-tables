@@ -1,4 +1,4 @@
-import regexp from 'eslint-plugin-regexp';
+import { configs } from 'eslint-plugin-regexp';
 import { defineConfig } from 'oxlint';
 
 const CONTENT_SCRIPT_DIR = 'src/contentScript';
@@ -10,7 +10,7 @@ const EDITOR_RUNTIME_PACKAGES = ['@codemirror/view', '@codemirror/state', '@code
  * core rules (e.g. `no-invalid-regexp`), which oxlint's categories already cover.
  */
 const regexpRecommendedRules = Object.fromEntries(
-    Object.entries(regexp.configs['flat/recommended'].rules).filter(([name]) => name.startsWith(REGEXP_RULE_PREFIX))
+    Object.entries(configs['flat/recommended'].rules).filter(([name]) => name.startsWith(REGEXP_RULE_PREFIX))
 );
 
 // Layer boundaries and complexity limits are enforced by fallow (`.fallowrc.json`, `npm run lint:boundaries`/`lint:complexity`).
@@ -31,6 +31,10 @@ export default defineConfig({
     ignorePatterns: ['api/**', '.api-staging-*/**', 'dist/**', 'coverage/**'],
     rules: {
         eqeqeq: ['error', 'always'],
+        'no-var': 'error',
+        'prefer-const': 'error',
+        'prefer-rest-params': 'error',
+        'prefer-spread': 'error',
         // Allow underscore-prefixed unused variables (common convention for intentionally unused params)
         'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
         // Log through src/logger.ts, which owns the console calls (exempted below).
@@ -64,6 +68,7 @@ export default defineConfig({
 
         // Regex correctness and performance
         ...regexpRecommendedRules,
+        'regexp/no-super-linear-move': 'error',
         // The `i` flag applies to the whole pattern; keep explicit case ranges in allowlists.
         'regexp/use-ignore-case': 'off',
     },
