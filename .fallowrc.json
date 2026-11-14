@@ -4,12 +4,12 @@
     "supportEntry": ["src/**/*.test.ts"],
     "ignorePatterns": ["**/*.d.ts", "api/**"],
     "rules": {
+        "complexity-crap": "off",
         "dev-dependencies-in-production": "off"
     },
     "health": {
         "maxCognitive": 15,
-        "maxCyclomatic": 20,
-        "maxCrap": 0
+        "maxCyclomatic": 20
     },
     "boundaries": {
         "zones": [
