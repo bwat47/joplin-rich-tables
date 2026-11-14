@@ -3,8 +3,9 @@
     "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts", "src/**/*.test.ts"],
     "ignorePatterns": ["**/*.generated.ts", "**/*.d.ts", "api/**"],
     "health": {
-        "maxCognitive": 17,
-        "ignore": ["src/**/*.test.ts", "src/**/*.spec.ts", "**/__tests__/**"]
+        "maxCognitive": 15,
+        "maxCyclomatic": 20,
+        "maxCrap": 0
     },
     "boundaries": {
         "zones": [

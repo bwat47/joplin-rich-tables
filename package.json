@@ -5,8 +5,9 @@
         "dist": "npm run typecheck && joplin-plugin-scripts build",
         "prepare": "npm run dist",
         "updateVersion": "joplin-plugin-scripts update-version",
-        "lint": "oxlint src/ && npm run lint:boundaries",
+        "lint": "oxlint src/ && npm run lint:boundaries && npm run lint:complexity",
         "lint:boundaries": "fallow dead-code --boundary-violations",
+        "lint:complexity": "fallow health --complexity",
         "lint:fix": "oxlint src/ --fix",
         "format": "oxfmt --write",
         "format:check": "oxfmt --check",
@@ -52,7 +53,6 @@
         "knip": "^6.44.1",
         "oxfmt": "^0.78.0",
         "oxlint": "^1.93.0",
-        "oxlint-plugin-complexity": "^4.1.0",
         "oxlint-tsgolint": "^7.0.2007",
         "typescript": "^7.0.2",
         "vitest": "^5.1.0"

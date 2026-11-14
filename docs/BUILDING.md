@@ -35,7 +35,7 @@ there and update the dependency here, rather than adding local build scripts.
 
 - `npm test`: run the Vitest suite.
 - `npm run typecheck`: check TypeScript without producing output.
-- `npm run lint`: lint application sources and check layer boundaries.
+- `npm run lint`: lint application sources and check layer boundaries and complexity.
 - `npm run format:check`: check formatting without writing files.
 - `npm run knip`: check for unused dependencies, exports, and files.
 - `npm run dist`: build and package the plugin.

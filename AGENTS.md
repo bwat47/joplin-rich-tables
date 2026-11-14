@@ -42,8 +42,9 @@ Build details: docs/BUILDING.md
 - `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
 - `npm run typecheck` Type-check with `tsc --noEmit`.
 - `npm run dist` Type-check, bundle with esbuild, and create archive at `publish/*.jpl`.
-- `npm run lint` Lint application sources with Oxlint (type-aware), then check layer boundaries.
+- `npm run lint` Lint application sources with Oxlint (type-aware), then run the fallow boundary and complexity checks.
 - `npm run lint:boundaries` Check content-script layer boundaries with fallow (`.fallowrc.json`).
+- `npm run lint:complexity` Check cognitive/cyclomatic complexity limits with fallow (`health` in `.fallowrc.json`).
 - `npm run lint:fix` Auto-fix lint issues.
 - `npm run format` Format code with Oxfmt.
 - `npm run format:check` Check formatting without writing files.

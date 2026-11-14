@@ -13,10 +13,10 @@ const regexpRecommendedRules = Object.fromEntries(
     Object.entries(regexp.configs['flat/recommended'].rules).filter(([name]) => name.startsWith(REGEXP_RULE_PREFIX))
 );
 
-// Content-script layer boundaries are enforced by fallow (`.fallowrc.json`, `npm run lint:boundaries`).
+// Layer boundaries and complexity limits are enforced by fallow (`.fallowrc.json`, `npm run lint:boundaries`/`lint:complexity`).
 export default defineConfig({
     plugins: ['eslint', 'typescript', 'import', 'vitest', 'unicorn', 'oxc'],
-    jsPlugins: ['oxlint-plugin-complexity', 'eslint-plugin-regexp'],
+    jsPlugins: ['eslint-plugin-regexp'],
     categories: {
         correctness: 'error',
         suspicious: 'error',
@@ -42,8 +42,7 @@ export default defineConfig({
         // Merge duplicate imports using inline `type` specifiers, matching consistent-type-imports below
         'import/no-duplicates': ['error', { preferInline: true }],
 
-        // Maintainability and suspicious control flow (formerly a curated sonarjs subset)
-        'complexity/complexity': ['error', { cognitive: 15, cyclomatic: 20, minLines: 0, enableExtraction: false }],
+        // Suspicious control flow (formerly a curated sonarjs subset). Complexity limits live in fallow.
         'no-useless-assignment': 'error',
         'no-self-compare': 'error',
         'no-multi-assign': 'error',
