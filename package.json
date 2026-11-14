@@ -29,6 +29,12 @@
         "publish"
     ],
     "dependencies": {
+        "@floating-ui/dom": "^1.8.0",
+        "@joplin/fork-uslug": "^2.0.6",
+        "dompurify": "^3.4.17"
+    },
+    "devDependencies": {
+        "@bwat47/joplin-plugin-scripts": "^1.6.0",
         "@codemirror/autocomplete": "6.20.1",
         "@codemirror/commands": "6.10.3",
         "@codemirror/lang-markdown": "6.5.0",
@@ -36,15 +42,9 @@
         "@codemirror/search": "6.6.0",
         "@codemirror/state": "6.7.1",
         "@codemirror/view": "6.43.14",
-        "@floating-ui/dom": "^1.8.0",
-        "@joplin/fork-uslug": "^2.0.6",
         "@lezer/common": "1.5.0",
         "@lezer/highlight": "1.2.3",
         "@lezer/markdown": "1.6.3",
-        "dompurify": "^3.4.17"
-    },
-    "devDependencies": {
-        "@bwat47/joplin-plugin-scripts": "^1.6.0",
         "@types/node": "^24.19.2",
         "@vitest/coverage-v8": "^5.1.0",
         "eslint-plugin-regexp": "^3.3.3",
