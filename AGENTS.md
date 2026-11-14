@@ -42,9 +42,12 @@ Build details: docs/BUILDING.md
 - `npm run bench:table-parsing` Benchmark table parsing, resolution, and cell anchoring.
 - `npm run typecheck` Type-check with `tsc --noEmit`.
 - `npm run dist` Type-check, bundle with esbuild, and create archive at `publish/*.jpl`.
-- `npm run lint` Lint application sources with ESLint.
+- `npm run lint` Lint application sources with Oxlint (type-aware), then run the fallow boundary and complexity checks.
+- `npm run lint:boundaries` Check content-script layer boundaries with fallow (`.fallowrc.json`).
+- `npm run lint:complexity` Check cognitive/cyclomatic complexity limits with fallow (`health` in `.fallowrc.json`).
 - `npm run lint:fix` Auto-fix lint issues.
-- `npm run format` Format code with Prettier.
+- `npm run format` Format code with Oxfmt.
+- `npm run format:check` Check formatting without writing files.
 - `npm run knip` Find unused dependencies, exports and files.
 - `npm run updateVersion` Increment the patch version in `package.json`, `src/manifest.json`, and `package-lock.json`.
 - `npm run updateApi` Replace `api/` with the latest `generator-joplin` API types; review `git diff api/` afterwards.
@@ -61,7 +64,7 @@ Build details: docs/BUILDING.md
 - **Language**: TypeScript with strict settings; 4-space indentation; semicolons required.
 - **Filenames**: `camelCase.ts` for modules; tests mirror names: `module.test.ts`.
 - **Module boundaries**: Add explicit return types to exported functions and public methods of exported classes. Prefer named exported types for non-trivial object shapes. Let TypeScript infer local implementation details, and avoid redundant primitive annotations.
-- **Style enforcement**: Run `npm run format` before commits or if you encounter formatting errors from prettier.
+- **Style enforcement**: Run `npm run format` before commits or if you encounter formatting errors from oxfmt.
 - **Documentation**: Use JSDoc for complex functions; document regex patterns with examples.
 - **Constants and configuration**: No magic literals — extract to constants, enums, config objects, or dedicated types.
 - **Structure and Testability**: Pure logic lives in small, focused units when internal behaviour is non-trivial. Global state and hidden side effects are avoided in favour of explicit dependencies.
@@ -70,7 +73,7 @@ Build details: docs/BUILDING.md
 
 - All text files use LF. If you must fall back to a Python script for file editing, write LF explicitly
   (Python: `open(path, 'w', newline='\n')` or `write_text(..., newline='\n')`).
-- Don't manually repair incidental CRLF changes. Git normalizes text to LF when staging; Prettier also normalizes files when formatting.
+- Don't manually repair incidental CRLF changes. Git normalizes text to LF when staging; Oxfmt also normalizes files when formatting.
 
 ## Tests
 

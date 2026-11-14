@@ -153,36 +153,7 @@ class MouseCellDragSelectionController {
         gesture.lastClientY = event.clientY;
 
         const pointedCell = this.resolveCellAtPoint(event, gesture);
-        if (!gesture.dragged) {
-            const promoteTo = this.promotionTarget(gesture, event, pointedCell);
-            if (!promoteTo) {
-                // The press keeps whatever it is still doing in its own cell: drawing a rendered
-                // text range, or leaving the nested editor's native drag alone.
-                if (!ownsNestedEditor(gesture.origin)) {
-                    this.updateRenderedTextSelection(gesture);
-                }
-                return;
-            }
-
-            if (ownsNestedEditor(gesture.origin)) {
-                this.capturePointer(gesture);
-                flushNestedEditorState(this.view);
-                this.endNativeTextDrag(event);
-            }
-
-            // A rectangle that cannot be dispatched — the table moved or was rewritten under
-            // the gesture — leaves the press provisional. Release re-resolves the pressed
-            // widget and opens it only if it still identifies a current table.
-            gesture.dragged = this.applyFocus(gesture, promoteTo);
-            if (!gesture.dragged) {
-                return;
-            }
-            if (gesture.origin === 'renderedCell') {
-                // The rendered range belongs to this gesture; stop painting it on promotion.
-                this.capturePointer(gesture);
-                this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
-            }
-        } else {
+        if (gesture.dragged) {
             // Once dragging, a pointer outside the table still tracks the nearest cell, so a
             // drag past the edge of a fully visible table keeps extending the rectangle.
             this.applyFocus(
@@ -192,12 +163,50 @@ class MouseCellDragSelectionController {
                     gesture.lastFocus ??
                     gesture.resolvedCell.activeCell
             );
+        } else if (!this.promoteGesture(gesture, event, pointedCell)) {
+            return;
         }
 
         this.scheduleAutoScroll(gesture);
         event.preventDefault();
         event.stopPropagation();
     };
+
+    /**
+     * Promotes a press that has not yet dragged into a cell-rectangle drag once the pointer
+     * leaves its cell. Returns whether the gesture is now dragging.
+     */
+    private promoteGesture(gesture: MouseCellGesture, event: PointerEvent, pointedCell: CellCoords | null): boolean {
+        const promoteTo = this.promotionTarget(gesture, event, pointedCell);
+        if (!promoteTo) {
+            // The press keeps whatever it is still doing in its own cell: drawing a rendered
+            // text range, or leaving the nested editor's native drag alone.
+            if (!ownsNestedEditor(gesture.origin)) {
+                this.updateRenderedTextSelection(gesture);
+            }
+            return false;
+        }
+
+        if (ownsNestedEditor(gesture.origin)) {
+            this.capturePointer(gesture);
+            flushNestedEditorState(this.view);
+            this.endNativeTextDrag(event);
+        }
+
+        // A rectangle that cannot be dispatched — the table moved or was rewritten under
+        // the gesture — leaves the press provisional. Release re-resolves the pressed
+        // widget and opens it only if it still identifies a current table.
+        gesture.dragged = this.applyFocus(gesture, promoteTo);
+        if (!gesture.dragged) {
+            return false;
+        }
+        if (gesture.origin === 'renderedCell') {
+            // The rendered range belongs to this gesture; stop painting it on promotion.
+            this.capturePointer(gesture);
+            this.view.dom.ownerDocument.getSelection()?.removeAllRanges();
+        }
+        return true;
+    }
 
     private readonly onPointerUp = (event: PointerEvent): void => {
         const gesture = this.gesture;

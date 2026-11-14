@@ -14,7 +14,7 @@ import { clearActiveCellEffect, getActiveCell } from '../../tableState/activeCel
  * Effect dispatched when search-forced raw mode is exited.
  * View plugins use it to reactivate the cell at the cursor.
  */
-export const exitSearchForceSourceModeEffect = StateEffect.define<null>();
+export const exitSearchForceSourceModeEffect = StateEffect.define();
 
 function extendSearchPanelTransition(transaction: Transaction): Pick<TransactionSpec, 'effects'> | null {
     // Panel visibility changes only through state effects, so a document-only transaction cannot

@@ -1,6 +1,6 @@
 import { syntaxTree } from '@codemirror/language';
-import type { EditorState } from '@codemirror/state';
-import type { SyntaxNodeRef } from '@lezer/common';
+import type { EditorState, Text } from '@codemirror/state';
+import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common';
 
 import { clamp } from '../../shared/numberUtils';
 import type { SourceSpan } from '../../shared/textAlignment';
@@ -46,6 +46,16 @@ const MARK_NODES = new Set([
     'HighlightMarker',
     'InsertMarker',
 ]);
+
+/** The first direct closing bracket of a link, which ends its label even with nested emphasis. */
+function findLinkLabelClose(link: SyntaxNode, doc: Text): SyntaxNode | null {
+    for (let child = link.firstChild; child; child = child.nextSibling) {
+        if (child.name === 'LinkMark' && doc.sliceString(child.from, child.to) === ']') {
+            return child;
+        }
+    }
+    return null;
+}
 
 /** The construct one marker of a pair belongs to; undefined for syntax that owns itself. */
 function markerOwner(node: SyntaxNodeRef): SyntaxNodeRef | undefined {
@@ -188,33 +198,35 @@ export function projectCellText(
         from: cell.editableFrom,
         to: cell.editableTo,
         enter(node) {
-            if (node.name === 'Link') {
-                // The first direct closing bracket ends the label, even with nested emphasis.
-                for (let child = node.node.firstChild; child; child = child.nextSibling) {
-                    if (child.name === 'LinkMark' && state.doc.sliceString(child.from, child.to) === ']') {
-                        exclude(child.from, node.to, node);
-                        break;
+            switch (node.name) {
+                case 'Link': {
+                    // Descend into the link: its marks and nested syntax are handled as children.
+                    const labelClose = findLinkLabelClose(node.node, state.doc);
+                    if (labelClose) {
+                        exclude(labelClose.from, node.to, node);
                     }
+                    return undefined;
                 }
-            }
-            if (node.name === 'Escape') {
-                // Pipe escapes are already removed by the root-to-local codec.
-                if (state.doc.sliceString(node.from, node.to) !== '\\|') {
-                    exclude(node.from, node.from + 1);
+                case 'Escape':
+                    // Pipe escapes are already removed by the root-to-local codec.
+                    if (state.doc.sliceString(node.from, node.to) !== '\\|') {
+                        exclude(node.from, node.from + 1);
+                    }
+                    return false;
+                case 'HTMLTag': {
+                    const source = state.doc.sliceString(node.from, node.to);
+                    // Stored line breaks become real newlines in the nested editor.
+                    if (source !== '<br>') {
+                        htmlTags.push(readHtmlTag(source, node.from, node.to));
+                    }
+                    return false;
                 }
-                return false;
-            }
-            if (node.name === 'HTMLTag') {
-                const source = state.doc.sliceString(node.from, node.to);
-                // Stored line breaks become real newlines in the nested editor.
-                if (source !== '<br>') {
-                    htmlTags.push(readHtmlTag(source, node.from, node.to));
-                }
-                return false;
-            }
-            if (HIDDEN_NODES.has(node.name)) {
-                exclude(node.from, node.to, markerOwner(node));
-                return false;
+                default:
+                    if (HIDDEN_NODES.has(node.name)) {
+                        exclude(node.from, node.to, markerOwner(node));
+                        return false;
+                    }
+                    return undefined;
             }
         },
     });

@@ -10,7 +10,7 @@ export const toggleSourceModeEffect = StateEffect.define<boolean>();
  * Effect dispatched when source mode is exited (toggled off).
  * Used by view plugins to perform side effects (e.g., re-activating the cell at the cursor).
  */
-export const exitSourceModeEffect = StateEffect.define<null>();
+export const exitSourceModeEffect = StateEffect.define();
 
 /**
  * StateField tracking whether source mode is enabled.

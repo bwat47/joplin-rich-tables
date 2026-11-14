@@ -2,8 +2,8 @@ import { StateEffect, StateField, type EditorState } from '@codemirror/state';
 
 import { getCellSelection } from './cellSelectionState';
 
-export const startCellDragEffect = StateEffect.define<null>();
-export const endCellDragEffect = StateEffect.define<null>();
+export const startCellDragEffect = StateEffect.define();
+export const endCellDragEffect = StateEffect.define();
 
 /**
  * Whether the gesture has started a drag and not yet settled it.

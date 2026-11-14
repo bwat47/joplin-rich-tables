@@ -15,7 +15,9 @@ export type NavigationDirection = 'next' | 'previous' | 'up' | 'down';
  * - `newRow`: append a row and land in `targetCol`.
  */
 export type NavigationTarget =
-    { kind: 'blocked' } | { kind: 'cell'; coords: CellCoords } | { kind: 'newRow'; targetCol: number };
+    | { kind: 'blocked' }
+    | { kind: 'cell'; coords: CellCoords }
+    | { kind: 'newRow'; targetCol: number };
 
 interface UnifiedPosition {
     row: number;

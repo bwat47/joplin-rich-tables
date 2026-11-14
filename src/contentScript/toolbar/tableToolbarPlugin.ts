@@ -137,11 +137,11 @@ class TableToolbarPlugin {
             btn.className = 'cm-table-toolbar-btn';
             btn.type = 'button';
             btn.setAttribute('aria-label', label);
-            btn.onclick = (e) => {
+            btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onClick();
-            };
+            });
             btn.appendChild(svg);
             btn.classList.add('cm-table-toolbar-icon-btn');
             this.dom.appendChild(btn);

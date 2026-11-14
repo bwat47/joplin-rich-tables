@@ -24,12 +24,24 @@ sits outside the layer folders so it may import from all of them.
 
 ### Allowed Dependencies
 
-`LAYER_DEPENDENCIES` in `eslint.config.mjs` is the source of truth. `shared`, `tableModel`, and `tableState` never
-depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and `tableCommands`, which reach the editor
-only through state and runtime APIs. Tests and the composition root are outside every layer zone.
+The `boundaries` section of `.fallowrc.json` is the source of truth, checked by `npm run lint:boundaries`. `shared`,
+`tableModel`, and `tableState` never depend on editor orchestration or UI. `tableRuntime` sits below `toolbar` and
+`tableCommands`, which reach the editor only through state and runtime APIs. Tests and the composition root are outside
+every layer zone.
+
+| Layer           | Rationale                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| `shared`        | Feature-agnostic; imports no other layer.                                                            |
+| `services`      | Only shared utilities and external integration code.                                                 |
+| `tableModel`    | Pure data logic; no higher layers and no editor/runtime packages (Oxlint `no-restricted-imports`).   |
+| `nestedEditor`  | No runtime orchestration, widget rendering, commands, or toolbar; `tableRuntime` injects its policy. |
+| `tableWidget`   | Owns rendering and DOM reading; event handling and orchestration belong in `tableRuntime`.           |
+| `toolbar`       | Goes through state/runtime APIs, not nested-editor internals or command entry points.                |
+| `tableCommands` | Goes through state/runtime APIs, not widget, nested-editor, or toolbar internals.                    |
 
 Inside `tableRuntime`, `lifecycle/` is the coordinator: it may import the other subdomains, but neither they nor the
-root primitives may import from it (`TABLE_RUNTIME_LIFECYCLE_ZONE` in `eslint.config.mjs`).
+root primitives may import from it. fallow assigns each file to the first matching zone, so the
+`tableRuntimeLifecycle` zone must stay listed before `tableRuntime`.
 
 ## Documentation Index
 
