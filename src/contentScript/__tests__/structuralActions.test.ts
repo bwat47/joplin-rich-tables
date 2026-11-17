@@ -5,7 +5,7 @@ import type { StructuralActionId } from '../../contentScriptBridge/structuralCom
 import { refocusNestedEditor } from '../nestedEditor/nestedEditorController';
 import type { MarkdownTable, TableAlignment } from '../tableModel/MarkdownTable';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
-import { runStructuralAction, runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
+import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
@@ -79,7 +79,7 @@ describe('structuralActions', () => {
     ] satisfies Array<[StructuralActionId, TableAlignment]>)(
         'maps alignment action %s to an alignColumn command',
         (actionId, alignment) => {
-            expect(runStructuralAction(view, actionId, resolvedCell)).toBe(true);
+            expect(runStructuralAction(view, actionId)).toBe(true);
 
             expect(mockRunStructuralCommand).toHaveBeenCalledWith(view, resolvedCell, {
                 type: 'alignColumn',
@@ -88,9 +88,9 @@ describe('structuralActions', () => {
         }
     );
 
-    describe('runStructuralActionOnActiveCell', () => {
+    describe('runStructuralAction', () => {
         it('runs the action on the resolved active cell without refocusing when handled', () => {
-            expect(runStructuralActionOnActiveCell(view, 'moveRowUp')).toBe(true);
+            expect(runStructuralAction(view, 'moveRowUp')).toBe(true);
 
             expect(mockRunStructuralCommand).toHaveBeenCalledWith(view, resolvedCell, { type: 'moveRowUp' });
             expect(refocusNestedEditor).not.toHaveBeenCalled();
@@ -99,7 +99,7 @@ describe('structuralActions', () => {
         it('refocuses the nested editor when the action is a no-op', () => {
             mockRunStructuralCommand.mockReturnValue(false);
 
-            expect(runStructuralActionOnActiveCell(view, 'moveRowUp')).toBe(false);
+            expect(runStructuralAction(view, 'moveRowUp')).toBe(false);
 
             expect(refocusNestedEditor).toHaveBeenCalledWith(view);
         });
@@ -107,7 +107,7 @@ describe('structuralActions', () => {
         it('refocuses the nested editor without running the action when the active cell no longer resolves', () => {
             vi.mocked(getResolvedActiveCell).mockReturnValue(null);
 
-            expect(runStructuralActionOnActiveCell(view, 'moveRowUp')).toBe(false);
+            expect(runStructuralAction(view, 'moveRowUp')).toBe(false);
 
             expect(mockRunStructuralCommand).not.toHaveBeenCalled();
             expect(refocusNestedEditor).toHaveBeenCalledWith(view);

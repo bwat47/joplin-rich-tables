@@ -18,7 +18,7 @@ import {
     type ViewportBounds,
 } from '../shared/editorViewport';
 import { syncAnnotation } from '../shared/syncAnnotation';
-import { runStructuralActionOnActiveCell } from '../tableRuntime/operations/structuralActions';
+import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
 import { activeCellField, isSameActiveCell, type ActiveCell } from '../tableState/activeCellState';
 import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { CLASS_FLOATING_TOOLBAR, findTableWidgetElement, findWidgetTableElement } from '../tableWidget/domHelpers';
@@ -157,7 +157,7 @@ class TableToolbarPlugin {
             getToolbarButtonGroups(this.view.state.facet(hostEditorConfigFacet).toolbar),
             (button) => {
                 createIconBtn(button.label, button.iconFactory(doc), () => {
-                    runStructuralActionOnActiveCell(this.view, button.actionId);
+                    runStructuralAction(this.view, button.actionId);
                 });
             },
             createSeparator

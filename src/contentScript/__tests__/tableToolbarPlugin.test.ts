@@ -14,12 +14,12 @@ import { openCellRequestEffect } from '../tableState/openCellRequestState';
 import { CLASS_FLOATING_TOOLBAR } from '../tableWidget/domHelpers';
 import { tableToolbarPlugin } from '../toolbar/tableToolbarPlugin';
 
-const { mockRunStructuralActionOnActiveCell } = vi.hoisted(() => ({
-    mockRunStructuralActionOnActiveCell: vi.fn(),
+const { mockRunStructuralAction } = vi.hoisted(() => ({
+    mockRunStructuralAction: vi.fn(),
 }));
 
 vi.mock('../tableRuntime/operations/structuralActions', () => ({
-    runStructuralActionOnActiveCell: mockRunStructuralActionOnActiveCell,
+    runStructuralAction: mockRunStructuralAction,
 }));
 
 const createdViews: EditorView[] = [];
@@ -103,7 +103,7 @@ describe('tableToolbarPlugin', () => {
         activateCell(view, createCell());
         getToolbarButton(view, label).click();
 
-        expect(mockRunStructuralActionOnActiveCell).toHaveBeenCalledWith(view, actionId);
+        expect(mockRunStructuralAction).toHaveBeenCalledWith(view, actionId);
     });
 
     it('hides the toolbar when the active cell is cleared', () => {

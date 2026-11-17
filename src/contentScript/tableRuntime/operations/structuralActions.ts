@@ -46,7 +46,7 @@ function assertNeverAction(actionId: never): never {
     throw new Error(`Unhandled structural action: ${String(actionId)}`);
 }
 
-export function runStructuralAction(
+function runStructuralActionOnCell(
     view: EditorView,
     actionId: StructuralActionId,
     resolvedCell: ResolvedActiveCell
@@ -66,12 +66,14 @@ export function runStructuralAction(
 }
 
 /**
- * Runs an action triggered from a control outside the cell editor, such as a toolbar button. The control
- * takes focus from an open nested editor, so a no-op hands focus back to it.
+ * Runs a structural action on the current active cell, for both Joplin commands and toolbar buttons.
+ * Returns false when no active cell resolves or the action does not apply. An applied action reopens
+ * its target cell; a no-op hands focus back to an open nested editor, since the triggering control
+ * (toolbar button, menu, command palette) may have taken it.
  */
-export function runStructuralActionOnActiveCell(view: EditorView, actionId: StructuralActionId): boolean {
+export function runStructuralAction(view: EditorView, actionId: StructuralActionId): boolean {
     const resolvedCell = getResolvedActiveCell(view.state);
-    const handled = resolvedCell ? runStructuralAction(view, actionId, resolvedCell) : false;
+    const handled = resolvedCell ? runStructuralActionOnCell(view, actionId, resolvedCell) : false;
     if (!handled) {
         refocusNestedEditor(view);
     }

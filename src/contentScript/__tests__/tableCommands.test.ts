@@ -14,6 +14,9 @@ vi.mock('../tableRuntime/operations/runStructuralCommand', () => ({
 vi.mock('../tableState/resolvedActiveCell', () => ({
     getResolvedActiveCell: vi.fn(),
 }));
+vi.mock('../nestedEditor/nestedEditorController', () => ({
+    refocusNestedEditor: vi.fn(),
+}));
 
 describe('tableCommands', () => {
     let mockRunStructuralCommand: Mock;

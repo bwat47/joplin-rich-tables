@@ -4,7 +4,6 @@ import { STRUCTURAL_COMMANDS, type StructuralActionId } from '../../contentScrip
 import { insertTableAndActivate } from '../tableRuntime/operations/insertTable';
 import { toggleSourceMode } from '../tableRuntime/operations/sourceModeController';
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
-import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
 
 /**
  * Editor control interface provided by Joplin
@@ -18,11 +17,7 @@ interface EditorControl {
 
 export function registerTableCommands(editorControl: EditorControl): void {
     const registerCellCommand = (name: string, actionId: StructuralActionId) => {
-        editorControl.registerCommand(name, () => {
-            const resolvedCell = getResolvedActiveCell(editorControl.cm6.state);
-            if (!resolvedCell) return false;
-            return runStructuralAction(editorControl.cm6, actionId, resolvedCell);
-        });
+        editorControl.registerCommand(name, () => runStructuralAction(editorControl.cm6, actionId));
     };
 
     for (const { commandName, actionId } of STRUCTURAL_COMMANDS) {
