@@ -20,6 +20,14 @@
             { "name": "nestedEditor", "patterns": ["src/contentScript/nestedEditor/**"] },
             { "name": "tableWidget", "patterns": ["src/contentScript/tableWidget/**"] },
             { "name": "tableRuntimeLifecycle", "patterns": ["src/contentScript/tableRuntime/lifecycle/**"] },
+            {
+                "name": "tableRuntimeEntryPoints",
+                "patterns": [
+                    "src/contentScript/tableRuntime/operations/structuralActions.ts",
+                    "src/contentScript/tableRuntime/operations/insertTable.ts",
+                    "src/contentScript/tableRuntime/operations/sourceModeController.ts"
+                ]
+            },
             { "name": "tableRuntime", "patterns": ["src/contentScript/tableRuntime/**"] },
             { "name": "toolbar", "patterns": ["src/contentScript/toolbar/**"] },
             { "name": "tableCommands", "patterns": ["src/contentScript/tableCommands/**"] }
@@ -36,10 +44,18 @@
             },
             {
                 "from": "tableRuntime",
-                "allow": ["shared", "services", "tableModel", "tableState", "tableWidget", "nestedEditor"]
+                "allow": [
+                    "shared",
+                    "services",
+                    "tableModel",
+                    "tableState",
+                    "tableWidget",
+                    "nestedEditor",
+                    "tableRuntimeEntryPoints"
+                ]
             },
             {
-                "from": "tableRuntimeLifecycle",
+                "from": "tableRuntimeEntryPoints",
                 "allow": [
                     "shared",
                     "services",
@@ -51,20 +67,25 @@
                 ]
             },
             {
-                "from": "toolbar",
+                "from": "tableRuntimeLifecycle",
                 "allow": [
                     "shared",
                     "services",
                     "tableModel",
                     "tableState",
                     "tableWidget",
+                    "nestedEditor",
                     "tableRuntime",
-                    "tableRuntimeLifecycle"
+                    "tableRuntimeEntryPoints"
                 ]
             },
             {
+                "from": "toolbar",
+                "allow": ["shared", "services", "tableState", "tableWidget", "tableRuntimeEntryPoints"]
+            },
+            {
                 "from": "tableCommands",
-                "allow": ["shared", "tableModel", "tableState", "tableRuntime", "tableRuntimeLifecycle"]
+                "allow": ["shared", "tableState", "tableRuntimeEntryPoints"]
             }
         ]
     }

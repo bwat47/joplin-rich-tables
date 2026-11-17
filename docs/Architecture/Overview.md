@@ -36,12 +36,18 @@ every layer zone.
 | `tableModel`    | Pure data logic; no higher layers and no editor/runtime packages (Oxlint `no-restricted-imports`).   |
 | `nestedEditor`  | No runtime orchestration, widget rendering, commands, or toolbar; `tableRuntime` injects its policy. |
 | `tableWidget`   | Owns rendering and DOM reading; event handling and orchestration belong in `tableRuntime`.           |
-| `toolbar`       | Goes through state/runtime APIs, not nested-editor internals or command entry points.                |
-| `tableCommands` | Goes through state/runtime APIs, not widget, nested-editor, or toolbar internals.                    |
+| `toolbar`       | Goes through state/runtime entry points, not model, nested-editor, or command internals.             |
+| `tableCommands` | Goes through state/runtime entry points, not model, widget, nested-editor, or toolbar internals.     |
+
+Toolbar and command registration may import only three runtime entry-point modules: `operations/structuralActions.ts`,
+`operations/insertTable.ts`, and `operations/sourceModeController.ts`. These own structural action execution, table
+insertion, and source-mode toggling. The `tableRuntimeEntryPoints` zone enforces this allowlist; adding another file
+under `operations/` does not expose it to upper layers.
 
 Inside `tableRuntime`, `lifecycle/` is the coordinator: it may import the other subdomains, but neither they nor the
-root primitives may import from it. fallow assigns each file to the first matching zone, so the
-`tableRuntimeLifecycle` zone must stay listed before `tableRuntime`.
+root primitives may import from it. Entry points may use runtime internals, and runtime internals may invoke entry
+points; file-level import cycles remain forbidden by Oxlint. Fallow assigns each file to the first matching zone, so
+both `tableRuntimeLifecycle` and `tableRuntimeEntryPoints` must stay listed before `tableRuntime`.
 
 ## Documentation Index
 
