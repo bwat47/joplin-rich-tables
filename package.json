@@ -30,8 +30,8 @@
     ],
     "dependencies": {
         "@floating-ui/dom": "^1.8.0",
-        "@joplin/fork-uslug": "^2.0.6",
-        "dompurify": "^3.4.17"
+        "@joplin/fork-uslug": "^2.0.10",
+        "dompurify": "^3.4.18"
     },
     "devDependencies": {
         "@bwat47/joplin-plugin-scripts": "^1.6.0",
