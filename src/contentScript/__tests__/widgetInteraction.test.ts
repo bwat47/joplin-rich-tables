@@ -1,20 +1,38 @@
 import type { EditorView } from '@codemirror/view';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { linkOpenerFacet } from '../services/linkOpener';
 import { buildFootnoteHref } from '../shared/footnoteAnchor';
-import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { getActiveCell } from '../tableState/activeCellState';
-import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { getCellSelection } from '../tableState/cellSelectionState';
+import { NON_CANONICAL_DOC } from './interactiveTableTestHarness';
 import {
-    createInteractiveTableHarness,
-    getLastDispatchSpec,
-    type MutableTestView,
-} from './interactiveTableTestHarness';
+    createEditorViewHarness,
+    createResizeObserverStub,
+    mountTableWidgetView,
+    type MountedTableWidgetView,
+    type TableWidgetViewOptions,
+} from './tableEditorFixtures';
+
+const resizeObserver = createResizeObserverStub();
+const viewHarness = createEditorViewHarness();
+
+function mountWidgetView(options?: Partial<TableWidgetViewOptions>): MountedTableWidgetView {
+    return mountTableWidgetView(viewHarness, { doc: NON_CANONICAL_DOC, ...options });
+}
+
+beforeEach(() => {
+    resizeObserver.install();
+});
+
+afterEach(() => {
+    viewHarness.destroyViews();
+    vi.restoreAllMocks();
+});
 
 describe('table widget interactions', () => {
     it('starts rectangular selection on shift-click from the active cell', () => {
-        const { view, cells } = createInteractiveTableHarness({
+        const { view, cells } = mountWidgetView({
             activeCell: {
                 tableFrom: 0,
                 section: 'header',
@@ -22,16 +40,16 @@ describe('table widget interactions', () => {
                 col: 0,
             },
         });
-        const event = {
-            type: 'mousedown',
+        const event = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
             button: 0,
             shiftKey: true,
-            target: cells.body1,
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-        } as unknown as MouseEvent;
+        });
 
-        expect(handleWidgetPress(view, event)).toBe(true);
+        cells.body1.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
         expect(getActiveCell(view.state)).toBeNull();
         expect(getCellSelection(view.state)).toEqual({
             tableFrom: 0,
@@ -41,24 +59,23 @@ describe('table widget interactions', () => {
     });
 
     it('clears an existing selection before activating a clicked cell', () => {
-        const { view, cells } = createInteractiveTableHarness();
-        view.dispatch({
-            effects: setCellSelectionEffect.of({
+        const { view, cells } = mountWidgetView({
+            cellSelection: {
                 tableFrom: 0,
                 anchor: { section: 'header', row: 0, col: 0 },
                 focus: { section: 'body', row: 0, col: 1 },
-            }),
+            },
         });
 
-        const event = {
-            type: 'mousedown',
+        const event = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
             button: 0,
-            target: cells.body0,
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-        } as unknown as MouseEvent;
+        });
 
-        expect(handleWidgetPress(view, event)).toBe(true);
+        cells.body0.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
         expect(getCellSelection(view.state)).toBeNull();
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'body',
@@ -69,44 +86,28 @@ describe('table widget interactions', () => {
 
     it('opens external rendered links through the link opener facet', () => {
         const open = vi.fn();
-        const { view } = createInteractiveTableHarness({
+        const { cells } = mountWidgetView({
             extensions: [
                 linkOpenerFacet.of({
                     open,
                 }),
             ],
         });
-        const widget = {};
-        // This file runs in the `node` environment, so the anchor is stubbed.
-        // It must mirror every DOM API the link handler reads: `dataset` for
-        // Joplin's internal-link attributes, `getAttribute` for the href.
-        const link = {
-            dataset: {} as DOMStringMap,
-            getAttribute: vi.fn((name: string) => (name === 'href' ? 'https://example.com' : null)),
-        };
-        const target = {
-            closest: vi.fn((selector: string) => {
-                if (selector === 'a') {
-                    return link;
-                }
-                if (selector.includes('cm-table-widget')) {
-                    return widget;
-                }
-                return null;
-            }),
-        };
-        const event = {
-            type: 'click',
+        const link = document.createElement('a');
+        link.setAttribute('href', 'https://example.com');
+        cells.body0.appendChild(link);
+        const event = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
             button: 0,
-            target,
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-        } as unknown as MouseEvent;
+        });
+        const stopPropagation = vi.spyOn(event, 'stopPropagation');
 
-        expect(handleWidgetClick(view, event)).toBe(true);
+        link.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
         expect(open).toHaveBeenCalledWith('https://example.com');
-        expect(event.preventDefault).toHaveBeenCalled();
-        expect(event.stopPropagation).toHaveBeenCalled();
+        expect(stopPropagation).toHaveBeenCalled();
     });
 
     describe('internal anchor links', () => {
@@ -129,77 +130,75 @@ describe('table widget interactions', () => {
 
         const posOfLine = (doc: string, line: string): number => doc.indexOf(`\n${line}`) + 1;
 
-        function clickAnchorLink(href: string): { view: EditorView; handled: boolean } {
-            const { view } = createInteractiveTableHarness({ doc: ANCHOR_DOC });
-            const widget = {};
-            // This file runs in the `node` environment, so the anchor is stubbed.
-            const link = {
-                dataset: {} as DOMStringMap,
-                getAttribute: vi.fn((name: string) => (name === 'href' ? href : null)),
-            };
-            const target = {
-                closest: vi.fn((selector: string) => {
-                    if (selector === 'a') {
-                        return link;
-                    }
-                    if (selector.includes('cm-table-widget')) {
-                        return widget;
-                    }
-                    return null;
-                }),
-            };
-            const event = {
-                type: 'click',
+        function clickAnchorLink(href: string): {
+            view: EditorView;
+            dispatch: MockInstance<EditorView['dispatch']>;
+            handled: boolean;
+        } {
+            const { view, cells } = mountWidgetView({ doc: ANCHOR_DOC });
+            const dispatch = vi.spyOn(view, 'dispatch');
+            const link = document.createElement('a');
+            link.setAttribute('href', href);
+            cells.body0.appendChild(link);
+            const event = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
                 button: 0,
-                target,
-                preventDefault: vi.fn(),
-                stopPropagation: vi.fn(),
-            } as unknown as MouseEvent;
+            });
 
-            return { view, handled: handleWidgetClick(view, event) };
+            link.dispatchEvent(event);
+
+            // CodeMirror calls `preventDefault` on an event whose handler returned true.
+            return { view, dispatch, handled: event.defaultPrevented };
         }
 
         it('scrolls to the footnote definition outside fenced code', () => {
-            const { view, handled } = clickAnchorLink('#fn-1');
+            const { dispatch, handled } = clickAnchorLink('#fn-1');
 
             expect(handled).toBe(true);
-            expect(getLastDispatchSpec(view as unknown as MutableTestView)).toMatchObject({
-                selection: { anchor: posOfLine(ANCHOR_DOC, '[^1]: actual footnote') },
-                scrollIntoView: true,
-            });
+            expect(dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selection: { anchor: posOfLine(ANCHOR_DOC, '[^1]: actual footnote') },
+                    scrollIntoView: true,
+                })
+            );
         });
 
         it('decodes the label so footnotes with unsafe characters resolve', () => {
-            const { view, handled } = clickAnchorLink(buildFootnoteHref('my note'));
+            const { dispatch, handled } = clickAnchorLink(buildFootnoteHref('my note'));
 
             expect(handled).toBe(true);
-            expect(getLastDispatchSpec(view as unknown as MutableTestView)).toMatchObject({
-                selection: { anchor: posOfLine(ANCHOR_DOC, '[^my note]: spaced footnote') },
-            });
+            expect(dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selection: { anchor: posOfLine(ANCHOR_DOC, '[^my note]: spaced footnote') },
+                })
+            );
         });
 
         it('does not fall back to a heading when a footnote anchor has no definition', () => {
-            const { view, handled } = clickAnchorLink(buildFootnoteHref('missing'));
+            const { dispatch, handled } = clickAnchorLink(buildFootnoteHref('missing'));
 
             expect(handled).toBe(true);
-            expect((view as unknown as MutableTestView).dispatch).not.toHaveBeenCalled();
+            expect(dispatch).not.toHaveBeenCalled();
         });
 
         it('scrolls to the heading whose slug matches the anchor', () => {
-            const { view, handled } = clickAnchorLink('#real-heading');
+            const { dispatch, handled } = clickAnchorLink('#real-heading');
 
             expect(handled).toBe(true);
-            expect(getLastDispatchSpec(view as unknown as MutableTestView)).toMatchObject({
-                selection: { anchor: posOfLine(ANCHOR_DOC, '## Real Heading') },
-                scrollIntoView: true,
-            });
+            expect(dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selection: { anchor: posOfLine(ANCHOR_DOC, '## Real Heading') },
+                    scrollIntoView: true,
+                })
+            );
         });
 
         it('consumes the click but does not scroll when the anchor resolves to nothing', () => {
-            const { view, handled } = clickAnchorLink('#no-such-heading');
+            const { dispatch, handled } = clickAnchorLink('#no-such-heading');
 
             expect(handled).toBe(true);
-            expect((view as unknown as MutableTestView).dispatch).not.toHaveBeenCalled();
+            expect(dispatch).not.toHaveBeenCalled();
         });
     });
 });

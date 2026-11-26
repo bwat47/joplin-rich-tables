@@ -127,8 +127,7 @@ function escapeRegex(str: string): string {
 }
 
 /** Opens a link clicked inside a rendered cell. */
-// fallow-ignore-next-line test-only-export -- tests drive the widget click router directly
-export function handleWidgetClick(view: EditorView, event: MouseEvent): boolean {
+function handleWidgetClick(view: EditorView, event: MouseEvent): boolean {
     const target = event.target as HTMLElement | null;
     if (!isPrimaryMouseButton(event) || !target?.closest(SELECTOR_WIDGET)) {
         return false;
@@ -299,8 +298,7 @@ function activateCellFromMouseDown(view: EditorView, event: MouseEvent, cell: HT
  * excluded there as it is above: shift-click extends the cell's own text selection, and the
  * gesture stays out of the way unless the pointer crosses into another cell.
  */
-// fallow-ignore-next-line test-only-export -- tests drive the widget press router directly
-export function handleWidgetPress(view: EditorView, event: MouseEvent | PointerEvent): boolean {
+function handleWidgetPress(view: EditorView, event: MouseEvent | PointerEvent): boolean {
     // A pointerdown that started a gesture is followed by a compatibility mousedown in some
     // browsers. It belongs to the gesture, whatever it landed on, so it is answered before
     // anything about this press is resolved again.

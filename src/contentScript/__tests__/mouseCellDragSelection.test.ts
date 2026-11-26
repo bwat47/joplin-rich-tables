@@ -1,39 +1,23 @@
-import type { EditorView } from '@codemirror/view';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { markdownRenderServiceFacet } from '../services/markdownRenderer';
 import { CLASS_CELL_ACTIVE, CLASS_CELL_CONTENT, CLASS_CELL_EDITOR } from '../shared/tableDomClasses';
-import { MarkdownTable } from '../tableModel/MarkdownTable';
-import type { CellCoords } from '../tableModel/types';
 import { mouseCellDragSelectionPlugin } from '../tableRuntime/interaction/mouseCellDragSelection';
-import { handleWidgetClick, handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { canHandleTableSelectionKeydown } from '../tableRuntime/selection/cellSelectionShortcutScope';
-import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
+import { getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { cellDragField, isCellDragInProgress } from '../tableState/cellDragState';
-import { cellSelectionField, getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
-import { getPendingOpenCellRequest, openCellRequestField } from '../tableState/openCellRequestState';
+import { getCellSelection, setCellSelectionEffect } from '../tableState/cellSelectionState';
+import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import { getResolvedActiveCell } from '../tableState/resolvedActiveCell';
-import { getCellSelector } from '../tableWidget/domHelpers';
-import { TableWidget } from '../tableWidget/TableWidget';
-import { createEditorViewHarness, createResizeObserverStub } from './tableEditorFixtures';
-import { createMarkdownState } from './testMarkdownState';
-import { htmlFragment, parseCellRangesFixture } from './testUtils';
+import {
+    createEditorViewHarness,
+    createResizeObserverStub,
+    mountTableWidgetView,
+    type MountedTableWidgetView,
+} from './tableEditorFixtures';
 
 const resizeObserver = createResizeObserverStub();
 
 const GRID_DOC = ['| H1 | H2 |', '| --- | --- |', '| a1 | a2 |'].join('\n');
-
-interface MountedGestureView {
-    view: EditorView;
-    widget: HTMLElement;
-    table: HTMLTableElement;
-    cells: {
-        header0: HTMLTableCellElement;
-        header1: HTMLTableCellElement;
-        body0: HTMLTableCellElement;
-        body1: HTMLTableCellElement;
-    };
-}
 
 const viewHarness = createEditorViewHarness();
 let elementAtPoint: Element | null = null;
@@ -69,65 +53,14 @@ function pointerEvent(
     return event as unknown as PointerEvent;
 }
 
-/** Reads a cell out of a rendered widget, so tests bind to `TableWidget`'s own attributes. */
-function findCell(widget: HTMLElement, coords: CellCoords): HTMLTableCellElement {
-    const cell = widget.querySelector(getCellSelector(coords));
-    if (!cell) {
-        throw new Error(`Expected a rendered cell at ${JSON.stringify(coords)}`);
-    }
-    return cell as HTMLTableCellElement;
-}
-
-function mountGestureView(doc = GRID_DOC): MountedGestureView {
-    const view = viewHarness.mountView({
-        state: createMarkdownState(doc, [
-            markdownRenderServiceFacet.of({
-                getCached: vi.fn(() => undefined),
-                render: vi.fn(async () => htmlFragment('')),
-                clear: vi.fn(),
-            }),
-            activeCellField,
-            cellSelectionField,
-            cellDragField,
-            openCellRequestField,
-            mouseCellDragSelectionPlugin,
-        ]),
+function mountGestureView(doc = GRID_DOC): MountedTableWidgetView {
+    const mounted = mountTableWidgetView(viewHarness, {
+        doc,
+        extensions: [cellDragField, mouseCellDragSelectionPlugin],
     });
-
-    vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
-
-    // The widget is built the way production builds it, so these tests fail if the cell
-    // attribute contract the gesture hit-tests against ever changes.
-    const table = MarkdownTable.parse(doc);
-    const cellRanges = parseCellRangesFixture(doc);
-    if (!table) {
-        throw new Error('Expected the test table to parse');
-    }
-    const widget = new TableWidget({ from: 0, to: doc.length, text: doc, table, cellRanges }).toDOM(view);
-    view.dom.appendChild(widget);
-
-    const cells = {
-        header0: findCell(widget, { section: 'header', row: 0, col: 0 }),
-        header1: findCell(widget, { section: 'header', row: 0, col: 1 }),
-        body0: findCell(widget, { section: 'body', row: 0, col: 0 }),
-        body1: findCell(widget, { section: 'body', row: 0, col: 1 }),
-    };
-
-    // Production registers these through `EditorView.domEventHandlers`, which fires on
-    // `contentDOM`. The widget here is mounted outside it, so the same routing functions are
-    // wired up by hand: returning true stands in for CodeMirror calling `preventDefault`.
-    const dispatchPress = (event: MouseEvent | PointerEvent): void => {
-        if (!event.defaultPrevented && handleWidgetPress(view, event)) {
-            event.preventDefault();
-        }
-    };
-    view.dom.addEventListener('pointerdown', dispatchPress);
-    view.dom.addEventListener('mousedown', dispatchPress);
-    view.dom.addEventListener('click', (event) => {
-        handleWidgetClick(view, event);
-    });
-
-    return { view, widget, table: widget.querySelector('table') as HTMLTableElement, cells };
+    // Pinned so a test can move the table under a gesture by changing what it reports.
+    vi.spyOn(mounted.view, 'posAtDOM').mockReturnValue(0);
+    return mounted;
 }
 
 function makeRect(left: number, top: number, right: number, bottom: number): DOMRect {
@@ -204,6 +137,11 @@ function mountNestedEditorHost(cell: HTMLTableCellElement): HTMLElement {
     host.className = CLASS_CELL_EDITOR;
     const content = document.createElement('div');
     content.setAttribute('contenteditable', 'true');
+    // Mirror `createNestedEditorDomHandlers`: nested editors stop `mousedown` from reaching
+    // the outer CodeMirror's mouse selection while letting `pointerdown` bubble for drag observation.
+    content.addEventListener('mousedown', (event) => {
+        event.stopPropagation();
+    });
     host.appendChild(content);
     cell.appendChild(host);
     return content;

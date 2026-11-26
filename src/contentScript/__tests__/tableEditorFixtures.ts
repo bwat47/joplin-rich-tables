@@ -6,17 +6,23 @@ import { vi } from 'vitest';
 
 import type { HostEditorConfig } from '../../contentScriptBridge/hostEditorConfigBridge';
 import { nestedEditorPlugin } from '../nestedEditor/nestedEditorController';
+import { textFragmentPreservingBr } from '../services/domFragment';
 import { hostEditorConfigFacet } from '../services/hostEditorConfig';
 import { createMarkdownRenderer, markdownRenderServiceFacet } from '../services/markdownRenderer';
+import type { CellCoords } from '../tableModel/types';
+import { widgetInteractionHandlers } from '../tableRuntime/interaction/widgetInteraction';
 import { nestedEditorLifecyclePlugin } from '../tableRuntime/lifecycle/nestedEditorLifecycle';
 import { cellSelectionFocusPlugin } from '../tableRuntime/selection/cellSelectionController';
 import { cellSelectionKeyCapturePlugin } from '../tableRuntime/selection/cellSelectionKeymap';
-import { activeCellField } from '../tableState/activeCellState';
+import { activeCellField, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
 import { cellDragField } from '../tableState/cellDragState';
-import { cellSelectionField } from '../tableState/cellSelectionState';
+import { cellSelectionField, setCellSelectionEffect, type CellSelection } from '../tableState/cellSelectionState';
 import { openCellRequestField } from '../tableState/openCellRequestState';
 import { tableContextField } from '../tableState/tableContextField';
+import { getCellSelector, SELECTOR_WIDGET } from '../tableWidget/domHelpers';
 import { tableDecorationField } from '../tableWidget/tableDecorationField';
+import { createMarkdownState } from './testMarkdownState';
+import { htmlFragment } from './testUtils';
 
 /** Nested-editor settings a test can assert against when it does not set its own. */
 export const TEST_NESTED_EDITOR_SETTINGS = {
@@ -237,6 +243,105 @@ export function createEditorViewHarness(): EditorViewHarness {
                 view.destroy();
                 parent.remove();
             }
+        },
+    };
+}
+
+/** The four cells of a mounted 2x2 table, named by section and column. */
+export interface MountedTableWidgetCells {
+    header0: HTMLTableCellElement;
+    header1: HTMLTableCellElement;
+    body0: HTMLTableCellElement;
+    body1: HTMLTableCellElement;
+}
+
+export interface MountedTableWidgetView {
+    view: EditorView;
+    widget: HTMLElement;
+    table: HTMLTableElement;
+    cells: MountedTableWidgetCells;
+}
+
+export interface TableWidgetViewOptions {
+    /** Markdown whose first table has a header row and one body row, each two cells wide. */
+    doc: string;
+    /**
+     * Rendered HTML keyed by the cell markdown it stands for, painted synchronously as a cache
+     * hit. Cells left out show their plain text, as a cache miss does before its render lands.
+     */
+    renderedHtml?: Readonly<Record<string, string>>;
+    activeCell?: ActiveCell;
+    cellSelection?: CellSelection;
+    extensions?: Extension[];
+}
+
+/** Reads a cell out of a rendered widget, so tests bind to `TableWidget`'s own attributes. */
+function findRenderedCell(widget: HTMLElement, coords: CellCoords): HTMLTableCellElement {
+    const cell = widget.querySelector<HTMLTableCellElement>(getCellSelector(coords));
+    if (!cell) {
+        throw new Error(`Expected a rendered cell at ${JSON.stringify(coords)}`);
+    }
+    return cell;
+}
+
+/**
+ * Mounts a main editor whose table widget is rendered by `tableDecorationField` and whose
+ * presses and clicks route through `widgetInteractionHandlers`, as production wires them.
+ * Events dispatched on the returned cells therefore reach the handlers through CodeMirror.
+ *
+ * `TableWidget` observes its own size, so callers install {@link createResizeObserverStub}
+ * first.
+ */
+export function mountTableWidgetView(
+    harness: EditorViewHarness,
+    options: TableWidgetViewOptions
+): MountedTableWidgetView {
+    const renderedHtml = options.renderedHtml ?? {};
+    const view = harness.mountView({
+        state: createMarkdownState(options.doc, [
+            markdownRenderServiceFacet.of({
+                getCached: (text) => {
+                    const html = renderedHtml[text];
+                    return html === undefined ? undefined : htmlFragment(html);
+                },
+                // Declared cells are always cache hits, so a render only runs for the rest,
+                // which stay as the plain text the cache miss already painted.
+                render: async (text) => textFragmentPreservingBr(text),
+                clear: () => {},
+            }),
+            activeCellField,
+            cellSelectionField,
+            openCellRequestField,
+            tableDecorationField,
+            widgetInteractionHandlers,
+            ...(options.extensions ?? []),
+        ]),
+    });
+
+    const effects = [
+        ...(options.activeCell ? [setActiveCellEffect.of(options.activeCell)] : []),
+        ...(options.cellSelection ? [setCellSelectionEffect.of(options.cellSelection)] : []),
+    ];
+    if (effects.length > 0) {
+        view.dispatch({ effects });
+    }
+
+    // Read after the setup dispatch, which can redraw the widget.
+    const widget = view.contentDOM.querySelector<HTMLElement>(SELECTOR_WIDGET);
+    const table = widget?.querySelector('table');
+    if (!widget || !table) {
+        throw new Error('Expected tableDecorationField to mount a table widget');
+    }
+
+    return {
+        view,
+        widget,
+        table,
+        cells: {
+            header0: findRenderedCell(widget, { section: 'header', row: 0, col: 0 }),
+            header1: findRenderedCell(widget, { section: 'header', row: 0, col: 1 }),
+            body0: findRenderedCell(widget, { section: 'body', row: 0, col: 0 }),
+            body1: findRenderedCell(widget, { section: 'body', row: 0, col: 1 }),
         },
     };
 }

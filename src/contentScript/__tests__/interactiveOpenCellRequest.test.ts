@@ -1,8 +1,7 @@
 import type { TransactionSpec } from '@codemirror/state';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { activateCellAtPosition } from '../tableRuntime/cellActivation';
-import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import { navigateCell } from '../tableRuntime/navigation/tableNavigation';
 import { getActiveCell } from '../tableState/activeCellState';
 import { getPendingOpenCellRequest, openCellRequestEffect } from '../tableState/openCellRequestState';
@@ -12,10 +11,23 @@ import {
     NON_CANONICAL_DOC,
     type MutableTestView,
 } from './interactiveTableTestHarness';
+import { createEditorViewHarness, createResizeObserverStub, mountTableWidgetView } from './tableEditorFixtures';
 import { getDispatchedEffects } from './testUtils';
 
 /** What {@link NON_CANONICAL_DOC} becomes once entry repairs it, document padding included. */
 const NORMALIZED_DOC = `\n${['| H1 | H2 |', '| --- | --- |', '| a | b |'].join('\n')}\n`;
+
+const resizeObserver = createResizeObserverStub();
+const viewHarness = createEditorViewHarness();
+
+beforeEach(() => {
+    resizeObserver.install();
+});
+
+afterEach(() => {
+    viewHarness.destroyViews();
+    vi.restoreAllMocks();
+});
 
 function findOpenRequest(spec: TransactionSpec) {
     return (
@@ -27,16 +39,17 @@ function findOpenRequest(spec: TransactionSpec) {
 
 describe('interactive open-cell requests', () => {
     it('normalizes the table in the transaction a mousedown activation opens it with', () => {
-        const { view, cells } = createInteractiveTableHarness();
-        const event = {
-            type: 'mousedown',
-            button: 0,
-            target: cells.header0,
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-        } as unknown as MouseEvent;
+        const { view, cells } = mountTableWidgetView(viewHarness, { doc: NON_CANONICAL_DOC });
+        const dispatch = vi.spyOn(view, 'dispatch');
 
-        expect(handleWidgetPress(view, event)).toBe(true);
+        const event = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        });
+        cells.header0.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
         expect(view.state.doc.toString()).toBe(NORMALIZED_DOC);
         expect(getActiveCell(view.state)).toMatchObject({
             section: 'header',
@@ -44,7 +57,13 @@ describe('interactive open-cell requests', () => {
             col: 0,
         });
 
-        expect(findOpenRequest(getLastDispatchSpec(view as unknown as MutableTestView))).not.toBeNull();
+        // The repair and the open request travel together, so no intermediate state shows the
+        // table normalized without the cell opened.
+        const changingSpecs = dispatch.mock.calls
+            .map(([spec]) => spec as TransactionSpec)
+            .filter((spec) => spec.changes !== undefined);
+        expect(changingSpecs).toHaveLength(1);
+        expect(findOpenRequest(changingSpecs[0]!)).not.toBeNull();
     });
 
     it('normalizes the table in the transaction a cursor activation opens it with', () => {

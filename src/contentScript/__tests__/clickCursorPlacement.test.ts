@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveInitialLocalSelection } from '../nestedEditor/nestedEditorSelection';
 import { CLASS_CELL_CONTENT } from '../shared/tableDomClasses';
@@ -6,7 +6,6 @@ import { unsanitizeRootText } from '../tableModel/cellTextNormalization';
 import type { CellTextSelection } from '../tableModel/cellTextSelection';
 import type { CellCoords } from '../tableModel/types';
 import { resolveClickCursorPos, resolveRenderedSelection } from '../tableRuntime/interaction/clickCursorPlacement';
-import { handleWidgetPress } from '../tableRuntime/interaction/widgetInteraction';
 import type { InitialCursorPos } from '../tableState/cursorPlacement';
 import { getPendingOpenCellRequest } from '../tableState/openCellRequestState';
 import { createResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
@@ -20,7 +19,7 @@ import {
     type RenderedCaretHit,
     type RenderedSelectionHit,
 } from '../tableWidget/cellCaretHit';
-import { createInteractiveTableHarness } from './interactiveTableTestHarness';
+import { createEditorViewHarness, createResizeObserverStub, mountTableWidgetView } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 
 function contentElement(html: string): HTMLElement {
@@ -450,24 +449,39 @@ describe('syntax-aware click placement', () => {
             head: 1202,
         });
     });
+});
+
+describe('mouse entry caret placement', () => {
+    const resizeObserver = createResizeObserverStub();
+    const viewHarness = createEditorViewHarness();
+
+    beforeEach(() => {
+        resizeObserver.install();
+    });
+
+    afterEach(() => {
+        Reflect.deleteProperty(document, 'caretRangeFromPoint');
+        viewHarness.destroyViews();
+    });
 
     it('carries a DOM caret through mouse entry into the initial nested selection', () => {
-        const { view, cells } = createInteractiveTableHarness({
+        const { view, cells } = mountTableWidgetView(viewHarness, {
             doc: CANONICAL_DOC.trim(),
-            renderedContent: {
-                body0: { html: '<strong>markdown</strong>', caretAt: { text: 'markdown', offset: 7 } },
-            },
+            renderedHtml: { '**markdown**': '<strong>markdown</strong>' },
         });
-        const event = {
-            type: 'mousedown',
+        const content = cells.body0.querySelector<HTMLElement>(`.${CLASS_CELL_CONTENT}`)!;
+        stubCaretFromPoint(textNode(content, 'markdown'), 7);
+
+        const event = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
             button: 0,
             clientX: 20,
             clientY: 10,
-            target: cells.body0,
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-        } as unknown as MouseEvent;
-        expect(handleWidgetPress(view, event)).toBe(true);
+        });
+        cells.body0.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
         const request = getPendingOpenCellRequest(view.state);
         expect(request?.initialCursorPos).toEqual({ anchor: 9, head: 9 });
         expect(resolveInitialLocalSelection({ anchor: 0, head: 0 }, '**markdown**', request?.initialCursorPos)).toEqual(
