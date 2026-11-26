@@ -296,12 +296,12 @@ export function mountTableWidgetView(
     harness: EditorViewHarness,
     options: TableWidgetViewOptions
 ): MountedTableWidgetView {
-    const renderedHtml = options.renderedHtml ?? {};
+    const renderedHtml = new Map(Object.entries(options.renderedHtml ?? {}));
     const view = harness.mountView({
         state: createMarkdownState(options.doc, [
             markdownRenderServiceFacet.of({
                 getCached: (text) => {
-                    const html = renderedHtml[text];
+                    const html = renderedHtml.get(text);
                     return html === undefined ? undefined : htmlFragment(html);
                 },
                 // Declared cells are always cache hits, so a render only runs for the rest,
