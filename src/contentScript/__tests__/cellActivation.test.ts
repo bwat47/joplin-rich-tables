@@ -1,21 +1,19 @@
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { activateCellAtPosition } from '../tableRuntime/cellActivation';
 import { activeCellField, getActiveCell, setActiveCellEffect, type ActiveCell } from '../tableState/activeCellState';
+import { createEditorViewHarness } from './tableEditorFixtures';
 import { createMarkdownState } from './testMarkdownState';
 
 const TABLE = ['| H1 | H2 |', '| --- | --- |', '| aaa bbb ccc | zzz |'].join('\n');
 /** The pipe between the two body cells, which belongs to neither cell. */
 const BODY_PIPE_POS = TABLE.indexOf('| zzz');
 
-let view: EditorView | null = null;
+const viewHarness = createEditorViewHarness();
 
 function createView(): EditorView {
-    const parent = document.createElement('div');
-    document.body.appendChild(parent);
-    view = new EditorView({ parent, state: createMarkdownState(TABLE, [activeCellField]) });
-    return view;
+    return viewHarness.mountView({ state: createMarkdownState(TABLE, [activeCellField]) });
 }
 
 function cellOf(activeCell: ActiveCell | null) {
@@ -23,9 +21,7 @@ function cellOf(activeCell: ActiveCell | null) {
 }
 
 afterEach(() => {
-    view?.dom.parentElement?.remove();
-    view?.destroy();
-    view = null;
+    viewHarness.destroyViews();
 });
 
 describe('activateCellAtPosition on table punctuation', () => {
