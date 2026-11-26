@@ -91,6 +91,7 @@ export const tableContextField = StateField.define<TableIndex>({
     },
 });
 
+// fallow-ignore-next-line test-only-export -- read accessor for the table context index; tests and benchmarks inspect the whole index
 export function getTableContexts(state: EditorState): readonly TableContext[] {
     return state.field(tableContextField).tables;
 }

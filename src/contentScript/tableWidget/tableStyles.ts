@@ -20,6 +20,7 @@ import { CLASS_CELL_SELECTED, CLASS_TABLE_WIDGET_TABLE, SELECTOR_WIDGET } from '
  */
 const CURSOR_EXEMPT_SELECTORS = ['button', 'input', 'textarea', 'select', 'summary', 'iframe'] as const;
 
+// fallow-ignore-next-line test-only-export -- jsdom cannot evaluate the zebra CSS, so tests assert the attribute
 export const ATTR_ZEBRA_STRIPING = 'data-rt-zebra-striping';
 
 const zebraStripingAttribute = EditorView.editorAttributes.compute(

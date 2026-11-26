@@ -1,7 +1,7 @@
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { closeOnOutsideMouseDown, handleOutsideMouseDown } from '../tableRuntime/interaction/outsideTableInteraction';
+import { closeOnOutsideMouseDown } from '../tableRuntime/interaction/outsideTableInteraction';
 import { activeCellField, getActiveCell, setActiveCellEffect } from '../tableState/activeCellState';
 import { createEditorViewHarness } from './tableEditorFixtures';
 
@@ -11,14 +11,20 @@ const VALID_CLICK_POSITION = 8;
 
 const viewHarness = createEditorViewHarness();
 
-function mountActiveView(laterMouseDown?: (event: MouseEvent) => boolean, doc = DOC): EditorView {
+/**
+ * Registered after the outside handler, so it only runs when that handler declines the press.
+ * Taking the press by default keeps CodeMirror's built-in mouse selection out of jsdom.
+ */
+const consumePress = (): boolean => true;
+
+function mountActiveView(laterMouseDown: (event: MouseEvent) => boolean = consumePress, doc = DOC): EditorView {
     const view = viewHarness.mountView({
         doc,
         selection: { anchor: INITIAL_SELECTION },
         extensions: [
             activeCellField,
             closeOnOutsideMouseDown,
-            ...(laterMouseDown ? [EditorView.domEventHandlers({ mousedown: laterMouseDown })] : []),
+            EditorView.domEventHandlers({ mousedown: laterMouseDown }),
         ],
     });
     activateCell(view);
@@ -51,6 +57,10 @@ function makeOutsideMouseDown(view: EditorView): MouseEvent {
     return event;
 }
 
+function pressOutside(view: EditorView): void {
+    view.contentDOM.dispatchEvent(makeOutsideMouseDown(view));
+}
+
 afterEach(() => {
     viewHarness.destroyViews();
     vi.restoreAllMocks();
@@ -62,7 +72,7 @@ describe('outside table interaction', () => {
         vi.spyOn(view, 'posAtCoords').mockReturnValue(VALID_CLICK_POSITION);
         const focus = vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
-        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
 
         expect(view.state.selection.main.anchor).toBe(VALID_CLICK_POSITION);
@@ -71,14 +81,12 @@ describe('outside table interaction', () => {
     });
 
     it('leaves the press to CodeMirror so a drag can extend the selection', async () => {
-        // Registered after the outside handler, so it only runs when that handler declines the
-        // press. Taking it here keeps CodeMirror's built-in mouse selection out of jsdom.
-        const laterMouseDown = vi.fn(() => true);
+        const laterMouseDown = vi.fn(consumePress);
         const view = mountActiveView(laterMouseDown);
         vi.spyOn(view, 'posAtCoords').mockReturnValue(VALID_CLICK_POSITION);
         vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
-        view.contentDOM.dispatchEvent(makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
 
         expect(getActiveCell(view.state)).toBeNull();
@@ -97,7 +105,7 @@ describe('outside table interaction', () => {
         vi.spyOn(view, 'posAtCoords').mockReturnValue(mappedPos as never);
         const focus = vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
-        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
 
         expect(view.state.selection.main.anchor).toBe(INITIAL_SELECTION);
@@ -111,13 +119,13 @@ describe('outside table interaction', () => {
         vi.spyOn(view, 'focus').mockImplementation(() => undefined);
 
         posAtCoords.mockReturnValueOnce(0);
-        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
         expect(view.state.selection.main.anchor).toBe(0);
 
         activateCell(view);
         posAtCoords.mockReturnValueOnce(DOC.length);
-        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
         expect(view.state.selection.main.anchor).toBe(DOC.length);
     });
@@ -142,7 +150,7 @@ describe('outside table interaction', () => {
         }, doc);
         vi.spyOn(view, 'posAtCoords').mockImplementation(() => (getActiveCell(view.state) ? clickedPos : shiftedPos));
 
-        view.contentDOM.dispatchEvent(makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
 
         expect(view.state.doc.lineAt(view.state.selection.main.head).text).toBe('Test');
@@ -156,7 +164,7 @@ describe('outside table interaction', () => {
         });
         vi.spyOn(view, 'posAtCoords').mockReturnValue(VALID_CLICK_POSITION);
 
-        view.contentDOM.dispatchEvent(makeOutsideMouseDown(view));
+        pressOutside(view);
         await Promise.resolve();
 
         expect(view.state.selection.main.anchor).toBe(INITIAL_SELECTION);
@@ -167,7 +175,7 @@ describe('outside table interaction', () => {
     it('closes the table without moving the caret when the document changes before cleanup', async () => {
         const view = mountActiveView();
         vi.spyOn(view, 'posAtCoords').mockReturnValue(VALID_CLICK_POSITION);
-        handleOutsideMouseDown(view, makeOutsideMouseDown(view));
+        pressOutside(view);
         view.dispatch({ changes: { from: 0, to: DOC.length, insert: 'new' }, selection: { anchor: 0 } });
         await Promise.resolve();
 

@@ -27,6 +27,7 @@ function isInsideTable(range: SelectionRange, table: TableSpan): boolean {
  * caret before it held per-cell ranges. Ranges elsewhere, such as a caret Ctrl+clicked
  * outside the table, are kept.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function releaseParkedCellRanges(selection: EditorSelection, table: TableSpan): EditorSelection | null {
     const ranges: SelectionRange[] = [];
     let mainIndex = 0;

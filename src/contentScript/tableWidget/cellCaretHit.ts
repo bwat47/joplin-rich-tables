@@ -49,6 +49,7 @@ const LINE_BREAK_LOCAL_NAME = 'br';
  * Spans are recorded for every node visited. Descendants of opaque subtrees are not visited,
  * so a caret reported inside one declines placement and uses the established fallback.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function indexRenderedText(root: HTMLElement): RenderedTextIndex {
     const spans = new Map<Node, TextSpan>();
     let text = '';
@@ -87,6 +88,7 @@ export function indexRenderedText(root: HTMLElement): RenderedTextIndex {
  * its child list, and resolves to the start of the child it precedes. Returns null for a
  * node the index never saw, which means the caret was not inside the cell content.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function flatOffsetFromDomPosition(index: RenderedTextIndex, node: Node, offset: number): number | null {
     const span = index.spans.get(node);
     if (!span) {

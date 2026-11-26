@@ -141,7 +141,7 @@ function handleOutsideContextMenu(view: EditorView, event: MouseEvent): void {
 }
 
 /** Closes table state after CodeMirror has established the outside mouse selection. */
-export function handleOutsideMouseDown(view: EditorView, event: MouseEvent): void {
+function handleOutsideMouseDown(view: EditorView, event: MouseEvent): void {
     if (!resolveOutsideTableState(view, event)) return;
 
     const clickPos = resolveClickPosition(view, event);

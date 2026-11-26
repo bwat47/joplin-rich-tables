@@ -81,6 +81,7 @@ function extractCellContents(ctx: TableContext, rect: TableRect): string[][] {
     return rows;
 }
 
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function copySelectionAsMarkdown({ selection, ctx }: SelectedTable): string | null {
     const rect = toSelectionRect(selection);
     const rows = extractCellContents(ctx, rect);
@@ -107,6 +108,7 @@ export function copySelectionAsMarkdown({ selection, ctx }: SelectedTable): stri
  * Anything else falls back to the plain-text path so a multi-table clipboard is never
  * folded into one fragment.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function parseMarkdownTableClipboard(text: string): ClipboardTableFragment | null {
     const table = parseSingleTableBlock(text);
     if (!table) {
@@ -119,6 +121,7 @@ export function parseMarkdownTableClipboard(text: string): ClipboardTableFragmen
     };
 }
 
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function resolveTableClipboardTarget(
     state: EditorState,
     options: { nestedEditorOpen: boolean }
@@ -291,6 +294,7 @@ function buildEmptySelectionRemoval(ctx: TableContext, rect: TableRect): TableCl
     return null;
 }
 
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function buildSelectionRemovalRewrite({ selection, ctx }: SelectedTable): TableClipboardRewrite | null {
     const rect = toSelectionRect(selection);
     if (ctx.table.isRectEmpty(rect)) {

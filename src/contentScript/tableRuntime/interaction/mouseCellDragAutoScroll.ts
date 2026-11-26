@@ -46,6 +46,7 @@ function getVerticalScroller(view: EditorView): HTMLElement {
  * Returns edge-scroll intensity from -1 (toward the start edge) to 1 (toward
  * the end edge). Positions outside the range stay at full intensity.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function calculateEdgeScrollIntensity(
     position: number,
     rangeStart: number,

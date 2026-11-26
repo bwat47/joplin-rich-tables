@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
 
 import {
-    AUTO_MATCHING_BRACES_SETTING_KEY,
     defaultHostEditorConfig,
     isHostEditorConfig,
     readHostEditorConfig,
-    SPELLCHECK_ENABLED_SETTING_KEY,
     TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
     TOOLBAR_SHOW_ALIGNMENT_BUTTONS_SETTING_KEY,
     TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY,
@@ -50,10 +48,8 @@ describe('hostEditorConfigBridge', () => {
 
         const result = await readHostEditorConfig(deps);
 
-        expect(globalValuesMock).toHaveBeenCalledWith([
-            AUTO_MATCHING_BRACES_SETTING_KEY,
-            SPELLCHECK_ENABLED_SETTING_KEY,
-        ]);
+        // Joplin owns these keys, so they are spelled out to catch drift from its setting names.
+        expect(globalValuesMock).toHaveBeenCalledWith(['editor.autoMatchingBraces', 'spellChecker.enabled']);
         expect(valuesMock).toHaveBeenCalledWith([
             TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY,
             TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY,

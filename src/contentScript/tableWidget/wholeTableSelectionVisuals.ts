@@ -23,6 +23,7 @@ import { selectedCellRules } from './selectionTint';
  * No table can appear twice: selection ranges never overlap, so containing the same table whole
  * would take a range of zero length.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function findSelectedTableStarts(state: EditorState): readonly number[] {
     if (isEffectiveRawMode(state)) {
         return [];

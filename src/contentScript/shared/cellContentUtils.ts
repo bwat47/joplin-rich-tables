@@ -30,6 +30,7 @@ const LEADING_BLOCK_MARKERS = [
  * Escape leading block markers so cells render inline-only markdown.
  * Assumes cell content has no newlines.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function escapeLeadingBlockMarkers(text: string): string {
     if (!text) return text;
 

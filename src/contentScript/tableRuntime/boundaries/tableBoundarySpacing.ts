@@ -14,7 +14,7 @@ export function isBlankLineContent(text: string): boolean {
  * those blank lines means the table still needs padding. Line lookups keep this cheap
  * enough to run on every keystroke.
  */
-export function hasRequiredBlankLinesBefore(doc: Text, pos: number): boolean {
+function hasRequiredBlankLinesBefore(doc: Text, pos: number): boolean {
     let lineNumber = doc.lineAt(pos).number;
     for (let remaining = REQUIRED_TABLE_BOUNDARY_BLANK_LINES; remaining > 0; remaining--) {
         lineNumber--;
@@ -29,7 +29,7 @@ export function hasRequiredBlankLinesBefore(doc: Text, pos: number): boolean {
 }
 
 /** True when `pos` already has the required blank lines below its line. Document end is unseparated. */
-export function hasRequiredBlankLinesAfter(doc: Text, pos: number): boolean {
+function hasRequiredBlankLinesAfter(doc: Text, pos: number): boolean {
     let lineNumber = doc.lineAt(pos).number;
     for (let remaining = REQUIRED_TABLE_BOUNDARY_BLANK_LINES; remaining > 0; remaining--) {
         lineNumber++;

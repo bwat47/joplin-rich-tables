@@ -28,7 +28,7 @@ export interface ActivateCellOptions {
     preferredActiveCell?: ActiveCell | null;
 }
 
-export function resolveActivationTargetCell(params: {
+function resolveActivationTargetCell(params: {
     tableFrom: number;
     relativePos: number;
     cellRanges: Parameters<typeof findCellForPos>[0];

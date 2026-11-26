@@ -43,6 +43,7 @@ function snapRange(range: SelectionRange, findTablesTouching: TablesTouching): S
  *
  * @returns The grown selection, or null when nothing needed moving.
  */
+// fallow-ignore-next-line test-only-export -- pure logic unit-tested directly
 export function snapSelectionAroundTables(
     selection: EditorSelection,
     findTablesTouching: TablesTouching

@@ -29,6 +29,7 @@ export interface MarkdownRenderService {
 
 // Cache for rendered markdown to avoid redundant rendering.
 // Limited to MAX_CACHE_SIZE entries with LRU eviction to prevent unbounded memory growth.
+// fallow-ignore-next-line test-only-export -- tests fill the cache to capacity
 export const MAX_CACHE_SIZE = 500;
 
 /**

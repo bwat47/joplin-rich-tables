@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 
-export const AUTO_MATCHING_BRACES_SETTING_KEY = 'editor.autoMatchingBraces';
-export const SPELLCHECK_ENABLED_SETTING_KEY = 'spellChecker.enabled';
+const AUTO_MATCHING_BRACES_SETTING_KEY = 'editor.autoMatchingBraces';
+const SPELLCHECK_ENABLED_SETTING_KEY = 'spellChecker.enabled';
 export const TABLE_APPEARANCE_ZEBRA_STRIPING_SETTING_KEY = 'tableAppearance.zebraStriping';
 export const TOOLBAR_SHOW_MOVE_BUTTONS_SETTING_KEY = 'floatingToolbar.showMoveButtons';
 export const TOOLBAR_SHOW_CLEAR_BUTTONS_SETTING_KEY = 'floatingToolbar.showClearButtons';

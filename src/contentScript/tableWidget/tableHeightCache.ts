@@ -6,6 +6,7 @@
  */
 
 /** Per-index capacity: each index holds up to this many tables. */
+// fallow-ignore-next-line test-only-export -- tests fill the cache to capacity
 export const MAX_ENTRIES = 200;
 
 /**
