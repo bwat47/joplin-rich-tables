@@ -531,6 +531,16 @@ describe('rendered range mapping', () => {
         ).toBe('a [**[link](http://x)**] b');
     });
 
+    it('takes a fully selected inner construct without expanding to a partially covered outer construct', () => {
+        expect(
+            rangePlacement(cellDoc('a **foo *bar* baz** b'), cell, {
+                renderedText: 'a foo bar baz b',
+                anchor: 6,
+                head: 9,
+            })
+        ).toBe('a **foo [*bar*] baz** b');
+    });
+
     it('takes the backticks of fully selected inline code', () => {
         expect(rangePlacement(cellDoc('a `code` b'), cell, { renderedText: 'a code b', anchor: 2, head: 6 })).toBe(
             'a [`code`] b'
@@ -606,6 +616,16 @@ describe('rendered range mapping', () => {
         expect(rangePlacement(cellDoc('a ++ins++ b'), cell, { renderedText: 'a ins b', anchor: 0, head: 5 })).toBe(
             '[a ++ins++] b'
         );
+    });
+
+    it('takes the tags of a fully selected HTML element at both ends', () => {
+        expect(
+            rangePlacement(cellDoc('a <ins>test text</ins> b'), cell, {
+                renderedText: 'a test text b',
+                anchor: 2,
+                head: 11,
+            })
+        ).toBe('a [<ins>test text</ins>] b');
     });
 
     it('closes an HTML element whose opening tag the range already holds', () => {
