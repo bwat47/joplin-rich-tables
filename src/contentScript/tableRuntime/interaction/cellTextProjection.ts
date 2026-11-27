@@ -247,40 +247,64 @@ export function projectCellText(
     return { text, toLocal: Int32Array.from(offsets), hiddenSpans };
 }
 
+/** A paired construct and the visible content between its opening and closing syntax. */
+interface PairedConstruct {
+    ownerFrom: number;
+    ownerTo: number;
+    contentFrom: number;
+    contentTo: number;
+}
+
 /**
- * Grows a range so it never holds one marker of a pair without the other.
+ * Groups paired markers by construct. A construct can hide several runs at one end - a link's
+ * `](url)` and its own `)` both end at the link's end - so its content starts after the furthest
+ * opening run and stops before the earliest closing run.
+ */
+function pairedConstructs(hiddenSpans: readonly HiddenSyntaxSpan[]): PairedConstruct[] {
+    const constructs = new Map<string, PairedConstruct>();
+    for (const { from, to, ownerFrom, ownerTo } of hiddenSpans) {
+        const opens = from === ownerFrom && to < ownerTo;
+        const closes = to === ownerTo && from > ownerFrom;
+        if (!opens && !closes) {
+            continue;
+        }
+        const key = `${ownerFrom}:${ownerTo}`;
+        const construct = constructs.get(key) ?? { ownerFrom, ownerTo, contentFrom: ownerFrom, contentTo: ownerTo };
+        if (opens) {
+            construct.contentFrom = Math.max(construct.contentFrom, to);
+        } else {
+            construct.contentTo = Math.min(construct.contentTo, from);
+        }
+        constructs.set(key, construct);
+    }
+    return [...constructs.values()].filter(({ contentFrom, contentTo }) => contentFrom < contentTo);
+}
+
+/**
+ * Grows a range to the full source of every construct whose visible content it covers whole.
  *
- * A range is read off the rendered characters it covered, so syntax around them stays outside:
- * selecting a whole bolded word yields `bold text`, not `bold text**`. But a range ending at the
- * closing `**` of `foo and **bold**` already holds the opening `**`, and selecting that alone
- * gives the nested editor Markdown that no longer parses. So an end grows past trailing syntax
- * only when the matching leading syntax is already inside the range, and likewise at the start.
+ * This matches the rule Joplin's own editor applies to rendered-Markdown selections: selecting
+ * `bold` in `this is **bold**` yields `**bold**`, and so does `is bold` (`is **bold**`), so a range
+ * never holds one marker of a pair without the other. A range that covers only part of a
+ * construct's content - `te[st **bold te]xt**` - is left as the characters it covered.
  * Syntax with no partner - an entity, an image, a tag the cell never closes - owns itself and is
- * never drawn in.
- * The loops repeat because constructs nest: `***both***` closes twice over.
+ * never drawn in. An empty range stays a caret.
+ * The loop repeats because constructs nest: `***both***` and `**[link](url)**` close twice over.
  */
 export function balanceSyntaxMarkers(span: SourceSpan, hiddenSpans: readonly HiddenSyntaxSpan[]): SourceSpan {
     let { from, to } = span;
+    if (from === to) {
+        return span;
+    }
 
+    const constructs = pairedConstructs(hiddenSpans);
     for (let grew = true; grew;) {
         grew = false;
-        for (const hiddenSpan of hiddenSpans) {
-            const { ownerFrom, ownerTo } = hiddenSpan;
-            if (
-                hiddenSpan.from === to &&
-                hiddenSpan.to === ownerTo &&
-                ownerFrom < hiddenSpan.from &&
-                ownerFrom >= from
-            ) {
-                to = hiddenSpan.to;
-                grew = true;
-            } else if (
-                hiddenSpan.to === from &&
-                hiddenSpan.from === ownerFrom &&
-                ownerTo > hiddenSpan.to &&
-                ownerTo <= to
-            ) {
-                from = hiddenSpan.from;
+        for (const construct of constructs) {
+            const covered = from <= construct.contentFrom && to >= construct.contentTo;
+            if (covered && (from > construct.ownerFrom || to < construct.ownerTo)) {
+                from = Math.min(from, construct.ownerFrom);
+                to = Math.max(to, construct.ownerTo);
                 grew = true;
             }
         }

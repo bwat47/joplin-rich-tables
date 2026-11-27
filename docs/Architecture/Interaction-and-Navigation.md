@@ -18,6 +18,6 @@ Mouse dragging can select text within one rendered cell or promote the gesture t
 
 ## Pointer Mapping and External Actions
 
-A click on rendered cell text, other than a link, opens the nested editor at the matching position in the cell's Markdown. Because rendered HTML has no source offsets, the interaction layer projects the clicked text into cell-local coordinates and carries the result with the open request. If the text cannot be matched reliably, the open request keeps the main editor's current selection.
+A click on rendered cell text, other than a link, opens the nested editor at the matching position in the cell's Markdown. Because rendered HTML has no source offsets, the interaction layer projects the clicked text into cell-local coordinates and carries the result with the open request. If the text cannot be matched reliably, the open request keeps the main editor's current selection. A dragged text selection follows Joplin's rendered-Markdown rule: when it covers all the visible content of a construct, such as bold text or a link label, it grows to include that construct's hidden syntax. A selection that covers only part of the content keeps just the characters it covered.
 
 Links open through Joplin's `openItem` command, while heading and footnote anchors scroll the main editor. Dragging near an edge can scroll the table or its host viewport; [Table-Display.md](./Table-Display.md) describes the host layouts.

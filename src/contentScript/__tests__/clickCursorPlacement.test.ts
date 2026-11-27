@@ -501,14 +501,14 @@ describe('rendered range mapping', () => {
         ).toEqual({ anchor: 19, head: 4 });
     });
 
-    it('leaves the delimiters of a fully selected formatted word outside both ends', () => {
+    it('takes the delimiters of a fully selected formatted word at both ends', () => {
         expect(
             rangePlacement(cellDoc('test **bold text** aaa'), cell, {
                 renderedText: 'test bold text aaa',
                 anchor: 5,
                 head: 14,
             })
-        ).toBe('test **[bold text]** aaa');
+        ).toBe('test [**bold text**] aaa');
     });
 
     it('maps the same range the same way when it was dragged backwards', () => {
@@ -518,7 +518,33 @@ describe('rendered range mapping', () => {
                 anchor: 14,
                 head: 5,
             })
-        ).toBe('test **[bold text]** aaa');
+        ).toBe('test [**bold text**] aaa');
+    });
+
+    it('takes every construct whose whole content is selected, inside out', () => {
+        expect(
+            rangePlacement(cellDoc('a **[link](http://x)** b'), cell, {
+                renderedText: 'a link b',
+                anchor: 2,
+                head: 6,
+            })
+        ).toBe('a [**[link](http://x)**] b');
+    });
+
+    it('takes the backticks of fully selected inline code', () => {
+        expect(rangePlacement(cellDoc('a `code` b'), cell, { renderedText: 'a code b', anchor: 2, head: 6 })).toBe(
+            'a [`code`] b'
+        );
+    });
+
+    it('leaves the delimiters outside a range within a formatted word', () => {
+        expect(
+            rangePlacement(cellDoc('test **bold text** aaa'), cell, {
+                renderedText: 'test bold text aaa',
+                anchor: 5,
+                head: 9,
+            })
+        ).toBe('test **[bold] text** aaa');
     });
 
     it('takes the syntax a range spans over rather than the syntax around it', () => {
@@ -531,10 +557,10 @@ describe('rendered range mapping', () => {
         ).toBe('te[st **bold te]xt** aaa');
     });
 
-    it('selects a link’s label without its target', () => {
+    it('takes a link’s target when its whole label is selected', () => {
         expect(
             rangePlacement(cellDoc('a [link](http://x) b'), cell, { renderedText: 'a link b', anchor: 2, head: 6 })
-        ).toBe('a [[link]](http://x) b');
+        ).toBe('a [[link](http://x)] b');
     });
 
     it('closes a construct whose opening syntax the range already holds', () => {
@@ -570,9 +596,9 @@ describe('rendered range mapping', () => {
         ).toBe('[foo ***both***] bar');
     });
 
-    it('leaves the delimiters of a fully selected highlight outside both ends', () => {
+    it('takes the delimiters of a fully selected highlight at both ends', () => {
         expect(rangePlacement(cellDoc('a ==mark== b'), cell, { renderedText: 'a mark b', anchor: 2, head: 6 })).toBe(
-            'a ==[mark]== b'
+            'a [==mark==] b'
         );
     });
 
