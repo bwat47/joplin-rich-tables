@@ -1,6 +1,6 @@
 {
     "name": "joplin-plugin-rich-tables",
-    "version": "1.14.2",
+    "version": "1.14.3",
     "scripts": {
         "dist": "npm run typecheck && joplin-plugin-scripts build",
         "prepare": "npm run dist",
