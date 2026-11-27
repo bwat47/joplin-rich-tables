@@ -50,9 +50,9 @@
         "eslint-plugin-regexp": "^3.3.3",
         "fallow": "^3.49.0",
         "jsdom": "^31.0.0",
-        "oxfmt": "^0.79.0",
+        "oxfmt": "^0.80.0",
         "oxlint": "^1.95.0",
-        "oxlint-tsgolint": "^7.0.2008",
+        "oxlint-tsgolint": "^7.0.2009",
         "typescript": "^7.0.2",
         "vitest": "^5.1.1"
     }
