@@ -56,9 +56,9 @@ export function resolveClickCursorPos(
  *
  * One alignment answers both ends, and `mapSelectionToSource` reads the span off the rendered
  * characters the drag covered. `balanceSyntaxMarkers` then expands the span to include the hidden
- * syntax of every paired construct whose visible content is covered whole, keeping markers paired
- * and matching Joplin's rendered-Markdown selection behavior. Direction is preserved: a backward
- * drag opens the cell with a backward selection.
+ * syntax of each construct whose visible content is covered whole, including paired markers and
+ * leading backslashes. Direction is preserved: a backward drag opens the cell with a backward
+ * selection.
  */
 export function resolveRenderedSelection(
     state: EditorState,
@@ -88,7 +88,7 @@ export function resolveRenderedSelection(
 interface RenderedCellAlignment {
     toLocal: Int32Array;
     localLength: number;
-    /** The cell's hidden syntax, for ranges that have to keep its markers paired. */
+    /** The cell's hidden syntax, used to expand selections that cover a construct's visible content. */
     hiddenSpans: HiddenSyntaxSpan[];
 }
 
@@ -109,7 +109,7 @@ function alignRenderedCellText(
 
     // The asynchronous renderer initially displays literal cell text.
     if (renderedText === localText) {
-        // Nothing is hidden while the literal text stands, so no range can split a marker pair.
+        // The literal text exposes every source character, so ranges need no expansion.
         return {
             toLocal: Int32Array.from({ length: localText.length }, (_, index) => index),
             localLength: localText.length,

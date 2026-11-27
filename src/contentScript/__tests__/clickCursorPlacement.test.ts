@@ -547,6 +547,36 @@ describe('rendered range mapping', () => {
         );
     });
 
+    it('takes the leading backslash when a selection starts on an escaped character', () => {
+        expect(
+            rangePlacement(cellDoc('test \\*\\*escaped\\*\\* formatting'), cell, {
+                renderedText: 'test **escaped** formatting',
+                anchor: 5,
+                head: 16,
+            })
+        ).toBe('test [\\*\\*escaped\\*\\*] formatting');
+    });
+
+    it('expands through an escaped leading character to include an enclosing formatted construct', () => {
+        expect(
+            rangePlacement(cellDoc('a **\\*bold** b'), cell, {
+                renderedText: 'a *bold b',
+                anchor: 2,
+                head: 7,
+            })
+        ).toBe('a [**\\*bold**] b');
+    });
+
+    it('leaves an adjacent backslash escape outside a selection that stops before it', () => {
+        expect(
+            rangePlacement(cellDoc('test \\*\\*escaped\\*\\* formatting'), cell, {
+                renderedText: 'test **escaped** formatting',
+                anchor: 0,
+                head: 5,
+            })
+        ).toBe('[test ]\\*\\*escaped\\*\\* formatting');
+    });
+
     it('leaves the delimiters outside a range within a formatted word', () => {
         expect(
             rangePlacement(cellDoc('test **bold text** aaa'), cell, {

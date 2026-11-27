@@ -17,11 +17,11 @@ export interface CellTextProjection {
 /**
  * A run of hidden source, with the range of the construct it belongs to.
  *
- * A paired marker - the `**` of a strong span, the `](url)` of a link, the `<ins>` of an
- * explicitly closed HTML element - is a span whose owner reaches beyond it to its partner at the
- * other end. Syntax hidden whole, such as an entity or an unmatched tag, owns exactly itself and
- * so has no partner; {@link balanceSyntaxMarkers} tells the two apart by that. All offsets are in
- * the nested editor's decoded text.
+ * Syntax that wraps or prefixes visible content - the `**` of a strong span, the `](url)` of a
+ * link, the `<ins>` of an explicitly closed HTML element, the `\` of a backslash escape - has an
+ * owner reaching beyond the hidden run across that visible content. Syntax hidden whole, such as
+ * an entity or an unmatched tag, owns exactly itself; {@link balanceSyntaxMarkers} tells the two
+ * apart by that. All offsets are in the nested editor's decoded text.
  */
 export interface HiddenSyntaxSpan {
     from: number;
@@ -183,7 +183,7 @@ export function projectCellText(
         from: localOffsets[clamp(from - cell.editableFrom, 0, rootText.length)]!,
         to: localOffsets[clamp(to - cell.editableFrom, 0, rootText.length)]!,
     });
-    /** Hides `from`-`to`, as part of `owner` when the syntax is one marker of a pair. */
+    /** Hides `from`–`to`, with an `owner` spanning the full construct for paired markers and escape prefixes. */
     const exclude = (from: number, to: number, owner?: { from: number; to: number }): void => {
         const span = toLocal(from, to);
         hidden.fill(1, span.from, span.to);
@@ -210,7 +210,7 @@ export function projectCellText(
                 case 'Escape':
                     // Pipe escapes are already removed by the root-to-local codec.
                     if (state.doc.sliceString(node.from, node.to) !== '\\|') {
-                        exclude(node.from, node.from + 1);
+                        exclude(node.from, node.from + 1, node);
                     }
                     return false;
                 case 'HTMLTag': {
@@ -247,8 +247,8 @@ export function projectCellText(
     return { text, toLocal: Int32Array.from(offsets), hiddenSpans };
 }
 
-/** A paired construct and the visible content between its opening and closing syntax. */
-interface PairedConstruct {
+/** A construct and the visible content bounded by its hidden syntax. */
+interface SyntaxConstruct {
     ownerFrom: number;
     ownerTo: number;
     contentFrom: number;
@@ -256,12 +256,13 @@ interface PairedConstruct {
 }
 
 /**
- * Groups paired markers by construct. A construct can hide several runs at one end - a link's
- * `](url)` and its own `)` both end at the link's end - so its content starts after the furthest
- * opening run and stops before the earliest closing run.
+ * Groups hidden markers by owning construct. A construct can hide several runs at one end - a
+ * link's `](url)` and its own `)` both end at the link's end - or only prefix its content, like
+ * the `\` of `\*`, so its content starts after the furthest opening run and stops before the
+ * earliest closing run.
  */
-function pairedConstructs(hiddenSpans: readonly HiddenSyntaxSpan[]): PairedConstruct[] {
-    const constructs = new Map<string, PairedConstruct>();
+function syntaxConstructs(hiddenSpans: readonly HiddenSyntaxSpan[]): SyntaxConstruct[] {
+    const constructs = new Map<string, SyntaxConstruct>();
     for (const { from, to, ownerFrom, ownerTo } of hiddenSpans) {
         const opens = from === ownerFrom && to < ownerTo;
         const closes = to === ownerTo && from > ownerFrom;
@@ -285,11 +286,13 @@ function pairedConstructs(hiddenSpans: readonly HiddenSyntaxSpan[]): PairedConst
  *
  * This matches the rule Joplin's own editor applies to rendered-Markdown selections: selecting
  * `bold` in `this is **bold**` yields `**bold**`, and so does `is bold` (`is **bold**`), so a range
- * never holds one marker of a pair without the other. A range that covers only part of a
- * construct's content - `te[st **bold te]xt**` - is left as the characters it covered.
- * Syntax with no partner - an entity, an image, a tag the cell never closes - owns itself and is
- * never drawn in. An empty range stays a caret.
- * The loop repeats because constructs nest: `***both***` and `**[link](url)**` close twice over.
+ * never holds one marker of a pair without the other. Selecting an escaped character such as `*`
+ * in `\*` likewise takes its leading backslash. A range that covers only part of a construct's
+ * content - `te[st **bold te]xt**` - is left as the characters it covered.
+ * Syntax with no visible content of its own - an entity, an image, a tag the cell never closes -
+ * owns itself and is never drawn in. An empty range stays a caret.
+ * The loop repeats because constructs nest: `***both***`, `**[link](url)**`, and `**\*bold**`
+ * expand from inside out.
  */
 export function balanceSyntaxMarkers(span: SourceSpan, hiddenSpans: readonly HiddenSyntaxSpan[]): SourceSpan {
     let { from, to } = span;
@@ -297,7 +300,7 @@ export function balanceSyntaxMarkers(span: SourceSpan, hiddenSpans: readonly Hid
         return span;
     }
 
-    const constructs = pairedConstructs(hiddenSpans);
+    const constructs = syntaxConstructs(hiddenSpans);
     for (let grew = true; grew;) {
         grew = false;
         for (const construct of constructs) {
