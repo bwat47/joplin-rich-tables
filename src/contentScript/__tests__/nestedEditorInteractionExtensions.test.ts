@@ -35,11 +35,12 @@ function dispatchPaste(target: HTMLElement, text: string): void {
 }
 
 function createPasteView(): EditorView {
+    const mainView = viewHarness.mountView({ doc: '' });
     return viewHarness.mountView({
         state: EditorState.create({
             doc: 'selected text',
             selection: EditorSelection.single(0, 'selected'.length),
-            extensions: createNestedEditorInteractionExtensions({} as EditorView, {
+            extensions: createNestedEditorInteractionExtensions(mainView, {
                 closeEditor: vi.fn(),
                 syncPendingChangesToRoot: vi.fn(),
             }),

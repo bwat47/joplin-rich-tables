@@ -3,7 +3,7 @@ import { vi, type Mock } from 'vitest';
 
 import type { StructuralActionId } from '../../contentScriptBridge/structuralCommandCatalog';
 import { refocusNestedEditor } from '../nestedEditor/nestedEditorController';
-import type { MarkdownTable, TableAlignment } from '../tableModel/MarkdownTable';
+import { MarkdownTable, type TableAlignment } from '../tableModel/MarkdownTable';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import { runStructuralAction } from '../tableRuntime/operations/structuralActions';
 import type { ActiveCell } from '../tableState/activeCellState';
@@ -44,7 +44,7 @@ describe('structuralActions', () => {
                 from: activeCell.tableFrom,
                 to: 100,
                 text: '',
-                table: {} as MarkdownTable,
+                table: MarkdownTable.fromParts({ headerCells: [], alignments: [], bodyRows: [] }),
                 cellRanges: { headers: [], rows: [] },
             },
         };

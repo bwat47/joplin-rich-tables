@@ -13,7 +13,7 @@ describe('domContext', () => {
             dom: {
                 ownerDocument: fakeDocument,
             },
-        } as EditorView;
+        } as unknown as EditorView;
 
         expect(getDocumentWindow(fakeDocument)).toBe(fakeWindow);
         expect(requestViewAnimationFrame(fakeView, callback)).toBe(42);

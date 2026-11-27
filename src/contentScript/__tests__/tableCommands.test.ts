@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import { vi, type Mock } from 'vitest';
 
 import { registerTableCommands } from '../tableCommands/tableCommands';
-import type { MarkdownTable } from '../tableModel/MarkdownTable';
+import { MarkdownTable } from '../tableModel/MarkdownTable';
 import { runStructuralCommand } from '../tableRuntime/operations/runStructuralCommand';
 import type { ActiveCell } from '../tableState/activeCellState';
 import { getResolvedActiveCell, type ResolvedActiveCell } from '../tableState/resolvedActiveCell';
@@ -47,7 +47,7 @@ describe('tableCommands', () => {
                 from: activeCell.tableFrom,
                 to: 100,
                 text: '',
-                table: {} as MarkdownTable,
+                table: MarkdownTable.fromParts({ headerCells: [], alignments: [], bodyRows: [] }),
                 cellRanges: { headers: [], rows: [] },
             },
         }) satisfies ResolvedActiveCell;
