@@ -55,9 +55,10 @@ export function resolveClickCursorPos(
  * Resolves the range a rendered-text drag selected into the cell's own text.
  *
  * One alignment answers both ends, and `mapSelectionToSource` reads the span off the rendered
- * characters the drag covered, so the Markdown syntax around them is included at both ends or
- * neither, and `balanceSyntaxMarkers` keeps the range from holding half of a construct it
- * reaches into. Direction is preserved: a backward drag opens the cell with a backward selection.
+ * characters the drag covered. `balanceSyntaxMarkers` then expands the span to include the hidden
+ * syntax of every paired construct whose visible content is covered whole, keeping markers paired
+ * and matching Joplin's rendered-Markdown selection behavior. Direction is preserved: a backward
+ * drag opens the cell with a backward selection.
  */
 export function resolveRenderedSelection(
     state: EditorState,
