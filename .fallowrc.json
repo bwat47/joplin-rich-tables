@@ -3,6 +3,9 @@
     "entry": ["src/index.ts", "src/contentScript/tableWidgetExtension.ts"],
     "supportEntry": ["src/**/*.test.ts"],
     "ignorePatterns": ["**/*.d.ts", "api/**"],
+    "typeAware": {
+        "enabled": true
+    },
     "rules": {
         "complexity-crap": "off",
         "dev-dependencies-in-production": "off",
